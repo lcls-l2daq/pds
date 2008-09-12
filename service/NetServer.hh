@@ -25,10 +25,7 @@ class NetServer : public Port, public OobServer
   public:
     virtual int      pend        (int flag = 0);
     virtual int      fetch       (char* payload, int flags);
-    //    virtual int      fetchHeader (int flags);
-    //    virtual int      fetchPayload(char* payload, int flags);
-
-    //    int      fetch(ZcpDatagram& , int flags);
+    virtual int      fetch       (ZcpFragment& , int flags);
   public:
     const char* datagram() const;
   private:
@@ -58,7 +55,7 @@ class NetServer : public Port, public OobServer
     char*              _datagram;       // -> buffer for current  datagram
     char**             _payload;        // Pointer to -> buffer current payload
     struct msghdr      _hdr;            // Control structure socket receive 
-    struct msghdr      _zhdr;           // Control structure socket receive for zero-copy fetches
+    struct msghdr      _hdro;           // Control structure socket receive for header-only fetches
     struct iovec       _iov[2];         // Buffer description socket receive 
     struct sockaddr_in _src;            // Socket name source machine
     int                _maxPayload;     // Maximum payload size

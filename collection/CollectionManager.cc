@@ -165,7 +165,6 @@ int CollectionManager::handleError(int value)
 
 int CollectionManager::processIo(Server* srv) 
 {
-  printf("CollectionManager::processIo srvId %d\n",srv->id());
   return srv->pend(MSG_DONTWAIT);
 }
 

@@ -24,6 +24,7 @@
 #include <strings.h>
 
 #include "NetServer.hh"
+#include "ZcpFragment.hh"
 #include "Sockaddr.hh"
 
 using namespace Pds;
@@ -51,7 +52,7 @@ void NetServer::_construct(int sizeofDatagram, int maxPayload)
   _hdr.msg_namelen      = sizeof(_src);
   _hdr.msg_iov          = &_iov[0];
 
-  _zhdr = _hdr;
+  _hdro = _hdr;
 
   if((_sizeofDatagram = sizeofDatagram))
     {
@@ -62,13 +63,13 @@ void NetServer::_construct(int sizeofDatagram, int maxPayload)
     _payload         = (char**)&_iov[1].iov_base;
     _iov[1].iov_len  = maxPayload;
     _hdr.msg_iovlen  = (_maxPayload = maxPayload) ? 2 : 1;
-    _zhdr.msg_iovlen = 1;
+    _hdro.msg_iovlen = 1;
     }
   else
     {
     _payload         = (char**)&_iov[0].iov_base;
     _hdr.msg_iovlen  = 1;
-    _zhdr.msg_iovlen = 0;
+    _hdro.msg_iovlen = 0;
     _datagram        = (char*)0;
     _iov[0].iov_len  = maxPayload;
     _maxPayload      = maxPayload;
@@ -205,77 +206,26 @@ int NetServer::fetch      (char* payload, int flags)
   }
 
 /*
-int NetServer::fetchHeader(int flags)
+**  Zero-copy implementation of fetch.  Uses the splice system calls
+**  available in gcc version 4.
+*/
+
+int NetServer::fetch      (ZcpFragment& dg, int flags)
 {
-  int iovlen = _hdr.msg_iovlen;
-  _hdr.msg_iovlen = 1;
+  int length = ::recvmsg(_socket, &_hdro, flags | MSG_PEEK | MSG_TRUNC);
+  if (length >= 0)
+    length = dg.kinsert(_socket, 1);
 
-  int length = recvmsg(_socket, &_hdr, flags);
-
-  _hdr.msg_iovlen = iovlen;
+  if (length == -1) {
+    printf("NetServer::fetch failed ZcpFragment %p  flags %x  socket %d\n",
+	   &dg, flags, _socket);
+    handleError(errno);
+    length = 0;
+  }
 
   return length;
 }
 
-int NetServer::fetchPayload(char* payload, int flags)
-  {
-  int iovlen = _hdr.msg_iovlen;
-  _hdr.msg_iovlen = 1;
-  _hdr.msg_iov = &_iov[1];
-
-  *_payload  = payload;
-
-  int length = recvmsg(_socket, &_hdr, flags);
-
-  _hdr.msg_iovlen = iovlen;
-  _hdr.msg_iov    = &_iov[0];
-
-  if(length != - 1)
-    {
-#ifdef ODF_LITTLE_ENDIAN
-    _swap(length);
-#endif
-    length -= sizeofDatagram();
-    if(length < 0) length = 0;
-    }
-  else
-    {
-    handleError(errno);
-    length = 0;
-    }
-
-  return length;
-  }
-*/
-/*
-**    This function hangs a read on the port associated with the server.
-**    The read is implemented as a recvmsg for the fixed size datagram
-**    portion and a zero-copy "splice" for the payload.
-*/
-/*
-#include "pds/zcp/ZcpDatagram.hh"
-
-//
-//  We should eliminate the ::recvmsg call and grab the header with the
-//  zdg.insert() call as well.  The header can be retrieved from zdg
-//  by the user-space access methods.  That would eliminate one extra
-//  trip into the network stack.
-//
-int NetServer::fetch(ZcpDatagram& zdg, int flags)
-  {
-  int length = ::recvmsg(_socket, &_zhdr, flags | MSG_PEEK | MSG_TRUNC);
-  if (length >= 0)
-    length = zdg.kinsert(_socket, 1);
-
-  if(length == - 1)
-    {
-    handleError(errno);
-    length = 0;
-    }
-
-  return length;
-  }
-*/
 /*
 ** ++
 **

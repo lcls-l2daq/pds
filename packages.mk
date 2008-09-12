@@ -1,2 +1,2 @@
 # List of packages (low level first)
-packages := service collection
+packages := service collection xtc utility management

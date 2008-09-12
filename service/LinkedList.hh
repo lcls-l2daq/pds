@@ -31,6 +31,7 @@ class ListBase
     ListBase* connect(ListBase* after);
     ListBase* disconnect();
     ListBase* insert(ListBase*);
+    ListBase* insertList(ListBase*);
     ListBase* remove();
     ListBase* empty()  const;   
     ListBase* forward() const;
@@ -160,6 +161,30 @@ inline Pds::ListBase* Pds::ListBase::insert(ListBase* entry)
 /*
 ** ++
 **
+**   This function assumes the object and the input argument 'entry' 
+**   represent the listhead of doubly linked lists.  The function
+**   inserts the 'entry' list at the tail of this object's list
+**   leaving the 'entry' list empty upon return.
+**
+** --
+*/
+
+inline Pds::ListBase* Pds::ListBase::insertList(ListBase* entry)
+{                                                               
+  if (entry->_flink != entry) {
+    this ->_blink->_flink = entry->_flink;
+    entry->_flink->_blink = this ->_blink;
+    this ->_blink = entry->_blink;
+    entry->_blink->_flink = this;
+    entry->_flink = entry;
+    entry->_blink = entry;
+  }
+  return this;
+}
+
+/*
+** ++
+**
 **   Constructor with a single argument, inserts the object at the tail
 **   of the list identified by the argument.
 **
@@ -203,7 +228,8 @@ class LinkedList : public ListBase
     LinkedList(T* listhead) : ListBase(listhead) {}
     T* connect(T* after)          {return (T*)ListBase::connect(after);}
     T* disconnect()               {return (T*)ListBase::disconnect();}
-    T* insert(ListBase* entry) {return (T*)ListBase::insert(entry);}
+    T* insert(ListBase* entry)    {return (T*)ListBase::insert(entry);}
+    T* insertList(ListBase* list) {return (T*)ListBase::insertList(list);}
     T* remove()                   {return (T*)ListBase::remove();}
     T* empty()  const             {return (T*)ListBase::empty();}
     T* forward() const            {return (T*)ListBase::forward();}

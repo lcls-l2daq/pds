@@ -5,7 +5,7 @@
 
 namespace Pds {
 
-class ZcpDatagram;
+class ZcpFragment;
 
 class Server : public LinkedList<Server>
   {
@@ -24,10 +24,7 @@ class Server : public LinkedList<Server>
     virtual int      pend        (int flag = 0)             = 0;
 
     virtual int      fetch       (char* payload, int flags) = 0;
-    //    virtual int      fetchHeader (int flags)                = 0;
-    //    virtual int      fetchPayload(char* payload, int flags) = 0;
-
-    //    int      fetch(ZcpDatagram& , int flags);
+    virtual int      fetch       (ZcpFragment& , int flags) = 0;
 
     //    virtual const char* datagram() const = 0;
   private:
