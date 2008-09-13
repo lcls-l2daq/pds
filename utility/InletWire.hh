@@ -1,0 +1,43 @@
+#ifndef PDS_INLETWIRE_HH
+#define PDS_INLETWIRE_HH
+
+namespace Pds {
+
+class Server;
+class Transition;
+class Datagram;
+class InletWireIns;
+class Task;
+
+class InletWire {
+public:
+  InletWire(int taskpriority, const char* taskname);
+  virtual ~InletWire();
+
+  Task& task();
+
+  virtual void connect() = 0;
+  virtual void disconnect() = 0;
+  virtual void post(const Transition& tr) = 0;
+  virtual void post(const Datagram& dg) = 0;
+  virtual void add_input   (Server*) = 0;
+  virtual void remove_input(Server*) = 0;
+  virtual void trim_input  (Server*) = 0;
+  virtual void add_output(const InletWireIns& iwi) = 0;
+  virtual void remove_output(const InletWireIns& iwi) = 0;
+  virtual void trim_output(const InletWireIns& iwi) = 0;
+  virtual unsigned short port(unsigned id) const = 0;
+
+  // Debugging
+  virtual void dump(int detail) {}
+  virtual void dumpCounters(int detail) {}
+  virtual void resetCounters() {}
+  virtual void dumpHistograms(unsigned tag, const char* path) {}
+  virtual void resetHistograms() {}
+
+private:
+  Task* _task;
+};
+}
+
+#endif

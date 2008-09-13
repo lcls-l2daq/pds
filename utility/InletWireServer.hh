@@ -1,0 +1,88 @@
+#ifndef PDS_INLETWIRESERVER_HH
+#define PDS_INLETWIRESERVER_HH
+
+#include "InletWire.hh"
+#include "pds/service/ServerManager.hh"
+#include "pds/service/GenericPool.hh"
+#include "pds/service/SelectDriver.hh"
+//#include "StreamParams.hh"
+#include "pds/service/EbBitMaskArray.hh"
+#include "pds/service/Semaphore.hh"
+
+namespace Pds {
+
+class Datagram;
+class Transition;
+class Inlet;
+class OutletWire;
+
+class InletWireServer : public InletWire, public ServerManager {
+public:
+  InletWireServer(Inlet& inlet,
+		  OutletWire& outlet,
+		  int ipaddress,
+		  int stream, 
+		  int taskpriority,
+		  const char* taskname,
+		  unsigned timeout = 0);
+
+  // Implements InletWire thread safely (through unblock)
+  unsigned short port(unsigned id) const;
+  void connect();
+  void disconnect();
+  void post(const Transition&);
+  void post(const Datagram&);
+
+  void add_input   (Server*);
+  void remove_input(Server*);
+  void trim_input  (Server*);
+
+  void add_output(const InletWireIns& iwi);
+  void remove_output(const InletWireIns& iwi);
+  void trim_output(const InletWireIns& iwi);
+
+  // Must be reimplemented by those inlets which need to add and remove servers
+  //  virtual Server* accept(unsigned id, const Ins& rcvr) = 0;
+  virtual Server* accept(Server*) = 0;
+  virtual void remove(unsigned id) = 0;
+  virtual void flush() = 0;
+
+protected:
+  virtual ~InletWireServer();
+
+private:
+  // Implements the server in ServerManager
+  virtual char* payload();
+  virtual int commit(char* datagram, char* load, int size, const Ins& src); 
+  virtual int handleError(int value);
+
+  // Implements ServerManager
+  virtual int processIo(Server* srv);
+  virtual int processTmo();
+
+  // Used internally, not really necessary
+  void _add_input   (Server*);
+  void _remove_input(Server*);
+
+  void add_output(unsigned id, const Ins& rcvr, int mcast);
+  void remove_output(unsigned id);
+
+protected:
+  Inlet& _inlet;
+  OutletWire& _outlet;
+  //  StreamParams::StreamType _stream;
+  int _ipaddress;
+
+private:
+  int            _mcast[EbBitMaskArray::BitMaskBits];
+  unsigned short _ports[EbBitMaskArray::BitMaskBits];
+  EbBitMaskArray _outputs;
+  char*          _payload;
+  char*          _transition;
+  GenericPool    _datagrams;
+  SelectDriver   _driver;
+  Semaphore      _sem;
+};
+}
+#endif
+
