@@ -4,46 +4,41 @@
 #include <sys/uio.h>
 
 #include "OutletWire.hh"
+#include "ToNetEb.hh"
 
 #include "OutletWireInsList.hh"
 #include "pds/xtc/xtc.hh"
 
 namespace Pds {
 
-class Outlet;
-class Datagram;
-//class AckHandler;
-//class AckRequest;
+  class CollectionManager;
+  class Outlet;
+  class Datagram;
 
-class ToEventWire : public OutletWire {
-public:
-  ToEventWire(Outlet& outlet, 
-	      unsigned slot,
-	      unsigned clients,
-	      const Src& src);
-	      //	      AckHandler& ack_handler);
-  ~ToEventWire();
+  class ToEventWire : public OutletWire {
+  public:
+    ToEventWire(Outlet& outlet,
+		CollectionManager&,
+		int);
+    ~ToEventWire();
 
-  virtual void bind(unsigned id, const Ins& node, int mcast);
-  virtual void unbind(unsigned id);
+    virtual Transition* forward(Transition* dg);
+    virtual InDatagram* forward(InDatagram* dg);
+    virtual void bind(unsigned id, const Ins& node);
+    virtual void unbind(unsigned id);
+    
+    // Debugging
+    virtual void dump(int detail);
+    virtual void dumpHistograms(unsigned tag, const char* path);
+    virtual void resetHistograms();
 
-  // Debugging
-  virtual void dump(int detail);
-  virtual void dumpHistograms(unsigned tag, const char* path);
-  virtual void resetHistograms();
-
-protected:
-  OutletWireIns* prepareEvent   (const Datagram&);
-  //				 AckRequest*&);
-
-  bool isempty() const {return _nodes.isempty();}
-
-private:
-  OutletWireInsList _nodes;
-  OutletWireIns     _mcast;
-  //  AckHandler& _ack_handler;
-  Src _id;
-};
+    bool isempty() const {return _nodes.isempty();}
+    
+  private:
+    OutletWireInsList _nodes;
+    CollectionManager& _collection;
+    ToNetEb _postman;
+  };
 }
 
 #endif

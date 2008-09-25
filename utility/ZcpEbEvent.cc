@@ -27,8 +27,9 @@ using namespace Pds;
 
 ZcpEbEvent::ZcpEbEvent(EbBitMask    creator,
 		       EbBitMask    contract,
-		       ZcpDatagram* zdatagram) :
-  EbEventBase   ( creator, contract, const_cast<Datagram*>(&zdatagram->datagram()) ),
+		       ZcpDatagram* zdatagram,
+		       EbEventKey*  key) :
+  EbEventBase   ( creator, contract, const_cast<Datagram*>(&zdatagram->datagram()), key ),
   _zdatagram    (zdatagram),
   _pending      (),
   _segments     (&_pool[0])

@@ -2,6 +2,7 @@
 #define PDS_STREAMPORTS_HH
 
 #include "pds/service/Ins.hh"
+#include "pds/collection/Level.hh"
 #include "StreamParams.hh"
 
 //
@@ -10,13 +11,11 @@
 //    (2) fragments that flood event data to all partitions
 //
 namespace PdsStreamPorts {
-  unsigned eventMcastAddr(unsigned partition,
-			  unsigned eventId);
-  unsigned mcastAddrBld  (unsigned fragmentId);
-
-  unsigned short eventPort(unsigned fragment);
-  unsigned short portBld  (unsigned stream,
-			   unsigned fragmentId);
+  Pds::Ins event     (unsigned         partition,
+		      Pds::Level::Type level,
+		      unsigned         dstid=0,
+		      unsigned         srcid=0);
+  Pds::Ins bld       (unsigned         id);
 }
 
 namespace Pds {

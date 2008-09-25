@@ -2,6 +2,8 @@
 #define PDSTRANSITION_HH
 
 #include "Message.hh"
+#include "pds/xtc/Sequence.hh"
+#include "pds/service/Pool.hh"
 
 namespace Pds {
 
@@ -13,28 +15,27 @@ public:
     BeginRun, EndRun,
     Pause, Resume,
     Enable, Disable,
-    SoftL1
+    L1Accept
   };
-  Transition(Id id);
+  enum Phase { Execute, Record };
 
-  Id id() const;
+  Transition(const Transition&);
+  Transition(Id              id,
+	     Phase           phase,
+	     const Sequence& sequence,
+	     unsigned        env);
 
+  Id              id      () const;
+  Phase           phase   () const;
+  const Sequence& sequence() const;
+  unsigned        env     () const;
+
+  PoolDeclare;
 private:
-  Id _id;
+  Id       _id;
+  Phase    _phase;
+  Sequence _sequence;
+  unsigned _env;
 };
-
-  class L1Transition : public Transition {
-  public:
-    L1Transition(unsigned key) : Transition(Transition::SoftL1), _key(key) 
-    {
-      _size = sizeof(*this);
-    }
-    
-    unsigned key() const { return _key; }
-    
-  private:
-    unsigned _key;
-  };
-
 }
 #endif

@@ -7,7 +7,7 @@ namespace Pds {
 
   class EbPulseId {
   public:
-    EbPulseId() {}
+    EbPulseId() { _data[0]=_data[1]=-1UL; }
     EbPulseId(const EbPulseId& p) { _data[0]=p._data[0]; _data[1]=p._data[1]; }
     EbPulseId(const Sequence&  s) { _data[0]=s.low();    _data[1]=s.high(); }
 

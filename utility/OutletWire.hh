@@ -3,6 +3,7 @@
 
 namespace Pds {
 
+class Transition;
 class Datagram;
 class InDatagram;
 class Outlet;
@@ -13,8 +14,9 @@ public:
   OutletWire(Outlet& outlet);
   virtual ~OutletWire();
 
+  virtual Transition* forward(Transition* dg) = 0;
   virtual InDatagram* forward(InDatagram* dg) = 0;
-  virtual void bind(unsigned id, const Ins& node, int mcast) = 0;
+  virtual void bind(unsigned id, const Ins& node) = 0;
   virtual void unbind(unsigned id) = 0;
 
   // Debugging

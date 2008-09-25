@@ -35,20 +35,16 @@ Eb::Eb(const Src& id,
        int ipaddress,
        unsigned eventsize,
        unsigned eventpooldepth,
-       unsigned netbufdepth,
-       const EbTimeouts& ebtimeouts,
 #ifdef USE_VMON
        const VmonEb& vmoneb,
 #endif
        const Ins* dstack) :
   EbBase(id, level, inlet, outlet, stream, ipaddress,
-	 eventpooldepth, netbufdepth,
-	 ebtimeouts,
 #ifdef USE_VMON
 	 vmoneb,
 #endif
 	 dstack),
-  _datagrams(eventsize, eventpooldepth+1),
+  _datagrams(eventsize, eventpooldepth),
   _events(sizeof(EbEvent), eventpooldepth)
 {
 }
@@ -74,53 +70,15 @@ void Eb::_fixup( EbEventBase* event, const Src& client )
   ev->fixup ( client, _dummy );
 }
 
-/*
-** ++
-**
-**    This function is called for each contribution received from the
-**    client it serves and thus forms the heart of event building. At
-**    this point the contribution has already been copied into memory
-**    at the addresses specified by the "payload" function described
-**    above. However, the address and size of the payload is passed as
-**    arguments to this function. In addition, the Datagram header is
-**    copied into a separate buffer and passed as an argument ("header").
-**    The client's IP address is also passed as an argument, but is not
-**    used by this function. Recall, that the payload memory is allocated
-**    one event ahead and although the server contains a pointer to the
-**    event the contribution was copied into, the event specified by the
-**    just arrived contribution may not correspond to the cached event.
-**    So, first a search is made to find out what event the contribution
-**    really belongs to. In the (hopefully, unlikely) event that the
-**    cache is wrong, the right event must be found and the contribution
-**    recopied into the new event. Statistics are kept on how often the
-**    cache is hit or missed.
-**    Once the event is located, the arrived contribution is than marked
-**    off the list of contributions for which the event is waiting on
-**    to complete ("event->consume"). This function returns a segment
-**    descriptor if the arrived contribution was a fragment and more
-**    fragments are still expected. If not the case and this is the last
-**    contribution the event is waiting on ("event->remaining"), the built
-**    datagram associated with the event is posted to its downstream
-**    appliance and the event is returned to its free-list.
-**    The function must return a non-zero value if the server's pending
-**    function (from which this function is invoked) is to be re-invoked
-**    without re-scheduling with any of this server's peers (see
-**    "ManagedServers". This is the case when the server has a segment
-**    in processio(i.e., its being built), because most likely the next
-**    fragment is already in the receive queue. Not only does this save us
-**    the overhead of going into the "ManagedServers's" select
-**    unnecessarily, it allows the server to make a better guess as to what
-**    buffer to allocate for the next received contribution.
-**
-** --
-*/
-
 int Eb::processIo(Server* serverGeneric)
 {
 #ifdef VERBOSE
   printf("Eb::processIo srvId %d\n",serverGeneric->id());
 #endif
   EbServer* server = (EbServer*)serverGeneric;
+
+  //  Find the next event waiting for a contribution from this server.
+  //  If the event is better handled later (to avoid a copy) return 0.
   EbEvent*  event  = (EbEvent*)_event(server);
 #ifdef VERBOSE
   printf("Eb::processIo event %p\n", event);
@@ -128,6 +86,7 @@ int Eb::processIo(Server* serverGeneric)
   if (!event) // Can't accept this contribution yet, may take it later
     return 0;
 
+  //  Allocate space within this event-under-construction and receive the contribution.
   EbBitMask serverId;
   serverId.setBit(server->id());
   int sizeofPayload  = server->fetch(event->payload(serverId), MSG_DONTWAIT);
@@ -138,41 +97,46 @@ int Eb::processIo(Server* serverGeneric)
 #endif
   server->keepAlive();
 
-  if(!sizeofPayload) {  // no payload
+  //  If there was an error on receive, remove the contribution from the event.
+  //  Remove the event if this was the only contribution.
+  if(sizeofPayload<0) {
     if(event->deallocate(serverId).isZero()) { // this was the only contributor
-      delete event->datagram();
-      _eventpooldepth++;
+      delete event->finalize();
       delete event;
     }
     return 1;
   }
 
-  const EbPulseId* key = reinterpret_cast<const EbPulseId*>(server->key(EbKey::PulseId));
-  if(!server->matches(event->key())) {
+  //  The event key for the contribution may not match that of the event for two reasons:
+  //  (1) it is the first contribution, and the event's key(s) are not yet set; or
+  //  (2) the contribution came from a later event than expected.
+
+  if(!server->coincides(event->key())) {
 #ifdef VERBOSE
     printf("Eb::processIo key mismatch\n");
-    event->key().print();
 #endif
-    if(event == event->forward()) {  // new event
-      event->add(key, (EbEvent*)_seek(server));
-#ifdef VERBOSE
-      printf("Adding key to event\n");
-      event->key().print();
-#endif
+    if(event == event->forward()) {  // case (1)
+      event->connect((EbEvent*)_seek(server));
     }
-    else {
+    else { 
+      // case (2):  Remove the contribution from this event.  Now that we have the contribution's
+      //            header, we can definitely search for the correct event-under-construction
+      //            and copy the payload there.  If the correct event doesn't yet exist, it will
+      //            be created, if possible.
       _misses++;
       char* payload = event->payload(serverId);
-      event->deallocate(serverId);
+      event->deallocate(serverId);  // remove the contribution from this event
 #ifdef VERBOSE
       printf("Eb::processIo missed event %p\n", event);
 #endif
-      if (!(event = (EbEvent*)_seek(server,serverId))) {  
-#ifdef VERBOSE
-	printf("Eb::processIo miss is fatal\n");
-#endif
-	return 0;
+      event = (EbEvent*)_seek(server);
+      if (event == (EbEvent*)_pending.empty() ||
+	  !server->coincides(event->key())) {
+	EbEvent* new_ev = (EbEvent*)_new_event(serverId);
+	new_ev->connect(event);
+	event = new_ev;
       }
+
 #ifdef VERBOSE
       printf("Eb::processIo recopy to event %p\n", event);
 #endif
@@ -180,34 +144,21 @@ int Eb::processIo(Server* serverGeneric)
       event->recopy(payload, sizeofPayload, serverId);
     }
   }
-  if(event->consume(server, sizeofPayload, serverId)) {  // expect more fragments?
+  server->assign(event->key());
+
+  //  Allow the event-under-construction to account for the added contribution
+  if(sizeofPayload && event->consume(server, sizeofPayload, serverId)) {  // expect more fragments?
     _segments++;
     return 1;
   }
 
-  EbBitMask remaining = event->remaining(serverId);  // remove it from this event's list
   _hits++;
 
 #ifdef VERBOSE
   printf("Eb::processIo remaining %x\n",remaining.value(0));
 #endif
-  //  If this client gave us more than one key re-arm those that could not be
-  //  matched earlier
-  unsigned keyMask = server->keyTypes();
-  EbKey& ekey = event->key();
-  if ((keyMask&=~ekey.types)) {
-    if (keyMask & (1<<EbKey::PulseId))
-      ekey.pulseId = *(EbPulseId*)server->key(EbKey::PulseId);
-    if (keyMask & (1<<EbKey::EVRSequence))
-      ekey.evrSequence = *(EbEvrSequence*)server->key(EbKey::EVRSequence);
-    arm(remaining);
-#ifdef VERBOSE
-    printf("Eb::processIo adding keys %x\n",keyMask);
-    ekey.print();
-#endif
-  }
 
-  if (remaining.isZero())
+  if (_is_complete(event, serverId))
     _postEvent(event);
 
   //  return 0;
@@ -215,13 +166,6 @@ int Eb::processIo(Server* serverGeneric)
   //  In general, events will be flushed by later complete events
   //  (or a full queue) rather than timing out.
   return 1;
-}
-
-
-EbEventBase* Eb::_new_event(const EbBitMask& serverId)
-{
-  CDatagram* datagram = new(&_datagrams) CDatagram(_header, _id);
-  return new(&_events) EbEvent(serverId, _clients, datagram);
 }
 
 

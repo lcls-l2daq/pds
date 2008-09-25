@@ -13,7 +13,7 @@ public:
 
   // virtual functions from Appliance
 
-  Transition* transitions(Transition* tr) { return tr; }
+  Transition* transitions(Transition* tr) {return tr;}
   InDatagram* events     (InDatagram* dg) {return dg;}
   InDatagram* markers    (InDatagram* dg) {return dg;}
   InDatagram* occurrences(InDatagram* dg) {return dg;}

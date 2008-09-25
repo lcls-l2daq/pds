@@ -1,39 +1,67 @@
 #include "StreamPorts.hh"
 
-static const int EventMcastAddr  = 0xefff1100;
-static const int BLDMcastAddr    = 0xefff5100;
-static const unsigned EventPortBase = 10002;
-static const unsigned BLDPortBase   = 10066;
+//
+//  Ranges assume the following limits:
+//    Max Partitions       = 16
+//    Max Level2/partition = 64
+//    Max Level3/partition = 16
+//
+static const int MaxPartitions = 16;
+static const int MaxPartitionL1s = 64;
+static const int MaxPartitionL2s = 64;
+static const int MaxPartitionL3s = 16;
+static const int BaseMcastAddr = 0xefff1100;
+
+// EVR -> L1 : 0xefff1110
+static const int SegmentMcastAddr  = BaseMcastAddr    +MaxPartitions; 
+// L1  -> L2 : 0xefff1120
+static const int EventMcastAddr    = SegmentMcastAddr +MaxPartitions;
+// L2  -> L3 : 0xefff1520
+static const int RecorderMcastAddr = EventMcastAddr   +MaxPartitions*MaxPartitionL2s;
+// L3  -> L0 : 0xefff1100
+static const int ControlMcastAddr  = RecorderMcastAddr+MaxPartitions*MaxPartitionL3s;
+// BLD -> L1,L2 : 0xefff1620
+static const int BLDMcastAddr      = ControlMcastAddr +MaxPartitions;
+
+static const unsigned PortBase         = 10002;
+static const unsigned SegmentPortBase  = PortBase;
+static const unsigned EventPortBase    = SegmentPortBase+1;
+static const unsigned RecorderPortBase = EventPortBase   +MaxPartitionL1s;
+static const unsigned ControlPortBase  = RecorderPortBase+MaxPartitionL2s;
+static const unsigned BLDPortBase      = ControlPortBase +MaxPartitionL3s;
 
 using namespace Pds;
 
-//
-//  Event data is vectored by "eventID"
-//
-unsigned PdsStreamPorts::eventMcastAddr(unsigned partition,
-					unsigned eventId)
+
+Ins PdsStreamPorts::event     (unsigned    partition,
+			       Level::Type level,
+			       unsigned    dstid,
+			       unsigned    srcid)
 {
-  return EventMcastAddr + ((partition<<6) | eventId);
+  switch(level) {
+  case Level::Segment:
+    return Ins(SegmentMcastAddr + partition,
+	       SegmentPortBase);
+  case Level::Event:
+    return Ins(EventMcastAddr + partition*MaxPartitionL2s + dstid,
+	       EventPortBase + srcid);
+  case Level::Recorder:
+    return Ins(RecorderMcastAddr + partition*MaxPartitionL3s + dstid,
+	       RecorderPortBase + srcid);
+  case Level::Control:
+    return Ins(ControlMcastAddr + partition,
+	       ControlPortBase + srcid);
+  default:
+    break;
+  }
+  return Ins();
 }
 
-unsigned short PdsStreamPorts::eventPort(unsigned fragmentId)
+Ins PdsStreamPorts::bld       (unsigned id)
 {
-  return EventPortBase  + fragmentId;
+  return Ins(BLDMcastAddr + id, BLDPortBase);
 }
 
-//
-//  BLD goes to all partitions and all nodes (not vectored)
-//
-unsigned PdsStreamPorts::mcastAddrBld  (unsigned fragmentId)
-{
-  return BLDMcastAddr + fragmentId;
-}
-
-unsigned short PdsStreamPorts::portBld  (unsigned stream,
-					 unsigned fragmentId)
-{
-  return BLDPortBase  + fragmentId + stream*128;
-}
 
 
 StreamPorts::StreamPorts()

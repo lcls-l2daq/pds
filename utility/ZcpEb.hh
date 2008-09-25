@@ -17,8 +17,6 @@ namespace Pds {
 	  int ipaddress,
 	  unsigned eventsize,
 	  unsigned eventpooldepth,
-	  unsigned netbufdepth,
-	  const EbTimeouts& ebtimeouts,
 #ifdef USE_VMON
 	  const VmonEb& vmoneb,
 #endif
@@ -28,9 +26,8 @@ namespace Pds {
     int processIo (Server*);
   private:
     void         _fixup      ( EbEventBase*, const Src& );
-    EbEventBase* _new_event  ( const EbBitMask& );
     void         _dump       ( int detail );
-  private:
+  protected:
     GenericPool _datagrams;    // Datagram freelist
     GenericPool _zfragments;   // Datagram freelist
     GenericPool _events;

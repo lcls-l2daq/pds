@@ -19,14 +19,14 @@ namespace Pds {
 
 class VmonSourceId {
 public:
-  enum Level {Control, Source, Segment, Fragment, Event, Mon, 
+  enum Level {Control, Source, Segment, Event, Recorder, Mon, 
 	      Invalid, NumberOfLevels=Invalid};
 
   VmonSourceId(const VmonSourceId& sourceid)
     : _id(sourceid._id) 
   {}
 
-  VmonSourceId(Level level, unsigned id)
+  VmonSourceId(int level, unsigned id)
     : _id(id)
   {
     _id &= ~(0xff<<24);

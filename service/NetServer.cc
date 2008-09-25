@@ -186,7 +186,7 @@ int NetServer::fetch      (char* payload, int flags)
 
   int length = recvmsg(_socket, &_hdr, flags);
 
-  if(length != - 1)
+  if(length >= 0)
     {
 #ifdef ODF_LITTLE_ENDIAN
     _swap(length);
@@ -199,7 +199,6 @@ int NetServer::fetch      (char* payload, int flags)
       printf("NetServer::fetch failed payload %p  flags %x  socket %d\n",
 	     payload, flags, _socket);
     handleError(errno);
-    length = 0;
     }
 
   return length;
@@ -220,7 +219,6 @@ int NetServer::fetch      (ZcpFragment& dg, int flags)
     printf("NetServer::fetch failed ZcpFragment %p  flags %x  socket %d\n",
 	   &dg, flags, _socket);
     handleError(errno);
-    length = 0;
   }
 
   return length;
@@ -254,7 +252,8 @@ int NetServer::pend(int flags)
   *_payload  = body;
 
   int length = recvmsg(_socket, &_hdr, flags);
-  if (!length) return handleError(EWOULDBLOCK);
+
+  if (!length)  return handleError(EWOULDBLOCK);
 
   int repend;
 
@@ -297,8 +296,8 @@ int NetServer::commit(char* key,
 
 int NetServer::handleError(int value)
 {
-  printf("*** NetServer::handleError error: %s\n",
-         strerror(value));
+  printf("*** NetServer::handleError error  socket %d: %s\n",
+         _socket, strerror(value));
   return 1;
 }
 
@@ -315,8 +314,27 @@ int NetServer::handleError(int value)
 ** --
 */
 
+int NetServer::unblock(char* datagram)
+{
+  struct msghdr hdr;
+  struct iovec  iov[1];
+
+  iov[0].iov_base = (caddr_t)datagram;
+  iov[0].iov_len  = sizeofDatagram();
+
+  Sockaddr sa(*this);
+  hdr.msg_name         = (caddr_t)sa.name();
+  hdr.msg_namelen      = sa.sizeofName();
+  hdr.msg_control      = (caddr_t)0;
+  hdr.msg_controllen   = 0;
+  hdr.msg_iovlen    = 1;
+  hdr.msg_iov       = &iov[0];
+
+  return sendmsg(_socket, &hdr, SendFlags) != - 1 ? 0 : errno;
+  }
+
 int NetServer::unblock(char* datagram, char* payload, int sizeofPayload)
-  {
+{
   struct msghdr hdr;
   struct iovec  iov[2];
 
@@ -330,33 +348,15 @@ int NetServer::unblock(char* datagram, char* payload, int sizeofPayload)
   hdr.msg_namelen      = sa.sizeofName();
   hdr.msg_control      = (caddr_t)0;
   hdr.msg_controllen   = 0;
-
-#ifdef ODF_LITTLE_ENDIAN
-  unsigned* dst = (unsigned*)_swap_buffer;  
-  const iovec* iov_current = iov;
-  const iovec* iov_end = iov+2;
-  unsigned total = 0;
-  do {
-    unsigned  len = iov_current->iov_len;
-    unsigned* src = (unsigned*)(iov_current->iov_base);
-    unsigned* end = src + (len >> 2);
-    while (src < end) *dst++ = htonl(*src++);
-    total += len;
-  } while (++iov_current < iov_end);
-
-  struct iovec iov_swap;
-  iov_swap.iov_len = total;
-  iov_swap.iov_base = _swap_buffer; 
-
-  hdr.msg_iov       = &iov_swap;
-  hdr.msg_iovlen    = 1;
-#else
   hdr.msg_iovlen    = 2;
   hdr.msg_iov       = &iov[0];
-#endif
 
   return sendmsg(_socket, &hdr, SendFlags) != - 1 ? 0 : errno;
   }
+int NetServer::unblock(char* datagram, char* payload, int size, LinkedList<ZcpFragment>&)
+{
+  return 0;
+}
 
 /*
 ** ++

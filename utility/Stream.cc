@@ -2,10 +2,9 @@
 
 using namespace Pds;
 
-Stream::Stream(int stream, 
-	       CollectionManager& cmgr) :
+Stream::Stream(int stream) :
   _type(StreamParams::StreamType(stream)),
-  _outlet(cmgr)
+  _outlet()
 {
   _outlet.connect(&_inlet);
 }

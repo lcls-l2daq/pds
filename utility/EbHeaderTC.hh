@@ -21,16 +21,7 @@ class EbHeaderTC : public TC
   {
   public:
     EbHeaderTC(Level::Type level) :
-      TC(TypeIdQualified(level == Level::Control ?
-			       TypeNumPrimary::Id_EventContainer :
-			       (level == Level::Event ? 
-				TypeNumPrimary::Id_FragmentContainer : 
-			       TypeNumPrimary::Id_ModuleContainer)),
-            TypeIdQualified(level == Level::Control ?
-			       TypeNumPrimary::Id_XTC :
-			       (level == Level::Event ? 
-				TypeNumPrimary::Id_EventContainer :
-				TypeNumPrimary::Id_FragmentContainer))) {}
+      TC(TypeNumPrimary::Id_InXtcContainer) {}
   };
 }
 #endif

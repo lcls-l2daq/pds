@@ -12,8 +12,7 @@ class Server : public LinkedList<Server>
   public:
     virtual ~Server();
   public:
-    Server(unsigned id,
-	   int      fd);
+    Server();
   public:
     unsigned id() const;
     int      fd() const;
@@ -34,10 +33,7 @@ class Server : public LinkedList<Server>
 }
 
 
-inline Pds::Server::Server(unsigned id,
-			   int      fd) :
-  _id(id),
-  _fd(fd)
+inline Pds::Server::Server()
 {
 }
 

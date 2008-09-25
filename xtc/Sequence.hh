@@ -30,15 +30,17 @@
 #ifndef PDS_SEQUENCE
 #define PDS_SEQUENCE
 
+#include "ClockTime.hh"
+
 namespace Pds {
   class Sequence 
   {
   public:
-    enum Type    {Occurrence = 0, Event = 1, Marker = 2};
+    enum Type    {Event = 0, Occurrence = 1, Marker = 2};
     enum         {NumberOfTypes = 3};
-    enum Service {NoOp    ,  L1Accept,  Service2,  Service3,
-                  Service4,  Service5,  Service6,  Service7,
-                  Service8,  Service9,  Service10, Service11,
+    enum Service {Map,       Unmap,     Configure, Unconfigure,
+                  BeginRun,  EndRun,    Pause,     Resume,
+                  Enable,    Disable,   L1Accept,  Service11,
                   Service12, Service13, Service14, Service15};
     enum         {NumberOfServices = 16};
     enum ShrinkFlag {NotExtended};
@@ -48,17 +50,17 @@ namespace Pds {
     Sequence(const Sequence&);
     Sequence(const Sequence&, unsigned modify);
     Sequence(const Sequence&, ShrinkFlag);
-    Sequence(Type, Service, unsigned low, unsigned high);
+    Sequence(Type, Service, const ClockTime&, unsigned low, unsigned high);
     Sequence(Special);
   public:
     Type     type()         const;
     Service  service()      const;
     unsigned isExtended()   const;
-    unsigned isFragmented() const;
     unsigned notEvent()     const;
     unsigned low()          const;
     unsigned high()         const;
     unsigned highAll()      const;
+    const ClockTime& clock() const;
   public:
     const Sequence& operator=(const Sequence&);
     int operator==(const Sequence&)  const;
@@ -78,19 +80,18 @@ namespace Pds {
 
     enum {v_cntrl    = 24, k_cntrl    = 8, m_cntrl    = ((1 << k_cntrl)-1)};
     enum {v_function = 24, k_function = 7, m_function = ((1 << k_function)-1)};
-    enum {v_service  = 24, k_service  = 5, m_service  = ((1 << k_service)-1)};
-    enum {v_seqType  = 28, k_seqType  = 2, m_seqType  = ((1 << k_seqType)-1)};
-    enum {v_fragment = 30, k_fragment = 1, m_fragment = ((1 << k_fragment)-1)};
+    enum {v_service  = 27, k_service  = 4, m_service  = ((1 << k_service)-1)};
+    enum {v_seqType  = 31, k_seqType  = 0, m_seqType  = ((1 << k_seqType)-1)};
     enum {v_extended = 31, k_extended = 1, m_extended = ((1 << k_extended)-1)};
   public:
     enum {Extended = (m_extended << v_extended)};
     enum {Function = (m_function << v_function)};
-    //    enum {EventM   = (((Event << k_service) | Service29) << v_function)};
-    enum {EventM   = ((Event << k_service) << v_function)};
-    enum {Control  = (m_cntrl << v_cntrl)};
+    enum {EventM   = (L1Accept   << v_service)};
+    enum {Control  = (m_cntrl    << v_cntrl)};
   private:
-    unsigned _low;
-    unsigned _high;
+    ClockTime _clock;
+    unsigned  _low;
+    unsigned  _high;
   };
 }
 
@@ -103,6 +104,7 @@ namespace Pds {
 */
 
 inline Pds::Sequence::Sequence(const Pds::Sequence& input) :
+  _clock(input._clock),
   _low(input._low),
   _high(input._high)
   {
@@ -121,6 +123,7 @@ inline Pds::Sequence::Sequence(const Pds::Sequence& input) :
 */
 
 inline Pds::Sequence::Sequence(const Pds::Sequence& input, unsigned modify) :
+  _clock(input._clock),
   _low(input._low),
   _high(input._high | modify)
   {
@@ -136,6 +139,7 @@ inline Pds::Sequence::Sequence(const Pds::Sequence& input, unsigned modify) :
 */
 
 inline Pds::Sequence::Sequence(const Pds::Sequence& input, ShrinkFlag dummy) :
+  _clock(input._clock),
   _low(input._low),
   _high(input._high & ~((unsigned) Extended))
   {
@@ -154,9 +158,11 @@ inline Pds::Sequence::Sequence(const Pds::Sequence& input, ShrinkFlag dummy) :
 */
 
 inline Pds::Sequence::Sequence(Type type,
-			       Service service, 
+			       Service service,
+			       const ClockTime& input,
 			       unsigned low, 
 			       unsigned high) :
+  _clock(input),
   _low(low),
   _high(((unsigned)type << v_seqType) | ((unsigned)service << v_service) | 
 	(high & (unsigned)~(m_cntrl << v_cntrl)))
@@ -285,6 +291,7 @@ inline unsigned Pds::Sequence::highAll() const
 
 inline const Pds::Sequence& Pds::Sequence::operator=(const Pds::Sequence& input)
   {
+  _clock = input._clock;
   _low = input._low;
   _high = input._high;
   return *this;
@@ -307,7 +314,7 @@ inline int Pds::Sequence::operator==(const Pds::Sequence& input) const
   unsigned high_input = input._high & ~((unsigned) Extended);
   unsigned high       = _high       & ~((unsigned) Extended);
 
-  return (high == high_input) && (_low == input._low);
+  return (high == high_input);
   }
 
 /*
@@ -327,13 +334,7 @@ inline int Pds::Sequence::operator>=(const Pds::Sequence& input) const
   unsigned input_high = input._high & ~((unsigned) Control);
   unsigned high       = _high       & ~((unsigned) Control);
 
-  return (
-	  ((high == input_high) && (_low > input._low)) ||
-	  ((high > input_high)                        ) || 
-	  ((_low == input._low) && 
-	   ((input._high & ~((unsigned) Extended)) >=
-	    (_high       & ~((unsigned) Extended)))   )
-	  );
+  return (high >= input_high);
   }
 
 /*
@@ -353,13 +354,7 @@ inline int Pds::Sequence::operator>(const Pds::Sequence& input) const
   unsigned input_high = input._high & ~((unsigned) Control);
   unsigned high       = _high       & ~((unsigned) Control);
 
-  return (
-	  ((high == input_high) && _low > input._low) ||
-	  ((high > input_high)                      ) || 
-	  ((_low == input._low) && 
-	   ((input._high & ~((unsigned) Extended)) >
-	    (_high       & ~((unsigned) Extended))) )
-	  );
+  return (high > input_high);
   }
 
 /*
@@ -379,21 +374,12 @@ inline int Pds::Sequence::operator<=(const Pds::Sequence& input) const
   unsigned input_high = input._high & ~((unsigned) Control);
   unsigned high       = _high       & ~((unsigned) Control);
 
-  return (
-	  ((high == input_high) && (_low < input._low)) ||
-	  ((high < input_high)                        ) || 
-	  (_low == input._low)  &&
-	  ((input._high & ~((unsigned) Extended)) >
-	   (_high       & ~((unsigned) Extended))     )
-	  );
+  return (high <= input_high);
   }
 
-/*
-**  Condition for combining contributions seen by the event builder.
-*/
-inline int Pds::Sequence::isSameEvent(const Pds::Sequence& input) const
-  {
-    return (*this)==input;
-  }
+inline const Pds::ClockTime& Pds::Sequence::clock() const
+{
+  return _clock;
+}
 
 #endif

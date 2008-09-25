@@ -45,8 +45,9 @@ int InXtcIterator::iterate(const InXtc& xtc, InDatagramIterator* root)
     iovec iov[1];
 
     while(remaining > 0) {
-      if (root->read(iov,1,sizeof(InXtc)) != sizeof(InXtc)) {
-	printf("InXtcIterator::iterate read failed\n");
+      int nbytes = root->read(iov,1,sizeof(InXtc));
+      if (nbytes != sizeof(InXtc)) {
+	printf("InXtcIterator::iterate read failed %d/%d bytes\n",nbytes,sizeof(InXtc));
 	return -1;
       }
       const InXtc& inXtc = *(InXtc*)iov[0].iov_base;

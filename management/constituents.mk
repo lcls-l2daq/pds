@@ -1,5 +1,6 @@
 libnames := management
-libsrcs_management := SegStreams.cc \
-		      SegmentLevel.cc \
-		      EventStreams.cc \
-		      EventLevel.cc
+
+libsrcs_management := $(wildcard *.cc)
+
+tgtnames :=
+

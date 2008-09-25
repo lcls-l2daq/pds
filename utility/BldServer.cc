@@ -1,5 +1,6 @@
 #include "BldServer.hh"
 
+#include "EbEventKey.hh"
 #include "pds/xtc/BldDatagram.hh"
 #include "Mtu.hh"
 
@@ -41,18 +42,18 @@ using namespace Pds;
 static const unsigned DatagramSize = sizeof(BldDatagram);
 static const unsigned MaxPayload = Mtu::Size;
 
-BldServer::BldServer(const Src& client,
-		     const Ins& ins,
+BldServer::BldServer(const Ins& ins,
+		     const Src& src,
 		     unsigned   nbufs) :
-  EbServer (client, client.pid(), 0),
-  _server(client.pid(),
+  _server(-1UL,
+	  Port::VectoredServerPort,
 	  ins,
 	  DatagramSize,
 	  MaxPayload,
 	  nbufs),
-  _xtc   (XTC(TC(TypeNumPrimary::Id_ModuleContainer,
-		 TypeNumPrimary::Id_XTC)),
-	  client)
+  _client(src),
+  _xtc   (XTC(TC(TypeNumPrimary::Id_XTC)),
+	  src)
 {
   fd(_server.fd());
 }
@@ -67,11 +68,10 @@ BldServer::BldServer(const Src& client,
 
 void BldServer::dump(int detail) const
   {
-  printf("Server %04X (port %d) represents client %04X/%04X (did/pid)\n",
+  printf("Server %04X (port %d) represents client %08X\n",
          id(),
          _server.portId(),
-         client().did(),
-         client().pid());
+	 _server.address());
   printf(" %d Network buffers of %d bytes each (%d+%d bytes header+payload)\n",
          _server.maxDatagrams(),
          _server.sizeofDatagram() + _server.maxPayload(),
@@ -98,28 +98,14 @@ bool BldServer::isValued() const
   return false;
 }
 
-unsigned BldServer::keyTypes() const
-{
-  return (1 << EbKey::PulseId);
-}
-
-const char* BldServer::key(EbKey::Type type) const
-{
-  if (type==EbKey::PulseId)
-    return _server.datagram();
-  return 0;
-}
-
-bool BldServer::matches(const EbKey& keys) const
-{
-  if (!keys.types & (1<<EbKey::PulseId))
-    return false;
-  return *(new (const_cast<char*>(_server.datagram()))EbPulseId) == keys.pulseId;
-}
-
 const InXtc&   BldServer::xtc   () const
 {
   return _xtc;
+}
+
+const Src& BldServer::client () const
+{
+  return _client;
 }
 
 bool     BldServer::more  () const
@@ -144,13 +130,22 @@ int BldServer::pend(int flag)
 
 int BldServer::fetch(char* payload, int flags)
 {
-  InXtc* xtc = new (payload)InXtc(_xtc.tag, client());
+  InXtc* xtc = new (payload)InXtc(_xtc.tag, _client);
   int length = _server.fetch(xtc->payload(),flags);
   xtc->tag.extend(length);
   _xtc.tag.extend(length+sizeof(XTC)-_xtc.tag.extent());
+  /*
   printf("BldServer::fetch  payload %p  flags %x : length %x extent %x/%x\n", 
-	 payload, flags, length, xtc->tag.extent(), _xtc.tag.extent());
-  return length;
+    	 payload, flags, length, xtc->tag.extent(), _xtc.tag.extent());
+  unsigned* p = (unsigned*)xtc;
+  unsigned* e = p + ((xtc->sizeofPayload()+sizeof(InXtc))>>2);
+  for(int k=0; p<e; k++) {
+    printf(" %08x",*p++);
+    if (k%8==7) printf("\n");
+  }
+  printf("\n");
+  */
+  return length+sizeof(InXtc);
 }
 
 int BldServer::fetch(ZcpFragment& dg, int flags)
@@ -159,7 +154,7 @@ int BldServer::fetch(ZcpFragment& dg, int flags)
   _xtc.tag.extend(length+sizeof(XTC)-_xtc.tag.extent());
   dg.uinsert(&_xtc,sizeof(_xtc)+_xtc.sizeofPayload());
   dg.insert (_dg, length);
-  printf("BldServer::fetch  dg %p  flags %x : length %x extent %x\n", 
-	 &dg, flags, length, _xtc.tag.extent());
+  //  printf("BldServer::fetch  dg %p  flags %x : length %x extent %x\n", 
+  //	 &dg, flags, length, _xtc.tag.extent());
   return length;
 }

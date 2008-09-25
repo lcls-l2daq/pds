@@ -21,7 +21,7 @@ static void print_error(const char* where, int error)
 
 static const int TaskPriority = 55;
 static const char* TaskName[Level::NumberOfLevels+1] = {
-  "oCllCtr", "oCllSrc", "oCllSeg", "oCllFrg", "oCllEvt", "oCllObs"
+  "oCllCtr", "oCllSrc", "oCllSeg", "oCllEvt", "oCllRec", "oCllObs"
 };
 
 static const int Disconnect = 1;
@@ -108,17 +108,15 @@ void CollectionManager::cancel()
   block.wait();
 }
 
-void CollectionManager::mcast(const Message& msg)
+void CollectionManager::mcast(Message& msg)
 {
-  Message& tmp = const_cast<Message&>(msg);
-  tmp.reply_to(Ins(_header.ip(), _ucastServer->portId()));
+  msg.reply_to(Ins(_header.ip(), _ucastServer->portId()));
   _send(msg, _mcast);
 }
 
-void CollectionManager::ucast(const Message& msg, const Ins& dst)
+void CollectionManager::ucast(Message& msg, const Ins& dst)
 {
-  Message& tmp = const_cast<Message&>(msg);
-  tmp.reply_to(Ins(_header.ip(), _ucastServer->portId()));
+  msg.reply_to(Ins(_header.ip(), _ucastServer->portId()));
   _send(msg, dst);
 }
 

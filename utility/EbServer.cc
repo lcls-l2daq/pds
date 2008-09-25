@@ -55,11 +55,9 @@ using namespace Pds;
 ** --
 */
 
-EbServer::EbServer(const Src& client, unsigned id, int fd) :
-  Server(id,fd),
+EbServer::EbServer() :
   _keepAlive(KeepAlive),
-  _drop(0),
-  _client(client)
+  _drop(0)
 {
 }
 
@@ -110,8 +108,8 @@ int EbServer::commit(char* key,
 
 int EbServer::handleError(int value)
 {
-  printf("*** EbServer::handleError pid %04X error: %s\n",
-         _client.pid(), strerror(value));
+  printf("*** EbServer::handleError id %04X error: %s\n",
+         id(), strerror(value));
   return 1;
 }
 
@@ -126,3 +124,10 @@ int EbServer::handleError(int value)
 EbServer::~EbServer()
 {
 }
+
+
+bool EbServer::more() const { return false; }
+
+unsigned EbServer::length() const { return 0; }
+
+unsigned EbServer::offset() const { return 0; }

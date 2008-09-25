@@ -28,8 +28,9 @@ using namespace Pds;
 
 EbEvent::EbEvent(EbBitMask creator,
 		 EbBitMask contract,
-		 CDatagram* datagram) :
-  EbEventBase   (creator, contract, const_cast<Datagram*>(&datagram->datagram())),
+		 CDatagram* datagram,
+		 EbEventKey* key) :
+  EbEventBase   (creator, contract, const_cast<Datagram*>(&datagram->datagram()), key),
   _cdatagram    (datagram),
   _pending      (),
   _segments     (&_pool[0])

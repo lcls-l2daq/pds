@@ -26,11 +26,13 @@
 
 #include "EbEventBase.hh"
 #include "EbSegment.hh"
+#include "pds/xtc/CDatagram.hh"
 
 #define EbSegmentList LinkedList<EbSegment> // Notational convienence...
 
 namespace Pds {
 
+class EbEventKey;
 class EbServer;
 class EbTimeouts;
 class CDatagram;
@@ -38,12 +40,12 @@ class CDatagram;
 class EbEvent : public EbEventBase
   {
   public:
-    void* operator new   (size_t, Pool*);
-    void  operator delete(void* buffer);
-  public:
     EbEvent();
-    EbEvent(EbBitMask creator, EbBitMask contract, CDatagram*);
+    EbEvent(EbBitMask creator, EbBitMask contract, 
+	    CDatagram*, EbEventKey*);
    ~EbEvent();
+  public:
+    PoolDeclare;
   public:
     EbSegment* consume(const EbServer*,
 		       int sizeofPayload,
@@ -65,40 +67,6 @@ class EbEvent : public EbEventBase
     char          _pool[sizeof(EbSegment)*32]; // buffer for segments
   };
 }
-
-/*
-** ++
-**
-**    To speed up the allocation/deallocation of events, they have their
-**    own specific "new" and "delete" operators, which work out of a pool
-**    of a fixed number of fixed size buffers (the size is set to the size
-**    of this object). The pool is established by "Eb" and events are
-**    allocated/deallocated by "EbServer".
-**
-** --
-*/
-
-inline void* Pds::EbEvent::operator new(size_t size, Pds::Pool* pool)
-  {
-  return pool->alloc(size);
-  }
-
-/*
-** ++
-**
-**    To speed up the allocation/deallocation of events, they have their
-**    own specific "new" and "delete" operators, which work out of a pool
-**    of a fixed number of fixed size buffers (the size is set to the size
-**    of this object). The pool is established by "Eb" and events are
-**    allocated/deallocated by "EbServer".
-**
-** --
-*/
-
-inline void Pds::EbEvent::operator delete(void* buffer)
-  {
-  Pds::Pool::free(buffer);
-  }
 
 /*
 ** ++
@@ -125,7 +93,7 @@ inline void Pds::EbEvent::operator delete(void* buffer)
 inline char* Pds::EbEvent::payload(EbBitMask client)
   {
   Pds::EbSegment* segment = hasSegment(client);
-  return segment ? segment->payload() : datagram()->next();
+  return segment ? segment->payload() : const_cast<Datagram&>(_cdatagram->datagram()).next();
   }
 
 inline Pds::CDatagram* Pds::EbEvent::cdatagram() const

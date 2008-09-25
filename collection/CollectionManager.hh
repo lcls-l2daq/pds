@@ -35,8 +35,8 @@ public:
   void cancel(); // Synchronous, to be used only outside our task
 
 public:
-  void mcast(const Message& msg);
-  void ucast(const Message& msg, const Ins& dst);
+  void mcast(Message& msg);
+  void ucast(Message& msg, const Ins& dst);
   void arpadd(const Node& hdr);
 
 public:

@@ -27,6 +27,7 @@ namespace Pds {
     int uinsert(void* b, int size); // user-space
     int vinsert(iovec* iov, int n); // user-space vector
     int insert(Pds::ZcpFragment&, int size);
+    int copy  (Pds::ZcpFragment&, int size);
 
     //  Extracting data
     int kremove(int size);
@@ -35,8 +36,11 @@ namespace Pds {
     int vremove(iovec* iov, int n); // user-space vector
     int read   (void* b, int size);
 
-    int copyFrom(ZcpFragment&, int size); // copy data from another datagram
-    int moveFrom(ZcpFragment&, int size); // move data from another datagram
+    //  Extracting without removing
+    int kcopyTo(int fd, int size);
+
+    int moveFrom(ZcpFragment& f, int size) { return insert(f,size); } // move data from another fragment "f"
+    int copyFrom(ZcpFragment& f, int size) { return copy  (f,size); } // copy data from another fragment "f"
 
   private:
     int _fd[2];

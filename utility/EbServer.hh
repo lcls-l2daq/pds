@@ -4,16 +4,16 @@
 #include "pds/service/Server.hh"
 
 #include "pds/xtc/xtc.hh"
-#include "EbKey.hh"
 
 namespace Pds {
 
+class EbEventKey;
 class Ins;
 
 class EbServer : public Server
   {
   public:
-    EbServer(const Src& client, unsigned id, int fd);
+    EbServer();
    ~EbServer();
   private:
     //  Implements unused parts of Server
@@ -24,25 +24,25 @@ class EbServer : public Server
     int  drops() const;
     int  fixup();
     void keepAlive();
-    const Src& client() const;
   public:
     enum {KeepAlive = 3};
   public:
     //  Eb interface
     virtual void        dump    (int detail)   const = 0;
-    virtual unsigned    keyTypes()             const = 0;
-    virtual const char* key     (EbKey::Type)  const = 0;
-    virtual bool        matches (const EbKey&) const = 0;
     virtual bool        isValued()             const = 0;
+    virtual const Src&  client  ()             const = 0;
     //  EbSegment interface
     virtual const InXtc&   xtc   () const = 0;
-    virtual bool           more  () const = 0;
-    virtual unsigned       length() const = 0;
-    virtual unsigned       offset() const = 0;
+    virtual bool           more  () const;
+    virtual unsigned       length() const;
+    virtual unsigned       offset() const;
+    //  Eb-key interface
+    virtual bool        succeeds (EbEventKey&) const = 0;
+    virtual bool        coincides(EbEventKey&) const = 0;
+    virtual void        assign   (EbEventKey&) const = 0;
   private:
     int _keepAlive;       // # of contineous drops
     int _drop;            // # of of contributions dropped
-    Src _client;          // Identity of client being served
   };
 }
 
@@ -82,19 +82,6 @@ inline int Pds::EbServer::fixup()
 inline int Pds::EbServer::drops() const
   {
   return _drop;
-  }
-
-/*
-** ++
-**
-**    Get the identity of the client representing this server...
-**
-** --
-*/
-
-inline const Pds::Src& Pds::EbServer::client() const
-  {
-  return _client;
   }
 
 /*

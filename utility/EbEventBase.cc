@@ -31,7 +31,9 @@ using namespace Pds;
 
 EbEventBase::EbEventBase(EbBitMask creator,
 			 EbBitMask contract,
-			 Datagram* datagram) :
+			 Datagram* datagram,
+			 EbEventKey* key) :
+  _key          (key),
   _allocated    (creator),
   _contributions(contract),
   _contract     (contract),
@@ -56,45 +58,15 @@ EbEventBase::EbEventBase(EbBitMask creator,
 */
 
 EbEventBase::EbEventBase() :
-  LinkedList<EbEventBase>(),
+  LinkedList<EbEventBase>(), 
+  _key          (0),
   _allocated    (EbBitMask(EbBitMask::FULL)),
   _contributions(),
   _contract     (),
   _segments     (),
   _timeouts     (MaxTimeouts),
-  _datagram     ((Datagram*)0)
+  _datagram     (0)
   {
-  }
-
-/*
-** ++
-**
-**   This function will insert ourselves on the Event Builder's pending
-**   queue. This queue is sorted by sequence number, from old (smallest
-**   value), to new (largest value). The entry AFTER which we are to be
-**   inserted is specified by the "after" argument. Since we (by definition)
-**   have just come into existence our (and our datagram's) sequence
-**   number have not yet been established. The first argument ("key")
-**   defines their value and this function will also initialize these
-**   values.
-**
-** --
-*/
-
-void EbEventBase::add(const EbPulseId* key, EbEventBase* after)
-  {
-  Datagram* datagram = _datagram;
-  Sequence* sequence = datagram;
-  //  datagram->env = key->env;
-  *sequence          = Sequence(Sequence::Event, Sequence::L1Accept,
-				key->_data[0], key->_data[1]);
-  _key.pulseId       = *key;
-  _key.types        |= (1<<EbKey::PulseId);
-  connect(after);
-#ifdef VERBOSE
-  printf("EbEventBase::add %p  forward %p  reverse %p\n",
-	 this, this->forward(), this->reverse());
-#endif
   }
 
 /*
@@ -107,7 +79,7 @@ void EbEventBase::add(const EbPulseId* key, EbEventBase* after)
 
 int EbEventBase::timeouts(const EbTimeouts& ebtmo) {
   if (_timeouts == MaxTimeouts) {
-    int tmo = ebtmo.timeouts(_datagram);
+    int tmo = ebtmo.timeouts((Sequence*)0);
     _timeouts = tmo < MaxTimeouts ? tmo : MaxTimeouts;
   }
   return --_timeouts;
@@ -126,6 +98,7 @@ int EbEventBase::timeouts(const EbTimeouts& ebtmo) {
 
 void EbEventBase::dump(int number)
   {
+    /*
   Sequence& sequence = (Sequence&)_key.pulseId;
   printf(" Event #%d @ address %08X has sequence %08X%08X service %X type %X\n",
          number,
@@ -134,9 +107,11 @@ void EbEventBase::dump(int number)
          sequence.low(),
          sequence.service(),
          sequence.type());
+    */
+  printf(" Event #%d @ address %p\n",
+	 number, this);
   printf("   Forward link -> %08X, Backward link -> %08X\n",
          (unsigned)forward(), (unsigned)reverse());
-
   printf("   Contributions seen/requested = ");
   for (unsigned i = EbBitMask::BitMaskWords; i > 0; i--)
     printf("%08x", _contributions.remaining().value(i-1));
@@ -152,6 +127,7 @@ void EbEventBase::dump(int number)
     printf("%08x", _contract.value(l-1));
   printf("\n");
 
-  printf("   Datagram address = %d, %08X (hex)\n",
-         (int)_datagram, (int)_datagram);
+  //  printf("   Datagram address = %d, %08X (hex)\n",
+  //         (int)_datagram, (int)_datagram);
   }
+

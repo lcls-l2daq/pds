@@ -3,17 +3,13 @@
 
 namespace Pds {
 
-class Inlet;
-class OutletWire;
-class WiredStreams;
 class InletWire;
 
 class SegWireSettings {
 public:
-  virtual InletWire* create(Inlet& inlet,
-			    OutletWire&, 
-			    WiredStreams&, 
-			    int stream) = 0;
+  virtual void connect (InletWire& inlet,
+			StreamParams::StreamType stream,
+			int interface) = 0;
 };
 }
 #endif

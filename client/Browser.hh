@@ -13,10 +13,12 @@ class Browser : public InXtcIterator
   public:
     Browser(const Datagram&,
 	    InDatagramIterator*,
-	    int depth);
+	    int depth,
+	    int&);
     Browser(const InXtc& xtc, 
 	    InDatagramIterator*,
-	    int depth);
+	    int depth,
+	    int&);
     int process(const InXtc&,
 		InDatagramIterator*);
   private:

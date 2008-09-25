@@ -2,6 +2,7 @@
 #define XTC_HH
 
 #include "pds/service/ODMGTypes.hh"
+#include "Src.hh"
 
 namespace Pds {
 
@@ -59,19 +60,6 @@ private:
   d_ULong _damage;
 };
 
-class odfSrc
-{
-public:
-  odfSrc(unsigned v) : _id(v) {}
-  odfSrc(unsigned pid, unsigned did) : _id((did<<16) | pid) {}
-  d_ULong did()   const { return _id>>16; }
-  d_ULong pid()   const { return _id&0xffff; }
-
-  bool operator==(const odfSrc& s) const { return _id==s._id; }
-private:
-  d_ULong _id;
-};
-
 class odfTypeNumPrimary {
 public:
   enum { Any = 0 };
@@ -84,106 +72,42 @@ public:
 	 Id_d_Float       = 0x000F0009,
 	 Id_d_Double      = 0x000F000A,
 
-	 Id_TC         = 0x000F0081,
 	 Id_XTC        = 0x000F0082,
 	 Id_TestXTC    = 0x000F0083,
 	 Id_SimpleXTC  = 0x000F0084,
 	 Id_Arena      = 0x000F0085,
 
 	 // Identity and contains values for the event builder's use
-	 Id_EventContainer    = 0x000F0091,
-	 Id_FragmentContainer = 0x000F0092,
-	 Id_ModuleContainer   = 0x000F0093,
-	 Id_ModuleBatch       = 0x000F0094,
-	 Id_TransientBatch    = 0x000F0095,
-	 Id_FragmentBatch     = 0x000F0096,
-	 Id_EbBitMaskArray    = 0x000F009C,
-	 Id_GhostContainer    = 0x000F009D,
-	 Id_ElectorXTC        = 0x000F009E,
-	 Id_RealignXTC        = 0x000F009F
+	 Id_InXtcContainer    = 0x000F0091
   };
 };
 
-typedef d_ULong odfTypeIdPrimary_t;
-typedef d_ULong odfTypeIdSecondary_t;
-typedef d_ULong odfTypeIdValue_t;
-
 class odfTypeId {
 public:
-  odfTypeIdPrimary_t getPrimary()   const;
-  odfTypeIdSecondary_t getSecondary()   const;
-  enum { odfTypeIdNull = 0 };
-protected:
-  odfTypeId( ) : _val( odfTypeIdNull ) { }
-  odfTypeId( odfTypeIdValue_t value ) : _val(value) { }
+  odfTypeId(unsigned v) : value(v) {}
+  odfTypeId(const odfTypeId& v) : value(v.value) {}
 
-  int operator==( const odfTypeId& id ) const
-    { return _val == id._val; }
-  int operator!=( const odfTypeId& id ) const
-    { return _val != id._val; }
+  operator unsigned() const { return value; }
 
-  enum { odfTypeIdPrimOff   = 0,
-	 odfTypeIdPrimMax   = 0x000FFFFF,
-	 odfTypeIdPrimMsk   = odfTypeIdPrimMax };
-  enum { odfTypeIdSecyOff   = 20,
-	 odfTypeIdSecyMax   = 0x00000FFF,
-	 odfTypeIdSecyMsk   = odfTypeIdSecyMax << odfTypeIdSecyOff };
-
-  int setPrimary( odfTypeIdPrimary_t prim ) {
-    if ( prim <= (odfTypeIdValue_t) odfTypeIdPrimMax ) {
-      _val &= ~((odfTypeIdValue_t) odfTypeIdPrimMsk);
-      _val |= ( ( prim & odfTypeIdPrimMax ) << odfTypeIdPrimOff ); 
-      return 1; }
-    else {
-      return 0; }
-  }
-      
-  int setSecondary( odfTypeIdSecondary_t secy ) {
-    if ( secy <= odfTypeIdSecyMax ) {
-      _val &= ~((odfTypeIdValue_t) odfTypeIdSecyMsk);
-      _val |= ( ( secy & odfTypeIdSecyMax ) << odfTypeIdSecyOff );
-      return 1; }
-    else {
-      return 0; }
-  }
-
-private:
-  odfTypeIdValue_t _val;
+  d_ULong value;
 };
-
-
-class odfTypeIdQualified : private odfTypeId {
-public:
-  odfTypeIdQualified( odfTypeIdValue_t value ) : odfTypeId( value ) { }
-  odfTypeIdQualified( odfTypeIdPrimary_t   prim,   
-		      odfTypeIdSecondary_t secy  ) : odfTypeId() { setPrimary( prim ); setSecondary( secy ); }
-  int isA( const odfTypeIdQualified& tq ) const;
-  int isA( const odfTypeIdPrimary_t& tp ) const;
-  odfTypeIdSecondary_t secondary() const;
-  int operator==( const odfTypeIdQualified& tq ) const
-    { return odfTypeId::operator==( tq ); }
-  int operator!=( const odfTypeIdQualified& tq ) const
-    { return odfTypeId::operator!=( tq ); }
-};
-
 
 class odfTC {
 public:
-  odfTC( const odfTypeIdQualified& ctns, const odfTypeIdQualified& id ) : _contains(ctns), _identity(id) {}
-  inline const odfTypeIdQualified& contains() const { return _contains; }
-  inline const odfTypeIdQualified& identity() const { return _identity; }
+  odfTC( const odfTC& tc ) : _contains(tc._contains) {}
+  odfTC( const odfTypeId& ctns ) : _contains(ctns) {}
+  inline const odfTypeId& contains() const { return _contains; }
 
 private:
-  odfTypeIdQualified _contains;
-  odfTypeIdQualified _identity;
+  odfTypeId _contains;
 };
 
 class odfXTC : public odfTC {
 public:
-  odfXTC( ) : odfTC( odfTypeIdQualified( odfTypeNumPrimary::Any ),
-		     odfTypeIdQualified( odfTypeNumPrimary::Id_XTC ) ),
+  odfXTC( ) : odfTC( odfTypeId( odfTypeNumPrimary::Any ) ),
 	      _extent( sizeof(odfXTC) ) {}
-  odfXTC( const odfTC& tc ) : odfTC(tc), _extent( sizeof(odfXTC) ) {}
+  odfXTC( const odfTC& ctns ) : odfTC(ctns), 
+				_extent( sizeof(odfXTC) ) {}
   
   inline void* operator new(unsigned,void* p) { return p; }
   inline void  operator delete(void*) {}
@@ -202,16 +126,17 @@ public:
   }
 
 private:
-  d_ULong _extent;
+  d_ULong   _extent;
 };
 
 class odfInXtc {
 public:
-  odfInXtc() : damage(0), src(0), tag() {}
-  odfInXtc(const odfTC& tc) : damage(0), src(0), tag(tc) {}
-  odfInXtc(const odfTC& tc, const odfSrc& _src) : damage(0), src(_src), tag(tc) {}
-  odfInXtc(const odfTC& _tag, const odfSrc& _src, unsigned& _damage) : damage(_damage), src(_src), tag(_tag) {}
-  odfInXtc(const odfTC& _tag, const odfSrc& _src, const odfDamage& _damage) : damage(_damage), src(_src), tag(_tag) {}
+  odfInXtc() : damage(0), tag() {}
+  odfInXtc(const odfTC& tc) : damage(0), tag(tc) {}
+  odfInXtc(const odfTC& tc, const Src& _src) : damage(0), src(_src), tag(tc)
+{}
+  odfInXtc(const odfTC& _tag, const Src& _src, unsigned& _damage) : damage(_damage), src(_src), tag(_tag) {}
+  odfInXtc(const odfTC& _tag, const Src& _src, const odfDamage& _damage) : damage(_damage), src(_src), tag(_tag) {}
 
   void* operator new(unsigned size, odfXTC* xtc) { return (void*)xtc->alloc(size); }
   void* operator new(unsigned size, char* p)     { return (void*)p; }
@@ -222,7 +147,7 @@ public:
   const odfInXtc* next()          const { return (const odfInXtc*) tag.end(); }
 
   odfDamage damage;
-  odfSrc    src;
+  Src       src;
   odfXTC    tag;
 };
 
@@ -237,10 +162,8 @@ typedef odfdTag               dTag;
 typedef odfElementId          ElementId;
 typedef odfElement            Element;
 typedef odfDamage             Damage;
-typedef odfSrc                Src;
 typedef odfTypeNumPrimary     TypeNumPrimary;
 typedef odfTypeId             TypeId;
-typedef odfTypeIdQualified    TypeIdQualified;
 typedef odfTC                 TC;
 typedef odfXTC                XTC;
 typedef odfInXtc              InXtc;

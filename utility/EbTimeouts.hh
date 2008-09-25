@@ -10,8 +10,7 @@ namespace Pds {
 class EbTimeouts {
 public:
   EbTimeouts(const EbTimeouts& ebtimeouts);
-  EbTimeouts(unsigned crates, 
-	     StreamParams::StreamType stream, 
+  EbTimeouts(int stream, 
 	     Level::Type level);
   
   // Basic expiration time of the event builder at the current
@@ -25,16 +24,14 @@ public:
   // timing out at the current level.
   int timeouts(const Sequence* sequence) const;
 
-  // Number of basic durations a given sequence can take to be posted
-  // from the event builder at the current level.
-  int times(const Sequence* sequence) const;
-
   // For debugging
   void dump() const; 
 
+public:
+  static unsigned duration(int);
+
 private:
   short _tmos[Sequence::NumberOfServices*Sequence::NumberOfTypes];
-  short _time[Sequence::NumberOfServices*Sequence::NumberOfTypes];
   unsigned _duration;
 };
 }

@@ -8,8 +8,10 @@ namespace Pds {
   class Datagram;
   class InDatagramIterator;
   class Pool;
+  class ToNetEb;
   class ToEb;
   class Ins;
+  class OobServer;
 
   class InDatagram {
   public:
@@ -19,8 +21,9 @@ namespace Pds {
 
     virtual InDatagramIterator* iterator(Pool*) const = 0;
 
-    virtual int send(ToEb&, const Ins&) = 0;
-
+    virtual int  send   (ToNetEb&, const Ins&) = 0;
+    virtual int  send   (ToEb&) = 0;
+    virtual int  unblock(OobServer&, char*) = 0;
   };
 
 }

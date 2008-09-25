@@ -20,6 +20,12 @@ class NetServer : public Port, public OobServer
 	      int sizeofDatagram,
 	      int maxPayload,
 	      int maxDatagrams = 40);
+    NetServer(unsigned id,
+              Port::Type,
+              const Ins&,
+              int sizeofDatagram,
+              int maxPayload,
+              int maxDatagrams = 40);
   public:
     int       socket() const;
   public:
@@ -36,17 +42,12 @@ class NetServer : public Port, public OobServer
 			    const Ins&);
     virtual int      handleError(int value);
   public:
-    int      unblock(char* datagram, char* payload=(char*)0, int size=0);
+    int unblock(char* datagram);
+    int unblock(char* datagram, char* payload, int size);
+    int unblock(char* datagram, char* payload, int size, LinkedList<ZcpFragment>&);
   public:
     int      join(const Ins& group, const Ins& interface);
     int      resign();
-  protected:
-    NetServer(unsigned id,
-              Port::Type,
-              const Ins&,
-              int sizeofDatagram,
-              int maxPayload,
-              int maxDatagrams);
   private:
     enum {SendFlags = 0};
   private:

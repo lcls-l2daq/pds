@@ -1,6 +1,5 @@
 #include "Outlet.hh"
 #include "OutletWire.hh"
-#include "pds/collection/CollectionManager.hh"
 
 using namespace Pds;
 
@@ -9,8 +8,7 @@ using namespace Pds;
 // the next level
 //
 
-Outlet::Outlet(CollectionManager& cmgr) :
-  _collection(cmgr),
+Outlet::Outlet() :
   _wire(0)
 {
   for (int i = 0; i< Sequence::NumberOfTypes; i++) _forward[i] = 0xffffffff;
@@ -25,11 +23,7 @@ OutletWire* Outlet::wire() {return _wire;}
 // 
 
 Transition* Outlet::transitions(Transition* tr) {
-  Ins dst(tr->reply_to());
-  _collection.ucast(*tr,dst);
-  //  printf("outlet ucast transition %d to 0x%x:%d\n", 
-  //	 tr->id(), dst.address(), dst.portId());
-  return 0;
+  return _wire->forward(tr);
 }
 
 // Any incoming datagram are sent out on the wire (if that is

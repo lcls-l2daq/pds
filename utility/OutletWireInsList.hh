@@ -32,6 +32,7 @@
 
 #include "OutletWireIns.hh"
 #include "EbTmoMask.hh"
+#include "pds/xtc/Sequence.hh"
 
 namespace Pds {
 class OutletWireInsList
@@ -43,6 +44,7 @@ class OutletWireInsList
     int               remove(unsigned id); 
     // Note: we don't check if the database is empty, hence protection
     // against this condition must be done by the caller.
+    OutletWireIns* lookup(const Sequence& seq) {return lookup(seq.high()>>4);}
     OutletWireIns* lookup(unsigned index) {return _ins[index % _entries];}
     bool              isempty() const {return !_entries;}
   private:

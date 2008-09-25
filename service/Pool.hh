@@ -23,6 +23,11 @@
 
 #include "PoolEntry.hh"
 
+#define PoolDeclare \
+    void* operator new   (size_t size, Pool* pool) { return pool->alloc(size); } \
+    void  operator delete(void* buffer) { Pool::free(buffer); }
+
+
 namespace Pds {
 class Pool
   {

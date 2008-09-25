@@ -12,8 +12,7 @@ class VmonSourceId;
 
 class SetOfStreams {
 public:
-  SetOfStreams(CollectionManager&,
-	       const VmonSourceId& vmonid);
+  SetOfStreams(const VmonSourceId& vmonid);
 
   // Accessors
   InletWire* wire(int s=StreamParams::FrameWork);

@@ -1,4 +1,5 @@
 #include "NetDgServer.hh"
+#include "EbEventBase.hh"
 #include "Mtu.hh"
 #include "OutletWireHeader.hh"
 
@@ -38,15 +39,15 @@ using namespace Pds;
 static const unsigned DatagramSize = sizeof(Datagram);
 static const unsigned MaxPayload = Mtu::Size;
 
-NetDgServer::NetDgServer(const Src& client,
-			 const Ins& ins,
+NetDgServer::NetDgServer(const Ins& ins,
+			 const Src& src,
 			 unsigned   nbufs) :
-  EbServer (client, client.pid(), 0),
-  _server(client.pid(),
+  _server(-1UL,
 	  ins,
 	  DatagramSize,
 	  MaxPayload,
-	  nbufs)
+	  nbufs),
+  _client(src)
 {
   fd(_server.fd());
 }
@@ -60,19 +61,19 @@ NetDgServer::NetDgServer(const Src& client,
 */
 
 void NetDgServer::dump(int detail) const
-  {
-  printf("Server %04X (port %d) represents client %04X/%04X (did/pid)\n",
-         id(),
-         _server.portId(),
-         client().did(),
-         client().pid());
+{
+  printf("Server %04X (%x/%d)  fd %d\n",
+	 id(),
+	 _server.address(),
+	 _server.portId(),
+	 _server.fd());
   printf(" %d Network buffers of %d bytes each (%d+%d bytes header+payload)\n",
          _server.maxDatagrams(),
          _server.sizeofDatagram() + _server.maxPayload(),
          _server.sizeofDatagram(), _server.maxPayload());
   printf(" Dropped %d contributions\n", drops());
   return;
-  }
+}
 
 /*
 ** ++
@@ -93,28 +94,14 @@ bool NetDgServer::isValued() const
   return true;
 }
 
-unsigned NetDgServer::keyTypes() const
-{
-  return (1 << EbKey::PulseId);
-}
-
-const char* NetDgServer::key(EbKey::Type type) const
-{
-  if (type==EbKey::PulseId)
-    return reinterpret_cast<const char*>(&_pulseId);
-  return 0;
-}
-
-bool NetDgServer::matches(const EbKey& keys) const
-{
-  if (!keys.types & (1<<EbKey::PulseId))
-    return false;
-  return keys.pulseId==_pulseId;
-}
-
 const InXtc&   NetDgServer::xtc   () const
 {
   return ((Datagram*)_server.datagram())->xtc;
+}
+
+const Src& NetDgServer::client () const
+{
+  return _client;
 }
 
 bool     NetDgServer::more  () const
@@ -142,13 +129,11 @@ int NetDgServer::pend(int flag)
 int NetDgServer::fetch(char* payload, int flags)
 {
   int length = _server.fetch(payload,flags);
-  _pulseId = *(Sequence*)_server.datagram();
   return length;
 }
 
 int NetDgServer::fetch(ZcpFragment& dg, int flags)
 {
   int length = _server.fetch(dg,flags);
-  _pulseId = *(Sequence*)_server.datagram();
   return length;
 }

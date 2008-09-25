@@ -5,7 +5,7 @@ namespace Pds {
 
 class Server;
 class Transition;
-class Datagram;
+class InDatagram;
 class InletWireIns;
 class Task;
 
@@ -19,14 +19,14 @@ public:
   virtual void connect() = 0;
   virtual void disconnect() = 0;
   virtual void post(const Transition& tr) = 0;
-  virtual void post(const Datagram& dg) = 0;
+  virtual void post(const InDatagram& dg) = 0;
   virtual void add_input   (Server*) = 0;
   virtual void remove_input(Server*) = 0;
   virtual void trim_input  (Server*) = 0;
   virtual void add_output(const InletWireIns& iwi) = 0;
   virtual void remove_output(const InletWireIns& iwi) = 0;
   virtual void trim_output(const InletWireIns& iwi) = 0;
-  virtual unsigned short port(unsigned id) const = 0;
+  //  virtual unsigned short port(unsigned id) const = 0;
 
   // Debugging
   virtual void dump(int detail) {}

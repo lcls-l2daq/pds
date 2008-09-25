@@ -54,15 +54,11 @@ ZcpEb::ZcpEb(const Src& id,
 	     int ipaddress,
 	     unsigned eventsize, // max size in # of IP datagrams
 	     unsigned eventpooldepth,
-	     unsigned netbufdepth,
-	     const EbTimeouts& ebtimeouts,
 #ifdef USE_VMON
 	     const VmonEb& vmoneb,
 #endif
 	     const Ins* dstack) :
   EbBase(id, level, inlet, outlet, stream, ipaddress,
-	 eventpooldepth, netbufdepth,
-	 ebtimeouts,
 #ifdef USE_VMON
 	 vmoneb,
 #endif
@@ -113,7 +109,7 @@ int ZcpEb::processIo(Server* serverGeneric)
   EbServer* server   = (EbServer*)serverGeneric;
   server->keepAlive();
   int sizeofPayload  = server->fetch(*zfrag, MSG_DONTWAIT);
-  if(!sizeofPayload) {  // no payload
+  if(sizeofPayload<0) {  // no payload
     delete zfrag;
     return 1;
   }
@@ -125,7 +121,7 @@ int ZcpEb::processIo(Server* serverGeneric)
   {
     EbEventBase* event = _pending.forward();
     while(event != &_pending) {
-      if (server->matches(event->key())) break;
+      if (server->coincides(event->key())) break;
       event = event->forward();
     }
     if (event == &_pending)
@@ -147,37 +143,6 @@ int ZcpEb::processIo(Server* serverGeneric)
   printf("ZcpEb::processIo remaining %x\n",remaining.value(0));
 #endif
 
-  //  If this client gave us more than one key try to merge events 
-  //  which match its different key types,
-
-  unsigned keyMask = server->keyTypes();
-  EbKey& ekey = zevent->key();
-  if ((keyMask&=~ekey.types)) {
-
-    //  Add the additional keys to the event's key bank.
-
-#ifdef VERBOSE
-    printf("ZcpEb::processIo adding keys %x\n",keyMask);
-    ekey.print();
-#endif
-
-    if (keyMask & (1<<EbKey::PulseId))
-      ekey.pulseId = *(EbPulseId*)server->key(EbKey::PulseId);
-    if (keyMask & (1<<EbKey::EVRSequence))
-      ekey.evrSequence = *(EbEvrSequence*)server->key(EbKey::EVRSequence);
-
-    EbEventBase* zb    = (EbEventBase*)zevent;
-    EbEventBase* event = _pending.forward();
-    EbEventBase* next;
-    while(event != &_pending) {
-      next = event->forward();
-      if (event != zb && server->matches(event->key())) {
-	zevent->merge( (ZcpEbEvent*)event->disconnect() );
-      }
-      event = next;
-    }
-  }
-
   if (remaining.isZero())
     _postEvent(zevent);
 
@@ -186,14 +151,6 @@ int ZcpEb::processIo(Server* serverGeneric)
   //  (or a full queue) rather than timing out.
   return 1;
   }
-
-EbEventBase* ZcpEb::_new_event(const EbBitMask& serverId)
-{
-  ZcpDatagram* datagram = new (&_datagrams) ZcpDatagram(_header, _id);
-
-  return new(&_events) ZcpEbEvent(serverId, _clients, datagram);
-}
-
 
 /*
 ** ++

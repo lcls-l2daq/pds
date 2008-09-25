@@ -1,31 +1,45 @@
 #ifndef PDS_TOEB
 #define PDS_TOEB
 
-#include "pds/service/Client.hh"
+#include "EbServer.hh"
+#include "EbEventKey.hh"
 
-struct iovec;
+#include "pds/xtc/Datagram.hh"
 
 namespace Pds {
 
-class CDatagram;
-class ZcpDatagram;
+  class CDatagram;
+  class ZcpDatagram;
 
-class ToEb {
-public:
-  // The interface is required for outlet wires which send multicast
-  // and it doesn't harm to have it there also for the other outlet
-  // wires
-  ToEb(int interface, 
-       unsigned payloadsize, 
-       unsigned maxdatagrams); 
-  virtual ~ToEb() {}
-
-  int  send(const CDatagram*  , const Ins&);
-  int  send(const ZcpDatagram*, const Ins&);
-  //  int  send(struct iovec*, unsigned iovCount, const Ins&);
-
-private:
-  Client _client;     // UDP client
-};
+  class ToEb : public EbServer {
+  public:
+    ToEb(const Src& client);
+    virtual ~ToEb() {}
+    
+    int  send(const CDatagram*  );
+    int  send(const ZcpDatagram*);
+  public:
+    //  Eb interface
+    void        dump    (int detail)   const;
+    bool        isValued()             const;
+    const Src&  client  ()             const;
+    //  EbSegment interface
+    const InXtc&   xtc   () const;
+  public:
+    //  Eb-key interface
+    EbServerDeclare;
+  public:
+    //  Server interface
+    int      pend        (int flag = 0);
+    int      fetch       (char* payload, int flags);
+    int      fetch       (ZcpFragment& , int flags);
+  public:
+    const Sequence& sequence() const;
+    unsigned count() const;
+  private:
+    int      _pipefd[2];
+    Src      _client;
+    Datagram _datagram;
+  };
 }
 #endif

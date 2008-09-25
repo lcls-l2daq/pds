@@ -46,6 +46,7 @@
 #include "pds/service/Pool.hh"
 #include "pds/service/RingPool.hh"
 #include "pds/service/RingPoolW.hh"
+#include "pds/collection/Transition.hh"
 //#include "TcByType.hh"
 
 namespace Pds {
@@ -77,6 +78,7 @@ class Datagram : public Sequence
     Datagram(const TC&);
     Datagram(const TC&, const Src&);
     Datagram(const TC&, const Src&, unsigned damage);
+    Datagram(const Transition&, const TC&, const Src&);
   public:
     char*       payload()       const;
     //    int         sizeofPayload() const;
@@ -244,7 +246,7 @@ inline Pds::Datagram::Datagram(const Pds::Datagram& datagram, const Pds::TC& tc)
 */
 
 inline Pds::Datagram::Datagram(const Pds::Datagram& datagram, 
-			       const Pds::TC&       tc,
+			       const Pds::TC&   tc,
 			       unsigned             damage) :
   Pds::Sequence(datagram),
   env(datagram.env),
@@ -267,7 +269,7 @@ inline Pds::Datagram::Datagram(const Pds::Datagram& datagram,
 */
 
 inline Pds::Datagram::Datagram(const Pds::Datagram& datagram,
-			       const Pds::TC&       tc,
+			       const Pds::TC&   tc,
 			       const Pds::Src&      src) :
   Pds::Sequence(datagram),
   env(datagram.env),
@@ -374,7 +376,7 @@ inline Pds::Datagram::Datagram(const Pds::Sequence& sequence,
 */
 
 inline Pds::Datagram::Datagram(const Pds::Sequence& sequence,
-			       const Pds::TC&       tc,
+			       const Pds::TC&   tc,
 			       unsigned             _env) :
   Pds::Sequence(sequence),
   env(_env),
@@ -383,7 +385,7 @@ inline Pds::Datagram::Datagram(const Pds::Sequence& sequence,
   }
 
 inline Pds::Datagram::Datagram(const Pds::Sequence& sequence,
-			       const Pds::TC&       tc,
+			       const Pds::TC&   tc,
 			       unsigned             _env,
 			       const Pds::Src&      src) :
   Pds::Sequence(sequence),
@@ -409,6 +411,15 @@ inline Pds::Datagram::Datagram(const Pds::Sequence& sequence, unsigned _env) :
   xtc()
   {
   }
+
+inline Pds::Datagram::Datagram(const Pds::Transition& tr,
+                               const TC& tc,
+                               const Src& src) :
+  Pds::Sequence(tr.sequence()),
+  env          (tr.env()),
+  xtc          (tc,src)
+{
+}
 
 /*
 ** ++

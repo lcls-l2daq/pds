@@ -34,9 +34,8 @@ class OutletWireHeader : public Sequence
   public:
     unsigned env;
     unsigned damage;
-    Src   src;
+    Src      src;
     int      offset;
-    int      identity;
     int      length;
   };
 }
@@ -54,7 +53,6 @@ Pds::OutletWireHeader::OutletWireHeader(const Pds::Datagram* datagram) :
   damage(datagram->xtc.damage.value()),
   src(datagram->xtc.src),
   offset(0),
-  identity(*(unsigned*)&datagram->xtc.tag.identity()),
   length(datagram->xtc.sizeofPayload()+sizeof(XTC))
   {
   }

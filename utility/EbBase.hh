@@ -30,20 +30,16 @@ class EbBase : public InletWireServer
 	   OutletWire& outlet,
 	   int stream,
 	   int ipaddress,
-	   unsigned eventpooldepth,
-	   unsigned netbufdepth,
-	   const EbTimeouts& ebtimeouts,
 #ifdef USE_VMON
 	   const VmonEb& vmoneb,
 #endif
 	   const Ins* dstack=0);
     virtual ~EbBase();
   public:
+    // Implements InletWireServer for adding and removing servers
     Server*   accept (Server*);
     void      remove (unsigned id);
     void      flush  ();
-    EbBitMask arm    (EbBitMask mask =
-		      EbBitMask(EbBitMask::FULL));
   public:
     int  poll      ();
     int  processTmo();
@@ -51,19 +47,19 @@ class EbBase : public InletWireServer
   private:
     friend class serverRundown;
   protected:
-    void         _postEvent(EbEventBase*);
+    //  Helper functions for the complete implementation
+    EbBitMask    _postEvent(EbEventBase*);  // complete this event and all older than
     EbEventBase* _seek     (EbServer*);
-    EbEventBase* _seek     (EbServer*, EbBitMask serverId);
     EbBitMask    _armMask  (EbEventBase*,EbEventBase*);
     EbEventBase* _event    (EbServer* server);
-    void         _flush    (unsigned);
     void         _iterate_dump();
   private:
-    EbBitMask    _post     ();
+    void         _post     (EbEventBase*);  // complete this event
     void         _remove   (EbServer*);
-  private:
+  protected:
     virtual void         _fixup      ( EbEventBase*, const Src& ) = 0;
     virtual EbEventBase* _new_event  ( const EbBitMask& ) = 0;
+    virtual bool         _is_complete( EbEventBase*, const EbBitMask& );
     virtual void         _dump       ( int detail ) = 0;
   protected:
     LinkedList<EbEventBase> _pending;      // Under construction/completion queue
@@ -75,7 +71,7 @@ class EbBase : public InletWireServer
     EbTimeouts  _ebtimeouts;
     Appliance&  _output;       // Destination for datagrams
     Src         _id;           // Our OWN ID
-    unsigned    _eventpooldepth;
+    unsigned    _nobuilds;     // 
     unsigned    _hits;         // # of contributions received and consumed.
     unsigned    _segments;     // # of segments received.
     unsigned    _misses;       // # of cache misses

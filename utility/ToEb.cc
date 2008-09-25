@@ -1,118 +1,54 @@
-#include <sys/uio.h>
-#include <string.h>
-
 #include "ToEb.hh"
-#include "OutletWireHeader.hh"
 #include "pds/xtc/CDatagram.hh"
 #include "pds/xtc/ZcpDatagram.hh"
-#include "Mtu.hh"
-#include "ChunkIterator.hh"
+
+#include <unistd.h>
+#include <sys/uio.h>
+#include <string.h>
+#include <errno.h>
 
 using namespace Pds;
 
-ToEb::ToEb(int interface, 
-	   unsigned payloadsize, 
-	   unsigned maxdatagrams) :
-  _client(sizeof(OutletWireHeader), payloadsize, Ins(interface), 
-	  maxdatagrams)
-{  
-  if (_client.error()) {
-    printf("*** ToEb ctor error: %s\n", strerror(_client.error()));
-  }
+ToEb::ToEb(const Src& client) :
+  _client(client)
+{
+  int err = ::pipe(_pipefd);
+  if (err)
+    printf("ToEb::ctor error: %s\n", strerror(errno));
+  fd(_pipefd[0]);
 }
 
-/*
-** ++
-**
-**   Transmits the datagram specified by its argument ("datagram" to the
-**   address specified as an argument ("dst"). Datagrams are actually
-**   transmitted on the wire in units of "Mtu::Size". If the datagram is
-**   greater than this value it is broken into a series of fragments,
-**   each transmitted individually on the wire. If this is the case, the
-**   datagram header (for each fragment) carries not only the size of
-**   the complete datagram, but its relative offset within the datagram.
-**   This information allows its partner event builder to reassemble
-**   the sent fragments back into whole datagrams (see "EbSegment" and
-**   "EbEvent").
-**   The function returns the status of the transmission operation. A value
-**   of zero (0) indicates success. A non-zero value indicates a transmission
-**   failure and corresponds to the ERRNO value as returned by the underlying
-**   TCP/IP network services.
-**
-**   NOTE: Any changes made here should be reflected in
-**   ToEb::_send(const Datagram*, const char*, const Ins&).
-** --
-*/
 
-int ToEb::send(const CDatagram* cdatagram,
-	       const Ins&      dst)
+int ToEb::send(const CDatagram* cdatagram)
 {
   const Datagram& datagram = cdatagram->datagram();
   unsigned size = datagram.xtc.sizeofPayload() + sizeof(InXtc);
-
-  if(size <= Mtu::Size)  return _client.send((char*)&datagram,
-					     (char*)&datagram.xtc,
-					     size,
-					     dst);
-
-  DgChunkIterator chkIter(&datagram);
-
-  do {
-    int error;
-    if((error = _client.send((char*)chkIter.header(), 
-			     (char*)chkIter.payload(), 
-			     chkIter.payloadSize(), 
-			     dst)))
-      return error;
-  } while(chkIter.next());
-
+  /*
+  {
+    unsigned* d = (unsigned*)&datagram;
+    printf("ToEb::send %08x/%08x %08x/%08x %08x\n"
+	   "           %08x %08x %08x %08x %08x\n",
+	   d[0], d[1], d[2], d[3], d[4],
+	   d[5], d[6], d[7], d[8], d[9]);
+  }
+  */
+  ::write(_pipefd[1],&datagram,sizeof(Datagram));
+  ::write(_pipefd[1],&datagram.xtc,size);
   return 0;
 }
 
-/*
-** ++
-**
-**   Similar to the above _send method, but sends data described by an array
-**   of iovec entries, instead.
-**
-**   I (RiC) don't know why Mike designed it like this, but I followed his
-**   example by passing the datagram to the send routine separately.  This
-**   means that the first entry in the iovec array is replaced by what was
-**   already there in Client, presuming Client::sizeofDatagram() returns
-**   the same value as sizeof(Datagram).  It looks like they're always
-**   the same, so I don't understand why he didn't use the constant rather
-**   than causing a memory fetch.
-**
-**   As soon as a piece of the array has been sent we can scribble over the
-**   sent entries.  Thus, we loop over entries and sum up the sizes.  When it
-**   becomes bigger than the allowed size, we truncate and remember the
-**   remainder.  After the send, we modify the previous entry that was sent to
-**   start at the truncation point.  Then repeat until all chunks are sent.
-**
-** --
-*/
-int ToEb::send(const ZcpDatagram* cdatagram,
-	       const Ins&      dst)
+int ToEb::send(const ZcpDatagram* cdatagram)
 {
   const Datagram& datagram = cdatagram->datagram();
-  unsigned size = datagram.xtc.sizeofPayload() + sizeof(InXtc) - sizeof(XTC);
 
-  if(size <= Mtu::Size)  return _client.send((char*)&datagram,
-					     (char*)&datagram.xtc,
-					     size,
-					     dst);
+  ::write(_pipefd[1],&datagram,sizeof(Datagram));
 
-  DgChunkIterator chkIter(&datagram);
-
-  do {
-    int error;
-    if((error = _client.send((char*)chkIter.header(), 
-			     (char*)chkIter.payload(), 
-			     chkIter.payloadSize(), 
-			     dst)))
-      return error;
-  } while(chkIter.next());
-
+  const LinkedList<ZcpFragment>& fragments = cdatagram->fragments();
+  ZcpFragment* zf = fragments.forward();
+  while(zf!=fragments.empty()) {
+    zf->kremove(_pipefd[1],zf->size());
+    zf = zf->forward();
+  }
   return 0;
 }
 
@@ -137,3 +73,69 @@ int ToEb::send(const InDatagram* indg,
 }
 */
 
+void ToEb::dump(int detail) const
+{
+}
+
+bool ToEb::isValued() const
+{
+  return true;
+}
+
+const Src& ToEb::client() const
+{
+  return _client; 
+}
+
+const InXtc& ToEb::xtc() const
+{
+  return _datagram.xtc;
+}
+
+int ToEb::pend(int flag) 
+{
+  return -1;
+}
+
+int ToEb::fetch(char* payload, int flags)
+{
+  int length = ::read(_pipefd[0],&_datagram,sizeof(Datagram));
+  if (length < 0) return length;
+
+  int nbytes = _datagram.xtc.sizeofPayload()+sizeof(InXtc);
+  while( nbytes ) {
+    length = ::read(_pipefd[0],payload,nbytes);
+    if (length < 0) return length;
+    nbytes  -= length;
+    payload += length;
+  }
+  /*
+  {
+    unsigned* d = (unsigned*)&_datagram;
+    printf("ToEb::fetch %08x/%08x %08x/%08x %08x\n"
+	   "%p %08x %08x %08x %08x %08x\n",
+	   d[0], d[1], d[2], d[3], d[4],
+	   this, d[5], d[6], d[7], d[8], d[9]);
+  }
+  */	 
+  return _datagram.xtc.sizeofPayload()+sizeof(InXtc);
+}
+
+int ToEb::fetch(ZcpFragment& zf, int flags)
+{
+  int length = ::read(_pipefd[0],&_datagram,sizeof(Datagram));
+  if (length < 0) return length;
+
+  int nbytes = _datagram.xtc.sizeofPayload()+sizeof(InXtc);
+  return zf.kinsert(_pipefd[0],nbytes);
+}
+
+const Sequence& ToEb::sequence() const
+{
+  return _datagram;
+}
+
+unsigned ToEb::count() const
+{
+  return *(unsigned*)&_datagram;
+}

@@ -1,21 +1,21 @@
 #include "ToEventWire.hh"
 
-//#include "AckHandler.hh"
 #include "Mtu.hh"
-#include "EbHeaderTC.hh"
-#include "Event.hh"
+#include "pds/collection/CollectionManager.hh"
+#include "pds/collection/Transition.hh"
+#include "pds/xtc/Datagram.hh"
+#include "pds/xtc/InDatagram.hh"
+
+static const unsigned MaxDatagrams = 32;
 
 using namespace Pds;
 
-ToEventWire::ToEventWire(Outlet& outlet, 
-			 unsigned slot,
-			 unsigned clients,
-			 const Src& id) :
-			 //			       AckHandler& ack_handler) :
+ToEventWire::ToEventWire(Outlet& outlet,
+			 CollectionManager& collection,
+			 int interface) :
   OutletWire(outlet),
-  _mcast((unsigned)-1, Ins()),
-  //  _ack_handler(ack_handler),
-  _id(id)
+  _collection(collection),
+  _postman(interface, Mtu::Size, MaxDatagrams)
 {
 }
 
@@ -23,32 +23,30 @@ ToEventWire::~ToEventWire()
 {
 }
 
-void ToEventWire::bind(unsigned id, const Ins& node, int mcast) 
+Transition* ToEventWire::forward(Transition* tr)
+{
+  Ins dst(tr->reply_to());
+  _collection.ucast(*tr,dst);
+  return 0;
+}
+
+InDatagram* ToEventWire::forward(InDatagram* dg)
+{
+  OutletWireIns* dst = _nodes.lookup(dg->datagram());
+  int result = dg->send(_postman, dst->ins());
+  if (result) _log(dg->datagram(), result);
+
+  return 0;
+}
+
+void ToEventWire::bind(unsigned id, const Ins& node) 
 {
   _nodes.insert(id, node);
-  _mcast.replace(Ins(mcast, node.portId()));
 }
 
 void ToEventWire::unbind(unsigned id) 
 {
   _nodes.remove(id);
-}
-
-//#define BatchFragId  TypeIdPrimary(EbBatchTC::FragIdentity)
-
-OutletWireIns* ToEventWire::prepareEvent(const Datagram& datagram)
-  //					 AckRequest*& ack) 
-{
-  OutletWireIns* dst = _nodes.lookup(datagram.low() >> 7);
-
-  //  A non-batched L1Accept
-  if (!datagram.notEvent()) {
-    //    ack = _ack_handler.queue(*datagram, dst->id());
-    return dst;
-  }
-
-  //  ack = 0;
-  return &_mcast;
 }
 
 void ToEventWire::dump(int detail)

@@ -6,7 +6,9 @@
 #include "pds/service/Task.hh"
 #include "pds/collection/Transition.hh"
 #include "pds/xtc/Datagram.hh"
+#include "pds/xtc/InDatagram.hh"
 #include "pds/xtc/CDatagram.hh"
+#include "pds/xtc/Datagram.hh"
 
 using namespace Pds;
 
@@ -16,11 +18,11 @@ static const int AddOutput    = 3;
 static const int RemoveOutput = 4;
 static const int TrimInput    = 5;
 static const int TrimOutput   = 6;
-static const int PostDatagram = 7;
-static const int PostTransition = 8;
+static const int PostInDatagram = 7;  // Assumed to be a "local" out-of-band message, we may pass pointers
+static const int PostTransition = 8;  // Ditto.
 
-static const unsigned DatagramSize = sizeof(int);
-static const unsigned PayloadSize = sizeof(InletWireIns) > sizeof(CDatagram) ? sizeof(InletWireIns) : sizeof(CDatagram);
+static const unsigned DatagramSize = sizeof(int); // out-of-band message header size
+static const unsigned PayloadSize  = sizeof(Transition);
 static const unsigned MaxDatagrams = 64;
 
 InletWireServer::InletWireServer(Inlet& inlet,
@@ -35,11 +37,8 @@ InletWireServer::InletWireServer(Inlet& inlet,
 		timeout, MaxDatagrams),
   _inlet(inlet),
   _outlet(outlet),
-  //  _stream(StreamParams::StreamType(stream)),
   _ipaddress(ipaddress),
   _payload(new char[PayloadSize]),
-  _transition(new char[sizeof(Transition)]),
-  _datagrams(sizeof(CDatagram), MaxDatagrams),
   _driver(*this),
   _sem(Semaphore::EMPTY)
 {
@@ -48,7 +47,6 @@ InletWireServer::InletWireServer(Inlet& inlet,
 
 InletWireServer::~InletWireServer() 
 {
-  delete [] _transition;
   delete [] _payload;
 }
 
@@ -108,17 +106,16 @@ void InletWireServer::trim_output(const InletWireIns& iwi)
 
 void InletWireServer::post(const Transition& tr)
 {
-  unblock((char*)&PostTransition, (char*)&tr, sizeof(Transition));
+  // assume that this object is constructed from a pool, and control has been handed over.
+  Transition* ptr = const_cast<Transition*>(&tr);
+  unblock((char*)&PostTransition, (char*)&ptr, sizeof(ptr));
 }
 
-void InletWireServer::post(const Datagram& dg)
+void InletWireServer::post(const InDatagram& dg)
 {
-  unblock((char*)&PostDatagram, (char*)&dg, sizeof(Datagram));
-}
-
-unsigned short InletWireServer::port(unsigned id) const
-{
-  return _ports[id];
+  // assume that this object is constructed from a pool, and control has been handed over.
+  InDatagram* ptr = const_cast<InDatagram*>(&dg);
+  unblock((char*)&PostInDatagram, (char*)&ptr, sizeof(ptr));
 }
 
 char* InletWireServer::payload() 
@@ -132,9 +129,10 @@ int InletWireServer::commit(char* datagram,
 			    const Ins& src)
 {
   if (!sizeofPayload) {
-    unsigned id;
+    int id;
+    EbBitMask inputs(managed());
     for (id=0; id<EbBitMaskArray::BitMaskBits; id++) {
-      if (_ports[id]) remove_input(server(id));
+      if ( inputs.hasBitSet(id)) remove(id);
     }
     for (id=0; id<EbBitMaskArray::BitMaskBits; id++) {
       if (_outputs.hasBitSet(id)) remove_output(id);
@@ -145,7 +143,9 @@ int InletWireServer::commit(char* datagram,
   }
   int request = *(int*)datagram;
   const InletWireIns& iwi = *(const InletWireIns*)payload;
-  Server* srv = *reinterpret_cast<Server**>(payload);
+  Server* srv    = *reinterpret_cast<Server**>(payload);
+  InDatagram* dg = *reinterpret_cast<InDatagram**>(payload);
+  Transition* tr = *reinterpret_cast<Transition**>(payload);
   switch (request) {
   case AddInput:
     _add_input(srv);
@@ -156,7 +156,7 @@ int InletWireServer::commit(char* datagram,
     _sem.give();
     break;
   case AddOutput:
-    add_output(iwi.id(), iwi.rcvr(), iwi.mcast());
+    add_output(iwi.id(), iwi.rcvr());
     _sem.give();
     break;
   case RemoveOutput:
@@ -169,18 +169,12 @@ int InletWireServer::commit(char* datagram,
   case TrimOutput:
     remove_output(iwi.id());
     break;
-  case PostDatagram:
-    {
-      CDatagram* dg = new(&_datagrams) CDatagram(*(Datagram*)payload);
-      _inlet.post(dg);
-    }
+  case PostInDatagram:
+    _inlet.post(dg);
     break;
   case PostTransition:
-    {
-      memcpy(_transition,payload,sizeof(Transition));
-      Transition* tr = reinterpret_cast<Transition*>(_transition);
-      _inlet.post(tr);
-    }
+    _inlet.post(tr);
+    break;
   }
   return 1;
 }
@@ -197,9 +191,9 @@ void InletWireServer::_remove_input(Server* srv)
   remove(srv->id());
 }
 
-void InletWireServer::add_output(unsigned id, const Ins& rcvr, int mcast)
+void InletWireServer::add_output(unsigned id, const Ins& rcvr)
 {
-  _outlet.bind(id, rcvr, mcast);
+  _outlet.bind(id, rcvr);
   _outputs.setBit(id);  
 }
 

@@ -2,6 +2,7 @@
 #define PDS_BLDSERVER
 
 #include "EbServer.hh"
+#include "EbEventKey.hh"
 #include "pds/service/NetServer.hh"
 #include "pds/service/ZcpFragment.hh"
 
@@ -9,31 +10,34 @@ namespace Pds {
 class BldServer : public EbServer
   {
   public:
-    BldServer(const Src& client,
-	      const Ins& ins,
+    BldServer(const Ins& ins,
+	      const Src& src,
 	      unsigned   nbufs);
    ~BldServer();
   public:
     //  Eb interface
     void        dump    (int detail)   const;
-    unsigned    keyTypes()             const;
-    const char* key     (EbKey::Type)  const;
-    bool        matches (const EbKey&) const;
     bool        isValued()             const;
+    const Src&  client  ()             const;
     //  EbSegment interface
     const InXtc&   xtc   () const;
     bool           more  () const;
     unsigned       length() const;
     unsigned       offset() const;
   public:
+    //  Eb-key interface
+    EbServerDeclare;
+  public:
     //  Server interface
     int      pend        (int flag = 0);
     int      fetch       (char* payload, int flags);
     int      fetch       (ZcpFragment& , int flags);
   public:
-    NetServer& server();
+    NetServer&      server();
+    const Sequence& sequence() const;
   private:
     NetServer   _server;
+    Src         _client;
     InXtc       _xtc;
     ZcpFragment _dg;
   };
@@ -43,6 +47,11 @@ class BldServer : public EbServer
 inline Pds::NetServer& Pds::BldServer::server() 
 {
   return _server;
+}
+
+inline const Pds::Sequence& Pds::BldServer::sequence() const
+{
+  return *(Pds::Sequence*)_server.datagram();
 }
 
 #endif

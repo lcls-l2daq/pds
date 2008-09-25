@@ -9,7 +9,6 @@
 
 namespace Pds {
 
-class CollectionManager;
 class OutletWire;
 
 //
@@ -23,7 +22,7 @@ class OutletWire;
 class Outlet: public Appliance {
 
 public:
-  Outlet(CollectionManager&);
+  Outlet();
   virtual ~Outlet() {}
 
   void plug(OutletWire& wire);
@@ -48,7 +47,6 @@ public:
 
 private:
   unsigned _forward[Sequence::NumberOfTypes];
-  CollectionManager& _collection;
   OutletWire* _wire;
 };
 }

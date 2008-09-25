@@ -48,7 +48,11 @@ void Appliance::post(Transition* input)
   {
     Appliance* n = (Appliance*)next();
     Transition* output = n->transitions(input);
-    if (output)  n->post(output);
+    if      (output == 0) delete input;
+    else if (output != (Transition*) DontDelete) {
+      if (input != output) delete input;
+      n->post(output);
+    }
   }
 
 /*

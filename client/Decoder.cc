@@ -101,7 +101,8 @@ InDatagram* Decoder::occurrences(InDatagram* in)
 
 InDatagram* Decoder::_handleDg(InDatagram* in){
   InDatagramIterator* iter = in->iterator(&_pool);
-  Browser browser(in->datagram(), iter, _depth);
+  int advance;
+  Browser browser(in->datagram(), iter, _depth, advance);
   if ((_depth > -1)  && 
       (in->datagram().xtc.sizeofPayload() >= (int) sizeof(InXtc)) ) browser.iterate();
   delete iter;

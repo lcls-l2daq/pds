@@ -6,18 +6,17 @@
 namespace Pds {
 
 class CollectionManager;
-class EventOccHandler;
 //class VmonAppliance;
 
 class EventStreams: public WiredStreams {
 public:
   enum { netbufdepth = 32 };
+  enum { ebdepth     = 10 };
 
-  EventStreams(CollectionManager& cmgr);
+  EventStreams(CollectionManager& cmgr,int);
   virtual ~EventStreams();
 
 private:
-  EventOccHandler* _occ_handler;
   //  VmonAppliance* _vmom_appliance;
 };
 

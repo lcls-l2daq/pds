@@ -2,6 +2,11 @@
 
 using namespace Pds;
 
+Message::Message(const Message& msg) :
+  _type    (msg._type),
+  _reply_to(msg._reply_to),
+  _size    (msg._size)
+{}
 
 Message::Message(Type type, unsigned size) : 
   _type(type),

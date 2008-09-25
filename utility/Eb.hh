@@ -29,22 +29,19 @@ class Eb : public EbBase
        int ipaddress,
        unsigned eventsize,
        unsigned eventpooldepth,
-       unsigned netbufdepth,
-       const EbTimeouts& ebtimeouts,
 #ifdef USE_VMON
        const VmonEb& vmoneb,
 #endif
        const Ins* dstack=0);
-    ~Eb();
+    virtual ~Eb();
   public:
     int  processIo(Server*);
   private:
     void         _fixup      ( EbEventBase*, const Src& );
-    EbEventBase* _new_event  ( const EbBitMask& );
     void         _dump       ( int detail );
-  private:
+  protected:
     GenericPool _datagrams;    // Datagram freelist
-    GenericPool _events;       // Event freelist
+    GenericPool _events;
   };
 }
 #endif

@@ -27,11 +27,10 @@ public:
 		  unsigned timeout = 0);
 
   // Implements InletWire thread safely (through unblock)
-  unsigned short port(unsigned id) const;
   void connect();
   void disconnect();
   void post(const Transition&);
-  void post(const Datagram&);
+  void post(const InDatagram&);
 
   void add_input   (Server*);
   void remove_input(Server*);
@@ -42,12 +41,12 @@ public:
   void trim_output(const InletWireIns& iwi);
 
   // Must be reimplemented by those inlets which need to add and remove servers
-  //  virtual Server* accept(unsigned id, const Ins& rcvr) = 0;
   virtual Server* accept(Server*) = 0;
   virtual void remove(unsigned id) = 0;
   virtual void flush() = 0;
 
-protected:
+  //protected:
+public:
   virtual ~InletWireServer();
 
 private:
@@ -64,7 +63,7 @@ private:
   void _add_input   (Server*);
   void _remove_input(Server*);
 
-  void add_output(unsigned id, const Ins& rcvr, int mcast);
+  void add_output(unsigned id, const Ins& rcvr);
   void remove_output(unsigned id);
 
 protected:
@@ -74,12 +73,8 @@ protected:
   int _ipaddress;
 
 private:
-  int            _mcast[EbBitMaskArray::BitMaskBits];
-  unsigned short _ports[EbBitMaskArray::BitMaskBits];
   EbBitMaskArray _outputs;
   char*          _payload;
-  char*          _transition;
-  GenericPool    _datagrams;
   SelectDriver   _driver;
   Semaphore      _sem;
 };

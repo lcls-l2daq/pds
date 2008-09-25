@@ -38,7 +38,8 @@ ZcpFragment::~ZcpFragment()
 //
 //  "splice" is introduced in gcc version 4
 //
-#if ( __GNUC__ > 3 )
+//#if ( __GNUC__ > 3 )
+#if 1
 
 int ZcpFragment::kinsert(int fd, int size) 
 { 
@@ -69,6 +70,14 @@ int ZcpFragment::insert(ZcpFragment& dg, int size)
   _size      += spliced;
   dg._size   -= spliced;
   return spliced;
+}
+
+int ZcpFragment::copy  (ZcpFragment& dg, int size)
+{
+  int copied = ::tee(dg._fd[0],_fd[1],size, SPLICE_F_NONBLOCK);
+  if (copied > 0)
+    _size += copied;
+  return copied;
 }
 
 int ZcpFragment::kremove(int size) 
@@ -108,21 +117,9 @@ int ZcpFragment::read(void* buff, int size)
   return ::read(_fd[0],buff,size);
 }
 
-int ZcpFragment::copyFrom(ZcpFragment& dg, int size)
+int ZcpFragment::kcopyTo(int fd, int size)
 {
-  int copied = ::tee(dg._fd[0],_fd[1],size, SPLICE_F_NONBLOCK);
-  if (copied > 0)
-    _size += copied;
-  return copied;
-}
-
-int ZcpFragment::moveFrom(ZcpFragment& dg, int size)
-{
-  int copied = ::splice(dg._fd[0], NULL,_fd[1], NULL, size, SPLICE_F_NONBLOCK);
-  if (copied > 0) {
-    _size    += copied;
-    dg._size -= copied;
-  }
+  int copied = ::tee(_fd[0],fd,size, SPLICE_F_NONBLOCK);
   return copied;
 }
 
@@ -166,7 +163,6 @@ int ZcpFragment::read(void* buff, int size)
   return ::read(_fd[0],buff,size);
 }
 
-int ZcpFragment::copyFrom(ZcpFragment& dg, int size) { return _showGccVersion(); }
-int ZcpFragment::moveFrom(ZcpFragment& dg, int size) { return _showGccVersion(); }
+int ZcpFragment::kcopyTo(int fd, int size) { return _showGccVersion(); }
 
 #endif

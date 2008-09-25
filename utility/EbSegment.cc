@@ -45,12 +45,12 @@ using namespace Pds;
 */
 
 EbSegment::EbSegment(const InXtc& header,
-			   char* base,
-                           int sizeofFragment,
-                           int offset,
-                           int length,
-                           EbBitMask client,
-                           EbSegment* pending) :
+		     char* base,
+		     int sizeofFragment,
+		     int offset,
+		     int length,
+		     EbBitMask client,
+		     EbSegment* pending) :
   _base(base),
   _offset(offset + sizeofFragment),
   _remaining(length - sizeofFragment),

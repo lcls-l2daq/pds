@@ -5,11 +5,10 @@
 
 using namespace Pds;
 
-SetOfStreams::SetOfStreams(CollectionManager& cmgr,
-			   const VmonSourceId& vmonid)
+SetOfStreams::SetOfStreams(const VmonSourceId& vmonid)
 {
   for (int s = 0; s < StreamParams::NumberOfStreams; s++) {
-    _stream[s] = new Stream(s,cmgr);
+    _stream[s] = new Stream(s);
     _inlet_wires[s] = 0;
   }
   //  _vmon_manager = new VmonManager(vmonid);

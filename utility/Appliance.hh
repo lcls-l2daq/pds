@@ -44,9 +44,9 @@ class Appliance : Entry
     virtual ~Appliance() {}
     typedef InDatagram* (Appliance::*pmf)(InDatagram*);
     virtual Transition* transitions(Transition*) = 0;
-    virtual InDatagram*   occurrences(InDatagram*) = 0;
-    virtual InDatagram*   events     (InDatagram*) = 0;
-    virtual InDatagram*   markers    (InDatagram*);
+    virtual InDatagram* occurrences(InDatagram*) = 0;
+    virtual InDatagram* events     (InDatagram*) = 0;
+    virtual InDatagram* markers    (InDatagram*);
     Appliance*        connect   (Appliance*);
     Appliance*        disconnect();
     int               datagrams() const;

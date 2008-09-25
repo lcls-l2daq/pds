@@ -9,8 +9,7 @@ namespace Pds {
 
 class WiredStreams : public SetOfStreams {
 public:
-  WiredStreams(CollectionManager& cmgr,
-	       const VmonSourceId& vmonid);
+  WiredStreams(const VmonSourceId& vmonid);
   virtual ~WiredStreams();
 
   // Connecting wires

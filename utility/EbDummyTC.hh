@@ -21,16 +21,7 @@ class EbDummyTC : public TC
   {
   public:
     EbDummyTC(Level::Type level) :
-      TC(TypeIdQualified(level == Level::Control ?
-			       TypeNumPrimary::Id_FragmentContainer :
-			       (level == Level::Event ?
-				TypeNumPrimary::Id_ModuleContainer  :
-				TypeNumPrimary::Id_XTC)),
-	    TypeIdQualified(level == Level::Control ?
-			       TypeNumPrimary::Id_EventContainer :
-			       (level == Level::Event ?
-				TypeNumPrimary::Id_FragmentContainer :
-				TypeNumPrimary::Id_ModuleContainer))) {}
+      TC(TypeNumPrimary::Id_InXtcContainer) {}
   };
 }
 #endif

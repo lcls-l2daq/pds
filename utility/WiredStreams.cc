@@ -5,9 +5,8 @@
 
 using namespace Pds;
 
-WiredStreams::WiredStreams(CollectionManager& cmgr,
-			   const VmonSourceId& vmonid) :
-  SetOfStreams(cmgr,vmonid)
+WiredStreams::WiredStreams(const VmonSourceId& vmonid) :
+  SetOfStreams(vmonid)
 {}
 
 WiredStreams::~WiredStreams() {}

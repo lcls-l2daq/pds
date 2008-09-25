@@ -2,38 +2,41 @@
 #define PDS_NETDGSERVER
 
 #include "EbServer.hh"
+#include "EbEventKey.hh"
 #include "pds/service/NetServer.hh"
 
 namespace Pds {
 class NetDgServer : public EbServer
   {
   public:
-    NetDgServer(const Src& client,
-		const Ins& ins,
+    NetDgServer(const Ins& ins,
+		const Src& src,
 		unsigned   nbufs);
    ~NetDgServer();
   public:
     //  Eb interface
     void        dump    (int detail)   const;
-    unsigned    keyTypes()             const;
-    const char* key     (EbKey::Type)  const;
-    bool        matches (const EbKey&) const;
     bool        isValued()             const;
+    const Src&  client  ()             const;
     //  EbSegment interface
     const InXtc&   xtc   () const;
     bool           more  () const;
     unsigned       length() const;
     unsigned       offset() const;
   public:
+    //  Eb-key interface
+    EbServerDeclare;
+  public:
     //  Server interface
     int      pend        (int flag = 0);
     int      fetch       (char* payload, int flags);
     int      fetch       (ZcpFragment& , int flags);
   public:
-    NetServer& server();
+    NetServer&      server();
+    const Sequence& sequence() const;
   private:
     NetServer   _server;
-    EbPulseId   _pulseId;
+    Src         _client;
   };
 }
 
@@ -41,6 +44,11 @@ class NetDgServer : public EbServer
 inline Pds::NetServer& Pds::NetDgServer::server() 
 {
   return _server;
+}
+
+inline const Pds::Sequence& Pds::NetDgServer::sequence() const
+{
+  return *(Pds::Sequence*)_server.datagram();
 }
 
 #endif

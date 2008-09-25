@@ -44,8 +44,8 @@ int CollectionServer::commit(char* datagram,
 {
   const Node& hdr = *(Node*)datagram;
   const Message& msg = *(Message*)payload;
-  printf("<%s> from level %d partition %d uid %d pid %d\n",
-	 msg.type_name(), hdr.level(), hdr.partition(), hdr.uid(), hdr.pid());
+  //  printf("<%s> from level %d partition %d uid %d pid %d\n",
+  //	 msg.type_name(), hdr.level(), hdr.partition(), hdr.uid(), hdr.pid());
   _manager.message(hdr, msg);
   return 1;
 }

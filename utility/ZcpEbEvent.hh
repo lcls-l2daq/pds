@@ -8,6 +8,7 @@
 
 namespace Pds {
 
+class EbEventKey;
 class EbServer;
 class ZcpFragment;
 class ZcpDatagram;
@@ -20,7 +21,7 @@ class ZcpEbEvent : public EbEventBase
     void  operator delete(void* buffer);
   public:
     ZcpEbEvent();
-    ZcpEbEvent(EbBitMask creator, EbBitMask contract, ZcpDatagram*);
+    ZcpEbEvent(EbBitMask creator, EbBitMask contract, ZcpDatagram*, EbEventKey*);
    ~ZcpEbEvent();
 
     ZcpDatagram* zdatagram() const;

@@ -8,6 +8,9 @@
 
 namespace Pds {
 
+  class ToEb;
+  class ToNetEb;
+
   class ZcpDatagram : public InDatagram {
   public:
     ZcpDatagram(const Datagram&);
@@ -22,7 +25,9 @@ namespace Pds {
 
     InDatagramIterator* iterator(Pool*) const;
 
-    int send(ToEb&, const Ins&);
+    int send(ToEb&);
+    int send(ToNetEb&, const Ins&);
+    int  unblock(OobServer&, char*);
   public:
     LinkedList<ZcpFragment>& fragments();
     const LinkedList<ZcpFragment>& fragments() const;

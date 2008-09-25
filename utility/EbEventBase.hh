@@ -1,34 +1,11 @@
-/*
-** ++
-**  Package:
-**	odfConcentrator
-**
-**  Abstract:
-**
-**      This class defines the context necessary to manage an event
-**      as it it makes the phase changes between "construction",
-**      "completing", and "completion".
-**
-**  Author:
-**      Michael Huffer, SLAC, (415) 926-4269
-**
-**  Creation Date:
-**	000 - June 1,1998
-**
-**  Revision History:
-**	None.
-**
-** --
-*/
-
 #ifndef PDS_EBEVENTBASE_HH
 #define PDS_EBEVENTBASE_HH
 
 #include "pds/xtc/Sequence.hh"
 #include "pds/xtc/Datagram.hh"
+#include "EbEventKey.hh"
 #include "EbClients.hh"
 #include "EbSegment.hh"
-#include "EbKey.hh"
 #include "pds/service/LinkedList.hh"
 
 namespace Pds {
@@ -41,32 +18,25 @@ class EbEventBase : public LinkedList<EbEventBase>
   {
   public:
     EbEventBase();
-    EbEventBase(EbBitMask creator, EbBitMask contract, Datagram*);
+    EbEventBase(EbBitMask creator, EbBitMask contract, 
+		Datagram* datagram, EbEventKey* key);
     virtual ~EbEventBase();
   public:
-    Datagram*        datagram  ()  const;
     EbBitMask        remaining () const;
     EbBitMask        remaining (EbBitMask id);
-    void             add       (const EbPulseId*, EbEventBase* after);
     void             dump      (int number);
     EbBitMask        deallocate(EbBitMask id);
     int              timeouts  (const EbTimeouts& ebtimeouts);
-    EbKey&           key       ();
     const EbBitMask& segments  () const;
     EbBitMask&       segments  ();
     EbClients&       allocated ();
+    Datagram*        datagram  ();
   public:
     virtual InDatagram* finalize() = 0;
-
-    //    EbSegment* consume(const EbServer*,
-    //		       int sizeofPayload,
-    //		       EbBitMask client);
-    //    EbSegment* hasSegment(EbBitMask client);
-    //    char*         recopy(char* payload, int sizeofPayload, EbBitMask server);
-    //    void          fixup(const Src&, const TC&);
-    //    char*         payload(EbBitMask client);
+  public:
+    EbEventKey& key() { return *_key; }
   private:
-    EbKey         _key;
+    EbEventKey*   _key;
     EbClients     _allocated;     // Clients which have allocated event
     EbClients     _contributions; // List of clients yet to contribute
     EbBitMask     _contract;      // -> potential list of contributors
@@ -90,22 +60,7 @@ class EbEventBase : public LinkedList<EbEventBase>
 inline Pds::EbEventBase::~EbEventBase()
   {
   disconnect();
-  }
-
-/*
-** ++
-**
-**    Each event has a datagram associated with it. This datagram is actually
-**    the event as seen outside the event building appliance and is constitutes
-**    the data structure the event builder is actually building. This function
-**    returns a pointer to that datagram.
-**
-** --
-*/
-
-inline Pds::Datagram* Pds::EbEventBase::datagram() const
-  {
-  return _datagram;
+  delete _key;
   }
 
 /*
@@ -175,14 +130,14 @@ inline EbBitMask Pds::EbEventBase::deallocate(EbBitMask id)
   return _allocated.remove(id);
   }
 
-inline Pds::EbKey& Pds::EbEventBase::key()
-{
-  return _key;
-}
-
 inline Pds::EbClients& Pds::EbEventBase::allocated()
 {
   return _allocated;
+}
+
+inline Pds::Datagram* Pds::EbEventBase::datagram()
+{
+  return _datagram;
 }
 
 #endif

@@ -50,15 +50,16 @@ namespace Pds {
   public:
     enum Value
       {
-      Unknown       =  0,  //  These events cannot be sent to
-      L1Accept      =  1
+	Map,       Unmap,     Configure, Unconfigure,
+	BeginRun,  EndRun,    Pause,     Resume,
+	Enable,    Disable,   L1Accept
       };
     
     /*
     ** The "numberof" constant must always be one more than the highest
     ** numerical value of a event!
     */
-    enum { numberof = 2 };
+    enum { numberof = 11 };
   };
 };
 

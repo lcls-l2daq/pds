@@ -20,6 +20,7 @@
 
 #include "EbBase.hh"
 #include "EbServer.hh"
+#include "EbTimeouts.hh"
 #include "pds/service/SysClk.hh"
 #include "pds/service/Client.hh"
 #include "Inlet.hh"
@@ -48,12 +49,12 @@ using namespace Pds;
 
 static const int TaskPriority = 60;
 static const char* TaskLevelName[Level::NumberOfLevels+1] = {
-  "oEbCtr", "oEbSrc", "oEbSeg", "oEbFrg", "oEbEvt", "oEbObs"
+  "oEbCtr", "oEbSrc", "oEbSeg", "oEbEvt", "oEbRec", "oEbObs"
 };
-static const char* TaskName(Level::Type level, int stream)
+static const char* TaskName(Level::Type level, int stream, Inlet& inlet)
 {
   static char name[64];
-  sprintf(name, "%s%d", TaskLevelName[level], stream);
+  sprintf(name, "%s%d_%p", TaskLevelName[level], stream, &inlet);
   return name;
 }
 
@@ -64,22 +65,18 @@ EbBase::EbBase(const Src& id,
 	       OutletWire& outlet,
 	       int stream,
 	       int ipaddress,
-	       unsigned eventpooldepth,
-	       unsigned netbufdepth,
-	       const EbTimeouts& ebtimeouts,
 #ifdef USE_VMON
 	       const VmonEb& vmoneb,
 #endif
 	       const Ins* dstack) :
   InletWireServer(inlet, outlet, ipaddress, stream, 
-		  TaskPriority-stream, TaskName(level, stream),
-		  ebtimeouts.duration()),
+		  TaskPriority-stream, TaskName(level, stream, inlet),
+		  EbTimeouts::duration(stream)),
   _header(level),
   _dummy (level),
-  _ebtimeouts(ebtimeouts),
+  _ebtimeouts(stream,level),
   _output(inlet),
   _id(id),
-  _eventpooldepth(eventpooldepth),
   _hits(0),
   _segments(0),
   _misses(0),
@@ -114,15 +111,15 @@ EbBase::EbBase(const Src& id,
 
 Server* EbBase::accept(Server* srv)
 {
-  unsigned id = srv->id();
-  EbServer* accepted = (EbServer*) unmanage(server(id));
-  if (accepted) {
-    if (accepted->isValued())
-      _valued_clients.clearBit(id);
-    delete accepted;
+  EbBitMask clients = managed();
+  unsigned id = 0;
+  while( clients.LSBnotZero() ) {
+    clients >>= 1;
+    id++;
   }
+  srv->id(id);
 
-  accepted = (EbServer*)srv;
+  EbServer* accepted = (EbServer*)srv;
   if (accepted->isValued())
     _valued_clients.setBit(id);
 
@@ -177,43 +174,8 @@ void EbBase::remove(unsigned id)
 
 void EbBase::flush()
   {
-  EbEventBase* eol = _pending.empty();
-
-  do _post(); while(_pending.forward() != eol);
-  }
-
-/*
-**  Flush all pending events with any of the indicated set of key types.
-*/
-void EbBase::_flush(unsigned types) {
-  EbEventBase* event = _pending.forward();
-  EbEventBase* empty = _pending.empty();
-
-  while ( event != empty ) {
-    if (event->key().types & types)
-      _postEvent(event);
-
-    event = event->forward();
-  }
-}
-
-/*
-** ++
-**
-**   This function will allow all the servers currently managed by this
-**   Event Builder to receive incoming contributions. This function
-**   should be called ONCE after the Event Builder's creation and
-**   before its first call to "poll". Any subsequent arming required
-**   is provided by the Event Builder itself.
-**
-** --
-*/
-
-EbBitMask EbBase::arm(EbBitMask mask)
-  {
-  EbBitMask armed = ServerManager::arm(mask);
-  _clients = armed;
-  return armed;
+    if (_pending.forward() != _pending.empty())
+      _postEvent( _pending.reverse() );
   }
 
 /*
@@ -241,29 +203,35 @@ EbBitMask EbBase::_armMask(EbEventBase* current, EbEventBase* empty)
 #define PAUSE     (1 << Sequence::Service20)
 #define DISABLE   (1 << Sequence::Service28)
 
-void EbBase::_postEvent(EbEventBase* event)
+void EbBase::_post(EbEventBase* event)
 {
-  Datagram*   datagram   = event->datagram();
+  InDatagram* indatagram = event->finalize();
+  Datagram*   datagram   = const_cast<Datagram*>(&indatagram->datagram());
   EbBitMask   remaining  = event->remaining();
 
   EbBitMask value(event->allocated().remaining() & _valued_clients);
-  printf("%08x/%08x remaining %08x value %08x\n",
-  	 datagram->low(),datagram->highAll(),
-  	 remaining.value(0),value.value(0));
-
+#ifdef VERBOSE
+  printf("(%p) %08x/%08x remaining %08x value %08x payload %d\n",
+    	 this, datagram->high(),datagram->low(),
+  	 remaining.value(0),value.value(0),datagram->xtc.sizeofPayload());
+#endif
   if (value.isZero()) {  // sink
-    delete event->finalize();
+    delete indatagram;
     delete event;
-    _eventpooldepth++;
     return;
   }
 
 #ifdef VERBOSE
-  printf("EbBase::_postEvent %p  remaining %x\n",
+  printf("EbBase::_post %p  remaining %x\n",
 	 event, remaining.value(0));
 #endif
 
   if(remaining.isNotZero()) {
+
+    char buff[64];
+    remaining.write(buff);
+    printf("EbBase::_post fixup seq %08x remaining %s\n",
+	   datagram->high(),buff);
 
     // statistics
     EbBitMask id(EbBitMask::ONE);
@@ -289,10 +257,10 @@ void EbBase::_postEvent(EbEventBase* event)
     unsigned size  = datagram->xtc.sizeofPayload();
     _vmoneb.rate(size, time);
   } else {
-    _output.post(event->finalize());
+    _output.post(indatagram);
   }
 #else
-  _output.post(event->finalize());
+  _output.post(indatagram);
 #endif
 
   // Send acks on L1Accept, Pause and Disable; the latter two to flush the last
@@ -305,22 +273,17 @@ void EbBase::_postEvent(EbEventBase* event)
     ack->send((char*)datagram, (char*) 0, 0);
 
   delete event;
-  _eventpooldepth++;
 }
 
-EbBitMask EbBase::_post()
+EbBitMask EbBase::_postEvent(EbEventBase* complete)
 {
-  EbEventBase* event   = _pending.forward();
+  EbEventBase* event;
+  do {
+    event = _pending.forward();
+    _post(event);
+  } while( event != complete );
 
-  if(event == _pending.empty()) return managed();
-
-  EbEventBase* current = event->forward();
-
-  _postEvent(event);
-
-  EbBitMask participants = _armMask(current, _pending.empty());
-
-  return (participants.isNotZero()) ? participants : _post();
+  return managed();
 }
 
 /*
@@ -351,14 +314,19 @@ int EbBase::processTmo()
       //  mw- Recalculate enable mask - could be done faster (not redone)
       ServerManager::arm(_armMask(event,empty));
     } else {
-      Datagram* datagram  = event->datagram();
-      printf("EbBase::processTmo seq %x/%x  remaining %08x\n",
-	     datagram->high(), datagram->low(),
-	     event->remaining().value());
-      ServerManager::arm(_post());
+      /*
+      InDatagram* indatagram   = event->finalize();
+      const Datagram* datagram = &indatagram->datagram();
+      EbBitMask value(event->allocated().remaining() & _valued_clients);
+      if (!value.isZero())
+	printf("EbBase::processTmo seq %x/%x  remaining %08x\n",
+	       datagram->high(), datagram->low(),
+	       event->remaining().value());
+      */      
+      ServerManager::arm(_postEvent(event));
     }
   } else {
-    ServerManager::arm(_post());
+    ServerManager::arm(managed());
   }
   return 1;
   }
@@ -374,7 +342,7 @@ int EbBase::poll()
   {
   if(!ServerManager::poll()) return 0;
 
-  if(active().isZero()) ServerManager::arm(_post());
+  if(active().isZero()) ServerManager::arm(managed());
 
   return 1;
   }
@@ -405,22 +373,7 @@ EbEventBase* EbBase::_event(EbServer* server)
   printf("EbBase::_event %p\n", event);
 #endif
 
-  if (!server->keyTypes()&(1<<EbKey::PulseId)) {
-    if (event!=_pending.empty() && (server->keyTypes() & event->key().types))
-      return event;
-    return 0;
-  }
-
   if (event!=_pending.empty()) return event;
-
-#ifdef USE_VMON
-  if (_vmoneb.status() == VmonManager::Running) {
-    _vmoneb.dginuse(_eventpooldepth);
-  }
-#endif
-
-  if (!_eventpooldepth--)
-    _postEvent(_pending.forward());
 
   return _new_event(serverId);
   }
@@ -428,6 +381,9 @@ EbEventBase* EbBase::_event(EbServer* server)
 /*
 ** ++
 **
+**  Returns the most recent event that is older than (or equal to)
+**  the server's contribution.  If no event older than the contribution 
+**  was found, returns the _pending list base.
 **
 ** --
 */
@@ -435,37 +391,13 @@ EbEventBase* EbBase::_event(EbServer* server)
 EbEventBase* EbBase::_seek(EbServer* srv)
 {
   EbEventBase* event = _pending.reverse();
-  if (!srv->keyTypes()&(1<<EbKey::PulseId)) {
-    do {
-      if (srv->matches(event->key())) break;
-    } while( (event=event->reverse())!=_pending.empty() );
-  }
-  else {
-    const EbPulseId* key = reinterpret_cast<const EbPulseId*>(srv->key(EbKey::PulseId));
-    do {
-      if(*key >= event->key().pulseId) break;
-    } while ((event=event->reverse()) != _pending.empty());
+  while( event != _pending.empty() ) {
+    if( srv->succeeds(event->key()) ) break;
+    event = event->reverse();
   }
 
   return event;
 }
-
-EbEventBase* EbBase::_seek(EbServer* srv, EbBitMask serverId)
-  {
-  EbEventBase* event = _seek(srv);
-
-  if(srv->matches(event->key())) return event;
-  if(!srv->keyTypes()&(1<<EbKey::PulseId)) return 0;
-
-  EbEventBase*  queue    = event;
-
-  event = _new_event(serverId);
-
-  event->add(reinterpret_cast<const EbPulseId*>(srv->key(EbKey::PulseId)), 
-	     queue);
-
-  return event;
-  }
 
 /*
 ** ++
@@ -592,3 +524,10 @@ void EbBase::dump(int detail)
   _dump(detail);
   }
 
+
+bool EbBase::_is_complete( EbEventBase* event,
+			   const EbBitMask& serverId )
+{
+  EbBitMask remaining = event->remaining(serverId);
+  return remaining.isZero();
+}

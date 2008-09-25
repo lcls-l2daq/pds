@@ -4,7 +4,7 @@
 namespace Pds {
 class Level {
 public:
-  enum Type{Control, Source, Segment, Fragment, Event, Observer};
+  enum Type{Control, Source, Segment, Event, Recorder, Observer};
   enum{NumberOfLevels = 5};
 };
 }

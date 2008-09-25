@@ -9,8 +9,7 @@ namespace Pds {
 
 class Stream {
 public:
-  Stream(int stream,
-	 CollectionManager&);
+  Stream(int stream);
 
   StreamParams::StreamType type() const;
   Inlet* inlet();

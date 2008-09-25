@@ -5,10 +5,12 @@ namespace Pds {
 
   class EbEvrSequence {
   public:
-    EbEvrSequence() {}
+    EbEvrSequence() : _data(-1UL) {}
+    EbEvrSequence(unsigned data) : _data(data) {}
 
     void* operator new(unsigned,void* p) { return p; }
     void  operator delete(void*) {}
+    operator unsigned() const { return _data; }
 
     EbEvrSequence& operator=(const EbEvrSequence&);
     bool operator==(const EbEvrSequence&) const;

@@ -3,6 +3,9 @@
 
 #include "Server.hh"
 
+#include "LinkedList.hh"
+#include "ZcpFragment.hh"
+
 namespace Pds {
 
   class OobServer : public Server 
@@ -10,9 +13,12 @@ namespace Pds {
   public:
     virtual ~OobServer() {}
   public:
-    OobServer(unsigned id, int fd) : Server(id,fd) {}
+    OobServer() {}
+    OobServer(unsigned id, int fd) { Server::id(id); Server::fd(fd); }
   public:
-    virtual int unblock(char* datagram, char* payload=(char*)0, int size=0) = 0;
+    virtual int unblock(char* datagram) = 0;
+    virtual int unblock(char* datagram, char* payload, int size) = 0;
+    virtual int unblock(char* datagram, char* payload, int size, LinkedList<ZcpFragment>&) = 0;
   };
 
 }
