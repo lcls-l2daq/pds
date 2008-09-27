@@ -28,3 +28,16 @@ Transition::Phase Transition::phase() const {return _phase;}
 const Sequence& Transition::sequence() const { return _sequence; }
 
 unsigned Transition::env() const {return _env;}
+
+const char*
+Transition::_name[] = {
+  "Map",
+  "Unmap",
+  "Configure",
+  "Unconfigure",
+  "BeginRun",
+  "EndRun",
+  "Enable",
+  "Disable",
+  "L1Accept"
+};

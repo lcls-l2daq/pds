@@ -13,12 +13,14 @@ public:
     Map, Unmap,
     Configure, Unconfigure,
     BeginRun, EndRun,
-    Pause, Resume,
     Enable, Disable,
-    L1Accept
+    L1Accept,
+    NumberOf
   };
   enum Phase { Execute, Record };
-
+  static const char* name(Transition::Id id) {
+    return ( id < NumberOf ? _name[id] : "-Invalid-" );
+  }
   Transition(const Transition&);
   Transition(Id              id,
 	     Phase           phase,
@@ -32,10 +34,12 @@ public:
 
   PoolDeclare;
 private:
+  static const char* _name[Transition::NumberOf];
   Id       _id;
   Phase    _phase;
   Sequence _sequence;
   unsigned _env;
 };
+
 }
 #endif
