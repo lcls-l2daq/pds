@@ -7,12 +7,13 @@
 #include "Routine.hh"
 
 
+namespace Pds {
+
 extern "C" {
   typedef void* (*TaskFunction)(void*);
   void* TaskMainLoop(void*);
 }
 
-namespace Pds {
 
 /*
  * an Task specific class that is used privately by Task so that

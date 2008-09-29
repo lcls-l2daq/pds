@@ -4,6 +4,7 @@
 namespace Pds {
 class Select {
 public:
+  virtual ~Select() {}
   virtual int poll() = 0;
 };
 }

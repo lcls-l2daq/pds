@@ -12,6 +12,7 @@
 namespace Pds {
 class Routine : public Entry {
  public:
+  virtual ~Routine() {}
   virtual void routine(void) = 0;
 };
 }
