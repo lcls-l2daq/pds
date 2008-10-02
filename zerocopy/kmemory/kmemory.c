@@ -599,6 +599,43 @@ static int kmemory_ioctl(struct inode *inode, struct file *filp,
 			err = nelems;
 		break;
 	}
+	case KMEMORY_IOCTL_SKIP:
+	{	struct kmemory_map_data map_data;
+		unsigned long nbytes;
+		int flags, i;
+
+		err = copy_from_user(&map_data, (void *)arg, sizeof(map_data));
+		if(err) {
+			err = -EINVAL;
+			break;
+		}
+		nbytes = map_data.nelems;
+		flags = map_data.flags;
+		i = pdata->next_desc;
+		while(nbytes > 0) {
+			if ((pdata->desc[i].flags & flags)
+				&& !(pdata->desc[i].flags & KMEMORY_MAPPED)) {
+				if (nbytes < pdata->desc[i].len) {
+					pdata->desc[i].offset += nbytes;
+					pdata->desc[i].len -= nbytes;
+					nbytes = 0;
+				} else {
+					nbytes -= pdata->desc[i].len;
+					/* This descriptor does not need to
+						reference the page anymore */
+					pdata->desc[i].flags &= ~KMEMORY_FULL;
+				}
+			}
+			i++;
+			if (i == NDESCRIPTORS)
+				i = 0;
+			if (i == pdata->next_desc)
+				break;
+		}
+		if (!err)
+			err = map_data.nelems - nbytes;
+		break;
+	}
 	}
 	up(&pdata->desc_mutex);
 	return err;

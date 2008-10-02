@@ -148,6 +148,7 @@ struct kmemory_map_data {
 
 #define KMEMORY_IOCTL_MAP	_IOW(KMEMORY_MAGIC, 0, struct iovec *)
 #define KMEMORY_IOCTL_UNMAP	_IOR(KMEMORY_MAGIC, 1, struct iovec *)
+#define KMEMORY_IOCTL_SKIP	_IOR(KMEMORY_MAGIC, 2, struct iovec *)
 
 #define KMEMORY_READ	1
 #define KMEMORY_WRITE	2
@@ -172,7 +173,7 @@ static inline int kmemory_open()
 /**kmemory_close
  * Call this API when you are done using the kmemory driver. DO NOT USE THE
  * FILE DESCRIPTOR AFTER YOU CALLED THIS API.
- * @fd		file descriptor returned by kmemory_open().
+ * @param fd	file descriptor returned by kmemory_open().
  * @return	file descriptor if successful, a negative value defined 
  *		in errno.h otherwise.
  */
@@ -189,11 +190,12 @@ static inline int kmemory_close(int fd)
  * MAP a list of buffers received by kmemory (using splice) into
  * the caller memory space. Note that it is not guaranteed that <nelems>
  * buffers will be mapped, the caller must check the return value.
- * @fd		file descriptor returned by kmemory_open().
- * @piov	list of iovec structures pointers that will be filled with
- *		the address and size of each buffer. The application must
- *		have allocated enough space for <nelems> structures.
- * @nelems	number of struct iovec elements in piov.
+ * @param fd		file descriptor returned by kmemory_open().
+ * @param piov		list of iovec structures pointers that will be filled
+ *			with the address and size of each buffer. The
+ *			application must have allocated enough space for 
+ *			<nelems> structures.
+ * @param nelems	number of struct iovec elements in piov.
  * @return	the number of iovec elements initialized if successful, a 
  * 		negative value defined in errno.h otherwise.
  */
@@ -212,16 +214,18 @@ static inline int kmemory_map_read(int fd, struct iovec piov[], int nelems)
  * Allocate <nelems> buffers of <size> bytes into the application memory space.
  * The caller can then fill them and send them using splice to another file 
  * descriptor.
- * @fd		file descriptor returned by kmemory_open().
- * @piov	list of iovec structures pointers that will be filled with
- *		the address and size of each buffer. The application must
- *		have allocated enough space for <nelems> structures.
- * @nelems	number of struct iovec elements in piov.
- * @size	size that should have each element in piov.
+ * @param fd		file descriptor returned by kmemory_open().
+ * @param piov		list of iovec structures pointers that will be filled
+ *			with the address and size of each buffer. The
+ *			application must have allocated enough space for
+ *			<nelems> structures.
+ * @param nelems	number of struct iovec elements in piov.
+ * @param size		size that should have each element in piov.
  * @return	the number of iovec elements initialized if successful, a 
  * 		negative value defined in errno.h otherwise.
  */
-static inline int kmemory_map_write(int fd, struct iovec piov[], int nelems, unsigned long size)
+static inline int kmemory_map_write(int fd, struct iovec piov[], int nelems, 
+							unsigned long size)
 {	
 	struct kmemory_map_data kmemory_data;
 	int i;
@@ -240,11 +244,12 @@ static inline int kmemory_map_write(int fd, struct iovec piov[], int nelems, uns
  * buffers will be mapped, the caller must check the return value.
  * The caller can then modify those data and send them with splice to another
  * file descriptor.
- * @fd		file descriptor returned by kmemory_open().
- * @piov	list of iovec structures pointers that will be filled with
- *		the address and size of each buffer. The application must
- *		have allocated enough space for up to <nelems> structures.
- * @nelems	number of struct iovec elements in piov.
+ * @param fd		file descriptor returned by kmemory_open().
+ * @param piov		list of iovec structures pointers that will be filled
+ *			with the address and size of each buffer. The 
+ *			application must have allocated enough space for up
+ *			to <nelems> structures.
+ * @param nelems	number of struct iovec elements in piov.
  * @return	the number of iovec elements initialized if successful, a 
  * 		negative value defined in errno.h otherwise.
  */
@@ -266,9 +271,10 @@ static inline int kmemory_map_modify(int fd, struct iovec piov[], int nelems)
  * NOTE: You must unmap a buffer AFTER sending it to another kernel
  * subsystem with splice to avoid the buffer being freed because no
  * one is using it.
- * @piov	list of iovec structure describing each buffer (as returned
- *		by kmemory_map_*).
- * @nelems	number of struct iovec elements in piov.
+ * @param fd		file descriptor returned by kmemory_open().
+ * @param piov		list of iovec structure describing each buffer
+ *			(as returned by kmemory_map_*).
+ * @param nelems	number of struct iovec elements in piov.
  * @return	the number of iovec elements unmapped if successful, a 
  * 		negative value defined in errno.h otherwise.
  */
@@ -280,6 +286,28 @@ static inline int kmemory_unmap(int fd, struct iovec piov[], int nelems)
 	kmemory_data.nelems = nelems;
 	kmemory_data.piovec_table = piov;
 	return ioctl(fd, KMEMORY_IOCTL_UNMAP, &kmemory_data);
+}
+
+/**kmemory_skip
+ * Flush a certain amount of bytes out of kmemory buffers. This
+ * call is present to go around a limitation of pipes that cannot
+ * be flushed (what comes in has to come out).
+ * @param fd		file descriptor returned by kmemory_open().
+ * @param nbytes	number of bytes to drop.
+ * @param flags		skip data just imported in kmemory (KMEMORY_READ),
+ *			data ready to be exported (KMEMORY_WRITE),
+ *			or both (KMEMORY_READ | KMEMORY_WRITE).
+ * @return	the number of bytes dropped, a 	negative value 
+ *		defined in errno.h otherwise.
+ */
+static inline int kmemory_skip(int fd, unsigned long nbytes, int flags)
+{
+	struct kmemory_map_data kmemory_data;
+
+	kmemory_data.flags = flags;
+	kmemory_data.nelems = (int)nbytes;
+	kmemory_data.piovec_table = NULL;
+	return ioctl(fd, KMEMORY_IOCTL_SKIP, &kmemory_data);
 }
 
 #endif	/* #ifndef KERNEL_RELEASE */
