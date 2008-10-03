@@ -149,6 +149,7 @@ struct kmemory_map_data {
 #define KMEMORY_IOCTL_MAP	_IOW(KMEMORY_MAGIC, 0, struct iovec *)
 #define KMEMORY_IOCTL_UNMAP	_IOR(KMEMORY_MAGIC, 1, struct iovec *)
 #define KMEMORY_IOCTL_SKIP	_IOR(KMEMORY_MAGIC, 2, struct iovec *)
+#define KMEMORY_IOCTL_PASSTHRU	_IOR(KMEMORY_MAGIC, 3, int)
 
 #define KMEMORY_READ	1
 #define KMEMORY_WRITE	2
@@ -308,6 +309,26 @@ static inline int kmemory_skip(int fd, unsigned long nbytes, int flags)
 	kmemory_data.nelems = (int)nbytes;
 	kmemory_data.piovec_table = NULL;
 	return ioctl(fd, KMEMORY_IOCTL_SKIP, &kmemory_data);
+}
+
+/**kmemory_set_passthru
+ * Mark a list of buffers received with splice with the KMEMORY_WRITE
+ * flag. The result will be that those buffers can then be spliced out.
+ * If you intend to map the buffers you should use kmemory_map_modify
+ * instead.
+ * @param fd		file descriptor returned by kmemory_open().
+ * @param nbytes	number of bytes to change the flags of. Because
+ *			this API works on buffers, nbytes may not be valid
+ *			(ie request to change half a buffer), in that case
+ *			nbytes will be rounded down to the next acceptable
+ *			value. The user can check how much has been done
+ *			by comparing the return value to the original nbytes.
+ * @return	the number of bytes marked for passthru if successful, a 
+ * 		negative value defined in errno.h otherwise.
+ */
+static inline int kmemory_set_passthru(int fd, int nbytes)
+{	
+	return ioctl(fd, KMEMORY_IOCTL_PASSTHRU, &nbytes);
 }
 
 #endif	/* #ifndef KERNEL_RELEASE */

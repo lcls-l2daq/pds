@@ -636,6 +636,39 @@ static int kmemory_ioctl(struct inode *inode, struct file *filp,
 			err = map_data.nelems - nbytes;
 		break;
 	}
+	case KMEMORY_IOCTL_PASSTHRU:
+	{	int nbytes_arg, nbytes, i;
+
+		err = copy_from_user(&nbytes_arg, (void *)arg, sizeof(nbytes));
+		if(err) {
+			err = -EINVAL;
+			break;
+		}
+		nbytes = nbytes_arg;
+		i = pdata->next_desc;
+		while(nbytes > 0) {
+			if ((pdata->desc[i].flags 
+					& (KMEMORY_FULL 
+						| KMEMORY_SPLICEDIN
+						| KMEMORY_MAPPED))
+				== (KMEMORY_FULL | KMEMORY_SPLICEDIN)) {
+				if (nbytes < pdata->desc[i].len) {
+					break;
+				} else {
+					nbytes -= pdata->desc[i].len;
+					pdata->desc[i].flags |= KMEMORY_WRITE;
+				}
+			}
+			i++;
+			if (i == NDESCRIPTORS)
+				i = 0;
+			if (i == pdata->next_desc)
+				break;
+		}
+		if (!err)
+			err = nbytes_arg - nbytes;
+		break;
+	}
 	}
 	up(&pdata->desc_mutex);
 	return err;
