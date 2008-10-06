@@ -3,7 +3,7 @@
 #include "ControlCallback.hh"
 
 #include "pds/collection/Message.hh"
-#include "pds/collection/Transition.hh"
+#include "pds/utility/Transition.hh"
 #include "pds/utility/InletWire.hh"
 #include "pds/utility/NetDgServer.hh"
 #include "pds/utility/StreamPorts.hh"
@@ -18,10 +18,10 @@ static const unsigned ControlId = 0;
 static const unsigned MaxPayload = sizeof(Transition);
 static const unsigned ConnectTimeOut = 250; // 1/4 second
 
-ControlLevel::ControlLevel(unsigned partition,
+ControlLevel::ControlLevel(unsigned platform,
 			   ControlCallback& callback,
 			   Arp* arp) :
-  CollectionManager(Level::Control, partition,
+  CollectionManager(Level::Control, platform,
 		    MaxPayload, ConnectTimeOut, arp),
   _reason(-1),
   _callback(callback),
@@ -38,18 +38,27 @@ ControlLevel::~ControlLevel()
 
 void ControlLevel::attach()
 {
-  dotimeout(ConnectTimeOut);
-  connect();
+  if (connect()) {
+    _streams = new ControlStreams(*this);
+    _streams->connect();
+    
+    _callback.allocated(*_streams);
+    
+    Message join(Message::Join);
+    mcast(join);
+  } else {
+    _callback.failed(ControlCallback::PlatformUnavailable);
+  }
 }
 
 void ControlLevel::add_bld(int id)
 {
-  _bldServers->add_server(StreamPort(PdsStreamPorts::bld(id),
+  _bldServers->add_server(StreamPort(StreamPorts::bld(id),
 				     Src(Level::Segment,id,
 					 BLD,id)));
 }
 
-/*
+#if 0
 void ControlLevel::check_complete(const Node& hdr, bool isjoining)
 {
   if (_partition) {
@@ -86,7 +95,7 @@ void ControlLevel::check_complete(const Node& hdr, bool isjoining)
     }
   }
 }
-*/
+#endif
 
 void ControlLevel::message(const Node& hdr, 
 			   const Message& msg) 
@@ -102,10 +111,10 @@ void ControlLevel::message(const Node& hdr,
 	// Build the event data servers
 	const EbJoin& ebj = reinterpret_cast<const EbJoin&>(msg);
 	int vector_id  = ebj.index();
-	Ins streamPort(PdsStreamPorts::event(header().partition(),
-					     Level::Control,
-					     0,
-					     vector_id));
+	Ins streamPort(StreamPorts::event(header().platform(),
+                                          Level::Control,
+                                          0,
+                                          vector_id));
 	NetDgServer* srv = new NetDgServer(streamPort,
 					   Src(Level::Recorder,vector_id,
 					       hdr.ip()),
@@ -132,26 +141,7 @@ void ControlLevel::message(const Node& hdr,
   }
 }
 
-void ControlLevel::connected(const Node& hdr, 
-			     const Message& msg) 
-{
-  donottimeout();
-  _streams = new ControlStreams(*this);
-  _streams->connect();
-
-  _callback.allocated(*_streams);
-
-  Message join(Message::Join);
-  mcast(join);
-}
-
-void ControlLevel::timedout() 
-{
-  _dissolver = header();
-  donottimeout();
-  disconnect();
-}
-
+#if 0 // revisit
 void ControlLevel::disconnected()
 {
   if (_streams) {
@@ -163,3 +153,4 @@ void ControlLevel::disconnected()
     _callback.failed(ControlCallback::Reason(_reason));
   }
 }
+#endif

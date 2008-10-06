@@ -24,9 +24,6 @@ public:
 private:
   // Implements CollectionManager
   virtual void message  (const Node& hdr, const Message& msg);
-  virtual void connected(const Node& hdr, const Message& msg);
-  virtual void timedout();
-  virtual void disconnected();
 
 private:
   Node           _dissolver;        // source of resign control message

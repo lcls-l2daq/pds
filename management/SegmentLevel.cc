@@ -2,7 +2,7 @@
 #include "SegStreams.hh"
 #include "pds/collection/Node.hh"
 #include "pds/collection/Message.hh"
-#include "pds/collection/Transition.hh"
+#include "pds/utility/Transition.hh"
 #include "pds/utility/SegWireSettings.hh"
 #include "pds/utility/StreamPorts.hh"
 #include "pds/utility/StreamPortAssignment.hh"
@@ -22,12 +22,12 @@ static const unsigned MaxPayload = sizeof(StreamPortAssignment)+64*sizeof(Ins);
 static const unsigned ConnectTimeOut = 250;
 static const unsigned NetBufferDepth = 32;
 
-SegmentLevel::SegmentLevel(unsigned partition,
+SegmentLevel::SegmentLevel(unsigned platform,
 			   int      index,
 			   SegWireSettings& settings,
 			   EventCallback& callback,
 			   Arp* arp) :
-  CollectionManager(Level::Segment, partition,
+  CollectionManager(Level::Segment, platform,
 		    MaxPayload, ConnectTimeOut, arp),
   _settings   (settings),
   _index      (index),
@@ -46,8 +46,42 @@ SegmentLevel::~SegmentLevel()
 
 void SegmentLevel::attach()
 {
-  dotimeout(ConnectTimeOut);
-  connect();
+  if (connect()) {
+    _streams = new SegStreams(*this,_index);
+    _streams->connect();
+
+  
+    _callback.attached(*_streams);
+    Message join(Message::Ping);
+    mcast(join);
+
+    _inlet = new EbIStream(Src(Level::Segment, -1UL,
+                               header().ip()),
+                           header().ip(),
+                           Level::Segment,
+                           *_streams->wire(StreamParams::FrameWork));
+    _inlet->input()->connect();
+    _streams->wire(StreamParams::FrameWork)->add_input(_inlet->output());
+
+    //  Build the EVR server
+    Ins source(StreamPorts::event(header().platform(),
+                                  Level::Segment));
+    EvrServer* esrv = new EvrServer(source, 
+                                    Src(Level::Source,0,
+                                        header().ip()),
+                                    NetBufferDepth); // revisit
+    _inlet->input()->add_input(esrv);
+    esrv->server().join(source, Ins(header().ip()));
+    printf("Assign evr %d  %x/%d\n",
+           esrv->id(),source.address(),source.portId());
+
+    //  Add the L1 Data servers  
+    _settings.connect(*_inlet->input(),
+                      StreamParams::FrameWork, 
+                      header().ip());
+  } else {
+    _callback.failed(EventCallback::PlatformUnavailable);
+  }
 }
 
 void SegmentLevel::message(const Node& hdr, 
@@ -82,7 +116,7 @@ void SegmentLevel::message(const Node& hdr,
 	// Add vectored output clients on bld_wire
 	const EbJoin& ebj = reinterpret_cast<const EbJoin&>(msg);
 	int vector_id  = ebj.index();
-	Ins ins = PdsStreamPorts::event(hdr.partition(),
+	Ins ins = StreamPorts::event(hdr.platform(),
 					Level::Event,
 					vector_id,
 					_index);
@@ -101,10 +135,6 @@ void SegmentLevel::message(const Node& hdr,
 	ucast(join,msg.reply_to());
       }
     }
-  }
-  else if (msg.type()==Message::Resign && hdr.level()==Level::Control) {
-    _dissolver = hdr;
-    disconnect();
   }
   else if (msg.type()==Message::Transition && hdr.level()==Level::Control) {
     const Transition& tr = static_cast<const Transition&>(msg);
@@ -127,50 +157,7 @@ void SegmentLevel::message(const Node& hdr,
   }
 }
 
-void SegmentLevel::connected(const Node& hdr, 
-			     const Message& msg) 
-{
-  donottimeout();
-  _streams = new SegStreams(*this,_index);
-  _streams->connect();
-
-  
-  _callback.attached(*_streams);
-  Message join(Message::Join);
-  mcast(join);
-
-  _inlet = new EbIStream(Src(Level::Segment, -1UL,
-			     header().ip()),
-			 header().ip(),
-			 Level::Segment,
-			 *_streams->wire(StreamParams::FrameWork));
-  _inlet->input()->connect();
-  _streams->wire(StreamParams::FrameWork)->add_input(_inlet->output());
-
-  //  Build the EVR server
-  Ins source(PdsStreamPorts::event(header().partition(),
-				   Level::Segment));
-  EvrServer* esrv = new EvrServer(source, 
-				  Src(Level::Source,0,
-				      hdr.ip()),
-				  NetBufferDepth);
-  _inlet->input()->add_input(esrv);
-  esrv->server().join(source, Ins(header().ip()));
-  printf("Assign evr %d  %x/%d\n",
-	 esrv->id(),source.address(),source.portId());
-
-  //  Add the L1 Data servers  
-  _settings.connect(*_inlet->input(),
-		    StreamParams::FrameWork, 
-		    header().ip());
-}
-
-void SegmentLevel::timedout() 
-{
-  donottimeout();
-  disconnect();
-}
-
+#if 0 // revisit
 void SegmentLevel::disconnected() 
 {
   if (_streams) {
@@ -181,7 +168,6 @@ void SegmentLevel::disconnected()
     _streams = 0;
     _inlet   = 0;
     _callback.dissolved(_dissolver);
-  } else {
-    _callback.failed(EventCallback::PlatformUnavailable);
   }
 }
+#endif

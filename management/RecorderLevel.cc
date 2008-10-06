@@ -2,7 +2,7 @@
 #include "EventStreams.hh"
 #include "EventCallback.hh"
 #include "pds/collection/Message.hh"
-#include "pds/collection/Transition.hh"
+#include "pds/utility/Transition.hh"
 #include "pds/utility/StreamPorts.hh"
 #include "pds/utility/StreamPortAssignment.hh"
 #include "pds/utility/InletWire.hh"
@@ -21,11 +21,11 @@ static const unsigned MaxPayload = 2048;
 
 static const unsigned ConnectTimeOut = 250; // 1/4 second
 
-RecorderLevel::RecorderLevel(unsigned partition,
+RecorderLevel::RecorderLevel(unsigned platform,
 			     unsigned id,
 			     EventCallback& callback,
 			     Arp* arp) :
-  CollectionManager(Level::Recorder, partition,
+  CollectionManager(Level::Recorder, platform,
 		    MaxPayload, ConnectTimeOut, arp),
   _index   (id),
   _callback(callback),
@@ -41,8 +41,18 @@ RecorderLevel::~RecorderLevel()
 
 void RecorderLevel::attach()
 {
-  dotimeout(ConnectTimeOut);
-  connect();
+  if (connect()) {
+    _streams = new EventStreams(*this,_index);
+    _streams->connect();
+    
+    _callback.attached(*_streams);
+    
+    //    _rivals.insert(_index, msg.reply_to()); // revisit
+    Message join(Message::Join);
+    mcast(join);
+  } else {
+    _callback.failed(EventCallback::PlatformUnavailable);
+  }
 }
 
 void RecorderLevel::message(const Node& hdr, 
@@ -55,7 +65,7 @@ void RecorderLevel::message(const Node& hdr,
       if (msg.size() == sizeof(EbJoin)) {
 	const EbJoin& ebj = reinterpret_cast<const EbJoin&>(msg);
 	int vector_id  = ebj.index();
-	const Ins& ins = PdsStreamPorts::event(hdr.partition(),
+	const Ins& ins = StreamPorts::event(hdr.platform(),
 					       Level::Control,
 					       vector_id,
 					       _index);
@@ -79,7 +89,7 @@ void RecorderLevel::message(const Node& hdr,
 	// Build the event data servers
 	const EbJoin& ebj = reinterpret_cast<const EbJoin&>(msg);
 	int vector_id  = ebj.index();
-	Ins streamPort(PdsStreamPorts::event(header().partition(),
+	Ins streamPort(StreamPorts::event(header().platform(),
 					     Level::Recorder,
 					     _index,
 					     vector_id));
@@ -111,10 +121,6 @@ void RecorderLevel::message(const Node& hdr,
       }
     }
   }
-  else if (msg.type()==Message::Resign && hdr.level()==Level::Control) {
-    _dissolver = hdr;
-    disconnect();
-  }
   else if (msg.type()==Message::Transition && hdr.level()==Level::Control) {
     const Transition& tr = static_cast<const Transition&>(msg);
     if (tr.id() != Transition::L1Accept) {
@@ -136,27 +142,7 @@ void RecorderLevel::message(const Node& hdr,
   }
 }
 
-void RecorderLevel::connected(const Node& hdr, 
-			      const Message& msg) 
-{
-  donottimeout();
-  _streams = new EventStreams(*this,_index);
-  _streams->connect();
-
-  _callback.attached(*_streams);
-
-  _rivals.insert(_index, msg.reply_to());
-  Message join(Message::Join);
-  mcast(join);
-}
-
-void RecorderLevel::timedout() 
-{
-  _dissolver = header();
-  donottimeout();
-  disconnect();
-}
-
+#if 0 // revisit
 void RecorderLevel::disconnected()
 {
   
@@ -165,7 +151,6 @@ void RecorderLevel::disconnected()
     delete _streams;
     _streams = 0;
     _callback.dissolved(_dissolver);
-  } else {
-    _callback.failed(EventCallback::PlatformUnavailable);
   }
 }
+#endif

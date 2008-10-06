@@ -2,7 +2,7 @@
 #include "EventStreams.hh"
 #include "EventCallback.hh"
 #include "pds/collection/Message.hh"
-#include "pds/collection/Transition.hh"
+#include "pds/utility/Transition.hh"
 #include "pds/utility/StreamPorts.hh"
 #include "pds/utility/StreamPortAssignment.hh"
 #include "pds/utility/InletWire.hh"
@@ -23,11 +23,11 @@ static const unsigned MaxPayload = sizeof(StreamPortAssignment)+64*sizeof(Ins);
 
 static const unsigned ConnectTimeOut = 250; // 1/4 second
 
-EventLevel::EventLevel(unsigned partition,
+EventLevel::EventLevel(unsigned platform,
 		       unsigned id,
 		       EventCallback& callback,
 		       Arp* arp) :
-  CollectionManager(Level::Event, partition,
+  CollectionManager(Level::Event, platform,
 		    MaxPayload, ConnectTimeOut, arp),
   _index      (id),
   _callback   (callback),
@@ -45,8 +45,25 @@ EventLevel::~EventLevel()
 
 void EventLevel::attach()
 {
-  dotimeout(ConnectTimeOut);
-  connect();
+  if (connect()) {
+    _streams = new EventStreams(*this,_index);
+    _streams->connect();
+
+    _inlet = new EbIStream(Src(Level::Event,_index,
+                               header().ip()),
+                           header().ip(),
+                           Level::Event,
+                           *_streams->wire(StreamParams::FrameWork));
+    _inlet->input()->connect();
+    _streams->wire(StreamParams::FrameWork)->add_input(_inlet->output());
+
+    _callback.attached(*_streams);
+    //    _rivals.insert(_index, msg.reply_to()); // revisit
+    Message join(Message::Join);
+    mcast(join);
+  } else {
+    _callback.failed(EventCallback::PlatformUnavailable);
+  }
 }
 
 void EventLevel::message(const Node& hdr, 
@@ -82,7 +99,7 @@ void EventLevel::message(const Node& hdr,
       if (msg.size() == sizeof(EbJoin)) {
 	// Add Datagram server to the event builder on pre_wire
 	const EbJoin& ebj = reinterpret_cast<const EbJoin&>(msg);
-	Ins streamPort(PdsStreamPorts::event(header().partition(),
+	Ins streamPort(StreamPorts::event(header().platform(),
 					     Level::Event,
 					     _index,
 					     ebj.index()));
@@ -119,7 +136,7 @@ void EventLevel::message(const Node& hdr,
       if (msg.size() == sizeof(EbJoin)) {
 	const EbJoin& ebj = reinterpret_cast<const EbJoin&>(msg);
 	int vector_id  = ebj.index();
-	const Ins& ins = PdsStreamPorts::event(hdr.partition(),
+	const Ins& ins = StreamPorts::event(hdr.platform(),
 					       Level::Recorder,
 					       vector_id,
 					       _index);
@@ -138,10 +155,6 @@ void EventLevel::message(const Node& hdr,
 	ucast(join, msg.reply_to());
       }
     }
-  }
-  else if (msg.type()==Message::Resign && hdr.level()==Level::Control) {
-    _dissolver = hdr;
-    disconnect();
   }
   else if (msg.type()==Message::Transition && hdr.level()==Level::Control) {
     const Transition& tr = static_cast<const Transition&>(msg);
@@ -166,37 +179,9 @@ void EventLevel::message(const Node& hdr,
   }
 }
 
-void EventLevel::connected(const Node& hdr, 
-			   const Message& msg) 
-{
-  donottimeout();
-  _streams = new EventStreams(*this,_index);
-  _streams->connect();
-
-  _inlet = new EbIStream(Src(Level::Event,_index,
-			     header().ip()),
-			 header().ip(),
-			 Level::Event,
-			 *_streams->wire(StreamParams::FrameWork));
-  _inlet->input()->connect();
-  _streams->wire(StreamParams::FrameWork)->add_input(_inlet->output());
-
-  _callback.attached(*_streams);
-  _rivals.insert(_index, msg.reply_to());
-  Message join(Message::Join);
-  mcast(join);
-}
-
-void EventLevel::timedout() 
-{
-  _dissolver = header();
-  donottimeout();
-  disconnect();
-}
-
+#if 0 // revisit
 void EventLevel::disconnected()
-{
-  
+{  
   if (_streams) {
     _streams->disconnect();
     _inlet->input()->disconnect();
@@ -205,7 +190,6 @@ void EventLevel::disconnected()
     _streams = 0;
     _inlet   = 0;
     _callback.dissolved(_dissolver);
-  } else {
-    _callback.failed(EventCallback::PlatformUnavailable);
   }
 }
+#endif
