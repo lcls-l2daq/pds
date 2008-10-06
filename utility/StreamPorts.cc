@@ -32,11 +32,10 @@ static const unsigned BLDPortBase      = ControlPortBase +MaxPartitionL3s;
 
 using namespace Pds;
 
-
-Ins PdsStreamPorts::event     (unsigned    partition,
-			       Level::Type level,
-			       unsigned    dstid,
-			       unsigned    srcid)
+Ins StreamPorts::event(unsigned    partition,
+                       Level::Type level,
+                       unsigned    dstid,
+                       unsigned    srcid)
 {
   switch(level) {
   case Level::Segment:
@@ -57,11 +56,10 @@ Ins PdsStreamPorts::event     (unsigned    partition,
   return Ins();
 }
 
-Ins PdsStreamPorts::bld       (unsigned id)
+Ins StreamPorts::bld(unsigned id)
 {
   return Ins(BLDMcastAddr + id, BLDPortBase);
 }
-
 
 
 StreamPorts::StreamPorts()

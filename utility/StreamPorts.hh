@@ -10,16 +10,15 @@
 //    (1) fragments that vector event data within its partition and
 //    (2) fragments that flood event data to all partitions
 //
-namespace PdsStreamPorts {
-  Pds::Ins event     (unsigned         partition,
-		      Pds::Level::Type level,
-		      unsigned         dstid=0,
-		      unsigned         srcid=0);
-  Pds::Ins bld       (unsigned         id);
-}
-
 namespace Pds {
   class StreamPorts {
+  public:
+    static Ins event(unsigned    partition,
+                     Level::Type level,
+                     unsigned    dstid=0,
+                     unsigned    srcid=0);
+    static Ins bld  (unsigned    id);
+
   public:
     StreamPorts();
     StreamPorts(const StreamPorts&);
