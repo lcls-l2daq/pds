@@ -13,22 +13,22 @@ Node::Node() {}
 
 Node::Node(const Node& rhs) :
   _level(rhs._level), 
-  _partition(rhs._partition), 
+  _platform(rhs._platform), 
   _pid(rhs._pid),
   _uid(rhs._uid),
   _ip(rhs._ip)
 {}
 
-Node::Node(Level::Type level, unsigned partition) :
+Node::Node(Level::Type level, unsigned platform) :
   _level(level), 
-  _partition(partition),
+  _platform(platform),
   _pid(getpid()),
   _uid(getuid()),
   _ip(0)
 {}
 
 Level::Type Node::level() const {return _level;}
-unsigned Node::partition() const {return _partition;}
+unsigned Node::platform() const {return _platform;}
 
 int Node::pid() const {return _pid;}
 int Node::uid() const {return _uid;}
@@ -38,7 +38,7 @@ const Ether& Node::ether() const {return _ether;}
 int Node::operator == (const Node& rhs) const
 {
   if (_level == rhs._level &&
-      _partition == rhs._partition &&
+      _platform == rhs._platform &&
       _pid == rhs._pid &&
       _uid == rhs._uid &&
       _ip == rhs._ip) return 1;

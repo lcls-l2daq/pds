@@ -10,11 +10,11 @@ class Node {
 public:
   Node();
   Node(const Node& rhs);
-  Node(Level::Type level, unsigned partition);
+  Node(Level::Type level, unsigned platform);
 
 public:
   Level::Type level() const;
-  unsigned partition() const;
+  unsigned platform() const;
   int pid() const;
   int uid() const;
   int ip() const;
@@ -25,13 +25,12 @@ public:
   static int user_name(int uid, char* buf, int bufsiz);
   static int ip_name(int ip, char* buf, int bufsiz);
 
-private:
-  friend class CollectionManager;
+public:
   void fixup(int ip, const Ether& ether);
 
 private:
   Level::Type _level;
-  unsigned _partition;
+  unsigned _platform;
   int _pid;
   int _uid;
   int _ip;

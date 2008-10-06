@@ -5,14 +5,12 @@ static const unsigned short PlatformPort   = 10000;
 static const unsigned short CollectionPort = 10001;
 
 
-using namespace Pds;
-
-Ins PdsCollectionPorts::platform() 
+Pds::Ins Pds::CollectionPorts::platform() 
 {
   return Ins(McastAddrCollection, PlatformPort);
 }
 
-Ins PdsCollectionPorts::collection(unsigned char partition) 
+Pds::Ins Pds::CollectionPorts::collection(unsigned char platform) 
 {
-  return Ins(McastAddrCollection | partition, CollectionPort);
+  return Ins(McastAddrCollection | platform, CollectionPort);
 }
