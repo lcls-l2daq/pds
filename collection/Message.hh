@@ -7,8 +7,13 @@ namespace Pds {
 
 class Message {
 public:
-  enum Type {Join, Resign, Transition};
-  Message(const Message&);
+  enum Type {
+    Ping, 
+    Join, 
+    Resign, 
+    Transition
+  };
+
   Message(Type type, unsigned size=sizeof(Message));
   Message(Type type, const Ins& reply_to, unsigned size=sizeof(Message));
 

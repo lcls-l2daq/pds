@@ -2,12 +2,6 @@
 
 using namespace Pds;
 
-Message::Message(const Message& msg) :
-  _type    (msg._type),
-  _reply_to(msg._reply_to),
-  _size    (msg._size)
-{}
-
 Message::Message(Type type, unsigned size) : 
   _type(type),
   _reply_to(),
@@ -30,6 +24,8 @@ void Message::type(Type t) {_type = t;}
 const char* Message::type_name() const 
 {
   switch (_type) {
+  case Ping:
+    return "Ping";
   case Join:
     return "Join";
   case Resign:
