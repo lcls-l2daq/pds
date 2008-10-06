@@ -3,9 +3,11 @@
 
 #include "pds/service/Ins.hh"
 
-namespace PdsCollectionPorts {
-  Pds::Ins platform();
-  Pds::Ins collection(unsigned char partition);
+namespace Pds {
+  namespace CollectionPorts {
+    Ins platform();
+    Ins collection(unsigned char platform);
+  }
 }
 
 #endif
