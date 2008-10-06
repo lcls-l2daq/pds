@@ -21,8 +21,9 @@
 #ifndef PDS_APPLIANCE
 #define PDS_APPLIANCE
 
+#include "Transition.hh"
+
 #include "pds/service/Queue.hh"
-#include "pds/collection/Transition.hh"
 #include "pds/xtc/InDatagram.hh"
 #include "pds/xtc/Datagram.hh"
 

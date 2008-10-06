@@ -1,8 +1,8 @@
 #include "ToEventWire.hh"
 
 #include "Mtu.hh"
+#include "Transition.hh"
 #include "pds/collection/CollectionManager.hh"
-#include "pds/collection/Transition.hh"
 #include "pds/xtc/Datagram.hh"
 #include "pds/xtc/InDatagram.hh"
 

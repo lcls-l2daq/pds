@@ -46,7 +46,7 @@
 #include "pds/service/Pool.hh"
 #include "pds/service/RingPool.hh"
 #include "pds/service/RingPoolW.hh"
-#include "pds/collection/Transition.hh"
+#include "pds/utility/Transition.hh"
 //#include "TcByType.hh"
 
 namespace Pds {
