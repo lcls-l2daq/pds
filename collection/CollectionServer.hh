@@ -5,17 +5,17 @@
 
 namespace Pds {
 
-class CollectionManager;
+class CollectionServerManager;
 
 class CollectionServer: public NetServer {
 public:
-  CollectionServer(CollectionManager& manager,
+  CollectionServer(CollectionServerManager& manager,
 		   int id,
 		   int interface,
 		   unsigned maxpayload,
 		   unsigned datagrams);
 
-  CollectionServer(CollectionManager& manager,
+  CollectionServer(CollectionServerManager& manager,
 		   int id,
 		   const Ins& bcast,
 		   unsigned maxpayload,
@@ -30,7 +30,7 @@ private:
   virtual char* payload() {return _payload;}
 
 private:
-  CollectionManager& _manager;
+  CollectionServerManager& _manager;
   char* _payload;
 };
 

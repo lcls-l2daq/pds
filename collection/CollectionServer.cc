@@ -3,14 +3,14 @@
 #include <stdio.h>
 
 #include "CollectionServer.hh"
+#include "CollectionServerManager.hh"
 #include "Node.hh"
 #include "Message.hh"
-#include "CollectionManager.hh"
 #include "Route.hh"
 
 using namespace Pds;
 
-CollectionServer::CollectionServer(CollectionManager& manager,
+CollectionServer::CollectionServer(CollectionServerManager& manager,
 				   int id,
 				   int interface,
 				   unsigned maxpayload,
@@ -21,7 +21,7 @@ CollectionServer::CollectionServer(CollectionManager& manager,
   _payload(new char[maxpayload])
 {}
 
-CollectionServer::CollectionServer(CollectionManager& manager,
+CollectionServer::CollectionServer(CollectionServerManager& manager,
 				   int id,
 				   const Ins& bcast,
 				   unsigned maxpayload,
@@ -44,8 +44,8 @@ int CollectionServer::commit(char* datagram,
 {
   const Node& hdr = *(Node*)datagram;
   const Message& msg = *(Message*)payload;
-  //  printf("<%s> from level %d partition %d uid %d pid %d\n",
-  //	 msg.type_name(), hdr.level(), hdr.partition(), hdr.uid(), hdr.pid());
+//   printf("<%s> (srv) from level %d platform %d ip 0x%x pid %d\n",
+// 	 msg.type_name(), hdr.level(), hdr.platform(), hdr.ip(), hdr.pid());
   _manager.message(hdr, msg);
   return 1;
 }
