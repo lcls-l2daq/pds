@@ -38,8 +38,7 @@ ZcpFragment::~ZcpFragment()
 //
 //  "splice" is introduced in gcc version 4
 //
-//#if ( __GNUC__ > 3 )
-#if 1
+#if defined(__USE_GNU) && defined(SPLICE_F_MOVE)
 
 int ZcpFragment::kinsert(int fd, int size) 
 { 
@@ -146,6 +145,8 @@ int ZcpFragment::uinsert(void* b, int size)
 int ZcpFragment::vinsert(iovec* iov, int n) { return _showGccVersion(); }
 int ZcpFragment::insert(ZcpFragment& dg, int size) { return _showGccVersion(); }
 int ZcpFragment::kremove(int size) { return _showGccVersion(); }
+
+int ZcpFragment::copy  (ZcpFragment& dg, int size) {return _showGccVersion();}
 
 int ZcpFragment::kremove(int fd, int size) { return _showGccVersion(); }
 int ZcpFragment::uremove(void* b, int size)
