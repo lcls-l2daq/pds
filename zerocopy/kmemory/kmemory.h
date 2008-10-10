@@ -132,6 +132,7 @@
 #include <sys/stat.h>
 #include <fcntl.h>
 #include <errno.h>
+#include <unistd.h>
 #else
 #include <linux/uio.h>
 #endif

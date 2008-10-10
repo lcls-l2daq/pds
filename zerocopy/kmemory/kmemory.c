@@ -44,7 +44,7 @@ MODULE_VERSION("1.0");
 #define KMEMORY_SPLICEDOUT	(1<<18)		/* obsolete */
 #define KMEMORY_MAPPED		(1<<19)
 
-#define NDESCRIPTORS	(256)
+#define NDESCRIPTORS	(1024)
 struct kmemory_descriptor {
 	struct page *page;
 	int offset;
