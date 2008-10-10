@@ -31,17 +31,21 @@
 #define PDS_SEQUENCE
 
 #include "ClockTime.hh"
+#include "pds/utility/TransitionId.hh"
+
+typedef Pds::TransitionId::Value Service;
 
 namespace Pds {
+
   class Sequence 
   {
   public:
     enum Type    {Event = 0, Occurrence = 1, Marker = 2};
     enum         {NumberOfTypes = 3};
-    enum Service {Map,       Unmap,     Configure, Unconfigure,
-                  BeginRun,  EndRun,    Pause,     Resume,
-                  Enable,    Disable,   L1Accept,  Service11,
-                  Service12, Service13, Service14, Service15};
+//     enum Service {Map,       Unmap,     Configure, Unconfigure,
+//                   BeginRun,  EndRun,    Pause,     Resume,
+//                   Enable,    Disable,   L1Accept,  Service11,
+//                   Service12, Service13, Service14, Service15};
     enum         {NumberOfServices = 16};
     enum ShrinkFlag {NotExtended};
     enum Special {Invalid};
@@ -86,7 +90,7 @@ namespace Pds {
   public:
     enum {Extended = (m_extended << v_extended)};
     enum {Function = (m_function << v_function)};
-    enum {EventM   = (L1Accept   << v_service)};
+    enum {EventM   = (TransitionId::L1Accept << v_service)};
     enum {Control  = (m_cntrl    << v_cntrl)};
   private:
     ClockTime _clock;
@@ -204,7 +208,7 @@ inline Pds::Sequence::Type Pds::Sequence::type() const
 ** --
 */
 
-inline Pds::Sequence::Service Pds::Sequence::service() const
+inline Service Pds::Sequence::service() const
   {
   return (Service)((_high >> v_service) & (unsigned)m_service);
   }

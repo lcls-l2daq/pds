@@ -35,7 +35,7 @@ InDatagram* Outlet::events(InDatagram* datagram){
   const Datagram& dg = datagram->datagram();
   //  printf("outlet event service %x type %x forward 0x%x\n", 
   //	 dg.service(),dg.type(),_forward[dg.type()]);
-  if ((1<<dg.service()) & _forward[dg.type()])
+  if ((1<<dg.seq.service()) & _forward[dg.seq.type()])
     return _wire->forward(datagram);
   else 
     return 0;
@@ -43,7 +43,7 @@ InDatagram* Outlet::events(InDatagram* datagram){
 
 InDatagram* Outlet::occurrences(InDatagram* datagram){
   const Datagram& dg = datagram->datagram();
-  if ((1<<dg.service()) & _forward[dg.type()]) 
+  if ((1<<dg.seq.service()) & _forward[dg.seq.type()]) 
     return _wire->forward(datagram);
   else 
     return 0;
@@ -51,7 +51,7 @@ InDatagram* Outlet::occurrences(InDatagram* datagram){
 
 InDatagram* Outlet::markers(InDatagram* datagram){
   const Datagram& dg = datagram->datagram();
-  if ((1<<dg.service()) & _forward[dg.type()]) 
+  if ((1<<dg.seq.service()) & _forward[dg.seq.type()]) 
     return _wire->forward(datagram);
   else 
     return 0;
@@ -66,7 +66,7 @@ void Outlet::forward(OccurrenceId::Value id)
   _forward[Sequence::Occurrence] |= (1 << id);
 }
 
-void Outlet::forward(EventId::Value id)
+void Outlet::forward(TransitionId::Value id)
 {
   _forward[Sequence::Event] |= (1 << id);
 }
@@ -86,7 +86,7 @@ void Outlet::sink(OccurrenceId::Value id)
   _forward[Sequence::Occurrence] &= ~(1 << id);
 }
 
-void Outlet::sink(EventId::Value id)
+void Outlet::sink(TransitionId::Value id)
 {
   _forward[Sequence::Event] &= ~(1 << id);
 }

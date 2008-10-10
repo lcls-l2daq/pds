@@ -4,7 +4,7 @@
 
 using namespace Pds;
 
-Transition::Transition(Id              id,
+Transition::Transition(TransitionId::Value id,
                        Phase           phase,
                        const Sequence& sequence,
                        unsigned        env, 
@@ -16,7 +16,7 @@ Transition::Transition(Id              id,
   _env     (env)
 {}
 
-Transition::Transition(Id              id,
+Transition::Transition(TransitionId::Value id,
                        unsigned        env, 
                        unsigned        size) :
   Message(Message::Transition, size),
@@ -26,29 +26,13 @@ Transition::Transition(Id              id,
   _env     (env)
 {}
 
-Transition::Id Transition::id() const {return _id;}
+TransitionId::Value Transition::id() const {return _id;}
 
 Transition::Phase Transition::phase() const {return _phase;}
 
 const Sequence& Transition::sequence() const { return _sequence; }
 
 unsigned Transition::env() const {return _env;}
-
-const char* Transition::name(Id id)
-{ 
-  static const char* _names[] = {
-    "Map",
-    "Unmap",
-    "Configure",
-    "Unconfigure",
-    "BeginRun",
-    "EndRun",
-    "Enable",
-    "Disable",
-    "L1Accept"
-  };
-  return (id < NumberOf ? _names[id] : "-Invalid-");
-};
 
 void* Transition::operator new(size_t size, Pool* pool)
 {
@@ -73,10 +57,23 @@ void Transition::operator delete(void* buffer)
   }
 }
 
-Pds::Allocate::Allocate(const char* partition) : 
-  Transition(Transition::Map, Transition::Execute, Sequence(), 0,
+Pds::Allocate::Allocate(const char* partition,
+			unsigned    partitionid) : 
+  Transition(TransitionId::Map, Transition::Execute, Sequence(), 0,
              sizeof(Allocate)-sizeof(_nodes)),
-  _nnodes(0)
+  _partitionid(partitionid),
+  _nnodes     (0)
+{
+  strncpy(_partition, partition, MaxName-1);
+}
+
+Pds::Allocate::Allocate(const char* partition,
+			unsigned    partitionid,
+			const Sequence& seq) : 
+  Transition(TransitionId::Map, Transition::Execute, seq, 0,
+             sizeof(Allocate)-sizeof(_nodes)),
+  _partitionid(partitionid),
+  _nnodes     (0)
 {
   strncpy(_partition, partition, MaxName-1);
 }
@@ -92,6 +89,8 @@ bool Pds::Allocate::add(const Node& node)
   }
 }
 
+unsigned Pds::Allocate::partitionid() const { return _partitionid; }
+
 unsigned Pds::Allocate::nnodes() const {return _nnodes;}
 
 const Pds::Node* Pds::Allocate::node(unsigned n) const 
@@ -106,7 +105,7 @@ const Pds::Node* Pds::Allocate::node(unsigned n) const
 const char* Pds::Allocate::partition() const {return _partition;}
 
 Pds::Kill::Kill(const Node& allocator) : 
-  Transition(Transition::Unmap, Transition::Execute, Sequence(), 0, 
+  Transition(TransitionId::Unmap, Transition::Execute, Sequence(), 0, 
              sizeof(Kill)),
   _allocator(allocator)
 {}

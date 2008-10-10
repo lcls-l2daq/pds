@@ -4,6 +4,9 @@
 #include "InDatagram.hh"
 #include "Datagram.hh"
 #include "pds/xtc/xtc.hh"
+#include "pds/service/Pool.hh"
+#include "pds/service/RingPool.hh"
+
 #include <string.h>
 
 namespace Pds {
@@ -13,7 +16,7 @@ namespace Pds {
     CDatagram() {}
     CDatagram(const Datagram&);
     CDatagram(const Datagram&, const InXtc&);
-    CDatagram(const TC&, const Src&);
+    CDatagram(const TypeId&, const Src&);
     ~CDatagram();
 
     void* operator new(size_t, Pool*);
@@ -35,7 +38,7 @@ namespace Pds {
 
 
 inline Pds::CDatagram::CDatagram(const Datagram& dg) :
-  _datagram(dg,dg.xtc.tag,dg.xtc.src)
+  _datagram(dg,dg.xtc.contains,dg.xtc.src)
 {
 }
 
@@ -44,11 +47,11 @@ inline Pds::CDatagram::CDatagram(const Datagram& dg,
   _datagram(dg)
 {
   int size = xtc.sizeofPayload();
-  memcpy(_datagram.xtc.tag.alloc(size),xtc.payload(),size);
+  memcpy(_datagram.xtc.alloc(size),xtc.payload(),size);
 }
 
-inline Pds::CDatagram::CDatagram(const TC& tc, const Src& src) :
-  _datagram(tc,src)
+inline Pds::CDatagram::CDatagram(const TypeId& type, const Src& src) :
+  _datagram(type,src)
 {
 }
 

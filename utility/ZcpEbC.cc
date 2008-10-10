@@ -28,7 +28,7 @@ ZcpEbC::~ZcpEbC()
 
 EbEventBase* ZcpEbC::_new_event(const EbBitMask& serverId)
 {
-  unsigned depth = _events.numberofObjects()+_events.numberofFrees()-_events.numberofAllocs();
+  unsigned depth = _datagrams.depth();
 
 #ifdef USE_VMON
   if (_vmoneb.status() == VmonManager::Running) {
@@ -36,11 +36,11 @@ EbEventBase* ZcpEbC::_new_event(const EbBitMask& serverId)
   }
 #endif
 
-  if (!depth)
+  if (depth==1 && _pending.forward()!=_pending.empty())
     _postEvent(_pending.forward());
 
-  ZcpDatagram* datagram = new(&_datagrams) ZcpDatagram(_header, _id);
-  EbCountKey* key = new(&_keys) EbCountKey(const_cast<Datagram&>(datagram->datagram()));
+  ZcpDatagram* datagram = new(&_datagrams) ZcpDatagram(TypeId(TypeNum::Id_InXtcContainer), _id);
+  EbCountKey* key = new(&_keys) EbCountKey(const_cast<Datagram&>(datagram->datagram()).seq);
   return new(&_events) ZcpEbEvent(serverId, _clients, datagram, key);
 }
 

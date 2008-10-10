@@ -5,39 +5,41 @@
 #include "Mtu.hh"
 #include "pds/xtc/xtc.hh"
 #include "pds/service/EbBitMask.hh"
-#include "pds/service/ZcpFragment.hh"
+#include "pds/service/ZcpStream.hh"
 
 typedef unsigned size_t;
 
 namespace Pds {
 
-class ZcpEbSegment : public LinkedList<ZcpEbSegment>
+  class ZcpFragment;
+
+  class ZcpEbSegment : public LinkedList<ZcpEbSegment>
   {
   public:
     void* operator new(size_t, char**);
+    void  operator delete(void*);
   public:
-    ZcpEbSegment(const InXtc& header,
-		 int offset,
-		 int length,
-		 EbBitMask client,
-		 ZcpFragment*,
+    ZcpEbSegment(const InXtc&  header,
+		 int           offset,
+		 int           length,
+		 EbBitMask     client,
+		 ZcpFragment&  fragment,
 		 ZcpEbSegment* pending);
-    ZcpEbSegment(ZcpEbSegment&);
+   ~ZcpEbSegment();
   public:
-   ~ZcpEbSegment() {}
-  public:
-    ZcpEbSegment* consume  (ZcpFragment*,
+    ZcpEbSegment* consume  (ZcpFragment&,
 			    int offset);
     int           remaining() const;
+    int           length   () const;
     EbBitMask     client   () const;
-    bool          fixup    (const Src&, const TC&);
-    LinkedList<ZcpFragment>& fragments();
+    ZcpStream&    fragments();
   private:
     int          _offset;
+    int          _length;
     int          _remaining;
     EbBitMask    _client;
     InXtc        _header;
-    LinkedList<ZcpFragment> _fragments;
+    ZcpStream    _fragments;
   };
 }
 
@@ -63,6 +65,10 @@ inline void* Pds::ZcpEbSegment::operator new(size_t size, char** next)
   return (void*)buffer;
   }
 
+inline void Pds::ZcpEbSegment::operator delete(void*)
+{
+}
+
 /*
 ** ++
 **
@@ -75,6 +81,11 @@ inline int Pds::ZcpEbSegment::remaining() const
   {
   return _remaining;
   }
+
+inline int Pds::ZcpEbSegment::length() const
+{
+  return _length;
+}
 
 /*
 ** ++
@@ -90,7 +101,7 @@ inline EbBitMask Pds::ZcpEbSegment::client() const
   }
 
 
-inline Pds::LinkedList<Pds::ZcpFragment>& Pds::ZcpEbSegment::fragments()
+inline ZcpStream& Pds::ZcpEbSegment::fragments()
 {
   return _fragments;
 }

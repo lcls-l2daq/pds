@@ -35,9 +35,6 @@ class Pool
     virtual ~Pool();
     Pool(size_t sizeofObject, int numberofOfObjects);
     Pool(size_t sizeofObject, int numberofOfObjects, unsigned alignBoundary);
-    // Commented out by RiC 3/8/01 because gcc complains
-    //void*         Pool::alloc(size_t size);
-    //static void   Pool::free(void* buffer);
     void*         alloc(size_t size);
     static void   free(void* buffer);
     size_t        sizeofObject()    const;

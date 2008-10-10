@@ -155,3 +155,10 @@ int OutletWireInsList::remove(unsigned id)
   return 0;
   }
 
+
+void OutletWireInsList::flush()
+{
+  OutletWireIns* dst;
+  while((dst = _list.remove()) != _list.empty()) delete dst;
+  _entries = 0;
+}

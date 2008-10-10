@@ -40,19 +40,20 @@ class OutletWireInsList
   public:
     OutletWireInsList();
    ~OutletWireInsList();
-    int               insert(unsigned id, const Ins& ins); 
-    int               remove(unsigned id); 
+    int            insert(unsigned id, const Ins& ins); 
+    int            remove(unsigned id); 
+    void           flush ();
     // Note: we don't check if the database is empty, hence protection
     // against this condition must be done by the caller.
     OutletWireIns* lookup(const Sequence& seq) {return lookup(seq.high()>>4);}
     OutletWireIns* lookup(unsigned index) {return _ins[index % _entries];}
-    bool              isempty() const {return !_entries;}
+    bool           isempty() const {return !_entries;}
   private:
     OutletWireIns* _locate(unsigned id); 
-    void              _resort(); 
+    void           _resort(); 
   private:
     OutletWireIns  _list; // Current address list (as a doubly-linked list)
-    unsigned          _entries; // Number of entries in following array
+    unsigned       _entries; // Number of entries in following array
     OutletWireIns* _ins[EbTmoMask::BitMaskBits]; // Current address list
   };
 }

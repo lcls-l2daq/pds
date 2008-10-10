@@ -33,7 +33,7 @@ void EbS::no_build(Sequence::Type type, unsigned mask)
 
 EbEventBase* EbS::_new_event(const EbBitMask& serverId)
 {
-  unsigned depth = _events.numberofObjects()+_events.numberofFrees()-_events.numberofAllocs();
+  unsigned depth = _datagrams.depth();
 
 #ifdef USE_VMON
   if (_vmoneb.status() == VmonManager::Running) {
@@ -41,11 +41,12 @@ EbEventBase* EbS::_new_event(const EbBitMask& serverId)
   }
 #endif
 
-  if (!depth)
+  if (depth==1 && _pending.forward()!=_pending.empty())
     _postEvent(_pending.forward());
 
-  CDatagram* datagram = new(&_datagrams) CDatagram(_header, _id);
-  EbSequenceKey* key = new(&_keys) EbSequenceKey(const_cast<Datagram&>(datagram->datagram()));
+  CDatagram* datagram =
+    new(&_datagrams) CDatagram(TypeId(TypeNum::Id_InXtcContainer), _id);
+  EbSequenceKey* key = new(&_keys) EbSequenceKey(const_cast<Datagram&>(datagram->datagram()).seq);
   return new(&_events) EbEvent(serverId, _clients, datagram, key);
 }
 

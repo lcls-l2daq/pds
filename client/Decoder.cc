@@ -104,7 +104,9 @@ InDatagram* Decoder::_handleDg(InDatagram* in){
   int advance;
   Browser browser(in->datagram(), iter, _depth, advance);
   if ((_depth > -1)  && 
-      (in->datagram().xtc.sizeofPayload() >= (int) sizeof(InXtc)) ) browser.iterate();
+      (in->datagram().xtc.sizeofPayload() >= (int) sizeof(InXtc)) ) 
+    if (browser.iterate() < 0)
+      printf("..Terminated.\n");
   delete iter;
   return in;
 }

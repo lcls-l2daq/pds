@@ -4,7 +4,6 @@
 #include "pds/collection/Message.hh"
 #include "pds/utility/Transition.hh"
 #include "pds/utility/StreamPorts.hh"
-#include "pds/utility/StreamPortAssignment.hh"
 #include "pds/utility/InletWire.hh"
 #include "pds/utility/InletWireServer.hh"
 #include "pds/utility/InletWireIns.hh"
@@ -12,8 +11,6 @@
 #include "pds/service/NetServer.hh"
 #include "pds/utility/BldServer.hh"
 #include "pds/utility/NetDgServer.hh"
-#include "pds/xtc/CDatagram.hh"
-#include "pds/management/EbJoin.hh"
 
 using namespace Pds;
 
@@ -22,15 +19,12 @@ static const unsigned MaxPayload = 2048;
 static const unsigned ConnectTimeOut = 250; // 1/4 second
 
 RecorderLevel::RecorderLevel(unsigned platform,
-			     unsigned id,
 			     EventCallback& callback,
 			     Arp* arp) :
-  CollectionManager(Level::Recorder, platform,
-		    MaxPayload, ConnectTimeOut, arp),
-  _index   (id),
+  PartitionMember(platform, Level::Recorder, arp),
   _callback(callback),
   _streams (0),
-  _pool    (sizeof(CDatagram), 32)
+  _reply   (Message::Ping)
 {
 }
 
@@ -39,10 +33,11 @@ RecorderLevel::~RecorderLevel()
   if (_streams) delete _streams;
 }
 
-void RecorderLevel::attach()
+bool RecorderLevel::attach()
 {
+  start();
   if (connect()) {
-    _streams = new EventStreams(*this,_index);
+    _streams = new EventStreams(*this);
     _streams->connect();
     
     _callback.attached(*_streams);
@@ -50,107 +45,85 @@ void RecorderLevel::attach()
     //    _rivals.insert(_index, msg.reply_to()); // revisit
     Message join(Message::Join);
     mcast(join);
+    return true;
   } else {
     _callback.failed(EventCallback::PlatformUnavailable);
+    return false;
   }
 }
 
-void RecorderLevel::message(const Node& hdr, 
-			    const Message& msg) 
+Message& RecorderLevel::reply(Message::Type)
+{
+  return _reply;
+}
+
+void RecorderLevel::allocated(const Allocate& alloc,
+			      unsigned        index) 
 {
   InletWire* wire = _streams->wire(StreamParams::FrameWork);
 
-  if (msg.type()==Message::Join) {
-    if (hdr.level() == Level::Control) {
-      if (msg.size() == sizeof(EbJoin)) {
-	const EbJoin& ebj = reinterpret_cast<const EbJoin&>(msg);
-	int vector_id  = ebj.index();
-	const Ins& ins = StreamPorts::event(hdr.platform(),
-					       Level::Control,
-					       vector_id,
-					       _index);
-	InletWireIns wireIns(vector_id, ins);
-	wire->add_output(wireIns);
-	printf("RecorderLevel::message adding output %d to %x/%d\n",
-	       vector_id, ins.address(), ins.portId());
-
-	arpadd(hdr);
-	EbJoin join(_index);
-	ucast(join, msg.reply_to());
-      }
-      else {
-	arpadd(hdr);
-	Message join(Message::Join,sizeof(Message));
-	ucast(join, msg.reply_to());
-      }
+  // setup event servers
+  unsigned partition  = alloc.partitionid();
+  unsigned nnodes     = alloc.nnodes();
+  unsigned eventid = 0;
+  unsigned controlid = 0;
+  for (unsigned n=0; n<nnodes; n++) {
+    const Node* node = alloc.node(n);
+    if (node->level() == Level::Event) {
+      // Add vectored output clients on bld_wire
+      Ins ins = StreamPorts::event(partition,
+				   Level::Recorder,
+				   index,
+				   eventid++);
+      printf("RecorderLevel::allocated joining segment from %08x to port %x/%d\n",
+	     node->ip(),ins.address(),ins.portId());
+      
+      NetDgServer* srv = new NetDgServer(ins,
+					 Src(*node),
+					 EventStreams::netbufdepth);
+      wire->add_input(srv);
+      Ins mcastIns(ins.address());
+      srv->server().join(mcastIns, Ins(header().ip()));
+      printf("RecorderLevel::allocated assign fragment %d  %x/%d\n",
+	     srv->id(),mcastIns.address(),srv->server().portId());
     }
-    else if (hdr.level() == Level::Event) {
-      if (msg.size() == sizeof(EbJoin)) {
-	// Build the event data servers
-	const EbJoin& ebj = reinterpret_cast<const EbJoin&>(msg);
-	int vector_id  = ebj.index();
-	Ins streamPort(StreamPorts::event(header().platform(),
-					     Level::Recorder,
-					     _index,
-					     vector_id));
-	//      NetDgServer* srv = new NetDgServer(Ins(streamPort.portId()),
-	NetDgServer* srv = new NetDgServer(streamPort,
-					   Src(Level::Event,vector_id,
-					       hdr.ip()),
-					   EventStreams::netbufdepth);
-	wire->add_input(srv);
-	Ins mcastIns(streamPort.address());
-	srv->server().join(mcastIns, Ins(header().ip()));
-	printf("Assign fragment %d  %x/%d\n",
-	       srv->id(),mcastIns.address(),srv->server().portId());
+    else if (node->level() == Level::Control) {
+      if (controlid) {
+	printf("RecorderLevel::allocated  Additional control level found in allocation\n");
+	continue;
       }
-      else {
-	arpadd(hdr);
-	EbJoin ebj(_index);
-	ucast(ebj,msg.reply_to());
-      }
-    }
-    else if (hdr.level() == Level::Recorder) {
-      // Transition datagrams
-      if (msg.size() != sizeof(EbJoin) ||
-	  !_rivals.insert(reinterpret_cast<const EbJoin&>(msg).index(),
-			  msg.reply_to())) {
-	arpadd(hdr);
-	EbJoin ebj(_index);
-	ucast(ebj,msg.reply_to());
-      }
-    }
-  }
-  else if (msg.type()==Message::Transition && hdr.level()==Level::Control) {
-    const Transition& tr = static_cast<const Transition&>(msg);
-    if (tr.id() != Transition::L1Accept) {
-      OutletWireIns* dst;
-      if (tr.phase() == Transition::Execute) {
-	Transition* ntr = new(&_pool) Transition(tr);
-	wire->post(*ntr);
-      }
-      else if ((dst=_rivals.lookup(tr.sequence())) &&
-	       dst->id() != (unsigned)_index) {
-	CDatagram* ndg =
-	  new(&_pool) CDatagram(Datagram(tr, 
-					 TC(TypeNumPrimary::Id_XTC),
-					 Src(Level::Segment,_index,
-					     header().ip())));
-	wire->post(*ndg);
-      }
+      Ins ins = StreamPorts::event(partition,
+				   Level::Control,
+				   controlid,
+				   index);
+      InletWireIns wireIns(controlid, ins);
+      wire->add_output(wireIns);
+      printf("EventLevel::message adding output %d to %x/%d\n",
+	     controlid, ins.address(), ins.portId());
+      controlid++;
     }
   }
 }
 
-#if 0 // revisit
-void RecorderLevel::disconnected()
+void RecorderLevel::post     (const Transition& tr)
 {
-  
+  InletWire* wire = _streams->wire(StreamParams::FrameWork);
+  wire->post(tr);
+}
+
+void RecorderLevel::post     (const InDatagram& in)
+{
+  InletWire* wire = _streams->wire(StreamParams::FrameWork);
+  wire->post(in);
+}
+
+void RecorderLevel::detach()
+{
   if (_streams) {
     _streams->disconnect();
     delete _streams;
     _streams = 0;
-    _callback.dissolved(_dissolver);
+    //    _callback.dissolved(_dissolver);
   }
+  cancel();
 }
-#endif

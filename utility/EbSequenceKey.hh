@@ -13,13 +13,6 @@
     virtual bool precedes (const server& s) { return key <= s.sequence(); } \
     virtual bool coincides(const server& s) { return key == s.sequence(); } \
     virtual void assign   (const server& s) { key = s.sequence(); }
-//#define EbSequenceKeyDeclare( server ) \
-    virtual bool precedes (const server& s) { return key <= s.sequence(); } \
-    virtual bool coincides(const server& s) { return key == s.sequence(); } \
-    virtual void assign   (const server& s) \
-    { printf("%s assign %08x/%08x\n",#server, \
-      s.sequence().high(), s.sequence().low()); \
-      key = s.sequence(); }
 
 namespace Pds {
   class EbSequenceKey : public EbEventKey {

@@ -11,7 +11,7 @@ namespace Pds {
 
     virtual int skip(int len) = 0;
     virtual int read(iovec*, int maxiov, int len) = 0;
-    virtual int copy(void*, int len) = 0;
+    //    virtual int copy(void*, int len) = 0;
   };
 
 }

@@ -2,12 +2,12 @@
 #define STATETRANSITION_HH
 
 #include "pds/utility/State.hh"
-#include "pds/utility/Transition.hh"
+#include "pds/utility/TransitionId.hh"
 
 namespace Pds {
   namespace StateTransition {
-    State::Id state(Transition::Id id);
-    Transition::Id transition(State::Id current, State::Id target);
+    State::Id state(TransitionId::Value id);
+    TransitionId::Value transition(State::Id current, State::Id target);
   };
 }
 

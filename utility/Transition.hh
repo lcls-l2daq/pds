@@ -5,36 +5,27 @@
 #include "pds/collection/Node.hh"
 #include "pds/xtc/Sequence.hh"
 #include "pds/service/Pool.hh"
+#include "TransitionId.hh"
 
 namespace Pds {
 
 class Transition : public Message {
 public:
-  enum Id {
-    Unknown, Reset,
-    Map, Unmap,
-    Configure, Unconfigure,
-    BeginRun, EndRun,
-    Pause, Resume,
-    Enable, Disable,
-    L1Accept,
-    NumberOf
-  };
   enum Phase { Execute, Record };
-  static const char* name(Transition::Id id);
+  static const char* name(TransitionId::Value id);
 
 public:
-  Transition(Id              id,
+  Transition(TransitionId::Value id,
              Phase           phase,
              const Sequence& sequence,
              unsigned        env, 
              unsigned        size=sizeof(Transition));
 
-  Transition(Id              id,
+  Transition(TransitionId::Value id,
              unsigned        env, 
              unsigned        size=sizeof(Transition));
 
-  Id              id      () const;
+  TransitionId::Value id      () const;
   Phase           phase   () const;
   const Sequence& sequence() const;
   unsigned        env     () const;
@@ -44,26 +35,32 @@ public:
   void  operator delete(void* buffer);
 
 private:
-  Id       _id;
-  Phase    _phase;
-  Sequence _sequence;
-  unsigned _env;
+  TransitionId::Value _id;
+  Phase        _phase;
+  Sequence     _sequence;
+  unsigned     _env;
 };
 
 class Allocate : public Transition {
 public:
-  Allocate(const char* partition);
+  Allocate(const char* partition,
+	   unsigned    partitionid);
+  Allocate(const char* partition,
+	   unsigned    partitionid,
+	   const Sequence&);
 
   bool add(const Node& node);
 
   unsigned nnodes() const;
   const Node* node(unsigned n) const;
   const char* partition() const;
+  unsigned    partitionid() const;
   
 private:
   static const unsigned MaxNodes=128;
   static const unsigned MaxName=64;
   char _partition[MaxName];
+  unsigned _partitionid;
   unsigned _nnodes;
   Node _nodes[MaxNodes];
 };

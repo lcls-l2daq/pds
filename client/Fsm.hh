@@ -12,7 +12,7 @@ namespace Pds {
   public:
     Fsm();
     virtual ~Fsm();
-    Action*     callback(Transition::Id id, Action* action);
+    Action*     callback(TransitionId::Value id, Action* action);
   
   private:
     enum State {Idle,Mapped,Configured,Begun,Enabled};
@@ -20,10 +20,10 @@ namespace Pds {
     InDatagram* occurrences(InDatagram* in);
     InDatagram* events     (InDatagram* in);
 
-    State    _reqState(Transition::Id id);
+    State    _reqState(TransitionId::Value id);
     unsigned _allowed(State reqState);
     State    _state;
-    Action*  _action[Transition::NumberOf];
+    Action*  _action[TransitionId::NumberOf];
     Action*  _defaultAction;
   };
 

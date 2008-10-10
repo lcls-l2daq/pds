@@ -28,7 +28,7 @@ EbC::~EbC()
 
 EbEventBase* EbC::_new_event(const EbBitMask& serverId)
 {
-  unsigned depth = _datagrams.numberofObjects()+_datagrams.numberofFrees()-_datagrams.numberofAllocs();
+  unsigned depth = _datagrams.depth();
 
 #ifdef USE_VMON
   if (_vmoneb.status() == VmonManager::Running) {
@@ -36,12 +36,12 @@ EbEventBase* EbC::_new_event(const EbBitMask& serverId)
   }
 #endif
 
-  if (!depth) {
+  if (depth==1)
     _postEvent(_pending.forward());
-  }
 
-  CDatagram* datagram = new(&_datagrams) CDatagram(_header, _id);
-  EbCountKey* key = new(&_keys) EbCountKey(const_cast<Datagram&>(datagram->datagram()));
+  CDatagram* datagram = 
+    new(&_datagrams) CDatagram(TypeId(TypeNum::Id_InXtcContainer), _id);
+  EbCountKey* key = new(&_keys) EbCountKey(const_cast<Datagram&>(datagram->datagram()).seq);
   return new(&_events) EbEvent(serverId, _clients, datagram, key);
 }
 

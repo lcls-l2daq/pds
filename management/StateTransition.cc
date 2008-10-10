@@ -1,30 +1,30 @@
 #include "StateTransition.hh"
 
 Pds::State::Id 
-Pds::StateTransition::state(Transition::Id id)
+Pds::StateTransition::state(TransitionId::Value id)
 {
   switch (id) {
-  case Transition::Reset:
-  case Transition::Unmap:
+  case TransitionId::Reset:
+  case TransitionId::Unmap:
     return State::Standby;
 
-  case Transition::Map:
-  case Transition::Unconfigure:
+  case TransitionId::Map:
+  case TransitionId::Unconfigure:
     return State::Partitioned;
 
-  case Transition::Configure:
-  case Transition::EndRun:
+  case TransitionId::Configure:
+  case TransitionId::EndRun:
     return State::Configured;
 
-  case Transition::BeginRun:
-  case Transition::Disable:
+  case TransitionId::BeginRun:
+  case TransitionId::Disable:
     return State::Ready;
 
-  case Transition::Enable:
-  case Transition::Resume:    
+  case TransitionId::Enable:
+  case TransitionId::Resume:    
     return State::Enabled;
 
-  case Transition::Pause:
+  case TransitionId::Pause:
     return State::Paused;
     
   default:
@@ -32,19 +32,19 @@ Pds::StateTransition::state(Transition::Id id)
   }
 }
 
-Pds::Transition::Id 
+Pds::TransitionId::Value 
 Pds::StateTransition::transition(State::Id current, State::Id target)
 {
-  Transition::Id next;
+  TransitionId::Value next;
   if (current == target) {
     // Nothing to do
-    next = Transition::Unknown;
+    next = TransitionId::Unknown;
   } else if (current < target) {
     // Down
-    next = Transition::Id(2*current);
+    next = TransitionId::Value(2*current);
   } else { 
     // Up
-    next = Transition::Id(2*current-1);
+    next = TransitionId::Value(2*current-1);
   }
   return next;
 }

@@ -6,11 +6,12 @@
 #include "EbBase.hh"
 
 #include "EbEvent.hh"
-#include "EbHeaderTC.hh"
 #include "EbTimeouts.hh"
 #ifdef USE_VMON
 #include "VmonEb.hh"
 #endif
+
+#include "pds/service/GenericPoolW.hh"
 
 namespace Pds {
 
@@ -37,11 +38,11 @@ class Eb : public EbBase
   public:
     int  processIo(Server*);
   private:
-    void         _fixup      ( EbEventBase*, const Src& );
+    unsigned     _fixup      ( EbEventBase*, const Src&, const EbBitMask& );
     void         _dump       ( int detail );
   protected:
-    GenericPool _datagrams;    // Datagram freelist
-    GenericPool _events;
+    GenericPoolW _datagrams;    // Datagram freelist
+    GenericPool  _events;
   };
 }
 #endif

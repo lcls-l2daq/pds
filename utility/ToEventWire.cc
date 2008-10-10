@@ -32,7 +32,7 @@ Transition* ToEventWire::forward(Transition* tr)
 
 InDatagram* ToEventWire::forward(InDatagram* dg)
 {
-  OutletWireIns* dst = _nodes.lookup(dg->datagram());
+  OutletWireIns* dst = _nodes.lookup(dg->datagram().seq);
   int result = dg->send(_postman, dst->ins());
   if (result) _log(dg->datagram(), result);
 

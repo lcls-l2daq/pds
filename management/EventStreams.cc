@@ -1,6 +1,6 @@
 #include "EventStreams.hh"
 #include "pds/utility/ToEventWire.hh"
-#include "pds/utility/EbS.hh"
+#include "EventBuilder.hh"
 #include "pds/service/BitList.hh"
 #include "pds/collection/CollectionManager.hh"
 #include "pds/service/VmonSourceId.hh"
@@ -13,11 +13,8 @@
 
 using namespace Pds;
 
-static const unsigned MaxSize = 4*1024*1024;
-
-EventStreams::EventStreams(CollectionManager& cmgr,
-			   int index) :
-  WiredStreams(VmonSourceId(cmgr.header().level(), index))
+EventStreams::EventStreams(CollectionManager& cmgr) :
+  WiredStreams(VmonSourceId(cmgr.header().level(), cmgr.header().ip()))
 {
   const Node& node = cmgr.header();
   Level::Type level = node.level();
@@ -29,17 +26,25 @@ EventStreams::EventStreams(CollectionManager& cmgr,
 
     _outlets[s] = new ToEventWire(*stream(s)->outlet(), cmgr, ipaddress);
 
-    EbS* eb =
-      new EbS(Src(level,index,
-		  ipaddress), 
-	      level,
-	      *stream(s)->inlet(), *_outlets[s], s, ipaddress,
-	      MaxSize, ebdepth);
+    if (cmgr.header().level()==Level::Recorder) {
+      EventBuilder* eb = new EventBuilder
+	(Src(cmgr.header()),
+	 level,
+	 *stream(s)->inlet(), *_outlets[s], s, ipaddress,
+	 MaxSize, ebdepth);
+      
+      eb->no_build(Sequence::Event,1<<TransitionId::L1Accept);
+      _inlet_wires[s] = eb;
+    }
+    else {
+      EventBuilder* eb = new EventBuilder
+	(Src(cmgr.header()),
+	 level,
+	 *stream(s)->inlet(), *_outlets[s], s, ipaddress,
+	 MaxSize, ebdepth);
+      _inlet_wires[s] = eb;
+    }
 
-    if (cmgr.header().level()==Level::Recorder)
-      eb->no_build(Sequence::Event,1<<Sequence::L1Accept);
-
-    _inlet_wires[s] = eb;
   }
   //  _vmom_appliance = new VmonAppliance(vmon());
   //  _vmom_appliance->connect(stream(StreamParams::Occurrence)->inlet());

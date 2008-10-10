@@ -2,6 +2,7 @@
 #define PDS_TONETEB
 
 #include "pds/service/Client.hh"
+#include "pds/service/ZcpFragment.hh"
 
 struct iovec;
 
@@ -20,12 +21,12 @@ public:
 	  unsigned maxdatagrams); 
   virtual ~ToNetEb() {}
 
-  int  send(const CDatagram*  , const Ins&);
-  int  send(const ZcpDatagram*, const Ins&);
-  //  int  send(struct iovec*, unsigned iovCount, const Ins&);
+  int  send(const CDatagram*, const Ins&);
+  int  send(ZcpDatagram*    , const Ins&);
 
 private:
-  Client _client;     // UDP client
+  Client      _client;     // UDP client
+  ZcpFragment _fragment;
 };
 }
 #endif

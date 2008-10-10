@@ -52,8 +52,7 @@ BldServer::BldServer(const Ins& ins,
 	  MaxPayload,
 	  nbufs),
   _client(src),
-  _xtc   (XTC(TC(TypeNumPrimary::Id_XTC)),
-	  src)
+  _xtc   (TypeNum::Any,src)
 {
   fd(_server.fd());
 }
@@ -130,10 +129,10 @@ int BldServer::pend(int flag)
 
 int BldServer::fetch(char* payload, int flags)
 {
-  InXtc* xtc = new (payload)InXtc(_xtc.tag, _client);
+  InXtc* xtc = new (payload)InXtc(_xtc);
   int length = _server.fetch(xtc->payload(),flags);
-  xtc->tag.extend(length);
-  _xtc.tag.extend(length+sizeof(XTC)-_xtc.tag.extent());
+  xtc->alloc(length);
+  _xtc.alloc(length+sizeof(InXtc)-_xtc.extent);
   /*
   printf("BldServer::fetch  payload %p  flags %x : length %x extent %x/%x\n", 
     	 payload, flags, length, xtc->tag.extent(), _xtc.tag.extent());
@@ -148,12 +147,13 @@ int BldServer::fetch(char* payload, int flags)
   return length+sizeof(InXtc);
 }
 
-int BldServer::fetch(ZcpFragment& dg, int flags)
+int BldServer::fetch(ZcpFragment& zf, int flags)
 {
-  int length = _server.fetch(_dg,flags);
-  _xtc.tag.extend(length+sizeof(XTC)-_xtc.tag.extent());
-  dg.uinsert(&_xtc,sizeof(_xtc)+_xtc.sizeofPayload());
-  dg.insert (_dg, length);
+  ZcpFragment zcp;
+  int length = _server.fetch(zcp,flags);
+  _xtc.alloc(length+sizeof(InXtc)-_xtc.extent);
+  zf.uinsert(&_xtc,sizeof(InXtc));
+  zf.copy   (zcp, length);
   //  printf("BldServer::fetch  dg %p  flags %x : length %x extent %x\n", 
   //	 &dg, flags, length, _xtc.tag.extent());
   return length;

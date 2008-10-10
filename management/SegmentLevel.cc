@@ -5,7 +5,6 @@
 #include "pds/utility/Transition.hh"
 #include "pds/utility/SegWireSettings.hh"
 #include "pds/utility/StreamPorts.hh"
-#include "pds/utility/StreamPortAssignment.hh"
 #include "pds/utility/InletWire.hh"
 #include "pds/utility/InletWireServer.hh"
 #include "pds/utility/InletWireIns.hh"
@@ -13,28 +12,37 @@
 #include "pds/utility/EvrServer.hh"
 #include "pds/xtc/CDatagram.hh"
 #include "pds/management/EventCallback.hh"
-#include "pds/management/EbJoin.hh"
 #include "pds/management/EbIStream.hh"
 
 using namespace Pds;
 
-static const unsigned MaxPayload = sizeof(StreamPortAssignment)+64*sizeof(Ins);
-static const unsigned ConnectTimeOut = 250;
 static const unsigned NetBufferDepth = 32;
 
+static inline bool _is_bld(const Node& n)
+{
+  return n.level() == Level::Reporter;
+}
+
+static inline Ins _bld_ins(const Node& n)
+{
+  return Ins(n.ip(), StreamPorts::bld(0).portId());
+}
+
+static inline Src _bld_src(const Node& n)
+{
+  return Src(n);
+}
+
 SegmentLevel::SegmentLevel(unsigned platform,
-			   int      index,
 			   SegWireSettings& settings,
 			   EventCallback& callback,
 			   Arp* arp) :
-  CollectionManager(Level::Segment, platform,
-		    MaxPayload, ConnectTimeOut, arp),
-  _settings   (settings),
-  _index      (index),
-  _callback   (callback),
-  _streams    (0),
-  _pool       (MaxPayload,32),
-  _inlet      (0)
+  PartitionMember(platform, Level::Segment, arp),
+  _settings      (settings),
+  _callback      (callback),
+  _streams       (0),
+  _inlet         (0),
+  _reply         (Message::Ping)
 {
 }
 
@@ -44,19 +52,16 @@ SegmentLevel::~SegmentLevel()
   if (_inlet  )  delete _inlet;
 }
 
-void SegmentLevel::attach()
+bool SegmentLevel::attach()
 {
+  start();
   if (connect()) {
-    _streams = new SegStreams(*this,_index);
+    _streams = new SegStreams(*this);
     _streams->connect();
 
-  
     _callback.attached(*_streams);
-    Message join(Message::Ping);
-    mcast(join);
 
-    _inlet = new EbIStream(Src(Level::Segment, -1UL,
-                               header().ip()),
+    _inlet = new EbIStream(Src(header()),
                            header().ip(),
                            Level::Segment,
                            *_streams->wire(StreamParams::FrameWork));
@@ -67,8 +72,7 @@ void SegmentLevel::attach()
     Ins source(StreamPorts::event(header().platform(),
                                   Level::Segment));
     EvrServer* esrv = new EvrServer(source, 
-                                    Src(Level::Source,0,
-                                        header().ip()),
+                                    Src(header()),
                                     NetBufferDepth); // revisit
     _inlet->input()->add_input(esrv);
     esrv->server().join(source, Ins(header().ip()));
@@ -79,86 +83,71 @@ void SegmentLevel::attach()
     _settings.connect(*_inlet->input(),
                       StreamParams::FrameWork, 
                       header().ip());
+
+    Message join(Message::Ping);
+    mcast(join);
+    return true;
   } else {
     _callback.failed(EventCallback::PlatformUnavailable);
+    return false;
   }
 }
 
-void SegmentLevel::message(const Node& hdr, 
-			   const Message& msg) 
+Message& SegmentLevel::reply    (Message::Type type)
+{
+  //  Need to append L1 detector info (Src) to the reply
+  return _reply;
+}
+
+void    SegmentLevel::allocated(const Allocate& alloc,
+				unsigned        index) 
+{
+  InletWire* bld_wire = _streams->wire(StreamParams::FrameWork);
+
+  // setup BLD and event servers
+  unsigned partition= alloc.partitionid();
+  unsigned nnodes   = alloc.nnodes();
+  unsigned vectorid = 0;
+  for (unsigned n=0; n<nnodes; n++) {
+    const Node& node = *alloc.node(n);
+    if (_is_bld(node)) {
+      Ins ins( _bld_ins(node) );
+      BldServer* srv = new BldServer(ins, _bld_src(node), NetBufferDepth);
+      bld_wire->add_input(srv);
+      srv->server().join(ins, Ins(header().ip()));
+      printf("SegmentLevel::allocated assign bld  fragment %d  %x/%d\n",
+	     srv->id(),ins.address(),srv->server().portId());
+    }
+    else if (node.level()==Level::Event) {
+      // Add vectored output clients on bld_wire
+      Ins ins = StreamPorts::event(partition,
+				   Level::Event,
+				   vectorid,
+				   index);
+      InletWireIns wireIns(vectorid, ins);
+      bld_wire->add_output(wireIns);
+      printf("SegmentLevel::allocated adding output %d to %x/%d\n",
+	     vectorid, ins.address(), ins.portId());
+      vectorid++;
+    }
+  }
+}
+
+void    SegmentLevel::post     (const Transition& tr)
 {
   InletWire* bld_wire = _streams->wire(StreamParams::FrameWork);
   InletWire* pre_wire = _inlet ? _inlet->input() : bld_wire;
-
-  if (msg.type() == Message::Join) {
-    if (hdr.level() == Level::Control) {
-      if (msg.size() > sizeof(Message)) {
-	const StreamPortAssignment& a = static_cast<const StreamPortAssignment&>(msg);
-	// Add BLD servers to the event builder on bld_wire
-	for(StreamPortAssignmentIter iter(a); !iter.end(); ++iter) {
-	  BldServer* srv = new BldServer(iter().ins,
-					 iter().src,
-					 NetBufferDepth);
-	  bld_wire->add_input(srv);
-	  srv->server().join(iter().ins, Ins(header().ip()));
-	  printf("Assign fragment %d  %x/%d\n",
-		 srv->id(),iter().ins.address(),srv->server().portId());
-	}
-      }
-      else {
-	arpadd(hdr);
-	Message join(Message::Join,sizeof(Message));
-	ucast(join,msg.reply_to());
-      }
-    }
-    else if (hdr.level() == Level::Event) {
-      if (msg.size() == sizeof(EbJoin)) {
-	// Add vectored output clients on bld_wire
-	const EbJoin& ebj = reinterpret_cast<const EbJoin&>(msg);
-	int vector_id  = ebj.index();
-	Ins ins = StreamPorts::event(hdr.platform(),
-					Level::Event,
-					vector_id,
-					_index);
-	InletWireIns wireIns(vector_id, ins);
-	bld_wire->add_output(wireIns);
-	printf("SegmentLevel::message adding output %d to %x/%d\n",
-	       vector_id, ins.address(), ins.portId());
-
-	arpadd(hdr);
-	EbJoin join(_index);
-	ucast(join,msg.reply_to());
-      }
-      else {
-	arpadd(hdr);
-	Message join(Message::Join);
-	ucast(join,msg.reply_to());
-      }
-    }
-  }
-  else if (msg.type()==Message::Transition && hdr.level()==Level::Control) {
-    const Transition& tr = static_cast<const Transition&>(msg);
-    if (tr.id() != Transition::L1Accept) {
-      if (tr.phase() == Transition::Execute) {
-	printf("SegmentLevel::message inserting transition\n");
-	Transition* ntr = new(&_pool) Transition(tr);
-	pre_wire->post(*ntr);
-      }
-      else {
-	printf("SegmentLevel::message inserting datagram\n");
-	CDatagram* ndg = 
-	  new(&_pool) CDatagram(Datagram(tr, 
-					 TC(TypeNumPrimary::Id_XTC),
-					 Src(Level::Segment,_index,
-					     header().ip())));
-	pre_wire->post(*ndg);
-      }
-    }
-  }
+  pre_wire->post(tr);
 }
 
-#if 0 // revisit
-void SegmentLevel::disconnected() 
+void    SegmentLevel::post     (const InDatagram& in)
+{
+  InletWire* bld_wire = _streams->wire(StreamParams::FrameWork);
+  InletWire* pre_wire = _inlet ? _inlet->input() : bld_wire;
+  pre_wire->post(in);
+}
+
+void SegmentLevel::detach() 
 {
   if (_streams) {
     _streams->disconnect();
@@ -167,7 +156,7 @@ void SegmentLevel::disconnected()
     delete _inlet;
     _streams = 0;
     _inlet   = 0;
-    _callback.dissolved(_dissolver);
+    _callback.dissolved(header());
   }
+  cancel();
 }
-#endif

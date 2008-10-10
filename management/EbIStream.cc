@@ -1,9 +1,8 @@
 #include "EbIStream.hh"
 
-#include "pds/utility/EbC.hh"
-#include "pds/utility/EbS.hh"
 #include "pds/utility/ToEb.hh"
 #include "pds/utility/ToEbWire.hh"
+#include "EventBuilder.hh"
 
 using namespace Pds;
 
@@ -20,21 +19,21 @@ EbIStream::EbIStream(const Src&  src,
 			      *_output);
 
   if (level == Level::Segment)
-    _inlet_wire = new EbC(src, 
-			  level,
-			  *inlet(), 
-			  *_outlet_wire, 
-			  StreamParams::FrameWork, 
-			  interface,
-			  MaxSize, EbDepth);
+    _inlet_wire = new L1EventBuilder(src, 
+				     level,
+				     *inlet(), 
+				     *_outlet_wire, 
+				     StreamParams::FrameWork, 
+				     interface,
+				     MaxSize, EbDepth);
   else
-    _inlet_wire = new EbS(src, 
-			  level,
-			  *inlet(), 
-			  *_outlet_wire, 
-			  StreamParams::FrameWork, 
-			  interface,
-			  MaxSize, EbDepth);
+    _inlet_wire = new EventBuilder(src, 
+				   level,
+				   *inlet(), 
+				   *_outlet_wire, 
+				   StreamParams::FrameWork, 
+				   interface,
+				   MaxSize, EbDepth);
 }
  
 EbIStream::~EbIStream()

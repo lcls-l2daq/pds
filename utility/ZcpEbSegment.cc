@@ -19,7 +19,10 @@
 */
 
 #include "ZcpEbSegment.hh"
+#include "pds/service/ZcpFragment.hh"
 #include "pds/xtc/xtc.hh"
+
+#include <stdio.h>
 
 using namespace Pds;
 
@@ -48,90 +51,45 @@ ZcpEbSegment::ZcpEbSegment(const InXtc&  header,
                            int           offset,
                            int           length,
                            EbBitMask     client,
-                           ZcpFragment*  zfrag,
+			   ZcpFragment&  zfrag,
                            ZcpEbSegment* pending) :
-  _offset(offset),
-  _remaining(length - zfrag->size()),
+  _offset(offset+zfrag.size()),
+  _length(length),
+  _remaining(length-zfrag.size()),
   _client(client),
   _header(header)
 {
-  _header.tag.extend(header.sizeofPayload());
+  _header.alloc(header.sizeofPayload());
+  _fragments.insert(zfrag,zfrag.size());
   pending->insert(this);
 }
 
-/*
-**  This is not a copy constructor.
-**  Note that the fragments are stolen.
-*/
-ZcpEbSegment::ZcpEbSegment(ZcpEbSegment& seg) :
-  _offset   (seg._offset),
-  _remaining(seg._remaining),
-  _client   (seg._client),
-  _header   (seg._header)
+ZcpEbSegment::~ZcpEbSegment()
 {
-  _fragments.insertList(&seg._fragments);
+  disconnect();
 }
 
 /*
 ** ++
 **    This function is called for each arrived fragment within a segment
 **    (with the exception of the first fragment, which is handled by the
-**    constructor described above).  When a new fragment arrives, there
-**    are only two possibilities: the fragments arrive in ascending order
-**    or they arrive in descending order; thus it goes either at the 
-**    beginning of the list or the end of the list of fragments.
+**    constructor described above).  We only accept fragments that arrive
+**    in order (offset equals the expected value).
 ** --
 */
 
-ZcpEbSegment* ZcpEbSegment::consume(ZcpFragment* zfrag,
+ZcpEbSegment* ZcpEbSegment::consume(ZcpFragment& zfrag,
 				    int          offset)
 {
-  if ( offset < _offset ) {
-    LinkedList<ZcpFragment> list;
-    list.insert(zfrag);
-    list.insert(&_fragments);
-    _fragments.insert(&list);
+  if ( offset != _offset ) {
+    zfrag.flush();
+    return 0;
   }
-  else
-    _fragments.insert(zfrag);
 
-  _offset = offset;
-  _remaining -= zfrag->size();
+  _offset    += zfrag.size();
+  _remaining -= zfrag.size();
+  _fragments.insert(zfrag,zfrag.size());
 
   return _remaining ? 0 : this;
 }
 
-/*
-** ++
-**
-** fixup() is called when a missing "chunk" is identified. The InXtc
-** header is faked up to make sure that it wasn't lost/corrupted. The datagram
-** is also marked with the apropriate damage.
-**
-**
-** --
-*/
-
-bool ZcpEbSegment::fixup(const Src& client,
-			 const TC& dummy){
-  if (!(client == _header.src))
-    return false;
-
-  // rewrite the header of this fragment
-  ZcpFragment* hdr = _fragments.forward();
-
-  InXtc localXtc;
-  InXtc* xtc;
-  if (_offset)
-    xtc = &localXtc;
-  else
-    hdr->uremove(xtc, sizeof(*xtc));
-
-  new((char*)xtc) InXtc( dummy, _header.src, 
-			 (1<<Damage::IncompleteContribution) );
-  unsigned size = hdr->size();
-  xtc->tag.extend(size);
-  hdr->uinsert(xtc, sizeof(*xtc));
-  hdr->moveFrom(*hdr, size);
-  return true;
-}

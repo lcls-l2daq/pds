@@ -1,13 +1,12 @@
 #include "ControlStreams.hh"
 #include "pds/utility/ToEventWire.hh"
-#include "pds/utility/Eb.hh"
 //#include "pds/utility/Occurrence.hh"
 #include "pds/service/BitList.hh"
 #include "pds/collection/Node.hh"
 #include "pds/service/Task.hh"
 #include "pds/service/VmonSourceId.hh"
 #include "pds/collection/CollectionManager.hh"
-#include "pds/utility/EbS.cc"
+#include "EventBuilder.hh"
 
 using namespace Pds;
 
@@ -56,11 +55,10 @@ ControlStreams::ControlStreams(CollectionManager& cmgr) :
 				  cmgr,
 				  ipaddress);
     _inlet_wires[s] = 
-      new EbS(Src(level,0,
-		  ipaddress), 
-	      level, *stream(s)->inlet(),
-	      *_outlets[s], s, ipaddress,
-	      eventsize, eventpooldepth);
+      new EventBuilder(Src(cmgr.header()),
+		       level, *stream(s)->inlet(),
+		       *_outlets[s], s, ipaddress,
+		       eventsize, eventpooldepth);
     //		vmoneb);
   }
   //  _occ_handler = new ControlOccHandler(*this);

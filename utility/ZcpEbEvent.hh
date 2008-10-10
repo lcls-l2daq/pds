@@ -4,8 +4,6 @@
 #include "EbEventBase.hh"
 #include "ZcpEbSegment.hh"
 
-#define EbSegmentList LinkedList<ZcpEbSegment> // Notational convienence...
-
 namespace Pds {
 
 class EbEventKey;
@@ -24,18 +22,15 @@ class ZcpEbEvent : public EbEventBase
     ZcpEbEvent(EbBitMask creator, EbBitMask contract, ZcpDatagram*, EbEventKey*);
    ~ZcpEbEvent();
 
-    ZcpDatagram* zdatagram() const;
+    ZcpDatagram*  zdatagram() const;
   public:
-    EbBitMask     merge  (ZcpEbEvent*);
-    EbBitMask     add    (EbServer*, 
-			  const EbBitMask&,
-			  ZcpFragment*);
+    bool          consume(EbServer*, const EbBitMask&, ZcpFragment&);
     InDatagram*   finalize();
   public:
-    void          fixup(const Src&, const TC&);
+    unsigned      fixup(const Src&, const EbBitMask&, const TypeId&, ZcpFragment&);
   private:
     ZcpDatagram*  _zdatagram;
-    EbSegmentList _pending;       // Listhead, Segments pending fragments
+    LinkedList<ZcpEbSegment> _pending;       // Listhead, Segments pending fragments
     char*         _segments;      // Next segment to allocate
     char          _pool[sizeof(ZcpEbSegment)*32]; // buffer for segments
   };
@@ -54,9 +49,9 @@ class ZcpEbEvent : public EbEventBase
 */
 
 inline void* Pds::ZcpEbEvent::operator new(size_t size, Pds::Pool* pool)
-  {
+{
   return pool->alloc(size);
-  }
+}
 
 /*
 ** ++
@@ -71,9 +66,9 @@ inline void* Pds::ZcpEbEvent::operator new(size_t size, Pds::Pool* pool)
 */
 
 inline void Pds::ZcpEbEvent::operator delete(void* buffer)
-  {
+{
   Pds::Pool::free(buffer);
-  }
+}
 
 /*
 ** ++
@@ -87,8 +82,8 @@ inline void Pds::ZcpEbEvent::operator delete(void* buffer)
 */
 
 inline Pds::ZcpEbEvent::~ZcpEbEvent()
-  {
-  }
+{
+}
 
 
 inline Pds::ZcpDatagram* Pds::ZcpEbEvent::zdatagram() const

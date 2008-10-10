@@ -105,7 +105,7 @@ inline Pds::Appliance* Pds::Appliance::disconnect()
 
 inline Pds::InDatagram* Pds::Appliance::vector(Pds::InDatagram* input)
   {
-  return (this->*_handlers[input->datagram().type()])(input);
+  return (this->*_handlers[input->datagram().seq.type()])(input);
   }
 
 /*

@@ -1,7 +1,8 @@
 #ifndef Pds_Src_hh
 #define Pds_Src_hh
 
-#include "pds/collection/Level.hh"
+#include "pds/collection/Node.hh"
+#include "pds/service/ODMGTypes.hh"
 
 namespace Pds {
 
@@ -10,30 +11,28 @@ namespace Pds {
 
   class Src {
   public:
-    //    Src(unsigned v) : _pid(v), _did(0) {}
-    //    Src(unsigned pid, unsigned did) : _pid(pid), _did(did) {}
-    Src() : _pid(-1UL), _did(-1UL) {}
-    Src(Level::Type level   , unsigned node, 
-	unsigned did) :
-      _pid((level<<16) | node), 
-      _did(did) {}
-    Src(Level::Type level   , unsigned node, 
-	DetectorSys detector, unsigned module) : 
-      _pid((level   <<16) | node), 
-      _did((detector<<16) | module) {}
-    d_ULong did()   const { return _did; }
-    d_ULong pid()   const { return _pid; }
+    //    Src(unsigned v) : _phy(v), _log(0) {}
+    //    Src(unsigned pid, unsigned did) : _phy(pid), _log(did) {}
+    Src() : _log(-1UL), _phy(-1UL) {}
+    Src(const Node& hdr) : _log((hdr.level()<<24) | hdr.pid()&0x00ffffff),
+			   _phy(hdr.ip()) {}
+    Src(const Node& hdr,
+	unsigned deviceId) : _log((hdr.level()<<24) | hdr.pid()&0x00ffffff),
+			     _phy(deviceId) {}
 
-    d_ULong level() const { return _pid>>16; }
-    d_ULong node () const { return _pid&0xffff; }
+    d_ULong log()   const { return _log; }
+    d_ULong phy()   const { return _phy; }
 
-    d_ULong detector() const { return _did>>16; }
-    d_ULong module  () const { return _did&0xffff; }
+    d_ULong level() const { return _log>>24; }
+    d_ULong pid  () const { return _log&0xffffff; }
+
+    d_ULong detector() const { return _phy>>16; }
+    d_ULong module  () const { return _phy&0xffff; }
     
-    bool operator==(const Src& s) const { return _pid==s._pid && _did==s._did; }
+    bool operator==(const Src& s) const { return _phy==s._phy && _log==s._log; }
   private:
-    d_ULong _pid; // partition identity
-    d_ULong _did; //  detector identity
+    d_ULong _log; //  logical identifier
+    d_ULong _phy; // physical identifier
   };
 
 }

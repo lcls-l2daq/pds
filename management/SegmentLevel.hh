@@ -1,43 +1,40 @@
-#ifndef ODFSEGMENTLEVEL_HH
-#define ODFSEGMENTLEVEL_HH
+#ifndef Pds_SegmentLevel_hh
+#define Pds_SegmentLevel_hh
 
-#include "pds/collection/CollectionManager.hh"
-#include "pds/service/GenericPool.hh"
+#include "PartitionMember.hh"
 
 namespace Pds {
 
 class SegWireSettings;
-class SegmentOptions;
 class SegStreams;
 class Arp;
-class Node;
 class EventCallback;
 class EbIStream;
 
-class SegmentLevel: public CollectionManager {
+class SegmentLevel: public PartitionMember {
 public:
-  SegmentLevel(unsigned partition,
-	       int      index,
+  SegmentLevel(unsigned platform,
 	       SegWireSettings& settings,
 	       EventCallback& callback,
 	       Arp* arp);
 
   virtual ~SegmentLevel();
 
-  void attach();
-
-public:
-  // Implements CollectionManager
-  virtual void message(const Node& hdr, const Message& msg);
+  bool attach();
+  void detach();
+private:
+  // Implements PartitionMember
+  Message& reply     (Message::Type);
+  void     allocated (const Allocate&, unsigned);
+  void     post      (const Transition&);
+  void     post      (const InDatagram&);
 
 private:
-  SegWireSettings&      _settings;
-  Node           _dissolver;
-  int            _index;
+  SegWireSettings& _settings;
   EventCallback& _callback;
   SegStreams*    _streams;
-  GenericPool    _pool;
   EbIStream*     _inlet;
+  Message        _reply;
 };
 
 }

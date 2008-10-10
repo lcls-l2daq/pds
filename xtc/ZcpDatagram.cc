@@ -8,14 +8,9 @@
 
 using namespace Pds;
 
+
 ZcpDatagram::~ZcpDatagram()
 {
-  ZcpFragment* empty = _fragments.empty();
-  ZcpFragment* fragm = _fragments.forward();
-  while( fragm != empty ) {
-    delete fragm->disconnect();
-    fragm = _fragments.forward();
-  }
 }
 
 const Datagram& ZcpDatagram::datagram() const
@@ -25,7 +20,7 @@ const Datagram& ZcpDatagram::datagram() const
 
 InDatagramIterator* ZcpDatagram::iterator(Pool* pool) const
 {
-  return new(pool) ZcpDatagramIterator(*this, pool);
+  return new(pool) ZcpDatagramIterator(*this);
 }
 
 int ZcpDatagram::send(ToEb& client)
@@ -40,7 +35,11 @@ int ZcpDatagram::send(ToNetEb& client, const Ins& dst)
 
 int ZcpDatagram::unblock(OobServer& srv, char* msg)
 {
+  /*
   return srv.unblock(msg, const_cast<char*>(reinterpret_cast<const char*>(&_datagram)),
 		     _datagram.xtc.sizeofPayload()+sizeof(Datagram),
 		     _fragments);
+  */
+  return 0;
 }
+

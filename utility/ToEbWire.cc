@@ -32,13 +32,12 @@ InDatagram* ToEbWire::forward(InDatagram* dg)
 	   d[5], d[6], d[7], d[8], d[9]);
   }
   */
-  if (datagram.notEvent()) {
+  if (datagram.seq.notEvent()) {
     _inlet.post(*dg);
-    return (InDatagram*)Appliance::DontDelete;  // inserted out-of-band "locally" - still in use
   }
   else {
-    int result = dg->send(_postman);  // A copy in ToEb::fetch is assumed for now.  Could be avoided.
+    int result = dg->send(_postman);
     if (result) _log(dg->datagram(), result);
   }
-  return 0; // assumes the send is a copy
+  return (InDatagram*)Appliance::DontDelete;  // inserted out-of-band "locally" - still in use 
 }

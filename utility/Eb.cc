@@ -64,10 +64,10 @@ Eb::Eb(const Src& id,
 ** --
 */
 
-void Eb::_fixup( EbEventBase* event, const Src& client )
+unsigned Eb::_fixup( EbEventBase* event, const Src& client, const EbBitMask& id )
 {
   EbEvent* ev = (EbEvent*)event;
-  ev->fixup ( client, _dummy );
+  return ev->fixup ( client, TypeNum::Any );
 }
 
 int Eb::processIo(Server* serverGeneric)
@@ -153,10 +153,6 @@ int Eb::processIo(Server* serverGeneric)
   }
 
   _hits++;
-
-#ifdef VERBOSE
-  printf("Eb::processIo remaining %x\n",remaining.value(0));
-#endif
 
   if (_is_complete(event, serverId))
     _postEvent(event);

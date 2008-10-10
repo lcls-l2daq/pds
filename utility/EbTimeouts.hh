@@ -4,7 +4,6 @@
 #include "pds/collection/Level.hh"
 #include "pds/xtc/Sequence.hh"
 #include "StreamParams.hh"
-#include "EventId.hh"
 
 namespace Pds {
 class EbTimeouts {

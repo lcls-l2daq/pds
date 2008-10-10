@@ -33,7 +33,7 @@ class PoolEntry
     void* operator new(size_t, char*);
     static PoolEntry* entry(void* buffer);
     void*         _opaque[2];
-    Pool*      _pool;
+    Pool*         _pool;
     unsigned long _tag;
   protected:
     PoolEntry() {}

@@ -22,10 +22,3 @@ int CDatagramIterator::read(iovec* iov, int maxiov, int len)
   _offset += qlen;
   return qlen;
 }
-
-int CDatagramIterator::copy(void* buff, int len)
-{
-  int qlen = _offset+len > _end ? _end-_offset : len;
-  memcpy(buff, (char*)&_datagram + _offset, qlen);
-  return qlen;
-}

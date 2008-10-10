@@ -5,6 +5,8 @@
 
 #include "ZcpEbEvent.hh"
 
+#include "pds/service/GenericPoolW.hh"
+
 namespace Pds {
 
   class ZcpEb : public EbBase {
@@ -25,12 +27,12 @@ namespace Pds {
   public:
     int processIo (Server*);
   private:
-    void         _fixup      ( EbEventBase*, const Src& );
+    unsigned     _fixup      ( EbEventBase*, const Src&, const EbBitMask& );
     void         _dump       ( int detail );
   protected:
-    GenericPool _datagrams;    // Datagram freelist
-    GenericPool _zfragments;   // Datagram freelist
-    GenericPool _events;
+    GenericPoolW _datagrams;    // Datagram freelist
+    GenericPool  _events;
+    ZcpFragment  _zfragment;   // Datagram freelist
   };
 }
 

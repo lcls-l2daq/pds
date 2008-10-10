@@ -10,6 +10,8 @@ class EventCallback {
 public:
   enum Reason {PlatformUnavailable, Reasons};
 
+  virtual ~EventCallback() {}
+
   virtual void attached (SetOfStreams& streams) = 0;
   virtual void failed   (Reason reason) = 0;
   virtual void dissolved(const Node& who) = 0;

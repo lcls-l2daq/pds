@@ -19,6 +19,7 @@ class EbServer : public Server
     //  Implements unused parts of Server
     char* payload();
     int   commit(char* datagram, char* payload, int size, const Ins&);
+  protected:
     int   handleError(int value);
   public:
     int  drops() const;

@@ -1,9 +1,7 @@
 #ifndef PDS_EVENTLEVEL_HH
 #define PDS_EVENTLEVEL_HH
 
-#include "pds/collection/CollectionManager.hh"
-#include "pds/service/GenericPool.hh"
-#include "pds/utility/OutletWireInsList.hh"
+#include "PartitionMember.hh"
 
 namespace Pds {
 
@@ -12,28 +10,27 @@ class EventStreams;
 class Arp;
 class EbIStream;
 
-class EventLevel: public CollectionManager {
+class EventLevel: public PartitionMember {
 public:
-  EventLevel(unsigned partition,
-	     unsigned index,
+  EventLevel(unsigned       platform,
 	     EventCallback& callback,
-	     Arp* arp);
+	     Arp*           arp);
   virtual ~EventLevel();
   
-  void attach();
-  
+  bool attach();
+  void detach();
 private:
-  // Implements CollectionManager
-  virtual void message(const Node& hdr, const Message& msg);
+  // Implements PartitionMember
+  Message& reply     (Message::Type);
+  void     allocated (const Allocate&, unsigned);
+  void     post      (const Transition&);
+  void     post      (const InDatagram&);
 
 private:
-  Node           _dissolver;        // source of resign control message
-  int            _index;            // partition-wide vectoring index for receiving event data
   EventCallback& _callback;         // object to notify
   EventStreams*  _streams;          // appliance streams
-  GenericPool    _pool;
   EbIStream*     _inlet;
-  OutletWireInsList _rivals;        // list of nodes at this level
+  Message        _reply;
 };
 
 }

@@ -9,6 +9,11 @@
 
 using namespace Pds;
 
+
+static const int Post_CDatagram  =1;
+static const int Post_ZcpDatagram=2;
+static const int Post_ZcpFragment=3;
+
 ToEb::ToEb(const Src& client) :
   _client(client)
 {
@@ -21,57 +26,19 @@ ToEb::ToEb(const Src& client) :
 
 int ToEb::send(const CDatagram* cdatagram)
 {
-  const Datagram& datagram = cdatagram->datagram();
-  unsigned size = datagram.xtc.sizeofPayload() + sizeof(InXtc);
-  /*
-  {
-    unsigned* d = (unsigned*)&datagram;
-    printf("ToEb::send %08x/%08x %08x/%08x %08x\n"
-	   "           %08x %08x %08x %08x %08x\n",
-	   d[0], d[1], d[2], d[3], d[4],
-	   d[5], d[6], d[7], d[8], d[9]);
-  }
-  */
-  ::write(_pipefd[1],&datagram,sizeof(Datagram));
-  ::write(_pipefd[1],&datagram.xtc,size);
+  int msg = Post_CDatagram;
+  ::write(_pipefd[1],&msg,sizeof(msg));
+  ::write(_pipefd[1],&cdatagram,sizeof(CDatagram*));
   return 0;
 }
 
 int ToEb::send(const ZcpDatagram* cdatagram)
 {
-  const Datagram& datagram = cdatagram->datagram();
-
-  ::write(_pipefd[1],&datagram,sizeof(Datagram));
-
-  const LinkedList<ZcpFragment>& fragments = cdatagram->fragments();
-  ZcpFragment* zf = fragments.forward();
-  while(zf!=fragments.empty()) {
-    zf->kremove(_pipefd[1],zf->size());
-    zf = zf->forward();
-  }
+  int msg = Post_ZcpDatagram;
+  ::write(_pipefd[1],&msg,sizeof(msg));
+  ::write(_pipefd[1],&cdatagram,sizeof(ZcpDatagram*));
   return 0;
 }
-
-/*
-int ToEb::send(const InDatagram* indg,
-	       const Ins& dst) 
-{
-  Datagram* datagram  = indg->datagram();
-  unsigned size       = datagram->xtc.sizeofPayload() + sizeof(InXtc);
-
-  if (size <= Mtu::Size)  return _client.send(indg, dst);
-
-  IovChunkIterator chkIter(iovArray, iovCount);
-
-  do {
-    int error;
-    if ((error = _client.send((char*)chkIter.header(), chkIter.iovArray(), chkIter.iovCount(), dst)))
-      return error;
-  } while (chkIter.next());
-
-  return 0;
-}
-*/
 
 void ToEb::dump(int detail) const
 {
@@ -99,40 +66,121 @@ int ToEb::pend(int flag)
 
 int ToEb::fetch(char* payload, int flags)
 {
-  int length = ::read(_pipefd[0],&_datagram,sizeof(Datagram));
-  if (length < 0) return length;
+  _more = false;
 
-  int nbytes = _datagram.xtc.sizeofPayload()+sizeof(InXtc);
-  while( nbytes ) {
-    length = ::read(_pipefd[0],payload,nbytes);
-    if (length < 0) return length;
-    nbytes  -= length;
-    payload += length;
+  int msg;
+  int length = ::read(_pipefd[0],&msg,sizeof(msg));
+  if (length==-1) {
+    handleError(errno);
+    return length;
   }
-  /*
-  {
-    unsigned* d = (unsigned*)&_datagram;
-    printf("ToEb::fetch %08x/%08x %08x/%08x %08x\n"
-	   "%p %08x %08x %08x %08x %08x\n",
-	   d[0], d[1], d[2], d[3], d[4],
-	   this, d[5], d[6], d[7], d[8], d[9]);
+  if (msg == Post_CDatagram) {
+    CDatagram* dg;
+    ::read(_pipefd[0],&dg,sizeof(dg));
+    length  = dg->datagram().xtc.sizeofPayload();
+
+    if (length < 0) {
+      printf("ToEb::fetch received cdg %p  payload length %d\n",dg,length);
+    }
+
+    length += sizeof(InXtc);
+    memcpy(&_datagram,
+	   &dg->datagram(),
+	   sizeof(Datagram));
+    memcpy(payload,
+	   &dg->datagram().xtc,
+	   length);
+    delete dg;
   }
-  */	 
-  return _datagram.xtc.sizeofPayload()+sizeof(InXtc);
+  else if (msg == Post_ZcpDatagram) {
+    ZcpDatagram* dg;
+    ::read(_pipefd[0],&dg,sizeof(dg));
+    memcpy(&_datagram,
+	   &dg->datagram(),
+	   sizeof(Datagram));
+    char* p = payload;
+    memcpy(p, &dg->datagram().xtc, sizeof(InXtc));
+    p      += sizeof(InXtc);
+    int remaining = _datagram.xtc.sizeofPayload();
+    while( remaining ) {
+      int siz = dg->_stream.remove(_fragment,remaining);
+      _fragment.uremove(p,siz);
+      p         += siz;
+      remaining -= siz;
+    }
+    delete dg;
+    length = p - payload;
+  }
+
+  return length;
 }
 
-int ToEb::fetch(ZcpFragment& zf, int flags)
+int ToEb::fetch(ZcpFragment& zfo, int flags)
 {
-  int length = ::read(_pipefd[0],&_datagram,sizeof(Datagram));
-  if (length < 0) return length;
+  _more   = false;
 
-  int nbytes = _datagram.xtc.sizeofPayload()+sizeof(InXtc);
-  return zf.kinsert(_pipefd[0],nbytes);
+  int msg;
+  int length = ::read(_pipefd[0],&msg,sizeof(msg));
+  if (msg == Post_CDatagram) {
+    CDatagram* dg;
+    ::read(_pipefd[0],&dg,sizeof(dg));
+    length = dg->datagram().xtc.sizeofPayload();
+    length += sizeof(InXtc);
+    memcpy(&_datagram,
+	   &dg->datagram(),
+	   sizeof(Datagram));
+    int nbytes = zfo.uinsert( const_cast<InXtc*>(&dg->datagram().xtc), length );
+    if (length != nbytes) {
+      printf("ToEb::fetch ZcpFragment payload truncated %x/%x\n",
+	     nbytes, length);
+      handleError(ENOMEM);
+      length = -1;
+    }
+    delete dg;
+  }
+  else if (msg == Post_ZcpDatagram) {
+    ZcpDatagram* dg;
+    ::read(_pipefd[0],&dg,sizeof(dg));
+    memcpy(&_datagram,
+	   &dg->datagram(),
+	   sizeof(Datagram));
+    length = sizeof(InXtc);
+    zfo.uinsert(const_cast<InXtc*>(&dg->datagram().xtc), length);
+    length += dg->_stream.remove(zfo, _datagram.xtc.sizeofPayload());
+    if (length != _datagram.xtc.extent) {
+      _more   = true;
+      _offset = 0;
+      _next   = length;
+      printf("ToEb::chunk %d/%d\n",_next,_datagram.xtc.extent);
+      msg = Post_ZcpFragment;
+      ::write(_pipefd[1],&msg,sizeof(msg));
+      ::write(_pipefd[1],&dg,sizeof(ZcpDatagram*));
+    }      
+    else
+      delete dg;
+  } else if (msg == Post_ZcpFragment) {
+    _more = true;
+    ZcpDatagram* dg;
+    ::read(_pipefd[0],&dg,sizeof(dg));
+    int remaining = _datagram.xtc.extent-_next;
+    length  = dg->_stream.remove(zfo, remaining);
+    _offset = _next;
+    _next  += length;
+    printf("ToEb::chunk %d/%d\n",_next,_datagram.xtc.extent);
+    if (length != remaining) {
+      ::write(_pipefd[1],&msg,sizeof(msg));
+      ::write(_pipefd[1],&dg,sizeof(ZcpDatagram*));
+    }
+    else
+      delete dg;
+  }
+
+  return length;
 }
 
 const Sequence& ToEb::sequence() const
 {
-  return _datagram;
+  return _datagram.seq;
 }
 
 unsigned ToEb::count() const

@@ -72,8 +72,6 @@ EbBase::EbBase(const Src& id,
   InletWireServer(inlet, outlet, ipaddress, stream, 
 		  TaskPriority-stream, TaskName(level, stream, inlet),
 		  EbTimeouts::duration(stream)),
-  _header(level),
-  _dummy (level),
   _ebtimeouts(stream,level),
   _output(inlet),
   _id(id),
@@ -231,7 +229,7 @@ void EbBase::_post(EbEventBase* event)
     char buff[64];
     remaining.write(buff);
     printf("EbBase::_post fixup seq %08x remaining %s\n",
-	   datagram->high(),buff);
+	   datagram->seq.high(),buff);
 
     // statistics
     EbBitMask id(EbBitMask::ONE);
@@ -239,7 +237,7 @@ void EbBase::_post(EbEventBase* event)
       if ( !(remaining & id).isZero() ) {
 	EbServer* srv = (EbServer*)server(i);
 	srv->fixup();
-	_fixup(event, srv->client());
+	_fixup(event, srv->client(), id);
 	remaining &= ~id;
       }
     }
@@ -269,7 +267,7 @@ void EbBase::_post(EbEventBase* event)
   Client* ack = _ack;
   //  if (ack && (!datagram->notEvent() ||
   //              ((1 << datagram->service()) & (PAUSE | DISABLE))))
-  if (ack && (!datagram->notEvent()))
+  if (ack && (!datagram->seq.notEvent()))
     ack->send((char*)datagram, (char*) 0, 0);
 
   delete event;
@@ -491,8 +489,8 @@ void EbBase::_iterate_dump()
 void EbBase::dump(int detail)
   {
   time_t timeNow = time(NULL);
-  printf("Dump of Event Builder %04X/%04X (did/pid)...\n",
-         _id.did(), _id.pid());
+  printf("Dump of Event Builder %04X/%04X (log/phy)...\n",
+         _id.log(), _id.phy());
   printf("--------------------------------------------\n");
 
   if (detail) {

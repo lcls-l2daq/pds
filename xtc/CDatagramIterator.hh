@@ -18,7 +18,6 @@ namespace Pds {
 
     int skip(int len);
     int read(iovec* iov, int maxiov, int len);
-    int copy(void* buff, int len);
   private:
     const Datagram& _datagram;
     int             _offset;

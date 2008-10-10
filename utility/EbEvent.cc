@@ -140,11 +140,10 @@ EbSegment* EbEvent::consume(const EbServer* srv,
     }
 
     segments() |= client;
-    int length = srv->length() + (sizeof(InXtc) - sizeof(XTC));
+    int length = srv->length();
     int size   = sizeofPayload;
 
-    char* location = out->next();
-    out->xtc.tag.extend(length);
+    char* location = (char*)out->xtc.alloc(length);
     segment = new(&_segments) EbSegment(xtc,
 					location,
 					size,
@@ -155,7 +154,7 @@ EbSegment* EbEvent::consume(const EbServer* srv,
     return segment->notComplete();
   }
   
-  out->xtc.tag.extend(sizeofPayload);
+  out->xtc.alloc(sizeofPayload);
   return (EbSegment*)0;
 }
 
@@ -214,7 +213,7 @@ char* EbEvent::recopy(char* payloadIn, int sizeofPayload, EbBitMask client)
 ** --
 */
 
-void EbEvent::fixup(const Src& client, const TC& dummy)
+unsigned EbEvent::fixup(const Src& client, const TypeId& type)
   {
   EbBitMask pid;
   pid.setBit(client.pid());
@@ -222,12 +221,13 @@ void EbEvent::fixup(const Src& client, const TC& dummy)
 
   if(segment)
     {
-    segment->fixup(dummy);
+    return segment->fixup(type);
     }
   else
     {
     Damage damaged(1 << Damage::DroppedContribution);
-    new(&datagram()->xtc.tag) InXtc(dummy, client, damaged);
+    new(&datagram()->xtc) InXtc(type, client, damaged);
+    return damaged.value();
     }
   }
 

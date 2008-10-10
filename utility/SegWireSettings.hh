@@ -7,6 +7,8 @@ class InletWire;
 
 class SegWireSettings {
 public:
+  virtual ~SegWireSettings() {}
+
   virtual void connect (InletWire& inlet,
 			StreamParams::StreamType stream,
 			int interface) = 0;

@@ -11,8 +11,8 @@
 using namespace Pds;
 
 ToNetEb::ToNetEb(int interface, 
-	   unsigned payloadsize, 
-	   unsigned maxdatagrams) :
+		 unsigned payloadsize, 
+		 unsigned maxdatagrams) :
   _client(sizeof(OutletWireHeader), payloadsize, Ins(interface), 
 	  maxdatagrams)
 {  
@@ -48,7 +48,7 @@ int ToNetEb::send(const CDatagram* cdatagram,
 		  const Ins&      dst)
 {
   const Datagram& datagram = cdatagram->datagram();
-  unsigned size = datagram.xtc.sizeofPayload() + sizeof(InXtc);
+  unsigned size = datagram.xtc.extent;
 
   if(size <= Mtu::Size)  return _client.send((char*)&datagram,
 					     (char*)&datagram.xtc,
@@ -91,48 +91,50 @@ int ToNetEb::send(const CDatagram* cdatagram,
 **
 ** --
 */
-int ToNetEb::send(const ZcpDatagram* cdatagram,
-		  const Ins&      dst)
+
+int ToNetEb::send(ZcpDatagram* zdatagram,
+		  const Ins&   dst)
 {
-  const Datagram& datagram = cdatagram->datagram();
-  unsigned size = datagram.xtc.sizeofPayload() + sizeof(InXtc) - sizeof(XTC);
+  const Datagram& datagram = zdatagram->datagram();
+  unsigned remaining = datagram.xtc.sizeofPayload();
 
-  if(size <= Mtu::Size)  return _client.send((char*)&datagram,
-					     (char*)&datagram.xtc,
-					     size,
-					     dst);
+  if (!remaining) return _client.send((char*)&datagram,
+				      (char*)&datagram.xtc,
+				      sizeof(InXtc),
+				      dst);
 
-  DgChunkIterator chkIter(&datagram);
+  int size = zdatagram->_stream.remove(_fragment, remaining);
+  remaining -= size;
 
-  do {
-    int error;
-    if((error = _client.send((char*)chkIter.header(), 
-			     (char*)chkIter.payload(), 
-			     chkIter.payloadSize(), 
-			     dst)))
-      return error;
-  } while(chkIter.next());
+  if (!remaining) return _client.send((char*)&datagram,
+				      (char*)&datagram.xtc,
+				      sizeof(InXtc),
+				      _fragment,
+				      size,
+				      dst);
+
+  OutletWireHeader header(&const_cast<Datagram&>(zdatagram->datagram()));
+  int error = _client.send((char*)&header,
+			   (char*)&datagram.xtc,
+			   sizeof(InXtc),
+			   _fragment,
+			   size,
+			   dst);
+  if(error)  return error;
+  
+  size += sizeof(InXtc);
+
+  while(remaining) {
+    header.offset += size;
+    size = zdatagram->_stream.remove(_fragment, remaining);
+    remaining -= size;
+    error = _client.send((char*)&header,
+			 _fragment,
+			 size,
+			 dst);
+    if(error)  return error;
+  }
 
   return 0;
 }
 
-/*
-int ToNetEb::send(const InDatagram* indg,
-	       const Ins& dst) 
-{
-  Datagram* datagram  = indg->datagram();
-  unsigned size       = datagram->xtc.sizeofPayload() + sizeof(InXtc);
-
-  if (size <= Mtu::Size)  return _client.send(indg, dst);
-
-  IovChunkIterator chkIter(iovArray, iovCount);
-
-  do {
-    int error;
-    if ((error = _client.send((char*)chkIter.header(), chkIter.iovArray(), chkIter.iovCount(), dst)))
-      return error;
-  } while (chkIter.next());
-
-  return 0;
-}
-*/

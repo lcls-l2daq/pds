@@ -8,9 +8,9 @@
 using namespace Pds;
 
 
-static bool _containsInXtc(unsigned type)
+static bool _containsInXtc(TypeId type)
 {
-  return (type == TypeNumPrimary::Id_InXtcContainer);
+  return (type.value == TypeNum::Id_InXtcContainer);
 }
 
 /*
@@ -28,14 +28,13 @@ Browser::Browser(const Datagram& dg, InDatagramIterator* iter, int depth, int& a
   const InXtc& xtc = dg.xtc;
   // This construction of the identity and contains values is a sleazy
   // trick which lets us print their contents as a simple hex value. 
-  unsigned* contains = (unsigned*) &(xtc.tag.contains()); 
   printf(" sequence # %08X/%08X with environment 0x%08X service %d\n",
-         dg.high(), dg.low(), dg.env.value(), dg.service()); 
+         dg.seq.high(), dg.seq.low(), dg.env.value(), dg.seq.service()); 
   printf(" source %08X/%08X, contains %x, extent %d, damage 0x%X\n", 
-	 xtc.src.pid(), xtc.src.did(), 
-	 *contains, 
-	 xtc.tag.extent(), xtc.damage.value());
-  if (!_containsInXtc(*contains))
+	 xtc.src.log(), xtc.src.phy(), 
+	 xtc.contains.value, 
+	 xtc.extent, xtc.damage.value());
+  if (!_containsInXtc(xtc.contains))
     advance = _dumpBinaryPayload(xtc, iter);
   //  if (_depth < 0) advance = _dumpBinaryPayload(xtc, iter);
 }
@@ -47,12 +46,11 @@ Browser::Browser(const InXtc& xtc, InDatagramIterator* iter, int depth, int& adv
 {
   // This construction of the identity and contains values is a sleazy
   // trick which lets us print their contents as a simple hex value. 
-  unsigned* contains = (unsigned*) &(xtc.tag.contains()); 
   //  printf(" %p source %04X/%04X, type/contains %x/%x, extent %d, damage 0x%X\n", 
   //	 &xtc, xtc.src.pid(), xtc.src.did(), 
   //	 *identity, *contains, 
   //	 xtc.tag.extent(), xtc.damage.value());
-  if (!_containsInXtc(*contains))
+  if (!_containsInXtc(xtc.contains))
     advance = _dumpBinaryPayload(xtc, iter);
   //  if (_depth < 0) advance = _dumpBinaryPayload(xtc, iter);
   }
@@ -68,13 +66,12 @@ int Browser::process(const InXtc& inXtc, InDatagramIterator* iter)
   {
   // This construction of the identity and contains values is a sleazy
   // trick which lets us print their contents as a simple hex value. 
-  unsigned* contains = (unsigned*) &(inXtc.tag.contains()); 
   for (int i = _depth; i < 2; i++) printf("  ");
   printf("source %08X/%08X, contains %x, extent %d, damage 0x%X\n", 
-	 inXtc.src.pid(), inXtc.src.did(),
-	 *contains,
-	 inXtc.tag.extent(), inXtc.damage.value());
-  if (_containsInXtc(*contains)) {
+	 inXtc.src.log(), inXtc.src.phy(),
+	 inXtc.contains.value,
+	 inXtc.extent, inXtc.damage.value());
+  if (_containsInXtc(inXtc.contains)) {
     //  if (_depth && (inXtc.sizeofPayload() >= (int) sizeof(InXtc))){
     int advance=0;
     Browser browser(inXtc, iter, _depth - 1, advance);

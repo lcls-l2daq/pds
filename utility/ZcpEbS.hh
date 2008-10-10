@@ -22,10 +22,14 @@ class ZcpEbS : public ZcpEb
     const VmonEb& vmoneb,
 #endif
     ~ZcpEbS();
+
+    void no_build(Sequence::Type type, unsigned mask);
   private:
     EbEventBase* _new_event  ( const EbBitMask& );
+    bool         _is_complete( EbEventBase*, const EbBitMask& );
   private:
     GenericPool _keys;
+    unsigned    _no_builds[Sequence::NumberOfTypes];
   };
 }
 #endif

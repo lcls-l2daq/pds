@@ -26,6 +26,8 @@
 #include "pds/service/Client.hh"
 #include "Inlet.hh"
 
+//#define VERBOSE
+
 using namespace Pds;
 
 /*
@@ -64,7 +66,6 @@ ZcpEb::ZcpEb(const Src& id,
 #endif
 	 dstack),
   _datagrams (sizeof(ZcpDatagram), eventpooldepth),
-  _zfragments(sizeof(ZcpFragment), eventpooldepth*eventsize),
   _events    (sizeof(ZcpEbEvent) , eventpooldepth)
 {
 }
@@ -84,10 +85,10 @@ ZcpEb::ZcpEb(const Src& id,
 ** --
 */
 
-void ZcpEb::_fixup( EbEventBase* event, const Src& client )
+unsigned ZcpEb::_fixup( EbEventBase* event, const Src& client, const EbBitMask& id )
 {
   ZcpEbEvent* ev = (ZcpEbEvent*)event;
-  ev->fixup(client, _dummy);
+  return ev->fixup(client, id, TypeId(TypeNum::Any), _zfragment);
 }
 
 /*
@@ -104,46 +105,49 @@ int ZcpEb::processIo(Server* serverGeneric)
 #ifdef VERBOSE
   printf("ZcpEb::processIo srvId %d\n",serverGeneric->id());
 #endif
-  ZcpFragment* zfrag = new (&_zfragments) ZcpFragment;
-
   EbServer* server   = (EbServer*)serverGeneric;
   server->keepAlive();
-  int sizeofPayload  = server->fetch(*zfrag, MSG_DONTWAIT);
+  int sizeofPayload  = server->fetch(_zfragment, MSG_DONTWAIT);
   if(sizeofPayload<0) {  // no payload
-    delete zfrag;
+    printf("ZcpEb::processIo error in fetch\n");
     return 1;
   }
 
+#ifdef VERBOSE
+  printf("ZcpEb::processIo fetch frag size %d\n",_zfragment.size());
+#endif
   EbBitMask serverId;
   serverId.setBit(server->id());
 
   ZcpEbEvent* zevent;
   {
-    EbEventBase* event = _pending.forward();
-    while(event != &_pending) {
-      if (server->coincides(event->key())) break;
-      event = event->forward();
+    EbEventBase* event = _pending.reverse();
+    while(event != _pending.empty()) {
+      if (server->succeeds(event->key())) break;
+      event = event->reverse();
     }
-    if (event == &_pending)
-      event = _new_event(serverId);
+    if (event == _pending.empty() ||
+	!server->coincides(event->key())) {
+      EbEventBase* new_ev = _new_event(serverId);
+      new_ev->connect(event);
+      event = new_ev;
+    }
 
     zevent = (ZcpEbEvent*)event;
   }
-  EbBitMask remaining = zevent->add(server,
-				    serverId,
-				    zfrag);
-  if ((remaining & serverId).isZero()) {
+  server->assign(zevent->key());
+  if (sizeofPayload==0)
+    ;
+  else if (zevent->consume(server,
+			   serverId,
+			   _zfragment)) {
     _segments++;
     return 1;
   }
 
   _hits++;
 
-#ifdef VERBOSE
-  printf("ZcpEb::processIo remaining %x\n",remaining.value(0));
-#endif
-
-  if (remaining.isZero())
+  if (_is_complete(zevent, serverId))
     _postEvent(zevent);
 
   //  Remain armed to build future events.
@@ -183,6 +187,4 @@ void ZcpEb::_dump(int detail)
          _events.numberofAllocs(), _events.numberofFrees());
   printf(" Datagrams allocated/deallocated %u/%u\n",
          _datagrams.numberofAllocs(), _datagrams.numberofFrees());
-  printf(" ZFragments allocated/deallocated %u/%u\n",
-         _zfragments.numberofAllocs(), _zfragments.numberofFrees());
 }

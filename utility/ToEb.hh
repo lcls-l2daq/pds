@@ -4,6 +4,7 @@
 #include "EbServer.hh"
 #include "EbEventKey.hh"
 
+#include "pds/service/ZcpFragment.hh"
 #include "pds/xtc/Datagram.hh"
 
 namespace Pds {
@@ -25,6 +26,9 @@ namespace Pds {
     const Src&  client  ()             const;
     //  EbSegment interface
     const InXtc&   xtc   () const;
+    bool           more  () const { return _more; }
+    unsigned       length() const { return _datagram.xtc.extent; }
+    unsigned       offset() const { return _offset; }
   public:
     //  Eb-key interface
     EbServerDeclare;
@@ -40,6 +44,10 @@ namespace Pds {
     int      _pipefd[2];
     Src      _client;
     Datagram _datagram;
+    ZcpFragment _fragment;  // to handle send(zcpdatagram) -> fetch(cdatagram)
+    bool     _more;
+    unsigned _offset;
+    unsigned _next;
   };
 }
 #endif

@@ -1,7 +1,7 @@
 #ifndef PDS_CONTROLLEVEL_HH
 #define PDS_CONTROLLEVEL_HH
 
-#include "pds/collection/CollectionManager.hh"
+#include "PartitionMember.hh"
 
 namespace Pds {
 
@@ -9,34 +9,33 @@ namespace Pds {
   class ControlStreams;
   class Partition;
   class Arp;
-  class StreamPortAssignment;
 
-  class ControlLevel: public CollectionManager {
+  class ControlLevel: public PartitionMember {
   public:
-    ControlLevel(unsigned partition,
+    ControlLevel(unsigned platform,
 		 ControlCallback& callback,
 		 Arp* arp);
     virtual ~ControlLevel();
     
-    void attach();
-    
-    void add_bld(int id);
-    
+    bool attach();
+    void detach();
+
     /***  void reboot(); ***/
   private:
     /***  void check_complete(const Node& hdr, bool isjoining); ***/
     
   private:
-    // Implements CollectionManager
-    virtual void message(const Node& hdr, const Message& msg);
+    // Implements PartitionMember
+    Message& reply     (Message::Type);
+    void     allocated (const Allocate&, unsigned index);
+    void     post      (const Transition&);
+    void     post      (const InDatagram&);
     
   private:
     int _reason;
-    Node _dissolver;
     ControlCallback& _callback;
-    ControlStreams* _streams;
-    char* _buffer;
-    StreamPortAssignment* _bldServers;
+    ControlStreams*  _streams;
+    Message          _reply;
   };
   
 }

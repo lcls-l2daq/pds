@@ -4,9 +4,7 @@
 //#define USE_VMON
 
 #include "InletWireServer.hh"
-#include "EbDummyTC.hh"
 #include "EbEventBase.hh"
-#include "EbHeaderTC.hh"
 #include "EbTimeouts.hh"
 #include "pds/service/LinkedList.hh"
 
@@ -57,21 +55,18 @@ class EbBase : public InletWireServer
     void         _post     (EbEventBase*);  // complete this event
     void         _remove   (EbServer*);
   protected:
-    virtual void         _fixup      ( EbEventBase*, const Src& ) = 0;
+    virtual unsigned     _fixup      ( EbEventBase*, const Src&, const EbBitMask& ) = 0;
     virtual EbEventBase* _new_event  ( const EbBitMask& ) = 0;
     virtual bool         _is_complete( EbEventBase*, const EbBitMask& );
     virtual void         _dump       ( int detail ) = 0;
   protected:
     LinkedList<EbEventBase> _pending;      // Under construction/completion queue
-    EbHeaderTC  _header;       // Template for TC of built events
-    EbDummyTC   _dummy;        // Template for TC of dummy contributions
   protected:
     EbBitMask   _clients;      // Database of clients
     EbBitMask   _valued_clients; // Database of clients worthy of receiving
     EbTimeouts  _ebtimeouts;
     Appliance&  _output;       // Destination for datagrams
     Src         _id;           // Our OWN ID
-    unsigned    _nobuilds;     // 
     unsigned    _hits;         // # of contributions received and consumed.
     unsigned    _segments;     // # of segments received.
     unsigned    _misses;       // # of cache misses

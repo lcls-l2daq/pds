@@ -23,7 +23,7 @@ namespace Pds {
 
     virtual int  send   (ToNetEb&, const Ins&) = 0;
     virtual int  send   (ToEb&) = 0;
-    virtual int  unblock(OobServer&, char*) = 0;
+    //    virtual int  unblock(OobServer&, char*) = 0;
   };
 
 }

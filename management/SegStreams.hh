@@ -11,9 +11,9 @@ class CollectionManager;
 
 class SegStreams : public WiredStreams {
 public:
-  enum { ebdepth     = 64 };
+  enum { ebdepth     = 8 };
 
-  SegStreams(CollectionManager&,int);
+  SegStreams(CollectionManager&);
 
   virtual ~SegStreams();
 

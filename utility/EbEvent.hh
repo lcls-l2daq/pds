@@ -28,8 +28,6 @@
 #include "EbSegment.hh"
 #include "pds/xtc/CDatagram.hh"
 
-#define EbSegmentList LinkedList<EbSegment> // Notational convienence...
-
 namespace Pds {
 
 class EbEventKey;
@@ -54,17 +52,17 @@ class EbEvent : public EbEventBase
     char*         recopy    (char* payload, 
 			     int sizeofPayload, 
 			     EbBitMask server);
-    void          fixup     (const Src&, const TC&);
+    unsigned      fixup     (const Src&, const TypeId&);
     char*         payload   (EbBitMask client);
     EbSegment*    hasSegment(EbBitMask client);
 
     CDatagram*    cdatagram() const;
     InDatagram*   finalize ();
   private:
-    CDatagram*    _cdatagram;
-    EbSegmentList _pending;       // Listhead, Segments pending fragments
-    char*         _segments;      // Next segment to allocate
-    char          _pool[sizeof(EbSegment)*32]; // buffer for segments
+    CDatagram* _cdatagram;
+    LinkedList<EbSegment> _pending;  // Listhead, Segments pending fragments
+    char* _segments;      // Next segment to allocate
+    char  _pool[sizeof(EbSegment)*32]; // buffer for segments
   };
 }
 
@@ -93,7 +91,9 @@ class EbEvent : public EbEventBase
 inline char* Pds::EbEvent::payload(EbBitMask client)
   {
   Pds::EbSegment* segment = hasSegment(client);
-  return segment ? segment->payload() : const_cast<Datagram&>(_cdatagram->datagram()).next();
+  if (segment) return segment->payload();
+  Datagram& dg = const_cast<Datagram&>(_cdatagram->datagram());
+  return (char*)dg.xtc.next();
   }
 
 inline Pds::CDatagram* Pds::EbEvent::cdatagram() const

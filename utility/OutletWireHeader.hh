@@ -48,12 +48,12 @@ class OutletWireHeader : public Sequence
 
 inline
 Pds::OutletWireHeader::OutletWireHeader(const Pds::Datagram* datagram) :
-  Pds::Sequence(*datagram, Pds::Sequence::Extended),
+  Pds::Sequence(datagram->seq, Pds::Sequence::Extended),
   env(datagram->env.value()),
   damage(datagram->xtc.damage.value()),
   src(datagram->xtc.src),
   offset(0),
-  length(datagram->xtc.sizeofPayload()+sizeof(XTC))
+  length(datagram->xtc.sizeofPayload()+sizeof(InXtc))
   {
   }
 

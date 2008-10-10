@@ -3,7 +3,7 @@
 
 #include "Appliance.hh"
 #include "OccurrenceId.hh"
-#include "EventId.hh"
+#include "TransitionId.hh"
 #include "MarkerId.hh"
 #include "pds/xtc/Sequence.hh"
 
@@ -34,12 +34,12 @@ public:
   virtual InDatagram* markers    (InDatagram*);
 
   void forward(OccurrenceId::Value id);
-  void forward(EventId::Value id);
+  void forward(TransitionId::Value id);
   void forward(MarkerId::Value id);
   void forward(Sequence::Type type, unsigned mask);
 
   void sink(OccurrenceId::Value id);
-  void sink(EventId::Value id);
+  void sink(TransitionId::Value id);
   void sink(MarkerId::Value id);
   void sink(Sequence::Type type, unsigned mask);
 

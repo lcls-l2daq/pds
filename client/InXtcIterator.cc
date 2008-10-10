@@ -54,8 +54,12 @@ int InXtcIterator::iterate(const InXtc& xtc, InDatagramIterator* root)
       remaining -= sizeof(InXtc);
 
       int xlen = inXtc.sizeofPayload();
+      if (xlen < 0) {
+	printf("inXtc payload %d bytes\n", xlen);
+	return xlen;
+      }
       int len = process(inXtc, root);
-      if (len < 0) break;
+      if (len < 0) return len;
       if (len < xlen)
 	root->skip(xlen-len);
 

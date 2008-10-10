@@ -59,7 +59,7 @@ EbSegment::EbSegment(const InXtc& header,
   {
   pending->insert(this);
 
-  _header.tag.extend(header.sizeofPayload());
+  _header.alloc(header.sizeofPayload());
 
   if(offset != 0)
     {
@@ -125,8 +125,9 @@ EbSegment* EbSegment::consume(int sizeofFragment, int expected)
 ** --
 */
 
-void EbSegment::fixup(const TC& dummy){
+unsigned EbSegment::fixup(const TypeId& type){
   Damage damaged(1 << Damage::IncompleteContribution);
-  InXtc* inXtc = new(_base) InXtc(dummy, _header.src, damaged);
-  inXtc->tag.extend(_header.sizeofPayload());
+  InXtc* inXtc = new(_base) InXtc(type, _header.src, damaged);
+  inXtc->alloc(_header.sizeofPayload());
+  return damaged.value();
 }

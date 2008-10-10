@@ -106,7 +106,7 @@ const Src& NetDgServer::client () const
 
 bool     NetDgServer::more  () const
 {
-  return ((Datagram*)_server.datagram())->isExtended();
+  return ((Datagram*)_server.datagram())->seq.isExtended();
 }
 
 unsigned NetDgServer::length() const

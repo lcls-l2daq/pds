@@ -59,15 +59,22 @@ ZcpEbEvent::ZcpEbEvent() :
   }
 
 
-EbBitMask ZcpEbEvent::add(EbServer*        server,
-			  const EbBitMask& serverId,
-			  ZcpFragment*     zfrag)
+static char zdb_buff[0x1000];
+
+bool ZcpEbEvent::consume(EbServer*        server,
+			 const EbBitMask& serverId,
+			 ZcpFragment&     zfrag)
 {
   if ((remaining() & serverId).isZero()) { // contribution already received
     printf("ZcpEbEvent::add already has contribution %x\n",serverId.value(0));
-    delete zfrag;
+    return false;
   }
-  else if (server->more()) {  // partial datagram
+
+  const InXtc& xtc = server->xtc();
+
+  datagram()->xtc.damage.increase(xtc.damage.value());
+
+  if (server->more()) {  // partial datagram
     if (!(segments() & serverId).isZero()) { // already has a piece
       ZcpEbSegment* segment = _pending.forward();
       while( segment->client() != serverId )
@@ -76,16 +83,14 @@ EbBitMask ZcpEbEvent::add(EbServer*        server,
       segment = segment->consume(zfrag, 
 				 server->offset());
       if (segment) { // complete now
-	segment->disconnect();
-	_zdatagram->fragments().insertList( &segment->fragments() );
-	remaining() &= ~serverId;
+	_zdatagram->_insert(segment->fragments(),segment->length(),zfrag);
+	allocated().insert(serverId);
 	delete segment;
+	return false;
       }
     }
     else {
       segments() |= serverId;
-      //      int length  = server->length() + (sizeof(InXtc) - sizeof(XTC));
-
       new (&_segments) ZcpEbSegment(server->xtc(),
 				    server->offset(),
 				    server->length(),
@@ -93,39 +98,30 @@ EbBitMask ZcpEbEvent::add(EbServer*        server,
 				    zfrag,
 				    (ZcpEbSegment*)&_pending);
     }
+    return true;
   }
   else { // complete contribution
-    _zdatagram->fragments().insert(zfrag);
-    remaining() &= ~serverId;
-  }
-
-  return remaining();
-}
-
-
-/*
-**  Merge contributions from the two events under construction.
-**  Return the mask of contributions still needed.
-*/
-EbBitMask ZcpEbEvent::merge(ZcpEbEvent* zev)
-{
-  _zdatagram->fragments().insertList( &zev->_zdatagram->fragments() );
-
-  //  We ignore the possiblity that both events were building the same
-  //  incomplete contribution.  It can't happen in the event builder.
-  {
-    ZcpEbSegment* empty = zev->_pending.empty();
-    ZcpEbSegment* zsegm;
-    while( (zsegm = zev->_pending.forward()) != empty ) {
-      ZcpEbSegment* seg = new (&_segments) ZcpEbSegment(*zsegm);
-      _pending.insert(seg);
+    /*
+    printf("ZcpEbEv inserting frag %d bytes from/to xtc size %d/%d\n",
+	   zfrag.size(), xtc.sizeofPayload(), datagram()->xtc.sizeofPayload());
+    {
+      ZcpFragment zdb;
+      int len = zdb.copy(zfrag,zfrag.size());
+      zdb.uremove(zdb_buff,zdb.size());
+      unsigned* d = (unsigned*)zdb_buff;
+      unsigned* e = (len > 32) ? d+8 : d+(len>>2);
+      while( d < e )
+	printf("%08x ",*d++);
+      printf("\n");
     }
+    */    
+    _zdatagram->_insert(zfrag, zfrag.size());
+    allocated().insert(serverId);
   }
-  segments () |= zev->segments();
-  remaining() &= zev->remaining();
-  delete zev;
-  return remaining();
+
+  return false;
 }
+
 
 InDatagram* ZcpEbEvent::finalize()
 {
@@ -152,19 +148,17 @@ InDatagram* ZcpEbEvent::finalize()
 ** --
 */
 
-void ZcpEbEvent::fixup(const Src& client, const TC& dummy)
+unsigned ZcpEbEvent::fixup(const Src&       client, 
+			   const EbBitMask& id, 
+			   const TypeId&    type,
+			   ZcpFragment&     frag)
 {
-  ZcpEbSegment* empty = _pending.empty();
-  ZcpEbSegment* segm  = _pending.forward();
-  while( segm != empty ) {
-    if (segm->fixup(client,dummy))
-      return;
-    segm = segm->forward();
-  }
-
-  Damage damaged(1 << Damage::DroppedContribution);
-  datagram()->xtc.tag.extend(sizeof(InXtc));
-  InXtc xtc(dummy, client, damaged);
-  _zdatagram->fragments().reverse()->uinsert(&xtc,sizeof(InXtc));
+  Damage damaged((segments()&id).isZero() ? 
+		 1 << Damage::DroppedContribution :
+		 1 << Damage::IncompleteContribution );
+  InXtc xtc(type, client, damaged);
+  frag.uinsert((char*)&xtc,sizeof(InXtc));
+  _zdatagram->_insert(frag,sizeof(InXtc));
+  return damaged.value();
 }
 

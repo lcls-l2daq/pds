@@ -31,7 +31,7 @@ EbTimeouts::EbTimeouts(int stream,
   for (unsigned t=0; t<Sequence::NumberOfTypes; t++) {
     for (unsigned s=0; s<Sequence::NumberOfServices; s++) {
       Sequence::Type type = Sequence::Type(t);
-      Sequence::Service service = Sequence::Service(s);
+      Service service = Service(s);
       switch (level) {
       case Level::Control:
 	_tmos[type*Sequence::NumberOfServices+service] = 2;

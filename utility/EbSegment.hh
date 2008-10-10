@@ -57,16 +57,16 @@ class EbSegment : public LinkedList<EbSegment>
    ~EbSegment() {}
   public:
     EbSegment* consume(int sizeofFragment, int offsetExpected);
-    char*         payload();
-    char*         base();
-    int           remaining() const;
+    char*      payload();
+    char*      base();
+    int        remaining() const;
     EbBitMask  client() const;
-    void          fixup(const TC&);
+    unsigned   fixup(const TypeId&);
     EbSegment* notComplete();
   private:
-    char*        _base;
-    int          _offset;
-    int          _remaining;
+    char*     _base;
+    int       _offset;
+    int       _remaining;
     EbBitMask _client;
     InXtc     _header;
   };
@@ -164,7 +164,7 @@ inline Pds::EbSegment* Pds::EbSegment::notComplete(){
     }
   else if (_offset >= (int)(_header.sizeofPayload()+sizeof(InXtc))) 
     {
-    fixup(_header.tag);
+    fixup(_header.contains);
     disconnect();
     return (Pds::EbSegment*)0;
     }

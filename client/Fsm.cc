@@ -8,7 +8,7 @@ using namespace Pds;
 
 Fsm::Fsm() : _state(Idle), _defaultAction(new Action) {
   unsigned i;
-  for (i=0;i<Transition::NumberOf;i++) {
+  for (i=0;i<TransitionId::NumberOf;i++) {
     _action[i] = _defaultAction;
   }
 }
@@ -17,46 +17,46 @@ Fsm::~Fsm() {
   delete _defaultAction;
 }
 
-Fsm::State Fsm::_reqState(Transition::Id id) {
+Fsm::State Fsm::_reqState(TransitionId::Value id) {
   switch (id) {
-  case Transition::Map: {
+  case TransitionId::Map: {
     return Mapped;
     break;
   }
-  case Transition::Configure: {
+  case TransitionId::Configure: {
     return Configured;
     break;
   }
-  case Transition::BeginRun: {
+  case TransitionId::BeginRun: {
     return Begun;
     break;
   }
-  case Transition::Enable: {
+  case TransitionId::Enable: {
     return Enabled;
     break;
   }
-  case Transition::Unmap: {
+  case TransitionId::Unmap: {
     return Idle;
     break;
   }
-  case Transition::Unconfigure: {
+  case TransitionId::Unconfigure: {
     return Mapped;
     break;
   }
-  case Transition::EndRun: {
+  case TransitionId::EndRun: {
     return Configured;
     break;
   }
-  case Transition::Disable: {
+  case TransitionId::Disable: {
     return Begun;
     break;
   }
-  case Transition::L1Accept: {
+  case TransitionId::L1Accept: {
     return Enabled;
     break;
   }
   default: {
-    printf("Request for illegal transition %s\n",Transition::name(id));
+    printf("Request for illegal transition %s\n",TransitionId::name(id));
     return _state;
     break;
   }
@@ -76,7 +76,7 @@ InDatagram* Fsm::occurrences(InDatagram* in) {
 }
 
 Transition* Fsm::transitions(Transition* tr) {
-  Transition::Id id = tr->id();
+  TransitionId::Value id = tr->id();
   printf("Received id %d\n",id);
   State reqState = _reqState(id);
   if (_allowed(reqState)) {
@@ -85,12 +85,12 @@ Transition* Fsm::transitions(Transition* tr) {
     _state = reqState;
   } else {
     // assert invalid transition damage here
-    printf("Invalid transition %s\n",Transition::name(id));
+    printf("Invalid transition %s\n",TransitionId::name(id));
   }
   return tr;
 }
 
-Action* Fsm::callback(Transition::Id id, Action* action) {
+Action* Fsm::callback(TransitionId::Value id, Action* action) {
   Action* oldAction = _action[id];
   _action[id]=action;
   return oldAction;

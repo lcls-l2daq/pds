@@ -12,7 +12,9 @@ namespace Pds {
 		 CratesUnavailable, 
 		 FcpmUnavailable,
 		 Reasons};
-    
+
+    virtual ~ControlCallback() {}
+
     virtual void allocated(SetOfStreams& streams) = 0;
     virtual void failed(Reason reason) = 0;
     //    virtual void ready(const Partition* partition) = 0;
