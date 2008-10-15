@@ -1,4 +1,6 @@
+#include <linux/ioctl.h>
 #ifndef __KERNEL__
+#include <stropts.h>
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <fcntl.h>
@@ -7,6 +9,8 @@
 #endif
 
 #define TUB_DEVNAME "tub"
+#define TUB_MAGIC 't'
+#define TUB_IOCTL_DEBUG	_IOW(TUB_MAGIC, 0, int*)
 
 #ifndef __KERNEL__
 
@@ -38,6 +42,11 @@ static inline int tub_close(int fd)
 	ret = close(fd);
 	if (ret < 0) ret = -errno;
 	return ret;
+}
+
+static inline int tub_debug(int fd)
+{
+  return ioctl(fd, TUB_IOCTL_DEBUG, 0);
 }
 
 #endif	/* #ifndef __KERNEL__ */

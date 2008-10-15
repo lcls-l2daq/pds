@@ -42,9 +42,9 @@ struct tub_info {
         struct tub_desc desc[NDESCRIPTORS];
 };
 
-static void spd_release_page(struct splice_pipe_desc *spd, unsigned int i)
+
+static void dummy_release(struct splice_pipe_desc *spd, unsigned int i)
 {
-	page_cache_release(spd->pages[i]);
 }
 
 /* Copied from fs/pipe.c because it is not exported to modules */
@@ -66,10 +66,10 @@ void pipe_wait(struct pipe_inode_info *pipe)
 }
 
 /* Copied from fs/splice.c because it is not exported to modules */
-ssize_t splice_to_pipe(struct pipe_inode_info *pipe,
-		       struct splice_pipe_desc *spd)
+static ssize_t ssplice_to_pipe(struct pipe_inode_info *pipe,
+			       struct splice_pipe_desc *spd)
 {
-	unsigned int spd_pages = spd->nr_pages;
+  	unsigned int spd_pages = spd->nr_pages; 
 	int ret, do_wakeup, page_nr;
 
 	ret = 0;
@@ -168,11 +168,14 @@ static ssize_t tub_fill (struct pipe_inode_info *pipe,
 			 struct file *filp, loff_t *ppos, size_t len, unsigned int flags);
 static ssize_t tub_drain(struct file *filp, loff_t *ppos,
 			 struct pipe_inode_info *pipe, size_t len, unsigned int flags);
+static int tub_ioctl(struct inode *inode, struct file *filp, 
+		     unsigned int cmd, unsigned long arg);
 
 static struct file_operations tub_fops = {
 	.owner        = THIS_MODULE,
 	.open         = tub_open,
 	.release      = tub_release,
+	.ioctl        = tub_ioctl,
 	.splice_read  = tub_drain,
 	.splice_write = tub_fill,
 };
@@ -212,6 +215,27 @@ static int tub_release(struct inode *inode, struct file *filp)
 	return 0;
 }
 
+static int tub_ioctl(struct inode *inode, struct file *filp, 
+		     unsigned int cmd, unsigned long arg)
+{
+	struct tub_info *pdata = filp->private_data;
+	if (cmd==TUB_IOCTL_DEBUG) {
+	  if (pdata->fill == pdata->drain) 
+	    printk(KERN_ALERT "tub_debug %p empty\n",pdata);
+	  else {
+	    int i = pdata->drain;
+	    printk(KERN_ALERT "tub_debug %p drain %d fill %d\n",pdata,pdata->drain,pdata->fill);
+	    while( i != pdata->fill ) {
+	        struct tub_desc* d = &pdata->desc[i];
+		printk(KERN_ALERT "%d : %p : %p/%d/%d\n",
+		       i,d->pipe,d->buf.page,d->buf.offset,d->buf.len);
+		i = (i+1)%NDESCRIPTORS;
+	    }
+	  }
+	}
+	return 0;
+}
+
 static int pipe_to_tub(struct pipe_inode_info *pipe,
 		       struct pipe_buffer *buf, struct splice_desc *sd)
 {
@@ -228,7 +252,10 @@ static int pipe_to_tub(struct pipe_inode_info *pipe,
 
 	buf->ops->get(pipe,buf);
 	pdata->fill  = i;
-
+	/***
+	printk(KERN_ALERT "tub %p fill buf %d %p/%p/%d/%d\n",
+	       pdata, d-&pdata->desc[0],pipe,buf->page,buf->offset,buf->len);
+	***/
 	return sd->len;
 }
 
@@ -269,24 +296,34 @@ static ssize_t tub_drain(struct file *filp, loff_t *ppos,
 		.nr_pages = 0,
 		.ops = 0,
 		.flags = flags,
-		.spd_release = spd_release_page,
+		.spd_release = dummy_release,
 	};
 	int i = pdata->drain;
+	int npbuf = PIPE_BUFFERS - pipe->nrbufs;
 
-	while((len > 0) && (spd.nr_pages < PIPE_BUFFERS)) {
+	while((len > 0) && (spd.nr_pages < npbuf) && i!=pdata->fill) {
 		struct tub_desc *d = &pdata->desc[i];
 		pages  [spd.nr_pages]         = d->buf.page;
 		partial[spd.nr_pages].offset  = d->buf.offset;
 		partial[spd.nr_pages].private = d->buf.private;
+		/***
+		printk(KERN_ALERT "tub %p drain desc %d %p/%p/%d/%d\n",
+		       pdata, i, d->pipe, d->buf.page, d->buf.offset, d->buf.len);
+		***/
+		if (!d->buf.ops)
+			printk(KERN_ALERT "tub_drain desc %d has no ops\n",i);
 
 		if (!spd.ops) {
 		        spd.ops = d->buf.ops;
 		}
 		else if (spd.ops != d->buf.ops) {
+			printk(KERN_ALERT "tub_drain truncated due to change of ops %p/%p\n",
+			       spd.ops, d->buf.ops);
 		        break;
 		}
 
 		if (len < d->buf.len) {
+		        printk(KERN_ALERT "tub_drain buffer truncated %d/%d\n", len,d->buf.len);
 		        partial[spd.nr_pages].len = len;
 			d->buf.offset += len;
 			d->buf.len    -= len;
@@ -303,13 +340,11 @@ static ssize_t tub_drain(struct file *filp, loff_t *ppos,
 		}
 
 		spd.nr_pages++;
-		if (i == pdata->fill)
-			break;
 	}
 	pdata->drain = i;
 	if (spd.nr_pages == 0)
 		return 0;
-	return splice_to_pipe(pipe, &spd);
+	return ssplice_to_pipe(pipe, &spd);
 }
 
 static int tub_init(void)
