@@ -558,16 +558,39 @@ int Client::send(char*         datagram,
 
 int Client::send(char*        datagram,
 		 ZcpFragment& payload,
-		 int          sizeofPayload,
+		 int          size,
 		 const Ins&   dst)
 {
+  struct msghdr hdr;
+  struct iovec  iov[1];
+
+  iov[0].iov_base = (caddr_t)(datagram);
+  iov[0].iov_len  = sizeofDatagram();
+
   Sockaddr sa(dst);
+  hdr.msg_name         = (caddr_t)sa.name();
+  hdr.msg_namelen      = sa.sizeofName();
+  hdr.msg_control      = (caddr_t)0;
+  hdr.msg_controllen   = 0;
+  hdr.msg_iov          = iov;
+  hdr.msg_iovlen       = 1;
 
-  int length = ::sendto(_socket, datagram, sizeofDatagram(), MSG_MORE, sa.name(), sa.sizeofName());
-  if (length == -1) return errno;
+  int length = ::sendmsg(_socket, &hdr, MSG_MORE);
+  if (length == -1) {
+    printf("Client::sendmsg error\n");
+    return errno;
+  }
 
-  length = payload.kremove(_socket, sizeofPayload); 
-  if (length==-1) return errno;
+  length = payload.kremove(_socket, size); 
+  if (length==-1) {
+    printf("Client::kremove error\n");
+    return errno;
+  }
+
+  if (length != size)
+    printf("Client::sendz %d/%d\n",length,size);
+  else
+    ;//    printf("Client::sendz %d/%d\n",length,size);
 
   return 0;
 }
@@ -596,10 +619,21 @@ int Client::send(char*        datagram,
   hdr.msg_iovlen       = 2;
 
   int length = ::sendmsg(_socket, &hdr, MSG_MORE);
-  if (length == -1) return errno;
+  if (length == -1) {
+    printf("Client::sendmsg error\n");
+    return errno;
+  }
 
   length = payload2.kremove(_socket, size2); 
-  if (length==-1) return errno;
+  if (length==-1) {
+    printf("Client::kremove error\n");
+    return errno;
+  }
+
+  if (length != size2)
+    printf("Client::sendz %d/%d\n",length,size2);
+  else
+    ;//    printf("Client::sendz %d/%d\n",length,size2);
 
   return 0;
 }

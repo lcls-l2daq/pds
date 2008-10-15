@@ -20,8 +20,8 @@ using namespace Pds;
 TStream::TStream()
 {
 #if ( __GNUC__ > 3 )
-  _fd[0] = tub_open();
-  if (_fd[0] < 0)
+  _fd = tub_open();
+  if (_fd < 0)
     printf("TStream::TStream error opening stream : %s\n",
 	   strerror(errno));
 #else
@@ -32,31 +32,25 @@ TStream::TStream()
 TStream::~TStream()
 {
 #if ( __GNUC__ > 3 )
-  tub_close(_fd[0]);
+  tub_close(_fd);
 #endif
 }
 
 int TStream::insert(ZcpFragment& zf, int size)
 {
-  int ret = 0;
-  int len;
-  do {
-    len = zf.kremove(_fd[0],size);
-    size -= len;
-    ret  += len;
-  } while (len && size);
-  return ret;
+  return zf.kremove(_fd,size);
 }
 
 int TStream::remove(ZcpFragment& zf, int size)
 {
-  int ret = 0;
-  int len;
-  do {
-    len = zf.kinsert(_fd[0],size);
-    size -= len;
-    ret  += len;
-  } while (len && size);
-  return ret;
+  return zf.kinsert(_fd,size);
 }
 
+int TStream::dump() const
+{
+#if ( __GNUC__ > 3 )
+  return tub_debug(_fd);
+#else
+  return -1;
+#endif
+}

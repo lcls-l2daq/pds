@@ -21,8 +21,10 @@ namespace Pds {
 
     //    int map  (iovec*,int);
     //    int unmap(iovec*,int);
+
+    int dump() const;
   private:
-    int _fd[2];
+    int _fd;
   };
 
 }
