@@ -23,6 +23,7 @@ class Eb : public EbBase
   {
   public:
     Eb(const Src& id,
+       const TypeId& ctns,
        Level::Type level,
        Inlet& inlet,
        OutletWire& outlet,

@@ -7,6 +7,7 @@
 using namespace Pds;
 
 EbC::EbC(const Src& id,
+	 const TypeId& ctns,
 	 Level::Type level,
 	 Inlet& inlet,
 	 OutletWire& outlet,
@@ -14,7 +15,7 @@ EbC::EbC(const Src& id,
 	 int ipaddress,
 	 unsigned eventsize,
 	 unsigned eventpooldepth) :
-  Eb(id, level, inlet, outlet,
+  Eb(id, ctns, level, inlet, outlet,
      stream, ipaddress,
      eventsize, 
      eventpooldepth),
@@ -39,8 +40,7 @@ EbEventBase* EbC::_new_event(const EbBitMask& serverId)
   if (depth==1)
     _postEvent(_pending.forward());
 
-  CDatagram* datagram = 
-    new(&_datagrams) CDatagram(TypeId(TypeNum::Id_InXtcContainer), _id);
+  CDatagram* datagram = new(&_datagrams) CDatagram(_ctns, _id);
   EbCountKey* key = new(&_keys) EbCountKey(const_cast<Datagram&>(datagram->datagram()).seq);
   return new(&_events) EbEvent(serverId, _clients, datagram, key);
 }

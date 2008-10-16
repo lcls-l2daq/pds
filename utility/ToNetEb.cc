@@ -58,6 +58,7 @@ int ToNetEb::send(const CDatagram* cdatagram,
   DgChunkIterator chkIter(&datagram);
 
   do {
+    //    printf("ToNetEb::send %d/%d\n",chkIter.payloadSize(),size);
     int error;
     if((error = _client.send((char*)chkIter.header(), 
 			     (char*)chkIter.payload(), 
@@ -103,16 +104,21 @@ int ToNetEb::send(ZcpDatagram* zdatagram,
 				      sizeof(InXtc),
 				      dst);
 
-  int size = zdatagram->_stream.remove(_fragment, remaining);
-  remaining -= size;
+  remaining -= zdatagram->_stream.remove(_fragment, remaining);
 
-  if (!remaining) return _client.send((char*)&datagram,
-				      (char*)&datagram.xtc,
-				      sizeof(InXtc),
-				      _fragment,
-				      size,
-				      dst);
+  if (!remaining && (datagram.xtc.extent+sizeof(Datagram)) < Mtu::Size) 
+      return _client.send((char*)&datagram,
+			  (char*)&datagram.xtc,
+			  sizeof(InXtc),
+			  _fragment,
+			  _fragment.size(),
+			  dst);
+      
+  //  printf("ToNetEb::sendz %d/%d/%d\n",0,datagram.xtc.sizeofPayload(),_fragment.size());
 
+  int size;
+  size = (_fragment.size()+sizeof(OutletWireHeader)+sizeof(InXtc) < Mtu::Size) ?
+    _fragment.size() : Mtu::Size - sizeof(OutletWireHeader) - sizeof(InXtc);
   OutletWireHeader header(&const_cast<Datagram&>(zdatagram->datagram()));
   int error = _client.send((char*)&header,
 			   (char*)&datagram.xtc,
@@ -122,12 +128,12 @@ int ToNetEb::send(ZcpDatagram* zdatagram,
 			   dst);
   if(error)  return error;
   
-  size += sizeof(InXtc);
-
-  while(remaining) {
-    header.offset += size;
-    size = zdatagram->_stream.remove(_fragment, remaining);
-    remaining -= size;
+  while(remaining || _fragment.size()) {
+    header.offset = datagram.xtc.extent - remaining - _fragment.size();
+    //    printf("ToNetEb::sendz %d/%d/%d\n",header.offset,datagram.xtc.sizeofPayload(),_fragment.size());
+    remaining -= zdatagram->_stream.remove(_fragment, remaining);
+    size = (_fragment.size()+sizeof(OutletWireHeader)+sizeof(InXtc) < Mtu::Size) ?
+      _fragment.size() : Mtu::Size - sizeof(OutletWireHeader);
     error = _client.send((char*)&header,
 			 _fragment,
 			 size,

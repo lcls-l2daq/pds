@@ -83,6 +83,8 @@ bool ZcpEbEvent::consume(EbServer*        server,
       segment = segment->consume(zfrag, 
 				 server->offset());
       if (segment) { // complete now
+	printf("ZcpEbEvent::consume adding complete segment of sz %d\n",
+	       segment->length());
 	_zdatagram->_insert(segment->fragments(),segment->length(),zfrag);
 	allocated().insert(serverId);
 	delete segment;

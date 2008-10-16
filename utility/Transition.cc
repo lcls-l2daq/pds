@@ -26,6 +26,16 @@ Transition::Transition(TransitionId::Value id,
   _env     (env)
 {}
 
+Transition::Transition(const Transition& c) :
+  Message(Message::Transition, c.reply_to(), c.size()),
+  _id      (c._id),
+  _phase   (c._phase),
+  _sequence(c._sequence),
+  _env     (c._env)
+{
+  memcpy(this+1,&c+1,c.size()-sizeof(Transition));
+}
+
 TransitionId::Value Transition::id() const {return _id;}
 
 Transition::Phase Transition::phase() const {return _phase;}

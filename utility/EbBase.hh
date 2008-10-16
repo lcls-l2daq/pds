@@ -23,6 +23,7 @@ class EbBase : public InletWireServer
   {
   public:
     EbBase(const Src& id,
+	   const TypeId& ctns,
 	   Level::Type level,
 	   Inlet& inlet,
 	   OutletWire& outlet,
@@ -67,6 +68,7 @@ class EbBase : public InletWireServer
     EbTimeouts  _ebtimeouts;
     Appliance&  _output;       // Destination for datagrams
     Src         _id;           // Our OWN ID
+    TypeId      _ctns;         // Our OWN ID
     unsigned    _hits;         // # of contributions received and consumed.
     unsigned    _segments;     // # of segments received.
     unsigned    _misses;       // # of cache misses

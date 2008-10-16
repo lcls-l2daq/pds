@@ -49,6 +49,7 @@ using namespace Pds;
 */
 
 ZcpEb::ZcpEb(const Src& id,
+	     const TypeId& ctns,
 	     Level::Type level,
 	     Inlet& inlet,
 	     OutletWire& outlet,
@@ -60,7 +61,7 @@ ZcpEb::ZcpEb(const Src& id,
 	     const VmonEb& vmoneb,
 #endif
 	     const Ins* dstack) :
-  EbBase(id, level, inlet, outlet, stream, ipaddress,
+  EbBase(id, ctns, level, inlet, outlet, stream, ipaddress,
 #ifdef USE_VMON
 	 vmoneb,
 #endif

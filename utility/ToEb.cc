@@ -11,8 +11,9 @@ using namespace Pds;
 
 
 static const int Post_CDatagram  =1;
-static const int Post_ZcpDatagram=2;
-static const int Post_ZcpFragment=3;
+static const int Post_CFragment  =2;
+static const int Post_ZcpDatagram=3;
+static const int Post_ZcpFragment=4;
 
 ToEb::ToEb(const Src& client) :
   _client(client)
@@ -83,13 +84,12 @@ int ToEb::fetch(char* payload, int flags)
       printf("ToEb::fetch received cdg %p  payload length %d\n",dg,length);
     }
 
-    length += sizeof(InXtc);
     memcpy(&_datagram,
 	   &dg->datagram(),
 	   sizeof(Datagram));
     memcpy(payload,
-	   &dg->datagram().xtc,
-	   length);
+ 	   dg->datagram().xtc.payload(),
+ 	   length);
     delete dg;
   }
   else if (msg == Post_ZcpDatagram) {
@@ -99,8 +99,6 @@ int ToEb::fetch(char* payload, int flags)
 	   &dg->datagram(),
 	   sizeof(Datagram));
     char* p = payload;
-    memcpy(p, &dg->datagram().xtc, sizeof(InXtc));
-    p      += sizeof(InXtc);
     int remaining = _datagram.xtc.sizeofPayload();
     while( remaining ) {
       int siz = dg->_stream.remove(_fragment,remaining);
@@ -124,19 +122,46 @@ int ToEb::fetch(ZcpFragment& zfo, int flags)
   if (msg == Post_CDatagram) {
     CDatagram* dg;
     ::read(_pipefd[0],&dg,sizeof(dg));
-    length = dg->datagram().xtc.sizeofPayload();
-    length += sizeof(InXtc);
     memcpy(&_datagram,
 	   &dg->datagram(),
 	   sizeof(Datagram));
-    int nbytes = zfo.uinsert( const_cast<InXtc*>(&dg->datagram().xtc), length );
-    if (length != nbytes) {
-      printf("ToEb::fetch ZcpFragment payload truncated %x/%x\n",
-	     nbytes, length);
-      handleError(ENOMEM);
-      length = -1;
+    int sz = dg->datagram().xtc.sizeofPayload();
+    length = zfo.uinsert( dg->datagram().xtc.payload(), sz );
+    if (length != sz) {  // fragmentation
+      _more   = true;
+      _offset = 0;
+      _next   = length;
+      printf("ToEb::chunk %d/%d\n",_next,sz);
+      msg     = Post_CFragment;
+      iovec iov[2];
+      iov[0].iov_base = &msg; iov[0].iov_len = sizeof(msg);
+      iov[1].iov_base = &dg ; iov[1].iov_len = sizeof(CDatagram*);
+      ::writev(_pipefd[1],iov,2);
+      //      ::write(_pipefd[1],&msg,sizeof(msg));
+      //      ::write(_pipefd[1],&dg,sizeof(CDatagram*));
     }
-    delete dg;
+    else
+      delete dg;
+  }
+  else if (msg == Post_CFragment) {
+    _more = true;
+    CDatagram* dg;
+    ::read(_pipefd[0],&dg,sizeof(dg));
+    int remaining = _datagram.xtc.sizeofPayload()-_next;
+    length = zfo.uinsert( dg->datagram().xtc.payload()+_next, remaining );
+    _offset = _next;
+    _next  += length;
+    printf("ToEb::chunk %d/%d\n",_next,_datagram.xtc.sizeofPayload());
+    if (length != remaining) {
+      iovec iov[2];
+      iov[0].iov_base = &msg; iov[0].iov_len = sizeof(msg);
+      iov[1].iov_base = &dg ; iov[1].iov_len = sizeof(CDatagram*);
+      ::writev(_pipefd[1],iov,2);
+      //      ::write(_pipefd[1],&msg,sizeof(msg));
+      //      ::write(_pipefd[1],&dg,sizeof(CDatagram*));
+    }
+    else
+      delete dg;
   }
   else if (msg == Post_ZcpDatagram) {
     ZcpDatagram* dg;
@@ -144,14 +169,13 @@ int ToEb::fetch(ZcpFragment& zfo, int flags)
     memcpy(&_datagram,
 	   &dg->datagram(),
 	   sizeof(Datagram));
-    length = sizeof(InXtc);
-    zfo.uinsert(const_cast<InXtc*>(&dg->datagram().xtc), length);
-    length += dg->_stream.remove(zfo, _datagram.xtc.sizeofPayload());
-    if (length != _datagram.xtc.extent) {
+    int sz = _datagram.xtc.sizeofPayload();
+    length = dg->_stream.remove(zfo, sz);
+    if (length != sz) {  // fragmentation
       _more   = true;
       _offset = 0;
       _next   = length;
-      printf("ToEb::chunk %d/%d\n",_next,_datagram.xtc.extent);
+      printf("ToEb::chunk %d/%d\n",_next,sz);
       msg = Post_ZcpFragment;
       ::write(_pipefd[1],&msg,sizeof(msg));
       ::write(_pipefd[1],&dg,sizeof(ZcpDatagram*));
@@ -162,11 +186,11 @@ int ToEb::fetch(ZcpFragment& zfo, int flags)
     _more = true;
     ZcpDatagram* dg;
     ::read(_pipefd[0],&dg,sizeof(dg));
-    int remaining = _datagram.xtc.extent-_next;
+    int remaining = _datagram.xtc.sizeofPayload()-_next;
     length  = dg->_stream.remove(zfo, remaining);
     _offset = _next;
     _next  += length;
-    printf("ToEb::chunk %d/%d\n",_next,_datagram.xtc.extent);
+    printf("ToEb::chunk %d/%d\n",_next,_datagram.xtc.sizeofPayload());
     if (length != remaining) {
       ::write(_pipefd[1],&msg,sizeof(msg));
       ::write(_pipefd[1],&dg,sizeof(ZcpDatagram*));

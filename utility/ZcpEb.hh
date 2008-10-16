@@ -12,6 +12,7 @@ namespace Pds {
   class ZcpEb : public EbBase {
   public:
     ZcpEb(const Src& id,
+	  const TypeId& ctns,
 	  Level::Type level,
 	  Inlet& inlet,
 	  OutletWire& outlet,

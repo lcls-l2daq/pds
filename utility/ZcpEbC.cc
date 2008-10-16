@@ -7,6 +7,7 @@
 using namespace Pds;
 
 ZcpEbC::ZcpEbC(const Src& id,
+	       const TypeId& ctns,
 	       Level::Type level,
 	       Inlet& inlet,
 	       OutletWire& outlet,
@@ -14,7 +15,7 @@ ZcpEbC::ZcpEbC(const Src& id,
 	       int ipaddress,
 	       unsigned eventsize,
 	       unsigned eventpooldepth) :
-  ZcpEb(id, level, inlet, outlet,
+  ZcpEb(id, ctns, level, inlet, outlet,
 	stream, ipaddress,
 	eventsize, 
 	eventpooldepth),
@@ -39,7 +40,7 @@ EbEventBase* ZcpEbC::_new_event(const EbBitMask& serverId)
   if (depth==1 && _pending.forward()!=_pending.empty())
     _postEvent(_pending.forward());
 
-  ZcpDatagram* datagram = new(&_datagrams) ZcpDatagram(TypeId(TypeNum::Id_InXtcContainer), _id);
+  ZcpDatagram* datagram = new(&_datagrams) ZcpDatagram(_ctns, _id);
   EbCountKey* key = new(&_keys) EbCountKey(const_cast<Datagram&>(datagram->datagram()).seq);
   return new(&_events) ZcpEbEvent(serverId, _clients, datagram, key);
 }

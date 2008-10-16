@@ -60,6 +60,7 @@ static const char* TaskName(Level::Type level, int stream, Inlet& inlet)
 
 
 EbBase::EbBase(const Src& id,
+	       const TypeId& ctns,
 	       Level::Type level,
 	       Inlet& inlet,
 	       OutletWire& outlet,
@@ -75,6 +76,7 @@ EbBase::EbBase(const Src& id,
   _ebtimeouts(stream,level),
   _output(inlet),
   _id(id),
+  _ctns(ctns),
   _hits(0),
   _segments(0),
   _misses(0),
@@ -172,8 +174,7 @@ void EbBase::remove(unsigned id)
 
 void EbBase::flush()
   {
-    if (_pending.forward() != _pending.empty())
-      _postEvent( _pending.reverse() );
+    _postEvent( _pending.reverse() );
   }
 
 /*
@@ -210,7 +211,7 @@ void EbBase::_post(EbEventBase* event)
   EbBitMask value(event->allocated().remaining() & _valued_clients);
 #ifdef VERBOSE
   printf("(%p) %08x/%08x remaining %08x value %08x payload %d\n",
-    	 this, datagram->high(),datagram->low(),
+    	 this, datagram->seq.high(),datagram->seq.low(),
   	 remaining.value(0),value.value(0),datagram->xtc.sizeofPayload());
 #endif
   if (value.isZero()) {  // sink
@@ -233,16 +234,17 @@ void EbBase::_post(EbEventBase* event)
 
     // statistics
     EbBitMask id(EbBitMask::ONE);
+    unsigned dmg=0;
     for(unsigned i=0; !remaining.isZero(); i++, id <<= 1) {
       if ( !(remaining & id).isZero() ) {
 	EbServer* srv = (EbServer*)server(i);
 	srv->fixup();
-	_fixup(event, srv->client(), id);
+	dmg |= _fixup(event, srv->client(), id);
 	remaining &= ~id;
       }
     }
 
-    datagram->xtc.damage.increase(Damage::DroppedContribution);
+    datagram->xtc.damage.increase(dmg);
   }
 
 #ifdef USE_VMON
@@ -275,11 +277,13 @@ void EbBase::_post(EbEventBase* event)
 
 EbBitMask EbBase::_postEvent(EbEventBase* complete)
 {
-  EbEventBase* event;
-  do {
-    event = _pending.forward();
+  EbEventBase* event = _pending.forward();
+  EbEventBase* empty = _pending.empty();
+  while( event != empty ) {
     _post(event);
-  } while( event != complete );
+    if (event == complete) break;
+    event = _pending.forward();
+  }
 
   return managed();
 }
@@ -312,15 +316,15 @@ int EbBase::processTmo()
       //  mw- Recalculate enable mask - could be done faster (not redone)
       ServerManager::arm(_armMask(event,empty));
     } else {
-      /*
+#ifdef VERBOSE
       InDatagram* indatagram   = event->finalize();
       const Datagram* datagram = &indatagram->datagram();
       EbBitMask value(event->allocated().remaining() & _valued_clients);
       if (!value.isZero())
 	printf("EbBase::processTmo seq %x/%x  remaining %08x\n",
-	       datagram->high(), datagram->low(),
+	       datagram->seq.high(), datagram->seq.low(),
 	       event->remaining().value());
-      */      
+#endif
       ServerManager::arm(_postEvent(event));
     }
   } else {

@@ -11,6 +11,7 @@ class ZcpEbS : public ZcpEb
   {
   public:
     ZcpEbS(const Src& id,
+	   const TypeId& ctns,
 	   Level::Type level,
 	   Inlet& inlet,
 	   OutletWire& outlet,

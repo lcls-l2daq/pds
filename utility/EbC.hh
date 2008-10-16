@@ -11,6 +11,7 @@ class EbC : public Eb
   {
   public:
     EbC(const Src& id,
+	const TypeId& ctns,
 	Level::Type level,
 	Inlet& inlet,
 	OutletWire& outlet,

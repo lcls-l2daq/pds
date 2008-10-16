@@ -24,6 +24,7 @@ public:
   Transition(TransitionId::Value id,
              unsigned        env, 
              unsigned        size=sizeof(Transition));
+  Transition(const Transition&);
 
   TransitionId::Value id      () const;
   Phase           phase   () const;

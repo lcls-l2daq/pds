@@ -20,7 +20,7 @@
 
 #include "EbSegment.hh"
 #include "pds/xtc/xtc.hh"
-
+#include <stdio.h>
 using namespace Pds;
 
 /*
