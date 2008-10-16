@@ -23,6 +23,7 @@ private:
   // Implements PartitionMember
   Message& reply     (Message::Type);
   void     allocated (const Allocate&, unsigned);
+  void     dissolved ();
   void     post      (const Transition&);
   void     post      (const InDatagram&);
 

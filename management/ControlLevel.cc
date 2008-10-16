@@ -79,6 +79,12 @@ void ControlLevel::allocated(const Allocate& alloc,
   }
 }
 
+void ControlLevel::dissolved()
+{
+  _streams->disconnect();
+  _streams->connect();
+}
+
 void ControlLevel::post     (const Transition& tr)
 {
   InletWire* wire = _streams->wire(StreamParams::FrameWork);

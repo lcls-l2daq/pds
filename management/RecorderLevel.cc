@@ -52,6 +52,12 @@ bool RecorderLevel::attach()
   }
 }
 
+void RecorderLevel::dissolved()
+{
+  _streams->disconnect();
+  _streams->connect();
+}
+
 Message& RecorderLevel::reply(Message::Type)
 {
   return _reply;

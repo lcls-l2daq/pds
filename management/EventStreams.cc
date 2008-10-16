@@ -7,6 +7,7 @@
 //#include "VmonAppliance.hh"
 //#include "pds/collection/McastDb.hh"
 //#include "pds/collection/BcastRegistery.hh"
+#include "pds/utility/EbS.hh"
 
 #include <sys/types.h>  // required for kill
 #include <signal.h>
@@ -28,7 +29,9 @@ EventStreams::EventStreams(CollectionManager& cmgr) :
 
     if (cmgr.header().level()==Level::Recorder) {
       EventBuilder* eb = new EventBuilder
+	//      EbS* eb = new EbS
 	(Src(cmgr.header()),
+	 TypeId(TypeNum::Id_InXtc),
 	 level,
 	 *stream(s)->inlet(), *_outlets[s], s, ipaddress,
 	 MaxSize, ebdepth);
@@ -39,6 +42,7 @@ EventStreams::EventStreams(CollectionManager& cmgr) :
     else {
       EventBuilder* eb = new EventBuilder
 	(Src(cmgr.header()),
+	 TypeId(TypeNum::Id_InXtc),
 	 level,
 	 *stream(s)->inlet(), *_outlets[s], s, ipaddress,
 	 MaxSize, ebdepth);

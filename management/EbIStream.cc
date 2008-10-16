@@ -20,6 +20,7 @@ EbIStream::EbIStream(const Src&  src,
 
   if (level == Level::Segment)
     _inlet_wire = new L1EventBuilder(src, 
+				     TypeId(TypeNum::Id_InXtc),
 				     level,
 				     *inlet(), 
 				     *_outlet_wire, 
@@ -28,6 +29,7 @@ EbIStream::EbIStream(const Src&  src,
 				     MaxSize, EbDepth);
   else
     _inlet_wire = new EventBuilder(src, 
+				   TypeId(TypeNum::Id_InXtc),
 				   level,
 				   *inlet(), 
 				   *_outlet_wire, 

@@ -73,6 +73,23 @@ bool EventLevel::attach()
   }
 }
 
+void EventLevel::dissolved()
+{
+  // detach the ToEb
+  InletWireServer* wire = 
+    dynamic_cast<InletWireServer*>(_streams->wire(StreamParams::FrameWork));
+  wire->unmanage(wire->server(0));
+
+  // destroy all inputs and outputs
+  _inlet->input()->disconnect();
+  _streams->disconnect();
+
+  // reattach the ToEb
+  _streams->connect();
+  _inlet->input()->connect();
+  wire->add_input(_inlet->output());
+}
+
 void EventLevel::detach()
 {
   if (_streams) {

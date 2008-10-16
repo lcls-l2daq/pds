@@ -133,6 +133,21 @@ void    SegmentLevel::allocated(const Allocate& alloc,
   }
 }
 
+void    SegmentLevel::dissolved()
+{
+  // detach the ToEb
+  InletWireServer* wire = 
+    dynamic_cast<InletWireServer*>(_streams->wire(StreamParams::FrameWork));
+  wire->unmanage(wire->server(0));
+
+  // destroy all inputs and outputs
+  _streams->disconnect();
+
+  // reattach the ToEb
+  _streams->connect();
+  wire->add_input(_inlet->output());
+}
+
 void    SegmentLevel::post     (const Transition& tr)
 {
   InletWire* bld_wire = _streams->wire(StreamParams::FrameWork);

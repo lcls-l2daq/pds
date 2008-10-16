@@ -10,11 +10,9 @@ class CollectionManager;
 
 class EventStreams: public WiredStreams {
 public:
-  enum { netbufdepth = 32 };
-  enum { ebdepth     = 4 };         //  Need to keep these numbers "small" until
-  enum { MaxSize     = 256*1024 };  //  we decide upon increasing pipe buffer number/size.
-                                    //  I can merge fragments within the event builder to 
-                                    //  reduce the number used.
+  enum { netbufdepth = 8 };
+  enum { ebdepth     = 16 };
+  enum { MaxSize     = 4*1024*1024 };
 
   EventStreams(CollectionManager& cmgr);
   virtual ~EventStreams();

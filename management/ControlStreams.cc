@@ -56,6 +56,7 @@ ControlStreams::ControlStreams(CollectionManager& cmgr) :
 				  ipaddress);
     _inlet_wires[s] = 
       new EventBuilder(Src(cmgr.header()),
+		       TypeId(TypeNum::Id_InXtc),
 		       level, *stream(s)->inlet(),
 		       *_outlets[s], s, ipaddress,
 		       eventsize, eventpooldepth);
