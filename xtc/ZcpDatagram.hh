@@ -31,6 +31,8 @@ namespace Pds {
     int send(ToEb&);
     int send(ToNetEb&, const Ins&);
     int unblock(OobServer&, char*);
+
+    int dump() const;
   public:
     //    int _insert(char*       ,int);
     int _insert(ZcpFragment&,int);
@@ -103,5 +105,8 @@ inline int Pds::ZcpDatagram::_insert(ZcpStream& s, int size, ZcpFragment& f)
   return size;
 }
 
-
+inline int Pds::ZcpDatagram::dump() const
+{
+  return _stream.dump();
+}
 #endif

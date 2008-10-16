@@ -55,10 +55,12 @@ ZcpDatagramIterator::~ZcpDatagramIterator()
 //
 int ZcpDatagramIterator::skip(int len)
 {
-  if (_offset + len > _size) {
-    printf("ZDI::skip(%d+%d) exceeds datagram extent(%d) ...reducing\n",
-	   len, _offset, _size);
-    len = _size - _offset;
+  if (_offset + len > _size +_iovbuff.bytes()) {
+#ifdef VERBOSE
+    printf("ZDI::skip(%d+%d) exceeds datagram extent(%d+%d) ...reducing\n",
+	   len, _offset, _size, _iovbuff.bytes());
+#endif
+    len = _size - _offset + _iovbuff.bytes();
   }
 
   int remaining(len);
@@ -92,10 +94,12 @@ int ZcpDatagramIterator::skip(int len)
 //
 int ZcpDatagramIterator::read(iovec* iov, int maxiov, int len)
 {
-  if (_offset + len > _size) {
-    printf("ZDI::read(%d+%d) exceeds datagram extent(%d) ...reducing\n",
-	   len, _offset, _size);
-    len = _size - _offset;
+  if (_offset + len > _size + _iovbuff.bytes()) {
+#ifdef VERBOSE
+    printf("ZDI::read(%d+%d) exceeds datagram extent(%d+%d) ...reducing\n",
+	   len, _offset, _size, _iovbuff.bytes());
+#endif
+    len = _size - _offset + _iovbuff.bytes();
   }
 
 #ifdef VERBOSE
@@ -103,10 +107,8 @@ int ZcpDatagramIterator::read(iovec* iov, int maxiov, int len)
 #endif
   //  Pull enough data into the IovBuffer
   while (len > _iovbuff.bytes()) {
-    _iovbuff.insert(_stream, len-_iovbuff.bytes());
+    _offset += _iovbuff.insert(_stream, len-_iovbuff.bytes());
   }
-
-  _offset += len;
 
   //  Map the data into user-space and return the user iov
   return _iovbuff.remove(iov,maxiov,len);
@@ -190,7 +192,9 @@ int ZcpDatagramIterator::IovBuffer::remove(iovec* iov, int maxiov, int bytes)
     _iiov--;
     iov--;
     iov->iov_len += len;
+    len = 0;
   }
+  bytes  -= len;
   _bytes -= bytes;
   return bytes;
 }
