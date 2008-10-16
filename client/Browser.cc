@@ -10,7 +10,7 @@ using namespace Pds;
 
 static bool _containsInXtc(TypeId type)
 {
-  return (type.value == TypeNum::Id_InXtcContainer);
+  return (type.value == TypeNum::Id_InXtc);
 }
 
 /*
@@ -35,7 +35,7 @@ Browser::Browser(const Datagram& dg, InDatagramIterator* iter, int depth, int& a
 	 xtc.contains.value, 
 	 xtc.extent, xtc.damage.value());
   if (!_containsInXtc(xtc.contains))
-    advance = _dumpBinaryPayload(xtc, iter);
+    advance += _dumpBinaryPayload(xtc, iter);
   //  if (_depth < 0) advance = _dumpBinaryPayload(xtc, iter);
 }
 
@@ -51,8 +51,7 @@ Browser::Browser(const InXtc& xtc, InDatagramIterator* iter, int depth, int& adv
   //	 *identity, *contains, 
   //	 xtc.tag.extent(), xtc.damage.value());
   if (!_containsInXtc(xtc.contains))
-    advance = _dumpBinaryPayload(xtc, iter);
-  //  if (_depth < 0) advance = _dumpBinaryPayload(xtc, iter);
+    advance += _dumpBinaryPayload(xtc, iter);
   }
 
 /*
