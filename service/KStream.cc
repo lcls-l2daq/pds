@@ -35,7 +35,7 @@ int KStream::insert(ZcpFragment& zf, int size)
 
 int KStream::remove(int size)
 {
-  return kmemory_skip(_fd[0], size, KMEMORY_READ);
+  return kmemory_skip(_fd[0], size, KMEMORY_READ | KMEMORY_WRITE);
 }
 
 int KStream::remove(ZcpFragment& zf, int size)

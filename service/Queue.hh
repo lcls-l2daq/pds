@@ -36,7 +36,19 @@
 
 namespace Pds {
 
-class Entry; // Use temporarily as forward reference...
+class Entry
+  {
+  public:
+    Entry();
+    Entry* insert(Entry* after);
+    Entry* insertList(Entry* after);
+    Entry* remove();
+    Entry* next()     const;
+    Entry* previous() const;
+  private:
+    Entry* _flink;
+    Entry* _blink;
+  };
 
 class List
   {
@@ -112,22 +124,6 @@ inline Pds::List::List() : _flink(empty()), _blink(empty()) {}
 
 inline Pds::Entry* Pds::List::atHead() const {return _flink;}
 inline Pds::Entry* Pds::List::atTail() const {return _blink;}
-
-namespace Pds {
-class Entry
-  {
-  public:
-    Entry();
-    Entry* insert(Entry* after);
-    Entry* insertList(Entry* after);
-    Entry* remove();
-    Entry* next()     const;
-    Entry* previous() const;
-  private:
-    Entry* _flink;
-    Entry* _blink;
-  };
-}
 
 /*
 ** ++

@@ -15,8 +15,10 @@
 #include <stdio.h>
 #include <stropts.h>
 
-//#define SPLICE_FLAGS SPLICE_F_MOVE
-#define SPLICE_FLAGS (SPLICE_F_NONBLOCK | SPLICE_F_MOVE)
+#define SPLICE_FLAGS_BLK SPLICE_F_MOVE
+//#define SPLICE_FLAGS_BLK (SPLICE_F_MOVE | SPLICE_F_NONBLOCK)
+#define SPLICE_FLAGS    SPLICE_FLAGS_BLK
+//#define SPLICE_FLAGS    (SPLICE_FLAGS_BLK | SPLICE_F_NONBLOCK)
 
 using namespace Pds;
 
@@ -51,7 +53,8 @@ void ZcpFragment::flush()
 int ZcpFragment::kinsert(int fd, int size) 
 { 
   int spliced = ::splice(fd, NULL, _fd[1], NULL, size, SPLICE_FLAGS);
-  _size += spliced;
+  if (spliced > 0) 
+    _size += spliced;
   return spliced;
 }
 
@@ -65,6 +68,7 @@ int ZcpFragment::uinsert(void* b, int size)
 
 int ZcpFragment::vinsert(iovec* iov, int n) 
 {
+  ::fcntl(_fd[1],F_SETFL,O_NONBLOCK);
   int spliced = ::writev(_fd[1], iov, n);
   if (spliced > 0)
     _size += spliced;
@@ -86,7 +90,7 @@ int ZcpFragment::kremove(int size)
 
 int ZcpFragment::kremove(int fd, int size) 
 {
-  int flags = size > _size ? SPLICE_FLAGS | SPLICE_F_MORE : SPLICE_FLAGS;
+  int flags = size > _size ? SPLICE_FLAGS_BLK | SPLICE_F_MORE : SPLICE_FLAGS_BLK;
   int spliced = ::splice(_fd[0], NULL, fd, NULL, size, flags);
   if (spliced > 0)
     _size -= spliced;

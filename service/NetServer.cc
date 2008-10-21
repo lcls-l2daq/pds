@@ -60,13 +60,13 @@ void NetServer::_construct(int sizeofDatagram, int maxPayload)
     char* datagram   = new char[sizeofDatagram];
     _datagram        = datagram;
     _iov[0].iov_base = datagram;
-    _payload         = (char**)&_iov[1].iov_base;
+    _payload         = reinterpret_cast<char**>(&_iov[1].iov_base);
     _iov[1].iov_len  = maxPayload;
     _hdr.msg_iovlen  = (_maxPayload = maxPayload) ? 2 : 1;
     }
   else
     {
-    _payload         = (char**)&_iov[0].iov_base;
+    _payload         = reinterpret_cast<char**>(&_iov[0].iov_base);
     _hdr.msg_iovlen  = 1;
     _datagram        = (char*)0;
     _iov[0].iov_len  = maxPayload;
@@ -211,17 +211,22 @@ int NetServer::fetch      (ZcpFragment& dg, int flags)
 {
   int length = ::recvmsg(_socket, &_hdro, flags | MSG_PEEK | MSG_TRUNC);
   if (length >= 0) {
+    int size(length);
     length  = dg.kinsert(_socket, 1);
-    length -= dg.uremove(_datagram,_sizeofDatagram);
-  }
-
-  if (length == -1) {
-    printf("NetServer::fetch failed ZcpFragment %p  flags %x  socket %d\n",
-	   &dg, flags, _socket);
-    handleError(errno);
+    if (length < 0)  goto err;
+    size = length;
+    length = dg.uremove(_datagram,_sizeofDatagram);
+    if (length < 0)  goto err;
+    length = size - length;
   }
 
   return length;
+
+ err:
+  printf("NetServer::fetch failed ZcpFragment %p  flags %x  socket %d\n",
+	   &dg, flags, _socket);
+  handleError(errno);
+  return -1;
 }
 
 /*

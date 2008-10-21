@@ -587,10 +587,10 @@ int Client::send(char*        datagram,
     return errno;
   }
 
-  if (length != size)
-    printf("Client::sendz %d/%d\n",length,size);
-  else
-    ;//    printf("Client::sendz %d/%d\n",length,size);
+  if (length != size) {
+    printf("Client::sendz1 %d/%d\n",length,size);
+    return ENOMEM;
+  }
 
   return 0;
 }
@@ -630,10 +630,10 @@ int Client::send(char*        datagram,
     return errno;
   }
 
-  if (length != size2)
-    printf("Client::sendz %d/%d\n",length,size2);
-  else
-    ;//    printf("Client::sendz %d/%d\n",length,size2);
+  if (length != size2) {
+    printf("Client::sendz2 %d/%d\n",length,size2);
+    return ENOMEM;
+  }
 
   return 0;
 }

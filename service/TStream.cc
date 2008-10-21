@@ -46,6 +46,15 @@ int TStream::remove(ZcpFragment& zf, int size)
   return zf.kinsert(_fd,size);
 }
 
+int TStream::flush()
+{
+#if ( __GNUC__ > 3 )
+  return tub_flush(_fd);
+#else
+  return -1;
+#endif
+}
+
 int TStream::dump() const
 {
 #if ( __GNUC__ > 3 )
