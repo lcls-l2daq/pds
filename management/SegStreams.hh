@@ -11,7 +11,7 @@ class CollectionManager;
 
 class SegStreams : public WiredStreams {
 public:
-  enum { ebdepth     = 16 };
+  enum { ebdepth     = 32 };
 
   SegStreams(CollectionManager&);
 

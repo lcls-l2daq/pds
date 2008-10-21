@@ -23,13 +23,15 @@ EventStreams::EventStreams(CollectionManager& cmgr) :
 
   //  VmonEb vmoneb(vmon());
 
-  for (int s = 0; s < StreamParams::NumberOfStreams; s++) {
+   for (int s = 0; s < StreamParams::NumberOfStreams; s++) {
 
-    _outlets[s] = new ToEventWire(*stream(s)->outlet(), cmgr, ipaddress);
+    _outlets[s] = new ToEventWire(*stream(s)->outlet(), 
+				  cmgr, 
+				  ipaddress, 
+				  MaxSize*netbufdepth);
 
     if (cmgr.header().level()==Level::Recorder) {
       EventBuilder* eb = new EventBuilder
-	//      EbS* eb = new EbS
 	(Src(cmgr.header()),
 	 TypeId(TypeNum::Id_InXtc),
 	 level,

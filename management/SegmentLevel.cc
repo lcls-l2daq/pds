@@ -71,8 +71,10 @@ bool SegmentLevel::attach()
     //  Build the EVR server
     Ins source(StreamPorts::event(header().platform(),
                                   Level::Segment));
+    Node evrNode(Level::Source,header().platform());
+    evrNode.fixup(source.address(),Ether());
     EvrServer* esrv = new EvrServer(source, 
-                                    Src(header()),
+                                    Src(evrNode, Pds::EVR),
                                     NetBufferDepth); // revisit
     _inlet->input()->add_input(esrv);
     esrv->server().join(source, Ins(header().ip()));

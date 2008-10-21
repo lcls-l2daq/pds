@@ -49,17 +49,17 @@ ControlStreams::ControlStreams(CollectionManager& cmgr) :
   Level::Type level = cmgr.header().level();
   int ipaddress = cmgr.header().ip();
   unsigned eventpooldepth = 32;
-  unsigned eventsize = 1*1024*1024;
   for (int s = 0; s < StreamParams::NumberOfStreams; s++) {
     _outlets[s] = new ToEventWire(*stream(s)->outlet(), 
 				  cmgr,
-				  ipaddress);
+				  ipaddress,
+				  MaxSize*netbufdepth);
     _inlet_wires[s] = 
       new EventBuilder(Src(cmgr.header()),
 		       TypeId(TypeNum::Id_InXtc),
 		       level, *stream(s)->inlet(),
 		       *_outlets[s], s, ipaddress,
-		       eventsize, eventpooldepth);
+		       MaxSize, eventpooldepth);
     //		vmoneb);
   }
   //  _occ_handler = new ControlOccHandler(*this);

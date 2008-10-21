@@ -19,7 +19,10 @@ SegStreams::SegStreams(CollectionManager& cmgr) :
   unsigned ipaddress = cmgr.header().ip();
   for (int s = 0; s < StreamParams::NumberOfStreams; s++) {
 
-    _outlets[s] = new ToEventWire(*stream(s)->outlet(), cmgr, ipaddress);
+    _outlets[s] = new ToEventWire(*stream(s)->outlet(), 
+				  cmgr, 
+				  ipaddress, 
+				  MaxSize*ebdepth);
 
     _inlet_wires[s] = 
       new EventBuilder(Src(cmgr.header()),

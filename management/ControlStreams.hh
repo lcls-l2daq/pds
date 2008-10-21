@@ -11,6 +11,7 @@ namespace Pds {
   class ControlStreams: public WiredStreams {
   public:
     enum { netbufdepth = 32 };
+    enum { MaxSize = 1024*1024 };
   public:
     ControlStreams(CollectionManager&);
     virtual ~ControlStreams();
