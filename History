@@ -1,3 +1,5 @@
+2008-Oct-21	weaver  Tag V00-02-02.  Minor fixes to event builder error handling and 
+			network buffering.
 2008-Oct-15	weaver  Tag V00-02-01.  Many fixes and changes for platform model.
 2008-Oct-10	weaver  Tag V00-02-00.  Collection added platforms.  First commit
 			of zero-copy event builders.  Also added zerocopy/tub as

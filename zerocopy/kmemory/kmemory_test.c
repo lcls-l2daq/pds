@@ -163,17 +163,28 @@ int copy_file(int fdFileOut, int fdFileIn, int fdKmemory)
 			}
 		}
 		/* splice from kmemory to out */
+		const int buf_size = 64*1024;
+		char buf[buf_size];
+		printf("Splicing %d bytes\n",totalrd);
 		for(blkwr = 0, count=0; count < totalrd; blkwr++) {
 			ret = splice(fdKmemory, NULL, fdPipeOut[1], NULL, totalrd-count, SPLICE_F_MOVE);
 			if (ret < 0) {
 				fprintf(stderr, "ERROR: splice (kmemory->pipe) failed, error %s.\n", strerror(errno));
 				return -errno;
 			}
+			printf("Spliced %d bytes (kmemory->pipe)\n",ret);
+			/***
+			printf("Splicing %d bytes pipe(%d)->out(%d)\n",ret,fdPipeOut[0],fdFileOut);
 			ret = splice(fdPipeOut[0], NULL, fdFileOut, NULL, ret, SPLICE_F_MOVE);
 			if (ret < 0) {
 				fprintf(stderr, "ERROR: splice (pipe->out) failed, error %s.\n", strerror(errno));
 				return -errno;
 			}
+			***/
+			ret = read (fdPipeOut[0], buf, buf_size);
+			printf("Copied %d bytes from pipe(%d)\n", ret, fdPipeOut[0]);
+			ret = write(fdFileOut, buf, ret);
+			printf("Copied %d bytes to out(%d)\n", ret, fdFileOut);
 			count += ret;		
 		}
 	}
@@ -237,6 +248,8 @@ int main(int argc, char *argv[])
 		kmemory_close(fdKmemoryDrv);
 		return 10;
 	}
+	else
+	  printf("Opened %s (%d)\n",szFileOut,fdFileOut);
 	/* Now do the real stuff */
 	ret = copy_file(fdFileOut, fdFileIn, fdKmemoryDrv);
 	if (ret < 0) {
