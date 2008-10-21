@@ -29,7 +29,7 @@ MODULE_AUTHOR("Matthew Weaver");
 MODULE_DESCRIPTION("big reservoir for splice");
 MODULE_VERSION("1.0");
 
-#define NDESCRIPTORS	(1024)
+#define NDESCRIPTORS	(4096)
 
 struct tub_desc {
         struct pipe_buffer      buf;
@@ -233,6 +233,17 @@ static int tub_ioctl(struct inode *inode, struct file *filp,
 	    }
 	  }
 	}
+	else if (cmd==TUB_IOCTL_FLUSH) {
+	        /* Free any descriptor owned by this driver */
+	        int i = pdata->drain;
+		while (i != pdata->fill) {
+	                struct tub_desc* d = &pdata->desc[i];
+			d->buf.ops->release(d->pipe,&d->buf);
+			i = (i+1)%NDESCRIPTORS;
+		}
+		pdata->drain = 0;
+		pdata->fill  = 0;
+	}
 	return 0;
 }
 
@@ -248,14 +259,14 @@ static int pipe_to_tub(struct pipe_inode_info *pipe,
 	d->buf  = *buf;
 
 	i = (i+1)%NDESCRIPTORS;
-	if (i==pdata->drain) return -ENOMEM;
+	if (i==pdata->drain) {
+	        printk(KERN_ALERT "pipe_to_tub exceeded ndescriptors\n");
+		return -ENOMEM;
+	}
 
 	buf->ops->get(pipe,buf);
 	pdata->fill  = i;
-	/***
-	printk(KERN_ALERT "tub %p fill buf %d %p/%p/%d/%d\n",
-	       pdata, d-&pdata->desc[0],pipe,buf->page,buf->offset,buf->len);
-	***/
+
 	return sd->len;
 }
 

@@ -11,6 +11,7 @@
 #define TUB_DEVNAME "tub"
 #define TUB_MAGIC 't'
 #define TUB_IOCTL_DEBUG	_IOW(TUB_MAGIC, 0, int*)
+#define TUB_IOCTL_FLUSH	_IOW(TUB_MAGIC, 1, int*)
 
 #ifndef __KERNEL__
 
@@ -47,6 +48,11 @@ static inline int tub_close(int fd)
 static inline int tub_debug(int fd)
 {
   return ioctl(fd, TUB_IOCTL_DEBUG, 0);
+}
+
+static inline int tub_flush(int fd)
+{
+  return ioctl(fd, TUB_IOCTL_FLUSH, 0);
 }
 
 #endif	/* #ifndef __KERNEL__ */
