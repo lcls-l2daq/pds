@@ -37,7 +37,7 @@ EbEventBase* ZcpEbC::_new_event(const EbBitMask& serverId)
   }
 #endif
 
-  if (depth==1 && _pending.forward()!=_pending.empty())
+  if (!depth)
     _postEvent(_pending.forward());
 
   ZcpDatagram* datagram = new(&_datagrams) ZcpDatagram(_ctns, _id);

@@ -68,7 +68,7 @@ Eb::Eb(const Src& id,
 unsigned Eb::_fixup( EbEventBase* event, const Src& client, const EbBitMask& id )
 {
   EbEvent* ev = (EbEvent*)event;
-  return ev->fixup ( client, TypeNum::Any );
+  return ev->fixup ( client, TypeNum::Any, id );
 }
 
 int Eb::processIo(Server* serverGeneric)
@@ -90,7 +90,8 @@ int Eb::processIo(Server* serverGeneric)
   //  Allocate space within this event-under-construction and receive the contribution.
   EbBitMask serverId;
   serverId.setBit(server->id());
-  int sizeofPayload  = server->fetch(event->payload(serverId), MSG_DONTWAIT);
+  char* payload = event->payload(serverId);
+  int sizeofPayload  = server->fetch(payload, MSG_DONTWAIT);
 
 #ifdef VERBOSE
   printf("Eb::processIo serverId %x payload_size 0x%x\n",
@@ -125,7 +126,6 @@ int Eb::processIo(Server* serverGeneric)
       //            and copy the payload there.  If the correct event doesn't yet exist, it will
       //            be created, if possible.
       _misses++;
-      char* payload = event->payload(serverId);
       event->deallocate(serverId);  // remove the contribution from this event
 #ifdef VERBOSE
       printf("Eb::processIo missed event %p\n", event);

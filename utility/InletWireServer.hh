@@ -66,8 +66,9 @@ private:
   void add_output(unsigned id, const Ins& rcvr);
   void remove_output(unsigned id);
 
-protected:
+public:
   Inlet& _inlet;
+protected:
   OutletWire& _outlet;
   //  StreamParams::StreamType _stream;
   int _ipaddress;

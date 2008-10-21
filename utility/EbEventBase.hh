@@ -126,9 +126,9 @@ inline EbBitMask& Pds::EbEventBase::segments()
 */
 
 inline EbBitMask Pds::EbEventBase::deallocate(EbBitMask id)
-  {
+{
   return _allocated.remove(id);
-  }
+}
 
 inline Pds::EbClients& Pds::EbEventBase::allocated()
 {

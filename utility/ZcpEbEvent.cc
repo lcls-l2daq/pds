@@ -83,8 +83,6 @@ bool ZcpEbEvent::consume(EbServer*        server,
       segment = segment->consume(zfrag, 
 				 server->offset());
       if (segment) { // complete now
-	printf("ZcpEbEvent::consume adding complete segment of sz %d\n",
-	       segment->length());
 	_zdatagram->_insert(segment->fragments(),segment->length(),zfrag);
 	allocated().insert(serverId);
 	delete segment;
@@ -103,20 +101,7 @@ bool ZcpEbEvent::consume(EbServer*        server,
     return true;
   }
   else { // complete contribution
-    /*
-    printf("ZcpEbEv inserting frag %d bytes from/to xtc size %d/%d\n",
-	   zfrag.size(), xtc.sizeofPayload(), datagram()->xtc.sizeofPayload());
-    {
-      ZcpFragment zdb;
-      int len = zdb.copy(zfrag,zfrag.size());
-      zdb.uremove(zdb_buff,zdb.size());
-      unsigned* d = (unsigned*)zdb_buff;
-      unsigned* e = (len > 32) ? d+8 : d+(len>>2);
-      while( d < e )
-	printf("%08x ",*d++);
-      printf("\n");
-    }
-    */    
+    //  How do we recover from a failure in the following zdg insert?
     _zdatagram->_insert(zfrag, zfrag.size());
     allocated().insert(serverId);
   }

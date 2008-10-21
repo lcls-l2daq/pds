@@ -106,41 +106,38 @@ int ToNetEb::send(ZcpDatagram* zdatagram,
 
   remaining -= zdatagram->_stream.remove(_fragment, remaining);
 
-  if (!remaining && (datagram.xtc.extent+sizeof(Datagram)) < Mtu::Size) 
-      return _client.send((char*)&datagram,
-			  (char*)&datagram.xtc,
-			  sizeof(InXtc),
-			  _fragment,
-			  _fragment.size(),
-			  dst);
-      
-  //  printf("ToNetEb::sendz %d/%d/%d\n",0,datagram.xtc.sizeofPayload(),_fragment.size());
+  int error;
 
-  int size;
-  size = (_fragment.size()+sizeof(OutletWireHeader)+sizeof(InXtc) < Mtu::Size) ?
-    _fragment.size() : Mtu::Size - sizeof(OutletWireHeader) - sizeof(InXtc);
-  OutletWireHeader header(&const_cast<Datagram&>(zdatagram->datagram()));
-  int error = _client.send((char*)&header,
+  if (!remaining && (datagram.xtc.extent+sizeof(Datagram)) <= Mtu::Size) 
+      error = _client.send((char*)&datagram,
 			   (char*)&datagram.xtc,
 			   sizeof(InXtc),
 			   _fragment,
-			   size,
+			   _fragment.size(),
 			   dst);
-  if(error)  return error;
-  
-  while(remaining || _fragment.size()) {
-    header.offset = datagram.xtc.extent - remaining - _fragment.size();
-    //    printf("ToNetEb::sendz %d/%d/%d\n",header.offset,datagram.xtc.sizeofPayload(),_fragment.size());
-    remaining -= zdatagram->_stream.remove(_fragment, remaining);
-    size = (_fragment.size()+sizeof(OutletWireHeader)+sizeof(InXtc) < Mtu::Size) ?
-      _fragment.size() : Mtu::Size - sizeof(OutletWireHeader);
-    error = _client.send((char*)&header,
-			 _fragment,
-			 size,
-			 dst);
-    if(error)  return error;
+
+  else {
+
+    ZcpChunkIterator chkIter(zdatagram,zdatagram->_stream,_fragment);
+
+    int error = _client.send((char*)chkIter.header(),
+			     (char*)&datagram.xtc,
+			     sizeof(InXtc),
+			     chkIter.payload(),
+			     chkIter.payloadSize(),
+			     dst);
+
+    while( !error && chkIter.next() ) {
+      error = _client.send((char*)chkIter.header(), 
+			   chkIter.payload(),
+			   chkIter.payloadSize(),
+			   dst);
+    }
   }
 
-  return 0;
+  if (error)
+    _fragment.flush();
+
+  return error;
 }
 

@@ -52,7 +52,7 @@ class EbEvent : public EbEventBase
     char*         recopy    (char* payload, 
 			     int sizeofPayload, 
 			     EbBitMask server);
-    unsigned      fixup     (const Src&, const TypeId&);
+    unsigned      fixup     (const Src&, const TypeId&, const EbBitMask&);
     char*         payload   (EbBitMask client);
     EbSegment*    hasSegment(EbBitMask client);
 

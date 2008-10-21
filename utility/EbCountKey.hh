@@ -14,7 +14,7 @@
 namespace Pds {
   class EbCountKey : public EbEventKey {
   public:
-    EbCountKey(Sequence& s) : key(-1UL), seq(s) { s = Sequence(); }
+    EbCountKey(Sequence& s) : key(-1UL), seq(s) {}
   public:
     PoolDeclare;
     EbCountKeyDeclare(EvrServer);

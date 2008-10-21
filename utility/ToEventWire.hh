@@ -19,7 +19,8 @@ namespace Pds {
   public:
     ToEventWire(Outlet& outlet,
 		CollectionManager&,
-		int);
+		int interface,
+		int maxbuf);
     ~ToEventWire();
 
     virtual Transition* forward(Transition* dg);

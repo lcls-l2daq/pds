@@ -11,7 +11,7 @@ class NetDgServer : public EbServer
   public:
     NetDgServer(const Ins& ins,
 		const Src& src,
-		unsigned   nbufs);
+		unsigned   maxbuf);
    ~NetDgServer();
   public:
     //  Eb interface

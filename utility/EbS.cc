@@ -42,7 +42,7 @@ EbEventBase* EbS::_new_event(const EbBitMask& serverId)
   }
 #endif
 
-  if (depth==1 && _pending.forward()!=_pending.empty())
+  if (!depth)
     _postEvent(_pending.forward());
 
   CDatagram* datagram = new(&_datagrams) CDatagram(_ctns, _id);

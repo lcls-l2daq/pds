@@ -213,12 +213,9 @@ char* EbEvent::recopy(char* payloadIn, int sizeofPayload, EbBitMask client)
 ** --
 */
 
-unsigned EbEvent::fixup(const Src& client, const TypeId& type)
+unsigned EbEvent::fixup(const Src& client, const TypeId& type, const EbBitMask& id)
   {
-  EbBitMask pid;
-  pid.setBit(client.pid());
-  EbSegment* segment = hasSegment(pid);
-
+  EbSegment* segment = hasSegment(id);
   if(segment)
     {
     return segment->fixup(type);

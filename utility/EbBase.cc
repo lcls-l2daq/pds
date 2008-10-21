@@ -25,6 +25,8 @@
 #include "pds/service/Client.hh"
 #include "Inlet.hh"
 
+#include <string.h>
+
 //#define VERBOSE
 
 using namespace Pds;
@@ -227,10 +229,10 @@ void EbBase::_post(EbEventBase* event)
 
   if(remaining.isNotZero()) {
 
-    char buff[64];
-    remaining.write(buff);
-    printf("EbBase::_post fixup seq %08x remaining %s\n",
-	   datagram->seq.high(),buff);
+    char buff[80];
+    sprintf(buff,"EbBase::_post fixup seq %08x remaining ",
+	    datagram->seq.high());
+    remaining.write(&buff[strlen(buff)]);
 
     // statistics
     EbBitMask id(EbBitMask::ONE);
@@ -243,6 +245,7 @@ void EbBase::_post(EbEventBase* event)
 	remaining &= ~id;
       }
     }
+    printf("%s dmg 0x%x\n",buff,dmg);
 
     datagram->xtc.damage.increase(dmg);
   }

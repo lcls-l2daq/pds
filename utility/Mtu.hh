@@ -36,7 +36,7 @@ class Mtu
   {
   public:
 //     enum {SizeAsPowerOfTwo = 15};                       // Currently 32 KBytes
-    enum {SizeAsPowerOfTwo = 14};                       // Currently 16 KBytes
+    enum {SizeAsPowerOfTwo = 13};                       // Currently 16 KBytes
     enum {Size             = (1 << SizeAsPowerOfTwo)};
     enum {SizeAsMask       = (Size - 1)};
   };

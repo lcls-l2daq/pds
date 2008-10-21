@@ -6,16 +6,15 @@
 #include "pds/xtc/Datagram.hh"
 #include "pds/xtc/InDatagram.hh"
 
-static const unsigned MaxDatagrams = 32;
-
 using namespace Pds;
 
 ToEventWire::ToEventWire(Outlet& outlet,
 			 CollectionManager& collection,
-			 int interface) :
+			 int interface,
+			 int maxbuf) :
   OutletWire(outlet),
   _collection(collection),
-  _postman(interface, Mtu::Size, MaxDatagrams)
+  _postman(interface, Mtu::Size, 1 + maxbuf / Mtu::Size)
 {
 }
 

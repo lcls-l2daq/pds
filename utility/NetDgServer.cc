@@ -41,12 +41,12 @@ static const unsigned MaxPayload = Mtu::Size;
 
 NetDgServer::NetDgServer(const Ins& ins,
 			 const Src& src,
-			 unsigned   nbufs) :
+			 unsigned   maxbuf) :
   _server(-1UL,
 	  ins,
 	  DatagramSize,
 	  MaxPayload,
-	  nbufs),
+	  maxbuf / (MaxPayload+DatagramSize) + 1 ),
   _client(src)
 {
   fd(_server.fd());
