@@ -52,7 +52,7 @@ namespace Pds {
       int      remove(iovec*,int maxiov,int bytes);  // map bytes into iovec and advance
       int      insert(KStream&, int bytes);      // add bytes of fragment to buffer
     private:
-      enum { MAXIOVS = 64 }; // maximum iovs allowed in one ZcpFragment (pipe)
+      enum { MAXIOVS = 4096 }; // maximum iovs in one datagram
       unsigned _bytes;   // number of bytes mapped but not returned to user
       unsigned _iiov;    // highest _iov returned to user
       unsigned _iiovlen; // length of _iiov segment not returned to user

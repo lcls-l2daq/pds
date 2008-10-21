@@ -4,30 +4,18 @@
 #include <errno.h>
 #include <string.h>
 
-//#define VERBOSE
-
 using namespace Pds;
 
 ZcpDatagramIterator::ZcpDatagramIterator( const ZcpDatagram& dg) :
   _size  (dg.datagram().xtc.sizeofPayload()),
   _offset(0)
 {
-#ifdef VERBOSE
-  printf("Creating ZcpDgIter %p  from dg size %d\n",
-	 this,_size);
-#endif
   ZcpFragment  zcp;
   ZcpDatagram& zdg(const_cast<ZcpDatagram&>(dg));
   int remaining(_size);
   while( remaining ) {
     int len = zdg._stream.remove(_fragment, remaining);
-#ifdef VERBOSE
-    printf("Removed %d/%d bytes from input\n",len,remaining);
-#endif
-    int copied = zcp.copy(_fragment, len);
-#ifdef VERBOSE
-    printf("Copied %d/%d bytes\n",copied,len);
-#endif
+    zcp.copy(_fragment, len);
     int err;
     if ( (err = zdg._stream.insert(_fragment, len)) != len ) {
       if (err < 0)
@@ -56,34 +44,22 @@ ZcpDatagramIterator::~ZcpDatagramIterator()
 int ZcpDatagramIterator::skip(int len)
 {
   if (_offset + len > _size +_iovbuff.bytes()) {
-#ifdef VERBOSE
-    printf("ZDI::skip(%d+%d) exceeds datagram extent(%d+%d) ...reducing\n",
-	   len, _offset, _size, _iovbuff.bytes());
-#endif
     len = _size - _offset + _iovbuff.bytes();
   }
 
   int remaining(len);
-#ifdef VERBOSE
-  printf("skipping %d bytes .. mapped\n",remaining);
-#endif
   // skip over mapped bytes first
   remaining -= _iovbuff.remove(len);  
 
   // skip over unmapped bytes
-#ifdef VERBOSE
-  printf("skipping %d bytes .. unmapped\n",remaining);
-#endif
-
-  /***
-   ***  Once kmemory_skip is implemented
-   **/
+#if 0
   _stream.remove(remaining);
+#else
+  while (remaining > _iovbuff.bytes())
+    _iovbuff.insert(_stream, remaining-_iovbuff.bytes());
   remaining -= _iovbuff.remove(remaining);
-
-#ifdef VERBOSE
-  printf("skipping left %d bytes\n",remaining);
 #endif
+
   _offset += (len-remaining);
 
   return len-remaining;
@@ -95,16 +71,9 @@ int ZcpDatagramIterator::skip(int len)
 int ZcpDatagramIterator::read(iovec* iov, int maxiov, int len)
 {
   if (_offset + len > _size + _iovbuff.bytes()) {
-#ifdef VERBOSE
-    printf("ZDI::read(%d+%d) exceeds datagram extent(%d+%d) ...reducing\n",
-	   len, _offset, _size, _iovbuff.bytes());
-#endif
     len = _size - _offset + _iovbuff.bytes();
   }
 
-#ifdef VERBOSE
-  printf("read %d bytes\n",len);
-#endif
   //  Pull enough data into the IovBuffer
   while (len > _iovbuff.bytes()) {
     _offset += _iovbuff.insert(_stream, len-_iovbuff.bytes());
@@ -138,9 +107,6 @@ void ZcpDatagramIterator::IovBuffer::unmap(KStream& stream)
 //
 int ZcpDatagramIterator::IovBuffer::remove(int bytes)
 {
-#ifdef VERBOSE
-  printf("ZDI remove %d/%d bytes\n",bytes,_bytes);
-#endif
   int len(bytes);
   if (_iiovlen) {
     len -= _iiovlen;
@@ -166,9 +132,6 @@ int ZcpDatagramIterator::IovBuffer::remove(int bytes)
 //
 int ZcpDatagramIterator::IovBuffer::remove(iovec* iov, int maxiov, int bytes)
 {
-#ifdef VERBOSE
-  printf("ZDI remove %d/%d bytes\n",bytes,_bytes);
-#endif
   iovec* iovend = iov+maxiov;
   int len = bytes;
   if (_iiovlen) {
@@ -204,9 +167,6 @@ int ZcpDatagramIterator::IovBuffer::remove(iovec* iov, int maxiov, int bytes)
 //
 int ZcpDatagramIterator::IovBuffer::insert(KStream& stream, int bytes)
 {
-#ifdef VERBOSE
-  printf("ZDI::IovBuffer::insert %d bytes\n",bytes);
-#endif
   int obytes(_bytes);
 
   do {
@@ -221,11 +181,6 @@ int ZcpDatagramIterator::IovBuffer::insert(KStream& stream, int bytes)
 	     strerror(errno),errno,&_iovs[_niov],_niov,MAXIOVS-_niov);
       break;
     }
-#ifdef VERBOSE
-    printf("ZDI::insert mapped %d iovs\n",niov);
-    for(int k=0; k<niov; k++)
-      printf("ZDI::iov %p/%d\n",_iovs[_niov+k].iov_base,_iovs[_niov+k].iov_len);
-#endif
 
     int len  = 0;
     while( niov-- )
