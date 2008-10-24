@@ -12,9 +12,12 @@ using namespace Pds;
 static const unsigned NoPlatform = 0;
 static const unsigned NoTmo = 0;
 
+static const int Connect = 2;
+
 CollectionSource::CollectionSource(unsigned maxpayload, Arp* arp) :
   CollectionServerManager(CollectionPorts::platform(), 
-                          Level::Source, NoPlatform, maxpayload, NoTmo, arp)
+                          Level::Source, NoPlatform, maxpayload, NoTmo, arp),
+  _sem(Semaphore::EMPTY)
 {
   donottimeout();
 }
@@ -26,7 +29,8 @@ bool CollectionSource::connect(int interface)
   Route::set(_table, interface);
   interface = Route::interface();
   if (interface) {
-    _connected();
+    unblock((char*)&Connect);
+    _sem.take();
     return true;
   } else {
     return false;
@@ -39,6 +43,12 @@ int CollectionSource::commit(char* datagram,
                              const Ins& src) 
 {
   if (!payloadSize) {
+    int request = *(int*)datagram;
+    if (request == Connect) {
+      _connected();
+      _sem.give();
+      return 1;
+    }
     return 0;
   } else {
 //     const Node& hdr = *(Node*)datagram;

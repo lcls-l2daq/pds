@@ -3,6 +3,8 @@
 
 #include "CollectionServerManager.hh"
 
+#include "pds/service/Semaphore.hh"
+
 namespace Pds {
 class CollectionSource: public CollectionServerManager {
 public:
@@ -18,6 +20,9 @@ private:
 
   // Implements ServerManager
   virtual int processTmo();
+
+private:
+  Semaphore _sem;
 };
 
 }
