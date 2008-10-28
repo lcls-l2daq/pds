@@ -1,3 +1,4 @@
+2008-Oct-27     cpo     Tag V00-03-00.  Add support for evg/evr/acqiris.
 2008-Oct-21	weaver  Tag V00-02-02.  Minor fixes to event builder error handling and 
 			network buffering.
 2008-Oct-15	weaver  Tag V00-02-01.  Many fixes and changes for platform model.

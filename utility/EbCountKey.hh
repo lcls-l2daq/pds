@@ -5,6 +5,7 @@
 
 #include "EvrServer.hh"
 #include "ToEb.hh"
+#include "AcqServer.hh"
 #include "pds/service/Pool.hh"
 
 #define EbCountKeyDeclare( server ) \
@@ -23,6 +24,11 @@ namespace Pds {
     // L1 Servers here
     EbCountKeyDeclare(ToEb);
     virtual void assign   (const ToEb& s) { 
+      key = s.count(); }
+    EbCountKeyDeclare(AcqServer);
+    virtual void assign   (const AcqServer& s) { 
+      //      printf("%s assign %08x\n","ToEb",
+      //	     s.count());
       key = s.count(); }
   public:
     const Sequence& sequence() const { return seq; }

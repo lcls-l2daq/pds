@@ -8,6 +8,7 @@ namespace Pds {
   class EvrServer;
   class NetDgServer;
   class ToEb;
+  class AcqServer;
 
 #define EbServerDeclare \
     bool        succeeds (EbEventKey& key) const { return key.precedes(*this); } \
@@ -30,6 +31,7 @@ namespace Pds {
     EbEventKeyDeclare(EvrServer);
     EbEventKeyDeclare(NetDgServer);
     EbEventKeyDeclare(ToEb);
+    EbEventKeyDeclare(AcqServer);
   };
 
 }

@@ -52,7 +52,6 @@ void PartitionMember::message(const Node& hdr, const Message& msg)
 		const Node* node = alloc.node(n);
 		printf("node %x %d %d\n", node->ip(), node->uid(), node->pid());
 		if (header() == *node) {
-		  printf("node now in partition %s\n", alloc.partition());
 		  _isallocated = true;
 		  _allocator = hdr;
 		  allocated( alloc, _index=index );

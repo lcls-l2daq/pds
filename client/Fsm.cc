@@ -77,7 +77,6 @@ InDatagram* Fsm::occurrences(InDatagram* in) {
 
 Transition* Fsm::transitions(Transition* tr) {
   TransitionId::Value id = tr->id();
-  printf("Received id %d\n",id);
   State reqState = _reqState(id);
   if (_allowed(reqState)) {
     _action[id]->fire(tr);
