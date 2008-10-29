@@ -1,7 +1,8 @@
 #ifndef EventBuilder_hh
 #define EventBuilder_hh
 
-#if ( __GNUC__ > 3 )
+//#if ( __GNUC__ > 3 )
+#if 0
 
 #include "pds/utility/ZcpEbS.hh"
 typedef Pds::ZcpEbS EventBuilder;

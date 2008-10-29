@@ -7,7 +7,6 @@
 #include "pds/service/Pool.hh"
 #include "pds/service/ZcpFragment.hh"
 #include "pds/service/ZcpStream.hh"
-#include "pds/xtc/xtc.hh"
 
 namespace Pds {
 

@@ -12,6 +12,8 @@
 #include <string.h>
 #include <stdlib.h>
 
+#define RESET_COUNT 0x80000000
+
 // ========================================================
 // FindConnIndex
 // ========================================================
@@ -95,56 +97,60 @@ int Pds::Opal1000::PicPortCameraConfig(LvROI &Roi) {
   return 0;
 }
 
+#define SetParameter(title,cmd,val1) { \
+  unsigned long val = val1; \
+  printf("Setting %s = d%lu\n",title,val); \
+  snprintf(szCommand, SZCOMMAND_MAXLEN, "%s%lu", cmd, val); \
+  ret = SendCommand(szCommand, NULL, 0); \
+  if (ret<0) return ret; \
+  snprintf(szCommand, SZCOMMAND_MAXLEN, "%s?", cmd); \
+  ret = SendCommand(szCommand, szResponse, SZCOMMAND_MAXLEN); \
+  unsigned long rval; \
+  sscanf(szResponse+2,"%lu",&rval); \
+  printf("Read %s = d%lu\n", title, rval); \
+  if (rval != val) return -EINVAL; \
+}
+
+#define SetParameters(title,cmd,val1,val2) { \
+  unsigned long v1 = val1; \
+  unsigned long v2 = val2; \
+  printf("Setting %s = d%lu;d%lu\n",title,v1,v2); \
+  snprintf(szCommand, SZCOMMAND_MAXLEN, "%s%lu;%lu",cmd,v1,v2); \
+  ret = SendCommand(szCommand, NULL, 0); \
+  if (ret<0) return ret; \
+  snprintf(szCommand, SZCOMMAND_MAXLEN, "%s?", cmd); \
+  ret = SendCommand(szCommand, szResponse, SZCOMMAND_MAXLEN); \
+  unsigned long rv1,rv2; \
+  sscanf(szResponse+2,"%lu;%lu",&rv1,&rv2); \
+  printf("Read %s = d%lu;d%lu\n", title, rv1,rv2); \
+  if (rv1 != v1 || rv2 != v2) return -EINVAL; \
+}
+
 int Pds::Opal1000::PicPortCameraInit() {
   #define SZCOMMAND_MAXLEN  20
-  char szCommand[SZCOMMAND_MAXLEN];
+  char szCommand [SZCOMMAND_MAXLEN];
+  char szResponse[SZCOMMAND_MAXLEN];
   int ret;
 
-  // Set factory defaults (by loading config 0)
-  snprintf(szCommand, SZCOMMAND_MAXLEN, "LC0");
-  ret = SendCommand(szCommand, NULL, 0);
-  if(ret < 0)
-    return ret;
-  // Set the black level
-  snprintf(szCommand, SZCOMMAND_MAXLEN, "BL%lu", 
-                  (((unsigned long)config.BlackLevelPercent*4096)/100)-1);
-  ret = SendCommand(szCommand, NULL, 0);
-  if(ret < 0)
-    return ret;
-  // Set the frame period (in 100th of ms)
-  snprintf(szCommand, SZCOMMAND_MAXLEN, "FP%lu",
-                                100000/(unsigned long)config.FramesPerSec);
-  ret = SendCommand(szCommand, NULL, 0);
-printf("Sending command %s => %d.\n",szCommand, ret);
-  if(ret < 0)
-    return ret;
-  // Set the digital gain of the camera
-  snprintf(szCommand, SZCOMMAND_MAXLEN, "GA%lu",
-                        ((unsigned long)config.GainPercent*3100)/100+100);
-  ret = SendCommand(szCommand, NULL, 0);
-  if(ret < 0)
-    return ret;
-  // Set the integration time
-  snprintf(szCommand, SZCOMMAND_MAXLEN, "IT%lu",config.ShutterMicroSec/10);
-  ret = SendCommand(szCommand, NULL, 0);
-  if(ret < 0)
-    return ret;
-  // Set the operating mode
-  int mode;
-  switch(config.Mode) {
-    case Camera::MODE_CONTINUOUS:
-      mode = 0;
-      break;
-    case Camera::MODE_EXTTRIGGER_SHUTTER:
-      mode = 1;
-      break;
-    default:
-      return -ENOSYS;  // should not happen
-  };
-  snprintf(szCommand, SZCOMMAND_MAXLEN, "MO%d", mode);
-  ret = SendCommand(szCommand, NULL, 0);
-  if(ret < 0)
-    return ret;
+  SetParameter("Black Level","BL",
+	       (((unsigned long)config.BlackLevelPercent*4096)/100)-1);
+  SetParameter("Digital Gain","GA",
+	       ((unsigned long)config.GainPercent*3100)/100+100);
+
+  if (config.Mode == MODE_CONTINUOUS) {
+    SetParameter("Operating Mode","MO",0);
+    SetParameter("Frame Period","FP",
+		 100000/(unsigned long)config.FramesPerSec);
+    SetParameter("Integration Time","IT",
+		 config.ShutterMicroSec/10);
+  }
+  else if (config.Mode == MODE_EXTTRIGGER_SHUTTER) {
+    SetParameter("Operating Mode","MO",1);
+    SetParameters("External Inputs","CCE",4,1);
+  }
+  else
+    return -ENOSYS;
+
   // Set the output resolution
   int nbits;
   switch(config.Format) {
@@ -160,20 +166,12 @@ printf("Sending command %s => %d.\n",szCommand, ret);
     default:
       return -ENOSYS;  // should not happen
   };
-  snprintf(szCommand, SZCOMMAND_MAXLEN, "OR%d", nbits);
-  ret = SendCommand(szCommand, NULL, 0);
-  if(ret < 0)
-    return ret;
-  // Set the vertical remap
-  snprintf(szCommand, SZCOMMAND_MAXLEN, "VR1"); // Required by frame-grabber
-  ret = SendCommand(szCommand, NULL, 0);
-  if(ret < 0)
-    return ret;
-  // Enable overlay information
-  snprintf(szCommand, SZCOMMAND_MAXLEN, "OVL1");
-  ret = SendCommand(szCommand, NULL, 0);
-  if(ret < 0)
-    return ret;
+  SetParameter("Output Resolution","OR",nbits);
+  SetParameter("Overlay Function","OVL",1);
+  SetParameter("Vertical Remap","VR",1);
+
+  CurrentCount = RESET_COUNT;
+
   return 0;
 }
 
@@ -200,6 +198,7 @@ Pds::Frame *Pds::Opal1000::PicPortFrameProcess(Pds::Frame *pFrame) {
       return pFrame;
   }
 
+#if 0
   if (LastCount == 0) {
     // First time we cannot measure the dropped frames
     status.CapturedFrames += 1;
@@ -220,6 +219,14 @@ Pds::Frame *Pds::Opal1000::PicPortFrameProcess(Pds::Frame *pFrame) {
   }
   status.CapturedFrames += Delta;
   LastCount = Count;
+#else
+  if (CurrentCount==RESET_COUNT) {
+    CurrentCount = 0;
+    LastCount = Count;
+  }
+  else
+    CurrentCount = Count - LastCount;
+#endif
   return pFrame;
 }
 

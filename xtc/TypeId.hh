@@ -8,8 +8,9 @@ namespace Pds {
   class TypeNum {
   public:
     enum { Any = 0 };
-    enum { Id_Xtc   = 0x000F0000 };
-    enum { Id_InXtc = 0x000F0001 };
+    enum { Id_Xtc      = 0x000F0000,
+	   Id_Frame    = 0x000F0001,
+	   Id_Waveform = 0x000F0002 };
   };
 
   class TypeId {

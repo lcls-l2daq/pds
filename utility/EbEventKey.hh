@@ -4,16 +4,14 @@
 namespace Pds {
 
   class Sequence;
-  class BldServer;
+  class EbSequenceSrv;
+  class EbCountSrv;
   class EvrServer;
-  class NetDgServer;
-  class ToEb;
-  class AcqServer;
 
 #define EbServerDeclare \
-    bool        succeeds (EbEventKey& key) const { return key.precedes(*this); } \
-    bool        coincides(EbEventKey& key) const { return key.coincides(*this); } \
-    void        assign   (EbEventKey& key) const { return key.assign(*this); } \
+    virtual bool succeeds (EbEventKey& key) const { return key.precedes (*this); } \
+    virtual bool coincides(EbEventKey& key) const { return key.coincides(*this); } \
+    virtual void assign   (EbEventKey& key) const { key.assign   (*this); } \
 
 
 #define EbEventKeyDeclare(server) \
@@ -25,13 +23,11 @@ namespace Pds {
   public:
     virtual ~EbEventKey() {}
   public:
-    virtual const Sequence& sequence() const = 0;
+    EbEventKeyDeclare(EbSequenceSrv);
+    EbEventKeyDeclare(EbCountSrv);
+    virtual void assign   (const EvrServer&) {}
   public:
-    EbEventKeyDeclare(BldServer);
-    EbEventKeyDeclare(EvrServer);
-    EbEventKeyDeclare(NetDgServer);
-    EbEventKeyDeclare(ToEb);
-    EbEventKeyDeclare(AcqServer);
+    virtual const Sequence& sequence() const = 0;
   };
 
 }

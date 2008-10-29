@@ -94,7 +94,7 @@ bool EvrServer::isValued() const
   return true;
 }
 
-const InXtc&   EvrServer::xtc   () const
+const Xtc&   EvrServer::xtc   () const
 {
   return ((Datagram*)_server.datagram())->xtc;
 }

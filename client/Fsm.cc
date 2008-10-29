@@ -68,6 +68,14 @@ unsigned Fsm::_allowed(State reqState) {
 }
 
 InDatagram* Fsm::events(InDatagram* in) {
+  TransitionId::Value id = in->datagram().seq.service();
+  State reqState = _reqState(id);
+  if (_state == reqState) {
+    in = _action[id]->fire(in);
+  } else {
+    // assert invalid transition damage here
+    printf("Invalid event %s\n",TransitionId::name(id));
+  }
   return in;
 }
 
@@ -79,7 +87,7 @@ Transition* Fsm::transitions(Transition* tr) {
   TransitionId::Value id = tr->id();
   State reqState = _reqState(id);
   if (_allowed(reqState)) {
-    _action[id]->fire(tr);
+    tr = _action[id]->fire(tr);
     // need to check for failure of the action before updating _state
     _state = reqState;
   } else {

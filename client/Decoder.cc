@@ -49,7 +49,7 @@ Decoder::Decoder(Level::Type level) :
 
 Transition* Decoder::transitions(Transition* in) 
   {
-  printf("\nTransition: id %d\n", in->id());
+  printf("Transition: id %d\n", in->id());
   return in;
   }
 
@@ -62,7 +62,6 @@ Transition* Decoder::transitions(Transition* in)
 
 InDatagram* Decoder::events(InDatagram* in) 
   {
-  printf("\nEvent:\n");
   return _handleDg(in);
   }
 
@@ -103,7 +102,7 @@ InDatagram* Decoder::_handleDg(InDatagram* in){
   InDatagramIterator* iter = in->iterator(&_pool);
   int advance=0;
   Browser browser(in->datagram(), iter, _depth, advance);
-  if (in->datagram().xtc.contains == TypeNum::Id_InXtc)
+  if (in->datagram().xtc.contains == TypeNum::Id_Xtc)
     if (browser.iterate() < 0)
       printf("..Terminated.\n");
   delete iter;

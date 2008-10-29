@@ -20,6 +20,8 @@
 #include "camstream.h"
 #include "display.h"
 
+#define USE_TCP
+
 #define IMAGE_RINGBUFFER_SIZE	8
 #define SOCKET_BUFFER_SIZE	(1*1024*1024)	/* buffer of the socket, VERY important in UDP */
 

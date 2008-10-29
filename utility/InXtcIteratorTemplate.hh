@@ -23,13 +23,13 @@
 namespace Pds {
 
 template<class C>
-class InXtcIteratorTemplate
+class XtcIteratorTemplate
 {
 public:
-  InXtcIteratorTemplate(C* root):
+  XtcIteratorTemplate(C* root):
     _root(root){}
-  InXtcIteratorTemplate() {}
-  virtual ~InXtcIteratorTemplate() {}
+  XtcIteratorTemplate() {}
+  virtual ~XtcIteratorTemplate() {}
 
   virtual int process(C* root) = 0;
 
@@ -52,13 +52,13 @@ protected:
 */
 
 template<class C> inline 
-void InXtcIteratorTemplate<C>::iterate() 
+void XtcIteratorTemplate<C>::iterate() 
 {
   iterate(_root);
 } 
 
 template<class C> inline
-void InXtcIteratorTemplate<C>::iterate(C* root) 
+void XtcIteratorTemplate<C>::iterate(C* root) 
 {
   if (root->damage.value() & ( 1 << Damage::IncompleteContribution)){
     return;

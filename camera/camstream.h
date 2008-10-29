@@ -29,7 +29,7 @@ struct camstream_image_t {
 	uint16_t height;
 	void *data;	
 };
-#define CAMSTREAM_IMAGE_HDR		htonl(('I'<<24) | ('M'<<16) | ('G'<<24) | 0)
+#define CAMSTREAM_IMAGE_HDR		htonl(('I'<<24) | ('M'<<16) | ('G'<< 8) | 0)
 #define CAMSTREAM_IMAGE_PKTSIZE		htonl(sizeof(struct camstream_image_t))
 
 enum camstream_proto {

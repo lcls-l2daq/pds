@@ -19,7 +19,6 @@
 */
 
 #include "EbSegment.hh"
-#include "pds/xtc/xtc.hh"
 #include <stdio.h>
 using namespace Pds;
 
@@ -44,7 +43,7 @@ using namespace Pds;
 ** --
 */
 
-EbSegment::EbSegment(const InXtc& header,
+EbSegment::EbSegment(const Xtc& header,
 		     char* base,
 		     int sizeofFragment,
 		     int offset,
@@ -117,7 +116,7 @@ EbSegment* EbSegment::consume(int sizeofFragment, int expected)
 /*
 ** ++
 **
-** fixup() is called when a missing "chunk" is identified. The InXtc
+** fixup() is called when a missing "chunk" is identified. The Xtc
 ** header is faked up to make sure that it wasn't lost/corrupted. The datagram
 ** is also marked with the apropriate damage.
 **
@@ -127,7 +126,7 @@ EbSegment* EbSegment::consume(int sizeofFragment, int expected)
 
 unsigned EbSegment::fixup(const TypeId& type){
   Damage damaged(1 << Damage::IncompleteContribution);
-  InXtc* inXtc = new(_base) InXtc(type, _header.src, damaged);
-  inXtc->alloc(_header.sizeofPayload());
+  Xtc* xtc = new(_base) Xtc(type, _header.src, damaged);
+  xtc->alloc(_header.sizeofPayload());
   return damaged.value();
 }

@@ -3,7 +3,7 @@
 
 #include "Sequence.hh"
 #include "Env.hh"
-#include "InXtc.hh"
+#include "Xtc.hh"
 #include "TypeId.hh"
 
 #include "pds/service/Pool.hh"
@@ -45,7 +45,7 @@ namespace Pds {
 
     Sequence seq;
     Env   env;
-    InXtc xtc;
+    Xtc xtc;
   };
 
 }

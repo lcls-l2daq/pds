@@ -16,7 +16,8 @@
 #define OPAL1000_NAME_12bits      "Adimec_Opal-1000m/Q"
 #define OPAL1000_NAME_10bits      "Adimec_Opal-1000m/Q_F10bit"
 #define OPAL1000_NAME_8bits       "Adimec_Opal-1000m/Q_F8bit"
-#define OPAL1000_SERIAL_BAUDRATE  115200
+//#define OPAL1000_SERIAL_BAUDRATE  115200
+#define OPAL1000_SERIAL_BAUDRATE  57600
 #define OPAL1000_SERIAL_PARITY    LvComm_ParityNone
 #define OPAL1000_SERIAL_DATASIZE  LvComm_Data8
 #define OPAL1000_SERIAL_STOPSIZE  LvComm_Stop1
@@ -28,7 +29,7 @@
 
 namespace Pds {
 
-class Opal1000: public PicPortCL {
+  class Opal1000: public PicPortCL {
   public:
     Opal1000(char *id = NULL);
     virtual ~Opal1000();
@@ -38,7 +39,9 @@ class Opal1000: public PicPortCL {
     virtual Pds::Frame *PicPortFrameProcess(Pds::Frame *pFrame);
   private:
     unsigned long LastCount;
-};
+  public:
+    unsigned long CurrentCount;
+  };
 
 }
 

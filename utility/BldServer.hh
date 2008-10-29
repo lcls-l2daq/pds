@@ -2,12 +2,13 @@
 #define PDS_BLDSERVER
 
 #include "EbServer.hh"
+#include "EbSequenceSrv.hh"
 #include "EbEventKey.hh"
 #include "pds/service/NetServer.hh"
 #include "pds/service/ZcpFragment.hh"
 
 namespace Pds {
-class BldServer : public EbServer
+  class BldServer : public EbServer, public EbSequenceSrv
   {
   public:
     BldServer(const Ins& ins,
@@ -20,7 +21,7 @@ class BldServer : public EbServer
     bool        isValued()             const;
     const Src&  client  ()             const;
     //  EbSegment interface
-    const InXtc&   xtc   () const;
+    const Xtc&   xtc   () const;
     bool           more  () const;
     unsigned       length() const;
     unsigned       offset() const;
@@ -38,7 +39,7 @@ class BldServer : public EbServer
   private:
     NetServer   _server;
     Src         _client;
-    InXtc       _xtc;
+    Xtc       _xtc;
     ZcpFragment _dg;
   };
 }

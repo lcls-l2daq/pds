@@ -11,7 +11,7 @@
 #include "pds/service/Task.hh"
 #include "pds/service/Routine.hh"
 #include "pds/utility/DmaEngine.hh"
-#include "pds/utility/AcqServer.hh"
+#include "AcqServer.hh"
 #include "pds/client/Fsm.hh"
 #include "pds/client/Action.hh"
 
@@ -22,7 +22,7 @@ public:
   AcqReader(ViSession instrumentId, AcqServer& server, Task* task) :
     _instrumentId(instrumentId),_task(task),_server(server),_count(0) {
   }
-  void start() {_task->call(this);}
+  void start() { _count=0; _task->call(this);}
   virtual ~AcqReader() {}
   void routine() {
     ViStatus status;
@@ -36,10 +36,7 @@ public:
         printf("%s\n",message);
       }
     } while (status);
-    Datagram dg;
-    dg.xtc.alloc(NumSamples*sizeof(short));
-    *(unsigned*)&dg = _count++;
-    _server.headerComplete(dg);
+    _server.headerComplete(NumSamples*sizeof(short),_count++);
   }
 private:
   enum{NumSamples=5000};
@@ -107,7 +104,7 @@ class AcqConfigAction : public AcqDC282Action {
 public:
   AcqConfigAction(ViSession instrumentId, AcqReader& reader) :
     AcqDC282Action(instrumentId),_reader(reader) {}
-  void fire(Transition* tr) {
+  Transition* fire(Transition* tr) {
     printf("Configuring acqiris %d\n",(unsigned)_instrumentId);
     double sampInterval = 10.e-6, delayTime = 0.0;
     long nbrSamples = 5000, nbrSegments = 1;
@@ -145,6 +142,7 @@ public:
         printf("%s\n",message);
       }
     _reader.start();
+    return tr;
   }
 private:
   AcqReader& _reader;

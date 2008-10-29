@@ -101,7 +101,7 @@ int ToNetEb::send(ZcpDatagram* zdatagram,
 
   if (!remaining) return _client.send((char*)&datagram,
 				      (char*)&datagram.xtc,
-				      sizeof(InXtc),
+				      sizeof(Xtc),
 				      dst);
 
   remaining -= zdatagram->_stream.remove(_fragment, remaining);
@@ -111,7 +111,7 @@ int ToNetEb::send(ZcpDatagram* zdatagram,
   if (!remaining && (datagram.xtc.extent+sizeof(Datagram)) <= Mtu::Size) 
       error = _client.send((char*)&datagram,
 			   (char*)&datagram.xtc,
-			   sizeof(InXtc),
+			   sizeof(Xtc),
 			   _fragment,
 			   _fragment.size(),
 			   dst);
@@ -122,7 +122,7 @@ int ToNetEb::send(ZcpDatagram* zdatagram,
 
     int error = _client.send((char*)chkIter.header(),
 			     (char*)&datagram.xtc,
-			     sizeof(InXtc),
+			     sizeof(Xtc),
 			     chkIter.payload(),
 			     chkIter.payloadSize(),
 			     dst);

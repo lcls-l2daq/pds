@@ -6,10 +6,10 @@
 #include "pds/service/RingPool.hh"
 
 namespace Pds {
-class EbBitMaskArrayXtc : public InXtc {
+class EbBitMaskArrayXtc : public Xtc {
 public:
   EbBitMaskArrayXtc(const Src& src, OutletWireInsList& nodes) : 
-    InXtc(EbBitMaskArrayTC(), src, Damage(0))
+    Xtc(EbBitMaskArrayTC(), src, Damage(0))
   {
     tag.extend(sizeof(EbBitMaskArray));
 

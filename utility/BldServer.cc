@@ -97,7 +97,7 @@ bool BldServer::isValued() const
   return false;
 }
 
-const InXtc&   BldServer::xtc   () const
+const Xtc&   BldServer::xtc   () const
 {
   return _xtc;
 }
@@ -129,10 +129,10 @@ int BldServer::pend(int flag)
 
 int BldServer::fetch(char* payload, int flags)
 {
-  InXtc* xtc = new (payload)InXtc(_xtc);
+  Xtc* xtc = new (payload)Xtc(_xtc);
   int length = _server.fetch(xtc->payload(),flags);
   xtc->alloc(length);
-  _xtc.alloc(length+sizeof(InXtc)-_xtc.extent);
+  _xtc.alloc(length+sizeof(Xtc)-_xtc.extent);
   /*
   printf("BldServer::fetch  payload %p  flags %x : length %x extent %x/%x\n", 
     	 payload, flags, length, xtc->tag.extent(), _xtc.tag.extent());
@@ -144,15 +144,15 @@ int BldServer::fetch(char* payload, int flags)
   }
   printf("\n");
   */
-  return length+sizeof(InXtc);
+  return length+sizeof(Xtc);
 }
 
 int BldServer::fetch(ZcpFragment& zf, int flags)
 {
   ZcpFragment zcp;
   int length = _server.fetch(zcp,flags);
-  _xtc.alloc(length+sizeof(InXtc)-_xtc.extent);
-  zf.uinsert(&_xtc,sizeof(InXtc));
+  _xtc.alloc(length+sizeof(Xtc)-_xtc.extent);
+  zf.uinsert(&_xtc,sizeof(Xtc));
   zf.copy   (zcp, length);
   //  printf("BldServer::fetch  dg %p  flags %x : length %x extent %x\n", 
   //	 &dg, flags, length, _xtc.tag.extent());

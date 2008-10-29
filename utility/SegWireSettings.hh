@@ -1,6 +1,8 @@
 #ifndef PDS_SEGWIRESETTINGS_HH
 #define PDS_SEGWIRESETTINGS_HH
 
+#include "StreamParams.hh"
+
 namespace Pds {
 
 class InletWire;

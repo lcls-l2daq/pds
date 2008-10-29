@@ -7,13 +7,14 @@
 //  This class is used by an appliance stream outlet to send datagrams
 //  directly to the event builder of another appliance stream through 
 //  the use of a unix pipe.  It differs from other outlet clients in
-//  that it does not reproduce the InXtc from the datagram into the payload.
+//  that it does not reproduce the Xtc from the datagram into the payload.
 //  This allows contributions to the first stream's event builder to
 //  appear at the same level as contribution's to the second stream's
 //  event builder.
 //
 
 #include "EbServer.hh"
+#include "EbSequenceSrv.hh"
 #include "EbEventKey.hh"
 
 #include "pds/service/ZcpFragment.hh"
@@ -24,7 +25,7 @@ namespace Pds {
   class CDatagram;
   class ZcpDatagram;
 
-  class ToEb : public EbServer {
+  class ToEb : public EbServer, public EbSequenceSrv {
   public:
     ToEb(const Src& client);
     virtual ~ToEb() {}
@@ -37,7 +38,7 @@ namespace Pds {
     bool        isValued()             const;
     const Src&  client  ()             const;
     //  EbSegment interface
-    const InXtc&   xtc   () const;
+    const Xtc&   xtc   () const;
     bool           more  () const { return _more; }
     unsigned       length() const { return _datagram.xtc.sizeofPayload(); }
     unsigned       offset() const { return _offset; }
@@ -51,7 +52,6 @@ namespace Pds {
     int      fetch       (ZcpFragment& , int flags);
   public:
     const Sequence& sequence() const;
-    unsigned count() const;
   private:
     int      _pipefd[2];
     Src      _client;

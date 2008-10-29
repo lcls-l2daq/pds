@@ -1,28 +1,28 @@
 #ifndef PDS_BROWSER
 #define PDS_BROWSER
 
-#include "InXtcIterator.hh"
+#include "XtcIterator.hh"
 
 namespace Pds {
 
 class Datagram;
 class InDatagram;
 
-class Browser : public InXtcIterator
+class Browser : public XtcIterator
   {
   public:
     Browser(const Datagram&,
 	    InDatagramIterator*,
 	    int depth,
 	    int&);
-    Browser(const InXtc& xtc, 
+    Browser(const Xtc& xtc, 
 	    InDatagramIterator*,
 	    int depth,
 	    int&);
-    int process(const InXtc&,
+    int process(const Xtc&,
 		InDatagramIterator*);
   private:
-    int _dumpBinaryPayload(const InXtc& inXtc,
+    int _dumpBinaryPayload(const Xtc& xtc,
 			   InDatagramIterator*);
   private:
     int _header;

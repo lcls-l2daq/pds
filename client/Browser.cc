@@ -8,9 +8,9 @@
 using namespace Pds;
 
 
-static bool _containsInXtc(TypeId type)
+static bool _containsXtc(TypeId type)
 {
-  return (type.value == TypeNum::Id_InXtc);
+  return (type.value == TypeNum::Id_Xtc);
 }
 
 /*
@@ -21,11 +21,11 @@ static bool _containsInXtc(TypeId type)
 */
 
 Browser::Browser(const Datagram& dg, InDatagramIterator* iter, int depth, int& advance) : 
-  InXtcIterator(dg.xtc, iter), 
+  XtcIterator(dg.xtc, iter), 
   _header(1),
   _depth(depth)
 {
-  const InXtc& xtc = dg.xtc;
+  const Xtc& xtc = dg.xtc;
   // This construction of the identity and contains values is a sleazy
   // trick which lets us print their contents as a simple hex value. 
   printf(" sequence # %08X/%08X with environment 0x%08X service %d\n",
@@ -34,13 +34,13 @@ Browser::Browser(const Datagram& dg, InDatagramIterator* iter, int depth, int& a
 	 xtc.src.log(), xtc.src.phy(), 
 	 xtc.contains.value, 
 	 xtc.extent, xtc.damage.value());
-  if (!_containsInXtc(xtc.contains))
+  if (!_containsXtc(xtc.contains))
     advance += _dumpBinaryPayload(xtc, iter);
   //  if (_depth < 0) advance = _dumpBinaryPayload(xtc, iter);
 }
 
-Browser::Browser(const InXtc& xtc, InDatagramIterator* iter, int depth, int& advance) : 
-  InXtcIterator(xtc, iter), 
+Browser::Browser(const Xtc& xtc, InDatagramIterator* iter, int depth, int& advance) : 
+  XtcIterator(xtc, iter), 
   _header(1),
   _depth(depth)
 {
@@ -50,7 +50,7 @@ Browser::Browser(const InXtc& xtc, InDatagramIterator* iter, int depth, int& adv
   //	 &xtc, xtc.src.pid(), xtc.src.did(), 
   //	 *identity, *contains, 
   //	 xtc.tag.extent(), xtc.damage.value());
-  if (!_containsInXtc(xtc.contains))
+  if (!_containsXtc(xtc.contains))
     advance += _dumpBinaryPayload(xtc, iter);
   }
 
@@ -61,27 +61,27 @@ Browser::Browser(const InXtc& xtc, InDatagramIterator* iter, int depth, int& adv
 ** --
 */
 
-int Browser::process(const InXtc& inXtc, InDatagramIterator* iter)
+int Browser::process(const Xtc& xtc, InDatagramIterator* iter)
   {
   // This construction of the identity and contains values is a sleazy
   // trick which lets us print their contents as a simple hex value. 
   for (int i = _depth; i < 2; i++) printf("  ");
   printf("source %08X/%08X, contains %x, extent %d, damage 0x%X\n", 
-	 inXtc.src.log(), inXtc.src.phy(),
-	 inXtc.contains.value,
-	 inXtc.extent, inXtc.damage.value());
-  if (_containsInXtc(inXtc.contains)) {
-    //  if (_depth && (inXtc.sizeofPayload() >= (int) sizeof(InXtc))){
+	 xtc.src.log(), xtc.src.phy(),
+	 xtc.contains.value,
+	 xtc.extent, xtc.damage.value());
+  if (_containsXtc(xtc.contains)) {
+    //  if (_depth && (xtc.sizeofPayload() >= (int) sizeof(Xtc))){
     int advance=0;
-    Browser browser(inXtc, iter, _depth - 1, advance);
+    Browser browser(xtc, iter, _depth - 1, advance);
     return (advance + browser.iterate());
   }
-  return _dumpBinaryPayload(inXtc, iter);
+  return _dumpBinaryPayload(xtc, iter);
   }
 
 
-int Browser::_dumpBinaryPayload(const InXtc& inXtc, InDatagramIterator* iter){
-  int advance = inXtc.sizeofPayload() >> 2;
+int Browser::_dumpBinaryPayload(const Xtc& xtc, InDatagramIterator* iter){
+  int advance = xtc.sizeofPayload() >> 2;
   if(advance)
     {
       advance = advance < 4 ? advance : 4;

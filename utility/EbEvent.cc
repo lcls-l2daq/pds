@@ -123,7 +123,7 @@ EbSegment* EbEvent::consume(const EbServer* srv,
 {
   Datagram* out = datagram();
 
-  const InXtc& xtc = srv->xtc();
+  const Xtc& xtc = srv->xtc();
 
   out->xtc.damage.increase(xtc.damage.value());
 
@@ -223,7 +223,7 @@ unsigned EbEvent::fixup(const Src& client, const TypeId& type, const EbBitMask& 
   else
     {
     Damage damaged(1 << Damage::DroppedContribution);
-    new(&datagram()->xtc) InXtc(type, client, damaged);
+    new(&datagram()->xtc) Xtc(type, client, damaged);
     return damaged.value();
     }
   }

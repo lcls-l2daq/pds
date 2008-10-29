@@ -33,7 +33,7 @@ EventStreams::EventStreams(CollectionManager& cmgr) :
     if (cmgr.header().level()==Level::Recorder) {
       EventBuilder* eb = new EventBuilder
 	(Src(cmgr.header()),
-	 TypeId(TypeNum::Id_InXtc),
+	 TypeId(TypeNum::Id_Xtc),
 	 level,
 	 *stream(s)->inlet(), *_outlets[s], s, ipaddress,
 	 MaxSize, ebdepth);
@@ -44,7 +44,7 @@ EventStreams::EventStreams(CollectionManager& cmgr) :
     else {
       EventBuilder* eb = new EventBuilder
 	(Src(cmgr.header()),
-	 TypeId(TypeNum::Id_InXtc),
+	 TypeId(TypeNum::Id_Xtc),
 	 level,
 	 *stream(s)->inlet(), *_outlets[s], s, ipaddress,
 	 MaxSize, ebdepth);

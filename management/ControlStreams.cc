@@ -56,7 +56,7 @@ ControlStreams::ControlStreams(CollectionManager& cmgr) :
 				  MaxSize*netbufdepth);
     _inlet_wires[s] = 
       new EventBuilder(Src(cmgr.header()),
-		       TypeId(TypeNum::Id_InXtc),
+		       TypeId(TypeNum::Id_Xtc),
 		       level, *stream(s)->inlet(),
 		       *_outlets[s], s, ipaddress,
 		       MaxSize, eventpooldepth);

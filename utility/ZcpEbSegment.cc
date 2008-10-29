@@ -20,7 +20,6 @@
 
 #include "ZcpEbSegment.hh"
 #include "pds/service/ZcpFragment.hh"
-#include "pds/xtc/xtc.hh"
 
 #include <stdio.h>
 
@@ -47,7 +46,7 @@ using namespace Pds;
 ** --
 */
 
-ZcpEbSegment::ZcpEbSegment(const InXtc&  header,
+ZcpEbSegment::ZcpEbSegment(const Xtc&    header,
                            int           offset,
                            int           length,
                            EbBitMask     client,

@@ -70,7 +70,7 @@ bool ZcpEbEvent::consume(EbServer*        server,
     return false;
   }
 
-  const InXtc& xtc = server->xtc();
+  const Xtc& xtc = server->xtc();
 
   datagram()->xtc.damage.increase(xtc.damage.value());
 
@@ -143,9 +143,9 @@ unsigned ZcpEbEvent::fixup(const Src&       client,
   Damage damaged((segments()&id).isZero() ? 
 		 1 << Damage::DroppedContribution :
 		 1 << Damage::IncompleteContribution );
-  InXtc xtc(type, client, damaged);
-  frag.uinsert((char*)&xtc,sizeof(InXtc));
-  _zdatagram->_insert(frag,sizeof(InXtc));
+  Xtc xtc(type, client, damaged);
+  frag.uinsert((char*)&xtc,sizeof(Xtc));
+  _zdatagram->_insert(frag,sizeof(Xtc));
   return damaged.value();
 }
 

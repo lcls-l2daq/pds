@@ -3,9 +3,9 @@
 
 #include "pds/service/LinkedList.hh"
 #include "Mtu.hh"
-#include "pds/xtc/xtc.hh"
 #include "pds/service/EbBitMask.hh"
 #include "pds/service/ZcpStream.hh"
+#include "pds/xtc/Xtc.hh"
 
 typedef unsigned size_t;
 
@@ -19,7 +19,7 @@ namespace Pds {
     void* operator new(size_t, char**);
     void  operator delete(void*);
   public:
-    ZcpEbSegment(const InXtc&  header,
+    ZcpEbSegment(const Xtc&  header,
 		 int           offset,
 		 int           length,
 		 EbBitMask     client,
@@ -38,7 +38,7 @@ namespace Pds {
     int          _length;
     int          _remaining;
     EbBitMask    _client;
-    InXtc        _header;
+    Xtc        _header;
     ZcpStream    _fragments;
   };
 }

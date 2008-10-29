@@ -7,7 +7,6 @@
 #include "ToNetEb.hh"
 
 #include "OutletWireInsList.hh"
-#include "pds/xtc/xtc.hh"
 
 namespace Pds {
 

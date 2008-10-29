@@ -2,6 +2,7 @@
 #define PDS_ACQSERVER
 
 #include "pds/utility/EbServer.hh"
+#include "pds/utility/EbCountSrv.hh"
 #include "pds/utility/EbEventKey.hh"
 
 #include "pds/xtc/Datagram.hh"
@@ -12,22 +13,25 @@ namespace Pds {
   class ZcpDatagram;
   class DmaEngine;
 
-  class AcqServer : public EbServer {
+  class AcqServer : public EbServer, public EbCountSrv {
   public:
     AcqServer(const Src& client);
     virtual ~AcqServer() {}
     
     enum Command {Header,Payload};
     int  payloadComplete();
-    int  headerComplete(Datagram& dg);
+    int  headerComplete(unsigned payloadSize,
+			unsigned count);
   public:
     //  Eb interface
     void        dump    (int detail)   const;
     bool        isValued()             const;
     const Src&  client  ()             const;
     //  EbSegment interface
-    const InXtc&   xtc   () const;
-    bool  more() const;
+    const Xtc&  xtc   () const;
+    bool        more  () const;
+    unsigned    offset() const;
+    unsigned    length() const;
   public:
     //  Eb-key interface
     EbServerDeclare;
@@ -36,16 +40,13 @@ namespace Pds {
     int      pend  (int flag = 0);
     int      fetch (char* payload, int flags);
     int      fetch (ZcpFragment& , int flags);
-    unsigned offset() const;
-    unsigned length() const;
   public:
-    const Sequence& sequence() const;
     unsigned count() const;
     void setDma(DmaEngine* dma);
   private:
     int        _pipefd[2];
-    Src        _client;
-    Datagram   _datagram;
+    Xtc        _xtc;
+    unsigned   _count;
     DmaEngine* _dma;
     Command    _cmd;
   };

@@ -94,7 +94,7 @@ bool NetDgServer::isValued() const
   return true;
 }
 
-const InXtc&   NetDgServer::xtc   () const
+const Xtc&   NetDgServer::xtc   () const
 {
   return ((Datagram*)_server.datagram())->xtc;
 }

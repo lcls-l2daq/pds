@@ -75,10 +75,11 @@ class EvgrEnableAction : public EvgrAction {
 public:
   EvgrEnableAction(TimeLoader& time, Evg& eg, Evr& er) :
     EvgrAction(eg,er),_time(time) {}
-  void fire(Transition* tr) {
+  Transition* fire(Transition* tr) {
     _time.load();
     unsigned ram=0;
     _er.MapRamEnable(ram,1);
+    return tr;
   }
 private:
   TimeLoader& _time;
@@ -87,33 +88,36 @@ private:
 class EvgrDisableAction : public EvgrAction {
 public:
   EvgrDisableAction(Evg& eg, Evr& er) : EvgrAction(eg,er) {}
-  void fire(Transition* tr) {
+  Transition* fire(Transition* tr) {
     unsigned ram=0;
     _er.MapRamEnable(ram,0);
+    return tr;
   }
 };
 
 class EvgrBeginRunAction : public EvgrAction {
 public:
   EvgrBeginRunAction(Evg& eg, Evr& er) : EvgrAction(eg,er) {}
-  void fire(Transition* tr) {
+  Transition* fire(Transition* tr) {
     unsigned ram=0;
     _er.MapRamEnable(ram,0);
     _er.IrqEnable(EVR_IRQ_MASTER_ENABLE | EVR_IRQFLAG_EVENT);
     _er.EnableFIFO(1);
     _er.Enable(1);
     _eg.Enable(1);
+    return tr;
   }
 };
 
 class EvgrEndRunAction : public EvgrAction {
 public:
   EvgrEndRunAction(Evg& eg, Evr& er) : EvgrAction(eg,er) {}
-  void fire(Transition* tr) {
+  Transition* fire(Transition* tr) {
     _eg.Enable(0);
     _er.IrqEnable(0);
     _er.Enable(0);
     _er.EnableFIFO(0);
+    return tr;
   }
 };
 
@@ -123,7 +127,7 @@ static int seqram[][2] = {{4,EvgrOpcodes::L1Accept},{8,EvgrOpcodes::EndOfSequenc
 class EvgrConfigAction : public EvgrAction {
 public:
   EvgrConfigAction(Evg& eg, Evr& er) : EvgrAction(eg,er) {}
-  void fire(Transition* tr) {
+  Transition* fire(Transition* tr) {
     printf("Configuring evg/evr\n");
     _eg.Reset();
     _er.Reset();
@@ -167,6 +171,8 @@ public:
   enable=1; int single=0; int recycle=0; int reset=0;
   int trigsel=C_EVG_SEQTRIG_MXC_BASE;
   _eg.SeqRamCtrl(ram, enable, single, recycle, reset, trigsel);
+  
+  return tr;
   }
 };
 

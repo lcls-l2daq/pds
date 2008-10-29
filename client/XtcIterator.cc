@@ -4,7 +4,7 @@
 **	Container
 **
 **  Abstract:
-**     non-inline functions for "InXtcIterator.hh"
+**     non-inline functions for "XtcIterator.hh"
 **      
 **  Author:
 **      Michael Huffer, SLAC, (415) 926-4269
@@ -18,7 +18,7 @@
 ** --
 */
 
-#include "InXtcIterator.hh"
+#include "XtcIterator.hh"
 #include "pds/xtc/InDatagramIterator.hh"
 #include <stdio.h>
 
@@ -28,7 +28,7 @@ using namespace Pds;
 ** ++
 **
 **   Iterate over the collection specifed as an argument to the function.
-**   For each "InXtc" found call back the "process" function. If the
+**   For each "Xtc" found call back the "process" function. If the
 **   "process" function returns zero (0) the iteration is aborted and
 **   control is returned to the caller. Otherwise, control is returned
 **   when all elements of the collection have been scanned.
@@ -36,7 +36,7 @@ using namespace Pds;
 ** --
 */
 
-int InXtcIterator::iterate(const InXtc& xtc, InDatagramIterator* root) 
+int XtcIterator::iterate(const Xtc& xtc, InDatagramIterator* root) 
   {
     //    if (xtc.damage.value() & ( 1 << Damage::IncompleteContribution))
     //      return -1;
@@ -45,21 +45,23 @@ int InXtcIterator::iterate(const InXtc& xtc, InDatagramIterator* root)
     iovec iov[1];
 
     while(remaining > 0) {
-      int nbytes = root->read(iov,1,sizeof(InXtc));
-      if (nbytes != sizeof(InXtc)) {
-	printf("InXtcIterator::iterate read failed %d/%d/%d bytes\n",
-	       nbytes,sizeof(InXtc),remaining);
+      int nbytes = root->read(iov,1,sizeof(Xtc));
+      if (nbytes != sizeof(Xtc)) {
+	printf("XtcIterator::iterate read failed %d/%d/%d bytes\n",
+	       nbytes,sizeof(Xtc),remaining);
 	return -1;
       }
-      const InXtc& inXtc = *(InXtc*)iov[0].iov_base;
-      remaining -= sizeof(InXtc);
+      const Xtc& xtc = *(Xtc*)iov[0].iov_base;
+      remaining -= sizeof(Xtc);
 
-      int xlen = inXtc.sizeofPayload();
+      int xlen = xtc.sizeofPayload();
       if (xlen < 0) {
-	printf("inXtc payload %d bytes\n", xlen);
+	printf("xtc payload %d bytes\n", xlen);
+	const unsigned* d = reinterpret_cast<const unsigned*>(&xtc);
+	printf(":%08x:%08x:%08x:%08x:%08x\n",d[0],d[1],d[2],d[3],d[4]);
 	return xlen;
       }
-      int len = process(inXtc, root);
+      int len = process(xtc, root);
       if (len < 0) return len;
       if (len < xlen)
 	root->skip(xlen-len);

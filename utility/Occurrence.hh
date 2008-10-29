@@ -195,7 +195,7 @@ class OccurrenceStack
   {
   public:
     OccurrenceStack(const Occurrence*);
-    OccurrenceStack(const InXtc*);
+    OccurrenceStack(const Xtc*);
     unsigned pop();
   private:
     const unsigned* _next;
@@ -219,7 +219,7 @@ inline Pds::OccurrenceStack::OccurrenceStack(const Pds::Occurrence* occurrence) 
 ** --
 */
 
-inline Pds::OccurrenceStack::OccurrenceStack(const Pds::InXtc* occurrence)
+inline Pds::OccurrenceStack::OccurrenceStack(const Pds::Xtc* occurrence)
   {
     unsigned* next = (unsigned*) occurrence->payload();
     next += occurrence->sizeofPayload() >> 2; 

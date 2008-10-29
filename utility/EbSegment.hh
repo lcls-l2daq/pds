@@ -35,7 +35,7 @@
 
 #include "pds/service/LinkedList.hh"
 #include "Mtu.hh"
-#include "pds/xtc/xtc.hh"
+#include "pds/xtc/Xtc.hh"
 #include "pds/service/EbBitMask.hh"
 
 typedef unsigned size_t;
@@ -46,7 +46,7 @@ class EbSegment : public LinkedList<EbSegment>
   public:
     void* operator new(size_t, char**);
   public:
-    EbSegment(const InXtc& header,
+    EbSegment(const Xtc& header,
 	      char* base,
 	      int size,
 	      int offset,
@@ -68,7 +68,7 @@ class EbSegment : public LinkedList<EbSegment>
     int       _offset;
     int       _remaining;
     EbBitMask _client;
-    InXtc     _header;
+    Xtc     _header;
   };
 }
 
@@ -162,7 +162,7 @@ inline Pds::EbSegment* Pds::EbSegment::notComplete(){
     disconnect();
     return (Pds::EbSegment*)0;
     }
-  else if (_offset >= (int)(_header.sizeofPayload()+sizeof(InXtc))) 
+  else if (_offset >= (int)(_header.sizeofPayload()+sizeof(Xtc))) 
     {
     fixup(_header.contains);
     disconnect();

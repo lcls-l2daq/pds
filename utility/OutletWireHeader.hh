@@ -21,7 +21,7 @@
 #define PDS_OUTLETWIREHEADER
 
 #include "pds/xtc/Datagram.hh"
-#include "pds/xtc/xtc.hh"
+#include "pds/xtc/Xtc.hh"
 
 namespace Pds {
 class OutletWireHeader : public Sequence
@@ -53,7 +53,7 @@ Pds::OutletWireHeader::OutletWireHeader(const Pds::Datagram* datagram) :
   damage(datagram->xtc.damage.value()),
   src(datagram->xtc.src),
   offset(0),
-  length(datagram->xtc.sizeofPayload()+sizeof(InXtc))
+  length(datagram->xtc.sizeofPayload()+sizeof(Xtc))
   {
   }
 

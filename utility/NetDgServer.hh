@@ -2,11 +2,12 @@
 #define PDS_NETDGSERVER
 
 #include "EbServer.hh"
+#include "EbSequenceSrv.hh"
 #include "EbEventKey.hh"
 #include "pds/service/NetServer.hh"
 
 namespace Pds {
-class NetDgServer : public EbServer
+  class NetDgServer : public EbServer, EbSequenceSrv
   {
   public:
     NetDgServer(const Ins& ins,
@@ -19,7 +20,7 @@ class NetDgServer : public EbServer
     bool        isValued()             const;
     const Src&  client  ()             const;
     //  EbSegment interface
-    const InXtc&   xtc   () const;
+    const Xtc&   xtc   () const;
     bool           more  () const;
     unsigned       length() const;
     unsigned       offset() const;

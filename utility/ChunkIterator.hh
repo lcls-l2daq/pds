@@ -27,7 +27,7 @@ public:
     : _header(dg),
       _payload((char*)&dg->xtc)
   {
-    unsigned size(dg->xtc.sizeofPayload()+sizeof(InXtc));
+    unsigned size(dg->xtc.sizeofPayload()+sizeof(Xtc));
     _nextSize = size & Mtu::SizeAsMask;
     _remaining = (size >> Mtu::SizeAsPowerOfTwo)+1;
     
@@ -72,8 +72,8 @@ public:
     _stream  (stream),
     _fragment(fragment)
   {
-    _nextSize = (_fragment.size()+sizeof(OutletWireHeader)+sizeof(InXtc) < Mtu::Size) ?
-      _fragment.size() : Mtu::Size - sizeof(OutletWireHeader) - sizeof(InXtc);
+    _nextSize = (_fragment.size()+sizeof(OutletWireHeader)+sizeof(Xtc) < Mtu::Size) ?
+      _fragment.size() : Mtu::Size - sizeof(OutletWireHeader) - sizeof(Xtc);
     _remaining = datagram->datagram().xtc.sizeofPayload() - _fragment.size();
   }
   ~ZcpChunkIterator() {}

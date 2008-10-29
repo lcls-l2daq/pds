@@ -2,12 +2,13 @@
 #define PDS_EVRSERVER
 
 #include "EbServer.hh"
+#include "EbCountSrv.hh"
 #include "EbEventKey.hh"
 #include "pds/service/NetServer.hh"
 #include "pds/xtc/EvrDatagram.hh"
 
 namespace Pds {
-class EvrServer : public EbServer
+  class EvrServer : public EbServer, EbCountSrv
   {
   public:
     EvrServer(const Ins& ins,
@@ -20,7 +21,7 @@ class EvrServer : public EbServer
     bool        isValued()             const;
     const Src&  client  ()             const;
     //  EbSegment interface
-    const InXtc&   xtc   () const;
+    const Xtc&   xtc   () const;
     bool           more  () const;
     unsigned       length() const;
     unsigned       offset() const;

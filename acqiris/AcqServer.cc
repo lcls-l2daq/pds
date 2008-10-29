@@ -1,7 +1,7 @@
 #include "AcqServer.hh"
 #include "pds/xtc/CDatagram.hh"
 #include "pds/xtc/ZcpDatagram.hh"
-#include "DmaEngine.hh"
+#include "pds/utility/DmaEngine.hh"
 
 #include <unistd.h>
 #include <sys/uio.h>
@@ -11,7 +11,7 @@
 using namespace Pds;
 
 AcqServer::AcqServer(const Src& client) :
-  _client(client)
+  _xtc(TypeNum::Id_Waveform,client)
 {
   int err = ::pipe(_pipefd);
   if (err)
@@ -30,11 +30,19 @@ int AcqServer::payloadComplete()
   return 0;
 }
 
-int AcqServer::headerComplete(Datagram& dg)
+int AcqServer::headerComplete(unsigned payloadSize,
+			      unsigned count)
 {
-  const Command cmd = Header;
-  ::write(_pipefd[1],&cmd,sizeof(cmd));
-  ::write(_pipefd[1],&dg,sizeof(Datagram));
+  Command cmd = Header;
+  iovec iov[3];
+  iov[0].iov_base = &cmd; 
+  iov[0].iov_len = sizeof(cmd);
+  iov[1].iov_base = &payloadSize; 
+  iov[1].iov_len = sizeof(payloadSize);
+  iov[2].iov_base = &count;
+  iov[2].iov_len = sizeof(count);
+
+  ::writev(_pipefd[1], iov, 3);
   return 0;
 }
 
@@ -42,7 +50,7 @@ unsigned AcqServer::offset() const {
   if (_cmd==Header) {
     return 0;
   } else {
-    return sizeof(InXtc);
+    return sizeof(Xtc);
   }
 }
 
@@ -57,12 +65,12 @@ bool AcqServer::isValued() const
 
 const Src& AcqServer::client() const
 {
-  return _client; 
+  return _xtc.src; 
 }
 
-const InXtc& AcqServer::xtc() const
+const Xtc& AcqServer::xtc() const
 {
-  return _datagram.xtc;
+  return _xtc;
 }
 
 int AcqServer::pend(int flag) 
@@ -71,7 +79,7 @@ int AcqServer::pend(int flag)
 }
 
 unsigned AcqServer::length() const {
-  return _datagram.xtc.extent;
+  return _xtc.extent;
 }
 
 int AcqServer::fetch(char* payload, int flags)
@@ -80,16 +88,15 @@ int AcqServer::fetch(char* payload, int flags)
   if (length < 0) return length;
 
   if (_cmd == Header) {
-    int nbytes = sizeof(Datagram);
-    while( nbytes ) {
-      length = ::read(_pipefd[0],&_datagram,nbytes);
-      memcpy(payload,&_datagram.xtc,sizeof(_datagram.xtc));
-      if (length < 0) return length;
-      nbytes  -= length;
-      payload += length;
-    }
-    _dma->start(payload+sizeof(InXtc));
-    return sizeof(InXtc);
+    unsigned payloadSize;
+    length = ::read(_pipefd[0],&payloadSize,sizeof(payloadSize));
+    if (length < 0) return length;
+    length = ::read(_pipefd[0],&_count,sizeof(_count));
+    if (length < 0) return length;
+    _xtc.extent = payloadSize+sizeof(Xtc);
+    memcpy(payload, &_xtc, sizeof(Xtc));
+    _dma->start(payload+sizeof(Xtc));
+    return sizeof(Xtc);
   } else if (_cmd == Payload) {
     return xtc().sizeofPayload();
   } else {
@@ -103,14 +110,9 @@ int AcqServer::fetch(ZcpFragment& zf, int flags)
   return 0;
 }
 
-const Sequence& AcqServer::sequence() const
-{
-  return _datagram.seq;
-}
-
 unsigned AcqServer::count() const
 {
-  return *(unsigned*)&_datagram;
+  return _count;
 }
 
 bool AcqServer::more() const { return true; }

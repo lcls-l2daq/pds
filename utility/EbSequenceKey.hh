@@ -4,26 +4,19 @@
 #include "EbEventKey.hh"
 
 #include "pds/service/Pool.hh"
-#include "BldServer.hh"
-#include "EvrServer.hh"
-#include "NetDgServer.hh"
-#include "ToEb.hh"
+#include "EbSequenceSrv.hh"
 
 #define EbSequenceKeyDeclare( server ) \
-    virtual bool precedes (const server& s) { return key <= s.sequence(); } \
-    virtual bool coincides(const server& s) { return key == s.sequence(); } \
-    virtual void assign   (const server& s) { key = s.sequence(); }
 
 namespace Pds {
   class EbSequenceKey : public EbEventKey {
   public:
     EbSequenceKey(Sequence& s) : key(s) { s = Sequence(); }
-  public:
     PoolDeclare;
-    EbSequenceKeyDeclare(BldServer);
-    EbSequenceKeyDeclare(EvrServer);
-    EbSequenceKeyDeclare(NetDgServer);
-    EbSequenceKeyDeclare(ToEb);
+  public:
+    virtual bool precedes (const EbSequenceSrv& s) { return key <= s.sequence(); } \
+    virtual bool coincides(const EbSequenceSrv& s) { return key == s.sequence(); } \
+    virtual void assign   (const EbSequenceSrv& s) { key = s.sequence(); }
   public:
     const Sequence& sequence() const { return key; }
   private:

@@ -3,11 +3,13 @@
 
 namespace Pds {
   class Transition;
+  class InDatagram;
 
   class Action {
   public:
     virtual ~Action() {}
-    virtual void fire(Transition*) {}
+    virtual Transition* fire(Transition* tr) { return tr; }
+    virtual InDatagram* fire(InDatagram* dg) { return dg; }
   };
 }
 

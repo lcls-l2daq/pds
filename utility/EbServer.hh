@@ -3,7 +3,7 @@
 
 #include "pds/service/Server.hh"
 
-#include "pds/xtc/xtc.hh"
+#include "pds/xtc/Xtc.hh"
 
 namespace Pds {
 
@@ -33,7 +33,7 @@ class EbServer : public Server
     virtual bool        isValued()             const = 0;
     virtual const Src&  client  ()             const = 0;
     //  EbSegment interface
-    virtual const InXtc&   xtc   () const = 0;
+    virtual const Xtc&   xtc   () const = 0;
     virtual bool           more  () const;
     virtual unsigned       length() const;
     virtual unsigned       offset() const;

@@ -55,7 +55,7 @@ const Src& ToEb::client() const
   return _client; 
 }
 
-const InXtc& ToEb::xtc() const
+const Xtc& ToEb::xtc() const
 {
   return _datagram.xtc;
 }
@@ -217,7 +217,3 @@ const Sequence& ToEb::sequence() const
   return _datagram.seq;
 }
 
-unsigned ToEb::count() const
-{
-  return *(unsigned*)&_datagram;
-}

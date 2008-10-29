@@ -9,6 +9,7 @@ namespace Pds {
   public:
     enum Value {
       DroppedContribution    = 1,
+      UserDefined            = 14,
       IncompleteContribution = 15
     };
     Damage(unsigned v) : _damage(v) {}

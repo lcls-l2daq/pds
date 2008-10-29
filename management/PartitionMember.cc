@@ -50,7 +50,6 @@ void PartitionMember::message(const Node& hdr, const Message& msg)
 	      _rivals.flush();
 	      for (unsigned n=0; n<nnodes; n++) {
 		const Node* node = alloc.node(n);
-		printf("node %x %d %d\n", node->ip(), node->uid(), node->pid());
 		if (header() == *node) {
 		  _isallocated = true;
 		  _allocator = hdr;
@@ -68,7 +67,6 @@ void PartitionMember::message(const Node& hdr, const Message& msg)
 	    {
 	      const Kill& kill = reinterpret_cast<const Kill&>(tr);
 	      if (_isallocated && kill.allocator() == _allocator) {
-		printf("node removed from partition\n");
 		_isallocated = false;
 		dissolved();
 		lpost = true;
@@ -89,7 +87,6 @@ void PartitionMember::message(const Node& hdr, const Message& msg)
 	    arpadd(hdr);
 	    OutletWireIns* dst;
 	    if (tr.phase() == Transition::Execute) {
-	      printf("PartitionMember::message inserting transition\n");
 	      Transition* ntr = new(&_pool) Transition(tr);
 	      post(*ntr);
 	    }
@@ -98,7 +95,6 @@ void PartitionMember::message(const Node& hdr, const Message& msg)
 	    else if (header().level()==Level::Segment || 
 		     ((dst=_rivals.lookup(tr.sequence())) &&
 		      dst->id() != _index)) {
-	      printf("PartitionMember::message inserting datagram\n");
 	      CDatagram* ndg = 
 		new(&_pool) CDatagram(Datagram(tr, 
 					       TypeId(TypeNum::Any),

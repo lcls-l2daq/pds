@@ -16,6 +16,7 @@ extern "C" int __libc_allocate_rtsig (int high);
 Pds::PicPortCL::PicPortCL(int _grabberid) {
   DsyInit();
   pSeqDral = NULL;
+  NotifySignal = 0;
   NotifyMode = NOTIFYTYPE_NONE;
   GrabberId = _grabberid;
   PicPortCLConfig.bUsePicportCounters = true;
@@ -47,7 +48,8 @@ int Pds::PicPortCL::SetNotification(enum NotifyType mode) {
       break;
     case NOTIFYTYPE_WAIT:
     case NOTIFYTYPE_SIGNAL:
-      NotifySignal = __libc_allocate_rtsig(1);
+      if (NotifySignal==0)
+	NotifySignal = __libc_allocate_rtsig(1);
       ret = NotifySignal;
       break;
     default:
@@ -119,36 +121,35 @@ int Pds::PicPortCL::Init() {
   LvGrabberNode *pGrabber=DsyGetGrabberPtrFromHandle(SeqDralConfig.hGrabber);
   if (pGrabber == NULL)
     return -EIO;
-#if 0
-//  SeqDralConfig.hCamera = pGrabber->GetConnectedCamera(0);
-  if (SeqDralConfig.hCamera == HANDLE_INVALID)
+
+  SeqDralConfig.hCamera = pGrabber->GetConnectedCamera(0);
+  if (SeqDralConfig.hCamera == HANDLE_INVALID) {
+    printf("Handle invalid\n");
     return -EINVAL;
+  }
   pCameraNode = pGrabber->GetCameraPtr(SeqDralConfig.hCamera);
   if (pCameraNode == NULL)
     return -EIO;
   lvret = pCameraNode->CommOpen();
-  if (lvret != I_NoError)
+  if (lvret != I_NoError) {
+    printf("comm not open\n");
     return -DsyToErrno(lvret);
+  }
   lvret = pCameraNode->CommSetParam(PicPortCLConfig.Baudrate, 
                                   PicPortCLConfig.Parity, 
                                   PicPortCLConfig.ByteSize,
                                   PicPortCLConfig.StopSize
                                   );
-  if (lvret != I_NoError)
+  if (lvret != I_NoError) {
+    printf("comm set param\n");
     return -DsyToErrno(lvret);
-fprintf(stderr, "%s@%d\n",__func__,__LINE__);
-{char t[20];
-int ret;
-lvret = pCameraNode->CommSend("@LC0\r", 5, t, (U32BIT)20, (U32BIT)1000, (U32BIT)0x06,(U32BIT *)&ret);
-printf("lvret=%d, ret=%d, %s.\n",lvret,ret,t);
-}
-
+  }
+#if 1
   // Now let the Camera configure itself
   ret = PicPortCameraInit();
   if (ret < 0)
     return ret;
 #endif
-
   // Tell the frame grabber to be ready
   lvret = pSeqDral->Init();
   if (lvret != I_NoError)
@@ -272,6 +273,7 @@ int Pds::PicPortCL::SendCommand(char *szCommand, char *pszResponse, int iRespons
   strcpy(sztx+1, szCommand);
   sztx[strlen(szCommand)+1] = PicPortCLConfig.eof;
   sztx[strlen(szCommand)+2] = 0;
+
   // Send the command and receive data
   lvret = pCameraNode->CommSend(sztx, strlen(sztx), pszResponse, 
                 iResponseBufferSize, PicPortCLConfig.Timeout_ms, 

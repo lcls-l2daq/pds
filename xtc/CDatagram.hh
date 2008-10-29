@@ -3,7 +3,6 @@
 
 #include "InDatagram.hh"
 #include "Datagram.hh"
-#include "pds/xtc/xtc.hh"
 #include "pds/service/Pool.hh"
 #include "pds/service/RingPool.hh"
 
@@ -15,7 +14,7 @@ namespace Pds {
   public:
     CDatagram() {}
     CDatagram(const Datagram&);
-    CDatagram(const Datagram&, const InXtc&);
+    CDatagram(const Datagram&, const Xtc&);
     CDatagram(const TypeId&, const Src&);
     ~CDatagram();
 
@@ -43,7 +42,7 @@ inline Pds::CDatagram::CDatagram(const Datagram& dg) :
 }
 
 inline Pds::CDatagram::CDatagram(const Datagram& dg,
-				 const InXtc& xtc) :
+				 const Xtc& xtc) :
   _datagram(dg)
 {
   int size = xtc.sizeofPayload();
