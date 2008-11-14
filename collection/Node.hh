@@ -1,7 +1,8 @@
 #ifndef PDSNODE_HH
 #define PDSNODE_HH
 
-#include "Level.hh"
+#include "pdsdata/xtc/Level.hh"
+#include "pdsdata/xtc/ProcInfo.hh"
 #include "Ether.hh"
 
 namespace Pds {
@@ -19,6 +20,7 @@ public:
   int uid() const;
   int ip() const;
   const Ether& ether() const;
+  const ProcInfo& procInfo() const;
   int operator == (const Node& rhs) const;
 
 public:
@@ -29,11 +31,9 @@ public:
   void fixup(int ip, const Ether& ether);
 
 private:
-  Level::Type _level;
   unsigned _platform;
-  int _pid;
   int _uid;
-  int _ip;
+  ProcInfo _procInfo;
   Ether _ether;
 };
 

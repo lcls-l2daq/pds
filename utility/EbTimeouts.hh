@@ -1,8 +1,8 @@
 #ifndef PDS_TIMEOUTS
 #define PDS_TIMEOUTS
 
-#include "pds/collection/Level.hh"
-#include "pds/xtc/Sequence.hh"
+#include "pdsdata/xtc/Level.hh"
+#include "pdsdata/xtc/Sequence.hh"
 #include "StreamParams.hh"
 
 namespace Pds {
@@ -30,7 +30,7 @@ public:
   static unsigned duration(int);
 
 private:
-  short _tmos[Sequence::NumberOfServices*Sequence::NumberOfTypes];
+  short _tmos[TransitionId::NumberOf*Sequence::NumberOfTypes];
   unsigned _duration;
 };
 }

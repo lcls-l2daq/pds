@@ -32,7 +32,7 @@
 
 #include "OutletWireIns.hh"
 #include "EbTmoMask.hh"
-#include "pds/xtc/Sequence.hh"
+#include "pdsdata/xtc/Sequence.hh"
 
 namespace Pds {
 class OutletWireInsList

@@ -1,7 +1,7 @@
 #ifndef Pds_EbPulseId
 #define Pds_EbPulseId
 
-#include "pds/xtc/Sequence.hh"
+#include "pdsdata/xtc/Sequence.hh"
 
 namespace Pds {
 

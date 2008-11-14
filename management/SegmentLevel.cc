@@ -13,6 +13,7 @@
 #include "pds/xtc/CDatagram.hh"
 #include "pds/management/EventCallback.hh"
 #include "pds/management/EbIStream.hh"
+#include "pdsdata/xtc/DetInfo.hh"
 
 using namespace Pds;
 
@@ -30,7 +31,7 @@ static inline Ins _bld_ins(const Node& n)
 
 static inline Src _bld_src(const Node& n)
 {
-  return Src(n);
+  return n.procInfo();
 }
 
 SegmentLevel::SegmentLevel(unsigned platform,
@@ -61,7 +62,7 @@ bool SegmentLevel::attach()
 
     _callback.attached(*_streams);
 
-    _inlet = new EbIStream(Src(header()),
+    _inlet = new EbIStream(header().procInfo(),
                            header().ip(),
                            Level::Segment,
                            *_streams->wire(StreamParams::FrameWork));
@@ -73,8 +74,8 @@ bool SegmentLevel::attach()
                                   Level::Segment));
     Node evrNode(Level::Source,header().platform());
     evrNode.fixup(source.address(),Ether());
-    EvrServer* esrv = new EvrServer(source, 
-                                    Src(evrNode, Pds::EVR),
+    EvrServer* esrv = new EvrServer(source,
+                                    DetInfo(evrNode.pid(),DetInfo::NoDetector,0,DetInfo::Evr,0),
                                     NetBufferDepth); // revisit
     _inlet->input()->add_input(esrv);
     esrv->server().join(source, Ins(header().ip()));

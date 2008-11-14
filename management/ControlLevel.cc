@@ -68,7 +68,7 @@ void ControlLevel::allocated(const Allocate& alloc,
 				   recorderid++);
       
       NetDgServer* srv = new NetDgServer(ins,
-					 Src(*node),
+					 node->procInfo(),
 					 ControlStreams::netbufdepth);
       wire->add_input(srv);
       Ins mcastIns(ins.address());

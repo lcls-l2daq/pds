@@ -16,6 +16,7 @@ namespace Pds {
     CDatagram(const Datagram&);
     CDatagram(const Datagram&, const Xtc&);
     CDatagram(const TypeId&, const Src&);
+    CDatagram(const Datagram& dg, const TypeId& ctn, const Src& src);
     ~CDatagram();
 
     void* operator new(size_t, Pool*);
@@ -23,6 +24,7 @@ namespace Pds {
     void  operator delete(void* buffer);
 
     const Datagram& datagram() const;
+    Datagram& dg();
 
     InDatagramIterator* iterator(Pool*) const;
 
@@ -51,6 +53,12 @@ inline Pds::CDatagram::CDatagram(const Datagram& dg,
 
 inline Pds::CDatagram::CDatagram(const TypeId& type, const Src& src) :
   _datagram(type,src)
+{
+}
+
+inline Pds::CDatagram::CDatagram(const Datagram& dg, const TypeId& ctn,
+                                 const Src& src) :
+  _datagram(dg,ctn,src)
 {
 }
 

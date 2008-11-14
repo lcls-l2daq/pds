@@ -85,7 +85,7 @@ void RecorderLevel::allocated(const Allocate& alloc,
 	     node->ip(),ins.address(),ins.portId());
       
       NetDgServer* srv = new NetDgServer(ins,
-					 Src(*node),
+					 node->procInfo(),
 					 EventStreams::netbufdepth*EventStreams::MaxSize);
       wire->add_input(srv);
       Ins mcastIns(ins.address());

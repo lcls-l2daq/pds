@@ -5,7 +5,7 @@
 #include "Mtu.hh"
 #include "pds/service/EbBitMask.hh"
 #include "pds/service/ZcpStream.hh"
-#include "pds/xtc/Xtc.hh"
+#include "pdsdata/xtc/Xtc.hh"
 
 typedef unsigned size_t;
 

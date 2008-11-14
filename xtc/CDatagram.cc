@@ -16,6 +16,11 @@ const Datagram& CDatagram::datagram() const
   return _datagram;
 }
 
+Datagram& CDatagram::dg()
+{
+  return _datagram;
+}
+
 int CDatagram::send(ToEb& client)
 {
   return client.send(this);

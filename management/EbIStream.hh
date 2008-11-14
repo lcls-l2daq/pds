@@ -3,7 +3,7 @@
 
 #include "pds/utility/Stream.hh"
 #include "pds/utility/StreamParams.hh"
-#include "pds/collection/Level.hh"
+#include "pdsdata/xtc/Level.hh"
 
 namespace Pds {
 

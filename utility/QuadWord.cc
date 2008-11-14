@@ -1,11 +1,11 @@
 #include "QuadWord.hh"
 
-#define QW_U32_MAX ((d_ULong)(-1))
+#define QW_U32_MAX ((uint32_t)(-1))
 
 using namespace Pds;
 
 
-QuadWord::QuadWord(d_ULong upper, d_ULong lower){
+QuadWord::QuadWord(uint32_t upper, uint32_t lower){
 
   _upperword = upper;
   _lowerword = lower;
@@ -27,13 +27,13 @@ QuadWord::~QuadWord(){
 
 }
 
-QuadWord QuadWord::operator*(d_ULong factor){
+QuadWord QuadWord::operator*(uint32_t factor){
 
-  d_ULong i,j;
+  uint32_t i,j;
   QuadWord temp;
 
   // do multiplication by doing shifts and adds.
-  for (i=0;i<=(sizeof(d_ULong)*8 - 1);i++){
+  for (i=0;i<=(sizeof(uint32_t)*8 - 1);i++){
     j = 1 << i;
     if (factor & j) {
       temp = temp+(*this<<i);
@@ -43,7 +43,7 @@ QuadWord QuadWord::operator*(d_ULong factor){
 }
 
 QuadWord QuadWord::operator-(QuadWord subtract){
-  d_ULong tempupperword, templowerword;
+  uint32_t tempupperword, templowerword;
 
   // check for negative result, which isn't supported here.
   if ((_upperword < subtract.upperword()) ||
@@ -66,26 +66,26 @@ QuadWord QuadWord::operator-(QuadWord subtract){
   return QuadWord(tempupperword,templowerword);
 }
 
-QuadWord QuadWord::operator/(d_UShort divisor){
+QuadWord QuadWord::operator/(uint16_t divisor){
   QuadWord temp;
-  d_UShort remainder;
+  uint16_t remainder;
   temp = Divide(divisor, remainder);
   return temp;
 }
 
-d_UShort QuadWord::operator%(d_UShort divisor){
+uint16_t QuadWord::operator%(uint16_t divisor){
   QuadWord temp;
-  d_UShort remainder;
+  uint16_t remainder;
   temp = Divide(divisor, remainder);
   return remainder;
 }
 
-QuadWord QuadWord::Divide(d_UShort divisor, d_UShort &remainder){
+QuadWord QuadWord::Divide(uint16_t divisor, uint16_t &remainder){
 
   // do the long division in units of "short"
 
-  d_ULong piece;
-  d_ULong tempupperword,templowerword;
+  uint32_t piece;
+  uint32_t tempupperword,templowerword;
 
   tempupperword = 0;
   templowerword = 0;
@@ -116,10 +116,10 @@ QuadWord QuadWord::Divide(d_UShort divisor, d_UShort &remainder){
   return QuadWord(tempupperword,templowerword);
 }
 
-QuadWord QuadWord::operator<<(d_ULong factor){
+QuadWord QuadWord::operator<<(uint32_t factor){
 
-  d_ULong carrybits;
-  d_ULong tempupperword,templowerword;
+  uint32_t carrybits;
+  uint32_t tempupperword,templowerword;
 
   tempupperword = 0;
   templowerword = 0;
@@ -145,7 +145,7 @@ QuadWord QuadWord::operator<<(d_ULong factor){
 
 QuadWord QuadWord::operator+(QuadWord factor){
 
-  d_ULong tempupperword,templowerword;
+  uint32_t tempupperword,templowerword;
 
   tempupperword = 0;
   templowerword = 0;

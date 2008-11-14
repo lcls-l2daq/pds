@@ -1,7 +1,7 @@
 #ifndef BldDatagram_hh
 #define BldDatagram_hh
 
-#include "Sequence.hh"
+#include "pdsdata/xtc/Sequence.hh"
 
 #include <string.h>
 

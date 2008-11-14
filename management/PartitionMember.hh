@@ -3,7 +3,7 @@
 
 #include "pds/collection/CollectionManager.hh"
 
-#include "pds/collection/Level.hh"
+#include "pdsdata/xtc/Level.hh"
 #include "pds/collection/Message.hh"
 #include "pds/collection/Node.hh"
 #include "pds/service/GenericPool.hh"

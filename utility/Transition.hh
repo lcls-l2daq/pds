@@ -3,9 +3,9 @@
 
 #include "pds/collection/Message.hh"
 #include "pds/collection/Node.hh"
-#include "pds/xtc/Sequence.hh"
 #include "pds/service/Pool.hh"
-#include "TransitionId.hh"
+#include "pdsdata/xtc/Sequence.hh"
+#include "pdsdata/xtc/TransitionId.hh"
 
 namespace Pds {
 

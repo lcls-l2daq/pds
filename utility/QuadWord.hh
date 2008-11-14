@@ -1,42 +1,42 @@
 #ifndef Pds_QuadWord_included
 #define Pds_QuadWord_included
 
-#include "pds/service/ODMGTypes.hh"
+#include <stdint.h>
 
 namespace Pds {
 class QuadWord {
 
 public:
 
-  QuadWord( d_ULong upper, d_ULong lower );
+  QuadWord( uint32_t upper, uint32_t lower );
   QuadWord( );
   QuadWord( const QuadWord& );
   ~QuadWord( );
 
-  const d_ULong& upperword() const { return _upperword; }
-  const d_ULong& lowerword() const { return _lowerword; }
+  const uint32_t& upperword() const { return _upperword; }
+  const uint32_t& lowerword() const { return _lowerword; }
 
-  QuadWord       operator*(  d_ULong  multiplier );
-  QuadWord       operator/(  d_UShort divisor );
-  d_UShort          operator%(  d_UShort divisor );
-  QuadWord       operator<<( d_ULong  shift );
+  QuadWord       operator*(  uint32_t  multiplier );
+  QuadWord       operator/(  uint16_t divisor );
+  uint16_t       operator%(  uint16_t divisor );
+  QuadWord       operator<<( uint32_t  shift );
   QuadWord       operator+(  QuadWord addend );
   QuadWord       operator-(  QuadWord addend );
 
 private:
 
-  QuadWord Divide( d_UShort divisor, d_UShort &remainder);
+  QuadWord Divide( uint16_t divisor, uint16_t &remainder);
 
-  inline d_ULong Extract( d_ULong source, d_UShort start, d_UShort end);
-  inline d_ULong Insert(  d_ULong source, d_ULong arg, d_UShort start, d_UShort end);
+  inline uint32_t Extract( uint32_t source, uint16_t start, uint16_t end);
+  inline uint32_t Insert(  uint32_t source, uint32_t arg, uint16_t start, uint16_t end);
 
-  d_ULong _upperword;
-  d_ULong _lowerword;
+  uint32_t _upperword;
+  uint32_t _lowerword;
 
 };
 }
 
-inline d_ULong Pds::QuadWord::Extract(d_ULong source, d_UShort start, d_UShort end)
+inline uint32_t Pds::QuadWord::Extract(uint32_t source, uint16_t start, uint16_t end)
 {
   if (start > end) return 0xffffffff;
   source = source << (31 - end);
@@ -44,10 +44,10 @@ inline d_ULong Pds::QuadWord::Extract(d_ULong source, d_UShort start, d_UShort e
   return source;
 }
 
-inline d_ULong Pds::QuadWord::Insert(d_ULong source, d_ULong arg, d_UShort start, d_UShort end)
+inline uint32_t Pds::QuadWord::Insert(uint32_t source, uint32_t arg, uint16_t start, uint16_t end)
 {
-  d_ULong dummy1,dummy2;
-  d_ULong mask = 0xffffffff;
+  uint32_t dummy1,dummy2;
+  uint32_t mask = 0xffffffff;
   if (start > end) return 0xffffffff;
   dummy1 = mask << start;
   dummy2 = mask >> (31 - end);

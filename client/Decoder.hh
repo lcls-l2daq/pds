@@ -21,8 +21,8 @@
 #define PDS_DECODER
 
 #include "pds/utility/Appliance.hh"
-#include "pds/collection/Level.hh"
 #include "pds/service/GenericPool.hh"
+#include "pdsdata/xtc/Level.hh"
 
 namespace Pds {
 

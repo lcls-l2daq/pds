@@ -2,7 +2,7 @@
 #define STATETRANSITION_HH
 
 #include "pds/utility/State.hh"
-#include "pds/utility/TransitionId.hh"
+#include "pdsdata/xtc/TransitionId.hh"
 
 namespace Pds {
   namespace StateTransition {

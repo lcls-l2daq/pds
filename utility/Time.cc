@@ -45,7 +45,7 @@ Time::Time(const struct timespec &time)
   *this = oTime;
 }
 
-Time::Time(d_ULong upper, d_ULong lower)
+Time::Time(uint32_t upper, uint32_t lower)
 {
   btime.upper   = upper;
   btime.lower   = lower;
@@ -65,7 +65,7 @@ BinTime Time::binary() const
 
 UnixTime Time::Unix() const
 {
-  d_ULong second, usecond;
+  uint32_t second, usecond;
 
   // convert from sysclks to microseconds by dividing by 59.5.
   QuadWord temp(btime.upper,btime.lower);
@@ -76,7 +76,7 @@ UnixTime Time::Unix() const
     QuadWord mask(0x80000000, 0x0);
     temp = temp - mask;
   }
-  d_UShort remainder;
+  uint16_t remainder;
   temp = (temp + temp) / 119;           // temp / 59.5
 
   // now add in correction for overflow if necessary
@@ -122,9 +122,9 @@ Time Time::prevSubFidTime() const
   return Time(retval);
 }
 
-d_UShort Time::modulus() const
+uint16_t Time::modulus() const
 {
-  d_UShort remainder;
+  uint16_t remainder;
 
   QuadWord temp(btime.upper,btime.lower);
 

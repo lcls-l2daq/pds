@@ -21,7 +21,7 @@
 #define PDS_OUTLETWIREHEADER
 
 #include "pds/xtc/Datagram.hh"
-#include "pds/xtc/Xtc.hh"
+#include "pdsdata/xtc/Xtc.hh"
 
 namespace Pds {
 class OutletWireHeader : public Sequence

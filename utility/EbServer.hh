@@ -3,7 +3,7 @@
 
 #include "pds/service/Server.hh"
 
-#include "pds/xtc/Xtc.hh"
+#include "pdsdata/xtc/Xtc.hh"
 
 namespace Pds {
 

@@ -89,7 +89,7 @@ ZcpEb::ZcpEb(const Src& id,
 unsigned ZcpEb::_fixup( EbEventBase* event, const Src& client, const EbBitMask& id )
 {
   ZcpEbEvent* ev = (ZcpEbEvent*)event;
-  return ev->fixup(client, id, TypeId(TypeNum::Any), _zfragment);
+  return ev->fixup(client, id, TypeId(TypeId::Any), _zfragment);
 }
 
 /*

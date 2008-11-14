@@ -3,9 +3,9 @@
 
 #include "Appliance.hh"
 #include "OccurrenceId.hh"
-#include "TransitionId.hh"
 #include "MarkerId.hh"
-#include "pds/xtc/Sequence.hh"
+#include "pdsdata/xtc/Sequence.hh"
+#include "pdsdata/xtc/TransitionId.hh"
 
 namespace Pds {
 

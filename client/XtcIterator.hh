@@ -36,7 +36,7 @@
 ** --
 */
 
-#include "pds/xtc/Xtc.hh"
+#include "pdsdata/xtc/Xtc.hh"
 
 namespace Pds {
 

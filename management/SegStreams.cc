@@ -25,8 +25,8 @@ SegStreams::SegStreams(CollectionManager& cmgr) :
 				  MaxSize*ebdepth);
 
     _inlet_wires[s] = 
-      new EventBuilder(Src(cmgr.header()),
-		       TypeId(TypeNum::Id_Xtc),
+      new EventBuilder(cmgr.header().procInfo(),
+		       TypeId(TypeId::Id_Xtc),
 		       level,
 		       *stream(s)->inlet(), *_outlets[s], s, ipaddress,
 		       MaxSize, ebdepth);

@@ -1,7 +1,7 @@
 #ifndef PDS_EBEVENTBASE_HH
 #define PDS_EBEVENTBASE_HH
 
-#include "pds/xtc/Sequence.hh"
+#include "pdsdata/xtc/Sequence.hh"
 #include "pds/xtc/Datagram.hh"
 #include "EbEventKey.hh"
 #include "EbClients.hh"

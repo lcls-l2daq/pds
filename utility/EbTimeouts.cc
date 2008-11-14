@@ -11,14 +11,14 @@ static const int occurence_tmo = 200; // 200 ms
 EbTimeouts::EbTimeouts(const EbTimeouts& ebtimeouts) 
   : _duration(ebtimeouts._duration)
 {
-  const int array_size = Sequence::NumberOfServices*
+  const int array_size = TransitionId::NumberOf*
     Sequence::NumberOfTypes*sizeof(_tmos[0]);
   memcpy(_tmos, ebtimeouts._tmos, array_size);
 }
 
 EbTimeouts::EbTimeouts(int stream, 
 		       Level::Type level) {
-  const int array_size = Sequence::NumberOfServices*
+  const int array_size = TransitionId::NumberOf*
     Sequence::NumberOfTypes*sizeof(_tmos[0]);
   memset(_tmos, 0, array_size);
 
@@ -29,21 +29,21 @@ EbTimeouts::EbTimeouts(int stream,
   }
 
   for (unsigned t=0; t<Sequence::NumberOfTypes; t++) {
-    for (unsigned s=0; s<Sequence::NumberOfServices; s++) {
+    for (unsigned s=0; s<TransitionId::NumberOf; s++) {
       Sequence::Type type = Sequence::Type(t);
-      Service service = Service(s);
+      TransitionId::Value service = TransitionId::Value(s);
       switch (level) {
       case Level::Control:
-	_tmos[type*Sequence::NumberOfServices+service] = 2;
+	_tmos[type*TransitionId::NumberOf+service] = 2;
 	break;
       case Level::Segment:
-	_tmos[type*Sequence::NumberOfServices+service] = 2;
+	_tmos[type*TransitionId::NumberOf+service] = 2;
 	break;
       case Level::Event:
-	_tmos[type*Sequence::NumberOfServices+service] = 2;
+	_tmos[type*TransitionId::NumberOf+service] = 2;
 	break;
       case Level::Recorder:
-	_tmos[type*Sequence::NumberOfServices+service] = 2;
+	_tmos[type*TransitionId::NumberOf+service] = 2;
 	break;
       default:
 	break;
@@ -63,18 +63,18 @@ unsigned EbTimeouts::duration(int s) {
 }
 
 int EbTimeouts::timeouts(const Sequence* sequence) const {
-  //  return _tmos[sequence->type()*Sequence::NumberOfServices+
+  //  return _tmos[sequence->type()*TransitionId::NumberOf+
   //  	       sequence->service()];
   return _tmos[0];
 }
 
 void EbTimeouts::dump() const
 {
-  for (unsigned s=0; s<Sequence::NumberOfServices; s++) {
+  for (unsigned s=0; s<TransitionId::NumberOf; s++) {
     printf("  %2d ->", s);
     for (unsigned t=0; t<Sequence::NumberOfTypes; t++) {
       printf(" %3d", 
-	     _tmos[t*Sequence::NumberOfServices+s]);
+	     _tmos[t*TransitionId::NumberOf+s]);
     }
     printf("\n");
   }

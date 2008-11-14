@@ -8,12 +8,15 @@
 #include <errno.h>
 
 #include "AcqManager.hh"
+#include "pds/service/GenericPool.hh"
 #include "pds/service/Task.hh"
 #include "pds/service/Routine.hh"
 #include "pds/utility/DmaEngine.hh"
+#include "pds/xtc/CDatagram.hh"
 #include "AcqServer.hh"
 #include "pds/client/Fsm.hh"
 #include "pds/client/Action.hh"
+#include "pdsdata/acqiris/ConfigV1.hh"
 
 using namespace Pds;
 
@@ -103,7 +106,16 @@ protected:
 class AcqConfigAction : public AcqDC282Action {
 public:
   AcqConfigAction(ViSession instrumentId, AcqReader& reader) :
-    AcqDC282Action(instrumentId),_reader(reader) {}
+    AcqDC282Action(instrumentId),_reader(reader),
+    _pool(sizeof(Acqiris::ConfigV1)+sizeof(CDatagram),1) {}
+  InDatagram* fire(InDatagram* input) {
+    CDatagram& output = *new (&_pool)CDatagram(input->datagram(),
+                                               _config.typeId(),
+                                               input->datagram().xtc.src);
+    void* payloadAddr = output.dg().xtc.alloc(sizeof(Acqiris::ConfigV1));
+    memcpy(payloadAddr,&_config,sizeof(Acqiris::ConfigV1));
+    return &output;
+  }
   Transition* fire(Transition* tr) {
     printf("Configuring acqiris %d\n",(unsigned)_instrumentId);
     double sampInterval = 10.e-6, delayTime = 0.0;
@@ -114,6 +126,19 @@ public:
     long trigInput = -1; // External input 1.
     long trigSlope = 0;
     double trigLevel = 1000.0; // in mV, for external triggers only (otherwise % full-scale).
+
+    new(&_config) Acqiris::ConfigV1(sampInterval,
+                                    delayTime,   
+                                    nbrSamples,  
+                                    nbrSegments, 
+                                    coupling,    
+                                    bandwidth,   
+                                    fullScale,   
+                                    offset,      
+                                    trigCoupling,
+                                    trigInput,   
+                                    trigSlope,   
+                                    trigLevel);
 
     // Configure timebase
     AcqrsD1_configHorizontal(_instrumentId, sampInterval, delayTime);
@@ -146,6 +171,8 @@ public:
   }
 private:
   AcqReader& _reader;
+  Acqiris::ConfigV1 _config;
+  GenericPool _pool;
 };
 
 Appliance& AcqManager::appliance() {return _fsm;}

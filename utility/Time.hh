@@ -17,7 +17,7 @@
 
 #include <time.h>
 
-#include "pds/service/ODMGTypes.hh"
+#include <stdint.h>
 
 
 #define SUBFIDPERIOD 873 // Number of sysclks in a SubFiducial period
@@ -34,23 +34,23 @@ namespace Pds {
 class UnixTime
 {
 public:
-  d_ULong second;
-  d_ULong usecond;
+  uint32_t second;
+  uint32_t usecond;
   UnixTime& operator=(const UnixTime& time);
   UnixTime(const UnixTime& time);
   UnixTime() {}
-  UnixTime(d_ULong sec, d_ULong usec) : second(sec), usecond(usec) {}
+  UnixTime(uint32_t sec, uint32_t usec) : second(sec), usecond(usec) {}
 };
 
 class BinTime   // The order here is important for the fcPM class
 {
 public:
-  d_ULong lower;
-  d_ULong upper;
+  uint32_t lower;
+  uint32_t upper;
   BinTime& operator=(const BinTime& time);
   BinTime(const BinTime& time);
   BinTime() {}
-  BinTime(d_ULong up, d_ULong low) : lower(low), upper(up) {}
+  BinTime(uint32_t up, uint32_t low) : lower(low), upper(up) {}
 };
 
 class Time{
@@ -64,7 +64,7 @@ public:
 
   Time(const struct timespec &time);
 
-  Time(d_ULong upper, d_ULong lower);
+  Time(uint32_t upper, uint32_t lower);
 
   Time(const Time& time);
 
@@ -78,7 +78,7 @@ public:
 
   Time prevSubFidTime() const;
 
-  d_UShort modulus() const;
+  uint16_t modulus() const;
 
   // Now define all the operators...
 

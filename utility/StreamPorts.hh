@@ -2,7 +2,7 @@
 #define PDS_STREAMPORTS_HH
 
 #include "pds/service/Ins.hh"
-#include "pds/collection/Level.hh"
+#include "pdsdata/xtc/Level.hh"
 #include "StreamParams.hh"
 
 //

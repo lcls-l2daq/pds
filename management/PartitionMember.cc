@@ -97,8 +97,8 @@ void PartitionMember::message(const Node& hdr, const Message& msg)
 		      dst->id() != _index)) {
 	      CDatagram* ndg = 
 		new(&_pool) CDatagram(Datagram(tr, 
-					       TypeId(TypeNum::Any),
-					       Src(header())));
+					       TypeId(TypeId::Any),
+					       header().procInfo()));
 	      post(*ndg);
 	    }
 	  }

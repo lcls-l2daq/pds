@@ -35,7 +35,7 @@
 
 #include "pds/service/LinkedList.hh"
 #include "Mtu.hh"
-#include "pds/xtc/Xtc.hh"
+#include "pdsdata/xtc/Xtc.hh"
 #include "pds/service/EbBitMask.hh"
 
 typedef unsigned size_t;

@@ -9,45 +9,39 @@
 
 using namespace Pds;
 
-Node::Node() {}
+Node::Node() : _procInfo(Level::Control,0,0) {}
 
 Node::Node(const Node& rhs) :
-  _level(rhs._level), 
   _platform(rhs._platform), 
-  _pid(rhs._pid),
   _uid(rhs._uid),
-  _ip(rhs._ip)
+  _procInfo(rhs._procInfo)
 {}
 
 Node::Node(Level::Type level, unsigned platform) :
-  _level(level), 
   _platform(platform),
-  _pid(getpid()),
   _uid(getuid()),
-  _ip(0)
+  _procInfo(level,getpid(),0)
 {}
 
-Level::Type Node::level() const {return _level;}
+Level::Type Node::level() const {return _procInfo.level();}
 unsigned Node::platform() const {return _platform;}
 
-int Node::pid() const {return _pid;}
+int Node::pid() const {return _procInfo.processId();}
 int Node::uid() const {return _uid;}
-int Node::ip() const {return _ip;}
+int Node::ip() const {return _procInfo.ipAddr();}
 const Ether& Node::ether() const {return _ether;}
 
 int Node::operator == (const Node& rhs) const
 {
-  if (_level == rhs._level &&
-      _platform == rhs._platform &&
-      _pid == rhs._pid &&
+  if (_platform == rhs._platform &&
       _uid == rhs._uid &&
-      _ip == rhs._ip) return 1;
+      _procInfo == rhs._procInfo) return 1;
   else return 0;
 }
 
 void Node::fixup(int ip, const Ether& ether) 
 {
-  _ip = ip; 
+  _procInfo.ipAddr(ip);
   _ether = ether;
 }
 
@@ -64,6 +58,10 @@ int Node::user_name(int uid, char* buf, int bufsiz)
     snprintf(buf, bufsiz, "%d", uid);
   }
   return result;
+}
+
+const ProcInfo& Node::procInfo() const {
+  return _procInfo;
 }
 
 int Node::ip_name(int ip, char* buf, int bufsiz)

@@ -1,7 +1,7 @@
 #ifndef EvrDatagram_hh
 #define EvrDatagram_hh
 
-#include "pds/xtc/Sequence.hh"
+#include "pdsdata/xtc/Sequence.hh"
 
 namespace Pds {
 

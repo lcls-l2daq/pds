@@ -19,8 +19,8 @@ static void print_error(const char* where, int error)
 }
 
 static const int TaskPriority = 55;
-static const char* TaskName[Level::NumberOfLevels+1] = {
-  "oCllCtr", "oCllSrc", "oCllSeg", "oCllEvt", "oCllRec", "oCllObs"
+static const char* TaskName[Level::NumberOfLevels] = {
+  "oCllCtr", "oCllSrc", "oCllSeg", "oCllEvt", "oCllRec", "oCllObs", "oClRep"
 };
 
 static const int Cancel = 1;

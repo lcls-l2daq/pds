@@ -10,7 +10,7 @@ using namespace Pds;
 
 static bool _containsXtc(TypeId type)
 {
-  return (type.value == TypeNum::Id_Xtc);
+  return (type.id() == TypeId::Id_Xtc);
 }
 
 /*
@@ -32,7 +32,7 @@ Browser::Browser(const Datagram& dg, InDatagramIterator* iter, int depth, int& a
          dg.seq.high(), dg.seq.low(), dg.env.value(), dg.seq.service()); 
   printf(" source %08X/%08X, contains %x, extent %d, damage 0x%X\n", 
 	 xtc.src.log(), xtc.src.phy(), 
-	 xtc.contains.value, 
+	 xtc.contains.value(), 
 	 xtc.extent, xtc.damage.value());
   if (!_containsXtc(xtc.contains))
     advance += _dumpBinaryPayload(xtc, iter);
@@ -68,7 +68,7 @@ int Browser::process(const Xtc& xtc, InDatagramIterator* iter)
   for (int i = _depth; i < 2; i++) printf("  ");
   printf("source %08X/%08X, contains %x, extent %d, damage 0x%X\n", 
 	 xtc.src.log(), xtc.src.phy(),
-	 xtc.contains.value,
+	 xtc.contains.value(),
 	 xtc.extent, xtc.damage.value());
   if (_containsXtc(xtc.contains)) {
     //  if (_depth && (xtc.sizeofPayload() >= (int) sizeof(Xtc))){

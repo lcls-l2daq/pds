@@ -29,7 +29,7 @@ static inline Ins _bld_ins(const Node& n)
 
 static inline Src _bld_src(const Node& n)
 {
-  return Src(n);
+  return n.procInfo();
 }
 
 EventLevel::EventLevel(unsigned platform,
@@ -56,7 +56,7 @@ bool EventLevel::attach()
     _streams = new EventStreams(*this);
     _streams->connect();
 
-    _inlet = new EbIStream(Src(header()),
+    _inlet = new EbIStream(header().procInfo(),
                            header().ip(),
                            Level::Event,
                            *_streams->wire(StreamParams::FrameWork));
@@ -138,7 +138,7 @@ void    EventLevel::allocated(const Allocate& alloc,
 				   segmentid++);
       
       NetDgServer* srv = new NetDgServer(ins,
-					 Src(node),
+					 node.procInfo(),
 					 EventStreams::netbufdepth*EventStreams::MaxSize);
       pre_wire->add_input(srv);
       Ins mcastIns(ins.address());

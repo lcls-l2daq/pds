@@ -1,10 +1,11 @@
-#ifndef Datagram_hh
-#define Datagram_hh
+#ifndef Pds_Datagram_hh
+#define Pds_Datagram_hh
 
-#include "Sequence.hh"
-#include "Env.hh"
-#include "Xtc.hh"
-#include "TypeId.hh"
+#include "pdsdata/xtc/Dgram.hh"
+#include "pdsdata/xtc/Sequence.hh"
+#include "pdsdata/xtc/Env.hh"
+#include "pdsdata/xtc/Xtc.hh"
+#include "pdsdata/xtc/TypeId.hh"
 
 #include "pds/service/Pool.hh"
 #include "pds/service/RingPool.hh"
@@ -42,10 +43,7 @@ namespace Pds {
     void operator delete(void* buffer)
     { RingPool::free(buffer); }
 
-
-    Sequence seq;
-    Env   env;
-    Xtc xtc;
+    PDS_DGRAM_STRUCT;
   };
 
 }

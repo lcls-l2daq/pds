@@ -102,7 +102,7 @@ InDatagram* Decoder::_handleDg(InDatagram* in){
   InDatagramIterator* iter = in->iterator(&_pool);
   int advance=0;
   Browser browser(in->datagram(), iter, _depth, advance);
-  if (in->datagram().xtc.contains == TypeNum::Id_Xtc)
+  if (in->datagram().xtc.contains.id() == TypeId::Id_Xtc)
     if (browser.iterate() < 0)
       printf("..Terminated.\n");
   delete iter;
