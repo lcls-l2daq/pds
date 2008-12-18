@@ -15,13 +15,15 @@ namespace Pds {
     Action*     callback(TransitionId::Value id, Action* action);
   
   private:
-    enum State {Idle,Mapped,Configured,Begun,Enabled};
+    enum State {Idle,Mapped,Configured,Begun,Enabled,NumberOf};
     Transition* transitions(Transition*);
     InDatagram* occurrences(InDatagram* in);
     InDatagram* events     (InDatagram* in);
 
-    State    _reqState(TransitionId::Value id);
-    unsigned _allowed(State reqState);
+    unsigned    _allowed(State reqState, TransitionId::Value id);
+    State       _reqState(TransitionId::Value id);
+    const char* _stateName();
+
     State    _state;
     Action*  _action[TransitionId::NumberOf];
     Action*  _defaultAction;

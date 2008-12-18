@@ -6,6 +6,14 @@
 
 using namespace Pds;
 
+const char* Fsm::_stateName()
+{ 
+  static const char* _names[] = {
+    "Idle","Mapped","Configured","Begun","Enabled"
+  };
+  return (_state < NumberOf ? _names[_state] : "-Invalid-");
+};
+
 Fsm::Fsm() : _state(Idle), _defaultAction(new Action) {
   unsigned i;
   for (i=0;i<TransitionId::NumberOf;i++) {
@@ -63,18 +71,25 @@ Fsm::State Fsm::_reqState(TransitionId::Value id) {
   }
 }
 
-unsigned Fsm::_allowed(State reqState) {
-  return (abs((unsigned)reqState-_state)==1);
+unsigned Fsm::_allowed(State reqState, TransitionId::Value id) {
+  if (id==TransitionId::L1Accept) {
+    return _state==Enabled;
+  } else {
+    return (abs((unsigned)reqState-_state)==1);
+  }
 }
 
 InDatagram* Fsm::events(InDatagram* in) {
   TransitionId::Value id = in->datagram().seq.service();
   State reqState = _reqState(id);
-  if (_state == reqState) {
+  if (_allowed(reqState,id)) {
     in = _action[id]->fire(in);
+    // need to check for failure of the action before updating _state
+    _state = reqState;
   } else {
     // assert invalid transition damage here
-    printf("Invalid event %s\n",TransitionId::name(id));
+    printf("Fsm: Invalid event %s while in state %s\n",TransitionId::name(id),
+           _stateName());
   }
   return in;
 }
@@ -86,13 +101,12 @@ InDatagram* Fsm::occurrences(InDatagram* in) {
 Transition* Fsm::transitions(Transition* tr) {
   TransitionId::Value id = tr->id();
   State reqState = _reqState(id);
-  if (_allowed(reqState)) {
+  if (_allowed(reqState,id)) {
     tr = _action[id]->fire(tr);
-    // need to check for failure of the action before updating _state
-    _state = reqState;
   } else {
     // assert invalid transition damage here
-    printf("Invalid transition %s\n",TransitionId::name(id));
+    printf("Fsm: Invalid transition %s while in state %s\n",
+           TransitionId::name(id),_stateName());
   }
   return tr;
 }
