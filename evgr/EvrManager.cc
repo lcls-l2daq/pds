@@ -111,7 +111,6 @@ public:
     // setup map ram
     int ram=0; int enable=1;
     _er.MapRamEnable(ram,0);
-    printf("Enabling opcode %d\n",_opcode);
     _er.SetFIFOEvent(ram, _opcode, enable);
 
     // acqiris pulse configuration
