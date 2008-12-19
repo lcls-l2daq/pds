@@ -69,6 +69,7 @@ public:
     readParams.dataType         = ReadReal64;
     readParams.readMode         = ReadModeStdW;
     readParams.nbrSegments      = nbrSegments;
+    readParams.flags            = 0;
     readParams.firstSampleInSeg = 0;
     readParams.firstSegment     = 0;
     readParams.segmentOffset    = 0;
