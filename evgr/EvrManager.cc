@@ -16,7 +16,7 @@
 #include "pds/service/Client.hh"
 #include "EvgrBoardInfo.hh"
 #include "EvrManager.hh"
-#include "EvgrOpcodes.hh"
+#include "EvgrOpcode.hh"
 
 using namespace Pds;
 
@@ -102,21 +102,23 @@ public:
 
 class EvrConfigAction : public EvrAction {
 public:
-  EvrConfigAction(Evr& er) : EvrAction(er) {}
+  EvrConfigAction(Evr& er,EvgrOpcode::Opcode opcode) :
+    EvrAction(er),_opcode(opcode) {}
   Transition* fire(Transition* tr) {
     printf("Configuring evr\n");
     _er.Reset();
 
     // setup map ram
-    int ram=0; int opcode=EvgrOpcodes::L1Accept; int enable=1;
+    int ram=0; int enable=1;
     _er.MapRamEnable(ram,0);
-    _er.SetFIFOEvent(ram, opcode, enable);
+    printf("Enabling opcode %d\n",_opcode);
+    _er.SetFIFOEvent(ram, _opcode, enable);
 
     // acqiris pulse configuration
     { int pulse = 0; int presc = 1; int delay = 0; int width = 16;
       int polarity=0;  int map_reset_ena=0; int map_set_ena=0; int map_trigger_ena=1;
       int trig=0; int set=-1; int clear=-1;
-      _er.SetPulseMap(ram, opcode, trig, set, clear);
+      _er.SetPulseMap(ram, _opcode, trig, set, clear);
       _er.SetPulseProperties(pulse, polarity, map_reset_ena, map_set_ena, map_trigger_ena,
 			     enable);
       _er.SetPulseParams(pulse,presc,delay,width);
@@ -128,7 +130,7 @@ public:
     { int pulse = 1; int presc = 1; int delay = 0; int width = (1<<16)-1;
       int polarity=0;  int map_reset_ena=0; int map_set_ena=0; int map_trigger_ena=1;
       int trig=1; int set=-1; int clear=-1;
-      _er.SetPulseMap(ram, opcode, trig, set, clear);
+      _er.SetPulseMap(ram, _opcode, trig, set, clear);
       _er.SetPulseProperties(pulse, polarity, map_reset_ena, map_set_ena, map_trigger_ena,
 			     enable);
       _er.SetPulseParams(pulse,presc,delay,width);
@@ -139,6 +141,8 @@ public:
     l1xmitGlobal->reset();
     return tr;
   }
+private:
+  EvgrOpcode::Opcode _opcode;
 };
 
 extern "C" {
@@ -158,11 +162,16 @@ extern "C" {
 
 Appliance& EvrManager::appliance() {return _fsm;}
 
-EvrManager::EvrManager(EvgrBoardInfo<Evr> &erInfo, unsigned partition) :
+EvrManager::EvrManager(EvgrBoardInfo<Evr> &erInfo, unsigned partition,
+                       EvgrOpcode::Opcode opcode) :
   _er(erInfo.board()),_fsm(*new Fsm) {
 
+  unsigned ram=0;
+  // disable all opcodes by default
+  for (unsigned i=0;i<0xff;i++) _er.SetFIFOEvent(ram, i, 0);
+
   l1xmitGlobal = new L1Xmitter(_er,partition);
-  _fsm.callback(TransitionId::Configure,new EvrConfigAction(_er));
+  _fsm.callback(TransitionId::Configure,new EvrConfigAction(_er,opcode));
   _fsm.callback(TransitionId::BeginRun,new EvrBeginRunAction(_er));
   _fsm.callback(TransitionId::Enable,new EvrEnableAction(_er));
   _fsm.callback(TransitionId::EndRun,new EvrEndRunAction(_er));
