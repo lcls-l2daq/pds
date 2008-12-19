@@ -44,6 +44,7 @@ EvrServer::EvrServer(const Ins& ins,
 		     const Src& src,
 		     unsigned   nbufs) :
   _server(-1UL,
+	  Port::VectoredServerPort,  // REUSE_ADDR
 	  ins,
 	  DatagramSize,
 	  MaxPayload,
