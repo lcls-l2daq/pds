@@ -43,13 +43,14 @@ public:
     int ram=0;
     //we send down MSB first
     do {
-      unsigned opcode = (fid&(1<<((NumEvtCodes-1)-numEvtCode))) ?
+      unsigned long long mask = (1<<((NumEvtCodes-2)-numEvtCode)); 
+      unsigned opcode = (fid&mask) ?
         EvgrOpcode::TsBit1 : EvgrOpcode::TsBit0;
       unsigned timestamp=numEvtCode;
       _eg.SetSeqRamEvent(ram, numEvtCode, timestamp, opcode);
     } while (++numEvtCode<(NumEvtCodes-1));
     unsigned timestamp=numEvtCode;
-    _eg.SetSeqRamEvent(ram, numEvtCode++, timestamp, EvgrOpcode::TsBitEnd);
+    _eg.SetSeqRamEvent(ram, numEvtCode, timestamp, EvgrOpcode::TsBitEnd);
   }
   void set() {
     FIFOEvent fe;
@@ -161,8 +162,7 @@ public:
     int ram=0; int opcode=9; int enable=1;
     _er.MapRamEnable(ram,0);
     _er.SetFIFOEvent(ram, opcode, enable);
-//     opcode=EvgrOpcode::L1Accept;
-    opcode=240;
+    opcode=240; // for testing, use the highest rate opcode (240Hz).
     _er.SetFIFOEvent(ram, opcode, enable);
     int trig=0; int set=-1; int clear=-1;
     _er.SetPulseMap(ram, opcode, trig, set, clear);
@@ -221,13 +221,10 @@ EvgrManager::EvgrManager(EvgrBoardInfo<Evg> &egInfo, EvgrBoardInfo<Evr> &erInfo)
 
   Action* action;
   action = new EvgrConfigAction(_eg,_er);
-  printf("Config\n");
   action->fire((Transition*)0);
   action = new EvgrBeginRunAction(_eg,_er);
-  printf("Begin\n");
   action->fire((Transition*)0);
   action = new EvgrEnableAction(*timeLoaderGlobal,*opcodeLoaderGlobal,_eg,_er);
-  printf("Enable\n");
   action->fire((Transition*)0);
 
   _er.IrqAssignHandler(erInfo.filedes(), &evgrmgr_sig_handler);

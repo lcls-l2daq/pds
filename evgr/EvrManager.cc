@@ -165,10 +165,6 @@ EvrManager::EvrManager(EvgrBoardInfo<Evr> &erInfo, unsigned partition,
                        EvgrOpcode::Opcode opcode) :
   _er(erInfo.board()),_fsm(*new Fsm) {
 
-  unsigned ram=0;
-  // disable all opcodes by default
-  for (unsigned i=0;i<0xff;i++) _er.SetFIFOEvent(ram, i, 0);
-
   l1xmitGlobal = new L1Xmitter(_er,partition);
   _fsm.callback(TransitionId::Configure,new EvrConfigAction(_er,opcode));
   _fsm.callback(TransitionId::BeginRun,new EvrBeginRunAction(_er));
