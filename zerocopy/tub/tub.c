@@ -328,8 +328,10 @@ static ssize_t tub_drain(struct file *filp, loff_t *ppos,
 		        spd.ops = d->buf.ops;
 		}
 		else if (spd.ops != d->buf.ops) {
+		        /***
 			printk(KERN_ALERT "tub_drain truncated due to change of ops %p/%p\n",
 			       spd.ops, d->buf.ops);
+			***/
 		        break;
 		}
 
