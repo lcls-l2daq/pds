@@ -23,7 +23,7 @@ namespace Pds {
   public:
     virtual ~EbEventKey() {}
   public:
-    EbEventKeyDeclare(EbSequenceSrv);
+     EbEventKeyDeclare(EbSequenceSrv);
     EbEventKeyDeclare(EbCountSrv);
     virtual void assign   (const EvrServer&) {}
   public:

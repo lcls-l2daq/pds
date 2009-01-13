@@ -68,6 +68,7 @@ void Transition::operator delete(void* buffer)
 }
 
 Pds::Allocate::Allocate(const char* partition,
+			const char* dbname,
 			unsigned    partitionid) : 
   Transition(TransitionId::Map, Transition::Execute, Sequence(), 0,
              sizeof(Allocate)-sizeof(_nodes)),
@@ -75,9 +76,11 @@ Pds::Allocate::Allocate(const char* partition,
   _nnodes     (0)
 {
   strncpy(_partition, partition, MaxName-1);
+  strncpy(_dbname   , dbname   , MaxDbName-1);
 }
 
 Pds::Allocate::Allocate(const char* partition,
+			const char* dbname,
 			unsigned    partitionid,
 			const Sequence& seq) : 
   Transition(TransitionId::Map, Transition::Execute, seq, 0,
@@ -86,6 +89,7 @@ Pds::Allocate::Allocate(const char* partition,
   _nnodes     (0)
 {
   strncpy(_partition, partition, MaxName-1);
+  strncpy(_dbname   , dbname   , MaxDbName-1);
 }
 
 bool Pds::Allocate::add(const Node& node)
@@ -113,6 +117,8 @@ const Pds::Node* Pds::Allocate::node(unsigned n) const
 }
 
 const char* Pds::Allocate::partition() const {return _partition;}
+
+const char* Pds::Allocate::dbname() const {return _dbname;}
 
 Pds::Kill::Kill(const Node& allocator) : 
   Transition(TransitionId::Unmap, Transition::Execute, Sequence(), 0, 

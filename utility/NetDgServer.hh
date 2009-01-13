@@ -5,6 +5,7 @@
 #include "EbSequenceSrv.hh"
 #include "EbEventKey.hh"
 #include "pds/service/NetServer.hh"
+#include "pds/xtc/Datagram.hh"
 
 namespace Pds {
   class NetDgServer : public EbServer, EbSequenceSrv
@@ -35,6 +36,7 @@ namespace Pds {
   public:
     NetServer&      server();
     const Sequence& sequence() const;
+    const Env&      env     () const;
   private:
     NetServer   _server;
     Src         _client;
@@ -49,7 +51,12 @@ inline Pds::NetServer& Pds::NetDgServer::server()
 
 inline const Pds::Sequence& Pds::NetDgServer::sequence() const
 {
-  return *(Pds::Sequence*)_server.datagram();
+  return reinterpret_cast<const Pds::Datagram*>(_server.datagram())->seq;
+}
+
+inline const Pds::Env&      Pds::NetDgServer::env     () const
+{
+  return reinterpret_cast<const Pds::Datagram*>(_server.datagram())->env;
 }
 
 #endif

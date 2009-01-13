@@ -217,3 +217,7 @@ const Sequence& ToEb::sequence() const
   return _datagram.seq;
 }
 
+const Env& ToEb::env() const
+{
+  return _datagram.env;
+}

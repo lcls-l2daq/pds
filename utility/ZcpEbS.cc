@@ -49,7 +49,7 @@ EbEventBase* ZcpEbS::_new_event(const EbBitMask& serverId)
     _postEvent(_pending.forward());
 
   ZcpDatagram* datagram = new(&_datagrams) ZcpDatagram(_ctns, _id);
-  EbSequenceKey* key = new(&_keys) EbSequenceKey(const_cast<Datagram&>(datagram->datagram()).seq);
+  EbSequenceKey* key = new(&_keys) EbSequenceKey(const_cast<Datagram&>(datagram->datagram()));
   return new(&_events) ZcpEbEvent(serverId, _clients, datagram, key);
 }
 

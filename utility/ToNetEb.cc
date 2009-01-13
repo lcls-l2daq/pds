@@ -135,8 +135,10 @@ int ToNetEb::send(ZcpDatagram* zdatagram,
     }
   }
 
-  if (error)
+  if (error) {
+    printf("ToNetEb::send error: %s\n",strerror(-error));
     _fragment.flush();
+  }
 
   return error;
 }

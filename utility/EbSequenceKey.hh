@@ -3,24 +3,24 @@
 
 #include "EbEventKey.hh"
 
+#include "pds/xtc/Datagram.hh"
 #include "pds/service/Pool.hh"
 #include "EbSequenceSrv.hh"
-
-#define EbSequenceKeyDeclare( server ) \
 
 namespace Pds {
   class EbSequenceKey : public EbEventKey {
   public:
-    EbSequenceKey(Sequence& s) : key(s) { s = Sequence(); }
+    EbSequenceKey(Datagram& s) : key(s) { s.seq = Sequence(); s.env = 0; }
     PoolDeclare;
   public:
-    virtual bool precedes (const EbSequenceSrv& s) { return key <= s.sequence(); } \
-    virtual bool coincides(const EbSequenceSrv& s) { return key == s.sequence(); } \
-    virtual void assign   (const EbSequenceSrv& s) { key = s.sequence(); }
+    virtual bool precedes (const EbSequenceSrv& s) { return key.seq <= s.sequence(); } 
+    virtual bool coincides(const EbSequenceSrv& s) { return key.seq == s.sequence(); } 
+    virtual void assign   (const EbSequenceSrv& s) { key.seq = s.sequence(); key.env = s.env(); }
   public:
-    const Sequence& sequence() const { return key; }
+    const Sequence& sequence() const { return key.seq; }
+    const Env&      env     () const { return key.env; }
   private:
-    Sequence& key;
+    Datagram& key;
   };
 }
 #endif

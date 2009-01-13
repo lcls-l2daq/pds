@@ -52,6 +52,7 @@ namespace Pds {
     int      fetch       (ZcpFragment& , int flags);
   public:
     const Sequence& sequence() const;
+    const Env&      env()      const;
   private:
     int      _pipefd[2];
     Src      _client;

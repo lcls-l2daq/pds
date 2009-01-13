@@ -27,6 +27,7 @@ namespace Pds {
 class OutletWireHeader : public Sequence
   {
   public:
+    OutletWireHeader();
     OutletWireHeader(const Datagram *datagram);
   public:
     void* operator new(size_t, Pool*);
