@@ -589,7 +589,7 @@ int Client::send(char*        datagram,
 
   if (length != size) {
     printf("Client::sendz1 %d/%d\n",length,size);
-    return ENOMEM;
+    return -ENOMEM;
   }
 
   return 0;
@@ -632,7 +632,7 @@ int Client::send(char*        datagram,
 
   if (length != size2) {
     printf("Client::sendz2 %d/%d\n",length,size2);
-    return ENOMEM;
+    return -ENOMEM;
   }
 
   return 0;
