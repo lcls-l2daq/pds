@@ -16,8 +16,9 @@ namespace Pds {
     void* operator new(unsigned,Pool*);
     void  operator delete(void*);
 
-    int skip(int len);
-    int read(iovec* iov, int maxiov, int len);
+    int   skip(int len);
+    int   read(iovec* iov, int maxiov, int len);
+    void* read_contiguous(int len, void* buffer);
   private:
     const Datagram& _datagram;
     int             _offset;

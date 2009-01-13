@@ -28,8 +28,9 @@ namespace Pds {
     void* operator new(unsigned,Pool*);
     void  operator delete(void*);
 
-    int skip(int len);                          // advance "len" bytes (without mapping)
-    int read(iovec* iov, int maxiov, int len);  // read (and map) "len" bytes into iov array and advance
+    int   skip(int len);                          // advance "len" bytes (without mapping)
+    int   read(iovec* iov, int maxiov, int len);  // read (and map) "len" bytes into iov array and advance
+    void* read_contiguous(int len, void* buffer);
   private:
     void _unmap_iovs();
 

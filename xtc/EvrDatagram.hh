@@ -7,6 +7,7 @@ namespace Pds {
 
   class EvrDatagram {
   public:
+    EvrDatagram() {}
     EvrDatagram(const Sequence& _seq,
 		unsigned _evr) : 
       seq(_seq), evr(_evr) {}

@@ -22,3 +22,11 @@ int CDatagramIterator::read(iovec* iov, int maxiov, int len)
   _offset += qlen;
   return qlen;
 }
+
+void* CDatagramIterator::read_contiguous(int len, void* buffer)
+{
+  char* dg = (char*)&_datagram + _offset;
+  if (_offset+len > _end) return 0;
+  _offset += len;
+  return dg;
+}

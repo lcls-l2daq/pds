@@ -83,6 +83,24 @@ int ZcpDatagramIterator::read(iovec* iov, int maxiov, int len)
   return _iovbuff.remove(iov,maxiov,len);
 }
 
+void* ZcpDatagramIterator::read_contiguous(int len, void* buffer)
+{
+  //  I'm defaulting to a copy here.  It may be possible in some
+  //  cases to arrange the pages such that they are contiguous in
+  //  virtual memory.  This is unlikely if the data comes over the
+  //  network (unless its smaller than one packet).
+  unsigned char* dst = (unsigned char*)buffer;
+  iovec iov[1];
+  int remaining = len;
+  while( remaining ) {
+    int sz = read(iov,1,remaining);
+    if (!sz) break;
+    memcpy(dst,iov[0].iov_base,sz);
+    dst       += sz;
+    remaining -= sz;
+  } 
+  return buffer;
+}
 
 ZcpDatagramIterator::IovBuffer::IovBuffer() :
   _bytes  (0),
