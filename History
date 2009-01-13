@@ -1,3 +1,5 @@
+2009-Jan-13	weaver	Tag V00-06-00.  Many changes to zero-copy eb including new
+			dma_splice kernel module.
 2008-Dec-19     cpo     Changes to evgr to support opcodes with rates
                         of 1,5,10,15,30,60,120,240Hz.  Also fix
                         for acqiris "Flags has been modified" warning and
