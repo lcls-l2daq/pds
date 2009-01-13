@@ -14,7 +14,7 @@
 
 #define OPAL1000_NAME             "Adimec Opal 1000"
 #define OPAL1000_NAME_12bits      "Adimec_Opal-1000m/Q"
-#define OPAL1000_NAME_10bits      "Adimec_Opal-1000m/Q_F10bit"
+#define OPAL1000_NAME_10bits      "Adimec_Opal-1000m/Q_F10bits"
 #define OPAL1000_NAME_8bits       "Adimec_Opal-1000m/Q_F8bit"
 //#define OPAL1000_SERIAL_BAUDRATE  115200
 #define OPAL1000_SERIAL_BAUDRATE  57600
@@ -27,7 +27,7 @@
 #define OPAL1000_SERIAL_TIMEOUT   1000
 #define OPAL1000_CONNECTOR        "CamLink Base Port 0 (HVPSync In 0)"
 
-namespace Pds {
+namespace PdsLeutron {
 
   class Opal1000: public PicPortCL {
   public:
@@ -36,7 +36,7 @@ namespace Pds {
   protected:
     virtual int PicPortCameraConfig(LvROI &Roi);
     virtual int PicPortCameraInit();
-    virtual Pds::Frame *PicPortFrameProcess(Pds::Frame *pFrame);
+    virtual FrameHandle *PicPortFrameProcess(FrameHandle *pFrame);
   private:
     unsigned long LastCount;
   public:

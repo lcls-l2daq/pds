@@ -19,7 +19,8 @@
 
 
 #define DEFAULT_CAMERA      "Adimec_Opal-1000m/Q_F8bit"
-#define DEFAULT_GRABBER     "PicPortX CL Mono"
+#define DEFAULT_GRABBER     "PicPortX CL Mono PMC"
+//#define DEFAULT_GRABBER     "PicPortX CL Mono"
 #define DEFAULT_BAUDRATE    57600
 #define DEFAULT_PARITY      'n'
 #define DEFAULT_DATASIZE    8
@@ -151,27 +152,39 @@ int main(int argc, char *argv[])
         return 1;
     }
 
+    printf("call DsyInit\n");
+
     DsyInit();
 
+    printf("find the grabber\n");
+
     // Find the grabber
-    for(i=0; (lvpGrabber = DsyGetGrabber(i)) != NULL; i++)
+    for(i=0; (lvpGrabber = DsyGetGrabber(i)) != NULL; i++) {
+        printf("found grabber %s\n",lvpGrabber->GetName());
         if (stricmp(szGrabber, lvpGrabber->GetName()) == 0)
             break;
+    }
     if (lvpGrabber == NULL) {
         printf("ERROR: no grabber named %s found.\n\n", szGrabber);
         DsyClose();
         return 2;    
     }
 
+    printf("find the camera\n");
+
     // Find the camera
-    for(i=0; (ret = DsyEnumCameraType(i, &lvciCamera))==DSY_I_NoError; i++)
+    for(i=0; (ret = DsyEnumCameraType(i, &lvciCamera))==DSY_I_NoError; i++) {
+	printf("found camera (%d) %s\n",i,lvciCamera.Name);
         if (stricmp(szCamera, lvciCamera.Name) == 0)
             break;
+    }
     if (ret != DSY_I_NoError) {
         printf("ERROR: no camera named %s found.\n\n", szCamera);
         DsyClose();
         return 3;    
     }
+
+    printf("connect and create\n");
 
     // Connect them and create the camera object
     i = lvpGrabber->GetNrFreeConnectorEx(lvciCamera.Id);
@@ -194,7 +207,9 @@ int main(int argc, char *argv[])
         return 5;
     }
     lvpCamera = lvpGrabber->GetCameraPtr(hCamera);
- 
+
+    printf("activate camera\n");
+
     // Activate the Camera
     ret = lvpCamera->Activate();
     if (ret != DSY_I_NoError) {

@@ -17,7 +17,9 @@
 
 #define PICPORTCL_NAME    "PicPortX CL Mono"
 
-namespace Pds {
+namespace PdsLeutron {
+
+class FrameHandle;
 
 class PicPortCL: public Camera {
   public:
@@ -47,7 +49,7 @@ class PicPortCL: public Camera {
     int Init();
     int Start();
     int Stop();
-    Frame *GetFrame();
+    FrameHandle *GetFrameHandle();
     int SendCommand(char *szCommand, char *pszResponse, int iResponseBufferSize);
   protected:
     int DsyToErrno(LVSTATUS DsyError);
@@ -62,16 +64,19 @@ class PicPortCL: public Camera {
     virtual int PicPortCameraInit() = 0;
     //  This API can be redefined by any driver that want to do processing
     // on a frame before GetFrame returns it to the application.
-    virtual Pds::Frame *PicPortFrameProcess(Pds::Frame *pFrame);
+    virtual FrameHandle *PicPortFrameProcess(FrameHandle *pFrame);
     DaSeq32Cfg SeqDralConfig;
     LvROI Roi;
   private:
-    static void ReleaseFrame(void *obj, Pds::Frame *pFrame, void *arg);
+    static void ReleaseFrame(void *obj, FrameHandle *pFrame, void *arg);
     int GrabberId;
     DsyApp_Seq32 *pSeqDral;
     enum NotifyType NotifyMode;
     int NotifySignal;
+public:
     U8BIT *FrameBufferBaseAddress;
+    U8BIT *FrameBufferEndAddress;
+private:
     unsigned long LastFrame;
 };
 

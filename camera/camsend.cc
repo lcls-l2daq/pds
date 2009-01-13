@@ -10,23 +10,27 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <time.h>
 #include <sys/socket.h>
 #include <netdb.h>
 #include <errno.h>
 #include <sys/time.h>
 #include <signal.h>
-#include <fcntl.h>
-#include "kmemory.h"
-#include "Camera.hh"
+#include "pds/camera/Camera.hh"
 #include "camstream.h"
 #include "pthread.h"
 
+#include "pds/zerocopy/dma_splice/dma_splice.h"
+
 #include "pds/camera/Opal1000.hh"
-#define CAMERA_CLASS  Pds::Opal1000
+#define CAMERA_CLASS  Opal1000
 #define str2(a)       #a
 #define str(a)        str2(a)
 #define CAMERA_NAME   str(CAMERA_CLASS)
-#define MAX_PACKET_SIZE CAMSTREAM_PKT_MAXSIZE
+
+#define USE_TCP
+
+using namespace PdsLeutron;
 
 static unsigned long long gettime(void)
 {	struct timeval t;
@@ -35,182 +39,87 @@ static unsigned long long gettime(void)
 	return t.tv_sec*1000000+t.tv_usec;
 }
 
+// If we use select we have a signal handler that
+// writes into a pipe every time a signal comes
+
+int fdpipe[2];
+
+static void pipe_notify(int signo)
+{
+  write(fdpipe[1], &signo, sizeof(signo));
+}
+
 static void help(const char *progname)
 {
   printf("%s: stream data from a Camera object to the network.\n"
-    "Syntax: %s [ -f ] <dest> [ --count <nimages> ] \\\n"
+    "Syntax: %s <dest> [ --count <nimages> ] \\\n"
     "\t--trigger | --shutter | --fps <fps> | --help\n"
-    "<dest>: if -f is specified dest is a file, otherwise\n"
-    "\tit is the network address of the host to send the\n"
-    "\tdata to (format <host>[:<port>]).\n"
+    "<dest>: stream processed frames to the specified\n"
+    "\taddress with format <host>[:<port>].\n"
     "--trigger: set to have the camera use an external trigger.\n"
     "--shutter: set the camera to use an external shutter control.\n"
     "--count <nimages>: number of images to acquire.\n"
     "--fps <fps>: number of frames per second.\n"
+    "--splice: use splice.\n"
     "--help: display this message.\n"
     "\n", progname, progname);
   return;
 }
 
-/* Variables used accross threads */
-char *dest_host = NULL;
-char *dest_file = NULL;
-int fdIPCPipe[2];
-int ret_thread_streaming;
-int fdKmemory;
-
 /* thread only here to catch signals */
-void *thread_signals(void *arg)
+void *thread2(void *arg)
 {
   pthread_sigmask(SIG_BLOCK, (sigset_t *)arg, 0);
   while(1) sleep(100);
+  return 0;
 }
 
-/* This thread sends the data on the network using the zero copy stack */
-void *thread_streaming(void *arg)
-{ struct iovec iov;
-  fd_set notify_set;
-  int fdStreamPipe[2];
-  char *strport;
-  int dest_port = CAMSTREAM_DEFAULT_PORT;
-  struct sockaddr_in dest_addr;
-  struct hostent *dest_info;
-  int ret, sockfd;
-  unsigned long count;
-
-  /* Set the signal mask */
-  pthread_sigmask(SIG_BLOCK, (sigset_t *)arg, 0);
-
-  /* First open the pipe */
-  if (pipe(fdStreamPipe) < 0) {
-    perror("pipe() failed");
-    ret_thread_streaming = errno;
-    goto err_pipe;
-  }
-
-  /* Do we stream to a socket or a file ? */
-  if (dest_host != NULL) {
-    /* Initialize the socket */
-    strport = strchr(dest_host, ':');
-    if(strport != NULL) {
-      *strport = 0;
-      strport++;
-      dest_port = atoi(strport);
+void *frame_cleanup(void *arg)
+{
+  unsigned fd = *(unsigned*)arg;
+  unsigned long release_arg;
+  int ret;
+  do {
+    if (!(ret=dma_splice_notify(fd, &release_arg)) ) {
+      FrameHandle* pFrame = reinterpret_cast<FrameHandle*>(release_arg);
+      printf("Deleting %p\n",pFrame);
+      delete pFrame;
     }
-
-    /* Check the destination field and fill the address struct */
-    dest_info = gethostbyname2(dest_host, AF_INET);
-    if (dest_info == NULL) {
-      fprintf(stderr, "\nSTREAMING ERROR: could not find %s: %s.\n", 
-                        dest_host, hstrerror(h_errno));
-      ret_thread_streaming = EINVAL;
-      goto err_socket;
-    }
-    dest_addr.sin_family = AF_INET;
-    memcpy(&dest_addr.sin_addr.s_addr, dest_info->h_addr_list[0],
-              dest_info->h_length);
-    dest_addr.sin_port = htons(dest_port);
-
-    /* Open the socket and connection */
-#ifdef USE_TCP
-    sockfd = socket(AF_INET, SOCK_STREAM, 0);
-#else
-    sockfd = socket(AF_INET, SOCK_DGRAM, 0);
-#endif
-    if (sockfd < 0) {
-      perror("STREAMING ERROR: socket() failed");
-      ret_thread_streaming = errno;
-      goto err_socket;
-    }
-    ret = connect(sockfd, (struct sockaddr *)&dest_addr, sizeof(dest_addr));
-    if (ret < 0) {
-      perror("ERROR: connect() failed");
-      ret_thread_streaming = errno;
-      goto err_beforeloop;
-    }
-    printf("Data will be streamed to %s:%d.\n", dest_info->h_name, dest_port);
-  } else if (dest_file != NULL) {
-    sockfd = open(dest_file, O_WRONLY | O_CREAT);
-    if (sockfd < 0) {
-      fprintf(stderr, "open() failed for file %s: %s", dest_file, strerror(errno));
-      ret_thread_streaming = errno;
-      goto err_socket;
-    }
-  }
-  
-  /* main loop */
-  while(1) {
-    int sent;
-
-    FD_ZERO(&notify_set);
-    FD_SET(fdIPCPipe[0], &notify_set);
-    ret = select(fdIPCPipe[0]+1, &notify_set, NULL, NULL, NULL);
-    if (ret < 0) {
-      perror("select()");
-      ret_thread_streaming = errno;
-      goto err_loop;
-    } else if ((ret <= 0) || (!FD_ISSET(fdIPCPipe[0], &notify_set))) {
-      continue;
-    }
-    ret = read(fdIPCPipe[0], &iov, sizeof(iov));
-    if (ret == 0) {
-      /* EOF */
-      break;
-    } else if (ret != sizeof(iov)) {
-      fprintf(stderr, "read() returned %d: %s.\n", ret, strerror(errno));
-      continue;
-    }
-    ret = kmemory_unmap(fdKmemory, &iov, 1);
-    if (ret < 0) {
-      fprintf(stderr, "kmemory_unmap() returned an error: %s.\n", strerror(-ret));
-      continue;
-    }
-    for (count = 0; count < iov.iov_len; count += sent)
-    { int tosend;
-      tosend = iov.iov_len-count < MAX_PACKET_SIZE ? iov.iov_len-count : MAX_PACKET_SIZE;
-      tosend = splice(fdKmemory, NULL, fdStreamPipe[1], NULL, tosend, SPLICE_F_MOVE);
-      if (tosend < 0) {
-        perror("splice(kmem->pipe)");
-        sent = 0;
-        continue;
-      }
-      for (sent = 0; sent < tosend; sent += ret) {
-        ret = splice(fdStreamPipe[0], NULL, sockfd, NULL, tosend-sent, SPLICE_F_MOVE);
-        if (ret < 0) {
-          perror("splice(pipe->socket)");
-          ret = 0;
-          continue;
-        }
-      }
-    }
-  }
-  ret_thread_streaming = 0;
-
-err_loop:
-err_beforeloop:
-  close(sockfd);
-err_socket:
-  close(fdStreamPipe[0]);
-  close(fdStreamPipe[1]);
-err_pipe:
-  close(fdIPCPipe[0]);
-  return (void *)ret_thread_streaming;
+    else
+      printf("notify failed %s\n",strerror(-ret));
+  } while(1);
+  return 0;
 }
 
 int main(int argc, char *argv[])
 { int exttrigger = 0;
   int extshutter = 0;
   int fps = 0;
-  int i, ret;
+  int usplice = 0;
+  int i, ret, sockfd=-1;
   long nimages = 0;
   unsigned long long start_time, end_time;
   CAMERA_CLASS *pCamera;
-  Pds::Camera::Config Config;
-  Pds::Camera::Status Status;
+  Camera::Config Config;
+  Camera::Status Status;
+  char *dest_host=NULL;
+  char *strport;
+  int dest_port = CAMSTREAM_DEFAULT_PORT;
+  struct sockaddr_in dest_addr;
+  struct hostent *dest_info;
   int camsig;
-  int thret;
-  sigset_t sigset_thread_signals, sigset_thread_capture, sigset_thread_streaming;
-  pthread_t h_thread_signals, h_thread_streaming;
+  sigset_t camsigset;
+  sigset_t camsigset_th2;
+  pthread_t th2;
+  struct sigaction sa_notification;
+  fd_set notify_set;
+  int bitsperpixel = 8;
+
+  int pipeFd[2];
+  if ((ret=::pipe(pipeFd)) < 0) {
+    printf("pipe open error %s\n",strerror(-ret));
+    return ret;
+  }
 
   /* Parse the command line */
   for (i = 1; i < argc; i++) {
@@ -221,12 +130,22 @@ int main(int argc, char *argv[])
       exttrigger = 1;
     } else if (strcmp("--shutter",argv[i]) == 0) {
       extshutter = 1;
+    } else if (strcmp("--splice",argv[i]) == 0) {
+#if ( __GNUC__ > 3 )
+      usplice = dma_splice_open();
+      if (usplice < 0) {
+	printf("dma_splice_open error %s\n",strerror(-usplice));
+	return usplice;
+      }
+#else
+      printf("splice only supported in GCC version 4+\n");
+#endif
     } else if (strcmp("--fps",argv[i]) == 0) {
       fps = atol(argv[++i]);
     } else if (strcmp("--count",argv[i]) == 0) {
       nimages = atol(argv[++i]);
-    } else if (strcmp("-f",argv[i]) == 0) {
-      dest_file = argv[++i];
+    } else if (strcmp("--bpp",argv[i]) == 0) {
+      bitsperpixel = atol(argv[++i]);
     } else if (dest_host == NULL) {
       dest_host = argv[i];
     } else {
@@ -239,9 +158,6 @@ int main(int argc, char *argv[])
     fprintf(stderr, "ERROR: you must set the frames per second with --fps.\n");
     return -1;
   }
-  if (dest_file != NULL) {
-    dest_host = NULL;
-  }
 
   /* Open the camera */
   printf("Creating camera object of class %s ... ",CAMERA_NAME);
@@ -253,15 +169,22 @@ int main(int argc, char *argv[])
   printf("Configuring camera ... "); 
   fflush(stdout);
   if (exttrigger)
-    Config.Mode = Pds::Camera::MODE_EXTTRIGGER;
+    Config.Mode = Camera::MODE_EXTTRIGGER;
   else if (extshutter)
-    Config.Mode = Pds::Camera::MODE_EXTTRIGGER_SHUTTER;
+    Config.Mode = Camera::MODE_EXTTRIGGER_SHUTTER;
   else
-    Config.Mode = Pds::Camera::MODE_CONTINUOUS;
-  Config.Format = Pds::Frame::FORMAT_GRAYSCALE_8;
-  Config.GainPercent = 10;
-  Config.BlackLevelPercent = 10;
-  Config.ShutterMicroSec = 1000000/fps;
+    Config.Mode = Camera::MODE_CONTINUOUS;
+
+  Config.Format = FrameHandle::FORMAT_GRAYSCALE_8;
+  if (bitsperpixel == 10)
+    Config.Format = FrameHandle::FORMAT_GRAYSCALE_10;
+  else if (bitsperpixel == 12)
+    Config.Format = FrameHandle::FORMAT_GRAYSCALE_12;
+
+  Config.GainPercent = 20;
+  Config.BlackLevelPercent = 5;
+  //  Config.ShutterMicroSec = (1000000/fps)-100;  // max exposure
+  Config.ShutterMicroSec = 540;
   Config.FramesPerSec = fps;
   ret = pCamera->SetConfig(Config);
   if (ret < 0) {
@@ -270,7 +193,7 @@ int main(int argc, char *argv[])
     delete pCamera;
     return -1;
   }
-  camsig = pCamera->SetNotification(Pds::Camera::NOTIFYTYPE_SIGNAL);
+  camsig = pCamera->SetNotification(Camera::NOTIFYTYPE_SIGNAL);
   if (ret < 0) {
     printf("failed.\n");
     fprintf(stderr, "Camera::SetNotification: %s.\n", strerror(-ret));
@@ -278,47 +201,6 @@ int main(int argc, char *argv[])
     return -1;
   }
   printf("done.\n");
-
-  /* First open the pipe */
-  printf("Initialize IPC pipe and kmemory ... "); 
-  if (pipe(fdIPCPipe) < 0) {
-    printf("failed.\n");
-    perror("pipe() failed");
-    delete pCamera;
-    return -1;
-  }
-  fdKmemory = kmemory_open();
-  if (fdKmemory < 0) {
-    printf("failed.\n");
-    fprintf(stderr, "kmemory_open failed: %s.\n", strerror(-fdKmemory));
-    delete pCamera;
-    return -1;
-  }
-  printf("done.\n"); 
-
-  printf("Create threads and setup signals ... "); 
-  /* Create a second thread. This thread is only here
-   * as a catch all for signals, because LVSDS use a few
-   * real-time signals. If we do not do that then this
-   * thread system call keep being interrupted.
-   */
-  sigemptyset(&sigset_thread_signals);
-  sigaddset(&sigset_thread_signals, camsig);
-  pthread_create(&h_thread_signals, NULL, thread_signals, &sigset_thread_signals);
-
-  /* block all signals in the streaming thread */
-  sigfillset(&sigset_thread_streaming);
-  pthread_sigmask(SIG_BLOCK, &sigset_thread_streaming, 0);
-  pthread_create(&h_thread_streaming, NULL, thread_streaming, &sigset_thread_streaming);
-
-  /* block all signals in this thread, thread_signals will take care of them */
-  sigfillset(&sigset_thread_capture);
-  pthread_sigmask(SIG_BLOCK, &sigset_thread_capture, 0);
-
-  /* setup variables for sigwait */
-  sigemptyset(&sigset_thread_capture);
-  sigaddset(&sigset_thread_capture, camsig);
-  printf("done.\n"); 
 
   /* Initialize the camera */
   printf("Initialize camera ... "); 
@@ -331,8 +213,78 @@ int main(int argc, char *argv[])
     return -1;
   }
   printf("done.\n"); 
-  
+
+  if (usplice > 0)
+    dma_splice_initialize( usplice, pCamera->FrameBufferBaseAddress,
+			   pCamera->FrameBufferEndAddress - pCamera->FrameBufferBaseAddress);
+
+  if (dest_host) {
+    /* Initialize the socket */
+    strport = strchr(dest_host, ':');
+    if(strport != NULL) {
+      *strport = 0;
+      strport++;
+      dest_port = atoi(strport);
+    }
+    /* Check the destination field and fill the address struct */
+    dest_info = gethostbyname2(dest_host, AF_INET);
+    if (dest_info == NULL) {
+      fprintf(stderr, "\nSTREAMING ERROR: could not find %s: %s.\n", 
+	      dest_host, hstrerror(h_errno));
+      return -1;
+    }
+    dest_addr.sin_family = AF_INET;
+    memcpy(&dest_addr.sin_addr.s_addr, dest_info->h_addr_list[0],
+	   dest_info->h_length);
+    dest_addr.sin_port = htons(dest_port);
+    /* Open the socket and connection */
+#ifdef USE_TCP
+    sockfd = socket(AF_INET, SOCK_STREAM, 0);
+#else
+    sockfd = socket(AF_INET, SOCK_DGRAM, 0);
+#endif
+    if (sockfd < 0) {
+      perror("STREAMING ERROR: socket() failed");
+      return -1;
+    }
+    ret = connect(sockfd, (struct sockaddr *)&dest_addr, sizeof(dest_addr));
+    if (ret < 0) {
+      perror("ERROR: connect() failed");
+      return -1;
+    }
+    printf("Data will be streamed to %s:%d.\n", dest_info->h_name, dest_port);
+  }
+
   /* Start the Camera */
+  {
+    /* First open the pipe */
+    if (pipe(fdpipe) < 0) {
+      perror("pipe() failed");
+      return -1;
+    }
+    /* Register the signal handler */
+    sa_notification.sa_handler = pipe_notify;
+    sigemptyset (&sa_notification.sa_mask);
+    sa_notification.sa_flags = 0;
+    sigaction (camsig, &sa_notification, NULL);
+  }
+  sigemptyset(&camsigset_th2);
+
+  /* Create a second thread. This thread is only here
+   * as a catch all for signals, because LVSDS use a few
+   * real-time signals. If we do not do that then this
+   * thread system call keep being interrupted.
+   */
+  pthread_create(&th2, NULL, thread2, &camsigset_th2);
+  /* block all signals in this thread, thread2 will take care of them */
+  sigfillset(&camsigset);
+  pthread_sigmask(SIG_BLOCK, &camsigset, 0);
+
+  if (usplice > 0) {
+    pthread_t th3;
+    pthread_create(&th3, NULL, frame_cleanup, &usplice);
+  }
+
   printf("Starting capture ...\n");
   fflush(stdout);
   start_time = gettime();
@@ -340,66 +292,187 @@ int main(int argc, char *argv[])
   if (ret < 0) {
     printf("failed.\n");
     fprintf(stderr, "Camera::Init: %s.\n", strerror(-ret));
+    close(sockfd);
     delete pCamera;
-    exit(-1);
+    return -1;
   }
 
   /* Main loop:
    * 1- wait for a signal
    * 2- get the next frame
-   * 3- send the frame to the streaming thread
    */
+  char* spliceBuffer = new char[64*1024];
+
+  timespec tp;
+  clock_gettime(CLOCK_REALTIME, &tp);
+
+  int nSkipped = 0, nFrames = 0;
+  unsigned frameId = -1UL;
+
   for(i=1; i != nimages+1; i++) {
     int signal;
-    Pds::Frame *pFrame;
-    struct camstream_image_t *psndimg;
-    unsigned long image_size;
-    struct iovec iov;
-
-    printf("\rCapturing frame %d ... ",i);
-    /* Wait for a new frame */
-    ret = sigwait(&sigset_thread_capture, &signal);
-    if (ret != 0) {
+    struct camstream_image_t sndimg;
+    int tosend;
+    FrameHandle *pFrame;
+    //    printf("\rCapturing frame %d ... ",i);
+    fflush(stdout);
+    FD_ZERO(&notify_set);
+    FD_SET(fdpipe[0], &notify_set);
+    ret = select(fdpipe[0]+1, &notify_set, NULL, NULL, NULL);
+    if (ret < 0) {
       printf("failed.\n");
-      fprintf(stderr, "sigwait: %s.\n", strerror(ret));
+      perror("select()");
+      close(sockfd);
       delete pCamera;
-      exit(-1);
+      return -1;
+    } else if ((ret <= 0) || (!FD_ISSET(fdpipe[0], &notify_set))) {
+      i--;
+      continue;
     }
+    ret = read(fdpipe[0], &signal, sizeof(signal));
+    if (ret != sizeof(signal)) {
+      printf("failed.\n");
+      fprintf(stderr, "read() returned %d: %s.\n", ret, strerror(errno));
+      close(sockfd);
+      delete pCamera;
+      return -1;
+    }   
     if(signal != camsig) {
       printf("???\nWarning: got signal %d, expected %d.\n", signal, camsig);
       i--;
       continue;
     }
-    /* Retrieve the last captured frame */
-    pFrame = pCamera->GetFrame();
-    if (pFrame == NULL) {
-      printf("skipped.\nGetFrame returned NULL.\n");
+    pFrame = pCamera->GetFrameHandle();
+
+    if (!dest_host) {
+      if (pFrame == NULL) {
+	nSkipped++;
+	if ((nSkipped%fps)==0) {
+	  printf("skipped %d frames\n",nSkipped);
+	}
+      }
+      else {
+	
+	unsigned thisId;
+	switch (bitsperpixel) {
+	case 0:
+	case 8:
+	  { unsigned char* data = (unsigned char*)pFrame->data; 
+	    thisId = (data[0]<<24) | (data[1]<<16) | (data[2]<<8) | data[3];
+	    break; }
+	case 10:
+	case 12:
+	  { unsigned short* data = (unsigned short*)pFrame->data; 
+	    thisId = (data[0]<<24) | (data[1]<<16) | (data[2]<<8) | data[3];
+	    break; }
+	}
+
+	if (thisId != ++frameId) {
+	  printf("unexpected frameId %x -> %x\n",frameId,thisId);
+	  frameId = thisId;
+	}
+
+	nFrames++;
+	if ((nFrames%fps)==0) {
+	  timespec _tp;
+	  clock_gettime(CLOCK_REALTIME, &_tp);
+	  printf("%d/%d : %g sec\n",nFrames,nSkipped,(_tp.tv_sec-tp.tv_sec)+1.e-9*(_tp.tv_nsec-tp.tv_nsec));
+	  tp = _tp;
+	}
+	delete pFrame;
+      }
       continue;
     }
-    /* Allocate a buffer and copy the image structure and data */
-    image_size = pFrame->width*pFrame->height*pFrame->elsize;
-    ret = kmemory_map_write(fdKmemory, &iov, 1, sizeof(struct camstream_image_t) + image_size);
+
+    //    printf("frame @ %p (%p)\n",pFrame->data, pFrame);
+    if (pFrame == NULL) {
+      printf("skipped.\nGetFrameHandle returned NULL.\n");
+      continue;
+    }
+
+    sndimg.base.hdr = CAMSTREAM_IMAGE_HDR;
+    sndimg.base.pktsize = CAMSTREAM_IMAGE_PKTSIZE;
+    sndimg.format = (bitsperpixel>8) ? IMAGE_FORMAT_GRAY16 : IMAGE_FORMAT_GRAY8;
+    sndimg.size = htonl(pFrame->width*pFrame->height*pFrame->elsize);
+    sndimg.width = htons(pFrame->width);
+    sndimg.height = htons(pFrame->height);
+    sndimg.data = (void *)htonl(4);	/* Delta between ptr address and data */
+
+    if (usplice > 0)
+      dma_splice_queue(usplice, 
+		       pFrame->data, 
+		       pFrame->width*pFrame->height*pFrame->elsize, 
+		       (unsigned long)pFrame);
+
+    ret = send(sockfd, (char *)&sndimg, sizeof(sndimg), 0);
     if (ret < 0) {
       printf("failed.\n");
-      fprintf(stderr, "kmemory_map_write failed: %s.\n",strerror(-ret));
+      fprintf(stderr, "send(hdr): %s.\n", strerror(errno));
+      delete pFrame;
       delete pCamera;
-      exit(-1);
+      return -1;
     }
-    psndimg = (struct camstream_image_t *)iov.iov_base;
-    psndimg->base.hdr = CAMSTREAM_IMAGE_HDR;
-    psndimg->base.pktsize = CAMSTREAM_IMAGE_PKTSIZE;
-    psndimg->format = IMAGE_FORMAT_GRAY8;
-    psndimg->size = htonl(pFrame->width*pFrame->height*pFrame->elsize);
-    psndimg->width = htons(pFrame->width);
-    psndimg->height = htons(pFrame->height);
-    psndimg->data = (void *)htonl(4);	/* Delta between ptr address and data */
-    memcpy((char *)iov.iov_base + sizeof(struct camstream_image_t), pFrame->data, image_size);
-    delete pFrame;
-    /* Notify event builder a frame is ready */
-    write(fdIPCPipe[1], &iov, sizeof(struct iovec));
+      
+#if ( __GNUC__ > 3 )
+    if (usplice > 0) {
+      // Try to splice
+      for(tosend = pFrame->width*pFrame->height*pFrame->elsize;
+	  tosend > 0; tosend -= ret) {
+	ret = ::splice(usplice, NULL, pipeFd[1], NULL, tosend, SPLICE_F_MOVE);
+	if (ret < 0) {
+	  printf("splice failed %s\n",strerror(-ret));
+	  //	  delete pFrame;
+	  close(sockfd);
+	  close(usplice);
+	  delete pCamera;
+	  return -1;
+	}
+	
+	int nbytes = ::read(pipeFd[0], spliceBuffer, ret);
+	if (nbytes != ret) {
+	  printf("read failed to copy spliced bytes %d/%d\n",nbytes,ret);
+	}
+
+	ret = send(sockfd, spliceBuffer, nbytes, 0);
+	if (ret < 0) {
+	  printf("send failed %s\n",strerror(-ret));
+	  //	  delete pFrame;
+	  close(sockfd);
+	  close(usplice);
+	  delete pCamera;
+	  return -1;
+	}
+      }
+    }
+    else {
+#else
+    {
+#endif
+      char* p;
+      for(tosend = pFrame->width*pFrame->height*pFrame->elsize, 
+	    p=(char *)pFrame->data; 
+	  tosend > 0; tosend -= ret, p += ret) {
+	ret = send(sockfd, p, 
+		   tosend < CAMSTREAM_PKT_MAXSIZE ? 
+		   tosend : CAMSTREAM_PKT_MAXSIZE, 0);
+	if (ret < 0) {
+	  printf("failed.\n");
+	  fprintf(stderr, "send(img): %s.\n", strerror(errno));
+	  delete pFrame;
+	  close(sockfd);
+	  delete pCamera;
+	  return -1;
+	} 
+      }
+      delete pFrame;
+    }
+
   }
   printf("done.\n");
-  close(fdIPCPipe[1]);
+  close(sockfd);
+  close(fdpipe[0]);
+  close(fdpipe[1]);
+  if (usplice > 0)  close(usplice);
 
   /* Stop the camera */
   printf("Stopping camera ... ");
@@ -409,27 +482,10 @@ int main(int argc, char *argv[])
     printf("failed.\n");
     fprintf(stderr, "Camera::Stop: %s.\n", strerror(-ret));
     delete pCamera;
-    exit(-1);
+    return -1;
   }
   end_time = gettime();
   printf("done.\n"); 
-  printf("Stopping streaming thread ... ");
-  pthread_cancel(h_thread_streaming);
-  ret = pthread_join(h_thread_streaming, (void **)&thret);
-  if (ret != 0) {
-    printf("failed.\n");
-    fprintf(stderr, "pthread_join: %s.\n", strerror(ret));
-    delete pCamera;
-    return -1;
-  }
-  if ((thret != 0) && (thret != -1)) {
-    printf("returned %d.\n", thret);
-    fprintf(stderr, "Streaming thread exited with error: %s.\n", strerror(thret));
-  } else {
-    printf("done.\n");
-  }
-  /* Now can safely close the kmemory handle */
-  kmemory_close(fdKmemory);
 
   /* Get some statistics */
   printf("Checking camera status ... "); 

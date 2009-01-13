@@ -61,6 +61,7 @@ int help(char *name)
 		"--disprate <rate>: floating point number specifying the amount\n"
 		"\tof frames to display (1=all (default), 0.5=every other etc ...).\n"
 		"--sockbuf <bufsize>: set the size of the socket receive buffer.\n"
+	        "--first: expand first line of image\n"
 		"--help: display this message.\n"
 		"\n", name, name);
 	return 0;
@@ -72,6 +73,8 @@ unsigned long long gettime(void)
 	gettimeofday(&t, NULL);
 	return t.tv_sec*1000000+t.tv_usec;
 }
+
+int usequence;
 
 void *writing_main(void *arg)
 {	unsigned long long start_save_time, end_save_time, total_save_time = 0;
@@ -114,7 +117,7 @@ void *writing_main(void *arg)
 		pthread_mutex_unlock(&images.lock);
 		if(enable_save) {
 			char *p = (char *)images.ring[images.next_ready];
-			unsigned long size = sizeof(images.ring[images.next_ready]) + images.ring[images.next_ready]->size;
+			unsigned long size = sizeof(*images.ring[images.next_ready]) + images.ring[images.next_ready]->size;
 			start_save_time = gettime();
 			while (size) {
 				int ret = write(fd, p, size);
@@ -142,7 +145,8 @@ void *writing_main(void *arg)
 			end_display_time = gettime();
 			total_display_time += end_display_time - start_display_time;
 		}
-		free(images.ring[images.next_ready]);
+		if (!usequence)
+		  free(images.ring[images.next_ready]);
 		frames_count++;
 		pthread_mutex_lock(&images.lock);
 		images.next_ready++;
@@ -157,6 +161,10 @@ void *writing_main(void *arg)
 int main (int argc, char *argv[])
 {	int sockfd, ret;
 	int port = CAMSTREAM_DEFAULT_PORT;
+	usequence = 0;
+	int ufirst = 0;
+	char* ufirstbuffer;
+	char* useqbuffer;
 	struct sockaddr_in listen_addr;
 	unsigned long long start_time, end_time, total;
 	pthread_t writing_thread;
@@ -183,12 +191,19 @@ int main (int argc, char *argv[])
 			disprate = atof(argv[++i]);
 		} else if (strcmp("--sockbuf", argv[i]) == 0) {
 			sockbufsz = atoi(argv[++i]);
+		} else if (strcmp("--first", argv[i]) == 0) {
+			ufirst = 1;
+		} else if (strcmp("--sequence", argv[i]) == 0) {
+			usequence = 1;
 		} else {
 			fprintf(stderr, "ERROR: invalid argument %s, "
 					"try --help.\n", argv[i]);
 			return -EINVAL;
 		}
 	}
+
+	ufirstbuffer = (char*)malloc(1024*1024);
+	useqbuffer   = (char*)malloc(sizeof(struct camstream_image_t)+1024*1024);
 
 	printf("Initializing application data ... ");
 	/* Start the writing thread */
@@ -307,8 +322,9 @@ int main (int argc, char *argv[])
 		struct camstream_image_t *image;
 		ssize_t pktsize;
 		unsigned long tx;
-		uint32_t imgsize;
+		uint32_t imgsize, imgwidth, imgheight;
 		int sync = 1;
+		int useqrow,useqoff;
 
 		printf("\rWaiting for image %lu ... ", i+1);
 		/* First we receive the header */
@@ -348,11 +364,19 @@ int main (int argc, char *argv[])
 			printf("aborted:\nConnection closed by sender.");
 			break;
 		}
-		imgsize = ntohl(p->size);
-		printf("\rReceiving image %lu ...   ", i+1);
-		image = (struct camstream_image_t *)malloc(
-					sizeof(struct camstream_image_t) + imgsize
-				);
+		imgsize   = ntohl(p->size  );
+		imgheight = ntohs(p->height);
+		imgwidth  = ntohs(p->width );
+
+		if (usequence) {
+		  useqrow = i%imgheight;
+		  useqoff = useqrow*imgwidth;
+		  printf("\rReceiving row %lu off %lu ...   ", useqrow, useqoff);
+		  image = useqbuffer;
+		}
+		else
+		  image = (struct camstream_image_t *)
+		    malloc(sizeof(struct camstream_image_t) + imgsize);
 		if (image == NULL) {
 			printf("failed.\n");
 			fprintf(stderr, "ERROR: could not allocate %d Bytes for image.\n", 
@@ -362,23 +386,41 @@ int main (int argc, char *argv[])
 			return -errno;
 		}
 		for (tx = 0; tx < imgsize; tx += pktsize, total += pktsize) {
+		  if (usequence) {
+		    if (tx < imgwidth)
+			pktsize = recv(sockfd, 
+				       (char*)image + sizeof(struct camstream_image_t) + tx + useqoff,
+				       imgwidth - tx,
+				       MSG_WAITALL);
+		    else
+			pktsize = recv(sockfd, ufirstbuffer, imgsize-tx, MSG_WAITALL);
+		  }				       
+		  else
 			pktsize = recv(sockfd, ((char *)image)+sizeof(struct camstream_image_t)+tx, imgsize-tx, MSG_WAITALL);
-			if (pktsize < 0) {
-				printf("failed.\n");
-				perror("ERROR: recv() failed");
-				close(sockfd);
-				free(buffer);
-				return -errno;
-			}
+		  if (pktsize < 0) {
+		    printf("failed.\n");
+		    perror("ERROR: recv() failed");
+		    close(sockfd);
+		    free(buffer);
+		    return -errno;
+		  }
 		}
+
 		/* Finish filling the packet info */
 		image->base.hdr = CAMSTREAM_IMAGE_HDR;
 		image->base.pktsize = CAMSTREAM_IMAGE_PKTSIZE;
 		image->format = p->format;
 		image->size = imgsize;
-		image->width = ntohs(p->width);
-		image->height = ntohs(p->height);
+		image->width = imgwidth;
+		image->height = imgheight;
 		image->data = (char *)((unsigned long)(&image->data) + ntohl((unsigned long)p->data));
+		/* special transformation */
+		if (ufirst) {
+		  int k;
+		  for(k = 1; k < image->height; k++)
+		    memcpy( image->data + k*image->width, image->data, image->width );
+		}
+
 		/* Notify writing thread that an image is available */
 		pthread_mutex_lock(&images.lock);
 		if((images.next_free+1)%RINGBUFFER_SIZE(images) == images.next_ready) {

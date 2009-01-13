@@ -13,7 +13,9 @@
 // high = 1 means you want the highest priority signal avaliable, lowest otherwise
 extern "C" int __libc_allocate_rtsig (int high);
 
-Pds::PicPortCL::PicPortCL(int _grabberid) {
+using namespace PdsLeutron;
+
+PicPortCL::PicPortCL(int _grabberid) {
   DsyInit();
   pSeqDral = NULL;
   NotifySignal = 0;
@@ -22,7 +24,7 @@ Pds::PicPortCL::PicPortCL(int _grabberid) {
   PicPortCLConfig.bUsePicportCounters = true;
 }
 
-Pds::PicPortCL::~PicPortCL() {
+PicPortCL::~PicPortCL() {
   if (status.State == CAMERA_RUNNING)
     Stop();
   if (pSeqDral != NULL)
@@ -30,7 +32,7 @@ Pds::PicPortCL::~PicPortCL() {
   DsyClose();
 }
 
-int Pds::PicPortCL::DsyToErrno(LVSTATUS DsyError) {
+int PicPortCL::DsyToErrno(LVSTATUS DsyError) {
   switch (DsyError) {
     case I_NoError:
       return 0;
@@ -40,7 +42,7 @@ int Pds::PicPortCL::DsyToErrno(LVSTATUS DsyError) {
   return EINVAL;
 }
 
-int Pds::PicPortCL::SetNotification(enum NotifyType mode) { 
+int PicPortCL::SetNotification(enum NotifyType mode) { 
   int ret;
   switch(mode) {
     case NOTIFYTYPE_NONE:
@@ -61,7 +63,7 @@ int Pds::PicPortCL::SetNotification(enum NotifyType mode) {
   return ret;
 }
 
-int Pds::PicPortCL::Init() {
+int PicPortCL::Init() {
   LVSTATUS lvret;
   int ret;
   LvCameraNode *pCameraNode;
@@ -156,6 +158,8 @@ int Pds::PicPortCL::Init() {
     return -DsyToErrno(lvret);
   Roi.SetROIInfo(&SeqDralConfig.ConnectCamera.Roi);
   FrameBufferBaseAddress = pSeqDral->GetBufferBaseAddress();
+  FrameBufferEndAddress  = FrameBufferBaseAddress + 
+    pSeqDral->GetImageOffset(1) * pSeqDral->GetNrImages();
 
   // We are now ready to acquire frames
   status.State = CAMERA_READY;
@@ -165,7 +169,7 @@ int Pds::PicPortCL::Init() {
   return 0;
 }
 
-int Pds::PicPortCL::Start() {
+int PicPortCL::Start() {
   LVSTATUS lvret;
 
   // Check if Init has been properly called
@@ -182,7 +186,7 @@ int Pds::PicPortCL::Start() {
   return 0;
 }
 
-int Pds::PicPortCL::Stop() {
+int PicPortCL::Stop() {
   LVSTATUS lvret;
 
   // Check if Start has been called
@@ -199,11 +203,11 @@ int Pds::PicPortCL::Stop() {
   return 0; 
 }
 
-Pds::Frame *Pds::PicPortCL::GetFrame() {
+PdsLeutron::FrameHandle *PicPortCL::GetFrameHandle() {
   int ret;
   unsigned long Captured, Current;
   U32BIT StartX, StartY;
-  Pds::Frame *pFrame;
+  FrameHandle *pFrame;
 
   // If requested by user we wait for a signal
   if (NotifyMode == NOTIFYTYPE_WAIT) {
@@ -225,8 +229,19 @@ Pds::Frame *Pds::PicPortCL::GetFrame() {
   // Read the next frame
   pSeqDral->LockImage(Current);
   if(!pSeqDral->GetImageCoord(Current, &StartX, &StartY))
-    return (Pds::Frame *)NULL;
+    return (FrameHandle *)NULL;
   Roi.SetStartPosition(StartX, StartY);
+
+  /*
+  LvAcquiredImageInfo imgInfo;
+  LvGrabberNode *pGrabber=DsyGetGrabberPtrFromHandle(SeqDralConfig.hGrabber);
+  LvCameraNode* pCameraNode = pGrabber->GetCameraPtr(SeqDralConfig.hCamera);
+  pCameraNode->GetAcquiredImageInfo(&imgInfo);
+  printf("acquired %08d/%08x %d x %d %x\n",
+	 imgInfo.FrameId, imgInfo.Timestamp, 
+	 imgInfo.AcquiredWidth, imgInfo.AcquiredHeight,
+	 imgInfo.Flags);
+  */
 
   if(PicPortCLConfig.bUsePicportCounters) {
     if(Current < LastFrame) 
@@ -239,14 +254,14 @@ Pds::Frame *Pds::PicPortCL::GetFrame() {
     LastFrame = Current;
   }
   // Return a Frame object
-  pFrame = new Frame(Roi.Width, Roi.Height, config.Format, Roi.PixelIncrement,
-        (void *)(FrameBufferBaseAddress + Roi.StartAddress), &Pds::PicPortCL::ReleaseFrame, this, (void *)Current);
+  pFrame = new FrameHandle(Roi.Width, Roi.Height, config.Format, Roi.PixelIncrement,
+        (void *)(FrameBufferBaseAddress + Roi.StartAddress), &PicPortCL::ReleaseFrame, this, (void *)Current);
   return PicPortFrameProcess(pFrame);
 }
 
 // For PicPortCL framegrabbers, calling this API will send szCommand on
 // the camera link control serial line.
-int Pds::PicPortCL::SendCommand(char *szCommand, char *pszResponse, int iResponseBufferSize) {
+int PicPortCL::SendCommand(char *szCommand, char *pszResponse, int iResponseBufferSize) {
   LVSTATUS lvret;
   LvCameraNode *pCameraNode;
   unsigned long ulReceivedLength;
@@ -286,12 +301,12 @@ int Pds::PicPortCL::SendCommand(char *szCommand, char *pszResponse, int iRespons
   return ulReceivedLength;
 }
 
-void Pds::PicPortCL::ReleaseFrame(void *obj, Pds::Frame *pFrame, void *arg) {
-  Pds::PicPortCL *pThis = (Pds::PicPortCL *)obj;
+void PicPortCL::ReleaseFrame(void *obj, FrameHandle *pFrame, void *arg) {
+  PicPortCL *pThis = (PicPortCL *)obj;
   // Release last image locked (assume image was processed)
   pThis->pSeqDral->UnlockImage((int)arg);
 }
 
-Pds::Frame *Pds::PicPortCL::PicPortFrameProcess(Pds::Frame *pFrame) {
+FrameHandle *PicPortCL::PicPortFrameProcess(FrameHandle *pFrame) {
   return pFrame;
 }

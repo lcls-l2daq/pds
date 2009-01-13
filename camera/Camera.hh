@@ -10,32 +10,9 @@
 #ifndef PDS_CAMERA
 #define PDS_CAMERA
 
-namespace Pds {
+#include "FrameHandle.hh"
 
-class Frame {
-  public:
-    enum Format {
-      FORMAT_GRAYSCALE_8,
-      FORMAT_GRAYSCALE_10,
-      FORMAT_GRAYSCALE_12,
-      FORMAT_GRAYSCALE_16,
-      FORMAT_RGB_32,
-    };
-
-    Frame(unsigned long _width, unsigned long _height, enum Format _format, void *_data);
-    Frame(unsigned long _width, unsigned long _height, enum Format _format, int _elsize, void *_data);
-    Frame(unsigned long _width, unsigned long _height, enum Format _format, int _elsize, void *_data,
-            void(*_release)(void *, Frame *, void *), void *_obj, void *_arg);
-    ~Frame();
-    unsigned long width;
-    unsigned long height;
-    enum Format format;
-    unsigned long elsize;
-    void *data;
-    void(*release)(void *, Frame *pFrame, void *arg);
-    void *obj;
-    void *arg;
-};
+namespace PdsLeutron {
 
 class Camera {
   public:
@@ -51,7 +28,7 @@ class Camera {
       CAMERA_STOPPED,
     };
     enum NotifyType {
-      NOTIFYTYPE_NONE,    // GetFrame will return NULL if no frame is ready.
+      NOTIFYTYPE_NONE,    // GetFrameHandle will return NULL if no frame is ready.
       NOTIFYTYPE_WAIT,    // GetFrame pause if no frame is ready.
       NOTIFYTYPE_SIGNAL,  // A signal will be generated when a new frame is ready.
       NOTIFYTYPE_POLL,    // Instead of a signal, uses a file descriptor poll method.
@@ -65,7 +42,7 @@ class Camera {
     };
     struct Config {
       enum Camera::Mode Mode;
-      enum Frame::Format Format;
+      enum FrameHandle::Format Format;
       int GainPercent;
       int BlackLevelPercent;
       unsigned long ShutterMicroSec;  // Only applicable if Mode != MODE_EXTTRIGGER_SHUTTER
@@ -178,7 +155,7 @@ class Camera {
     //! @param  Status  Camera::Status structure where the status will be stored.
     //! @return 0 if successful, a negative value defined in errno.h
     //!         otherwise.
-    Frame *GetFrame();
+    FrameHandle *GetFrameHandle();
 
     //! SendCommand
     //! Send a camera specific command to the camera.

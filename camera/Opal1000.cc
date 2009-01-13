@@ -42,7 +42,9 @@ U16BIT FindConnIndex(HGRABBER hGrabber, U16BIT CameraId) {
   return ConnIndex;
 }
 
-Pds::Opal1000::Opal1000(char *id) {
+using namespace PdsLeutron;
+
+Opal1000::Opal1000(char *id) {
   PicPortCLConfig.Baudrate = OPAL1000_SERIAL_BAUDRATE;
   PicPortCLConfig.Parity = OPAL1000_SERIAL_PARITY;
   PicPortCLConfig.ByteSize = OPAL1000_SERIAL_DATASIZE;
@@ -61,11 +63,11 @@ Pds::Opal1000::Opal1000(char *id) {
   LastCount = 0;
 }
 
-Pds::Opal1000::~Opal1000() {
+Opal1000::~Opal1000() {
   free(status.CameraId);
 }
 
-int Pds::Opal1000::PicPortCameraConfig(LvROI &Roi) {
+int Opal1000::PicPortCameraConfig(LvROI &Roi) {
   U16BIT CameraId;
 
   // Check the camera mode
@@ -75,15 +77,15 @@ int Pds::Opal1000::PicPortCameraConfig(LvROI &Roi) {
   SeqDralConfig.NrImages = 16; // 2MB per image !
   SeqDralConfig.UseCameraList = true;
   switch(config.Format) {
-    case Frame::FORMAT_GRAYSCALE_8:
+    case FrameHandle::FORMAT_GRAYSCALE_8:
       CameraId = DsyGetCameraId(OPAL1000_NAME_8bits);
       Roi.SetColorFormat(ColF_Mono_8);
       break;
-    case Frame::FORMAT_GRAYSCALE_10:
+    case FrameHandle::FORMAT_GRAYSCALE_10:
       CameraId = DsyGetCameraId(OPAL1000_NAME_10bits);
       Roi.SetColorFormat(ColF_Mono_10);
       break;
-    case Frame::FORMAT_GRAYSCALE_12:
+    case FrameHandle::FORMAT_GRAYSCALE_12:
       CameraId = DsyGetCameraId(OPAL1000_NAME_12bits);
       Roi.SetColorFormat(ColF_Mono_12);
       break;
@@ -126,14 +128,14 @@ int Pds::Opal1000::PicPortCameraConfig(LvROI &Roi) {
   if (rv1 != v1 || rv2 != v2) return -EINVAL; \
 }
 
-int Pds::Opal1000::PicPortCameraInit() {
+int Opal1000::PicPortCameraInit() {
   #define SZCOMMAND_MAXLEN  20
   char szCommand [SZCOMMAND_MAXLEN];
   char szResponse[SZCOMMAND_MAXLEN];
   int ret;
 
   SetParameter("Black Level","BL",
-	       (((unsigned long)config.BlackLevelPercent*4096)/100)-1);
+	       ((unsigned long)config.BlackLevelPercent*4095)/100);
   SetParameter("Digital Gain","GA",
 	       ((unsigned long)config.GainPercent*3100)/100+100);
 
@@ -154,13 +156,13 @@ int Pds::Opal1000::PicPortCameraInit() {
   // Set the output resolution
   int nbits;
   switch(config.Format) {
-    case Frame::FORMAT_GRAYSCALE_8:
+    case FrameHandle::FORMAT_GRAYSCALE_8:
       nbits = 8;
       break;
-    case Frame::FORMAT_GRAYSCALE_10:
+    case FrameHandle::FORMAT_GRAYSCALE_10:
       nbits = 10;
       break;
-    case Frame::FORMAT_GRAYSCALE_12:
+    case FrameHandle::FORMAT_GRAYSCALE_12:
       nbits = 12;
       break;
     default:
@@ -178,9 +180,8 @@ int Pds::Opal1000::PicPortCameraInit() {
 // We redefine this API to be able to detect dropped/repeated frames
 // because the frame grabber is not very good at that. To do that we 
 // read the 2 words signature embedded in the frame by the Opal 1000.
-Pds::Frame *Pds::Opal1000::PicPortFrameProcess(Pds::Frame *pFrame) {
+FrameHandle *Opal1000::PicPortFrameProcess(FrameHandle *pFrame) {
   unsigned long Count;
-  unsigned long Delta;
 
   switch (pFrame->elsize) {
     case 1:
@@ -198,35 +199,13 @@ Pds::Frame *Pds::Opal1000::PicPortFrameProcess(Pds::Frame *pFrame) {
       return pFrame;
   }
 
-#if 0
-  if (LastCount == 0) {
-    // First time we cannot measure the dropped frames
-    status.CapturedFrames += 1;
-    LastCount = Count;
-    return pFrame;
-  } else if (Count < LastCount) {
-    // Wrapped around
-    Delta = ((~0) - LastCount) + Count + 1;
-  } else {
-    Delta = Count - LastCount;
-  }
-  if (Delta == 0) {
-    /* We read teh same frame twice, forget it */
-    delete pFrame;
-    return (Pds::Frame *)NULL;
-  } else if (Delta > 1) {
-    status.DroppedFrames += Delta - 1;
-  }
-  status.CapturedFrames += Delta;
-  LastCount = Count;
-#else
   if (CurrentCount==RESET_COUNT) {
     CurrentCount = 0;
     LastCount = Count;
   }
   else
     CurrentCount = Count - LastCount;
-#endif
+
   return pFrame;
 }
 
