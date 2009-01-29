@@ -6,7 +6,8 @@ libsrcs_camera := DmaSplice.cc \
 		  Camera.cc \
 		  Opal1000.cc \
 		  PicPortCL.cc \
-		  TwoDMoments.cc
+		  TwoDMoments.cc \
+		  TwoDGaussian.cc
 libincs_camera := leutron/include
 #libsinc_camera := /usr/include/lvsds
 
