@@ -37,52 +37,42 @@ void PartitionMember::message(const Node& hdr, const Message& msg)
     case Message::Transition:
       {
 	bool lpost = false;
+	bool lkill = false;
 
         const Transition& tr = reinterpret_cast<const Transition&>(msg);
-	if (tr.phase() == Transition::Execute) {
-	  switch (tr.id()) {
-	  case TransitionId::Map:
-	    {
-	      if (_isallocated) break;
-	      const Allocate& alloc = reinterpret_cast<const Allocate&>(tr);
-	      unsigned    nnodes = alloc.nnodes();
-	      unsigned    index  = 0;
-	      _rivals.flush();
-	      for (unsigned n=0; n<nnodes; n++) {
-		const Node* node = alloc.node(n);
-		if (header() == *node) {
-		  _isallocated = true;
-		  _allocator = hdr;
-		  allocated( alloc, _index=index );
-		}
-		if (node->level() == header().level()) {
-		  _rivals.insert(index, msg.reply_to());
-		  index++;
-		}
-	      }
+	if (tr.phase() == Transition::Execute && 
+	    tr.id() == TransitionId::Map) {
+	  if (_isallocated) break;
+	  const Allocate& alloc = reinterpret_cast<const Allocate&>(tr);
+	  unsigned    nnodes = alloc.nnodes();
+	  unsigned    index  = 0;
+	  _rivals.flush();
+	  for (unsigned n=0; n<nnodes; n++) {
+	    const Node* node = alloc.node(n);
+	    if (header() == *node) {
+	      _isallocated = true;
+	      _allocator = hdr;
+	      allocated( alloc, _index=index );
 	    }
+	    if (node->level() == header().level()) {
+	      _rivals.insert(index, msg.reply_to());
+	      index++;
+	    }
+	  }
+	  lpost = true;
+	}
+	else if (tr.phase() == Transition::Execute && 
+		 tr.id() == TransitionId::Unmap) {
+	  const Kill& kill = reinterpret_cast<const Kill&>(tr);
+	  if (_isallocated && kill.allocator() == _allocator) {
+	    lkill = true;
 	    lpost = true;
-	    break;
-	  case TransitionId::Unmap:
-	    {
-	      const Kill& kill = reinterpret_cast<const Kill&>(tr);
-	      if (_isallocated && kill.allocator() == _allocator) {
-		_isallocated = false;
-		dissolved();
-		lpost = true;
-	      }
-	    }
-	    break;
-	  default:
-	    lpost = (_isallocated && hdr == _allocator);
-	    break;
 	  }
 	}
 	else
 	  lpost = (_isallocated && hdr == _allocator);
 
 	if (lpost) {
-
 	  if (tr.id() != TransitionId::L1Accept) {
 	    arpadd(hdr);
 	    OutletWireIns* dst;
@@ -102,6 +92,10 @@ void PartitionMember::message(const Node& hdr, const Message& msg)
 	      post(*ndg);
 	    }
 	  }
+	}
+	if (lkill) {
+	  _isallocated = false;
+	  dissolved();
 	}
       }
       break;
