@@ -1,4 +1,4 @@
-//! serialcmd.c
+//! serialcmd.cc
 //! This tool allows you to send and receive data through
 //! the camera link serial port of a Leutron frame grabber
 //!
