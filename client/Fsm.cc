@@ -103,6 +103,8 @@ Transition* Fsm::transitions(Transition* tr) {
   State reqState = _reqState(id);
   if (_allowed(reqState,id)) {
     tr = _action[id]->fire(tr);
+    if (id==TransitionId::Unmap)  // deallocate must transition here
+      _state = reqState;
   } else {
     // assert invalid transition damage here
     printf("Fsm: Invalid transition %s while in state %s\n",

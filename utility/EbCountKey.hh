@@ -11,7 +11,14 @@
 namespace Pds {
   class EbCountKey : public EbEventKey {
   public:
-    EbCountKey(Sequence& s) : key(-1UL), seq(s) { s = Sequence(); }
+    EbCountKey(Sequence& s) : key(-1UL), seq(s) 
+    {
+      //  Initialize the sequence to a default
+      s = Sequence(Sequence::Event, 
+		   TransitionId::L1Accept,
+		   ClockTime(0,0),
+		   0, 0); 
+    }
   public:
     PoolDeclare;
   public:

@@ -14,15 +14,56 @@
 #include <errno.h>
 #include <stdio.h>
 #include <stropts.h>
+#include <stdio.h>
 
-#define SPLICE_FLAGS_BLK SPLICE_F_MOVE
-//#define SPLICE_FLAGS_BLK (SPLICE_F_MOVE | SPLICE_F_NONBLOCK)
-#define SPLICE_FLAGS    SPLICE_FLAGS_BLK
-//#define SPLICE_FLAGS    (SPLICE_FLAGS_BLK | SPLICE_F_NONBLOCK)
 
 using namespace Pds;
 
 static int _nfd = ::open("/dev/null",O_WRONLY);
+
+//
+//  "splice" and "tee" are introduced in gcc version 4
+//
+#if (__GNUC__ > 3 )
+#define SPLICE_FLAGS      (SPLICE_F_MOVE)
+#define SPLICE_FLAGS_MORE (SPLICE_F_MOVE | SPLICE_F_MORE)
+#else
+#define SPLICE_FLAGS      0
+#define SPLICE_FLAGS_MORE 0
+#endif
+
+static inline int _splice(int fd0, int fd1,
+			  int size, int flags)
+{
+#if ( __GNUC__ > 3 )
+//#if defined(__USE_GNU) && defined(SPLICE_F_MOVE)
+  return ::splice(fd0, NULL, fd1, NULL, size, flags);
+#else
+  static bool _warned = false;
+  if (!_warned) {
+    printf("splice not implemented in GCC_VERSION %d.%d\n",__GNUC__,__GNUC_MINOR__);
+    _warned = true;
+  }
+  return -1;
+#endif
+}
+
+static inline int _tee(int fd0, int fd1,
+		       int size, int flags)
+{
+#if ( __GNUC__ > 3 )
+//#if defined(__USE_GNU) && defined(SPLICE_F_MOVE)
+  return ::tee(fd0, fd1, size, flags);
+#else
+  static bool _warned = false;
+  if (!_warned) {
+    printf("tee not implemented in GCC_VERSION %d.%d\n",__GNUC__,__GNUC_MINOR__);
+    _warned = true;
+  }
+  return -1;
+#endif
+}
+
 
 ZcpFragment::ZcpFragment() :
   _size(0)
@@ -44,26 +85,20 @@ void ZcpFragment::flush()
     kremove(_size);
 }
 
-//
-//  "splice" is introduced in gcc version 4
-//
-#if ( __GNUC__ > 3 )
-//#if defined(__USE_GNU) && defined(SPLICE_F_MOVE)
-
-int ZcpFragment::kinsert(int fd, int size) 
-{ 
-  int spliced = ::splice(fd, NULL, _fd[1], NULL, size, SPLICE_FLAGS);
-  if (spliced > 0) 
-    _size += spliced;
-  return spliced;
-}
-
 int ZcpFragment::uinsert(const void* b, int size)
 {
   iovec iov;
   iov.iov_base = const_cast<void*>(b);
   iov.iov_len  = size;
   return vinsert(&iov, 1);
+}
+
+int ZcpFragment::uremove(void* b, int size)
+{
+  iovec iov;
+  iov.iov_base = b;
+  iov.iov_len  = size;
+  return vremove(&iov, 1);
 }
 
 int ZcpFragment::vinsert(iovec* iov, int n) 
@@ -73,36 +108,6 @@ int ZcpFragment::vinsert(iovec* iov, int n)
   if (spliced > 0)
     _size += spliced;
   return spliced; 
-}
-
-int ZcpFragment::copy  (ZcpFragment& dg, int size)
-{
-  int copied = ::tee(dg._fd[0],_fd[1],size, SPLICE_FLAGS);
-  if (copied > 0)
-    _size += copied;
-  return copied;
-}
-
-int ZcpFragment::kremove(int size) 
-{
-  return kremove(_nfd,size);
-}
-
-int ZcpFragment::kremove(int fd, int size) 
-{
-  int flags = size > _size ? SPLICE_FLAGS_BLK | SPLICE_F_MORE : SPLICE_FLAGS_BLK;
-  int spliced = ::splice(_fd[0], NULL, fd, NULL, size, flags);
-  if (spliced > 0)
-    _size -= spliced;
-  return spliced; 
-}
-
-int ZcpFragment::uremove(void* b, int size)
-{
-  iovec iov;
-  iov.iov_base = b;
-  iov.iov_len  = size;
-  return vremove(&iov, 1);
 }
 
 int ZcpFragment::vremove(iovec* iov, int n)
@@ -118,53 +123,39 @@ int ZcpFragment::read(void* buff, int size)
   return ::read(_fd[0],buff,size);
 }
 
-int ZcpFragment::kcopyTo(int fd, int size)
+int ZcpFragment::kinsert(int fd, int size) 
+{ 
+  int spliced = _splice(fd, _fd[1], size, SPLICE_FLAGS);
+  if (spliced > 0) 
+    _size += spliced;
+  return spliced;
+}
+
+int ZcpFragment::copy  (ZcpFragment& dg, int size)
 {
-  int copied = ::tee(_fd[0],fd,size, SPLICE_FLAGS);
+  int copied = _tee(dg._fd[0],_fd[1],size, SPLICE_FLAGS);
+  if (copied > 0)
+    _size += copied;
   return copied;
 }
 
-#else
-
-#include <stdio.h>
-
-static inline int _showGccVersion()
+int ZcpFragment::kremove(int size) 
 {
-  printf("GCC_VERSION %d.%d\n",__GNUC__,__GNUC_MINOR__);
-  return 0;
+  return kremove(_nfd,size);
 }
 
-int ZcpFragment::kinsert(int fd, int size) { return _showGccVersion(); }
-
-int ZcpFragment::uinsert(const void* b, int size)
+int ZcpFragment::kremove(int fd, int size) 
 {
-  iovec iov;
-  iov.iov_base = const_cast<void*>(b);
-  iov.iov_len  = size;
-  return vinsert(&iov, 1);
+  int flags = size > _size ? SPLICE_FLAGS_MORE : SPLICE_FLAGS;
+  int spliced = _splice(_fd[0], fd, size, flags);
+  if (spliced > 0)
+    _size -= spliced;
+  return spliced; 
 }
 
-int ZcpFragment::vinsert(iovec* iov, int n) { return _showGccVersion(); }
-//int ZcpFragment::insert(ZcpFragment& dg, int size) { return _showGccVersion(); }
-int ZcpFragment::copy  (ZcpFragment& dg, int size) { return _showGccVersion(); }
-
-int ZcpFragment::kremove(int size) { return _showGccVersion(); }
-int ZcpFragment::kremove(int fd, int size) { return _showGccVersion(); }
-int ZcpFragment::uremove(void* b, int size)
+int ZcpFragment::kcopyTo(int fd, int size)
 {
-  iovec iov;
-  iov.iov_base = b;
-  iov.iov_len  = size;
-  return vremove(&iov, 1);
+  int copied = _tee(_fd[0],fd,size, SPLICE_FLAGS);
+  return copied;
 }
 
-int ZcpFragment::vremove(iovec* iov, int n) { return _showGccVersion(); }
-
-int ZcpFragment::read(void* buff, int size)
-{
-  return ::read(_fd[0],buff,size);
-}
-
-int ZcpFragment::kcopyTo(int fd, int size) { return _showGccVersion(); }
-
-#endif

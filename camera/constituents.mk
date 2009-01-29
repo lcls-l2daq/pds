@@ -17,7 +17,7 @@ tgtnames := camsend camreceiver serialcmd
 endif
 
 tgtsrcs_camsend := camsend.cc
-tgtlibs_camsend := pds/camera
+tgtlibs_camsend := pds/service pds/camera
 tgtincs_camsend := pds/zerocopy/kmemory pds/camera
 tgtlibs_camsend += leutron/lvsds
 tgtlibs_camsend += leutron/LvCamDat.34.32

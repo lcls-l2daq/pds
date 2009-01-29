@@ -1,3 +1,5 @@
+2009-Jan-29	weaver	client/Fsm handles unmap/deallocate.  Added a default Sequeunce
+			for L1 data that doesn't get one from an evr match.
 2009-Jan-28	weaver	Tag V00-06-01.  zerocopy/dma_splice can now queue sparsely and
 			share "release arguments" across many queued buffers.
 			camera/DmaSplice,Frame,TwoDMoments added to support camera 

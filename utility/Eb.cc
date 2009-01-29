@@ -5,8 +5,6 @@
 #include "pds/service/Client.hh"
 #include "Inlet.hh"
 
-//#define VERBOSE
-
 using namespace Pds;
 
 /*
@@ -73,17 +71,11 @@ unsigned Eb::_fixup( EbEventBase* event, const Src& client, const EbBitMask& id 
 
 int Eb::processIo(Server* serverGeneric)
 {
-#ifdef VERBOSE
-  printf("Eb::processIo srvId %d\n",serverGeneric->id());
-#endif
   EbServer* server = (EbServer*)serverGeneric;
 
   //  Find the next event waiting for a contribution from this server.
   //  If the event is better handled later (to avoid a copy) return 0.
   EbEvent*  event  = (EbEvent*)_event(server);
-#ifdef VERBOSE
-  printf("Eb::processIo event %p\n", event);
-#endif
   if (!event) // Can't accept this contribution yet, may take it later
     return 0;
 
@@ -93,10 +85,6 @@ int Eb::processIo(Server* serverGeneric)
   char* payload = event->payload(serverId);
   int sizeofPayload  = server->fetch(payload, MSG_DONTWAIT);
 
-#ifdef VERBOSE
-  printf("Eb::processIo serverId %x payload_size 0x%x\n",
-	 serverId.value(0),sizeofPayload);
-#endif
   server->keepAlive();
 
   //  If there was an error on receive, remove the contribution from the event.
@@ -114,9 +102,6 @@ int Eb::processIo(Server* serverGeneric)
   //  (2) the contribution came from a later event than expected.
 
   if(!server->coincides(event->key())) {
-#ifdef VERBOSE
-    printf("Eb::processIo key mismatch\n");
-#endif
     if(event == event->forward()) {  // case (1)
       event->connect((EbEvent*)_seek(server));
     }
@@ -127,9 +112,6 @@ int Eb::processIo(Server* serverGeneric)
       //            be created, if possible.
       _misses++;
       event->deallocate(serverId);  // remove the contribution from this event
-#ifdef VERBOSE
-      printf("Eb::processIo missed event %p\n", event);
-#endif
       event = (EbEvent*)_seek(server);
       if (event == (EbEvent*)_pending.empty() ||
 	  !server->coincides(event->key())) {
@@ -138,9 +120,6 @@ int Eb::processIo(Server* serverGeneric)
 	event = new_ev;
       }
 
-#ifdef VERBOSE
-      printf("Eb::processIo recopy to event %p\n", event);
-#endif
       event->allocated().insert(serverId);
       event->recopy(payload, sizeofPayload, serverId);
     }
