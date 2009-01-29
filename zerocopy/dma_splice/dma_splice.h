@@ -12,7 +12,8 @@
 #define DMA_SPLICE_MAGIC 'd'
 #define DMA_SPLICE_IOCTL_INIT	_IOW(DMA_SPLICE_MAGIC, 0, void*)
 #define DMA_SPLICE_IOCTL_QUEUE	_IOW(DMA_SPLICE_MAGIC, 1, void*)
-#define DMA_SPLICE_IOCTL_NOTIFY	_IOW(DMA_SPLICE_MAGIC, 2, void*)
+#define DMA_SPLICE_IOCTL_SKIP	_IOW(DMA_SPLICE_MAGIC, 2, void*)
+#define DMA_SPLICE_IOCTL_NOTIFY	_IOW(DMA_SPLICE_MAGIC, 3, void*)
 
 struct dma_splice_ioctl_desc {
   unsigned long addr;
@@ -68,6 +69,11 @@ static inline int dma_splice_queue(int fd, void *base, int len, unsigned long re
 	desc.end  = (unsigned long)base+len;
 	desc.arg  = release_arg;
 	return ioctl(fd, DMA_SPLICE_IOCTL_QUEUE, &desc);
+}
+
+static inline int dma_splice_skip(int fd, unsigned long len)
+{
+	return ioctl(fd, DMA_SPLICE_IOCTL_SKIP, len);
 }
 
 static inline int dma_splice_notify(int fd, unsigned long* release_arg)

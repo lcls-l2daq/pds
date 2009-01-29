@@ -22,6 +22,9 @@
 #include <linux/device.h>
 #include <linux/miscdevice.h>
 
+/*  cache attributes  */
+#include <asm/cacheflush.h>
+
 #include "dma_splice_util.c"
 
 #include "dma_splice.h"
@@ -101,11 +104,19 @@ static inline struct dma_splice_release*
 rel_info_get(struct dma_splice_info* pdata,
 	     unsigned long arg)
 {
+        struct dma_splice_release* rel_info;
         unsigned i = pdata->rel_drain;
-	struct dma_splice_release* rel_info = pdata->rel_info_queue[i];
-	pdata->rel_drain = (i+1)%NRELEASE_DESCRIPTORS;
-	rel_info->arg = arg;
-	atomic_set(&rel_info->_count, 1);
+	if (arg) {
+	      rel_info = pdata->rel_info_queue[i];
+	      pdata->rel_drain = (i+1)%NRELEASE_DESCRIPTORS;
+	      rel_info->arg = arg;
+	      atomic_set(&rel_info->_count, 1);
+	}
+	else {
+	      i = (i-1)%NRELEASE_DESCRIPTORS;
+	      rel_info = pdata->rel_info_queue[i];
+	      atomic_inc(&rel_info->_count);
+	}
 	return rel_info;
 }
 
@@ -319,11 +330,15 @@ static int dma_splice_dev_ioctl(struct inode *inode, struct file *filp,
 				unsigned int cmd, unsigned long arg)
 {
 	struct dma_splice_info *pdata = filp->private_data;
-	struct dma_splice_desc* desc  = (struct dma_splice_desc*)arg;
 	if (cmd==DMA_SPLICE_IOCTL_INIT) {
-	        int i,n;
-		int len = ((desc->end-1) >> PAGE_SHIFT) -
-		  (desc->addr >> PAGE_SHIFT) + 1;
+	        int i,n,len;
+		struct dma_splice_ioctl_desc desc;
+	        struct dma_splice_ioctl_desc* idesc = (struct dma_splice_ioctl_desc*)arg;
+		if (copy_from_user(&desc,idesc,sizeof(*idesc)))
+		       return -EINVAL;
+
+		len = ((desc.end-1) >> PAGE_SHIFT) -
+		  (desc.addr >> PAGE_SHIFT) + 1;
 
 		for(i=0; i<pdata->npages; i++) {
 		       {
@@ -337,18 +352,24 @@ static int dma_splice_dev_ioctl(struct inode *inode, struct file *filp,
 		pdata->npages = 0;
 
 		if (len > NPAGES) {
-		       printk(KERN_ALERT "dma_splice limited to %ld/%ld bytes\n",
-			      NPAGES * PAGE_SIZE, desc->end-desc->addr);
+		       printk(KERN_ALERT "dma_splice limited to %ld bytes (%ld:%ld)\n",
+			      NPAGES * PAGE_SIZE, desc.addr, desc.end);
 		       return -ENOMEM;
 		}
 		down_read(&current->mm->mmap_sem);
 		n = __get_user_pages(current, current->mm, 
-				     desc->addr & PAGE_MASK, len,
+				     desc.addr & PAGE_MASK, len,
 				     pdata->pages);
 		up_read(&current->mm->mmap_sem);
 		if (n == len) {
-		       pdata->baseaddr = desc->addr & PAGE_MASK;
+		       pdata->baseaddr = desc.addr & PAGE_MASK;
 		       pdata->npages   = n;
+
+		       /*  Make all the pages cacheable */
+		       for(i=0; i<pdata->npages; i++) {
+			       /* set_pages_wb(pdata->pages[i],1); */
+			       /* set_memory_ro(page_address(pdata->pages[i]),1); */
+		       }
 		}
 		else
 		       printk(KERN_ALERT "dma_splice_init get_user_pages failed %d\n",n);
