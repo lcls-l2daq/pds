@@ -18,7 +18,7 @@ namespace Pds {
 
     //  Appending data
     int kinsert(int fd, int size);  // kernel-space
-    int uinsert(void* b, int size); // user-space
+    int uinsert(const void* b, int size); // user-space
     int vinsert(iovec* iov, int n); // user-space vector
     //    int insert(Pds::ZcpFragment&, int size);
     int copy  (Pds::ZcpFragment&, int size);

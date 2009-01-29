@@ -58,10 +58,10 @@ int ZcpFragment::kinsert(int fd, int size)
   return spliced;
 }
 
-int ZcpFragment::uinsert(void* b, int size)
+int ZcpFragment::uinsert(const void* b, int size)
 {
   iovec iov;
-  iov.iov_base = b;
+  iov.iov_base = const_cast<void*>(b);
   iov.iov_len  = size;
   return vinsert(&iov, 1);
 }
@@ -136,10 +136,10 @@ static inline int _showGccVersion()
 
 int ZcpFragment::kinsert(int fd, int size) { return _showGccVersion(); }
 
-int ZcpFragment::uinsert(void* b, int size)
+int ZcpFragment::uinsert(const void* b, int size)
 {
   iovec iov;
-  iov.iov_base = b;
+  iov.iov_base = const_cast<void*>(b);
   iov.iov_len  = size;
   return vinsert(&iov, 1);
 }

@@ -59,8 +59,6 @@ ZcpEbEvent::ZcpEbEvent() :
   }
 
 
-static char zdb_buff[0x1000];
-
 bool ZcpEbEvent::consume(EbServer*        server,
 			 const EbBitMask& serverId,
 			 ZcpFragment&     zfrag)

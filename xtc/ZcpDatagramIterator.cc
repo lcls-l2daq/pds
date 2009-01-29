@@ -56,7 +56,10 @@ int ZcpDatagramIterator::skip(int len)
   _stream.remove(remaining);
 #else
   while (remaining > _iovbuff.bytes())
-    _iovbuff.insert(_stream, remaining-_iovbuff.bytes());
+    if (_iovbuff.insert(_stream, remaining-_iovbuff.bytes()) < 0) {
+      printf("ZDI::skip failed\n");
+      return -1;
+    }
   remaining -= _iovbuff.remove(remaining);
 #endif
 
@@ -76,7 +79,12 @@ int ZcpDatagramIterator::read(iovec* iov, int maxiov, int len)
 
   //  Pull enough data into the IovBuffer
   while (len > _iovbuff.bytes()) {
-    _offset += _iovbuff.insert(_stream, len-_iovbuff.bytes());
+    int nb = _iovbuff.insert(_stream, len-_iovbuff.bytes());
+    if (nb < 0) {
+      printf("ZDI::read failed\n");
+      return -1;
+    }
+    _offset += nb;
   }
 
   //  Map the data into user-space and return the user iov
@@ -197,7 +205,7 @@ int ZcpDatagramIterator::IovBuffer::insert(KStream& stream, int bytes)
     if (niov < 0) {
       printf("ZDI::IovBuffer::insert kmem_read failed %s(%d) : iov %p/%d maxiov %d\n",
 	     strerror(errno),errno,&_iovs[_niov],_niov,MAXIOVS-_niov);
-      break;
+      return niov;
     }
 
     int len  = 0;
