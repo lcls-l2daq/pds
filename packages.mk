@@ -1,2 +1,2 @@
 # List of packages (low level first)
-packages := service collection xtc utility management client acqiris evgr
+packages := diagnostic service collection xtc utility management client camera acqiris evgr config
