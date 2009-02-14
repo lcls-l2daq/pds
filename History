@@ -1,3 +1,8 @@
+2009-Feb-13     cpo     Improved AcqManager, including out-of-synch detection
+                        of dropped triggers.  EvgrManager now works at 360Hz
+                        and sends down timestamps much like we expect the
+                        MCC EVG to do.
+
 2009-Jan-29	weaver	client/Fsm handles unmap/deallocate.  Added a default Sequeunce
 			for L1 data that doesn't get one from an evr match.
 2009-Jan-28	weaver	Tag V00-06-01.  zerocopy/dma_splice can now queue sparsely and
