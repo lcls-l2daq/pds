@@ -18,6 +18,11 @@ const Datagram& ZcpDatagram::datagram() const
   return _datagram;
 }
 
+Datagram& ZcpDatagram::datagram()
+{
+  return _datagram;
+}
+
 InDatagramIterator* ZcpDatagram::iterator(Pool* pool) const
 {
   return new(pool) ZcpDatagramIterator(*this);

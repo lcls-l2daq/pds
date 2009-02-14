@@ -57,6 +57,14 @@ protected:
   Evr& _er;
 };
 
+class EvrL1Action : public EvrAction {
+public:
+  EvrL1Action(Evr& er) : EvrAction(er) {}
+  InDatagram* fire(InDatagram* in) {
+    return in;
+  }
+};
+
 class EvrEnableAction : public EvrAction {
 public:
   EvrEnableAction(Evr& er) :
@@ -114,7 +122,7 @@ public:
     _er.SetFIFOEvent(ram, _opcode, enable);
 
     // acqiris pulse configuration
-    { int pulse = 0; int presc = 1; int delay = 0; int width = 16;
+    { int pulse = 0; int presc = 1; int delay = 0; int width = 119000;
       int polarity=0;  int map_reset_ena=0; int map_set_ena=0; int map_trigger_ena=1;
       int trig=0; int set=-1; int clear=-1;
       _er.SetPulseMap(ram, _opcode, trig, set, clear);
@@ -171,6 +179,7 @@ EvrManager::EvrManager(EvgrBoardInfo<Evr> &erInfo, unsigned partition,
   _fsm.callback(TransitionId::Enable,new EvrEnableAction(_er));
   _fsm.callback(TransitionId::EndRun,new EvrEndRunAction(_er));
   _fsm.callback(TransitionId::Disable,new EvrDisableAction(_er));
+  _fsm.callback(TransitionId::L1Accept,new EvrL1Action(_er));
 
   _er.IrqAssignHandler(erInfo.filedes(), &evrmgr_sig_handler);
   erInfoGlobal = &erInfo;

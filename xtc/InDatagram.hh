@@ -18,6 +18,7 @@ namespace Pds {
     virtual ~InDatagram() {}
 
     virtual const Datagram& datagram() const = 0;
+    virtual Datagram& datagram() = 0;
 
     virtual InDatagramIterator* iterator(Pool*) const = 0;
 

@@ -24,6 +24,7 @@ namespace Pds {
     void  operator delete(void* buffer);
 
     const Datagram& datagram() const;
+    Datagram& datagram();
 
     InDatagramIterator* iterator(Pool*) const;
 

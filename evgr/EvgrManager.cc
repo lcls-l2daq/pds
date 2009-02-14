@@ -25,26 +25,17 @@ static EvgrBoardInfo<Evr> *erInfoGlobal;
 
 class TimeLoader {
 public:
-  TimeLoader(Evg& eg, Evr& er) : _eg(eg),_er(er) {}
+  TimeLoader(Evg& eg, Evr& er) : _eg(eg),_er(er),_nfid(0) {}
   virtual ~TimeLoader() {}
   enum {NumEvtCodes=33};
   void load() {
-
-    // we kludge the number of fiducials for testing.  In principle, stephanie
-    // should be able to calculate.
-    timespec ts;
-    clock_gettime (CLOCK_REALTIME, &ts);
-    ts.tv_sec-=SECONDS_1970_TO_1997;
-    // convert to fiducials, approximately;
-    unsigned long long nsec = ((unsigned long long)ts.tv_sec*1000000000 + ts.tv_nsec);
-    unsigned long long fid = nsec/(NS_PER_FIDUCIAL);
-
+    _nfid++; _nfid&=((1<<Pds::Sequence::NumFiducialBits)-1);
     int numEvtCode=0;
     int ram=0;
     //we send down MSB first
     do {
-      unsigned long long mask = (1<<((NumEvtCodes-2)-numEvtCode)); 
-      unsigned opcode = (fid&mask) ?
+      unsigned mask = (1<<((NumEvtCodes-2)-numEvtCode)); 
+      unsigned opcode = (_nfid&mask) ?
         EvgrOpcode::TsBit1 : EvgrOpcode::TsBit0;
       unsigned timestamp=numEvtCode;
       _eg.SetSeqRamEvent(ram, numEvtCode, timestamp, opcode);
@@ -58,11 +49,9 @@ public:
     load();
   }
 private:
-  enum {SECONDS_1970_TO_1997=852076800};
-  enum {NS_PER_FIDUCIAL=2777778};
-
   Evg& _eg;
   Evr& _er;
+  unsigned _nfid;
 };
 
 class OpcodeLoader {
@@ -71,20 +60,21 @@ public:
   void set() {
     int ram=0;
     int pos=TimeLoader::NumEvtCodes;
-    _count++;
+    _count++; _count%=360;
 
-    _eg.SetSeqRamEvent(ram, pos, pos, 240); pos++;
-    if (_count%2==0) {_eg.SetSeqRamEvent(ram, pos, pos, EvgrOpcode::L1Accept); pos++;}
-    if (_count%4==0) {_eg.SetSeqRamEvent(ram, pos, pos, 60); pos++;}
-    if (_count%8==0) {_eg.SetSeqRamEvent(ram, pos, pos, 30); pos++;}
-    if (_count%16==0) {_eg.SetSeqRamEvent(ram, pos, pos, 15); pos++;}
-    if (_count%24==0) {_eg.SetSeqRamEvent(ram, pos, pos, 10); pos++;}
-    if (_count%48==0) {_eg.SetSeqRamEvent(ram, pos, pos, 5); pos++;}
-    if (_count%240==0) {_eg.SetSeqRamEvent(ram, pos, pos, 1); pos++;}
-    _eg.SetSeqRamEvent(ram, pos, pos, EvgrOpcode::EndOfSequence);
-//     _eg.SeqRamDump(0);
+    _eg.SetSeqRamEvent(ram, pos, pos+WaitForTimestamp, 181); pos++;
+    if (_count%2==0) {_eg.SetSeqRamEvent(ram, pos, pos+WaitForTimestamp, 180); pos++;}
+    if (_count%3==0) {_eg.SetSeqRamEvent(ram, pos, pos+WaitForTimestamp, EvgrOpcode::L1Accept); pos++;}
+    if (_count%6==0) {_eg.SetSeqRamEvent(ram, pos, pos+WaitForTimestamp, 60); pos++;}
+    if (_count%12==0) {_eg.SetSeqRamEvent(ram, pos, pos+WaitForTimestamp, 30); pos++;}
+    if (_count%24==0) {_eg.SetSeqRamEvent(ram, pos, pos+WaitForTimestamp, 15); pos++;}
+    if (_count%36==0) {_eg.SetSeqRamEvent(ram, pos, pos+WaitForTimestamp, 10); pos++;}
+    if (_count%72==0) {_eg.SetSeqRamEvent(ram, pos, pos+WaitForTimestamp, 5); pos++;}
+    if (_count%360==0) {_eg.SetSeqRamEvent(ram, pos, pos+WaitForTimestamp, 1); pos++;}
+    _eg.SetSeqRamEvent(ram, pos, pos+WaitForTimestamp, EvgrOpcode::EndOfSequence);
   }
 private:
+  enum {WaitForTimestamp=8}; // timestamp takes some clock ticks to take effect
   unsigned _count;
   Evg& _eg;
   Evr& _er;
@@ -159,10 +149,9 @@ public:
     _eg.SetRFInput(0,C_EVG_RFDIV_4);
 
     // setup map ram
-    int ram=0; int opcode=9; int enable=1;
+    int ram=0; int enable=1;
     _er.MapRamEnable(ram,0);
-    _er.SetFIFOEvent(ram, opcode, enable);
-    opcode=240; // for testing, use the highest rate opcode (240Hz).
+    int opcode=181; // for testing, use the highest rate opcode (360Hz).
     _er.SetFIFOEvent(ram, opcode, enable);
     int trig=0; int set=-1; int clear=-1;
     _er.SetPulseMap(ram, opcode, trig, set, clear);
@@ -177,9 +166,9 @@ public:
     _er.SetFPOutMap(0,0);
 
     // setup properties for multiplexed counter 0
-    // to trigger the sequencer at 240Hz (so we can "stress" the system).
-    static const unsigned EVTCLK_TO_240HZ=991666/2;
-    _eg.SetMXCPrescaler(0, EVTCLK_TO_240HZ); // set prescale to 1
+    // to trigger the sequencer at 360Hz (so we can "stress" the system).
+    static const unsigned EVTCLK_TO_360HZ=991666/3;
+    _eg.SetMXCPrescaler(0, EVTCLK_TO_360HZ); // set prescale to 1
     _eg.SyncMxc();
 
     enable=1; int single=0; int recycle=0; int reset=0;
