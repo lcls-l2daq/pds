@@ -1,3 +1,4 @@
+2009-Feb-19	weaver  Added mon package for online monitoring support classes.
 2009-Feb-13     cpo     Improved AcqManager, including out-of-synch detection
                         of dropped triggers.  EvgrManager now works at 360Hz
                         and sends down timestamps much like we expect the
