@@ -87,15 +87,15 @@ public:
   AcqDma(ViSession instrumentId, AcqReader& reader, AcqServer& server,
          Task* task) :
     DmaEngine(task),
-    _instrumentId(instrumentId),_reader(reader),_server(server) {
+    _instrumentId(instrumentId),_reader(reader),_server(server),_lastAcqTS(0),_count(0) {
   }
   void setConfig(Acqiris::ConfigV1& config) {_config=&config;}
   void routine() {
     ViStatus status=0;
     // ### Readout the data ###
-    long channel = 1;
-    long nbrSegments = _config->nbrSegments();
-    long nbrSamples  = _config->nbrSamples();
+    long channelMask = _config->channelMask();
+    long nbrSegments = _config->horizConfig().nbrSegments();
+    long nbrSamples  = _config->horizConfig().nbrSamples();
 
     AqReadParameters		readParams;
 
@@ -109,31 +109,45 @@ public:
     readParams.segmentOffset    = 0;
     readParams.segDescArraySize = (long)sizeof(AqSegmentDescriptor) * nbrSegments;
     readParams.nbrSamplesInSeg  = nbrSamples;
-    readParams.dataArraySize    = (sizeof(double)*(nbrSamples + extra)  * (nbrSegments + 1) ); // This is the formula implemented inside the driver.
+    AcqData* data = (AcqData*)_destination;
+    readParams.dataArraySize = 
+      (char*)(data->nextChannel(nbrSegments,nbrSamples))-
+      (char*)(data->waveforms(nbrSegments));
 
-    // Read the channel 1 waveform samples 
-    AcqData& data = *(AcqData*)_destination;
-    status = AcqrsD1_readData(_instrumentId, channel, &readParams,
-                              data.waveforms(nbrSegments),
-                              &(data.desc()),
-                              &(data.timestamp(0).desc()));
-	
-    if(status != VI_SUCCESS)
-      {
+    for (unsigned i=0;i<32;i++) {
+      if (!(channelMask&(1<<i))) continue;
+      unsigned channel = i+1;
+//       printf("desc %p, segdesc %p, wf %p, nextch %p, dsize 0x%x\n",
+//              &(data->desc()),&(data->timestamp(0).desc()),
+//              data->waveforms(nbrSegments),
+//              data->nextChannel(nbrSegments,nbrSamples),
+//              readParams.dataArraySize);
+      status = AcqrsD1_readData(_instrumentId, channel, &readParams,
+                                data->waveforms(nbrSegments),
+                                &(data->desc()),
+                                &(data->timestamp(0).desc()));
+      // for SAR mode
+      //       AcqrsD1_freeBank(_instrumentId,0);
+
+      if(status != VI_SUCCESS) {
         char message[256];
         AcqrsD1_errorMessage(_instrumentId,status,message);
-        printf("%s\n",message);
+        printf("%s (channel: %d)\n",message,channel);
       }
+      data = data->nextChannel(nbrSegments,nbrSamples);
+    }
+
     _server.payloadComplete();
     _task->call(&_reader);
   }
 private:
-  static const unsigned extra=32;
   ViSession  _instrumentId;
   AcqReader& _reader;
   AcqServer& _server;
   Acqiris::ConfigV1* _config;
   unsigned _nbrSamples;
+  long long _lastAcqTS;
+  unsigned _count;
 };
 
 class AcqDC282Action : public Action {
@@ -142,15 +156,14 @@ protected:
   ViSession _instrumentId;
 };
 
-#define PSECPERFIDUCIAL 2777777777
-
 class AcqL1Action : public AcqDC282Action {
 public:
   AcqL1Action(ViSession instrumentId) : AcqDC282Action(instrumentId),
                                         _lastAcqTS(0),_lastEvrFid(0),
                                         _nprint(0),_checkTimestamp(0) {}
   InDatagram* fire(InDatagram* in) {
-    validate(in);
+    //     Datagram& dg = in->datagram();
+    //     if (!dg.xtc.damage.value()) validate(in);
     cpol1++;
     return in;
   }
@@ -171,7 +184,7 @@ public:
         printf("*** Outofsynch: fiducials since last evt: %f (Evr) %f (Acq)\n",
                ((float)(evrdiff))/psPerFiducial,
                ((float)(acqdiff))/psPerFiducial);
-        printf("*** Timestamps (current/previous) %d/%d (Evr) %lld/%lld(Acq)\n",
+        printf("*** Timestamps (current/previous) %d/%d (Evr(fiducials)) %lld/%lld (Acq(ps))\n",
                evrfid,_lastEvrFid,acqts,_lastAcqTS);
       }
     }
@@ -213,39 +226,73 @@ public:
     return &output;
   }
   Transition* fire(Transition* tr) {
-    printf("Configuring acqiris %d\n",(unsigned)_instrumentId);
-    double sampInterval = 10.e-8, delayTime = 0.0;
+    unsigned nbrModulesInInstrument;
+    AcqrsD1_getInstrumentInfo(_instrumentId,"NbrModulesInInstrument",
+                              &nbrModulesInInstrument);
+    unsigned nbrIntTrigsPerModule;
+    AcqrsD1_getInstrumentInfo(_instrumentId,"NbrInternalTriggers",
+                              &nbrIntTrigsPerModule);
+    unsigned nbrExtTrigsPerModule;
+    AcqrsD1_getInstrumentInfo(_instrumentId,"NbrExternalTriggers",
+                              &nbrExtTrigsPerModule);
+    ViInt32 nbrChans;
+    AcqrsD1_getNbrChannels(_instrumentId,&nbrChans);
+    printf("Acqiris id 0x%x has %d/%d modules/channels with %d/%d int/ext trigger inputs\n",
+           (unsigned)_instrumentId,nbrModulesInInstrument,(unsigned)nbrChans,nbrIntTrigsPerModule,nbrExtTrigsPerModule);
+
+    double sampInterval = 0.125e-9;
+    double delayTime = 0.0;
     long nbrSamples =5000, nbrSegments = 1;
+    Acqiris::HorizConfigV1 horizConfig(sampInterval,delayTime,nbrSamples,nbrSegments);
+
     long coupling = 3, bandwidth = 0;
     double fullScale = 1.5, offset = 0.0;
+    Acqiris::VertConfigV1 vertConfig[Acqiris::ConfigV1::MaxChan] = {
+      Acqiris::VertConfigV1(fullScale,offset,coupling,bandwidth)
+    };
+
     long trigCoupling = 3; // DC, 50ohms
-    long trigInput = -1; // External input 1.
+    long trigInput = -3; // External input 3.
     long trigSlope = 0;
     double trigLevel = 1000.0; // in mV, for external triggers only (otherwise % full-scale).
+    Acqiris::TrigConfigV1 trigConfig(trigCoupling, trigInput, trigSlope, trigLevel);
 
-    new(&_config) Acqiris::ConfigV1(sampInterval,
-                                    delayTime,   
-                                    nbrSamples,  
-                                    nbrSegments, 
-                                    coupling,    
-                                    bandwidth,   
-                                    fullScale,   
-                                    offset,      
-                                    trigCoupling,
-                                    trigInput,   
-                                    trigSlope,   
-                                    trigLevel);
+    long nbrConvertersPerChannel=2;
+    long channelMask = 0x6;
+    long  nbrBanks = 1;
+
+    new(&_config) Acqiris::ConfigV1(nbrConvertersPerChannel,
+                                    channelMask,
+                                    nbrBanks,
+                                    trigConfig,horizConfig,vertConfig);
 
     // Configure timebase
     _check(AcqrsD1_configHorizontal(_instrumentId, sampInterval, delayTime));
-//     AcqrsD1_configMemory(_instrumentId, nbrSamples, nbrSegments);
-    // Setup SMAR (simultaneous multibuffer acquisition and readout) mode.
-    _check(AcqrsD1_configMemoryEx(_instrumentId, 0, nbrSamples, nbrSegments,
-                                  10, 0));
-    // Configure vertical settings of channel 1
-    _check(AcqrsD1_configVertical(_instrumentId, 1, fullScale, offset, coupling, bandwidth));
-    _check(AcqrsD1_configTrigClass(_instrumentId, 0, 0x80000000, 0, 0, 0.0, 0.0));
-    // Configure the trigger conditions of channel 1 internal trigger
+
+    // non-SAR mode
+    _check(AcqrsD1_configMemory(_instrumentId, nbrSamples, nbrSegments));
+
+    // SAR mode (currently doesn't work for reasons I don't understand - cpo)
+//     _check(AcqrsD1_configMode(_instrumentId, 0, 0, 10)); // 10 = SAR mode
+//     _check(AcqrsD1_configMemoryEx(_instrumentId, 0, nbrSamples, nbrSegments,
+//                                   nbrBanks, 0));
+//     ViUInt32 nbrSamplesHi,nbrSamplesLo;
+//     ViInt32 nbrSegs,flags;
+//     _check(AcqrsD1_getMemoryEx(_instrumentId, &nbrSamplesHi, &nbrSamplesLo,
+//                                &nbrSegs,
+//                                &nbrBanks,
+//                                &flags));
+//     printf("*** config %d %d %d %d %d\n",nbrSamplesHi,nbrSamplesLo,nbrSegs,
+//            nbrBanks,flags);
+
+    _check(AcqrsD1_configChannelCombination(_instrumentId,nbrConvertersPerChannel,channelMask));
+    for (unsigned i=0;i<32;i++) {
+      if (channelMask&(1<<i))
+        _check(AcqrsD1_configVertical(_instrumentId, i+1, fullScale, offset, coupling, bandwidth));
+    }
+    // only support edge-trigger (no "TV trigger" for DC282)
+    unsigned srcPattern = _generateTrigPattern(trigInput);
+    _check(AcqrsD1_configTrigClass(_instrumentId, 0, srcPattern, 0, 0, 0.0, 0.0));
     _check(AcqrsD1_configTrigSource(_instrumentId, trigInput, trigCoupling, trigSlope, trigLevel, 0.0));
     _reader.start();
     _reader.setSamples(nbrSamples);
@@ -253,6 +300,38 @@ public:
     return tr;
   }
 private:
+  unsigned _generateTrigPattern(int trigChan) {
+    unsigned nbrModulesInInstrument;
+    AcqrsD1_getInstrumentInfo(_instrumentId,"NbrModulesInInstrument",
+                              &nbrModulesInInstrument);
+    unsigned srcPattern;
+    if (trigChan > 0) // Internal Trigger
+      {
+        unsigned nbrIntTrigsPerModule;
+        AcqrsD1_getInstrumentInfo(_instrumentId,"NbrInternalTriggers",
+                                  &nbrIntTrigsPerModule);
+        nbrIntTrigsPerModule/=nbrModulesInInstrument;
+        long moduleNbr = (trigChan - 1) / nbrIntTrigsPerModule;
+        long inputNbr = (trigChan - 1) % nbrIntTrigsPerModule;
+        srcPattern = (moduleNbr<<16) + (0x1<<inputNbr);
+      }
+    else if (trigChan < 0) // External Trigger
+      {
+        unsigned nbrExtTrigsPerModule;
+        AcqrsD1_getInstrumentInfo(_instrumentId,"NbrExternalTriggers",
+                                  &nbrExtTrigsPerModule);
+        nbrExtTrigsPerModule/=nbrModulesInInstrument;
+        trigChan = -trigChan;
+        long moduleNbr = (trigChan - 1) / nbrExtTrigsPerModule;
+        long inputNbr = (trigChan - 1) % nbrExtTrigsPerModule;
+        srcPattern = (moduleNbr<<16) + (0x80000000>>inputNbr);
+      }
+    else {
+      printf("*** Error: trig chan is zero\n");
+      srcPattern=0;
+    }
+    return srcPattern;
+  }
   void _check(ViStatus status) {
     if(status != VI_SUCCESS)
       {
