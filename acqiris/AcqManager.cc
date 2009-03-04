@@ -46,7 +46,7 @@
 #include "pdsdata/acqiris/ConfigV1.hh"
 #include "AcqManager.hh"
 #include "AcqServer.hh"
-#include "AcqData.hh"
+#include "pdsdata/acqiris/AcqDataDescV1.hh"
 
 using namespace Pds;
 
@@ -57,8 +57,12 @@ public:
   AcqReader(ViSession instrumentId, AcqServer& server, Task* task) :
     _instrumentId(instrumentId),_task(task),_server(server),_count(0) {
   }
+  void setConfig(const Acqiris::ConfigV1& config) {
+    _nbrSamples=config.horizConfig().nbrSamples();
+    _totalSize=Acqiris::AcqDataDescV1::totalSize(config.horizConfig())*
+      config.nbrChannels();
+  }
   void start() { _count=0; _task->call(this);}
-  void setSamples(unsigned nbrSamples) {_nbrSamples=nbrSamples;}
   virtual ~AcqReader() {}
   void routine() {
     ViStatus status;
@@ -71,8 +75,7 @@ public:
         printf("%s\n",message);
       }
     } while (status);
-    // kludge the size for now.
-    _server.headerComplete(sizeof(AcqData)+sizeof(AcqTimestamp)+_nbrSamples*sizeof(short),_count++);
+    _server.headerComplete(_totalSize,_count++);
   }
 private:
   ViSession  _instrumentId;
@@ -80,6 +83,7 @@ private:
   AcqServer& _server;
   unsigned   _count;
   unsigned   _nbrSamples;
+  unsigned   _totalSize;
 };
 
 class AcqDma : public DmaEngine {
@@ -93,14 +97,18 @@ public:
   void routine() {
     ViStatus status=0;
     // ### Readout the data ###
-    long channelMask = _config->channelMask();
-    long nbrSegments = _config->horizConfig().nbrSegments();
-    long nbrSamples  = _config->horizConfig().nbrSamples();
+    unsigned channelMask = _config->channelMask();
+    Acqiris::HorizConfigV1& hconfig = _config->horizConfig();
+    unsigned nbrSegments   = hconfig.nbrSegments();
+    unsigned nbrSamples    = hconfig.nbrSamples();
 
     AqReadParameters		readParams;
 
-    //     readParams.dataType         = ReadReal64;
     readParams.dataType         = ReadInt16;
+    // note that if the readmode changes then the structure
+    // of AcqTimestamp may have to change, and the padding
+    // required by driver ("extra" in AcqDataDescriptor) might
+    // need to change.  Fragile! - cpo
     readParams.readMode         = ReadModeStdW;
     readParams.nbrSegments      = nbrSegments;
     readParams.flags            = 0;
@@ -109,23 +117,21 @@ public:
     readParams.segmentOffset    = 0;
     readParams.segDescArraySize = (long)sizeof(AqSegmentDescriptor) * nbrSegments;
     readParams.nbrSamplesInSeg  = nbrSamples;
-    AcqData* data = (AcqData*)_destination;
-    readParams.dataArraySize = 
-      (char*)(data->nextChannel(nbrSegments,nbrSamples))-
-      (char*)(data->waveforms(nbrSegments));
+    Acqiris::AcqDataDescV1* data = (Acqiris::AcqDataDescV1*)_destination;
+    readParams.dataArraySize = data->waveformSize(hconfig);
 
     for (unsigned i=0;i<32;i++) {
       if (!(channelMask&(1<<i))) continue;
       unsigned channel = i+1;
 //       printf("desc %p, segdesc %p, wf %p, nextch %p, dsize 0x%x\n",
-//              &(data->desc()),&(data->timestamp(0).desc()),
+//              data,&(data->timestamp(0)),
 //              data->waveforms(nbrSegments),
 //              data->nextChannel(nbrSegments,nbrSamples),
 //              readParams.dataArraySize);
       status = AcqrsD1_readData(_instrumentId, channel, &readParams,
-                                data->waveforms(nbrSegments),
-                                &(data->desc()),
-                                &(data->timestamp(0).desc()));
+                                data->waveform(hconfig),
+                                (AqDataDescriptor*)data,
+                                &(data->timestamp(0)));
       // for SAR mode
       //       AcqrsD1_freeBank(_instrumentId,0);
 
@@ -134,7 +140,15 @@ public:
         AcqrsD1_errorMessage(_instrumentId,status,message);
         printf("%s (channel: %d)\n",message,channel);
       }
-      data = data->nextChannel(nbrSegments,nbrSamples);
+      if (data->nbrSamplesInSeg()!=nbrSamples) {
+        printf("*** Received %d samples, expected %d.\n",
+               data->nbrSamplesInSeg(),nbrSamples);
+      }
+      if (data->nbrSegments()!=nbrSegments) {
+        printf("*** Received %d segments, expected %d.\n",
+               data->nbrSegments(),nbrSegments);
+      }
+      data = data->nextChannel(hconfig);
     }
 
     _server.payloadComplete();
@@ -170,7 +184,7 @@ public:
   void notRunning() {_checkTimestamp=0;}
   unsigned validate(InDatagram* in) {
     Datagram& dg = in->datagram();
-    AcqData& data = *(AcqData*)(dg.xtc.payload()+sizeof(Xtc));
+    Acqiris::AcqDataDescV1& data = *(Acqiris::AcqDataDescV1*)(dg.xtc.payload()+sizeof(Xtc));
     long long acqts = data.timestamp(0).value();
     unsigned evrfid = dg.seq.high();
     unsigned long long psPerFiducial = 2777777777ULL;
@@ -295,8 +309,8 @@ public:
     _check(AcqrsD1_configTrigClass(_instrumentId, 0, srcPattern, 0, 0, 0.0, 0.0));
     _check(AcqrsD1_configTrigSource(_instrumentId, trigInput, trigCoupling, trigSlope, trigLevel, 0.0));
     _reader.start();
-    _reader.setSamples(nbrSamples);
     _dma.setConfig(_config);
+    _reader.setConfig(_config);
     return tr;
   }
 private:
