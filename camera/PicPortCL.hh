@@ -13,15 +13,17 @@
 
 #include <grabber.h>
 #include <daseq32.h>
-#include "Camera.hh"
+
+#include "pds/camera/LvCamera.hh"
 
 #define PICPORTCL_NAME    "PicPortX CL Mono"
 
+
 namespace PdsLeutron {
 
-class FrameHandle;
+  class FrameHandle;
 
-class PicPortCL: public Camera {
+  class PicPortCL: public LvCamera {
   public:
     struct PicPortCLConfig {
       // Camera Link Serial Port configuration
@@ -73,12 +75,14 @@ class PicPortCL: public Camera {
     DsyApp_Seq32 *pSeqDral;
     enum NotifyType NotifyMode;
     int NotifySignal;
-public:
+  public:
     U8BIT *FrameBufferBaseAddress;
     U8BIT *FrameBufferEndAddress;
-private:
+  private:
     unsigned long LastFrame;
-};
+  protected:
+    FrameHandle::Format frameFormat;
+  };
 
 }
 

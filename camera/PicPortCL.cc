@@ -6,7 +6,8 @@
 //! GPL license
 //!
 
-#include "PicPortCL.hh"
+#include "pds/camera/PicPortCL.hh"
+
 #include <errno.h>
 #include <signal.h>
 
@@ -203,7 +204,7 @@ int PicPortCL::Stop() {
   return 0; 
 }
 
-PdsLeutron::FrameHandle *PicPortCL::GetFrameHandle() {
+FrameHandle *PicPortCL::GetFrameHandle() {
   int ret;
   unsigned long Captured, Current;
   U32BIT StartX, StartY;
@@ -254,8 +255,11 @@ PdsLeutron::FrameHandle *PicPortCL::GetFrameHandle() {
     LastFrame = Current;
   }
   // Return a Frame object
-  pFrame = new FrameHandle(Roi.Width, Roi.Height, config.Format, Roi.PixelIncrement,
-        (void *)(FrameBufferBaseAddress + Roi.StartAddress), &PicPortCL::ReleaseFrame, this, (void *)Current);
+  pFrame = new PdsLeutron::FrameHandle(Roi.Width, Roi.Height, 
+				       frameFormat, Roi.PixelIncrement,
+				       (void *)(FrameBufferBaseAddress + Roi.StartAddress), 
+				       &PicPortCL::ReleaseFrame, 
+				       this, (void *)Current);
   return PicPortFrameProcess(pFrame);
 }
 

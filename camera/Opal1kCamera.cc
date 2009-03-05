@@ -1,16 +1,21 @@
-//! Opal1000.cc
-//! See Opal1000.hh for a description of what the class can do
+//! Opal1kCamera.cc
+//! See Opal1kCamera.hh for a description of what the class can do
 //!
 //! Copyright 2008, SLAC
 //! Author: rmachet@slac.stanford.edu
 //! GPL license
 //!
 
-#include "Opal1000.hh"
+#include "pds/camera/Opal1kCamera.hh"
+#include "pdsdata/opal1k/ConfigV1.hh"
+#include "pdsdata/camera/FrameCoord.hh"
+
 #include <stdio.h>
 #include <errno.h>
 #include <string.h>
 #include <stdlib.h>
+
+#include <new>
 
 #define RESET_COUNT 0x80000000
 
@@ -44,7 +49,9 @@ U16BIT FindConnIndex(HGRABBER hGrabber, U16BIT CameraId) {
 
 using namespace PdsLeutron;
 
-Opal1000::Opal1000(char *id) {
+Opal1kCamera::Opal1kCamera(char *id) :
+  _inputConfig(0)
+{
   PicPortCLConfig.Baudrate = OPAL1000_SERIAL_BAUDRATE;
   PicPortCLConfig.Parity = OPAL1000_SERIAL_PARITY;
   PicPortCLConfig.ByteSize = OPAL1000_SERIAL_DATASIZE;
@@ -63,29 +70,45 @@ Opal1000::Opal1000(char *id) {
   LastCount = 0;
 }
 
-Opal1000::~Opal1000() {
+Opal1kCamera::~Opal1kCamera() {
   free(status.CameraId);
 }
 
-int Opal1000::PicPortCameraConfig(LvROI &Roi) {
+void Opal1kCamera::Config(const Opal1k::ConfigV1& config)
+{
+  _inputConfig = &config;
+  switch(config.output_resolution_bits()) {
+  case 8 :
+    frameFormat = FrameHandle::FORMAT_GRAYSCALE_8 ; break;
+  case 10:
+    frameFormat = FrameHandle::FORMAT_GRAYSCALE_10; break;
+  case 12:
+    frameFormat = FrameHandle::FORMAT_GRAYSCALE_12; break;
+  }
+  ConfigReset();
+}  
+
+const Opal1k::ConfigV1& Opal1kCamera::Config() const
+{
+  return *reinterpret_cast<const Opal1k::ConfigV1*>(_outputBuffer);
+}
+
+int Opal1kCamera::PicPortCameraConfig(LvROI &Roi) {
   U16BIT CameraId;
 
-  // Check the camera mode
-  if (config.Mode == Camera::MODE_EXTTRIGGER)
-    return -ENOTSUP;  // Only support external shutter and continuous
   // Set config
   SeqDralConfig.NrImages = 16; // 2MB per image !
   SeqDralConfig.UseCameraList = true;
-  switch(config.Format) {
-    case FrameHandle::FORMAT_GRAYSCALE_8:
+  switch(_inputConfig->output_resolution_bits()) {
+    case 8:
       CameraId = DsyGetCameraId(OPAL1000_NAME_8bits);
       Roi.SetColorFormat(ColF_Mono_8);
       break;
-    case FrameHandle::FORMAT_GRAYSCALE_10:
+    case 10:
       CameraId = DsyGetCameraId(OPAL1000_NAME_10bits);
       Roi.SetColorFormat(ColF_Mono_10);
       break;
-    case FrameHandle::FORMAT_GRAYSCALE_12:
+    case 12:
       CameraId = DsyGetCameraId(OPAL1000_NAME_12bits);
       Roi.SetColorFormat(ColF_Mono_12);
       break;
@@ -99,78 +122,108 @@ int Opal1000::PicPortCameraConfig(LvROI &Roi) {
   return 0;
 }
 
-#define SetParameter(title,cmd,val1) { \
-  unsigned long val = val1; \
-  printf("Setting %s = d%lu\n",title,val); \
-  snprintf(szCommand, SZCOMMAND_MAXLEN, "%s%lu", cmd, val); \
-  ret = SendCommand(szCommand, NULL, 0); \
-  if (ret<0) return ret; \
+#define SetCommand(title,cmd) { \
+  snprintf(szCommand, SZCOMMAND_MAXLEN, cmd); \
+  if ((ret = SendCommand(szCommand, NULL, 0))<0) { \
+    printf("Error on command %s (%s)\n",cmd,title); \
+    return ret; \
+  } \
+}
+
+#define GetParameter(cmd,val1) { \
   snprintf(szCommand, SZCOMMAND_MAXLEN, "%s?", cmd); \
   ret = SendCommand(szCommand, szResponse, SZCOMMAND_MAXLEN); \
-  unsigned long rval; \
-  sscanf(szResponse+2,"%lu",&rval); \
-  printf("Read %s = d%lu\n", title, rval); \
+  sscanf(szResponse+2,"%u",&val1); \
+}
+
+#define SetParameter(title,cmd,val1) { \
+  unsigned val = val1; \
+  printf("Setting %s = d%u\n",title,val); \
+  snprintf(szCommand, SZCOMMAND_MAXLEN, "%s%u", cmd, val); \
+  ret = SendCommand(szCommand, NULL, 0); \
+  if (ret<0) return ret; \
+  unsigned rval; \
+  GetParameter(cmd,rval); \
+  printf("Read %s = d%u\n", title, rval); \
   if (rval != val) return -EINVAL; \
 }
 
-#define SetParameters(title,cmd,val1,val2) { \
-  unsigned long v1 = val1; \
-  unsigned long v2 = val2; \
-  printf("Setting %s = d%lu;d%lu\n",title,v1,v2); \
-  snprintf(szCommand, SZCOMMAND_MAXLEN, "%s%lu;%lu",cmd,v1,v2); \
-  ret = SendCommand(szCommand, NULL, 0); \
-  if (ret<0) return ret; \
+#define GetParameters(cmd,val1,val2) { \
   snprintf(szCommand, SZCOMMAND_MAXLEN, "%s?", cmd); \
   ret = SendCommand(szCommand, szResponse, SZCOMMAND_MAXLEN); \
-  unsigned long rv1,rv2; \
-  sscanf(szResponse+2,"%lu;%lu",&rv1,&rv2); \
-  printf("Read %s = d%lu;d%lu\n", title, rv1,rv2); \
+  sscanf(szResponse+2,"%u;%u",&val1,&val2); \
+}
+
+#define SetParameters(title,cmd,val1,val2) { \
+  unsigned v1 = val1; \
+  unsigned v2 = val2; \
+  printf("Setting %s = d%u;d%u\n",title,v1,v2); \
+  snprintf(szCommand, SZCOMMAND_MAXLEN, "%s%u;%u",cmd,v1,v2); \
+  ret = SendCommand(szCommand, NULL, 0); \
+  if (ret<0) return ret; \
+  unsigned rv1,rv2; \
+  GetParameters(cmd,rv1,rv2); \
+  printf("Read %s = d%u;d%u\n", title, rv1,rv2); \
   if (rv1 != v1 || rv2 != v2) return -EINVAL; \
 }
 
-int Opal1000::PicPortCameraInit() {
+int Opal1kCamera::PicPortCameraInit() {
   #define SZCOMMAND_MAXLEN  20
   char szCommand [SZCOMMAND_MAXLEN];
   char szResponse[SZCOMMAND_MAXLEN];
   int ret;
 
-  SetParameter("Black Level","BL",
-	       ((unsigned long)config.BlackLevelPercent*4095)/100);
-  SetParameter("Digital Gain","GA",
-	       ((unsigned long)config.GainPercent*3100)/100+100);
-
-  if (config.Mode == MODE_CONTINUOUS) {
-    SetParameter("Operating Mode","MO",0);
-    SetParameter("Frame Period","FP",
-		 100000/(unsigned long)config.FramesPerSec);
-    SetParameter("Integration Time","IT",
-		 config.ShutterMicroSec/10);
-  }
-  else if (config.Mode == MODE_EXTTRIGGER_SHUTTER) {
-    SetParameter("Operating Mode","MO",1);
-    SetParameters("External Inputs","CCE",4,1);
+  Opal1k::ConfigV1* outputConfig = new (_outputBuffer) Opal1k::ConfigV1(*_inputConfig);
+  SetParameter("Black Level" ,"BL",_inputConfig->black_level());
+  SetParameter("Digital Gain","GA",_inputConfig->gain_percent());
+  SetParameter("Vertical Binning","VBIN",_inputConfig->vertical_binning());
+  SetParameter("Output Mirroring","MI",_inputConfig->output_mirroring());
+  SetParameter("Vertical Remap"  ,"VR",_inputConfig->vertical_remapping());
+  SetParameter("Output Resolution","OR",_inputConfig->output_resolution_bits());
+  if (_inputConfig->output_lookup_table_enabled()) {
+    SetCommand("Output LUT Begin","OLUTBGN");
+    const unsigned short* lut = _inputConfig->output_lookup_table();
+    const unsigned short* end = lut + 4096;
+    while( lut < end ) {
+      snprintf(szCommand, SZCOMMAND_MAXLEN, "OLUT%hu", *lut++);
+      if ((ret = SendCommand(szCommand, NULL, 0))<0)
+	return ret;
+    }
+    SetCommand("Output LUT Begin","OLUTEND");
+    SetParameter("Output LUT Enabled","OLUTE",1);
   }
   else
-    return -ENOSYS;
-
-  // Set the output resolution
-  int nbits;
-  switch(config.Format) {
-    case FrameHandle::FORMAT_GRAYSCALE_8:
-      nbits = 8;
-      break;
-    case FrameHandle::FORMAT_GRAYSCALE_10:
-      nbits = 10;
-      break;
-    case FrameHandle::FORMAT_GRAYSCALE_12:
-      nbits = 12;
-      break;
-    default:
-      return -ENOSYS;  // should not happen
-  };
-  SetParameter("Output Resolution","OR",nbits);
+    SetParameter("Output LUT Enabled","OLUTE",0);
+  if (_inputConfig->defect_pixel_correction_enabled()) {
+    //  read defect pixels into output config
+    unsigned n,col,row;
+    char cmdb[8];
+    GetParameter("DP0",n);
+    Camera::FrameCoord* pc = outputConfig->defect_pixel_coordinates();
+    for(unsigned k=1; k<=n; k++,pc++) {
+      sprintf(cmdb,"DP%d",k);
+      GetParameters(cmdb,col,row);
+      pc->column = col;
+      pc->row = row;
+    }
+    outputConfig->set_number_of_defect_pixels(n);
+    SetParameter("Defect Pixel Correction","DPE",1);
+  }
+  else
+    SetParameter("Defect Pixel Correction","DPE",0);
   SetParameter("Overlay Function","OVL",1);
-  SetParameter("Vertical Remap","VR",1);
+
+#if 0  
+  // Continuous Mode
+  SetParameter ("Operating Mode","MO",0);
+  SetParameter ("Frame Period","FP",
+	        100000/(unsigned long)config.FramesPerSec);
+  SetParameter ("Integration Time","IT",
+	        config.ShutterMicroSec/10);
+#else
+  SetParameter ("Operating Mode","MO",1);
+  SetParameters("External Inputs","CCE",4,1);
+#endif
 
   CurrentCount = RESET_COUNT;
 
@@ -180,7 +233,8 @@ int Opal1000::PicPortCameraInit() {
 // We redefine this API to be able to detect dropped/repeated frames
 // because the frame grabber is not very good at that. To do that we 
 // read the 2 words signature embedded in the frame by the Opal 1000.
-FrameHandle *Opal1000::PicPortFrameProcess(FrameHandle *pFrame) {
+FrameHandle* 
+Opal1kCamera::PicPortFrameProcess(FrameHandle *pFrame) {
   unsigned long Count;
 
   switch (pFrame->elsize) {

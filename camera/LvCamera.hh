@@ -14,7 +14,7 @@
 
 namespace PdsLeutron {
 
-class Camera {
+class LvCamera {
   public:
     enum Mode {
       MODE_CONTINUOUS,
@@ -38,26 +38,18 @@ class Camera {
       char *CameraName;
       unsigned long CapturedFrames;
       unsigned long DroppedFrames;
-      enum Camera::State State;
-    };
-    struct Config {
-      enum Camera::Mode Mode;
-      enum FrameHandle::Format Format;
-      int GainPercent;
-      int BlackLevelPercent;
-      unsigned long ShutterMicroSec;  // Only applicable if Mode != MODE_EXTTRIGGER_SHUTTER
-      int FramesPerSec;  // Only applicable if Mode == MODE_DEFAULT
+      enum LvCamera::State State;
     };
 
     //! Camera
     //! Constructor
     //! @return N/A
-    Camera();
+    LvCamera();
 
     //! Camera
     //! Destructor
     //! @return N/A
-    ~Camera();
+    ~LvCamera();
 
     //! SetNotification
     //! Select how the camera should notify the application that
@@ -86,7 +78,7 @@ class Camera {
     //!         should be configured when Init() is called. For this
     //!         reason the default implementation of this API should
     //!         suffice.
-    int SetConfig(const struct Config &Config);
+    int ConfigReset();
 
     //! Init
     //! Detect, configure and initialize the camera.
@@ -118,31 +110,6 @@ class Camera {
     //!         on the driver and Camera itself.
     int Stop();
 
-    //! GetConfig
-    //! Return the configuration last set.
-    //! @param  Config  Camera::Config structure where the current configuration
-    //!                 will be stored.
-    //! @return 0 if successful, a negative value defined in errno.h
-    //!         otherwise.
-    //! @note   This API only return the standard part of the configuration, see
-    //!         the other SetConfig if you would like the whole configuration.
-    int GetConfig(struct Config &Config);
-
-    //! GetConfig
-    //! Return the configuration last set, including static and camera specific fields.
-    //! @param  Config  Camera::Config structure where the current configuration
-    //!                 will be stored.
-    //! @param  StaticConfigExtra   Pointer to a camera specific database that contains
-    //!                             parameters that are camera specific or static
-    //! @param  StaticConfigExtraSize Size of the memory area pointed to by StaticConfigExtra
-    //!                               If too small, only StaticConfigExtraSize will be copied
-    //!                               and this API will return the number of bytes required
-    //!                               to get all the information.
-    //! @return the size of StaticConfigExtra if successful, a negative value defined in errno.h
-    //!         otherwise. If the return value is bigger that StaticConfigExtraSize, then the
-    //!         content of StaticConfigExtra has been truncated.
-    int GetConfig(struct Config &Config, void *StaticConfigExtra, int StaticConfigExtraSize);
-
     //! GetStatus
     //! Return the current status of the camera.
     //! @param  Status  Camera::Status structure where the status will be stored.
@@ -150,32 +117,15 @@ class Camera {
     //!         otherwise.
     int GetStatus(struct Status &Status);
 
-    //! GetFrame
+    //! GetFrameHandle
     //! Return the next available frame.
     //! @param  Status  Camera::Status structure where the status will be stored.
     //! @return 0 if successful, a negative value defined in errno.h
     //!         otherwise.
     FrameHandle *GetFrameHandle();
 
-    //! SendCommand
-    //! Send a camera specific command to the camera.
-    //! @param  szCommand  Zero terminated string that contains the command.
-    //! @param  pszResponse         Memory area where any response may be stored.
-    //! @param  iResponseBufferSize Maximum size of the response, the API will  
-    //!                             change this value to the exact size
-    //!                             of the response.
-    //! @return number of bytes written in pszResponse if successful, a negative 
-    //!         value defined in errno.h otherwise.
-    //! @note   SendCommand can only be used AFTER Init()
-    int SendCommand(char *szCommand, char *pszResponse, int iResponseBufferSize);
-
   protected:
     Status status;
-    Config config;
-    void *pExtraConfig;
-    int lenExtraConfig;
-  private:
-
 };
 
 }

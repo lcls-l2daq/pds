@@ -26,6 +26,9 @@ namespace PdsLeutron {
     void(*release)(void *, FrameHandle *pFrameHandle, void *arg);
     void *obj;
     void *arg;
+
+  public:
+    unsigned depth() const;
   };
 
 };

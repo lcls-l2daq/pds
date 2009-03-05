@@ -1,6 +1,10 @@
 #ifndef Pds_Frame_hh
 #define Pds_Frame_hh
 
+#include "pdsdata/camera/FrameV1.hh"
+
+#include <new>
+
 namespace PdsLeutron {
   class FrameHandle;
 };
@@ -9,58 +13,47 @@ namespace Pds {
 
   class DmaSplice;
 
-  class Frame {
+  class Frame : public Camera::FrameV1 {
   public:
     Frame() {}
     //  Frame with unassigned contents
-    Frame(unsigned _width, unsigned _height, unsigned _depth);
+    Frame(unsigned width, unsigned height, 
+	  unsigned depth, unsigned offset);
     //  Copy frame contents from "input"
-    Frame(unsigned _width, unsigned _height, unsigned _depth, 
+    Frame(unsigned width, unsigned height, 
+	  unsigned depth, unsigned offset,
 	  const void* input);
-    Frame(unsigned _width, unsigned _height, unsigned _depth, 
+    //  Queue the frame's DMA buffer to "splice"
+    Frame(unsigned width, unsigned height, 
+	  unsigned depth, unsigned offset,
 	  PdsLeutron::FrameHandle&,
 	  DmaSplice&  splice);
     //  Copy frame contents from subsection of "input"
-    Frame(unsigned _startCol, unsigned _endCol,
-	  unsigned _startRow, unsigned _endRow,
-	  unsigned _width, unsigned _height, unsigned _depth, 
+    Frame(unsigned startCol, unsigned endCol,
+	  unsigned startRow, unsigned endRow,
+	  unsigned width, unsigned height, 
+	  unsigned depth, unsigned offset,
 	  const void* input);
-    Frame(unsigned _startCol, unsigned _endCol,
-	  unsigned _startRow, unsigned _endRow,
-	  unsigned _width, unsigned _height, unsigned _depth, 
+    //  Queue the frame's ROI to "splice"
+    Frame(unsigned startCol, unsigned endCol,
+	  unsigned startRow, unsigned endRow,
+	  unsigned width, unsigned height, 
+	  unsigned depth, unsigned offset,
 	  PdsLeutron::FrameHandle&,
 	  DmaSplice&  splice);
-    //  Copy frame from grabber (does not copy contents)
-    Frame(const PdsLeutron::FrameHandle&);
+    //  Copy frame header from grabber (does not copy contents)
+    Frame(const PdsLeutron::FrameHandle&,
+	  unsigned offset);
     //  Copy constructor (does not copy contents)
     Frame(const Frame&);
-
-    unsigned long width;
-    unsigned long height;
-    unsigned long depth;
-    unsigned long extent;
-
-    unsigned depth_bytes() const;
-    const unsigned char* data() const;
-    const unsigned char* pixel(unsigned x,unsigned y) const;
+  public:
+    unsigned char* data();
   };
 
+  inline unsigned char* Frame::data()
+  {
+    return const_cast<unsigned char*>(Camera::FrameV1::data());
+  }
 };
-
-inline unsigned Pds::Frame::depth_bytes() const
-{
-  return (depth+7)>>3;
-}
-
-inline const unsigned char* Pds::Frame::data() const
-{
-  return reinterpret_cast<const unsigned char*>(this+1);
-}
-
-inline const unsigned char* Pds::Frame::pixel(unsigned x,
-					      unsigned y) const
-{
-  return data()+(y*width+x)*depth_bytes();
-}
 
 #endif

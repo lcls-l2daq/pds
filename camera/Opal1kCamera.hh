@@ -1,5 +1,5 @@
-//! Opal1000.hh
-//! Opal1000 camera control class. This class inherits of PicPortCL, which
+//! Opal1kCamera.hh
+//! Opal1kCamera camera control class. This class inherits of PicPortCL, which
 //! means it assumes the Camera is connected to a Leutron frame grabber.
 //!
 //! Copyright 2008, SLAC
@@ -7,10 +7,10 @@
 //! GPL license
 //!
 
-#ifndef PDS_CAMERA_OPAL1000
-#define PDS_CAMERA_OPAL1000
+#ifndef Pds_Opal1kCamera_hh
+#define Pds_Opal1kCamera_hh
 
-#include "PicPortCL.hh"
+#include "pds/camera/PicPortCL.hh"
 
 #define OPAL1000_NAME             "Adimec Opal 1000"
 #define OPAL1000_NAME_12bits      "Adimec_Opal-1000m/Q"
@@ -27,12 +27,19 @@
 #define OPAL1000_SERIAL_TIMEOUT   1000
 #define OPAL1000_CONNECTOR        "CamLink Base Port 0 (HVPSync In 0)"
 
+namespace Opal1k {
+  class ConfigV1;
+};
+
 namespace PdsLeutron {
 
-  class Opal1000: public PicPortCL {
+  class Opal1kCamera : public PicPortCL {
   public:
-    Opal1000(char *id = NULL);
-    virtual ~Opal1000();
+    Opal1kCamera(char *id = NULL);
+    virtual ~Opal1kCamera();
+
+    void                    Config(const Opal1k::ConfigV1&);
+    const Opal1k::ConfigV1& Config() const;
   protected:
     virtual int PicPortCameraConfig(LvROI &Roi);
     virtual int PicPortCameraInit();
@@ -41,8 +48,11 @@ namespace PdsLeutron {
     unsigned long LastCount;
   public:
     unsigned long CurrentCount;
+  private:
+    const Opal1k::ConfigV1* _inputConfig;
+    char* _outputBuffer;
   };
 
 }
 
-#endif	// #ifndef PDS_CAMERA_OPAL1000
+#endif

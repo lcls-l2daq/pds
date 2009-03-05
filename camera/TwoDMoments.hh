@@ -13,45 +13,20 @@ namespace Pds {
 		unsigned long long wyy,
 		unsigned long long wxy) : 
       _n(w), _x(wx), _y(wy), _xx(wxx), _yy(wyy), _xy(wxy) {}
-    TwoDMoments(unsigned cols, unsigned rows, 
+    TwoDMoments(unsigned cols, unsigned rows,
+		unsigned short offset,
 		const unsigned short* src);
     TwoDMoments(unsigned cols,
 		unsigned colStart, unsigned colEnd,
 		unsigned rowStart, unsigned rowEnd, 
+		unsigned short offset,
+		const unsigned short* src);
+    TwoDMoments(unsigned cols,
+		unsigned rows,
+		unsigned short offset,
+		unsigned short threshold,
 		const unsigned short* src);
     ~TwoDMoments() {}
-
-    void accumulate(unsigned long long column, 
-		    unsigned long long row, 
-		    unsigned long long w);
-
-    void accumulate(unsigned long long column, 
-		    unsigned long long row, 
-		    unsigned short weight) {
-      unsigned long long w = weight;
-      accumulate(column, row, w);
-    }
-
-    void accumulate(unsigned long long column, 
-		    unsigned long long row, 
-		    unsigned char weight) {
-      unsigned long long w = weight;
-      accumulate(column, row, w);
-    }
-
-    void remove(unsigned long long column, 
-		unsigned long long row, 
-		unsigned short weight) {
-      unsigned long long w = -weight;
-      accumulate(column, row, w);
-    }
-
-    void remove(unsigned long long column, 
-		unsigned long long row, 
-		unsigned char weight) {
-      unsigned long long w = -weight;
-      accumulate(column, row, w);
-    }
 
   public:
     unsigned long long _n;

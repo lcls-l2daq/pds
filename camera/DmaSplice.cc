@@ -1,6 +1,6 @@
 #include "DmaSplice.hh"
 
-#include "pds/camera/Camera.hh"
+#include "pds/camera/LvCamera.hh"
 #include "pds/camera/FrameHandle.hh"
 #include "pds/service/Task.hh"
 #include "pds/zerocopy/dma_splice/dma_splice.h"

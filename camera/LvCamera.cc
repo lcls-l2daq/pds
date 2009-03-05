@@ -1,4 +1,4 @@
-//! Camera.cc
+//! LvCamera.cc
 //! See Camera.hh for a description of the Camera class.
 //!
 //! Copyright 2008, SLAC
@@ -6,16 +6,14 @@
 //! GPL license
 //!
 
-#include "Camera.hh"
+#include "pds/camera/LvCamera.hh"
 #include <stdio.h>
 #include <errno.h>
 #include <string.h>
 
 using namespace PdsLeutron;
 
-Camera::Camera() {
-  pExtraConfig = NULL;
-  lenExtraConfig = 0;
+LvCamera::LvCamera() {
   status.CameraId = "none";
   status.CameraName = "default camera";
   status.CapturedFrames = 0;
@@ -23,10 +21,10 @@ Camera::Camera() {
   status.State = CAMERA_UNCONFIGURED;
 }
 
-Camera::~Camera() {
+LvCamera::~LvCamera() {
 }
 
-int Camera::SetNotification(enum NotifyType mode) { 
+int LvCamera::SetNotification(enum NotifyType mode) { 
   int ret;
   switch(mode) {
     case NOTIFYTYPE_NONE:
@@ -39,19 +37,18 @@ int Camera::SetNotification(enum NotifyType mode) {
   return ret;
 }
 
-int Camera::SetConfig(const struct Config &Config) { 
-  config = Config;
+int LvCamera::ConfigReset() {
   // Init must be called again before acquisition can start
   status.State = CAMERA_UNCONFIGURED;
   return 0;
 }
 
-int Camera::Init() {
+int LvCamera::Init() {
   status.State = CAMERA_READY;
   return 0;
 }
 
-int Camera::Start() {
+int LvCamera::Start() {
   // Check if Init has been properly called
   if ((status.State != CAMERA_READY) && (status.State != CAMERA_STOPPED))
     return -ENOTCONN;
@@ -59,7 +56,7 @@ int Camera::Start() {
   return 0; 
 }
 
-int Camera::Stop() { 
+int LvCamera::Stop() { 
   // Check if Start has been called
   if (status.State != CAMERA_RUNNING)
     return -ENOTCONN;
@@ -67,33 +64,8 @@ int Camera::Stop() {
   return 0; 
 }
 
-int Camera::GetConfig(struct Config &Config) { 
-  Config = config;
-  return 0;
-}
-
-int Camera::GetConfig(struct Config &Config, void *StaticConfigExtra, int StaticConfigExtraSize) { 
-  int copylen = lenExtraConfig;
-
-  if (copylen > StaticConfigExtraSize)
-    copylen = StaticConfigExtraSize;
-  if(StaticConfigExtra != NULL)
-    memcpy(StaticConfigExtra, pExtraConfig, copylen);
-  Config = config;
-  return lenExtraConfig;
-}
-
-int Camera::GetStatus(struct Status &Status) {
+int LvCamera::GetStatus(struct Status &Status) {
   Status = status;
   return 0;
 }
 
-FrameHandle *Camera::GetFrameHandle() { 
-  return (FrameHandle *)NULL; 
-}
-
-int Camera::SendCommand(char *szCommand, char *pszResponse, int iResponseBufferSize) { 
-  if (pszResponse != NULL)
-    *pszResponse=0;
-  return 0; 
-}

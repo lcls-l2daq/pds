@@ -3,13 +3,16 @@ libnames := camera
 libsrcs_camera := DmaSplice.cc \
 		  FrameHandle.cc \
 		  Frame.cc \
-		  Camera.cc \
-		  Opal1000.cc \
+		  LvCamera.cc \
 		  PicPortCL.cc \
+		  Opal1kCamera.cc \
 		  TwoDMoments.cc \
-		  TwoDGaussian.cc
+		  TwoDGaussian.cc \
+	          FexFrameServer.cc \
+	          Opal1kManager.cc
+#	          FrameServer.cc \
 libincs_camera := leutron/include
-#libsinc_camera := /usr/include/lvsds
+libsinc_camera := /usr/include/lvsds
 
 tgtnames := camreceiver
 
