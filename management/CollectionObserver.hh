@@ -3,24 +3,34 @@
 
 #include "pds/collection/CollectionManager.hh"
 
+#include "pds/collection/Node.hh"
+#include "pds/service/GenericPool.hh"
+
 namespace Pds {
+
+  class Allocate;
+  class Transition;
 
   class CollectionObserver : public CollectionManager {
   public:
-    CollectionObserver(unsigned char platform) :
-      CollectionManager(Level::Observer, platform, MaxPayload, ConnectTimeOut, NULL) {}
-    ~CollectionObserver() {}
+    CollectionObserver(unsigned char platform,
+		       const char*   partition,
+		       unsigned      node);
+    ~CollectionObserver();
+  public:
+    virtual void allocated(const Allocate&,
+			   unsigned index) = 0;
+    virtual void dissolved() = 0;
   public:
     virtual void post(const Transition&) = 0;
   private:
-    void message(const Node& hdr, const Message& msg)
-    {
-      if (hdr.level() == Level::Control && msg.type()==Message::Transition) {
-        const Transition& tr = reinterpret_cast<const Transition&>(msg);
-	if (tr.phase() == Transition::Execute)
-	  post(tr);
-      }
-    }
+    void message(const Node& hdr, const Message& msg);
+  private:
+    const char* _partition;
+    unsigned    _node;
+    GenericPool _pool;
+    bool        _isallocated;
+    Node        _allocator;
   };
 
 };
