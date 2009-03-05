@@ -14,6 +14,8 @@
 #include "pds/xtc/EvrDatagram.hh"
 #include "pds/utility/StreamPorts.hh"
 #include "pds/service/Client.hh"
+#include "pds/config/CfgClientNfs.hh"
+#include "pdsdata/evr/ConfigV1.hh"
 #include "EvgrBoardInfo.hh"
 #include "EvrManager.hh"
 #include "EvgrOpcode.hh"
@@ -28,7 +30,7 @@ class L1Xmitter {
 public:
   L1Xmitter(Evr& er, unsigned partition) :
     _er(er),_partition(partition),_outlet(sizeof(EvrDatagram),0),
-    _evtCounter(0) {}
+    _evtCounter(0), _enabled(false) {}
   void xmit() {
     FIFOEvent fe;
     _er.GetFIFOEvent(&fe);
@@ -44,11 +46,14 @@ public:
 //            fe.EventCode,fe.TimestampHigh,fe.TimestampLow,_evtCounter-1);
   }
   void reset() { _evtCounter = 0; }
+  void enable(bool e) { _enabled=e; }
+  bool enable() const { return _enabled; }
 private:
   Evr& _er;
   unsigned _partition;
   Client   _outlet;
   unsigned _evtCounter;
+  bool     _enabled;
 };
 
 class EvrAction : public Action {
@@ -110,46 +115,113 @@ public:
 
 class EvrConfigAction : public EvrAction {
 public:
-  EvrConfigAction(Evr& er,EvgrOpcode::Opcode opcode) :
-    EvrAction(er),_opcode(opcode) {}
+  EvrConfigAction(Evr& er,
+		  EvgrOpcode::Opcode opcode,
+		  CfgClientNfs& cfg) :
+    EvrAction(er),
+    _opcode(opcode),
+    _cfg(cfg),
+    _cfgtc(TypeId::Id_EvrConfig,cfg.src()),
+    _configBuffer(new char[sizeof(EvrData::ConfigV1)+
+			   32*sizeof(EvrData::PulseConfig)+
+			   10*sizeof(EvrData::OutputMap)])
+  {
+  }
+
+  ~EvrConfigAction()
+  { delete[] _configBuffer; }
+
+  InDatagram* fire(InDatagram* dg) {
+    dg->insert(_cfgtc, _configBuffer);
+    return dg;
+  }
+
   Transition* fire(Transition* tr) {
+    int len=_cfg.fetch(*tr,TypeId::Id_EvrConfig, _configBuffer);
+    if (len<0) {
+      printf("Config::configure failed to retrieve Evr configuration\n");
+      return tr;
+    }
+    const EvrData::ConfigV1& cfg = *new(_configBuffer) EvrData::ConfigV1;
+    _cfgtc.extent = sizeof(Xtc)+cfg.size();
+
     printf("Configuring evr\n");
+
     _er.Reset();
 
     // setup map ram
-    int ram=0; int enable=1;
+    int ram=0; int enable=l1xmitGlobal->enable();
     _er.MapRamEnable(ram,0);
     _er.SetFIFOEvent(ram, _opcode, enable);
 
-    // acqiris pulse configuration
-    { int pulse = 0; int presc = 1; int delay = 0; int width = 119000;
-      int polarity=0;  int map_reset_ena=0; int map_set_ena=0; int map_trigger_ena=1;
-      int trig=0; int set=-1; int clear=-1;
-      _er.SetPulseMap(ram, _opcode, trig, set, clear);
-      _er.SetPulseProperties(pulse, polarity, map_reset_ena, map_set_ena, map_trigger_ena,
-			     enable);
-      _er.SetPulseParams(pulse,presc,delay,width);
-      
-      // map pulse generator 0 to front panel output 0
-      _er.SetFPOutMap(0,0);
+    for(unsigned k=0; k<cfg.npulses(); k++) {
+      const EvrData::PulseConfig& pc = cfg.pulse(k);
+      _er.SetPulseMap(ram, _opcode, pc.trigger(), pc.set(), pc.clear());
+      _er.SetPulseProperties(pc.pulse(), 
+			     pc.polarity(), 
+			     pc.map_reset_enable(),
+			     pc.map_set_enable(),
+			     pc.map_trigger_enable(),
+			     1);
+      _er.SetPulseParams(pc.pulse(), pc.prescale(), 
+			 pc.delay(), pc.width());
     }
-    // opal1000 pulse configuration
-    { int pulse = 1; int presc = 1; int delay = 0; int width = (1<<16)-1;
-      int polarity=0;  int map_reset_ena=0; int map_set_ena=0; int map_trigger_ena=1;
-      int trig=1; int set=-1; int clear=-1;
-      _er.SetPulseMap(ram, _opcode, trig, set, clear);
-      _er.SetPulseProperties(pulse, polarity, map_reset_ena, map_set_ena, map_trigger_ena,
-			     enable);
-      _er.SetPulseParams(pulse,presc,delay,width);
-      
-      // map pulse generator 1 to front panel output 2
-      _er.SetFPOutMap(2,1);
+
+    for(unsigned k=0; k<cfg.noutputs(); k++) {
+      const EvrData::OutputMap& map = cfg.output_map(k);
+      switch(map.conn()) {
+      case EvrData::OutputMap::FrontPanel: 
+	_er.SetFPOutMap( map.conn_id(), map.map()); 
+	break;
+      case EvrData::OutputMap::UnivIO:
+	_er.SetUnivOutMap( map.conn_id(), map.map());
+	break;
+      }
     }
+
     l1xmitGlobal->reset();
     return tr;
   }
+
 private:
   EvgrOpcode::Opcode _opcode;
+  CfgClientNfs& _cfg;
+  Xtc _cfgtc;
+  char* _configBuffer;
+};
+
+class EvrAllocAction : public Action {
+public:
+  EvrAllocAction(CfgClientNfs& cfg) : _cfg(cfg) {}
+  Transition* fire(Transition* tr) {
+    const Allocate& alloc = reinterpret_cast<const Allocate&>(*tr);
+    _cfg.initialize(alloc);
+    //
+    //  Test if we own the primary EVR for this partition
+    //
+#if 0
+    unsigned    nnodes = alloc.nnodes();
+    int pid = getpid();
+    for (unsigned n=0; n<nnodes; n++) {
+      const Node* node = alloc.node(n);
+      if (node->pid() == pid) {
+	printf("Found our EVR\n");
+	l1xmitGlobal->enable(true);
+	break;
+      }
+      else if (node->level() == Level::Segment) {
+	printf("Found other EVR\n");
+	l1xmitGlobal->enable(false);
+	break;
+      }
+    }
+#else
+    l1xmitGlobal->enable(true);
+#endif
+    return tr;
+  }
+private:
+  CfgClientNfs& _cfg;
 };
 
 extern "C" {
@@ -169,12 +241,15 @@ extern "C" {
 
 Appliance& EvrManager::appliance() {return _fsm;}
 
-EvrManager::EvrManager(EvgrBoardInfo<Evr> &erInfo, unsigned partition,
+EvrManager::EvrManager(EvgrBoardInfo<Evr> &erInfo, 
+		       unsigned partition,
+		       CfgClientNfs & cfg,
                        EvgrOpcode::Opcode opcode) :
   _er(erInfo.board()),_fsm(*new Fsm) {
 
   l1xmitGlobal = new L1Xmitter(_er,partition);
-  _fsm.callback(TransitionId::Configure,new EvrConfigAction(_er,opcode));
+  _fsm.callback(TransitionId::Map, new EvrAllocAction(cfg));
+  _fsm.callback(TransitionId::Configure,new EvrConfigAction(_er,opcode,cfg));
   _fsm.callback(TransitionId::BeginRun,new EvrBeginRunAction(_er));
   _fsm.callback(TransitionId::Enable,new EvrEnableAction(_er));
   _fsm.callback(TransitionId::EndRun,new EvrEndRunAction(_er));

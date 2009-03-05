@@ -1,3 +1,7 @@
+2009-Mar-04	weaver	Tag V00-07-00.  Many changes to camera interfaces.  Now reads
+			configuration from database and writes record on configure transition.
+			Added a simple insert() to InDatagram class for appending data to
+			an existing datagram.
 2009-Feb-19	weaver  Added mon package for online monitoring support classes.
 2009-Feb-13     cpo     Improved AcqManager, including out-of-synch detection
                         of dropped triggers.  EvgrManager now works at 360Hz

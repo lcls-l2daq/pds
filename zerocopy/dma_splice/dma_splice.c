@@ -35,9 +35,9 @@ MODULE_AUTHOR("Matthew Weaver");
 MODULE_DESCRIPTION("single-ended splice interface for dma");
 MODULE_VERSION("1.0");
 
-#define NDESCRIPTORS 16
-#define NRELEASE_DESCRIPTORS 16
-#define NNOTIFY_DESCRIPTORS 16
+#define NDESCRIPTORS 4096
+#define NRELEASE_DESCRIPTORS 4096
+#define NNOTIFY_DESCRIPTORS 4096
 #define NPAGES 8192
 
 struct dma_splice_info;
@@ -94,6 +94,7 @@ struct dma_splice_info {
         unsigned                   rel_fill;
         unsigned                   rel_drain;
         struct dma_splice_release* rel_info_queue[NRELEASE_DESCRIPTORS];
+        struct dma_splice_release* rel_info_master;
         struct page*               pages[NPAGES];
 };
 
@@ -111,10 +112,10 @@ rel_info_get(struct dma_splice_info* pdata,
 	      pdata->rel_drain = (i+1)%NRELEASE_DESCRIPTORS;
 	      rel_info->arg = arg;
 	      atomic_set(&rel_info->_count, 1);
+	      pdata->rel_info_master = rel_info;
 	}
 	else {
-	      i = (i-1)%NRELEASE_DESCRIPTORS;
-	      rel_info = pdata->rel_info_queue[i];
+	      rel_info = pdata->rel_info_master;
 	      atomic_inc(&rel_info->_count);
 	}
 	return rel_info;
@@ -441,8 +442,8 @@ static ssize_t dma_splice_dev_read(struct file *filp, loff_t *ppos,
 		** (last page's reference was taken in "queue" method)
 		*/
 		if (d->addr == d->end) {
-		        if (len)
-			        printk(KERN_ALERT "dma_splice_read incrementing with %d bytes remaining\n", len);
+		  /*        if (len)
+			    printk(KERN_ALERT "dma_splice_read incrementing with %d bytes remaining\n", len); */
 		        i = (i+1)%NDESCRIPTORS;    /* desc_enqueue */
 		}
 		else

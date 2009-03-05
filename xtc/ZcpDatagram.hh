@@ -26,6 +26,8 @@ namespace Pds {
     const Datagram& datagram() const;
     Datagram& datagram();
 
+    bool insert(const Xtc& tc, const void* payload);
+
     InDatagramIterator* iterator(Pool*) const;
 
     int send(ToEb&);

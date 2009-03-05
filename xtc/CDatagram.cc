@@ -5,6 +5,8 @@
 #include "pds/utility/ToEb.hh"
 #include "pds/service/OobServer.hh"
 
+#include <string.h>
+
 using namespace Pds;
 
 CDatagram::~CDatagram()
@@ -24,6 +26,14 @@ Datagram& CDatagram::datagram()
 Datagram& CDatagram::dg()
 {
   return _datagram;
+}
+
+bool CDatagram::insert(const Xtc& tc, const void* payload)
+{
+  int payloadsiz = tc.extent - sizeof(Xtc);
+  memcpy(_datagram.xtc.alloc(sizeof(Xtc)), &tc, sizeof(Xtc));
+  memcpy(_datagram.xtc.alloc(payloadsiz), payload, payloadsiz);
+  return true;
 }
 
 int CDatagram::send(ToEb& client)

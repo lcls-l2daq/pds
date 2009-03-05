@@ -6,6 +6,7 @@
 namespace Pds {
 
   class Datagram;
+  class Xtc;
   class InDatagramIterator;
   class Pool;
   class ToNetEb;
@@ -19,6 +20,8 @@ namespace Pds {
 
     virtual const Datagram& datagram() const = 0;
     virtual Datagram& datagram() = 0;
+
+    virtual bool insert(const Xtc& tc, const void* payload) = 0;
 
     virtual InDatagramIterator* iterator(Pool*) const = 0;
 

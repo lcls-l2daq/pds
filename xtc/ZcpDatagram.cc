@@ -23,6 +23,26 @@ Datagram& ZcpDatagram::datagram()
   return _datagram;
 }
 
+bool ZcpDatagram::insert(const Xtc& tc, const void* payload)
+{
+  ZcpFragment frag;
+  _stream.insert(frag,frag.uinsert(&tc,sizeof(Xtc)));
+
+  int remaining = tc.extent - sizeof(Xtc);
+  const char* p = reinterpret_cast<const char*>(payload);
+  while(remaining) {
+    int len = frag.uinsert(p, remaining);
+    if (len < 0)
+      return false;
+    if (_stream.insert(frag,len)!=len)
+      return false;
+    p         += len;
+    remaining -= len;
+  }
+  _datagram.xtc.extent += tc.extent;
+  return true;
+}
+
 InDatagramIterator* ZcpDatagram::iterator(Pool* pool) const
 {
   return new(pool) ZcpDatagramIterator(*this);
