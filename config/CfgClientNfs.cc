@@ -12,19 +12,17 @@
 
 using namespace Pds;
 
-static const char* base_directory = "configdb";
-
 CfgClientNfs::CfgClientNfs( const Src& src ) :
   _src( src )
 {
 }
 
+const Src& CfgClientNfs::src() const
+{ return _src; }
+
 void CfgClientNfs::initialize(const Allocate& alloc)
 {
-  sprintf(_path,"%s/%02x/%s", 
-	  base_directory, 
-	  alloc.node(0)->platform(), 
-	  alloc.dbname());
+  strcpy(_path, alloc.dbpath());
 }
 
 int CfgClientNfs::fetch(const Transition& tr, 

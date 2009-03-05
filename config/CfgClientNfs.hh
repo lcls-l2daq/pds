@@ -14,6 +14,8 @@ namespace Pds {
     CfgClientNfs( const Src& src );
     ~CfgClientNfs() {}
 
+    const Src& src() const;
+
     void initialize(const Allocate&);
 
     int fetch(const Transition& tr, 
@@ -21,7 +23,7 @@ namespace Pds {
 	      char*             dst);
 
   private:
-    enum { PathSize=64 };
+    enum { PathSize=128 };
     Src      _src;
     char     _path[PathSize];
   };
