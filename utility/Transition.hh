@@ -45,10 +45,10 @@ private:
 class Allocate : public Transition {
 public:
   Allocate(const char* partition,
-	   const char* dbname,
+	   const char* dbpath,
 	   unsigned    partitionid);
   Allocate(const char* partition,
-	   const char* dbname,
+	   const char* dbpath,
 	   unsigned    partitionid,
 	   const Sequence&);
 
@@ -57,15 +57,15 @@ public:
   unsigned    nnodes() const;
   const Node* node(unsigned n) const;
   const char* partition() const;
-  const char* dbname() const;
+  const char* dbpath() const;
   unsigned    partitionid() const;
   
 private:
   static const unsigned MaxNodes=128;
   static const unsigned MaxName=64;
-  static const unsigned MaxDbName=16;
+  static const unsigned MaxDbPath=64;
   char _partition[MaxName];
-  char _dbname   [MaxDbName];
+  char _dbpath   [MaxDbPath];
   unsigned _partitionid;
   unsigned _nnodes;
   Node _nodes[MaxNodes];

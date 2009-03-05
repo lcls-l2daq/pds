@@ -110,7 +110,10 @@ int ZcpEb::processIo(Server* serverGeneric)
   server->keepAlive();
   int sizeofPayload  = server->fetch(_zfragment, MSG_DONTWAIT);
   if(sizeofPayload<0) {  // no payload
-    printf("ZcpEb::processIo error in fetch\n");
+    printf("ZcpEb::processIo error in fetch more/len/off %c/%x/%x\n",
+	   server->more() ? 't':'f', 
+	   server->length(), 
+	   server->offset());
     _zfragment.flush();
     return 1;
   }

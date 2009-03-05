@@ -5,7 +5,8 @@
 
 using namespace Pds;
 
-static const unsigned MaxPayload = sizeof(Allocate);
+//  Size the transition reasonably pool large enough for configure
+static const unsigned MaxPayload = 0x100000;  // 1MB
 static const unsigned ConnectTimeOut = 250; // 1/4 second
 
 PartitionMember::PartitionMember(unsigned char platform,
@@ -87,7 +88,7 @@ void PartitionMember::message(const Node& hdr, const Message& msg)
 		      dst->id() != _index)) {
 	      CDatagram* ndg = 
 		new(&_pool) CDatagram(Datagram(tr, 
-					       TypeId(TypeId::Any),
+					       TypeId(TypeId::Id_Xtc),
 					       header().procInfo()));
 	      post(*ndg);
 	    }

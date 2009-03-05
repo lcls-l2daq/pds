@@ -21,11 +21,6 @@ class Server : public LinkedList<Server>
     void fd(int);
 
     virtual int      pend        (int flag = 0)             = 0;
-
-    virtual int      fetch       (char* payload, int flags) = 0;
-    virtual int      fetch       (ZcpFragment& , int flags) = 0;
-
-    //    virtual const char* datagram() const = 0;
   private:
     unsigned      _id;             // Policy "neutral" identification.
     int           _fd;

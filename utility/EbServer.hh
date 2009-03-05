@@ -29,6 +29,9 @@ class EbServer : public Server
     enum {KeepAlive = 3};
   public:
     //  Eb interface
+    virtual int      fetch       (char* payload, int flags) = 0;
+    virtual int      fetch       (ZcpFragment& , int flags) = 0;
+
     virtual void        dump    (int detail)   const = 0;
     virtual bool        isValued()             const = 0;
     virtual const Src&  client  ()             const = 0;
