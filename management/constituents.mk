@@ -2,4 +2,6 @@ libnames := management
 
 libsrcs_management := $(wildcard *.cc)
 
-#DEFINES += -DBUILD_ZCP
+ifneq ($(findstring -opt,$(tgt_arch)),)
+DEFINES += -DBUILD_ZCP
+endif

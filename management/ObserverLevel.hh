@@ -1,5 +1,5 @@
-#ifndef PDS_RecorderLevel_HH
-#define PDS_RecorderLevel_HH
+#ifndef PDS_ObserverLevel_HH
+#define PDS_ObserverLevel_HH
 
 #include "PartitionMember.hh"
 #include "pds/service/GenericPool.hh"
@@ -11,12 +11,12 @@ class EventCallback;
 class EventStreams;
 class Arp;
 
-class RecorderLevel: public PartitionMember {
+class ObserverLevel: public PartitionMember {
 public:
-  RecorderLevel(unsigned partition,
+  ObserverLevel(unsigned partition,
 		EventCallback& callback,
 		Arp* arp);
-  virtual ~RecorderLevel();
+  virtual ~ObserverLevel();
   
   bool attach();
   void detach();
