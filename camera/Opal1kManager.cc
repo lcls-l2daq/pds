@@ -214,7 +214,7 @@ Transition* Opal1kManager::unconfigure(Transition* tr)
 InDatagram* Opal1kManager::configure  (InDatagram* in) 
 {
   _opaltc.extent = sizeof(Xtc);
-  _fextc.extent = sizeof(Xtc);
+  _fextc .extent = sizeof(Xtc);
   char* cfgBuff = _configBuffer;
   const Opal1k::ConfigV1* opalConfig(0);
   const Camera::FrameFexConfigV1* fexConfig(0);

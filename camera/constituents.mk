@@ -11,8 +11,8 @@ libsrcs_camera := DmaSplice.cc \
 	          FexFrameServer.cc \
 	          Opal1kManager.cc
 #	          FrameServer.cc \
-libincs_camera := leutron/include
 libsinc_camera := /usr/include/lvsds
+libincs_camera := leutron/include
 
 tgtnames := camreceiver
 
