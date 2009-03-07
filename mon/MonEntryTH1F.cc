@@ -73,3 +73,17 @@ void MonEntryTH1F::stats()
 {
   MonStats1D::stats(_desc.nbins(), _desc.xlow(), _desc.xup(), _y);
 }
+
+void MonEntryTH1F::addcontent(double y, double x)
+{
+  if (x < _desc.xlow()) 
+    addinfo(y, Underflow);
+  else if (x >= _desc.xup()) 
+    addinfo(y, Overflow);
+  else {
+    unsigned bin = ((x-_desc.xlow())*double(_desc.nbins()) / 
+		    (_desc.xup()-_desc.xlow()));
+    addcontent(y,bin);
+  }
+}
+

@@ -22,9 +22,11 @@ TwoDMoments::TwoDMoments(unsigned cols,
     }
     _n  += wsum;
     _x  += wxsum;
-    _y  += wsum*k;
-    _yy += wsum*k*k;
-    _xy += wxsum*k;
+    unsigned long long wk = wsum*k;
+    _y  += wk;
+    _yy += wk*k;
+    unsigned long long wx = wxsum;
+    _xy += wx*k;
   }
 }
 
@@ -52,9 +54,11 @@ TwoDMoments::TwoDMoments(unsigned cols,
     src += cols-colEnd;
     _n  += wsum;
     _x  += wxsum;
-    _y  += wsum*k;
-    _yy += wsum*k*k;
-    _xy += wxsum*k;
+    unsigned long long wk = wsum*k;
+    _y  += wk;
+    _yy += wk*k;
+    unsigned long long wx = wxsum;
+    _xy += wx*k;
   }
 }
 
@@ -80,9 +84,11 @@ TwoDMoments::TwoDMoments(unsigned cols,
     }
     _n  += wsum;
     _x  += wxsum;
-    _y  += wsum*k;
-    _yy += wsum*k*k;
-    _xy += wxsum*k;
+    unsigned long long wk = wsum*k;
+    _y  += wk;
+    _yy += wk*k;
+    unsigned long long wx = wxsum;
+    _xy += wx*k;
   }
 }
 

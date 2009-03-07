@@ -23,6 +23,7 @@ namespace Pds {
     double content(unsigned bin) const;
     void   addcontent(double y, unsigned bin);
     void   content(double y, unsigned bin);
+    void   addcontent(double y, double x);
 
     enum Info { Underflow, Overflow, Normalization, InfoSize };
     double info(Info) const;

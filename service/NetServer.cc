@@ -95,7 +95,7 @@ NetServer::NetServer(unsigned id,
 		     int sizeofDatagram,
 		     int maxPayload,
 		     int maxDatagrams) :
-  Port(Port::ServerPort, sizeofDatagram, maxPayload, maxDatagrams),
+  Port(Port::VectoredServerPort, sizeofDatagram, maxPayload, maxDatagrams),
   OobServer(id, socket()),
   _mcastGroup(0)
   {
@@ -117,7 +117,7 @@ NetServer::NetServer(unsigned id,
                      int sizeofDatagram,
                      int maxPayload,
                      int maxDatagrams) :
-  Port(Port::ServerPort, ins,
+  Port(Port::VectoredServerPort, ins,
        sizeofDatagram,
        maxPayload,
        maxDatagrams),

@@ -13,6 +13,7 @@
 #include "pds/service/Task.hh"
 #include "pds/xtc/EvrDatagram.hh"
 #include "pds/utility/StreamPorts.hh"
+#include "pds/collection/Route.hh"
 #include "pds/service/Client.hh"
 #include "pds/config/CfgClientNfs.hh"
 #include "pdsdata/evr/ConfigV1.hh"
@@ -29,7 +30,10 @@ static EvgrBoardInfo<Evr> *erInfoGlobal;  // yuck
 class L1Xmitter {
 public:
   L1Xmitter(Evr& er, unsigned partition) :
-    _er(er),_partition(partition),_outlet(sizeof(EvrDatagram),0),
+    _er(er),
+    _outlet(sizeof(EvrDatagram),0,
+	    StreamPorts::event(partition,Level::Segment),
+	    Ins(Route::interface())),
     _evtCounter(0), _enabled(false) {}
   void xmit() {
     FIFOEvent fe;
@@ -40,8 +44,7 @@ public:
     Sequence seq(Sequence::Event,TransitionId::L1Accept,ctime,
                  fe.TimestampLow,fe.TimestampHigh);
     EvrDatagram datagram(seq, _evtCounter++);
-    Ins dst(StreamPorts::event(_partition,Level::Segment));
-    _outlet.send((char*)&datagram,0,0,dst);
+    _outlet.send((char*)&datagram,0,0);
 //     printf("Received opcode 0x%x timestamp 0x%x/0x%x count %d\n",
 //            fe.EventCode,fe.TimestampHigh,fe.TimestampLow,_evtCounter-1);
   }
@@ -50,7 +53,6 @@ public:
   bool enable() const { return _enabled; }
 private:
   Evr& _er;
-  unsigned _partition;
   Client   _outlet;
   unsigned _evtCounter;
   bool     _enabled;
@@ -158,7 +160,7 @@ public:
       const EvrData::PulseConfig& pc = cfg.pulse(k);
       _er.SetPulseMap(ram, _opcode, pc.trigger(), pc.set(), pc.clear());
       _er.SetPulseProperties(pc.pulse(), 
-			     pc.polarity(), 
+			     pc.polarity() ? 0 : 1, 
 			     pc.map_reset_enable(),
 			     pc.map_set_enable(),
 			     pc.map_trigger_enable(),
