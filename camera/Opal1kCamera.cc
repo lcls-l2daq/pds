@@ -61,7 +61,7 @@ Opal1kCamera::Opal1kCamera(char *id) :
   PicPortCLConfig.sof = OPAL1000_SERIAL_SOF;
   PicPortCLConfig.eof = OPAL1000_SERIAL_EOT;
   PicPortCLConfig.Timeout_ms = OPAL1000_SERIAL_TIMEOUT;
-  PicPortCLConfig.bUsePicportCounters = false;
+  //  PicPortCLConfig.bUsePicportCounters = false;
   if (id == NULL)
     id = "";
   status.CameraId = (char *)malloc(strlen(id)+1);

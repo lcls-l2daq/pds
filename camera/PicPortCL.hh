@@ -79,6 +79,7 @@ namespace PdsLeutron {
     U8BIT *FrameBufferBaseAddress;
     U8BIT *FrameBufferEndAddress;
   private:
+    unsigned long Current;
     unsigned long LastFrame;
   protected:
     FrameHandle::Format frameFormat;

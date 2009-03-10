@@ -1,6 +1,7 @@
 #ifndef PDS_ObserverLevel_HH
 #define PDS_ObserverLevel_HH
 
+#include "pds/utility/Stream.hh"
 #include "CollectionObserver.hh"
 
 namespace Pds {
@@ -9,6 +10,7 @@ namespace Pds {
   class EventStreams;
   class EbIStream;
   class Allocate;
+  class OutletWire;
 
   class ObserverLevel: public CollectionObserver {
   public:
@@ -29,9 +31,10 @@ namespace Pds {
   private:
     unsigned       _node;
     EventCallback& _callback;         // object to notify
-    EventStreams*  _streams;          // appliance streams
+    EventStreams * _streams;          // appliance streams
     EbIStream*     _inlet;
-  };
+    OutletWire*    _outlets[StreamParams::NumberOfStreams];
+};
 
 }
 

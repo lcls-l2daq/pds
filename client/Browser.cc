@@ -84,7 +84,9 @@ int Browser::_dumpBinaryPayload(const Xtc& xtc, InDatagramIterator* iter){
   int advance = xtc.sizeofPayload() >> 2;
   if(advance)
     {
-      advance = advance < 4 ? advance : 4;
+      const int DumpWords=4;
+      //      const int DumpWords=10;
+      advance = advance < DumpWords ? advance : DumpWords;
       int remaining = advance;
       iovec iov[1];
       int rlen = iter->read(iov,1,remaining<<2);

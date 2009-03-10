@@ -16,14 +16,15 @@
 #include <errno.h>
 #include <sys/time.h>
 #include <signal.h>
-#include "pds/camera/Camera.hh"
+#include "pdsdata/opal1k/ConfigV1.hh"
+#include "pds/camera/LvCamera.hh"
 #include "camstream.h"
 #include "pthread.h"
 
 #include "pds/zerocopy/dma_splice/dma_splice.h"
 
-#include "pds/camera/Opal1000.hh"
-#define CAMERA_CLASS  Opal1000
+#include "pds/camera/Opal1kCamera.hh"
+#define CAMERA_CLASS  Opal1kCamera
 #define str2(a)       #a
 #define str(a)        str2(a)
 #define CAMERA_NAME   str(CAMERA_CLASS)
@@ -100,8 +101,7 @@ int main(int argc, char *argv[])
   long nimages = 0;
   unsigned long long start_time, end_time;
   CAMERA_CLASS *pCamera;
-  Camera::Config Config;
-  Camera::Status Status;
+  LvCamera::Status Status;
   char *dest_host=NULL;
   char *strport;
   int dest_port = CAMSTREAM_DEFAULT_PORT;
@@ -168,33 +168,16 @@ int main(int argc, char *argv[])
   /* Configure the camera */
   printf("Configuring camera ... "); 
   fflush(stdout);
-  if (exttrigger)
-    Config.Mode = Camera::MODE_EXTTRIGGER;
-  else if (extshutter)
-    Config.Mode = Camera::MODE_EXTTRIGGER_SHUTTER;
-  else
-    Config.Mode = Camera::MODE_CONTINUOUS;
+  
+  Opal1k::ConfigV1* Config = new Opal1k::ConfigV1( 32, 100, 
+						   Opal1k::ConfigV1::Eight_bit,
+						   Opal1k::ConfigV1::x1,
+						   Opal1k::ConfigV1::None,
+						   true, false);
 
-  Config.Format = FrameHandle::FORMAT_GRAYSCALE_8;
-  if (bitsperpixel == 10)
-    Config.Format = FrameHandle::FORMAT_GRAYSCALE_10;
-  else if (bitsperpixel == 12)
-    Config.Format = FrameHandle::FORMAT_GRAYSCALE_12;
+  pCamera->Config(*Config);
 
-  Config.GainPercent = 20;
-  Config.BlackLevelPercent = 5;
-  //  Config.ShutterMicroSec = (1000000/fps)-100;  // max exposure
-  Config.ShutterMicroSec = 540;
-  Config.FramesPerSec = fps;
-  ret = pCamera->SetConfig(Config);
-  if (ret < 0) {
-    printf("failed.\n");
-    fprintf(stderr, "Camera::SetConfig: %s.\n", strerror(-ret));
-    delete pCamera;
-    return -1;
-  }
-  camsig = pCamera->SetNotification(Camera::NOTIFYTYPE_SIGNAL);
-  if (ret < 0) {
+  if ((camsig = pCamera->SetNotification(LvCamera::NOTIFYTYPE_SIGNAL)) < 0) {
     printf("failed.\n");
     fprintf(stderr, "Camera::SetNotification: %s.\n", strerror(-ret));
     delete pCamera;
@@ -212,6 +195,33 @@ int main(int argc, char *argv[])
     delete pCamera;
     return -1;
   }
+
+  // Continuous Mode
+  const int SZCOMMAND_MAXLEN = 32;
+  char szCommand [SZCOMMAND_MAXLEN];
+  char szResponse[SZCOMMAND_MAXLEN];
+
+#define SetParameter(title,cmd,val1) { \
+  unsigned val = val1; \
+  printf("Setting %s = d%u\n",title,val); \
+  snprintf(szCommand, SZCOMMAND_MAXLEN, "%s%u", cmd, val); \
+  ret = pCamera->SendCommand(szCommand, NULL, 0); \
+  if (ret<0) return ret; \
+  unsigned rval; \
+  snprintf(szCommand, SZCOMMAND_MAXLEN, "%s?", cmd); \
+  ret = pCamera->SendCommand(szCommand, szResponse, SZCOMMAND_MAXLEN); \
+  sscanf(szResponse+2,"%u",&rval); \
+  printf("Read %s = d%u\n", title, rval); \
+  if (rval != val) return -EINVAL; \
+}
+
+  if (!extshutter) {
+    unsigned _mode=0, _fps=100000/fps, _it=540/10;
+    SetParameter ("Operating Mode","MO",_mode);
+    SetParameter ("Frame Period","FP",_fps);
+    SetParameter ("Integration Time","IT", _it);
+  }
+
   printf("done.\n"); 
 
   if (usplice > 0)
@@ -376,7 +386,10 @@ int main(int argc, char *argv[])
 	if ((nFrames%fps)==0) {
 	  timespec _tp;
 	  clock_gettime(CLOCK_REALTIME, &_tp);
-	  printf("%d/%d : %g sec\n",nFrames,nSkipped,(_tp.tv_sec-tp.tv_sec)+1.e-9*(_tp.tv_nsec-tp.tv_nsec));
+	  printf("%d/%d/%p : %g sec\n",
+		 nFrames,nSkipped,
+		 pFrame->data,
+		 (_tp.tv_sec-tp.tv_sec)+1.e-9*(_tp.tv_nsec-tp.tv_nsec));
 	  tp = _tp;
 	}
 	delete pFrame;

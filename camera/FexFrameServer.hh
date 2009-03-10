@@ -82,6 +82,7 @@ namespace Pds {
     LinkedList<FrameServerMsg> _msg_queue;
     const Camera::FrameFexConfigV1* _config;
     unsigned   _camera_offset;
+    unsigned   _framefwd_count;
   };
 }
 

@@ -45,6 +45,7 @@ void FexFrameServer::Config(const Camera::FrameFexConfigV1& cfg,
 {
   _config = &cfg;
   _camera_offset = camera_offset;
+  _framefwd_count = 0;
   _nposts = 0;
 }
 
@@ -118,24 +119,31 @@ int FexFrameServer::fetch(char* payload, int flags)
     Frame frame(*fmsg->handle, _camera_offset);
     const unsigned short* frame_data = 
       reinterpret_cast<const unsigned short*>(fmsg->handle->data);
-    delete fmsg;
 
-    if (_config->forwarding(Camera::FrameFexConfigV1::Summary)) {
-      if (_config->forwarding(Camera::FrameFexConfigV1::FullFrame) ||
-	  _config->forwarding(Camera::FrameFexConfigV1::RegionOfInterest)) {
+    Camera::FrameFexConfigV1::Forwarding forwarding(_config->forwarding());
+    if (++_framefwd_count < _config->forward_prescale())
+      forwarding = Camera::FrameFexConfigV1::NoFrame;
+    else
+      _framefwd_count = 0;
+
+    if (_config->processing() != Camera::FrameFexConfigV1::NoProcessing) {
+      if (forwarding == Camera::FrameFexConfigV1::NoFrame)
+	length = _post_fex( payload, frame, frame_data );
+      else {
 	Xtc* xtc = new (payload) Xtc(TypeId::Id_Xtc,_xtc.src);
 	xtc->extent += _post_fex  (xtc->next(), frame, frame_data);
 	xtc->extent += _post_frame(xtc->next(), frame, frame_data);
-	return xtc->extent;
+	length = xtc->extent;
       }
-      else
-	return _post_fex( payload, frame, frame_data );
     }
-    else if (_config->forwarding(Camera::FrameFexConfigV1::FullFrame) ||
-	     _config->forwarding(Camera::FrameFexConfigV1::RegionOfInterest))
-      return _post_frame( payload, frame, frame_data );
+    else if (forwarding != Camera::FrameFexConfigV1::NoFrame)
+      length = _post_frame( payload, frame, frame_data );
     else
-      return 0;
+      length = 0;
+
+    delete fmsg->handle;
+    delete fmsg;
+    return length;
   }
   else
     printf("FexFrameServer::fetch error: %s\n",strerror(errno));
@@ -165,44 +173,61 @@ int FexFrameServer::fetch(ZcpFragment& zfo, int flags)
   
   if (fmsg->type == FrameServerMsg::NewFrame) {
     
-    if (_config->forwarding(Camera::FrameFexConfigV1::Summary)) {
-      if (_config->forwarding(Camera::FrameFexConfigV1::FullFrame)) {
-	Frame zcpFrame(frame.width(), frame.height(), 
-		       frame.depth(), frame.offset(),
-		       *fmsg->handle, _splice);
-	length = _queue_fex_and_frame( _feature_extract(frame,frame_data), zcpFrame, fmsg, zfo );
-      }
-      else if (_config->forwarding(Camera::FrameFexConfigV1::RegionOfInterest)) {
-	Frame zcpFrame(_config->roiBegin().column,
-		       _config->roiEnd  ().column,
-		       _config->roiBegin().row,
-		       _config->roiEnd  ().row,
-		       frame.width(), frame.height(), 
-		       frame.depth(), frame.offset(),
-		       *fmsg->handle,_splice);
-	length = _queue_fex_and_frame( _feature_extract(frame,frame_data), zcpFrame, fmsg, zfo );
-      }
-      else
+    Camera::FrameFexConfigV1::Forwarding forwarding(_config->forwarding());
+    if (++_framefwd_count < _config->forward_prescale())
+      forwarding = Camera::FrameFexConfigV1::NoFrame;
+    else
+      _framefwd_count = 0;
+
+    if (_config->processing() != Camera::FrameFexConfigV1::NoProcessing) {
+      switch( forwarding ) {
+      case Camera::FrameFexConfigV1::FullFrame:
+	{ Frame zcpFrame(frame.width(), frame.height(), 
+			 frame.depth(), frame.offset(),
+			 *fmsg->handle, _splice);
+  	  length = _queue_fex_and_frame( _feature_extract(frame,frame_data), zcpFrame, fmsg, zfo );
+	  break;
+	}
+      case Camera::FrameFexConfigV1::RegionOfInterest:
+	{ Frame zcpFrame(_config->roiBegin().column,
+			 _config->roiEnd  ().column,
+			 _config->roiBegin().row,
+			 _config->roiEnd  ().row,
+			 frame.width(), frame.height(), 
+			 frame.depth(), frame.offset(),
+			 *fmsg->handle,_splice);
+  	  length = _queue_fex_and_frame( _feature_extract(frame,frame_data), zcpFrame, fmsg, zfo );
+	  break;
+	}
+      case Camera::FrameFexConfigV1::NoFrame:
 	length = _queue_fex( _feature_extract(frame,frame_data), fmsg, zfo );
-    }
-    else if (_config->forwarding(Camera::FrameFexConfigV1::FullFrame)) {
-      Frame zcpFrame(frame.width(), frame.height(), 
-		     frame.depth(), frame.offset(),
-		     *fmsg->handle, _splice);
-      length = _queue_frame( zcpFrame, fmsg, zfo );
-    }
-    else if (_config->forwarding(Camera::FrameFexConfigV1::RegionOfInterest)) {
-      Frame zcpFrame(_config->roiBegin().column,
-		     _config->roiEnd  ().column,
-		     _config->roiBegin().row,
-		     _config->roiEnd  ().row,
-		     frame.width(), frame.height(),
-		     frame.depth(), frame.offset(),
-		     *fmsg->handle,_splice);
-      length = _queue_frame( zcpFrame, fmsg, zfo );
+	break;
+      }
     }
     else {
-      length = 0;
+      switch (forwarding) {
+      case Camera::FrameFexConfigV1::FullFrame:
+	{ Frame zcpFrame(frame.width(), frame.height(), 
+			 frame.depth(), frame.offset(),
+			 *fmsg->handle, _splice);
+	  length = _queue_frame( zcpFrame, fmsg, zfo );
+	  break;
+	}
+      case Camera::FrameFexConfigV1::RegionOfInterest:
+	{ Frame zcpFrame(_config->roiBegin().column,
+			 _config->roiEnd  ().column,
+			 _config->roiBegin().row,
+			 _config->roiEnd  ().row,
+			 frame.width(), frame.height(),
+			 frame.depth(), frame.offset(),
+			 *fmsg->handle,_splice);
+	  length = _queue_frame( zcpFrame, fmsg, zfo );
+	  break;
+	}
+      case Camera::FrameFexConfigV1::NoFrame:
+	length = 0;
+	break;
+      }
     }
   }
   else { // Post_Fragment
@@ -248,7 +273,7 @@ unsigned FexFrameServer::_post_frame(void* xtc,
 {
   Xtc& frameXtc = *new((char*)xtc) Xtc(TypeId::Id_Frame, _xtc.src);
   Frame* fp;
-  if (_config->forwarding(Camera::FrameFexConfigV1::FullFrame))
+  if (_config->forwarding()==Camera::FrameFexConfigV1::FullFrame)
     fp=new(frameXtc.alloc(sizeof(Frame))) Frame(frame.width(), frame.height(), 
 						frame.depth(), frame.offset(),
 						frame_data);
@@ -311,8 +336,6 @@ TwoDMoments FexFrameServer::_feature_extract(const Frame&          frame,
   // perform the feature extraction here
   //
   switch(_config->processing()) {
-  case Camera::FrameFexConfigV1::None:
-    return TwoDMoments();
   case Camera::FrameFexConfigV1::GssFullFrame:
     return TwoDMoments(frame.width(), frame.height(), 
 		       frame.offset(), frame_data);
@@ -330,6 +353,8 @@ TwoDMoments FexFrameServer::_feature_extract(const Frame&          frame,
 		       _config->threshold(),
 		       frame.offset(),
 		       frame_data);
+  default:
+    break;
   }
   return TwoDMoments();
 }

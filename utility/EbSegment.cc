@@ -99,7 +99,8 @@ EbSegment* EbSegment::consume(int sizeofFragment, int expected)
 
   if(offset != expected)
     {
-      printf("EbSegment::consume offset/expected %d/%d\n",offset,expected);
+      printf("EbSegment::consume offset/expected/recvd %d/%d/%d\n",
+	     offset,expected,_header.sizeofPayload()-_remaining+sizeof(Xtc));
     char* base         = _base;
     unsigned* in       = (unsigned*)(base + sizeofFragment + offset);
     unsigned* out      = (unsigned*)(base + sizeofFragment + expected);

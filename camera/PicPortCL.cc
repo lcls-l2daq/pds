@@ -166,7 +166,8 @@ int PicPortCL::Init() {
   status.State = CAMERA_READY;
   status.CapturedFrames = 0;
   status.DroppedFrames = 0;
-  LastFrame = pSeqDral->GetCurrentImage()-1;
+  Current   = pSeqDral->GetCurrentImage();
+  LastFrame = (Current-1+SeqDralConfig.NrImages)%SeqDralConfig.NrImages;
   return 0;
 }
 
@@ -206,7 +207,7 @@ int PicPortCL::Stop() {
 
 FrameHandle *PicPortCL::GetFrameHandle() {
   int ret;
-  unsigned long Captured, Current;
+  unsigned long Captured;//, Current;
   U32BIT StartX, StartY;
   FrameHandle *pFrame;
 
@@ -225,7 +226,7 @@ FrameHandle *PicPortCL::GetFrameHandle() {
   }
 
   // Update the status info
-  Current = pSeqDral->GetLastAcquiredImage();
+  //  Current = pSeqDral->GetLastAcquiredImage();
 
   // Read the next frame
   pSeqDral->LockImage(Current);
@@ -252,6 +253,13 @@ FrameHandle *PicPortCL::GetFrameHandle() {
     status.CapturedFrames += Captured;
     if (Captured > 1)
       status.DroppedFrames += Captured - 1;
+
+    if (Captured != 1)
+      printf("PPCL Captured %d/%d/%x/%d\n",
+	     Captured,Current,
+	     (FrameBufferBaseAddress + Roi.StartAddress), 
+	     SeqDralConfig.NrImages);
+
     LastFrame = Current;
   }
   // Return a Frame object
@@ -260,6 +268,7 @@ FrameHandle *PicPortCL::GetFrameHandle() {
 				       (void *)(FrameBufferBaseAddress + Roi.StartAddress), 
 				       &PicPortCL::ReleaseFrame, 
 				       this, (void *)Current);
+  Current = (Current+1)%SeqDralConfig.NrImages;
   return PicPortFrameProcess(pFrame);
 }
 

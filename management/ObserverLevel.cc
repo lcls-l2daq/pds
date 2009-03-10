@@ -7,11 +7,23 @@
 #include "pds/utility/InletWire.hh"
 #include "pds/utility/InletWireServer.hh"
 #include "pds/utility/InletWireIns.hh"
+#include "pds/utility/OutletWire.hh"
 
 #include "pds/service/NetServer.hh"
 #include "pds/utility/BldServer.hh"
 #include "pds/utility/NetDgServer.hh"
 #include "pds/management/EbIStream.hh"
+
+namespace Pds {
+  class OpenOutlet : public OutletWire {
+  public:
+    OpenOutlet(Outlet& outlet) : OutletWire(outlet) {}
+    virtual Transition* forward(Transition* dg) { return 0; }
+    virtual InDatagram* forward(InDatagram* dg) { return 0; }
+    virtual void bind(unsigned id, const Ins& node) {}
+    virtual void unbind(unsigned id) {}
+  };
+};
 
 using namespace Pds;
 
@@ -46,6 +58,8 @@ ObserverLevel::ObserverLevel(unsigned platform,
 
 ObserverLevel::~ObserverLevel() 
 {
+  for (int s = 0; s < StreamParams::NumberOfStreams; s++)
+    delete _outlets[s];
 }
 
 bool ObserverLevel::attach()
@@ -57,6 +71,10 @@ bool ObserverLevel::attach()
   }
 
   _streams = new EventStreams(*this);
+   for (int s = 0; s < StreamParams::NumberOfStreams; s++) {
+     delete _streams->stream(s)->outlet()->wire();
+     _outlets[s] = new OpenOutlet(*_streams->stream(s)->outlet());
+   }
   _streams->connect();
   
   _inlet = new EbIStream(header().procInfo(),

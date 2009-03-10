@@ -48,6 +48,11 @@ void CollectionObserver::message(const Node& hdr, const Message& msg)
 	
 	Transition* ntr = new(&_pool) Transition(tr);
 	post(*ntr);
+
+	if (tr.id() == TransitionId::Unmap) {
+	  _isallocated = false;
+	  dissolved();
+	}
       }
     }
   }
