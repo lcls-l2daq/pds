@@ -109,8 +109,8 @@ Message& EventLevel::reply(Message::Type)
   return _reply;
 }
 
-void    EventLevel::allocated(const Allocate& alloc,
-			      unsigned        index) 
+void    EventLevel::allocated(const Allocation& alloc,
+			      unsigned          index) 
 {
   InletWire* bld_wire = _streams->wire(StreamParams::FrameWork);
   InletWire* pre_wire = _inlet ? _inlet->input() : bld_wire;

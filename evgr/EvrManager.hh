@@ -14,7 +14,6 @@ namespace Pds {
   class EvrManager {
   public:
     EvrManager(EvgrBoardInfo<Evr>& erInfo, 
-	       unsigned partition,
 	       CfgClientNfs& cfg,
                EvgrOpcode::Opcode opcode);
     Appliance& appliance();

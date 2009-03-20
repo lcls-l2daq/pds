@@ -43,6 +43,7 @@ SegmentLevel::SegmentLevel(unsigned platform,
   _callback      (callback),
   _streams       (0),
   _inlet         (0),
+  _evr           (0),
   _reply         (Message::Ping)
 {
 }
@@ -69,19 +70,6 @@ bool SegmentLevel::attach()
     _inlet->input()->connect();
     _streams->wire(StreamParams::FrameWork)->add_input(_inlet->output());
 
-    //  Build the EVR server
-    Ins source(StreamPorts::event(header().platform(),
-                                  Level::Segment));
-    Node evrNode(Level::Source,header().platform());
-    evrNode.fixup(source.address(),Ether());
-    EvrServer* esrv = new EvrServer(source,
-                                    DetInfo(evrNode.pid(),DetInfo::NoDetector,0,DetInfo::Evr,0),
-                                    NetBufferDepth); // revisit
-    _inlet->input()->add_input(esrv);
-    esrv->server().join(source, Ins(header().ip()));
-    printf("Assign evr %d  %x/%d\n",
-           esrv->id(),source.address(),source.portId());
-
     //  Add the L1 Data servers  
     _settings.connect(*_inlet->input(),
                       StreamParams::FrameWork, 
@@ -102,13 +90,28 @@ Message& SegmentLevel::reply    (Message::Type type)
   return _reply;
 }
 
-void    SegmentLevel::allocated(const Allocate& alloc,
-				unsigned        index) 
+void    SegmentLevel::allocated(const Allocation& alloc,
+				unsigned          index) 
 {
-  InletWire* bld_wire = _streams->wire(StreamParams::FrameWork);
-
-  // setup BLD and event servers
   unsigned partition= alloc.partitionid();
+
+  //  setup EVR server
+  Ins source(StreamPorts::event(partition,
+				Level::Segment));
+  Node evrNode(Level::Source,header().platform());
+  evrNode.fixup(source.address(),Ether());
+  DetInfo evrInfo(evrNode.pid(),DetInfo::NoDetector,0,DetInfo::Evr,0);
+  EvrServer* esrv = new EvrServer(source,
+				  evrInfo,
+				  NetBufferDepth); // revisit
+  _inlet->input()->add_input(esrv);
+  esrv->server().join(source, Ins(header().ip()));
+  printf("Assign evr %d  %x/%d\n",
+	 esrv->id(),source.address(),source.portId());
+  _evr = esrv;
+  
+  // setup BLD and event servers
+  InletWire* bld_wire = _streams->wire(StreamParams::FrameWork);
   unsigned nnodes   = alloc.nnodes();
   unsigned vectorid = 0;
   for (unsigned n=0; n<nnodes; n++) {
@@ -149,6 +152,9 @@ void    SegmentLevel::dissolved()
   // reattach the ToEb
   _streams->connect();
   wire->add_input(_inlet->output());
+
+  // remove and destroy the Evr server
+  _inlet->input()->remove_input(_evr);
 }
 
 void    SegmentLevel::post     (const Transition& tr)

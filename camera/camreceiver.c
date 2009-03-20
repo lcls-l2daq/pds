@@ -371,7 +371,7 @@ int main (int argc, char *argv[])
 		if (usequence) {
 		  useqrow = i%imgheight;
 		  useqoff = useqrow*imgwidth;
-		  printf("\rReceiving row %lu off %lu ...   ", useqrow, useqoff);
+		  printf("\rReceiving row %d off %d ...   ", useqrow, useqoff);
 		  image = useqbuffer;
 		}
 		else

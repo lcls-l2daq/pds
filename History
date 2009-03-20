@@ -1,3 +1,6 @@
+2009-Mar-20	weaver	Tag V00-07-02.	Added collection "Query" messages for source
+			level management.  Implemented partition id/multicast group
+			assignments in management/[Source,Control]Level,PartitionMember and EvrManager.
 2009-Mar-10	weaver	Tag V00-07-01.  Minor fixes to camera code.
 2009-Mar-04	weaver	Tag V00-07-00.  Many changes to camera interfaces.  Now reads
 			configuration from database and writes record on configure transition.

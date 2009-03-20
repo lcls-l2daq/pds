@@ -11,7 +11,8 @@ public:
     Ping, 
     Join, 
     Resign, 
-    Transition
+    Transition,
+    Query
   };
 
   Message(Type type, unsigned size=sizeof(Message));

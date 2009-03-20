@@ -11,7 +11,7 @@
 
 namespace Pds {
 
-  class Allocate;
+  class Allocation;
   class Arp;
   class InDatagram;
   class Transition;
@@ -30,7 +30,7 @@ namespace Pds {
 			       const Message& msg);
   private:
     virtual Message& reply     (Message::Type) = 0;
-    virtual void     allocated (const Allocate&,
+    virtual void     allocated (const Allocation&,
 			        unsigned);
     virtual void     dissolved ();
     virtual void     post      (const Transition&) = 0;

@@ -103,7 +103,7 @@ int Eb::processIo(Server* serverGeneric)
 
   if(!server->coincides(event->key())) {
     if(event == event->forward()) {  // case (1)
-      event->connect((EbEvent*)_seek(server));
+      _pending.insert(event);
     }
     else { 
       // case (2):  Remove the contribution from this event.  Now that we have the contribution's
@@ -113,8 +113,7 @@ int Eb::processIo(Server* serverGeneric)
       _misses++;
       event->deallocate(serverId);  // remove the contribution from this event
       event = (EbEvent*)_seek(server);
-      if (event == (EbEvent*)_pending.empty() ||
-	  !server->coincides(event->key())) {
+      if (event == (EbEvent*)_pending.empty()) {
 	EbEvent* new_ev = (EbEvent*)_new_event(serverId);
 	new_ev->connect(event);
 	event = new_ev;

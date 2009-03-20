@@ -44,7 +44,8 @@ void PartitionMember::message(const Node& hdr, const Message& msg)
 	if (tr.phase() == Transition::Execute && 
 	    tr.id() == TransitionId::Map) {
 	  if (_isallocated) break;
-	  const Allocate& alloc = reinterpret_cast<const Allocate&>(tr);
+	  const Allocation& alloc = 
+	    reinterpret_cast<const Allocate&>(tr).allocation();
 	  unsigned    nnodes = alloc.nnodes();
 	  unsigned    index  = 0;
 	  _rivals.flush();
@@ -107,8 +108,8 @@ void PartitionMember::message(const Node& hdr, const Message& msg)
 }
 
 
-void    PartitionMember::allocated(const Allocate& allocate,
-				   unsigned        index) 
+void    PartitionMember::allocated(const Allocation& allocate,
+				   unsigned          index) 
 {
 }
 

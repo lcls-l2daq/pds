@@ -133,7 +133,7 @@ Opal1kManager::~Opal1kManager()
 Transition* Opal1kManager::allocate (Transition* tr)
 {
   const Allocate& alloc = reinterpret_cast<const Allocate&>(*tr);
-  _configService->initialize(alloc);
+  _configService->initialize(alloc.allocation());
   return tr;
 }
 

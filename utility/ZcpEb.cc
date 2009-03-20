@@ -124,18 +124,20 @@ int ZcpEb::processIo(Server* serverGeneric)
   EbBitMask serverId;
   serverId.setBit(server->id());
 
+  //
+  //  Search for an event with a matching key
+  //  If no match is found, append a new event onto the pending queue 
+  //
   ZcpEbEvent* zevent;
   {
-    EbEventBase* event = _pending.reverse();
+    EbEventBase* event = _pending.forward();
     while(event != _pending.empty()) {
-      if (server->succeeds(event->key())) break;
-      event = event->reverse();
+      if (server->coincides(event->key())) break;
+      event = event->forward();
     }
-    if (event == _pending.empty() ||
-	!server->coincides(event->key())) {
-      EbEventBase* new_ev = _new_event(serverId);
-      new_ev->connect(event);
-      event = new_ev;
+    if (event == _pending.empty()) {
+      event = _new_event(serverId);
+      _pending.insert(event);
     }
 
     zevent = (ZcpEbEvent*)event;

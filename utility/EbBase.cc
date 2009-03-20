@@ -369,16 +369,13 @@ EbEventBase* EbBase::_event(EbServer* server)
   serverId.setBit(server->id());
   EbEventBase* event = _pending.forward();
   while( event != _pending.empty() ) {
-    if(!(event->segments() & serverId).isZero())    break;
-    if(event->allocated().insert(serverId).isZero()) break;
+
+    if(!(event->segments() & serverId).isZero() ||
+       event->allocated().insert(serverId).isZero()) 
+      return event;
+
     event = event->forward();
   }
-
-#ifdef VERBOSE
-  printf("EbBase::_event %p\n", event);
-#endif
-
-  if (event!=_pending.empty()) return event;
 
   return _new_event(serverId);
   }
@@ -386,19 +383,17 @@ EbEventBase* EbBase::_event(EbServer* server)
 /*
 ** ++
 **
-**  Returns the most recent event that is older than (or equal to)
-**  the server's contribution.  If no event older than the contribution 
-**  was found, returns the _pending list base.
+**  Returns the event that matches the servers contribution
 **
 ** --
 */
 
 EbEventBase* EbBase::_seek(EbServer* srv)
 {
-  EbEventBase* event = _pending.reverse();
+  EbEventBase* event = _pending.forward();
   while( event != _pending.empty() ) {
-    if( srv->succeeds(event->key()) ) break;
-    event = event->reverse();
+    if( srv->coincides(event->key()) ) break;
+    event = event->forward();
   }
 
   return event;

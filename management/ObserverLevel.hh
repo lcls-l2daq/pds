@@ -9,7 +9,7 @@ namespace Pds {
   class EventCallback;
   class EventStreams;
   class EbIStream;
-  class Allocate;
+  class Allocation;
   class OutletWire;
 
   class ObserverLevel: public CollectionObserver {
@@ -23,7 +23,7 @@ namespace Pds {
     bool attach();
     void detach();
 
-    void allocated(const Allocate&, unsigned);
+    void allocated(const Allocation&, unsigned);
     void dissolved();
   private:  
     void     post      (const Transition&);

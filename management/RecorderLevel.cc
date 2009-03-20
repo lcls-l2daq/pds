@@ -63,8 +63,8 @@ Message& RecorderLevel::reply(Message::Type)
   return _reply;
 }
 
-void RecorderLevel::allocated(const Allocate& alloc,
-			      unsigned        index) 
+void RecorderLevel::allocated(const Allocation& alloc,
+			      unsigned          index) 
 {
   InletWire* wire = _streams->wire(StreamParams::FrameWork);
 

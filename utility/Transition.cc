@@ -67,11 +67,15 @@ void Transition::operator delete(void* buffer)
   }
 }
 
-Pds::Allocate::Allocate(const char* partition,
-			const char* dbpath,
-			unsigned    partitionid) : 
-  Transition(TransitionId::Map, Transition::Execute, Sequence(), 0,
-             sizeof(Allocate)-sizeof(_nodes)),
+Allocation::Allocation() :
+  _partitionid(0),
+  _nnodes     (0)
+{
+}
+
+Allocation::Allocation(const char* partition,
+		       const char* dbpath,
+		       unsigned    partitionid) : 
   _partitionid(partitionid),
   _nnodes     (0)
 {
@@ -79,35 +83,21 @@ Pds::Allocate::Allocate(const char* partition,
   strncpy(_dbpath   , dbpath   , MaxDbPath-1);
 }
 
-Pds::Allocate::Allocate(const char* partition,
-			const char* dbpath,
-			unsigned    partitionid,
-			const Sequence& seq) : 
-  Transition(TransitionId::Map, Transition::Execute, seq, 0,
-             sizeof(Allocate)-sizeof(_nodes)),
-  _partitionid(partitionid),
-  _nnodes     (0)
-{
-  strncpy(_partition, partition, MaxName-1);
-  strncpy(_dbpath   , dbpath   , MaxDbPath-1);
-}
-
-bool Pds::Allocate::add(const Node& node)
+bool Allocation::add(const Node& node)
 {
   if (_nnodes < MaxNodes) {
     _nodes[_nnodes++] = node;
-    _size += sizeof(Node);
     return true;
   } else {
     return false;
   }
 }
 
-unsigned Pds::Allocate::partitionid() const { return _partitionid; }
+unsigned Allocation::partitionid() const { return _partitionid; }
 
-unsigned Pds::Allocate::nnodes() const {return _nnodes;}
+unsigned Allocation::nnodes() const {return _nnodes;}
 
-const Pds::Node* Pds::Allocate::node(unsigned n) const 
+const Node* Allocation::node(unsigned n) const 
 {
   if (n < _nnodes) {
     return _nodes+n;
@@ -116,17 +106,39 @@ const Pds::Node* Pds::Allocate::node(unsigned n) const
   }
 }
 
-const char* Pds::Allocate::partition() const {return _partition;}
+const char* Allocation::partition() const {return _partition;}
 
-const char* Pds::Allocate::dbpath() const {return _dbpath;}
+const char* Allocation::dbpath() const {return _dbpath;}
 
-Pds::Kill::Kill(const Node& allocator) : 
+unsigned    Allocation::size() const { return sizeof(*this)+(_nnodes-MaxNodes)*sizeof(Node); }
+
+
+Allocate::Allocate(const Allocation& allocation) :
+  Transition(TransitionId::Map, Transition::Execute, Sequence(), 0,
+             sizeof(Allocate)+allocation.size()-sizeof(Allocation)),
+  _allocation(allocation)
+{
+}
+
+Allocate::Allocate(const Allocation& allocation,
+		   const Sequence& seq) :
+  Transition(TransitionId::Map, Transition::Execute, seq, 0,
+             sizeof(Allocate)+allocation.size()-sizeof(Allocation)),
+  _allocation(allocation)
+{
+}
+
+const Allocation& Allocate::allocation() const
+{ return _allocation; }
+
+
+Kill::Kill(const Node& allocator) : 
   Transition(TransitionId::Unmap, Transition::Execute, Sequence(), 0, 
              sizeof(Kill)),
   _allocator(allocator)
 {}
 
-const Pds::Node& Pds::Kill::allocator() const 
+const Node& Kill::allocator() const 
 {
   return _allocator;
 }

@@ -29,10 +29,9 @@ static EvgrBoardInfo<Evr> *erInfoGlobal;  // yuck
 
 class L1Xmitter {
 public:
-  L1Xmitter(Evr& er, unsigned partition) :
+  L1Xmitter(Evr& er) :
     _er(er),
     _outlet(sizeof(EvrDatagram),0,
-	    StreamPorts::event(partition,Level::Segment),
 	    Ins(Route::interface())),
     _evtCounter(0), _enabled(false) {}
   void xmit() {
@@ -44,16 +43,18 @@ public:
     Sequence seq(Sequence::Event,TransitionId::L1Accept,ctime,
                  fe.TimestampLow,fe.TimestampHigh);
     EvrDatagram datagram(seq, _evtCounter++);
-    _outlet.send((char*)&datagram,0,0);
+    _outlet.send((char*)&datagram,0,0,_dst);
 //     printf("Received opcode 0x%x timestamp 0x%x/0x%x count %d\n",
 //            fe.EventCode,fe.TimestampHigh,fe.TimestampLow,_evtCounter-1);
   }
   void reset() { _evtCounter = 0; }
   void enable(bool e) { _enabled=e; }
   bool enable() const { return _enabled; }
+  void dst(const Ins& ins) { _dst=ins; }
 private:
   Evr& _er;
   Client   _outlet;
+  Ins      _dst;
   unsigned _evtCounter;
   bool     _enabled;
 };
@@ -197,7 +198,7 @@ public:
   EvrAllocAction(CfgClientNfs& cfg) : _cfg(cfg) {}
   Transition* fire(Transition* tr) {
     const Allocate& alloc = reinterpret_cast<const Allocate&>(*tr);
-    _cfg.initialize(alloc);
+    _cfg.initialize(alloc.allocation());
     //
     //  Test if we own the primary EVR for this partition
     //
@@ -220,6 +221,8 @@ public:
 #else
     l1xmitGlobal->enable(true);
 #endif
+    l1xmitGlobal->dst(StreamPorts::event(alloc.allocation().partitionid(),
+					 Level::Segment));
     return tr;
   }
 private:
@@ -244,12 +247,11 @@ extern "C" {
 Appliance& EvrManager::appliance() {return _fsm;}
 
 EvrManager::EvrManager(EvgrBoardInfo<Evr> &erInfo, 
-		       unsigned partition,
 		       CfgClientNfs & cfg,
                        EvgrOpcode::Opcode opcode) :
   _er(erInfo.board()),_fsm(*new Fsm) {
 
-  l1xmitGlobal = new L1Xmitter(_er,partition);
+  l1xmitGlobal = new L1Xmitter(_er);
   _fsm.callback(TransitionId::Map, new EvrAllocAction(cfg));
   _fsm.callback(TransitionId::Configure,new EvrConfigAction(_er,opcode,cfg));
   _fsm.callback(TransitionId::BeginRun,new EvrBeginRunAction(_er));

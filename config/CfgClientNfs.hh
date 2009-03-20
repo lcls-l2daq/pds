@@ -5,7 +5,7 @@
 
 namespace Pds {
 
-  class Allocate;
+  class Allocation;
   class Transition;
   class TypeId;
 
@@ -16,7 +16,7 @@ namespace Pds {
 
     const Src& src() const;
 
-    void initialize(const Allocate&);
+    void initialize(const Allocation&);
 
     int fetch(const Transition& tr, 
 	      const TypeId&     id, 

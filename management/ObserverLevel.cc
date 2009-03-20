@@ -88,7 +88,7 @@ bool ObserverLevel::attach()
   return true;
 }
 
-void ObserverLevel::allocated(const Allocate& alloc,
+void ObserverLevel::allocated(const Allocation& alloc,
 			      unsigned index)
 {
   InletWire* bld_wire = _streams->wire(StreamParams::FrameWork);

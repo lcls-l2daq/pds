@@ -8,7 +8,7 @@
 
 namespace Pds {
 
-  class Allocate;
+  class Allocation;
   class Transition;
 
   class CollectionObserver : public CollectionManager {
@@ -18,7 +18,7 @@ namespace Pds {
 		       unsigned      node);
     ~CollectionObserver();
   public:
-    virtual void allocated(const Allocate&,
+    virtual void allocated(const Allocation&,
 			   unsigned index) = 0;
     virtual void dissolved() = 0;
   public:

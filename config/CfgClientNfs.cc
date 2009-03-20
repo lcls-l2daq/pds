@@ -20,7 +20,7 @@ CfgClientNfs::CfgClientNfs( const Src& src ) :
 const Src& CfgClientNfs::src() const
 { return _src; }
 
-void CfgClientNfs::initialize(const Allocate& alloc)
+void CfgClientNfs::initialize(const Allocation& alloc)
 {
   strcpy(_path, alloc.dbpath());
 }

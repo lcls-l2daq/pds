@@ -31,7 +31,8 @@ void CollectionObserver::message(const Node& hdr, const Message& msg)
       const Transition& tr = reinterpret_cast<const Transition&>(msg);
       if (tr.phase() == Transition::Execute) {
 	if (tr.id() == TransitionId::Map) {
-	  const Allocate& alloc = reinterpret_cast<const Allocate&>(tr);
+	  const Allocation& alloc = 
+	    reinterpret_cast<const Allocate&>(tr).allocation();
 	  if (strcmp(alloc.partition(),_partition))
 	    return;
 	  if (_isallocated) {
