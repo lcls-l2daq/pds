@@ -1,3 +1,4 @@
+2009-Mar-24     cpo     Tag V00-07-03.  Better (final?) acqiris data support.
 2009-Mar-20	weaver	Tag V00-07-02.	Added collection "Query" messages for source
 			level management.  Implemented partition id/multicast group
 			assignments in management/[Source,Control]Level,PartitionMember and EvrManager.

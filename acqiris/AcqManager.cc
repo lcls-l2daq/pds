@@ -46,7 +46,7 @@
 #include "pdsdata/acqiris/ConfigV1.hh"
 #include "AcqManager.hh"
 #include "AcqServer.hh"
-#include "pdsdata/acqiris/AcqDataDescV1.hh"
+#include "pdsdata/acqiris/DataDescV1.hh"
 
 using namespace Pds;
 
@@ -58,8 +58,8 @@ public:
     _instrumentId(instrumentId),_task(task),_server(server),_count(0) {
   }
   void setConfig(const Acqiris::ConfigV1& config) {
-    _nbrSamples=config.horizConfig().nbrSamples();
-    _totalSize=Acqiris::AcqDataDescV1::totalSize(config.horizConfig())*
+    _nbrSamples=config.horiz().nbrSamples();
+    _totalSize=Acqiris::DataDescV1::totalSize(config.horiz())*
       config.nbrChannels();
   }
   void start() { _count=0; _task->call(this);}
@@ -98,7 +98,7 @@ public:
     ViStatus status=0;
     // ### Readout the data ###
     unsigned channelMask = _config->channelMask();
-    Acqiris::HorizConfigV1& hconfig = _config->horizConfig();
+    Acqiris::HorizV1& hconfig = _config->horiz();
     unsigned nbrSegments   = hconfig.nbrSegments();
     unsigned nbrSamples    = hconfig.nbrSamples();
 
@@ -117,17 +117,14 @@ public:
     readParams.segmentOffset    = 0;
     readParams.segDescArraySize = (long)sizeof(AqSegmentDescriptor) * nbrSegments;
     readParams.nbrSamplesInSeg  = nbrSamples;
-    Acqiris::AcqDataDescV1* data = (Acqiris::AcqDataDescV1*)_destination;
+    Acqiris::DataDescV1* data = (Acqiris::DataDescV1*)_destination;
     readParams.dataArraySize = data->waveformSize(hconfig);
 
     for (unsigned i=0;i<32;i++) {
+      // note that analysis software will depend on the vertical configurations
+      // being stored in the same order as the channel waveform data
       if (!(channelMask&(1<<i))) continue;
       unsigned channel = i+1;
-//       printf("desc %p, segdesc %p, wf %p, nextch %p, dsize 0x%x\n",
-//              data,&(data->timestamp(0)),
-//              data->waveforms(nbrSegments),
-//              data->nextChannel(nbrSegments,nbrSamples),
-//              readParams.dataArraySize);
       status = AcqrsD1_readData(_instrumentId, channel, &readParams,
                                 data->waveform(hconfig),
                                 (AqDataDescriptor*)data,
@@ -176,15 +173,15 @@ public:
                                         _lastAcqTS(0),_lastEvrFid(0),
                                         _nprint(0),_checkTimestamp(0) {}
   InDatagram* fire(InDatagram* in) {
-    //     Datagram& dg = in->datagram();
-    //     if (!dg.xtc.damage.value()) validate(in);
+    Datagram& dg = in->datagram();
+    if (!dg.xtc.damage.value()) validate(in);
     cpol1++;
     return in;
   }
   void notRunning() {_checkTimestamp=0;}
   unsigned validate(InDatagram* in) {
     Datagram& dg = in->datagram();
-    Acqiris::AcqDataDescV1& data = *(Acqiris::AcqDataDescV1*)(dg.xtc.payload()+sizeof(Xtc));
+    Acqiris::DataDescV1& data = *(Acqiris::DataDescV1*)(dg.xtc.payload()+sizeof(Xtc));
     long long acqts = data.timestamp(0).value();
     unsigned evrfid = dg.seq.high();
     unsigned long long psPerFiducial = 2777777777ULL;
@@ -228,16 +225,12 @@ private:
 
 class AcqConfigAction : public AcqDC282Action {
 public:
-  AcqConfigAction(ViSession instrumentId, AcqReader& reader, AcqDma& dma) :
-    AcqDC282Action(instrumentId),_reader(reader),_dma(dma),
-    _pool(sizeof(Acqiris::ConfigV1)+sizeof(CDatagram),1) {}
-  InDatagram* fire(InDatagram* input) {
-    CDatagram& output = *new (&_pool)CDatagram(input->datagram(),
-                                               _config.typeId(),
-                                               input->datagram().xtc.src);
-    void* payloadAddr = output.dg().xtc.alloc(sizeof(Acqiris::ConfigV1));
-    memcpy(payloadAddr,&_config,sizeof(Acqiris::ConfigV1));
-    return &output;
+  AcqConfigAction(ViSession instrumentId, AcqReader& reader, AcqDma& dma, const Src& src) :
+    AcqDC282Action(instrumentId),_reader(reader),_dma(dma), _cfgtc(TypeId::Id_AcqConfig,src) {}
+  InDatagram* fire(InDatagram* dg) {
+    // insert assumes we have enough space in the input datagram
+    dg->insert(_cfgtc, &_config);
+    return dg;
   }
   Transition* fire(Transition* tr) {
     unsigned nbrModulesInInstrument;
@@ -254,31 +247,23 @@ public:
     printf("Acqiris id 0x%x has %d/%d modules/channels with %d/%d int/ext trigger inputs\n",
            (unsigned)_instrumentId,nbrModulesInInstrument,(unsigned)nbrChans,nbrIntTrigsPerModule,nbrExtTrigsPerModule);
 
-    double sampInterval = 0.125e-9;
+    double sampInterval = 0.5e-6;
     double delayTime = 0.0;
-    long nbrSamples =5000, nbrSegments = 1;
-    Acqiris::HorizConfigV1 horizConfig(sampInterval,delayTime,nbrSamples,nbrSegments);
+    long nbrSamples =50, nbrSegments = 1;
+    Acqiris::HorizV1 horizConfig(sampInterval,delayTime,nbrSamples,nbrSegments);
 
     long coupling = 3, bandwidth = 0;
     double fullScale = 1.5, offset = 0.0;
-    Acqiris::VertConfigV1 vertConfig[Acqiris::ConfigV1::MaxChan] = {
-      Acqiris::VertConfigV1(fullScale,offset,coupling,bandwidth)
-    };
 
     long trigCoupling = 3; // DC, 50ohms
     long trigInput = -3; // External input 3.
     long trigSlope = 0;
     double trigLevel = 1000.0; // in mV, for external triggers only (otherwise % full-scale).
-    Acqiris::TrigConfigV1 trigConfig(trigCoupling, trigInput, trigSlope, trigLevel);
+    Acqiris::TrigV1 trigConfig(trigCoupling, trigInput, trigSlope, trigLevel);
 
-    long nbrConvertersPerChannel=2;
+    long nbrConvertersPerChannel=1;
     long channelMask = 0x6;
     long  nbrBanks = 1;
-
-    new(&_config) Acqiris::ConfigV1(nbrConvertersPerChannel,
-                                    channelMask,
-                                    nbrBanks,
-                                    trigConfig,horizConfig,vertConfig);
 
     // Configure timebase
     _check(AcqrsD1_configHorizontal(_instrumentId, sampInterval, delayTime));
@@ -300,15 +285,29 @@ public:
 //            nbrBanks,flags);
 
     _check(AcqrsD1_configChannelCombination(_instrumentId,nbrConvertersPerChannel,channelMask));
+    Acqiris::VertV1 vertConfig[Acqiris::ConfigV1::MaxChan];
+    unsigned nchan=0;
+    // note that analysis software will depend on the vertical configurations
+    // being stored in the same order as the channel waveform data
     for (unsigned i=0;i<32;i++) {
-      if (channelMask&(1<<i))
+      if (channelMask&(1<<i)) {
         _check(AcqrsD1_configVertical(_instrumentId, i+1, fullScale, offset, coupling, bandwidth));
+        new (vertConfig+nchan) Acqiris::VertV1(fullScale,offset,coupling,bandwidth);
+        nchan++;
+      }
     }
     // only support edge-trigger (no "TV trigger" for DC282)
     unsigned srcPattern = _generateTrigPattern(trigInput);
     _check(AcqrsD1_configTrigClass(_instrumentId, 0, srcPattern, 0, 0, 0.0, 0.0));
     _check(AcqrsD1_configTrigSource(_instrumentId, trigInput, trigCoupling, trigSlope, trigLevel, 0.0));
     _reader.start();
+
+    new(&_config) Acqiris::ConfigV1(nbrConvertersPerChannel,
+                                    channelMask,
+                                    nbrBanks,
+                                    trigConfig,horizConfig,vertConfig);
+    _cfgtc.extent = sizeof(Xtc)+sizeof(Acqiris::ConfigV1);
+
     _dma.setConfig(_config);
     _reader.setConfig(_config);
     return tr;
@@ -357,7 +356,8 @@ private:
   AcqReader& _reader;
   AcqDma&    _dma;
   Acqiris::ConfigV1 _config;
-  GenericPool _pool;
+  Xtc _cfgtc;
+  Src _src;
 };
 
 Appliance& AcqManager::appliance() {return _fsm;}
@@ -368,7 +368,7 @@ AcqManager::AcqManager(ViSession InstrumentID, AcqServer& server) :
   AcqReader& reader = *new AcqReader(_instrumentId,server,task);
   AcqDma& dma = *new AcqDma(_instrumentId,reader,server,task);
   server.setDma(&dma);
-  _fsm.callback(TransitionId::Configure,new AcqConfigAction(_instrumentId,reader,dma));
+  _fsm.callback(TransitionId::Configure,new AcqConfigAction(_instrumentId,reader,dma,server.client()));
   AcqL1Action& acql1 = *new AcqL1Action(_instrumentId);
   _fsm.callback(TransitionId::L1Accept,&acql1);
   _fsm.callback(TransitionId::Disable,new AcqDisableAction(_instrumentId,acql1));
