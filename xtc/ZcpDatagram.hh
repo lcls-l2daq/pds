@@ -40,7 +40,7 @@ namespace Pds {
     int _insert(ZcpFragment&,int);
     int _insert(ZcpStream&  ,int,ZcpFragment&);
   private:
-    ZcpDatagram(const ZcpDatagram&) {}
+    ZcpDatagram(const ZcpDatagram& dg) : _datagram(dg._datagram) {}
     // Friends who can break up the datagram during transmission/iteration
     friend class ToEb;
     friend class ToNetEb;

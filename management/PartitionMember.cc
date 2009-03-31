@@ -2,6 +2,7 @@
 
 #include "pds/utility/Transition.hh"
 #include "pds/xtc/CDatagram.hh"
+#include "pds/xtc/XtcType.hh"
 
 using namespace Pds;
 
@@ -89,7 +90,7 @@ void PartitionMember::message(const Node& hdr, const Message& msg)
 		      dst->id() != _index)) {
 	      CDatagram* ndg = 
 		new(&_pool) CDatagram(Datagram(tr, 
-					       TypeId(TypeId::Id_Xtc),
+					       _xtcType,
 					       header().procInfo()));
 	      post(*ndg);
 	    }

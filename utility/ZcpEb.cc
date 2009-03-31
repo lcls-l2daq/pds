@@ -25,6 +25,7 @@
 #include "pds/service/SysClk.hh"
 #include "pds/service/Client.hh"
 #include "Inlet.hh"
+#include "pds/vmon/VmonEb.hh"
 
 //#define VERBOSE
 
@@ -57,15 +58,10 @@ ZcpEb::ZcpEb(const Src& id,
 	     int ipaddress,
 	     unsigned eventsize, // max size in # of IP datagrams
 	     unsigned eventpooldepth,
-#ifdef USE_VMON
-	     const VmonEb& vmoneb,
-#endif
+	     VmonEb* vmoneb,
 	     const Ins* dstack) :
   EbBase(id, ctns, level, inlet, outlet, stream, ipaddress,
-#ifdef USE_VMON
-	 vmoneb,
-#endif
-	 dstack),
+	 vmoneb, dstack),
   _datagrams (sizeof(ZcpDatagram), eventpooldepth),
   _events    (sizeof(ZcpEbEvent) , eventpooldepth)
 {
@@ -89,7 +85,7 @@ ZcpEb::ZcpEb(const Src& id,
 unsigned ZcpEb::_fixup( EbEventBase* event, const Src& client, const EbBitMask& id )
 {
   ZcpEbEvent* ev = (ZcpEbEvent*)event;
-  return ev->fixup(client, id, TypeId(TypeId::Any), _zfragment);
+  return ev->fixup(client, id, TypeId(TypeId::Any,0), _zfragment);
 }
 
 /*
@@ -108,7 +104,17 @@ int ZcpEb::processIo(Server* serverGeneric)
 #endif
   EbServer* server   = (EbServer*)serverGeneric;
   server->keepAlive();
-  int sizeofPayload  = server->fetch(_zfragment, MSG_DONTWAIT);
+
+  int sizeofPayload;
+  if (_vmoneb && _vmoneb->time_fetch()) {
+    unsigned begin = SysClk::sample();
+    sizeofPayload  = server->fetch(_zfragment, MSG_DONTWAIT);
+    unsigned time  = SysClk::sample()-begin;
+    _vmoneb->fetch_time(time);
+  }
+  else
+    sizeofPayload  = server->fetch(_zfragment, MSG_DONTWAIT);
+
   if(sizeofPayload<0) {  // no payload
     printf("ZcpEb::processIo error in fetch more/len/off %c/%x/%x\n",
 	   server->more() ? 't':'f', 

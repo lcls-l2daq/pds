@@ -1,7 +1,6 @@
 #include <string.h>
 #include <assert.h>
-#include <netdb.h>
-#include <netinet/in.h>
+#include <errno.h>
 
 #include "pds/mon/MonClient.hh"
 #include "pds/mon/MonCds.hh"
@@ -14,52 +13,57 @@
 using namespace Pds;
 
 MonClient::MonClient(MonConsumerClient& consumer, 
-		     MonPort::Type type, 
-		     unsigned id,
-		     const char* hostname) :
-  MonSocket(),
-  _id(id),
+		     MonCds* cds,
+		     MonSocket& socket,
+		     const Src& src) :
+  _src    (src),
   _consumer(consumer),
-  _cds(type),
+  _cds    (cds),
+  _socket (socket),
   _request(MonMessage::NoOp),
-  _reply(MonMessage::NoOp),
+  _reply  (MonMessage::NoOp),
   _iovload(0),
-  _iovcnt(0),
-  _desc(0),
+  _iovcnt (0),
+  _desc   (0),
   _descsize(0),
   _maxdescsize(0),
   _usage()
 {
   _iovreq[0].iov_base = &_request;
   _iovreq[0].iov_len = sizeof(_request);
-
-  {
-    unsigned short port = MonPort::port(type);
-    int address = 0;
-    hostent* host = gethostbyname(hostname);
-    if (host && host->h_addr_list[0]) {
-      address = ntohl(*(int*)host->h_addr_list[0]);
-    }
-    _dst = Ins(address, port);
-  }
-
 }
 
 MonClient::~MonClient() 
 {
+  delete _cds;
   delete [] _iovload;
   delete [] _desc;
 }
 
+MonSocket& MonClient::socket() { return _socket; }
+
 int MonClient::use(int signature) {return _usage.use(signature);}
 int MonClient::dontuse(int signature) {return _usage.dontuse(signature);}
+int MonClient::use_all() 
+{
+  unsigned used = 0;
+  for (unsigned short g=0; g<_cds->ngroups(); g++) {
+    const MonGroup* group = _cds->group(g);
+    for (unsigned short e=0; e<group->nentries(); e++, used++)
+      _usage.use(group->entry(e)->desc().signature());
+  }
+  payload();
+  return used;
+}
+
+const Src& MonClient::src() const { return _src; }
 
 int MonClient::askdesc()
 {
   _usage.reset();
   _request.type(MonMessage::DescriptionReq);
   _request.payload(0);
-  return writev(_iovreq, 1);
+  return _socket.writev(_iovreq, 1);
 }
 
 int MonClient::askload()
@@ -67,14 +71,16 @@ int MonClient::askload()
   if (_usage.ismodified()) payload();
   _request.type(MonMessage::PayloadReq);
   _request.payload(_iovreq[1].iov_len);
-  return writev(_iovreq, 2);
+  return _socket.writev(_iovreq, 2);
 }
 
-int MonClient::fd() const { return socket(); }
+int MonClient::fd() const { return _socket.socket(); }
+
+#include <stdio.h>
 
 int MonClient::processIo()
 {
-  int bytesread = read(&_reply, sizeof(_reply));
+  int bytesread = _socket.read(&_reply, sizeof(_reply));
   if (bytesread <= 0) {
     _consumer.process(*this, MonConsumerClient::Disconnected);
     return 0;
@@ -87,20 +93,10 @@ int MonClient::processIo()
     _consumer.process(*this, MonConsumerClient::Enabled);
     break;
   case MonMessage::Description:
-    {
-      _descsize = _reply.payload();
-      adjustdesc();
-      bytesread += read(_desc, _descsize);
-      description();
-      adjustload();
-      _consumer.process(*this, MonConsumerClient::Description);
-    }
+    read_description(_reply.payload());
     break;
   case MonMessage::Payload:
-    {
-      bytesread += readv(_iovload, _usage.used());
-      _consumer.process(*this, MonConsumerClient::Payload);
-    }
+    read_payload();
     break;
   default:
     break;
@@ -110,7 +106,7 @@ int MonClient::processIo()
 
 void MonClient::adjustload() 
 {
-  unsigned iovcnt = _cds.totalentries();
+  unsigned iovcnt = _cds->totalentries();
   if (iovcnt > _iovcnt) {
     delete [] _iovload;
     _iovload = new iovec[iovcnt];
@@ -127,36 +123,50 @@ void MonClient::adjustdesc()
   }
 }
 
-MonCds& MonClient::cds() {return _cds;}
-const MonCds& MonClient::cds() const {return _cds;}
+MonCds& MonClient::cds() {return *_cds;}
+const MonCds& MonClient::cds() const {return *_cds;}
 const Ins& MonClient::dst() const {return _dst;}
-unsigned MonClient::id() const {return _id;}
+void MonClient::dst(const Ins& d) { _dst=d; }
 bool MonClient::needspayload() const {return _usage.used();}
 
 void MonClient::payload()
 {
   for (unsigned short u=0; u<_usage.used(); u++) {
-    MonEntry* entry = _cds.entry(_usage.signature(u)); 
+    MonEntry* entry = _cds->entry(_usage.signature(u)); 
     entry->payload(_iovload[u]);
   }
   _usage.request(_iovreq[1]);
 }
 
-void MonClient::description()
+void MonClient::read_payload()
 {
+  int bytes = _socket.readv(_iovload, _usage.used());
+  if (bytes >= 0)
+    ;
+  else
+    printf("payload error : reason %s\n", strerror(errno));
+  _consumer.process(*this, MonConsumerClient::Payload);
+}
+
+void MonClient::read_description(int descsize)
+{
+  _descsize = descsize;
+  adjustdesc();
+  _socket.read(_desc, _descsize);
+
   const char* d = _desc;
   const char* last = d+_descsize;
   if (d < last) {
     const MonDesc* cdsdesc = (const MonDesc*)d;
-    assert(cdsdesc->id() == _cds.desc().id());
-    _cds.reset();
+    assert(cdsdesc->id() == _cds->desc().id());
+    _cds->reset();
     d += sizeof(MonDesc);
   }
   while (d < last) {
     const MonDesc* groupdesc = (const MonDesc*)d;
     MonGroup* group = new MonGroup(groupdesc->name());
     unsigned short nentries = groupdesc->nentries();
-    _cds.add(group);
+    _cds->add(group);
     d += sizeof(MonDesc);
     for (unsigned short e=0; e<nentries; e++) {
       const MonDescEntry* entrydesc = (const MonDescEntry*)d;
@@ -165,4 +175,8 @@ void MonClient::description()
       d += entrydesc->size();
     }
   }
+
+  adjustload();
+  
+  _consumer.process(*this, MonConsumerClient::Description);
 }

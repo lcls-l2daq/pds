@@ -18,10 +18,8 @@ class ZcpEbC : public ZcpEb
 	   int stream,
 	   int ipaddress,
 	   unsigned eventsize,
-	   unsigned eventpooldepth);
-#ifdef USE_VMON
-    const VmonEb& vmoneb,
-#endif
+	   unsigned eventpooldepth,
+	   VmonEb* vmoneb=0);
     ~ZcpEbC();
   private:
     EbEventBase* _new_event  ( const EbBitMask& );

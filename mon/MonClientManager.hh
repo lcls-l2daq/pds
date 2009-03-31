@@ -9,6 +9,7 @@ namespace Pds {
 
   class MonFd;
   class MonConsumerClient;
+  class MonCds;
   class MonClient;
   class Task;
 
@@ -38,6 +39,7 @@ namespace Pds {
   private:
     MonConsumerClient& _consumer;
     unsigned _nclients;
+    MonCds**    _cds;
     MonClient** _clients;
     Task*     _task;
     Semaphore _sem;

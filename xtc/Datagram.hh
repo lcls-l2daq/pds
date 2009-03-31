@@ -18,8 +18,6 @@ namespace Pds {
   class Datagram {
   public:
 
-    Datagram() {}
-
     //  Copy the header
     Datagram(const Datagram& dg) :
       seq(dg.seq), env(dg.env), xtc(dg.xtc) {}

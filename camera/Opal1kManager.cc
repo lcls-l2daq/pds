@@ -1,8 +1,6 @@
 #include "pds/camera/Opal1kManager.hh"
 
 #include "pdsdata/xtc/TypeId.hh"
-#include "pdsdata/camera/FrameFexConfigV1.hh"
-#include "pdsdata/opal1k/ConfigV1.hh"
 
 #include "pds/client/Fsm.hh"
 #include "pds/client/Action.hh"
@@ -14,6 +12,9 @@
 #include "pds/config/CfgClientNfs.hh"
 #include "pds/camera/FexFrameServer.hh"
 #include "pds/camera/FrameServerMsg.hh"
+
+#include "pds/config/Opal1kConfigType.hh"
+#include "pds/config/FrameFexConfigType.hh"
 
 #include <signal.h>
 #include <stdlib.h>
@@ -105,13 +106,13 @@ Opal1kManager::Opal1kManager(const Src& src) :
   _server  (new FexFrameServer(src,*_splice)),
   _fsm     (new Fsm),
   _sig     (-1),
-  _configBuffer(new char[sizeof(Opal1k::ConfigV1)+ 
-			 Opal1k::ConfigV1::LUT_Size*sizeof(uint16_t) +
+  _configBuffer(new char[sizeof(Opal1kConfigType)+ 
+			 Opal1kConfigType::LUT_Size*sizeof(uint16_t) +
 			 1000*sizeof(Camera::FrameCoord) +
-			 sizeof(Camera::FrameFexConfigV1)]),
+			 sizeof(FrameFexConfigType)]),
   _configService(new CfgClientNfs(src)),
-  _opaltc(TypeId::Id_Opal1kConfig, src),
-  _fextc(TypeId::Id_FrameFexConfig, src)
+  _opaltc(_opal1kConfigType, src),
+  _fextc(_frameFexConfigType, src)
 {
   _fsm->callback(TransitionId::Map        , new Opal1kMapAction     (*this));
   _fsm->callback(TransitionId::Configure  , new Opal1kConfigAction  (*this));
@@ -148,18 +149,18 @@ Transition* Opal1kManager::configure(Transition* tr)
   //
   char* cfgBuff = _configBuffer;
   int len;
-  if ((len=_configService->fetch(*tr,TypeId::Id_Opal1kConfig, cfgBuff)) <= 0) {
+  if ((len=_configService->fetch(*tr,_opal1kConfigType, cfgBuff)) <= 0) {
     printf("Config::configure failed to retrieve Opal1000 configuration\n");
     return tr;
   }
-  const Opal1k::ConfigV1& opalConfig = *new(cfgBuff) Opal1k::ConfigV1;
+  const Opal1kConfigType& opalConfig = *new(cfgBuff) Opal1kConfigType;
   cfgBuff += len;
   
-  if ((len=_configService->fetch(*tr,TypeId::Id_FrameFexConfig, cfgBuff)) <= 0) {
+  if ((len=_configService->fetch(*tr,_frameFexConfigType, cfgBuff)) <= 0) {
     printf("Config::configure failed to retrieve FrameFex configuration\n");
     return tr;
   }
-  const Camera::FrameFexConfigV1& fexConfig = *new(cfgBuff) Camera::FrameFexConfigV1;
+  const FrameFexConfigType& fexConfig = *new(cfgBuff) FrameFexConfigType;
 
   _fextc.damage = 0;
 
@@ -216,14 +217,14 @@ InDatagram* Opal1kManager::configure  (InDatagram* in)
   _opaltc.extent = sizeof(Xtc);
   _fextc .extent = sizeof(Xtc);
   char* cfgBuff = _configBuffer;
-  const Opal1k::ConfigV1* opalConfig(0);
-  const Camera::FrameFexConfigV1* fexConfig(0);
+  const Opal1kConfigType* opalConfig(0);
+  const FrameFexConfigType* fexConfig(0);
 
   if (_opaltc.damage.value()) {
     in->datagram().xtc.damage.increase(_opaltc.damage.value()); 
   }
   else {
-    opalConfig = new(cfgBuff) Opal1k::ConfigV1;
+    opalConfig = new(cfgBuff) Opal1kConfigType;
     _opaltc.extent += opalConfig->size();
     cfgBuff        += opalConfig->size();
 
@@ -231,7 +232,7 @@ InDatagram* Opal1kManager::configure  (InDatagram* in)
       in->datagram().xtc.damage.increase(_fextc.damage.value()); 
     }
     else {
-      fexConfig = new(cfgBuff) Camera::FrameFexConfigV1;
+      fexConfig = new(cfgBuff) FrameFexConfigType;
       _fextc.extent += fexConfig->size();
     }
   }

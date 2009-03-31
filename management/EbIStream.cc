@@ -3,6 +3,9 @@
 #include "pds/utility/ToEb.hh"
 #include "pds/utility/ToEbWire.hh"
 #include "EventBuilder.hh"
+#include "pds/management/VmonServerAppliance.hh"
+#include "pds/vmon/VmonEb.hh"
+#include "pds/xtc/XtcType.hh"
 
 using namespace Pds;
 
@@ -20,7 +23,7 @@ EbIStream::EbIStream(const Src&  src,
 
   if (level == Level::Segment)
     _inlet_wire = new L1EventBuilder(src, 
-				     TypeId(TypeId::Id_Xtc),
+				     _xtcType,
 				     level,
 				     *inlet(), 
 				     *_outlet_wire, 
@@ -29,13 +32,15 @@ EbIStream::EbIStream(const Src&  src,
 				     MaxSize, EbDepth);
   else
     _inlet_wire = new EventBuilder(src, 
-				   TypeId(TypeId::Id_Xtc),
+				   _xtcType,
 				   level,
 				   *inlet(), 
 				   *_outlet_wire, 
 				   StreamParams::FrameWork, 
 				   interface,
-				   MaxSize, EbDepth);
+				   MaxSize, EbDepth,
+				   new VmonEb(src,32,EbDepth,(1<<14)));
+  (new VmonServerAppliance(src))->connect(inlet());
 }
  
 EbIStream::~EbIStream()

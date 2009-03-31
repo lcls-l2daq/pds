@@ -12,12 +12,12 @@ namespace Pds {
 
   class MonCds {
   public:
-    MonCds(MonPort::Type type);
+    MonCds(const char* name);
     ~MonCds();
   
     void add(MonGroup* group);
 
-    MonPort::Type type() const;
+    //    MonPort::Type type() const;
     const MonDesc& desc() const;
     MonGroup* group(unsigned short g) const;
     MonGroup* group(const char* name);

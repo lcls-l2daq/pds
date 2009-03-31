@@ -2,6 +2,7 @@
 #define Pds_MonSERVERMANAGER_HH
 
 #include "pds/mon/MonPoll.hh"
+#include "pds/mon/MonStreamSocket.hh"
 #include "pds/mon/MonFd.hh"
 #include "pds/service/Routine.hh"
 #include "pds/service/Semaphore.hh"
@@ -13,9 +14,11 @@
 namespace Pds {
 
   class Task;
-  class MonServer;
+  class MonStreamServer;
 
-  class MonServerManager : public MonPoll, public MonFd, private Routine {
+  class MonServerManager : public MonPoll, 
+			   public MonFd, 
+			   private Routine {
   public:
     MonServerManager(MonPort::Type type);
     virtual ~MonServerManager();
@@ -54,12 +57,13 @@ namespace Pds {
     void remove(unsigned short pos);
 
   private:
+    unsigned short _port;
     MonCds _cds;
     MonUsage _usage;
-    MonSocket _listener;
+    MonStreamSocket _listener;
     unsigned short _maxservers;
     unsigned short _nservers;
-    MonServer** _servers;
+    MonStreamServer** _servers;
     Task* _task;
     Semaphore _sem;
     int _result;

@@ -1,15 +1,10 @@
 #ifndef PDS_EB_HH
 #define PDS_EB_HH
 
-//#define USE_VMON
-
 #include "EbBase.hh"
 
 #include "EbEvent.hh"
 #include "EbTimeouts.hh"
-#ifdef USE_VMON
-#include "VmonEb.hh"
-#endif
 
 #include "pds/service/GenericPoolW.hh"
 
@@ -31,9 +26,7 @@ class Eb : public EbBase
        int ipaddress,
        unsigned eventsize,
        unsigned eventpooldepth,
-#ifdef USE_VMON
-       const VmonEb& vmoneb,
-#endif
+       VmonEb* vmoneb,
        const Ins* dstack=0);
     virtual ~Eb();
   public:

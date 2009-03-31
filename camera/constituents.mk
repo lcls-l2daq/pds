@@ -24,6 +24,7 @@ endif
 
 tgtsrcs_camsend := camsend.cc
 tgtlibs_camsend := pds/service pds/collection pds/utility pds/config pds/camera pds/client pds/xtc
+tgtlibs_camsend += pds/vmon pds/mon
 tgtlibs_camsend += pdsdata/xtcdata pdsdata/camdata pdsdata/opal1kdata
 tgtincs_camsend := pds/zerocopy/kmemory pds/camera
 tgtlibs_camsend += leutron/lvsds

@@ -12,27 +12,36 @@
 #include "pds/mon/MonPort.hh"
 #include "pds/mon/MonUsage.hh"
 
+#include "pdsdata/xtc/Src.hh"
+
 namespace Pds {
 
   class MonConsumerClient;
 
-  class MonClient : public MonSocket, public MonFd {
+  class MonClient : public MonFd {
   public:
     MonClient(MonConsumerClient& consumer, 
-	      MonPort::Type type, 
-	      unsigned id,
-	      const char* host);
+	      MonCds* cds,
+	      MonSocket& socket,
+	      const Src& src);
     virtual ~MonClient();
 
-    int use(int signature);
+    MonSocket& socket();
+    const Src& src() const;
+
+    int use    (int signature);
     int dontuse(int signature);
+    int use_all();
     int askdesc();
     int askload();
+
+    void read_description(int size);
+    void read_payload();
 
     MonCds& cds();
     const MonCds& cds() const;
     const Ins& dst() const;
-    unsigned id() const;
+    void dst(const Ins&);
     bool needspayload() const;
   
   private:
@@ -41,15 +50,15 @@ namespace Pds {
     virtual int processIo();
 
   private:
-    void adjustload();
-    void payload();
-    void adjustdesc();
-    void description();
+    void adjustload ();
+    void payload    ();
+    void adjustdesc ();
 
   private:
-    unsigned _id;
+    Src _src;
     MonConsumerClient& _consumer;
-    MonCds _cds;
+    MonCds* _cds;
+    MonSocket& _socket;
     Ins _dst;
     MonMessage _request;
     MonMessage _reply;

@@ -1,6 +1,10 @@
 #ifndef PDS_SOCKADDR
 #define PDS_SOCKADDR
 
+#include "pds/service/Ins.hh"
+
+#include <sys/socket.h>
+
 namespace Pds {
 class Sockaddr {
 public:

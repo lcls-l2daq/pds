@@ -13,18 +13,18 @@
 using namespace Pds;
 
 
-MonServer::MonServer(const MonCds& cds, 
+MonServer::MonServer(const Src& src,
+		     const MonCds& cds, 
 		     MonUsage& usage, 
-		     int socket) :
-  MonSocket(socket),
-  _cds(cds),
-  _usage(usage),
-  _request(MonMessage::NoOp),
-  _reply(MonMessage::NoOp),
+		     MonSocket& socket) :
+  _cds    (cds),
+  _usage  (usage),
+  _socket (socket),
+  _reply  (src,MonMessage::NoOp),
   _iovreply(0),
-  _iovcnt(0),
+  _iovcnt (0),
   _signatures(0),
-  _sigcnt(0),
+  _sigcnt (0),
   _enabled(true)
 {
 }
@@ -35,13 +35,15 @@ MonServer::~MonServer()
   delete [] _signatures;
 }
 
+MonSocket& MonServer::socket() { return _socket; }
+
 void MonServer::enable() 
 {
   _reply.type(MonMessage::Enabled);
   _reply.payload(0);
-  if (writev(_iovreply, 1) < 0) {
+  if (_socket.writev(_iovreply, 1) < 0) {
     printf("*** MonServer::enable send error socket [%d]: %s\n", 
-	   socket(), strerror(errno));
+	   _socket.socket(), strerror(errno));
   }
   _enabled = true;
 }
@@ -50,62 +52,14 @@ void MonServer::disable()
 {
   _reply.type(MonMessage::Disabled);
   _reply.payload(0);
-  if (writev(_iovreply, 1) < 0) {
+  if (_socket.writev(_iovreply, 1) < 0) {
     printf("*** MonServer::disable send error socket [%d]: %s\n", 
-	   socket(), strerror(errno));
+	   _socket.socket(), strerror(errno));
   }
   _enabled = false;
 }
 
-int MonServer::fd() const { return socket(); }
-
-int MonServer::processIo()
-{
-  int bytesread = read(&_request, sizeof(_request));
-  if (bytesread <= 0) {
-    return 0;
-  }
-  unsigned loadsize = _request.payload();
-  if (!_enabled) {
-    if (loadsize) {
-      char* eat = new char[loadsize];
-      bytesread += read(eat, loadsize);
-      delete [] eat;
-    }
-    return 1;
-  }
-  unsigned cnt = 1;
-  switch (_request.type()) {
-  case MonMessage::DescriptionReq:
-    {
-      adjust();
-      cnt = description()+1;
-      _reply.type(MonMessage::Description);
-    }
-    break;
-  case MonMessage::PayloadReq:
-    {
-      bytesread += read(_signatures, loadsize);
-      cnt = payload(loadsize>>2)+1;
-      _reply.type(MonMessage::Payload);
-    }
-    break;
-  default:
-    {
-      _reply.type(MonMessage::NoOp);
-    }
-    break;
-  }
-  _reply.payload(_iovreply+1, cnt-1);
-  _cds.payload_sem().take();
-  int bytessent = writev(_iovreply, cnt);
-  _cds.payload_sem().give();
-  if (bytessent < 0) {
-    printf("*** MonServer::processIo send error socket [%d]: %s\n", 
-	   socket(), strerror(errno));
-  }
-  return 1;
-}
+bool MonServer::enabled() const { return _enabled; }
 
 void MonServer::adjust() 
 {
@@ -125,8 +79,23 @@ void MonServer::adjust()
   }
 }  
 
-unsigned MonServer::description()
+void MonServer::reply(MonMessage::Type type,int cnt)
 {
+  _reply.type(type);
+  _reply.payload(_iovreply+1, cnt-1);
+  _cds.payload_sem().take();
+  int bytessent = _socket.writev(_iovreply, cnt);
+  _cds.payload_sem().give();
+  if (bytessent < 0) {
+    printf("*** MonServer::reply send error socket [%d]: %s\n", 
+	   _socket.socket(), strerror(errno));
+  }
+}
+
+void MonServer::description()
+{
+  adjust();
+
   unsigned element=0;
   iovec* iov = _iovreply+1;
   iov[element].iov_base = (void*)&_cds.desc();
@@ -144,11 +113,28 @@ unsigned MonServer::description()
       element++;
     }
   }
-  return element;
+
+  reply(MonMessage::Description,element+1);
 }
 
-unsigned MonServer::payload(unsigned used)
+void MonServer::payload()
 {
+  unsigned used = 0;
+  iovec* iov = _iovreply+1;
+  for (unsigned short g=0; g<_cds.ngroups(); g++) {
+    const MonGroup* group = _cds.group(g);
+    for (unsigned short e=0; e<group->nentries(); e++, iov++, used++)
+      group->entry(e)->payload(*iov); 
+  }
+
+  reply(MonMessage::Payload,used+1);
+}
+
+void MonServer::payload(unsigned loadsize)
+{
+  _socket.read(_signatures, loadsize);
+
+  unsigned used = loadsize>>2;
   iovec* iov = _iovreply+1;
   const int* signatures = _signatures;
   for (unsigned u=0; u<used; u++, signatures++, iov++) {
@@ -156,6 +142,7 @@ unsigned MonServer::payload(unsigned used)
     entry->payload(*iov);
     _usage.use(*signatures);
   }
-  return used;
+
+  reply(MonMessage::Payload,used+1);
 }
 

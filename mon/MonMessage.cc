@@ -5,9 +5,18 @@
 using namespace Pds;
 
 MonMessage::MonMessage(Type type, unsigned payload) : 
+  _src (Level::Observer),
   _type(type),
   _payload(payload)
 {}
+
+MonMessage::MonMessage(const Src& src, Type type, unsigned payload) : 
+  _src (src),
+  _type(type),
+  _payload(payload)
+{}
+
+Src MonMessage::src() const { return _src; }
 
 MonMessage::Type MonMessage::type() const {return _type;}
 

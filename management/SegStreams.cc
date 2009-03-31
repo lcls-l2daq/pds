@@ -5,7 +5,7 @@
 #include "pds/utility/SegWireSettings.hh"
 #include "pds/utility/InletWire.hh"
 #include "pds/service/VmonSourceId.hh"
-//#include "VmonAppliance.hh"
+#include "pds/xtc/XtcType.hh"
 
 using namespace Pds;
 
@@ -26,7 +26,7 @@ SegStreams::SegStreams(CollectionManager& cmgr) :
 
     _inlet_wires[s] = 
       new EventBuilder(cmgr.header().procInfo(),
-		       TypeId(TypeId::Id_Xtc),
+		       _xtcType,
 		       level,
 		       *stream(s)->inlet(), *_outlets[s], s, ipaddress,
 		       MaxSize, ebdepth);

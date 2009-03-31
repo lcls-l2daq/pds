@@ -18,7 +18,7 @@ namespace Pds {
                      unsigned    dstid=0,
                      unsigned    srcid=0);
     static Ins bld  (unsigned    id);
-
+    static Ins vmon (unsigned    partition);
   public:
     StreamPorts();
     StreamPorts(const StreamPorts&);

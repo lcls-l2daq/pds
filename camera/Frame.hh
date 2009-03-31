@@ -1,7 +1,7 @@
 #ifndef Pds_Frame_hh
 #define Pds_Frame_hh
 
-#include "pdsdata/camera/FrameV1.hh"
+#include "pds/camera/FrameType.hh"
 
 #include <new>
 
@@ -13,7 +13,7 @@ namespace Pds {
 
   class DmaSplice;
 
-  class Frame : public Camera::FrameV1 {
+  class Frame : public FrameType {
   public:
     Frame() {}
     //  Frame with unassigned contents
@@ -52,7 +52,7 @@ namespace Pds {
 
   inline unsigned char* Frame::data()
   {
-    return const_cast<unsigned char*>(Camera::FrameV1::data());
+    return const_cast<unsigned char*>(FrameType::data());
   }
 };
 

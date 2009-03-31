@@ -1,9 +1,10 @@
-#include "Eb.hh"
-#include "EbServer.hh"
+#include "pds/utility/Eb.hh"
+#include "pds/utility/EbServer.hh"
 #include "pds/xtc/CDatagram.hh"
 #include "pds/service/SysClk.hh"
 #include "pds/service/Client.hh"
-#include "Inlet.hh"
+#include "pds/utility/Inlet.hh"
+#include "pds/vmon/VmonEb.hh"
 
 using namespace Pds;
 
@@ -34,15 +35,10 @@ Eb::Eb(const Src& id,
        int ipaddress,
        unsigned eventsize,
        unsigned eventpooldepth,
-#ifdef USE_VMON
-       const VmonEb& vmoneb,
-#endif
+       VmonEb* vmoneb,
        const Ins* dstack) :
   EbBase(id, ctns, level, inlet, outlet, stream, ipaddress,
-#ifdef USE_VMON
-	 vmoneb,
-#endif
-	 dstack),
+	 vmoneb, dstack),
   _datagrams(eventsize, eventpooldepth),
   _events(sizeof(EbEvent), eventpooldepth)
 {
@@ -66,7 +62,7 @@ Eb::Eb(const Src& id,
 unsigned Eb::_fixup( EbEventBase* event, const Src& client, const EbBitMask& id )
 {
   EbEvent* ev = (EbEvent*)event;
-  return ev->fixup ( client, TypeId::Any, id );
+  return ev->fixup ( client, TypeId(TypeId::Any,0), id );
 }
 
 int Eb::processIo(Server* serverGeneric)
@@ -83,7 +79,16 @@ int Eb::processIo(Server* serverGeneric)
   EbBitMask serverId;
   serverId.setBit(server->id());
   char* payload = event->payload(serverId);
-  int sizeofPayload  = server->fetch(payload, MSG_DONTWAIT);
+
+  int sizeofPayload;
+  if (_vmoneb && _vmoneb->time_fetch()) {
+    unsigned begin = SysClk::sample();
+    sizeofPayload  = server->fetch(payload, MSG_DONTWAIT);
+    unsigned time  = SysClk::sample()-begin;
+    _vmoneb->fetch_time(time);
+  }
+  else
+    sizeofPayload  = server->fetch(payload, MSG_DONTWAIT);
 
   server->keepAlive();
 

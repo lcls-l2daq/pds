@@ -20,9 +20,7 @@ namespace Pds {
 	  int ipaddress,
 	  unsigned eventsize,
 	  unsigned eventpooldepth,
-#ifdef USE_VMON
-	  const VmonEb& vmoneb,
-#endif
+	  VmonEb* vmoneb,
 	  const Ins* dstack=0);
     virtual ~ZcpEb();
   public:

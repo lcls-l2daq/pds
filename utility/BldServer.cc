@@ -52,7 +52,7 @@ BldServer::BldServer(const Ins& ins,
 	  MaxPayload,
 	  nbufs),
   _client(src),
-  _xtc   (TypeId::Any,src)
+  _xtc   (TypeId(TypeId::Any,0),src)
 {
   fd(_server.fd());
 }

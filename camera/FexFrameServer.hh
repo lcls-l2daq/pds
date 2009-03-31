@@ -13,10 +13,7 @@
 #include "pds/utility/EbEventKey.hh"
 #include "pds/camera/TwoDMoments.hh"
 #include "pds/camera/FrameServerMsg.hh"
-
-namespace Camera {
-  class FrameFexConfigV1;
-};
+#include "pds/config/FrameFexConfigType.hh"
 
 namespace Pds {
 
@@ -31,9 +28,9 @@ namespace Pds {
     ~FexFrameServer();
   public:
     void                            post(FrameServerMsg*);
-    void                            Config(const Camera::FrameFexConfigV1&,
+    void                            Config(const FrameFexConfigType&,
 					   unsigned camera_offset);
-    const Camera::FrameFexConfigV1& Config();
+    const FrameFexConfigType& Config();
   public:
     //  Eb interface
     void        dump    (int detail)   const;
@@ -80,7 +77,7 @@ namespace Pds {
     unsigned   _count;
     unsigned   _nposts;
     LinkedList<FrameServerMsg> _msg_queue;
-    const Camera::FrameFexConfigV1* _config;
+    const FrameFexConfigType* _config;
     unsigned   _camera_offset;
     unsigned   _framefwd_count;
   };

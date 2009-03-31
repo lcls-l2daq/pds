@@ -8,18 +8,15 @@
 #include "EbTimeouts.hh"
 #include "pds/service/LinkedList.hh"
 
-#ifdef USE_VMON
-#include "VmonEb.hh"
-#endif
-
 namespace Pds {
 
-class OutletWire;
-class EbServer;
-class Client;
-class Appliance;
+  class OutletWire;
+  class EbServer;
+  class Client;
+  class Appliance;
+  class VmonEb;
 
-class EbBase : public InletWireServer
+  class EbBase : public InletWireServer
   {
   public:
     EbBase(const Src& id,
@@ -29,10 +26,8 @@ class EbBase : public InletWireServer
 	   OutletWire& outlet,
 	   int stream,
 	   int ipaddress,
-#ifdef USE_VMON
-	   const VmonEb& vmoneb,
-#endif
-	   const Ins* dstack=0);
+	   VmonEb* vmoneb,
+	   const Ins* dstack);
     virtual ~EbBase();
   public:
     // Implements InletWireServer for adding and removing servers
@@ -74,9 +69,7 @@ class EbBase : public InletWireServer
     unsigned    _misses;       // # of cache misses
     unsigned    _discards;     // # of discards due to aged datagram
     Client*     _ack;          // connected port to send ack on.
-#ifdef USE_VMON
-    VmonEb      _vmoneb;
-#endif
+    VmonEb*     _vmoneb;
   };
 }
 #endif

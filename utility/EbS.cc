@@ -2,6 +2,7 @@
 
 #include "EbEvent.hh"
 #include "EbSequenceKey.hh"
+#include "pds/vmon/VmonEb.hh"
 
 using namespace Pds;
 
@@ -13,11 +14,11 @@ EbS::EbS(const Src& id,
 	 int stream,
 	 int ipaddress,
 	 unsigned eventsize,
-	 unsigned eventpooldepth) :
+	 unsigned eventpooldepth,
+	 VmonEb* vmoneb) :
   Eb(id, ctns, level, inlet, outlet,
      stream, ipaddress,
-     eventsize,
-     eventpooldepth),
+     eventsize, eventpooldepth, vmoneb),
   _keys( sizeof(EbSequenceKey), eventpooldepth )
 {
   memset(_no_builds,0,sizeof(_no_builds));
@@ -36,11 +37,7 @@ EbEventBase* EbS::_new_event(const EbBitMask& serverId)
 {
   unsigned depth = _datagrams.depth();
 
-#ifdef USE_VMON
-  if (_vmoneb.status() == VmonManager::Running) {
-    _vmoneb.dginuse(depth);
-  }
-#endif
+  if (_vmoneb) _vmoneb->depth(depth);
 
   if (!depth)
     _postEvent(_pending.forward());

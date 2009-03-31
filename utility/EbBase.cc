@@ -18,12 +18,14 @@
 ** --
 */
 
-#include "EbBase.hh"
-#include "EbServer.hh"
-#include "EbTimeouts.hh"
+#include "pds/utility/EbBase.hh"
+#include "pds/utility/EbServer.hh"
+#include "pds/utility/EbTimeouts.hh"
+#include "pds/utility/Inlet.hh"
+#include "pds/vmon/VmonEb.hh"
+
 #include "pds/service/SysClk.hh"
 #include "pds/service/Client.hh"
-#include "Inlet.hh"
 
 #include <string.h>
 
@@ -68,9 +70,7 @@ EbBase::EbBase(const Src& id,
 	       OutletWire& outlet,
 	       int stream,
 	       int ipaddress,
-#ifdef USE_VMON
-	       const VmonEb& vmoneb,
-#endif
+	       VmonEb* vmoneb,
 	       const Ins* dstack) :
   InletWireServer(inlet, outlet, ipaddress, stream, 
 		  TaskPriority-stream, TaskName(level, stream, inlet),
@@ -83,10 +83,8 @@ EbBase::EbBase(const Src& id,
   _segments(0),
   _misses(0),
   _discards(0),
-  _ack(0)
-#ifdef USE_VMON
-  ,_vmoneb(vmoneb)
-#endif
+  _ack(0),
+  _vmoneb(vmoneb)
 {
   if (dstack) {
     const unsigned PayloadSize = 0;
@@ -239,6 +237,7 @@ void EbBase::_post(EbEventBase* event)
     unsigned dmg=0;
     for(unsigned i=0; !remaining.isZero(); i++, id <<= 1) {
       if ( !(remaining & id).isZero() ) {
+	if (_vmoneb) _vmoneb->fixup(i);
 	EbServer* srv = (EbServer*)server(i);
 	srv->fixup();
 	dmg |= _fixup(event, srv->client(), id);
@@ -250,21 +249,16 @@ void EbBase::_post(EbEventBase* event)
     datagram->xtc.damage.increase(dmg);
   }
 
-#ifdef USE_VMON
-  if (_vmoneb.status() == VmonManager::Running) {
-    unsigned damage = datagram->xtc.damage.value();
-    if (damage) _vmoneb.damage(damage);
+  if (_vmoneb) {
     unsigned begin = SysClk::sample();
-    _output.post(datagram);
+    _output.post(indatagram);
     unsigned time  = SysClk::sample()-begin;
-    unsigned size  = datagram->xtc.sizeofPayload();
-    _vmoneb.rate(size, time);
+    _vmoneb->post_time(time);
+    _vmoneb->fixup(-1);
+    _vmoneb->update();
   } else {
     _output.post(indatagram);
   }
-#else
-  _output.post(indatagram);
-#endif
 
   // Send acks on L1Accept, Pause and Disable; the latter two to flush the last
   // L1Accept.  Since an ack wasn't requested for Pause or Disable, it will be

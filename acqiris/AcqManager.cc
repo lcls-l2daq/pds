@@ -43,7 +43,7 @@
 #include "pds/xtc/CDatagram.hh"
 #include "pds/client/Fsm.hh"
 #include "pds/client/Action.hh"
-#include "pdsdata/acqiris/ConfigV1.hh"
+#include "pds/config/AcqConfigType.hh"
 #include "AcqManager.hh"
 #include "AcqServer.hh"
 #include "pdsdata/acqiris/DataDescV1.hh"
@@ -57,7 +57,7 @@ public:
   AcqReader(ViSession instrumentId, AcqServer& server, Task* task) :
     _instrumentId(instrumentId),_task(task),_server(server),_count(0) {
   }
-  void setConfig(const Acqiris::ConfigV1& config) {
+  void setConfig(const AcqConfigType& config) {
     _nbrSamples=config.horiz().nbrSamples();
     _totalSize=Acqiris::DataDescV1::totalSize(config.horiz())*
       config.nbrChannels();
@@ -93,7 +93,7 @@ public:
     DmaEngine(task),
     _instrumentId(instrumentId),_reader(reader),_server(server),_lastAcqTS(0),_count(0) {
   }
-  void setConfig(Acqiris::ConfigV1& config) {_config=&config;}
+  void setConfig(AcqConfigType& config) {_config=&config;}
   void routine() {
     ViStatus status=0;
     // ### Readout the data ###
@@ -155,7 +155,7 @@ private:
   ViSession  _instrumentId;
   AcqReader& _reader;
   AcqServer& _server;
-  Acqiris::ConfigV1* _config;
+  AcqConfigType* _config;
   unsigned _nbrSamples;
   long long _lastAcqTS;
   unsigned _count;
@@ -226,7 +226,7 @@ private:
 class AcqConfigAction : public AcqDC282Action {
 public:
   AcqConfigAction(ViSession instrumentId, AcqReader& reader, AcqDma& dma, const Src& src) :
-    AcqDC282Action(instrumentId),_reader(reader),_dma(dma), _cfgtc(TypeId::Id_AcqConfig,src) {}
+    AcqDC282Action(instrumentId),_reader(reader),_dma(dma), _cfgtc(_acqConfigType,src) {}
   InDatagram* fire(InDatagram* dg) {
     // insert assumes we have enough space in the input datagram
     dg->insert(_cfgtc, &_config);
@@ -285,7 +285,7 @@ public:
 //            nbrBanks,flags);
 
     _check(AcqrsD1_configChannelCombination(_instrumentId,nbrConvertersPerChannel,channelMask));
-    Acqiris::VertV1 vertConfig[Acqiris::ConfigV1::MaxChan];
+    Acqiris::VertV1 vertConfig[AcqConfigType::MaxChan];
     unsigned nchan=0;
     // note that analysis software will depend on the vertical configurations
     // being stored in the same order as the channel waveform data
@@ -302,11 +302,11 @@ public:
     _check(AcqrsD1_configTrigSource(_instrumentId, trigInput, trigCoupling, trigSlope, trigLevel, 0.0));
     _reader.start();
 
-    new(&_config) Acqiris::ConfigV1(nbrConvertersPerChannel,
+    new(&_config) AcqConfigType(nbrConvertersPerChannel,
                                     channelMask,
                                     nbrBanks,
                                     trigConfig,horizConfig,vertConfig);
-    _cfgtc.extent = sizeof(Xtc)+sizeof(Acqiris::ConfigV1);
+    _cfgtc.extent = sizeof(Xtc)+sizeof(AcqConfigType);
 
     _dma.setConfig(_config);
     _reader.setConfig(_config);
@@ -355,7 +355,7 @@ private:
   }
   AcqReader& _reader;
   AcqDma&    _dma;
-  Acqiris::ConfigV1 _config;
+  AcqConfigType _config;
   Xtc _cfgtc;
   Src _src;
 };

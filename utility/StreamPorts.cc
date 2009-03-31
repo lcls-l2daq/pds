@@ -10,6 +10,7 @@ static const int MaxPartitions = 16;
 static const int MaxPartitionL1s = 64;
 static const int MaxPartitionL2s = 64;
 static const int MaxPartitionL3s = 16;
+static const int MaxBLDServers   = 32;
 static const int BaseMcastAddr = 0xefff1100;
 
 // EVR -> L1 : 0xefff1110
@@ -18,17 +19,20 @@ static const int SegmentMcastAddr  = BaseMcastAddr    +MaxPartitions;
 static const int EventMcastAddr    = SegmentMcastAddr +MaxPartitions;
 // L2  -> L3 : 0xefff1520
 static const int RecorderMcastAddr = EventMcastAddr   +MaxPartitions*MaxPartitionL2s;
-// L3  -> L0 : 0xefff1100
+// L3  -> L0 : 0xefff1620
 static const int ControlMcastAddr  = RecorderMcastAddr+MaxPartitions*MaxPartitionL3s;
-// BLD -> L1,L2 : 0xefff1620
+// BLD -> L1,L2 : 0xefff1630
 static const int BLDMcastAddr      = ControlMcastAddr +MaxPartitions;
+// VMON server<->client // 0xeffff1650
+static const int VmonMcastAddr     = BLDMcastAddr     +MaxBLDServers;
 
 static const unsigned PortBase         = 10002;
-static const unsigned SegmentPortBase  = PortBase;
-static const unsigned EventPortBase    = SegmentPortBase+1;
-static const unsigned RecorderPortBase = EventPortBase   +MaxPartitionL1s;
-static const unsigned ControlPortBase  = RecorderPortBase+MaxPartitionL2s;
-static const unsigned BLDPortBase      = ControlPortBase +MaxPartitionL3s;
+static const unsigned SegmentPortBase  = PortBase;                           // 10002
+static const unsigned EventPortBase    = SegmentPortBase+1;                  // 10003
+static const unsigned RecorderPortBase = EventPortBase   +MaxPartitionL1s;   // 10067
+static const unsigned ControlPortBase  = RecorderPortBase+MaxPartitionL2s;   // 10131
+static const unsigned BLDPortBase      = ControlPortBase +MaxPartitionL3s;   // 10147
+static const unsigned VmonPortBase     = BLDPortBase+1;                      // 10148
 
 using namespace Pds;
 
@@ -61,6 +65,10 @@ Ins StreamPorts::bld(unsigned id)
   return Ins(BLDMcastAddr + id, BLDPortBase);
 }
 
+Ins StreamPorts::vmon(unsigned partition)
+{
+  return Ins(VmonMcastAddr + partition, VmonPortBase);
+}
 
 StreamPorts::StreamPorts()
 {

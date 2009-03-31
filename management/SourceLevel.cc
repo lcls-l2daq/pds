@@ -11,28 +11,52 @@
 #include <netinet/in.h>
 #include <arpa/inet.h>
 #include <string.h>
+#include <time.h>
 
 static const unsigned MaxPayload = sizeof(Pds::PartitionAllocation);
-static Pds::Node Unassigned(Pds::Level::Source,-1);
+static Pds::Node       UnassignedNode(Pds::Level::Source,-1);
+static Pds::Allocation UnassignedAlloc("Unassigned","Unassigned",-1);
 
 namespace Pds {
 
   class Controller {
   public:
     Controller() :
-      _node(Unassigned)
+      _node (UnassignedNode),
+      _alloc(UnassignedAlloc),
+      _time (::time(NULL))
     {}
+    Controller(unsigned partitionid) :
+      _node (UnassignedNode),
+      _alloc(UnassignedAlloc.partition(),
+	     UnassignedAlloc.dbpath(),
+	     partitionid),
+      _time (::time(NULL))
+    {}
+    Controller(const Node& node,
+	       unsigned partitionid) :
+      _node (node),
+      _alloc(UnassignedAlloc.partition(),
+	     UnassignedAlloc.dbpath(),
+	     partitionid),
+      _time (::time(NULL))
+    {
+      _alloc.add(node);
+    }
     Controller(const Node& node,
 	       const Allocation& alloc) :
       _node (node),
-      _alloc(alloc)
+      _alloc(alloc),
+      _time (::time(NULL))
     {}
   public:
     const Node& node() const { return _node; }
     const Allocation& allocation() const { return _alloc; }
+    const time_t& time() const { return _time; }
   private:
     Node       _node;
     Allocation _alloc;
+    time_t     _time;
   };
 
   class SourcePing : public Message {
@@ -56,6 +80,8 @@ SourceLevel::SourceLevel() :
   CollectionSource(MaxPayload, NULL),
   _control(new Controller[MaxPartitions])
 {
+  for(unsigned k=0; k<SourceLevel::MaxPartitions; k++)
+    _control[k] = Controller(k);
 }
 
 SourceLevel::~SourceLevel() 
@@ -81,13 +107,13 @@ void SourceLevel::_assign_partition(const Node& hdr, const Ins& dst)
   unsigned partition = MaxPartitions;
   for(unsigned p=0; p<MaxPartitions; p++) {
     if (_control[p].node()==hdr) { partition = p; break; }
-    if (_control[p].node()==Unassigned) { partition = p; }
+    if (_control[p].node()==UnassignedNode) { partition = p; }
   }
   if (partition == MaxPartitions) 
     printf("*** warning: no partitions available for control %x/%d\n",
 	   hdr.ip(), hdr.pid());
   else {
-    _control[partition] = Controller(hdr,Allocation());
+    _control[partition] = Controller(hdr,partition);
     PartitionGroup reply(partition);
     ucast(reply, dst);
   }
@@ -97,7 +123,7 @@ void SourceLevel::_resign_partition(const Node& hdr)
 {
   for(unsigned k=0; k<MaxPartitions; k++)
     if (_control[k].node()==hdr)
-      _control[k] = Controller(Unassigned,Allocation());
+      _control[k] = Controller(k);
 }
 
 void SourceLevel::_show_partition(unsigned partition, const Ins& dst)
@@ -153,25 +179,22 @@ void SourceLevel::message(const Node& hdr, const Message& msg)
 
 void SourceLevel::dump() const
 {
-  printf("            Control   | Platform | Partition  |   Node\n"
-	 "        ip     / pid  |          | id/name    | level/ pid /     ip\n"
-	 "----------------------+----------+------------+-------------\n");
+  printf("       When           | Platform | Partition  |       Node             \n"
+	 "     Allocated        |          | id/name    | level/ pid /     ip    \n"
+	 "----------------------+----------+------------+------------------------\n");
   for(unsigned k=0; k<MaxPartitions; k++) {
     const Node&       n = _control[k].node();
     const Allocation& a = _control[k].allocation();
-    if (!(n==Unassigned)) {
-      unsigned ip = n.ip();
-      char ipbuff[32];
-      sprintf(ipbuff,"%d.%d.%d.%d/%05d",
-	     (ip>>24), (ip>>16)&0xff, (ip>>8)&0xff, ip&0xff, n.pid());
+    if (!(n==UnassignedNode)) {
+      char* ts = ctime(&_control[k].time());
       printf("%*s%s     %03d      %02d/%7s", 
-	     21-strlen(ipbuff)," ",ipbuff, n.platform(), a.partitionid(), a.partition());
+	     21-strlen(ts)," ",ts, n.platform(), a.partitionid(), a.partition());
       if (!a.nnodes())
 	printf("\n");
       else
 	for(unsigned m=0; m<a.nnodes(); m++) {
 	  const Node& p=*a.node(m);
-	  ip = p.ip();
+	  unsigned ip = p.ip();
 	  printf("%s       %1d/%05d/%d.%d.%d.%d\n", 
 		 m==0 ? "":"                                             ",
 		 p.level(), p.pid(),

@@ -8,14 +8,13 @@ static const unsigned short Step = 32;
 using namespace Pds;
 
 MonPoll::MonPoll(int timeout) :
-  MonSocket(),
+  MonLoopback(),
   _timeout(timeout < 0 ? -1 : timeout),
   _nfds(1),
   _maxfds(Step),
   _ofd(new MonFd*[_maxfds]),
   _pfd(new pollfd[_maxfds])
 {
-  loopback();
   _ofd[0] = 0;
   _pfd[0].fd = socket();
   _pfd[0].events = POLLIN;
@@ -63,6 +62,8 @@ int MonPoll::unmanage(MonFd& fd)
 int MonPoll::timeout() const {return _timeout;}
 void MonPoll::dotimeout(int timeout) {_timeout = timeout < 0 ? -1 : timeout;}
 void MonPoll::donottimeout() {_timeout = -1;}
+
+#include <stdio.h>
 
 int MonPoll::poll()
 {

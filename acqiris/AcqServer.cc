@@ -11,7 +11,7 @@
 using namespace Pds;
 
 AcqServer::AcqServer(const Src& client) :
-  _xtc(TypeId::Id_AcqWaveform,client)
+  _xtc(TypeId(TypeId::Id_AcqWaveform,1),client)
 {
   int err = ::pipe(_pipefd);
   if (err)

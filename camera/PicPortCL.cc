@@ -255,7 +255,7 @@ FrameHandle *PicPortCL::GetFrameHandle() {
       status.DroppedFrames += Captured - 1;
 
     if (Captured != 1)
-      printf("PPCL Captured %d/%d/%x/%d\n",
+      printf("PPCL Captured %ld/%ld/%p/%d\n",
 	     Captured,Current,
 	     (FrameBufferBaseAddress + Roi.StartAddress), 
 	     SeqDralConfig.NrImages);

@@ -3,16 +3,16 @@
 
 #include <poll.h>
 
-#include "pds/mon/MonSocket.hh"
+#include "pds/mon/MonLoopback.hh"
 
 namespace Pds {
 
   class MonFd;
 
-  class MonPoll : public MonSocket {
+  class MonPoll : public MonLoopback {
   public:
     MonPoll(int timeout);
-    ~MonPoll();
+    virtual ~MonPoll();
 
     int timeout() const;
     void dotimeout(int timeout);

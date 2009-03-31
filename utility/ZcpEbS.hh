@@ -18,10 +18,8 @@ class ZcpEbS : public ZcpEb
 	   int stream,
 	   int ipaddress,
 	   unsigned eventsize,
-	   unsigned eventpooldepth);
-#ifdef USE_VMON
-    const VmonEb& vmoneb,
-#endif
+	   unsigned eventpooldepth,
+	   VmonEb* vmoneb=0);
     ~ZcpEbS();
 
     void no_build(Sequence::Type type, unsigned mask);

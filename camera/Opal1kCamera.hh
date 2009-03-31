@@ -11,6 +11,7 @@
 #define Pds_Opal1kCamera_hh
 
 #include "pds/camera/PicPortCL.hh"
+#include "pds/config/Opal1kConfigType.hh"
 
 #define OPAL1000_NAME             "Adimec Opal 1000"
 #define OPAL1000_NAME_12bits      "Adimec_Opal-1000m/Q"
@@ -27,9 +28,6 @@
 #define OPAL1000_SERIAL_TIMEOUT   1000
 #define OPAL1000_CONNECTOR        "CamLink Base Port 0 (HVPSync In 0)"
 
-namespace Opal1k {
-  class ConfigV1;
-};
 
 namespace PdsLeutron {
 
@@ -38,8 +36,8 @@ namespace PdsLeutron {
     Opal1kCamera(char *id = NULL);
     virtual ~Opal1kCamera();
 
-    void                    Config(const Opal1k::ConfigV1&);
-    const Opal1k::ConfigV1& Config() const;
+    void                    Config(const Opal1kConfigType&);
+    const Opal1kConfigType& Config() const;
   protected:
     virtual int PicPortCameraConfig(LvROI &Roi);
     virtual int PicPortCameraInit();
@@ -49,7 +47,7 @@ namespace PdsLeutron {
   public:
     unsigned long CurrentCount;
   private:
-    const Opal1k::ConfigV1* _inputConfig;
+    const Opal1kConfigType* _inputConfig;
     char* _outputBuffer;
   };
 

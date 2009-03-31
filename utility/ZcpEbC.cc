@@ -3,6 +3,7 @@
 #include "EbCountKey.hh"
 #include "ZcpEbEvent.hh"
 #include "pds/xtc/ZcpDatagram.hh"
+#include "pds/vmon/VmonEb.hh"
 
 using namespace Pds;
 
@@ -14,11 +15,11 @@ ZcpEbC::ZcpEbC(const Src& id,
 	       int stream,
 	       int ipaddress,
 	       unsigned eventsize,
-	       unsigned eventpooldepth) :
+	       unsigned eventpooldepth,
+	       VmonEb* vmoneb) :
   ZcpEb(id, ctns, level, inlet, outlet,
 	stream, ipaddress,
-	eventsize, 
-	eventpooldepth),
+	eventsize, eventpooldepth, vmoneb),
   _keys( sizeof(EbCountKey), eventpooldepth )
 {
 }
@@ -31,11 +32,7 @@ EbEventBase* ZcpEbC::_new_event(const EbBitMask& serverId)
 {
   unsigned depth = _datagrams.depth();
 
-#ifdef USE_VMON
-  if (_vmoneb.status() == VmonManager::Running) {
-    _vmoneb.dginuse(depth);
-  }
-#endif
+  if (_vmoneb) _vmoneb->depth(depth);
 
   if (!depth)
     _postEvent(_pending.forward());

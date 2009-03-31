@@ -1,11 +1,15 @@
 #include <errno.h>
 #include <string.h>
 #include <stdio.h>
+#include <netdb.h>
+#include <netinet/in.h>
 
 #include "pds/mon/MonClientManager.hh"
-#include "pds/mon/MonClient.hh"
+#include "pds/mon/MonStreamClient.hh"
 #include "pds/mon/MonFd.hh"
 #include "pds/mon/MonPort.hh"
+#include "pds/mon/MonSrc.hh"
+#include "pds/mon/MonStreamSocket.hh"
 #include "pds/mon/MonConsumerClient.hh"
 #include "pds/service/Task.hh"
 
@@ -13,6 +17,17 @@
 static const int DonotTimeout = -1;
 
 using namespace Pds;
+
+static Ins lookup_ins(const char* hostname, MonPort::Type type)
+{
+  unsigned short port = MonPort::port(type);
+  int address = 0;
+  hostent* host = gethostbyname(hostname);
+  if (host && host->h_addr_list[0]) {
+    address = ntohl(*(int*)host->h_addr_list[0]);
+  }
+  return Ins(address, port);
+}
 
 class MonClientManagerMsg {
 public:
@@ -47,11 +62,16 @@ MonClientManager::MonClientManager(MonConsumerClient& consumer,
   for (unsigned p=0; p<MonPort::NTypes; p++) {
     if (hosts[p]) _nclients++;
   }
+  _cds     = new MonCds*[_nclients];
   _clients = new MonClient*[_nclients];
   for (unsigned p=0, s=0; p<MonPort::NTypes; p++) {
     if (hosts[p]) {
       MonPort::Type type = MonPort::Type(p);
-      _clients[s] = new MonClient(consumer, type, s, hosts[p]);
+      _clients[s] = new MonStreamClient(consumer, 
+					new MonCds(MonPort::name(type)),
+					new MonStreamSocket,
+					MonSrc(s));
+      _clients[s]->dst(lookup_ins(hosts[p],type));
       s++;
     }
   }
@@ -67,6 +87,7 @@ MonClientManager::~MonClientManager()
   for (unsigned s=0; s<_nclients; s++) {
     delete _clients[s];
   }
+  delete [] _cds;
   delete [] _clients;
   _task->destroy();
 }
@@ -95,11 +116,12 @@ int MonClientManager::processMsg()
     case MonClientManagerMsg::Connect:
       {
 	MonClient& client = msg.client();
-	if (client.connect(client.dst()) < 0) {
+	MonStreamSocket& socket = static_cast<MonStreamSocket&>(client.socket());
+	if (socket.connect(client.dst()) < 0) {
 	  _consumer.process(client, MonConsumerClient::ConnectError, 
 			    errno);
 	} else {
-	  client.setrcvbuf(0x8000);
+	  socket.setrcvbuf(0x8000);
 	  manage(client);
 	  _consumer.process(client, MonConsumerClient::Connected);
 	}
@@ -109,7 +131,7 @@ int MonClientManager::processMsg()
       {
 	MonClient& client = msg.client();
 	unmanage(client);
-	if (client.close() < 0) {
+	if (client.socket().close() < 0) {
 	  _consumer.process(client, MonConsumerClient::DisconnectError, 
 			    errno);
 	} else {
@@ -139,7 +161,7 @@ int MonClientManager::processFd(MonFd& fd)
 {
   MonClient& client = (MonClient&)fd;
   unmanage(client);
-  client.close();
+  client.socket().close();
   return 0;
 }
 

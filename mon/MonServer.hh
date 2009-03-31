@@ -4,7 +4,6 @@
 #include <sys/uio.h>
 
 #include "pds/mon/MonSocket.hh"
-#include "pds/mon/MonFd.hh"
 #include "pds/mon/MonMessage.hh"
 
 namespace Pds {
@@ -12,28 +11,33 @@ namespace Pds {
   class MonCds;
   class MonUsage;
 
-  class MonServer : public MonSocket, public MonFd {
+  class MonServer {
   public:
-    MonServer(const MonCds& cds, MonUsage& usage, int socket);
+    MonServer(const Src&, 
+	      const MonCds& cds, 
+	      MonUsage& usage, 
+	      MonSocket& socket);
     virtual ~MonServer();
-    
+
+    MonSocket& socket();
+
+    bool enabled() const;
+
     void enable();
     void disable();
 
-  private:
-    // Implements MonFd
-    virtual int fd() const;
-    virtual int processIo();
-    
+    void description();
+    void payload();
+    void payload(unsigned size);
+
   private:
     void adjust();
-    unsigned description();
-    unsigned payload(unsigned used);
+    void reply (MonMessage::Type,int);
     
   private:
     const MonCds& _cds;
-    MonUsage& _usage;
-    MonMessage _request;
+    MonUsage&  _usage;
+    MonSocket& _socket;
     MonMessage _reply;
     iovec* _iovreply;
     unsigned _iovcnt;

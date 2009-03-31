@@ -1,6 +1,9 @@
 #ifndef Pds_MonSOCKET_HH
 #define Pds_MonSOCKET_HH
 
+#include <sys/types.h>
+#include <sys/socket.h>
+
 class iovec;
 
 namespace Pds {
@@ -9,30 +12,26 @@ namespace Pds {
 
   class MonSocket {
   public:
-    MonSocket();
-    MonSocket(int socket);
+    MonSocket(int socket=-1);
     virtual ~MonSocket();
     
     int socket() const;
     
-    int read(void* buffer, int size) const;
-    int write(const void* data, int size) const;
-    
-    int readv(const iovec* iov, int iovcnt) const;
-    int writev(const iovec* iov, int iovcnt) const;
+    virtual int readv(const iovec* iov, int iovcnt) = 0;
+
+    int read(void* buffer, int size);
+
+    int write (const void* data, int size);
+    int writev(const iovec* iov, int iovcnt);
     
     int setsndbuf(unsigned size);
     int setrcvbuf(unsigned size);
     
-    int connect(const Ins& dst);
-    int listen (const Ins& src);
-    int accept();
-    int loopback();
-    
     int close();
     
-  private:
+  protected:
     int _socket;
+    struct msghdr _hdr;
   };
 };
 

@@ -12,7 +12,6 @@ namespace Pds {
 
   class CDatagram : public InDatagram {
   public:
-    CDatagram() {}
     CDatagram(const Datagram&);
     CDatagram(const Datagram&, const Xtc&);
     CDatagram(const TypeId&, const Src&);

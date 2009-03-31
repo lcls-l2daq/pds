@@ -81,8 +81,8 @@ void MonEntryTH1F::addcontent(double y, double x)
   else if (x >= _desc.xup()) 
     addinfo(y, Overflow);
   else {
-    unsigned bin = ((x-_desc.xlow())*double(_desc.nbins()) / 
-		    (_desc.xup()-_desc.xlow()));
+    unsigned bin = unsigned(((x-_desc.xlow())*double(_desc.nbins()) / 
+			     (_desc.xup()-_desc.xlow())));
     addcontent(y,bin);
   }
 }

@@ -3,7 +3,7 @@
 #include <stdio.h>
 
 #include "pds/mon/MonServerManager.hh"
-#include "pds/mon/MonServer.hh"
+#include "pds/mon/MonStreamServer.hh"
 #include "pds/mon/MonEntry.hh"
 
 #include "pds/service/Task.hh"
@@ -23,11 +23,12 @@ using namespace Pds;
 
 MonServerManager::MonServerManager(MonPort::Type type) :
   MonPoll(DonotTimeout),
-  _cds(type),
+  _port(MonPort::port(type)),
+  _cds(MonPort::name(type)),
   _listener(),
   _maxservers(Step),
   _nservers(0),
-  _servers(new MonServer*[_maxservers]),
+  _servers(new MonStreamServer*[_maxservers]),
   _task(new Task(TaskObject("oSrvMgrTcp"))),
   _sem(Semaphore::EMPTY)
 {
@@ -107,8 +108,7 @@ int MonServerManager::processMsg()
       return 0;
     case Serve:
       {
-	unsigned short port = MonPort::port(_cds.type());
-	Ins src(port);
+	Ins src(_port);
 	if (_listener.listen(src) < 0) {
 	  _result = errno;
 	} else {
@@ -127,7 +127,7 @@ int MonServerManager::processMsg()
 	  _result = 0;
 	}
 	for (unsigned short s=0; s<_nservers; s++) {
-	  MonServer* server = _servers[s];
+	  MonStreamServer* server = _servers[s];
 	  unmanage(*server);
 	  delete server;
 	}
@@ -205,8 +205,8 @@ void MonServerManager::enable_servers()
 void MonServerManager::adjust()
 {
   unsigned short maxservers = _maxservers + Step;
-  MonServer** servers = new MonServer*[maxservers];
-  memcpy(servers, _servers, _nservers*sizeof(MonServer*));
+  MonStreamServer** servers = new MonStreamServer*[maxservers];
+  memcpy(servers, _servers, _nservers*sizeof(MonStreamServer*));
   delete [] _servers;
   _servers = servers;
   _maxservers = maxservers;
@@ -216,8 +216,11 @@ void MonServerManager::adjust()
 void MonServerManager::add(int socket) 
 {
   if (_nservers == _maxservers) adjust();
-  MonServer* server = new MonServer(_cds, _usage, socket);
-  server->setsndbuf(0x8000);
+  MonStreamServer* server = new MonStreamServer(Src(Level::Observer), 
+					       _cds, 
+					       _usage, 
+					       new MonStreamSocket(socket));
+  server->socket().setsndbuf(0x8000);
   manage(*server);
   _servers[_nservers] = server;
   _nservers++;
@@ -227,8 +230,8 @@ void MonServerManager::add(int socket)
 
 void MonServerManager::remove(unsigned short pos) 
 {
-  MonServer* server = _servers[pos];
-  int socket = server->socket();
+  MonStreamServer* server = _servers[pos];
+  int socket = server->socket().socket();
   unmanage(*server);
   delete server;
   unsigned short p = pos+1;

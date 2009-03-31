@@ -16,7 +16,7 @@
 #include "pds/collection/Route.hh"
 #include "pds/service/Client.hh"
 #include "pds/config/CfgClientNfs.hh"
-#include "pdsdata/evr/ConfigV1.hh"
+#include "pds/config/EvrConfigType.hh"
 #include "EvgrBoardInfo.hh"
 #include "EvrManager.hh"
 #include "EvgrOpcode.hh"
@@ -124,8 +124,8 @@ public:
     EvrAction(er),
     _opcode(opcode),
     _cfg(cfg),
-    _cfgtc(TypeId::Id_EvrConfig,cfg.src()),
-    _configBuffer(new char[sizeof(EvrData::ConfigV1)+
+    _cfgtc(_evrConfigType,cfg.src()),
+    _configBuffer(new char[sizeof(EvrConfigType)+
 			   32*sizeof(EvrData::PulseConfig)+
 			   10*sizeof(EvrData::OutputMap)])
   {
@@ -140,12 +140,13 @@ public:
   }
 
   Transition* fire(Transition* tr) {
-    int len=_cfg.fetch(*tr,TypeId::Id_EvrConfig, _configBuffer);
+    _cfgtc.damage.increase(Damage::UserDefined);
+    int len=_cfg.fetch(*tr,_evrConfigType, _configBuffer);
     if (len<0) {
       printf("Config::configure failed to retrieve Evr configuration\n");
       return tr;
     }
-    const EvrData::ConfigV1& cfg = *new(_configBuffer) EvrData::ConfigV1;
+    const EvrConfigType& cfg = *new(_configBuffer) EvrConfigType;
     _cfgtc.extent = sizeof(Xtc)+cfg.size();
 
     printf("Configuring evr\n");
@@ -183,6 +184,8 @@ public:
     }
 
     l1xmitGlobal->reset();
+
+    _cfgtc.damage = 0;
     return tr;
   }
 

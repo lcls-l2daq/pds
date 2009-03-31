@@ -16,7 +16,7 @@
 #include <errno.h>
 #include <sys/time.h>
 #include <signal.h>
-#include "pdsdata/opal1k/ConfigV1.hh"
+#include "pds/config/Opal1kConfigType.hh"
 #include "pds/camera/LvCamera.hh"
 #include "camstream.h"
 #include "pthread.h"
@@ -169,10 +169,10 @@ int main(int argc, char *argv[])
   printf("Configuring camera ... "); 
   fflush(stdout);
   
-  Opal1k::ConfigV1* Config = new Opal1k::ConfigV1( 32, 100, 
-						   Opal1k::ConfigV1::Eight_bit,
-						   Opal1k::ConfigV1::x1,
-						   Opal1k::ConfigV1::None,
+  Opal1kConfigType* Config = new Opal1kConfigType( 32, 100, 
+						   Opal1kConfigType::Eight_bit,
+						   Opal1kConfigType::x1,
+						   Opal1kConfigType::None,
 						   true, false);
 
   pCamera->Config(*Config);

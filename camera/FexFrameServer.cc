@@ -1,7 +1,5 @@
 #include "pds/camera/FexFrameServer.hh"
 
-#include "pdsdata/camera/FrameFexConfigV1.hh"
-
 #include "pds/camera/DmaSplice.hh"
 #include "pds/camera/Frame.hh"
 #include "pds/camera/FrameHandle.hh"
@@ -9,6 +7,9 @@
 #include "pds/camera/TwoDGaussian.hh"
 
 #include "pds/service/ZcpFragment.hh"
+#include "pds/xtc/XtcType.hh"
+#include "pds/camera/FrameType.hh"
+#include "pds/camera/TwoDGaussianType.hh"
 
 #include <errno.h>
 #include <stdio.h>
@@ -25,7 +26,7 @@ FexFrameServer::FexFrameServer(const Src& src,
 			       DmaSplice& splice) :
   _splice(splice),
   _more  (false),
-  _xtc   (TypeId::Id_Xtc, src),
+  _xtc   (_xtcType, src),
   _config(0)
 {
   int err = ::pipe(_fd);
@@ -40,7 +41,7 @@ FexFrameServer::~FexFrameServer()
   ::close(_fd[1]);
 }
 
-void FexFrameServer::Config(const Camera::FrameFexConfigV1& cfg,
+void FexFrameServer::Config(const FrameFexConfigType& cfg,
 			    unsigned camera_offset)
 {
   _config = &cfg;
@@ -120,23 +121,23 @@ int FexFrameServer::fetch(char* payload, int flags)
     const unsigned short* frame_data = 
       reinterpret_cast<const unsigned short*>(fmsg->handle->data);
 
-    Camera::FrameFexConfigV1::Forwarding forwarding(_config->forwarding());
+    FrameFexConfigType::Forwarding forwarding(_config->forwarding());
     if (++_framefwd_count < _config->forward_prescale())
-      forwarding = Camera::FrameFexConfigV1::NoFrame;
+      forwarding = FrameFexConfigType::NoFrame;
     else
       _framefwd_count = 0;
 
-    if (_config->processing() != Camera::FrameFexConfigV1::NoProcessing) {
-      if (forwarding == Camera::FrameFexConfigV1::NoFrame)
+    if (_config->processing() != FrameFexConfigType::NoProcessing) {
+      if (forwarding == FrameFexConfigType::NoFrame)
 	length = _post_fex( payload, frame, frame_data );
       else {
-	Xtc* xtc = new (payload) Xtc(TypeId::Id_Xtc,_xtc.src);
+	Xtc* xtc = new (payload) Xtc(_xtcType,_xtc.src);
 	xtc->extent += _post_fex  (xtc->next(), frame, frame_data);
 	xtc->extent += _post_frame(xtc->next(), frame, frame_data);
 	length = xtc->extent;
       }
     }
-    else if (forwarding != Camera::FrameFexConfigV1::NoFrame)
+    else if (forwarding != FrameFexConfigType::NoFrame)
       length = _post_frame( payload, frame, frame_data );
     else
       length = 0;
@@ -173,22 +174,22 @@ int FexFrameServer::fetch(ZcpFragment& zfo, int flags)
   
   if (fmsg->type == FrameServerMsg::NewFrame) {
     
-    Camera::FrameFexConfigV1::Forwarding forwarding(_config->forwarding());
+    FrameFexConfigType::Forwarding forwarding(_config->forwarding());
     if (++_framefwd_count < _config->forward_prescale())
-      forwarding = Camera::FrameFexConfigV1::NoFrame;
+      forwarding = FrameFexConfigType::NoFrame;
     else
       _framefwd_count = 0;
 
-    if (_config->processing() != Camera::FrameFexConfigV1::NoProcessing) {
+    if (_config->processing() != FrameFexConfigType::NoProcessing) {
       switch( forwarding ) {
-      case Camera::FrameFexConfigV1::FullFrame:
+      case FrameFexConfigType::FullFrame:
 	{ Frame zcpFrame(frame.width(), frame.height(), 
 			 frame.depth(), frame.offset(),
 			 *fmsg->handle, _splice);
   	  length = _queue_fex_and_frame( _feature_extract(frame,frame_data), zcpFrame, fmsg, zfo );
 	  break;
 	}
-      case Camera::FrameFexConfigV1::RegionOfInterest:
+      case FrameFexConfigType::RegionOfInterest:
 	{ Frame zcpFrame(_config->roiBegin().column,
 			 _config->roiEnd  ().column,
 			 _config->roiBegin().row,
@@ -199,21 +200,21 @@ int FexFrameServer::fetch(ZcpFragment& zfo, int flags)
   	  length = _queue_fex_and_frame( _feature_extract(frame,frame_data), zcpFrame, fmsg, zfo );
 	  break;
 	}
-      case Camera::FrameFexConfigV1::NoFrame:
+      case FrameFexConfigType::NoFrame:
 	length = _queue_fex( _feature_extract(frame,frame_data), fmsg, zfo );
 	break;
       }
     }
     else {
       switch (forwarding) {
-      case Camera::FrameFexConfigV1::FullFrame:
+      case FrameFexConfigType::FullFrame:
 	{ Frame zcpFrame(frame.width(), frame.height(), 
 			 frame.depth(), frame.offset(),
 			 *fmsg->handle, _splice);
 	  length = _queue_frame( zcpFrame, fmsg, zfo );
 	  break;
 	}
-      case Camera::FrameFexConfigV1::RegionOfInterest:
+      case FrameFexConfigType::RegionOfInterest:
 	{ Frame zcpFrame(_config->roiBegin().column,
 			 _config->roiEnd  ().column,
 			 _config->roiBegin().row,
@@ -224,7 +225,7 @@ int FexFrameServer::fetch(ZcpFragment& zfo, int flags)
 	  length = _queue_frame( zcpFrame, fmsg, zfo );
 	  break;
 	}
-      case Camera::FrameFexConfigV1::NoFrame:
+      case FrameFexConfigType::NoFrame:
 	length = 0;
 	break;
       }
@@ -263,17 +264,23 @@ unsigned FexFrameServer::count() const
 unsigned FexFrameServer::_post_fex(void* xtc, 
 				   const Frame& frame, const unsigned short* frame_data) const
 {
-  Xtc& fexXtc = *new((char*)xtc) Xtc(TypeId::Id_TwoDGaussian, _xtc.src);
-  new(fexXtc.alloc(sizeof(TwoDGaussian))) TwoDGaussian(_feature_extract(frame,frame_data));
+  TwoDGaussian work(_feature_extract(frame,frame_data));
+  Xtc& fexXtc = *new((char*)xtc) Xtc(_twoDGType, _xtc.src);
+  new(fexXtc.alloc(sizeof(TwoDGaussianType))) TwoDGaussianType(work._n,
+							       work._xmean,
+							       work._ymean,
+							       work._major_axis_width,
+							       work._minor_axis_width,
+							       work._major_axis_tilt);
   return fexXtc.extent;
 }
 
 unsigned FexFrameServer::_post_frame(void* xtc, 
 				     const Frame& frame, const unsigned short* frame_data) const
 {
-  Xtc& frameXtc = *new((char*)xtc) Xtc(TypeId::Id_Frame, _xtc.src);
+  Xtc& frameXtc = *new((char*)xtc) Xtc(_frameType, _xtc.src);
   Frame* fp;
-  if (_config->forwarding()==Camera::FrameFexConfigV1::FullFrame)
+  if (_config->forwarding()==FrameFexConfigType::FullFrame)
     fp=new(frameXtc.alloc(sizeof(Frame))) Frame(frame.width(), frame.height(), 
 						frame.depth(), frame.offset(),
 						frame_data);
@@ -297,7 +304,7 @@ int FexFrameServer::_queue_frame( const Frame& frame,
 				  ZcpFragment& zfo )
 {
   int frame_extent = frame.data_size();
-  _xtc.contains = TypeId::Id_Frame;
+  _xtc.contains = _frameType;
   _xtc.extent = sizeof(Xtc) + sizeof(Frame) + frame_extent;
 
   try {
@@ -336,10 +343,10 @@ TwoDMoments FexFrameServer::_feature_extract(const Frame&          frame,
   // perform the feature extraction here
   //
   switch(_config->processing()) {
-  case Camera::FrameFexConfigV1::GssFullFrame:
+  case FrameFexConfigType::GssFullFrame:
     return TwoDMoments(frame.width(), frame.height(), 
 		       frame.offset(), frame_data);
-  case Camera::FrameFexConfigV1::GssRegionOfInterest:
+  case FrameFexConfigType::GssRegionOfInterest:
     return TwoDMoments(frame.width(),
 		       _config->roiBegin().column,
 		       _config->roiEnd  ().column,
@@ -347,7 +354,7 @@ TwoDMoments FexFrameServer::_feature_extract(const Frame&          frame,
 		       _config->roiEnd  ().row,
 		       frame.offset(),
 		       frame_data);
-  case Camera::FrameFexConfigV1::GssThreshold:
+  case FrameFexConfigType::GssThreshold:
     return TwoDMoments(frame.width(),
 		       frame.height(),
 		       _config->threshold(),
@@ -365,10 +372,16 @@ int FexFrameServer::_queue_fex( const TwoDMoments& moments,
 {	
   delete fmsg;
 
-  _xtc.contains = TypeId::Id_TwoDGaussian;
-  _xtc.extent   = sizeof(Xtc) + sizeof(TwoDGaussian);
+  _xtc.contains = _twoDGType;
+  _xtc.extent   = sizeof(Xtc) + sizeof(TwoDGaussianType);
 
-  TwoDGaussian payload(moments);
+  TwoDGaussian work(moments);
+  TwoDGaussianType payload(work._n,
+			   work._xmean,
+			   work._ymean,
+			   work._major_axis_width,
+			   work._minor_axis_width,
+			   work._major_axis_tilt);
 
   try {
     int err;
@@ -390,17 +403,23 @@ int FexFrameServer::_queue_fex_and_frame( const TwoDMoments& moments,
 					  ZcpFragment& zfo )
 {	
 
-  Xtc fexxtc(TypeId::Id_TwoDGaussian, _xtc.src);
-  fexxtc.extent += sizeof(TwoDGaussian);
+  Xtc fexxtc(_twoDGType, _xtc.src);
+  fexxtc.extent += sizeof(TwoDGaussianType);
 
-  Xtc frmxtc(TypeId::Id_Frame, _xtc.src);
+  Xtc frmxtc(_frameType, _xtc.src);
   frmxtc.extent += sizeof(Frame);
   frmxtc.extent += frame.data_size();
 
-  _xtc.contains = TypeId::Id_Xtc;
+  _xtc.contains = _xtcType;
   _xtc.extent   = sizeof(Xtc) + fexxtc.extent + frmxtc.extent;
 
-  TwoDGaussian fex(moments);
+  TwoDGaussian work(moments);
+  TwoDGaussianType fex(work._n,
+		       work._xmean,
+		       work._ymean,
+		       work._major_axis_width,
+		       work._minor_axis_width,
+		       work._major_axis_tilt);
 
   try {
     int err;

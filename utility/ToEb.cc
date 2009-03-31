@@ -16,7 +16,8 @@ static const int Post_ZcpDatagram=3;
 static const int Post_ZcpFragment=4;
 
 ToEb::ToEb(const Src& client) :
-  _client(client)
+  _client(client),
+  _datagram(TypeId(TypeId::Any,0),client)
 {
   int err = ::pipe(_pipefd);
   if (err)

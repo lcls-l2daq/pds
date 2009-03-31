@@ -7,6 +7,7 @@
 #include "pds/service/VmonSourceId.hh"
 #include "pds/collection/CollectionManager.hh"
 #include "EventBuilder.hh"
+#include "pds/xtc/XtcType.hh"
 
 using namespace Pds;
 
@@ -56,7 +57,7 @@ ControlStreams::ControlStreams(CollectionManager& cmgr) :
 				  MaxSize*netbufdepth);
     _inlet_wires[s] = 
       new EventBuilder(cmgr.header().procInfo(),
-		       TypeId(TypeId::Id_Xtc),
+		       _xtcType,
 		       level, *stream(s)->inlet(),
 		       *_outlets[s], s, ipaddress,
 		       MaxSize, eventpooldepth);

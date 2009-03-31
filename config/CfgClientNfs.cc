@@ -1,5 +1,6 @@
 #include "CfgClientNfs.hh"
 
+#include "pds/config/CfgPath.hh"
 #include "pds/utility/Transition.hh"
 #include "pdsdata/xtc/Src.hh"
 #include "pdsdata/xtc/TypeId.hh"
@@ -29,20 +30,9 @@ int CfgClientNfs::fetch(const Transition& tr,
 			const TypeId&     id, 
 			char*             dst)
 {
-  char filename[128];
-  if (_src.level()==Level::Source)
-    sprintf(filename,"%s/%08x/%08x/%08x",
-	    _path,
-	    tr.env(),
-	    _src.phy(),
-	    id.value());
-  else
-    sprintf(filename,"%s/%08x/%x/%08x",
-	    _path,
-	    tr.env(),
-	    _src.level(),
-	    id.value());
 
+  char filename[128];
+  sprintf(filename,"%s/%s",_path,CfgPath::path(tr.env(),_src,id).c_str());
   int fd = ::open(filename,O_RDONLY);
   if (fd < 0) {
     printf("CfgClientNfs::fetch error opening %s : %s\n",

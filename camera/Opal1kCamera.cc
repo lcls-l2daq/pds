@@ -7,7 +7,6 @@
 //!
 
 #include "pds/camera/Opal1kCamera.hh"
-#include "pdsdata/opal1k/ConfigV1.hh"
 #include "pdsdata/camera/FrameCoord.hh"
 
 #include <stdio.h>
@@ -74,7 +73,7 @@ Opal1kCamera::~Opal1kCamera() {
   free(status.CameraId);
 }
 
-void Opal1kCamera::Config(const Opal1k::ConfigV1& config)
+void Opal1kCamera::Config(const Opal1kConfigType& config)
 {
   _inputConfig = &config;
   switch(config.output_resolution_bits()) {
@@ -88,9 +87,9 @@ void Opal1kCamera::Config(const Opal1k::ConfigV1& config)
   ConfigReset();
 }  
 
-const Opal1k::ConfigV1& Opal1kCamera::Config() const
+const Opal1kConfigType& Opal1kCamera::Config() const
 {
-  return *reinterpret_cast<const Opal1k::ConfigV1*>(_outputBuffer);
+  return *reinterpret_cast<const Opal1kConfigType*>(_outputBuffer);
 }
 
 int Opal1kCamera::PicPortCameraConfig(LvROI &Roi) {
@@ -173,7 +172,7 @@ int Opal1kCamera::PicPortCameraInit() {
   char szResponse[SZCOMMAND_MAXLEN];
   int ret;
 
-  Opal1k::ConfigV1* outputConfig = new (_outputBuffer) Opal1k::ConfigV1(*_inputConfig);
+  Opal1kConfigType* outputConfig = new (_outputBuffer) Opal1kConfigType(*_inputConfig);
   SetParameter("Black Level" ,"BL",_inputConfig->black_level());
   SetParameter("Digital Gain","GA",_inputConfig->gain_percent());
   SetParameter("Vertical Binning","VBIN",_inputConfig->vertical_binning());
@@ -199,7 +198,7 @@ int Opal1kCamera::PicPortCameraInit() {
     unsigned n,col,row;
     char cmdb[8];
     GetParameter("DP0",n);
-    Camera::FrameCoord* pc = outputConfig->defect_pixel_coordinates();
+    Pds::Camera::FrameCoord* pc = outputConfig->defect_pixel_coordinates();
     for(unsigned k=1; k<=n; k++,pc++) {
       sprintf(cmdb,"DP%d",k);
       GetParameters(cmdb,col,row);

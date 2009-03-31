@@ -10,14 +10,14 @@ using namespace Pds;
 
 Frame::Frame(unsigned width, unsigned height, 
 	     unsigned depth, unsigned offset) :
-  Camera::FrameV1(width, height, depth, offset)
+  FrameType(width, height, depth, offset)
 {
 }
 
 Frame::Frame(unsigned width, unsigned height, 
 	     unsigned depth, unsigned offset,
 	     const void* input) :
-  Camera::FrameV1(width, height, depth, offset)
+  FrameType(width, height, depth, offset)
 {
   memcpy(data(), input, data_size());
 }
@@ -26,7 +26,7 @@ Frame::Frame(unsigned width, unsigned height,
 	     unsigned depth, unsigned offset,
 	     PdsLeutron::FrameHandle& handle,
 	     DmaSplice&  splice) :
-  Camera::FrameV1(width, height, depth, offset)
+  FrameType(width, height, depth, offset)
 {
   splice.queue(handle.data, data_size(), reinterpret_cast<unsigned>(&handle));
 }
@@ -36,7 +36,7 @@ Frame::Frame(unsigned startCol, unsigned endCol,
 	     unsigned fwidth, unsigned fheight, 
 	     unsigned depth , unsigned offset,
 	     const void* input) :
-  Camera::FrameV1( endCol - startCol, endRow - startRow,
+  FrameType( endCol - startCol, endRow - startRow,
 		   depth, offset )
 {
   unsigned dbytes = depth_bytes();
@@ -58,7 +58,7 @@ Frame::Frame(unsigned startCol, unsigned endCol,
 	     unsigned  depth, unsigned offset,
 	     PdsLeutron::FrameHandle& handle,
 	     DmaSplice& splice) :
-  Camera::FrameV1( endCol - startCol, endRow - startRow,
+  FrameType( endCol - startCol, endRow - startRow,
 		   depth, offset )
 {
   unsigned dbytes    = depth_bytes();
@@ -75,12 +75,12 @@ Frame::Frame(unsigned startCol, unsigned endCol,
 
 Frame::Frame(const PdsLeutron::FrameHandle& handle,
 	     unsigned offset) :
-  Camera::FrameV1( handle.width, handle.height, handle.depth(), offset )
+  FrameType( handle.width, handle.height, handle.depth(), offset )
 {
 }
   
 Frame::Frame(const Frame& f) :
-  Camera::FrameV1( f.width(), f.height(),
+  FrameType( f.width(), f.height(),
 		   f.depth(), f.offset() )
 {
 }

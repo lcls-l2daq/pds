@@ -8,6 +8,7 @@
 //#include "pds/collection/McastDb.hh"
 //#include "pds/collection/BcastRegistery.hh"
 #include "pds/utility/EbS.hh"
+#include "pds/xtc/XtcType.hh"
 
 #include <sys/types.h>  // required for kill
 #include <signal.h>
@@ -30,27 +31,17 @@ EventStreams::EventStreams(CollectionManager& cmgr) :
 				  ipaddress, 
 				  MaxSize*netbufdepth);
 
-    if (cmgr.header().level()==Level::Recorder) {
-      EventBuilder* eb = new EventBuilder
-	(cmgr.header().procInfo(),
-	 TypeId(TypeId::Id_Xtc),
-	 level,
-	 *stream(s)->inlet(), *_outlets[s], s, ipaddress,
-	 MaxSize, ebdepth);
-      
+    EventBuilder* eb = new EventBuilder
+      (cmgr.header().procInfo(),
+       _xtcType,
+       level,
+       *stream(s)->inlet(), *_outlets[s], s, ipaddress,
+       MaxSize, ebdepth);
+    
+    if (cmgr.header().level()==Level::Recorder)
       eb->no_build(Sequence::Event,1<<TransitionId::L1Accept);
-      _inlet_wires[s] = eb;
-    }
-    else {
-      EventBuilder* eb = new EventBuilder
-	(cmgr.header().procInfo(),
-	 TypeId(TypeId::Id_Xtc),
-	 level,
-	 *stream(s)->inlet(), *_outlets[s], s, ipaddress,
-	 MaxSize, ebdepth);
-      _inlet_wires[s] = eb;
-    }
 
+    _inlet_wires[s] = eb;
   }
   //  _vmom_appliance = new VmonAppliance(vmon());
   //  _vmom_appliance->connect(stream(StreamParams::Occurrence)->inlet());
