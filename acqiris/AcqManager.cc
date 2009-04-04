@@ -253,7 +253,7 @@ public:
     Acqiris::HorizV1 horizConfig(sampInterval,delayTime,nbrSamples,nbrSegments);
 
     long coupling = 3, bandwidth = 0;
-    double fullScale = 1.5, offset = 0.0;
+    double fullScale = 1.0, offset = 0.0;
 
     long trigCoupling = 3; // DC, 50ohms
     long trigInput = -3; // External input 3.
@@ -262,7 +262,7 @@ public:
     Acqiris::TrigV1 trigConfig(trigCoupling, trigInput, trigSlope, trigLevel);
 
     long nbrConvertersPerChannel=1;
-    long channelMask = 0x6;
+    long channelMask = 0xf;
     long  nbrBanks = 1;
 
     // Configure timebase

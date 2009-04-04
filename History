@@ -1,3 +1,10 @@
+2009-Apr-3      cpo     Change some default acqiris params so that
+                        we don't get as many "WARNING: Parameter has been
+                        adapted" messages.  We still have one, which
+                        comes when we set the trigger coupling to DC50ohms
+                        (for some reason it complains that the previous
+                        setting didn't have the 50 ohms in it, I believe).
+
 2009-Mar-31     weaver  Tag V00-08-00.  Consistent with pdsdata V00-03-00.
 			Added missing versions to all data type constructions.
 			Added typedefs in config/*Type.hh to track current versions of config objects.
