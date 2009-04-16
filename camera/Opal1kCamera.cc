@@ -18,49 +18,11 @@
 
 #define RESET_COUNT 0x80000000
 
-// ========================================================
-// FindConnIndex
-// ========================================================
-// Utility function to find connector index (if exists)
-// based on the connector name and previously found
-// grabber and camera IDs.
-// ========================================================
-U16BIT FindConnIndex(HGRABBER hGrabber, U16BIT CameraId) {
-  U16BIT ConnIndex = HANDLE_INVALID;
-  LvGrabberNode *Grabber=DsyGetGrabberPtrFromHandle(hGrabber);
-  int NrFree=Grabber->GetNrFreeConnectorEx(CameraId);
-
-  if (NrFree) {
-    LvConnectionInfo *ConnectorInfo=new LvConnectionInfo[NrFree];
-    // Copy the info to the array
-    Grabber->GetFreeConnectorInfoEx(CameraId, ConnectorInfo);
-    // Check if it is possible to connect the camera to the
-    // grabber via the specified connector.
-    for(U16BIT Index=0; Index<NrFree; Index++) {
-      if (strncmp(ConnectorInfo[Index].Description, OPAL1000_CONNECTOR, strlen(OPAL1000_CONNECTOR))==0) {
-        ConnIndex = Index;
-        break;
-      }
-    }
-  }
-  return ConnIndex;
-}
-
 using namespace PdsLeutron;
 
 Opal1kCamera::Opal1kCamera(char *id) :
   _inputConfig(0)
 {
-  PicPortCLConfig.Baudrate = OPAL1000_SERIAL_BAUDRATE;
-  PicPortCLConfig.Parity = OPAL1000_SERIAL_PARITY;
-  PicPortCLConfig.ByteSize = OPAL1000_SERIAL_DATASIZE;
-  PicPortCLConfig.StopSize = OPAL1000_SERIAL_STOPSIZE;
-  PicPortCLConfig.eotWrite = OPAL1000_SERIAL_ACK;
-  PicPortCLConfig.eotRead = OPAL1000_SERIAL_EOT;
-  PicPortCLConfig.sof = OPAL1000_SERIAL_SOF;
-  PicPortCLConfig.eof = OPAL1000_SERIAL_EOT;
-  PicPortCLConfig.Timeout_ms = OPAL1000_SERIAL_TIMEOUT;
-  //  PicPortCLConfig.bUsePicportCounters = false;
   if (id == NULL)
     id = "";
   status.CameraId = (char *)malloc(strlen(id)+1);
@@ -76,50 +38,34 @@ Opal1kCamera::~Opal1kCamera() {
 void Opal1kCamera::Config(const Opal1kConfigType& config)
 {
   _inputConfig = &config;
-  switch(config.output_resolution_bits()) {
-  case 8 :
-    frameFormat = FrameHandle::FORMAT_GRAYSCALE_8 ; break;
-  case 10:
-    frameFormat = FrameHandle::FORMAT_GRAYSCALE_10; break;
-  case 12:
-    frameFormat = FrameHandle::FORMAT_GRAYSCALE_12; break;
-  }
   ConfigReset();
 }  
 
+unsigned Opal1kCamera::output_resolution() const 
+{ return _inputConfig->output_resolution_bits(); }
+
 const Opal1kConfigType& Opal1kCamera::Config() const
+{ return *reinterpret_cast<const Opal1kConfigType*>(_outputBuffer); }
+
+const char* Opal1kCamera::Name() const
 {
-  return *reinterpret_cast<const Opal1kConfigType*>(_outputBuffer);
-}
-
-int Opal1kCamera::PicPortCameraConfig(LvROI &Roi) {
-  U16BIT CameraId;
-
-  // Set config
-  SeqDralConfig.NrImages = 16; // 2MB per image !
-  SeqDralConfig.UseCameraList = true;
+  if (!_inputConfig) {
+    printf("Opal1kCamera::Name() referenced before configuration known\n");
+    return 0;
+  }
+  const char* name(0);
   switch(_inputConfig->output_resolution_bits()) {
-    case 8:
-      CameraId = DsyGetCameraId(OPAL1000_NAME_8bits);
-      Roi.SetColorFormat(ColF_Mono_8);
-      break;
-    case 10:
-      CameraId = DsyGetCameraId(OPAL1000_NAME_10bits);
-      Roi.SetColorFormat(ColF_Mono_10);
-      break;
-    case 12:
-      CameraId = DsyGetCameraId(OPAL1000_NAME_12bits);
-      Roi.SetColorFormat(ColF_Mono_12);
-      break;
-    default:
-      return -ENOTSUP;
-  };
-  SeqDralConfig.ConnectCamera.MasterCameraType = CameraId;
-  SeqDralConfig.ConnectCamera.NrCamera = 1;
-  SeqDralConfig.ConnectCamera.Camera[0].hGrabber = SeqDralConfig.hGrabber;
-  SeqDralConfig.ConnectCamera.Camera[0].ConnIndex = FindConnIndex(SeqDralConfig.hGrabber, CameraId);
-  return 0;
+  case  8: name = OPAL1000_NAME_8bits; break;
+  case 10: name = OPAL1000_NAME_10bits; break;
+  case 12: name = OPAL1000_NAME_12bits; break;
+  default: name = 0; break;
+  }
+  return name;
 }
+
+bool Opal1kCamera::trigger_CC1() const { return false; }
+
+unsigned Opal1kCamera::trigger_duration_us() const { return 0; }
 
 #define SetCommand(title,cmd) { \
   snprintf(szCommand, SZCOMMAND_MAXLEN, cmd); \

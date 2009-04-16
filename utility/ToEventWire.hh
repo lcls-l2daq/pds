@@ -19,10 +19,12 @@ namespace Pds {
     ToEventWire(Outlet& outlet,
 		CollectionManager&,
 		int interface,
-		int maxbuf);
+		int maxbuf,
+		const Ins& occurrences);
     ~ToEventWire();
 
     virtual Transition* forward(Transition* dg);
+    virtual Occurrence* forward(Occurrence* dg);
     virtual InDatagram* forward(InDatagram* dg);
     virtual void bind(unsigned id, const Ins& node);
     virtual void unbind(unsigned id);
@@ -38,6 +40,7 @@ namespace Pds {
     OutletWireInsList _nodes;
     CollectionManager& _collection;
     ToNetEb _postman;
+    const Ins& _occurrences;
   };
 }
 

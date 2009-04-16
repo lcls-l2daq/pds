@@ -1,5 +1,6 @@
 #include "Outlet.hh"
 #include "OutletWire.hh"
+#include "Occurrence.hh"
 
 using namespace Pds;
 
@@ -55,6 +56,12 @@ InDatagram* Outlet::markers(InDatagram* datagram){
     return _wire->forward(datagram);
   else 
     return 0;
+}
+
+void Outlet::post(Occurrence* occ)
+{
+  if (!_wire->forward(occ))
+    delete occ;
 }
 
 //

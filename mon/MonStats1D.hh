@@ -15,6 +15,8 @@ namespace Pds {
     double rms() const;
     double under() const;
     double over() const;
+    double sumx() const;
+    double sumx2() const;
 
   private:
     double _sumw; 

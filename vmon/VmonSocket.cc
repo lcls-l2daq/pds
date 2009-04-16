@@ -23,7 +23,6 @@ VmonSocket::~VmonSocket()
 
 int VmonSocket::readv(const iovec* iov, int iovcnt)
 {
-  bool peeked = _peeked;
   if (_peeked) {
     if (iovcnt >= _iovcnt) {
       iovec iovhdr = _iovs[0];

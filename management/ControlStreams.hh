@@ -5,7 +5,7 @@
 
 namespace Pds {
   
-  class CollectionManager;
+  class PartitionMember;
   //class ControlOccHandler;
 
   class ControlStreams: public WiredStreams {
@@ -13,7 +13,7 @@ namespace Pds {
     enum { netbufdepth = 32 };
     enum { MaxSize = 1024*1024 };
   public:
-    ControlStreams(CollectionManager&);
+    ControlStreams(PartitionMember&);
     virtual ~ControlStreams();
     
   private:

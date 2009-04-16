@@ -5,11 +5,14 @@ libsrcs_camera := DmaSplice.cc \
 		  Frame.cc \
 		  LvCamera.cc \
 		  PicPortCL.cc \
-		  Opal1kCamera.cc \
 		  TwoDMoments.cc \
 		  TwoDGaussian.cc \
 	          FexFrameServer.cc \
-	          Opal1kManager.cc
+		  Opal1kCamera.cc \
+	          TM6740Camera.cc \
+		  CameraManager.cc \
+		  Opal1kManager.cc \
+	          TM6740Manager.cc
 #	          FrameServer.cc \
 libsinc_camera := /usr/include/lvsds
 libincs_camera := leutron/include
@@ -21,26 +24,33 @@ tgtnames :=
 ifneq ($(findstring -opt,$(tgt_arch)),)
 tgtnames := camsend camreceiver serialcmd
 endif
+tgtnames := camsend camreceiver serialcmd
+
+#ifeq ($(shell uname -m | egrep -c '(x86_|amd)64$$'),1)
+#ARCHCODE=64
+#else
+ARCHCODE=32
+#endif
+
+leutron_libs := leutron/lvsds.34.${ARCHCODE}
+leutron_libs += leutron/LvCamDat.34.${ARCHCODE}
+leutron_libs += leutron/LvSerialCommunication.34.${ARCHCODE}
 
 tgtsrcs_camsend := camsend.cc
 tgtlibs_camsend := pds/service pds/collection pds/utility pds/config pds/camera pds/client pds/xtc
 tgtlibs_camsend += pds/vmon pds/mon
-tgtlibs_camsend += pdsdata/xtcdata pdsdata/camdata pdsdata/opal1kdata
+tgtlibs_camsend += pdsdata/xtcdata pdsdata/camdata pdsdata/opal1kdata pdsdata/pulnixdata
 tgtincs_camsend := pds/zerocopy/kmemory pds/camera
-tgtlibs_camsend += leutron/lvsds
-tgtlibs_camsend += leutron/LvCamDat.34.32
-tgtlibs_camsend += leutron/LvSerialCommunication.34.32
+tgtlibs_camsend += $(leutron_libs)
 tgtincs_camsend += leutron/include
 
 tgtsrcs_camreceiver := camreceiver.c display.cc
-tgtslib_camreceiver := /pcds/package/qt-4.3.4/lib/QtGui /pcds/package/qt-4.3.4/lib/QtCore
 tgtsinc_camreceiver := /pcds/package/qt-4.3.4/include
+tgtlibs_camreceiver := qt/QtGui qt/QtCore
 #tgtslib_camreceiver := /usr/lib/qt4/lib/QtGui /usr/lib/qt4/lib/QtCore
 #tgtsinc_camreceiver := /usr/lib/qt4/include
 
 tgtsrcs_serialcmd := serialcmd.cc
-tgtlibs_serialcmd := leutron/lvsds
-tgtlibs_serialcmd += leutron/LvCamDat.34.32
-tgtlibs_serialcmd += leutron/LvSerialCommunication
+tgtlibs_serialcmd := $(leutron_libs)
 tgtincs_serialcmd := leutron/include
 

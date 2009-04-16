@@ -16,10 +16,24 @@ using namespace Pds;
 
 static const int tbins_pwr_max = 6; // maximum of 64 time bins
 
+static int time_scale(unsigned  maxtime,
+		      unsigned& maxtime_q)
+{
+  int tshift = 0;
+  maxtime_q  = 1;
+  while(maxtime_q < maxtime) {
+    maxtime_q <<= 1;
+    tshift++;
+  }
+  return (tshift > tbins_pwr_max) ? tshift-tbins_pwr_max : 0;
+}
+
+
 VmonEb::VmonEb(const Src& src,
 	       unsigned nservers,
 	       unsigned maxdepth,
-	       unsigned maxtime)
+	       unsigned maxtime,
+	       unsigned maxsize)
 {
   MonGroup* group = new MonGroup("Eb");
   VmonServerManager::instance()->cds().add(group);
@@ -34,28 +48,31 @@ VmonEb::VmonEb(const Src& src,
   _depth = new MonEntryTH1F(depth);
   group->add(_depth);
 
-  int tshift = 0;
-  unsigned maxt   = 1;
-  while(maxt < maxtime) {
-    maxt <<= 1;
-    tshift++;
-  }
-  _tshift = (tshift > tbins_pwr_max) ? tshift-tbins_pwr_max : 0;
+  unsigned maxt;
+  _tshift = time_scale(maxtime, maxt);
 
-  MonDescTH1F post_time("Post Time", "ticks", "",
-			maxt>>_tshift, -0.5, float(maxt)-0.5);
+  float t0 = -0.5*1.e-3;
+  float t1 = (float(maxt)-0.5)*1.e-3;
+
+  MonDescTH1F post_time("Post Time", "[us]", "",
+			maxt>>_tshift, t0, t1);
   _post_time = new MonEntryTH1F(post_time);
   group->add(_post_time);
 
-  if (!maxtime) {
-    _fetch_time=0;
-    return;
-  }
-
-  MonDescTH1F fetch_time("Fetch Time", "ticks", "",
-			 maxt>>_tshift, -0.5, float(maxt)-0.5);
+  MonDescTH1F fetch_time("Fetch Time", "[us]", "",
+			 maxt>>_tshift, t0, t1);
   _fetch_time = new MonEntryTH1F(fetch_time);
   group->add(_fetch_time);
+
+  unsigned maxs;
+  _sshift = time_scale(maxsize,maxs);
+  float s0 = -0.5;
+  float s1 = float(maxs)-0.5;
+
+  MonDescTH1F post_size("Post Size","[bytes]", "",
+			maxs>>_sshift, s0, s1);
+  _post_size = new MonEntryTH1F(post_size);
+  group->add(_post_size);
 }
 
 VmonEb::~VmonEb()
@@ -97,13 +114,20 @@ void VmonEb::fetch_time(unsigned t)
     _fetch_time->addinfo(1, MonEntryTH1F::Overflow);
 }
 
-void VmonEb::update()
+void VmonEb::post_size(unsigned s)
 {
-  struct timespec tv;
-  clock_gettime(CLOCK_REALTIME,&tv);
-  ClockTime now(tv.tv_sec,tv.tv_nsec);
-  _fixup->time(now);
-  _depth->time(now);
-  _post_time->time(now);
-  if (_fetch_time) _fetch_time->time(now);
+  unsigned bin = s>>_sshift;
+  if (bin < _post_size->desc().nbins())
+    _post_size->addcontent(1, bin);
+  else
+    _post_size->addinfo(1, MonEntryTH1F::Overflow);
+}
+
+void VmonEb::update(const ClockTime& now)
+{
+  _fixup     ->time(now);
+  _depth     ->time(now);
+  _post_time ->time(now);
+  _fetch_time->time(now);
+  _post_size ->time(now);
 }

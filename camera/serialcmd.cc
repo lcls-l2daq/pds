@@ -9,7 +9,8 @@
 //
 //  An example looks like this:
 //
-// bash-3.1$ build/pds/bin/i386-linux-dbg/serialcmd $(printf "@MO0\r") --eot $(printf "\6")
+// build/pds/bin/i386-linux-opt/serialcmd --camera Pulnix_TM6740CL_8bit --grabber "PicPortX CL Mono" --baudrate 9600
+// build/pds/bin/i386-linux-opt/serialcmd --camera Adimec_Opal-1000m/Q_F8bit --grabber "PicPortX CL Mono PMC" --baudrate 115200
 //
 
 #include <stdio.h>
@@ -20,6 +21,7 @@
 
 #define DEFAULT_CAMERA      "Adimec_Opal-1000m/Q_F8bit"
 #define DEFAULT_GRABBER     "PicPortX CL Mono PMC"
+//#define DEFAULT_CAMERA      "Pulnix_TM6740CL_8bit"
 //#define DEFAULT_GRABBER     "PicPortX CL Mono"
 #define DEFAULT_BAUDRATE    57600
 #define DEFAULT_PARITY      'n'
@@ -28,7 +30,7 @@
 
 #define SERIALPORT_ID       0
 #define RECEIVEBUFFER_SIZE  256
-#define RECEIVE_TIMEOUT_MS  1000
+#define RECEIVE_TIMEOUT_MS  10000
 
 void help(char *prog_name)
 {
@@ -257,9 +259,10 @@ int main(int argc, char *argv[])
 	printf("%02x:",result[k]);
       printf("\n");
 
-      sprintf(szCommand,"@%s\r",result);
+      sprintf(szCommand,"%s\r",result);
       unsigned long cEOT = (result[strlen(result)-1]=='?') ? 
 	'\r' : '\6';
+      cEOT = '\r';
 
       for(unsigned k=0; k<strlen(szCommand); k++)
 	printf("%02x:",szCommand[k]);
@@ -278,12 +281,12 @@ int main(int argc, char *argv[])
 	  display_serialcmd(pReceiveBuffer, ulReceivedLength);
 	  printf("\n");
         }
-        printf("\n");
-        lvpGrabber->DeactivateCamera(hCamera);
-        lvpGrabber->DisconnectCamera(hCamera);
-        delete lvpciConnections;
-        DsyClose();
-        return 10;
+//         printf("\n");
+//         lvpGrabber->DeactivateCamera(hCamera);
+//         lvpGrabber->DisconnectCamera(hCamera);
+//         delete lvpciConnections;
+//         DsyClose();
+//         return 10;
       }
       display_serialcmd(pReceiveBuffer, ulReceivedLength);
       printf("\n\n");

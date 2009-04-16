@@ -1,7 +1,8 @@
 #ifndef Pds_Opal1kManager_hh
 #define Pds_Opal1kManager_hh
 
-#include "pdsdata/xtc/Xtc.hh"
+#include "pds/camera/CameraManager.hh"
+#include "pds/config/Opal1kConfigType.hh"
 
 namespace PdsLeutron {
   class Opal1kCamera;
@@ -9,43 +10,33 @@ namespace PdsLeutron {
 
 namespace Pds {
 
-  class Appliance;
-  class Server;
-
-  class CfgClientNfs;
-  class Fsm;
   class Src;
-  class DmaSplice;
-  class FexFrameServer;
-  class Transition;
-  class InDatagram;
+  class GenericPool;
 
-  class Opal1kManager {
+  class Opal1kManager : public CameraManager {
   public:
     Opal1kManager(const Src& src);
     ~Opal1kManager();
 
-    Appliance&  appliance();
-    Server&     server();
-
-  public:
-    Transition* allocate (Transition* tr);
-    Transition* configure(Transition* tr);
-    Transition* unconfigure(Transition* tr);
-
-    InDatagram* configure  (InDatagram* in);
-    InDatagram* unconfigure(InDatagram* in);
+  private:
+    Pds::Damage _handle    ();
+    void        _register  ();
+    void        _unregister();
 
   private:
-    PdsLeutron::Opal1kCamera*   _camera;
-    DmaSplice*      _splice;
-    FexFrameServer* _server;
-    Fsm*            _fsm;
-    int             _sig;
-    char*           _configBuffer;
-    CfgClientNfs*   _configService;
-    Xtc             _opaltc;
-    Xtc             _fextc;
+    void _configure(char*);
+    void _configure(InDatagram*);
+
+    PdsLeutron::PicPortCL& camera();
+    const TypeId& camConfigType();
+
+  private:
+    PdsLeutron::Opal1kCamera* _camera;
+    const Opal1kConfigType*   _configdata;
+    Xtc                       _configtc;
+    //  buffer management
+    bool            _outOfOrder;
+    GenericPool*    _occPool;
   };
 };
 

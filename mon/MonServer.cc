@@ -96,23 +96,8 @@ void MonServer::description()
 {
   adjust();
 
-  unsigned element=0;
   iovec* iov = _iovreply+1;
-  iov[element].iov_base = (void*)&_cds.desc();
-  iov[element].iov_len = sizeof(MonDesc);
-  element++;
-  for (unsigned short g=0; g<_cds.ngroups(); g++) {
-    const MonGroup* group = _cds.group(g);
-    iov[element].iov_base = (void*)&group->desc();
-    iov[element].iov_len = sizeof(MonDesc);
-    element++;
-    for (unsigned short e=0; e<group->nentries(); e++) {
-      const MonEntry* entry = group->entry(e); 
-      iov[element].iov_base = (void*)&entry->desc();
-      iov[element].iov_len = entry->desc().size();
-      element++;
-    }
-  }
+  unsigned element = _cds.description(iov);
 
   reply(MonMessage::Description,element+1);
 }

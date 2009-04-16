@@ -5,7 +5,7 @@
 #include "pds/collection/Node.hh"
 #include "pds/service/Task.hh"
 #include "pds/service/VmonSourceId.hh"
-#include "pds/collection/CollectionManager.hh"
+#include "pds/management/PartitionMember.hh"
 #include "EventBuilder.hh"
 #include "pds/xtc/XtcType.hh"
 
@@ -43,7 +43,7 @@ private:
 };
 */
 
-ControlStreams::ControlStreams(CollectionManager& cmgr) :
+ControlStreams::ControlStreams(PartitionMember& cmgr) :
   WiredStreams(VmonSourceId(cmgr.header().level(), 0))
 {
   //  VmonEb vmoneb(vmon());
@@ -54,7 +54,8 @@ ControlStreams::ControlStreams(CollectionManager& cmgr) :
     _outlets[s] = new ToEventWire(*stream(s)->outlet(), 
 				  cmgr,
 				  ipaddress,
-				  MaxSize*netbufdepth);
+				  MaxSize*netbufdepth,
+				  cmgr.occurrences());
     _inlet_wires[s] = 
       new EventBuilder(cmgr.header().procInfo(),
 		       _xtcType,

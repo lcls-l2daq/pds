@@ -13,6 +13,7 @@
 #include "pds/utility/NetDgServer.hh"
 #include "pds/xtc/CDatagram.hh"
 #include "pds/management/EbIStream.hh"
+#include "pds/management/MsgAppliance.hh"
 
 using namespace Pds;
 
@@ -64,6 +65,9 @@ bool EventLevel::attach()
     _streams->wire(StreamParams::FrameWork)->add_input(_inlet->output());
 
     _callback.attached(*_streams);
+
+    (new MsgAppliance)->connect(_streams->stream()->inlet());
+
     Message join(Message::Join);
     mcast(join);
     return true;

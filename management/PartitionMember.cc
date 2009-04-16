@@ -24,6 +24,8 @@ PartitionMember::~PartitionMember()
 {
 }
 
+const Ins& PartitionMember::occurrences() const { return _occurrences; }
+
 void PartitionMember::message(const Node& hdr, const Message& msg) 
 {
   if (hdr.level() == Level::Control) {
@@ -55,6 +57,7 @@ void PartitionMember::message(const Node& hdr, const Message& msg)
 	    if (header() == *node) {
 	      _isallocated = true;
 	      _allocator = hdr;
+	      _occurrences = msg.reply_to();
 	      allocated( alloc, _index=index );
 	    }
 	    if (node->level() == header().level()) {

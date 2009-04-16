@@ -119,9 +119,8 @@ int Eb::processIo(Server* serverGeneric)
       event->deallocate(serverId);  // remove the contribution from this event
       event = (EbEvent*)_seek(server);
       if (event == (EbEvent*)_pending.empty()) {
-	EbEvent* new_ev = (EbEvent*)_new_event(serverId);
-	new_ev->connect(event);
-	event = new_ev;
+	event = (EbEvent*)_new_event(serverId);
+	_pending.insert(event);
       }
 
       event->allocated().insert(serverId);

@@ -41,23 +41,21 @@ FexFrameServer::~FexFrameServer()
   ::close(_fd[1]);
 }
 
-void FexFrameServer::Config(const FrameFexConfigType& cfg,
-			    unsigned camera_offset)
+void FexFrameServer::setFexConfig(const FrameFexConfigType& cfg)
 {
   _config = &cfg;
-  _camera_offset = camera_offset;
   _framefwd_count = 0;
-  _nposts = 0;
+}
+
+void FexFrameServer::setCameraOffset(unsigned camera_offset)
+{
+  _camera_offset = camera_offset;
 }
 
 void FexFrameServer::post(FrameServerMsg* msg)
 {
   msg->connect(_msg_queue.reverse());
   ::write(_fd[1],&msg,sizeof(msg));
-  if (msg->count != _nposts)
-    printf("Camera frame number(%d) != Server number(%d)\n",
-	  msg->count, _nposts);
-  _nposts++;
 }
 
 void FexFrameServer::dump(int detail) const
@@ -117,10 +115,6 @@ int FexFrameServer::fetch(char* payload, int flags)
     //  Is pipe write/read good enough?
     if (msg != fmsg) printf("Overlapping events %d/%d\n",msg->count,fmsg->count);
 
-    Frame frame(*fmsg->handle, _camera_offset);
-    const unsigned short* frame_data = 
-      reinterpret_cast<const unsigned short*>(fmsg->handle->data);
-
     FrameFexConfigType::Forwarding forwarding(_config->forwarding());
     if (++_framefwd_count < _config->forward_prescale())
       forwarding = FrameFexConfigType::NoFrame;
@@ -129,16 +123,16 @@ int FexFrameServer::fetch(char* payload, int flags)
 
     if (_config->processing() != FrameFexConfigType::NoProcessing) {
       if (forwarding == FrameFexConfigType::NoFrame)
-	length = _post_fex( payload, frame, frame_data );
+	length = _post_fex( payload, fmsg);
       else {
-	Xtc* xtc = new (payload) Xtc(_xtcType,_xtc.src);
-	xtc->extent += _post_fex  (xtc->next(), frame, frame_data);
-	xtc->extent += _post_frame(xtc->next(), frame, frame_data);
+	Xtc* xtc = new (payload) Xtc(_xtcType,_xtc.src, fmsg->damage);
+	xtc->extent += _post_fex  (xtc->next(), fmsg);
+	xtc->extent += _post_frame(xtc->next(), fmsg);
 	length = xtc->extent;
       }
     }
     else if (forwarding != FrameFexConfigType::NoFrame)
-      length = _post_frame( payload, frame, frame_data );
+      length = _post_frame( payload, fmsg);
     else
       length = 0;
 
@@ -261,11 +255,14 @@ unsigned FexFrameServer::count() const
   return _count;
 }
 
-unsigned FexFrameServer::_post_fex(void* xtc, 
-				   const Frame& frame, const unsigned short* frame_data) const
+unsigned FexFrameServer::_post_fex(void* xtc, const FrameServerMsg* fmsg) const
 {
+  Frame frame(*fmsg->handle, _camera_offset);
+  const unsigned short* frame_data = 
+    reinterpret_cast<const unsigned short*>(fmsg->handle->data);
+
   TwoDGaussian work(_feature_extract(frame,frame_data));
-  Xtc& fexXtc = *new((char*)xtc) Xtc(_twoDGType, _xtc.src);
+  Xtc& fexXtc = *new((char*)xtc) Xtc(_twoDGType, _xtc.src, fmsg->damage);
   new(fexXtc.alloc(sizeof(TwoDGaussianType))) TwoDGaussianType(work._n,
 							       work._xmean,
 							       work._ymean,
@@ -275,10 +272,13 @@ unsigned FexFrameServer::_post_fex(void* xtc,
   return fexXtc.extent;
 }
 
-unsigned FexFrameServer::_post_frame(void* xtc, 
-				     const Frame& frame, const unsigned short* frame_data) const
+unsigned FexFrameServer::_post_frame(void* xtc, const FrameServerMsg* fmsg) const
 {
-  Xtc& frameXtc = *new((char*)xtc) Xtc(_frameType, _xtc.src);
+  Frame frame(*fmsg->handle, _camera_offset);
+  const unsigned short* frame_data = 
+    reinterpret_cast<const unsigned short*>(fmsg->handle->data);
+
+  Xtc& frameXtc = *new((char*)xtc) Xtc(_frameType, _xtc.src, fmsg->damage);
   Frame* fp;
   if (_config->forwarding()==FrameFexConfigType::FullFrame)
     fp=new(frameXtc.alloc(sizeof(Frame))) Frame(frame.width(), frame.height(), 
@@ -305,6 +305,7 @@ int FexFrameServer::_queue_frame( const Frame& frame,
 {
   int frame_extent = frame.data_size();
   _xtc.contains = _frameType;
+  _xtc.damage   = fmsg->damage;
   _xtc.extent = sizeof(Xtc) + sizeof(Frame) + frame_extent;
 
   try {
@@ -373,6 +374,7 @@ int FexFrameServer::_queue_fex( const TwoDMoments& moments,
   delete fmsg;
 
   _xtc.contains = _twoDGType;
+  _xtc.damage   = fmsg->damage;
   _xtc.extent   = sizeof(Xtc) + sizeof(TwoDGaussianType);
 
   TwoDGaussian work(moments);
@@ -403,14 +405,15 @@ int FexFrameServer::_queue_fex_and_frame( const TwoDMoments& moments,
 					  ZcpFragment& zfo )
 {	
 
-  Xtc fexxtc(_twoDGType, _xtc.src);
+  Xtc fexxtc(_twoDGType, _xtc.src, fmsg->damage);
   fexxtc.extent += sizeof(TwoDGaussianType);
 
-  Xtc frmxtc(_frameType, _xtc.src);
+  Xtc frmxtc(_frameType, _xtc.src, fmsg->damage);
   frmxtc.extent += sizeof(Frame);
   frmxtc.extent += frame.data_size();
 
   _xtc.contains = _xtcType;
+  _xtc.damage   = fmsg->damage;
   _xtc.extent   = sizeof(Xtc) + fexxtc.extent + frmxtc.extent;
 
   TwoDGaussian work(moments);

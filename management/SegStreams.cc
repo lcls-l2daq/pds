@@ -1,6 +1,6 @@
 #include "SegStreams.hh"
 #include "EventBuilder.hh"
-#include "pds/collection/CollectionManager.hh"
+#include "pds/management/PartitionMember.hh"
 #include "pds/utility/ToEventWire.hh"
 #include "pds/utility/SegWireSettings.hh"
 #include "pds/utility/InletWire.hh"
@@ -11,7 +11,7 @@ using namespace Pds;
 
 static const unsigned MaxSize = 4*1024*1024;
 
-SegStreams::SegStreams(CollectionManager& cmgr) :
+SegStreams::SegStreams(PartitionMember& cmgr) :
   WiredStreams(VmonSourceId(cmgr.header().level(), cmgr.header().ip()))
   //  _vmom_appliance(new VmonAppliance(vmon()))
 {
@@ -22,7 +22,8 @@ SegStreams::SegStreams(CollectionManager& cmgr) :
     _outlets[s] = new ToEventWire(*stream(s)->outlet(), 
 				  cmgr, 
 				  ipaddress, 
-				  MaxSize*ebdepth);
+				  MaxSize*ebdepth,
+				  cmgr.occurrences());
 
     _inlet_wires[s] = 
       new EventBuilder(cmgr.header().procInfo(),

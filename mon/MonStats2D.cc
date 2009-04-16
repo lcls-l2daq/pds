@@ -94,3 +94,10 @@ double MonStats2D::rmsy() const
     return 0;
   }
 }
+
+double MonStats2D::sum  () const { return _sumw; }
+double MonStats2D::sumx () const { return _sumwx; }
+double MonStats2D::sumy () const { return _sumwy; }
+double MonStats2D::sumx2() const { return _sumwx2; }
+double MonStats2D::sumy2() const { return _sumwy2; }
+double MonStats2D::sumxy() const { return _sumwxy; }

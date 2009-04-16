@@ -2,6 +2,7 @@
 
 #include "Mtu.hh"
 #include "Transition.hh"
+#include "Occurrence.hh"
 #include "pds/collection/CollectionManager.hh"
 #include "pds/xtc/Datagram.hh"
 #include "pds/xtc/InDatagram.hh"
@@ -11,10 +12,12 @@ using namespace Pds;
 ToEventWire::ToEventWire(Outlet& outlet,
 			 CollectionManager& collection,
 			 int interface,
-			 int maxbuf) :
+			 int maxbuf,
+			 const Ins& occurrences) :
   OutletWire(outlet),
   _collection(collection),
-  _postman(interface, Mtu::Size, 1 + maxbuf / Mtu::Size)
+  _postman(interface, Mtu::Size, 1 + maxbuf / Mtu::Size),
+  _occurrences(occurrences)
 {
 }
 
@@ -26,6 +29,12 @@ Transition* ToEventWire::forward(Transition* tr)
 {
   Ins dst(tr->reply_to());
   _collection.ucast(*tr,dst);
+  return 0;
+}
+
+Occurrence* ToEventWire::forward(Occurrence* tr)
+{
+  _collection.ucast(*tr,_occurrences);
   return 0;
 }
 

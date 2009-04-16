@@ -17,6 +17,7 @@ public:
 public:
   //  OutletWire interface
   virtual Transition* forward(Transition* dg);
+  virtual Occurrence* forward(Occurrence* dg);
   virtual InDatagram* forward(InDatagram* dg);
   virtual void bind(unsigned id, const Ins& node) {}
   virtual void unbind(unsigned id) {}

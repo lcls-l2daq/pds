@@ -134,7 +134,7 @@ void *writing_main(void *arg)
 			end_save_time = gettime();
 			total_save_time += end_save_time - start_save_time;
 		}
-		if (enable_display && ((frames_count%(int)(1/disprate)) == 0)) {
+		if (enable_display && ((frames_count%(int)(disprate)) == 0)) {
 			start_display_time = gettime();
 			display_image(
 					images.ring[images.next_ready]->data,

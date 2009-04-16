@@ -1,252 +1,104 @@
 #include "pds/camera/Opal1kManager.hh"
 
-#include "pdsdata/xtc/TypeId.hh"
-
-#include "pds/client/Fsm.hh"
-#include "pds/client/Action.hh"
-
-#include "pds/xtc/InDatagram.hh"
-
-#include "pds/camera/DmaSplice.hh"
 #include "pds/camera/Opal1kCamera.hh"
-#include "pds/config/CfgClientNfs.hh"
 #include "pds/camera/FexFrameServer.hh"
-#include "pds/camera/FrameServerMsg.hh"
 
 #include "pds/config/Opal1kConfigType.hh"
-#include "pds/config/FrameFexConfigType.hh"
+
+#include "pds/service/GenericPool.hh"
+#include "pds/utility/Occurrence.hh"
+#include "pds/utility/OccurrenceId.hh"
+#include "pds/xtc/InDatagram.hh"
+#include "pds/xtc/Datagram.hh"
+#include "pds/utility/Appliance.hh"
 
 #include <signal.h>
 #include <stdlib.h>
 #include <stdio.h>
 #include <new>
 
-struct signalHandler {
-  PdsLeutron::Opal1kCamera*   camera;
-  Pds::FexFrameServer* server;
-} signalHandlerArgs[64];
-
-static void cameraSignalHandler(int arg)
-{
-  PdsLeutron::Opal1kCamera* camera = signalHandlerArgs[arg].camera;
-  Pds::FrameServerMsg* msg = 
-    new Pds::FrameServerMsg(Pds::FrameServerMsg::NewFrame,
-			    camera->GetFrameHandle(),
-			    camera->CurrentCount,
-			    0);
-  signalHandlerArgs[arg].server->post(msg);
-}
-
-static void registerCameraSignalHandler(int arg, 
-					PdsLeutron::Opal1kCamera*   camera,
-					Pds::FexFrameServer* server)
-{
-  struct sigaction action;
-  if (server) {
-    sigemptyset(&action.sa_mask);
-    action.sa_handler  = cameraSignalHandler;
-    action.sa_flags    = SA_RESTART;
-    signalHandlerArgs[arg].camera=camera;
-    signalHandlerArgs[arg].server=server;
-  }
-  else {
-    action.sa_handler = SIG_DFL;
-  }
-  sigaction(arg,&action,NULL);
-}
-
-namespace Pds {
-
-  class Opal1kMapAction : public Action {
-  public:
-    Opal1kMapAction(Opal1kManager&   config) : _config(config) {}
-    Transition* fire(Transition* tr) { return _config.allocate(tr); }
-    InDatagram* fire(InDatagram* dg) { return dg; }
-  private:
-    Opal1kManager& _config;
-  };
-
-  class Opal1kConfigAction : public Action {
-  public:
-    Opal1kConfigAction(Opal1kManager&   config) : _config(config) {}
-    Transition* fire(Transition* tr) { return _config.configure(tr); }
-    InDatagram* fire(InDatagram* dg) { return _config.configure(dg); }
-  private:
-    Opal1kManager& _config;
-  };
-
-  class Opal1kUnconfigAction : public Action {
-  public:
-    Opal1kUnconfigAction(Opal1kManager& config) : _config(config) {}
-    Transition* fire(Transition* tr) { return _config.unconfigure(tr); }
-    InDatagram* fire(InDatagram* dg) { return _config.unconfigure(dg); }
-  private:
-    Opal1kManager&   _config;
-  };
-
-  class Opal1kBeginRunAction : public Action {
-  public:
-    Transition* fire(Transition* tr) { return tr; }
-    InDatagram* fire(InDatagram* tr) { return tr; }
-  };
-
-  class Opal1kEndRunAction : public Action {
-  public:
-    Transition* fire(Transition* tr) { return tr; }
-    InDatagram* fire(InDatagram* tr) { return tr; }
-  };
-};
-
 using namespace Pds;
 
 
+static const int MaxConfigSize = 
+  sizeof(Opal1kConfigType)+ 
+  Opal1kConfigType::LUT_Size*sizeof(uint16_t) +
+  1000*sizeof(Camera::FrameCoord);
+
+
 Opal1kManager::Opal1kManager(const Src& src) :
-  _camera  (new PdsLeutron::Opal1kCamera),
-  _splice  (new DmaSplice),
-  _server  (new FexFrameServer(src,*_splice)),
-  _fsm     (new Fsm),
-  _sig     (-1),
-  _configBuffer(new char[sizeof(Opal1kConfigType)+ 
-			 Opal1kConfigType::LUT_Size*sizeof(uint16_t) +
-			 1000*sizeof(Camera::FrameCoord) +
-			 sizeof(FrameFexConfigType)]),
-  _configService(new CfgClientNfs(src)),
-  _opaltc(_opal1kConfigType, src),
-  _fextc(_frameFexConfigType, src)
+  CameraManager(src, MaxConfigSize),
+  _camera    (new PdsLeutron::Opal1kCamera),
+  _configdata(0),
+  _configtc  (_opal1kConfigType, src),
+  _occPool   (new GenericPool(sizeof(Occurrence),1))
 {
-  _fsm->callback(TransitionId::Map        , new Opal1kMapAction     (*this));
-  _fsm->callback(TransitionId::Configure  , new Opal1kConfigAction  (*this));
-  _fsm->callback(TransitionId::BeginRun   , new Opal1kBeginRunAction);
-  _fsm->callback(TransitionId::EndRun     , new Opal1kEndRunAction);
-  _fsm->callback(TransitionId::Unconfigure, new Opal1kUnconfigAction(*this));
 }
 
 Opal1kManager::~Opal1kManager()
 {
-  delete   _fsm;
-  delete[] _configBuffer;
-  delete   _configService;
-  delete   _server;
-  delete   _splice;
   delete   _camera;
+  delete   _occPool;
 }
 
-Transition* Opal1kManager::allocate (Transition* tr)
+void Opal1kManager::_configure(char* buff)
 {
-  const Allocate& alloc = reinterpret_cast<const Allocate&>(*tr);
-  _configService->initialize(alloc.allocation());
-  return tr;
+  _configtc.damage = 0;
+  _configdata = new(buff) Opal1kConfigType;
+  _camera->Config(*_configdata);
+  server().setCameraOffset(_configdata->output_offset());
+}  
+
+void Opal1kManager::_configure(InDatagram* in)
+{
+  _configtc.extent = sizeof(Xtc);
+  if (_configtc.damage.value())
+    in->datagram().xtc.damage.increase(_configtc.damage.value());
+  else
+    _configtc.extent += _configdata->size();  
+  in->insert(_configtc, _configdata);
 }
 
-Transition* Opal1kManager::configure(Transition* tr)
+Pds::Damage Opal1kManager::_handle()
 {
-  _opaltc.damage.increase(Damage::UserDefined);
-  _fextc .damage.increase(Damage::UserDefined);
+  //  Trigger a clear readout
+  if (_camera->CurrentCount == 2001)
+    _outOfOrder = false;
+  if (_camera->CurrentCount == 2000)
+    _camera->CurrentCount++;
 
-  printf("Configuring ...\n");
-  //
-  //  retrieve the configuration
-  //
-  char* cfgBuff = _configBuffer;
-  int len;
-  if ((len=_configService->fetch(*tr,_opal1kConfigType, cfgBuff)) <= 0) {
-    printf("Config::configure failed to retrieve Opal1000 configuration\n");
-    return tr;
-  }
-  const Opal1kConfigType& opalConfig = *new(cfgBuff) Opal1kConfigType;
-  cfgBuff += len;
-  
-  if ((len=_configService->fetch(*tr,_frameFexConfigType, cfgBuff)) <= 0) {
-    printf("Config::configure failed to retrieve FrameFex configuration\n");
-    return tr;
-  }
-  const FrameFexConfigType& fexConfig = *new(cfgBuff) FrameFexConfigType;
+  if (!_outOfOrder && _camera->CurrentCount != _nposts) {
+    _outOfOrder = true;
 
-  _fextc.damage = 0;
+    Pds::Occurrence* occ = new (_occPool)
+      Pds::Occurrence(Pds::OccurrenceId::ClearReadout);
+    appliance().post(occ);
 
-  _camera->Config(opalConfig);
-  
-  int ret;
-  if ((_sig = _camera->SetNotification(PdsLeutron::LvCamera::NOTIFYTYPE_SIGNAL)) < 0) 
-    printf("Camera::SetNotification: %s.\n", strerror(-_sig));
-  
-  else {
-    printf("Registering handler for signal %d ...\n", _sig);
-    registerCameraSignalHandler(_sig,_camera,_server);
-    
-    printf("Initializing ...\n");
-    if ((ret = _camera->Init()) < 0)
-      printf("Camera::Init: %s.\n", strerror(-ret));
-    
-    else {
-      printf("DmaSplice::initialize %p 0x%x\n", 
-	     _camera->FrameBufferBaseAddress,
-	     _camera->FrameBufferEndAddress - _camera->FrameBufferBaseAddress);
-      _splice->initialize( _camera->FrameBufferBaseAddress,
-			  _camera->FrameBufferEndAddress - _camera->FrameBufferBaseAddress);
-      
-      //
-      //  The feature extraction needs to know 
-      //  something about the camera output:
-      //     offset, defective pixels, ...
-      //
-      _server->Config(fexConfig,
-		      opalConfig.output_offset());
-
-      printf("Starting ...\n");
-      if ((ret = _camera->Start()) < 0)
-	printf("Camera::Start: %s.\n", strerror(-ret));
-      else
-	_opaltc.damage = 0;
-    }
+    printf("Camera frame number(%ld) != Server number(%d)\n",
+	   _camera->CurrentCount, _nposts);
   }
 
-  printf("Done\n");
-  return tr;
+  return _outOfOrder ? Pds::Damage::OutOfOrder : 0;
 }
 
-Transition* Opal1kManager::unconfigure(Transition* tr)
+void Opal1kManager::_register()
 {
-  _camera->Stop();
-  registerCameraSignalHandler(_sig,NULL,NULL);
-  return tr;
+  _outOfOrder = false;
 }
 
-InDatagram* Opal1kManager::configure  (InDatagram* in) 
+void Opal1kManager::_unregister()
 {
-  _opaltc.extent = sizeof(Xtc);
-  _fextc .extent = sizeof(Xtc);
-  char* cfgBuff = _configBuffer;
-  const Opal1kConfigType* opalConfig(0);
-  const FrameFexConfigType* fexConfig(0);
-
-  if (_opaltc.damage.value()) {
-    in->datagram().xtc.damage.increase(_opaltc.damage.value()); 
+  printf("=== Opal1k dump ===\n nposts %d\n",_nposts);
+  printf("buffered frame ids:");
+  for(unsigned k=0; k<16; k++) {
+    PdsLeutron::FrameHandle* handle = _camera->GetFrameHandle();
+    unsigned id = _camera->CurrentCount;
+    printf(" %d",id);
+    delete handle;
   }
-  else {
-    opalConfig = new(cfgBuff) Opal1kConfigType;
-    _opaltc.extent += opalConfig->size();
-    cfgBuff        += opalConfig->size();
-
-    if (_fextc.damage.value()) {
-      in->datagram().xtc.damage.increase(_fextc.damage.value()); 
-    }
-    else {
-      fexConfig = new(cfgBuff) FrameFexConfigType;
-      _fextc.extent += fexConfig->size();
-    }
-  }
-  in->insert(_opaltc, opalConfig);
-  in->insert(_fextc , fexConfig);
-
-  return in;
+  printf("\n");
 }
 
-InDatagram* Opal1kManager::unconfigure(InDatagram* in) 
-{
-  return in; 
-}
+PdsLeutron::PicPortCL& Opal1kManager::camera() { return *_camera; }
 
-Server& Opal1kManager::server() { return *_server; }
-
-Appliance& Opal1kManager::appliance() { return *_fsm; }
+const TypeId& Opal1kManager::camConfigType() { return _opal1kConfigType; }

@@ -13,76 +13,75 @@
 
 #include <grabber.h>
 #include <daseq32.h>
+#include <daar.h>
 
 #include "pds/camera/LvCamera.hh"
 
 #define PICPORTCL_NAME    "PicPortX CL Mono"
 
+namespace Pds {
+  class MonEntryTH1F;
+};
 
 namespace PdsLeutron {
 
   class FrameHandle;
+  class MyQueue;
 
   class PicPortCL: public LvCamera {
   public:
-    struct PicPortCLConfig {
-      // Camera Link Serial Port configuration
-      int Baudrate;
-      unsigned long Parity;
-      unsigned long ByteSize;
-      unsigned long StopSize;
-      char eotWrite;
-      char eotRead;
-      char sof;
-      char eof;
-      unsigned long Timeout_ms;
-      // The PicPort HW does not have an accurate way of tracking captured
-      // and dropped frames. We can deduct those numbers up to a certain
-      // accuracy by looking at GetLastAcquiredImage() but if too many
-      // frames are dropped we won't see it.
-      // That's why a camera can opt to manage the buffers itself by setting
-      // PicPortCLConfig.bUsePicportCounters to false.
-      bool bUsePicportCounters;
-    };
-
     PicPortCL(int _grabberid = 0);
     virtual ~PicPortCL();
+  public:
     int SetNotification(enum NotifyType mode);
     int Init();
     int Start();
     int Stop();
     FrameHandle *GetFrameHandle();
     int SendCommand(char *szCommand, char *pszResponse, int iResponseBufferSize);
-  protected:
-    int DsyToErrno(LVSTATUS DsyError);
-    struct PicPortCLConfig PicPortCLConfig; // Must be filled by child class in constructor
-    // PicPortCameraConfig and PicPortCameraInit must be 
-    // implemented by every child of this class
-    // PicPortCameraConfig should fill SeqDralConfig with
-    // camera specific info.
-    // PicPortCameraInit should if necessary initialize the
-    // camera.
-    virtual int PicPortCameraConfig(LvROI &Roi) = 0;
+    unsigned char* frameBufferBaseAddress() const;
+    unsigned char* frameBufferEndAddress () const;
+  private:
+    //  Serial command interface
+    virtual int           baudRate() const=0;
+    virtual unsigned long parity() const=0;
+    virtual unsigned long byteSize() const=0;
+    virtual unsigned long stopSize() const=0;
+    virtual char          eotWrite() const=0;
+    virtual char          eotRead() const=0;
+    virtual char          sof() const=0;
+    virtual char          eof() const=0;
+    virtual unsigned long timeout_ms() const=0;
+  private:
+    virtual const char* Name() const = 0;
+    virtual bool        trigger_CC1        () const = 0;
+    virtual unsigned    trigger_duration_us() const = 0;
+    virtual unsigned    output_resolution  () const = 0;
+    // PicPortCameraInit should if necessary initialize the camera.
     virtual int PicPortCameraInit() = 0;
     //  This API can be redefined by any driver that want to do processing
     // on a frame before GetFrame returns it to the application.
     virtual FrameHandle *PicPortFrameProcess(FrameHandle *pFrame);
-    DaSeq32Cfg SeqDralConfig;
-    LvROI Roi;
   private:
     static void ReleaseFrame(void *obj, FrameHandle *pFrame, void *arg);
-    int GrabberId;
-    DsyApp_Seq32 *pSeqDral;
-    enum NotifyType NotifyMode;
-    int NotifySignal;
-  public:
-    U8BIT *FrameBufferBaseAddress;
-    U8BIT *FrameBufferEndAddress;
   private:
-    unsigned long Current;
-    unsigned long LastFrame;
-  protected:
-    FrameHandle::Format frameFormat;
+    DaSeq32Cfg             _seqDralConfig;
+    LvROI                  _roi;
+    int                    _grabberId;
+    DsyApp_Seq_AsyncReset* _pSeqDral;
+    MyQueue*               _queue;
+  private:
+    enum NotifyType _notifyMode;
+    int             _notifySignal;
+  private:
+    unsigned char*      _frameBufferBase;
+    FrameHandle::Format _frameFormat;
+  private:
+    Pds::MonEntryTH1F* _depth;
+    Pds::MonEntryTH1F* _interval;
+    Pds::MonEntryTH1F* _interval_w;
+    unsigned           _sample_sec;
+    unsigned           _sample_nsec;
   };
 
 }

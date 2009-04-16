@@ -11,6 +11,7 @@
 #include "pds/service/NetServer.hh"
 #include "pds/utility/BldServer.hh"
 #include "pds/utility/NetDgServer.hh"
+#include "pds/management/MsgAppliance.hh"
 
 using namespace Pds;
 
@@ -41,6 +42,8 @@ bool RecorderLevel::attach()
     _streams->connect();
     
     _callback.attached(*_streams);
+
+    (new MsgAppliance)->connect(_streams->stream()->inlet());
     
     //    _rivals.insert(_index, msg.reply_to()); // revisit
     Message join(Message::Join);

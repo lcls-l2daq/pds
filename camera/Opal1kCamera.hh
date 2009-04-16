@@ -17,16 +17,6 @@
 #define OPAL1000_NAME_12bits      "Adimec_Opal-1000m/Q"
 #define OPAL1000_NAME_10bits      "Adimec_Opal-1000m/Q_F10bits"
 #define OPAL1000_NAME_8bits       "Adimec_Opal-1000m/Q_F8bit"
-//#define OPAL1000_SERIAL_BAUDRATE  115200
-#define OPAL1000_SERIAL_BAUDRATE  57600
-#define OPAL1000_SERIAL_PARITY    LvComm_ParityNone
-#define OPAL1000_SERIAL_DATASIZE  LvComm_Data8
-#define OPAL1000_SERIAL_STOPSIZE  LvComm_Stop1
-#define OPAL1000_SERIAL_ACK       0x06
-#define OPAL1000_SERIAL_EOT       '\r'
-#define OPAL1000_SERIAL_SOF       '@'
-#define OPAL1000_SERIAL_TIMEOUT   1000
-#define OPAL1000_CONNECTOR        "CamLink Base Port 0 (HVPSync In 0)"
 
 
 namespace PdsLeutron {
@@ -38,10 +28,25 @@ namespace PdsLeutron {
 
     void                    Config(const Opal1kConfigType&);
     const Opal1kConfigType& Config() const;
-  protected:
-    virtual int PicPortCameraConfig(LvROI &Roi);
+
+  private:
+    //  Serial command interface
+    virtual int           baudRate() const { return 57600; }
+    virtual unsigned long parity  () const { return LvComm_ParityNone; }
+    virtual unsigned long byteSize() const { return LvComm_Data8; }
+    virtual unsigned long stopSize() const { return LvComm_Stop1; }
+    virtual char          eotWrite() const { return 0x06; }
+    virtual char          eotRead () const { return '\r'; }
+    virtual char          sof     () const { return '@'; }
+    virtual char          eof     () const { return '\r'; }
+    virtual unsigned long timeout_ms() const { return 1000; }
+  private:
+    virtual const char* Name() const;
+    virtual bool        trigger_CC1        () const;
+    virtual unsigned    trigger_duration_us() const;
     virtual int PicPortCameraInit();
     virtual FrameHandle *PicPortFrameProcess(FrameHandle *pFrame);
+    virtual unsigned output_resolution() const;
   private:
     unsigned long LastCount;
   public:

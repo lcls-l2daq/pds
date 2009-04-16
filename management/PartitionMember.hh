@@ -28,6 +28,8 @@ namespace Pds {
   public:
     virtual void     message  (const Node&    hdr,
 			       const Message& msg);
+  public:
+    const Ins&       occurrences() const;
   private:
     virtual Message& reply     (Message::Type) = 0;
     virtual void     allocated (const Allocation&,
@@ -41,6 +43,7 @@ namespace Pds {
     GenericPool _pool;
     unsigned    _index;
     OutletWireInsList _rivals;        // list of nodes at this level
+    Ins         _occurrences;
   };
 
 }

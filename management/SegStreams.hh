@@ -6,20 +6,20 @@
 
 namespace Pds {
 
-class CollectionManager;
-// class VmonAppliance;
+  class PartitionMember;
+  // class VmonAppliance;
 
-class SegStreams : public WiredStreams {
-public:
-  enum { ebdepth     = 32 };
+  class SegStreams : public WiredStreams {
+  public:
+    enum { ebdepth     = 32 };
 
-  SegStreams(CollectionManager&);
+    SegStreams(PartitionMember&);
 
-  virtual ~SegStreams();
+    virtual ~SegStreams();
 
-private:
-  //  VmonAppliance* _vmom_appliance;
-};
+  private:
+    //  VmonAppliance* _vmom_appliance;
+  };
 
 }
 #endif

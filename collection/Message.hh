@@ -12,7 +12,8 @@ public:
     Join, 
     Resign, 
     Transition,
-    Query
+    Query,
+    Occurrence
   };
 
   Message(Type type, unsigned size=sizeof(Message));

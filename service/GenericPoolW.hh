@@ -17,7 +17,6 @@ namespace Pds {
     virtual void  enque(PoolEntry*);
   private:
     Semaphore    _sem;
-    volatile int _depth;
   };
 
 }
@@ -25,7 +24,9 @@ namespace Pds {
 
 inline int Pds::GenericPoolW::depth() const
 {
-  return _depth; 
+  int val;
+  sem_getvalue(const_cast<sem_t*>(reinterpret_cast<const sem_t*>(&_sem)),&val);
+  return val; 
 }
 
 #endif

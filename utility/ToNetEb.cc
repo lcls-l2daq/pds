@@ -106,27 +106,27 @@ int ToNetEb::send(ZcpDatagram* zdatagram,
 
   remaining -= zdatagram->_stream.remove(_fragment, remaining);
 
-  int error;
+  int error(0);
 
   if (!remaining && (datagram.xtc.extent+sizeof(Datagram)) <= Mtu::Size) 
-      error = _client.send((char*)&datagram,
-			   (char*)&datagram.xtc,
-			   sizeof(Xtc),
-			   _fragment,
-			   _fragment.size(),
-			   dst);
-
+    error = _client.send((char*)&datagram,
+			 (char*)&datagram.xtc,
+			 sizeof(Xtc),
+			 _fragment,
+			 _fragment.size(),
+			 dst);
+  
   else {
-
+    
     ZcpChunkIterator chkIter(zdatagram,zdatagram->_stream,_fragment);
-
-    int error = _client.send((char*)chkIter.header(),
-			     (char*)&datagram.xtc,
-			     sizeof(Xtc),
-			     chkIter.payload(),
-			     chkIter.payloadSize(),
-			     dst);
-
+    
+    error = _client.send((char*)chkIter.header(),
+			 (char*)&datagram.xtc,
+			 sizeof(Xtc),
+			 chkIter.payload(),
+			 chkIter.payloadSize(),
+			 dst);
+    
     while( !error && chkIter.next() ) {
       error = _client.send((char*)chkIter.header(), 
 			   chkIter.payload(),
@@ -134,12 +134,12 @@ int ToNetEb::send(ZcpDatagram* zdatagram,
 			   dst);
     }
   }
-
+  
   if (error) {
     printf("ToNetEb::send error: %s\n",strerror(-error));
     _fragment.flush();
   }
-
+  
   return error;
 }
 

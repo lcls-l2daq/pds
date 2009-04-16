@@ -20,6 +20,12 @@ Transition* ToEbWire::forward(Transition* dg)
   return (Transition*)Appliance::DontDelete;  // inserted out-of-band "locally" - still in use
 }
 
+Occurrence* ToEbWire::forward(Occurrence* dg)
+{
+  _inlet.post(*dg);
+  return (Occurrence*)Appliance::DontDelete;  // inserted out-of-band "locally" - still in use
+}
+
 InDatagram* ToEbWire::forward(InDatagram* dg)
 {
   const Datagram& datagram = dg->datagram();

@@ -18,6 +18,13 @@ namespace Pds {
     double meany() const;
     double rmsy() const;
 
+    double sum() const;
+    double sumx() const;
+    double sumy() const;
+    double sumx2() const;
+    double sumy2() const;
+    double sumxy() const;
+     
   private:
     double _sumw; 
     double _sumw2; 

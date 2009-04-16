@@ -1,5 +1,5 @@
 #include "ObserverLevel.hh"
-#include "EventStreams.hh"
+#include "ObserverStreams.hh"
 #include "EventCallback.hh"
 #include "pds/collection/Message.hh"
 #include "pds/utility/Transition.hh"
@@ -13,12 +13,14 @@
 #include "pds/utility/BldServer.hh"
 #include "pds/utility/NetDgServer.hh"
 #include "pds/management/EbIStream.hh"
+#include "pds/management/MsgAppliance.hh"
 
 namespace Pds {
   class OpenOutlet : public OutletWire {
   public:
     OpenOutlet(Outlet& outlet) : OutletWire(outlet) {}
     virtual Transition* forward(Transition* dg) { return 0; }
+    virtual Occurrence* forward(Occurrence* dg) { return 0; }
     virtual InDatagram* forward(InDatagram* dg) { return 0; }
     virtual void bind(unsigned id, const Ins& node) {}
     virtual void unbind(unsigned id) {}
@@ -26,6 +28,9 @@ namespace Pds {
 };
 
 using namespace Pds;
+
+static const int netbufdepth = 8;
+static const int MaxSize = (1<<22);
 
 static inline bool _is_bld(const Node& n)
 {
@@ -70,11 +75,11 @@ bool ObserverLevel::attach()
     return false;
   }
 
-  _streams = new EventStreams(*this);
-   for (int s = 0; s < StreamParams::NumberOfStreams; s++) {
-     delete _streams->stream(s)->outlet()->wire();
-     _outlets[s] = new OpenOutlet(*_streams->stream(s)->outlet());
-   }
+  _streams = new ObserverStreams(*this);
+  for (int s = 0; s < StreamParams::NumberOfStreams; s++) {
+    delete _streams->stream(s)->outlet()->wire();
+    _outlets[s] = new OpenOutlet(*_streams->stream(s)->outlet());
+  }
   _streams->connect();
   
   _inlet = new EbIStream(header().procInfo(),
@@ -85,6 +90,9 @@ bool ObserverLevel::attach()
   _streams->wire(StreamParams::FrameWork)->add_input(_inlet->output());
   
   _callback.attached(*_streams);
+  
+  (new MsgAppliance)->connect(_streams->stream()->inlet());
+
   return true;
 }
 
@@ -102,7 +110,7 @@ void ObserverLevel::allocated(const Allocation& alloc,
     const Node& node = *alloc.node(n);
     if (_is_bld(node)) {
       Ins ins( _bld_ins(node) );
-      BldServer* srv = new BldServer(ins, _bld_src(node), EventStreams::netbufdepth);
+      BldServer* srv = new BldServer(ins, _bld_src(node), netbufdepth);
       bld_wire->add_input(srv);
       srv->server().join(ins, Ins(header().ip()));
       printf("ObserverLevel::allocated assign bld  fragment %d  %x/%d\n",
@@ -117,7 +125,7 @@ void ObserverLevel::allocated(const Allocation& alloc,
       
       NetDgServer* srv = new NetDgServer(ins,
 					 node.procInfo(),
-					 EventStreams::netbufdepth*EventStreams::MaxSize);
+					 netbufdepth*MaxSize);
       pre_wire->add_input(srv);
       Ins mcastIns(ins.address());
       srv->server().join(mcastIns, Ins(header().ip()));

@@ -29,7 +29,8 @@ EbIStream::EbIStream(const Src&  src,
 				     *_outlet_wire, 
 				     StreamParams::FrameWork, 
 				     interface,
-				     MaxSize, EbDepth);
+				     MaxSize, EbDepth,
+				     new VmonEb(src,32,EbDepth,(1<<24),(1<<22)));
   else
     _inlet_wire = new EventBuilder(src, 
 				   _xtcType,
@@ -39,7 +40,7 @@ EbIStream::EbIStream(const Src&  src,
 				   StreamParams::FrameWork, 
 				   interface,
 				   MaxSize, EbDepth,
-				   new VmonEb(src,32,EbDepth,(1<<14)));
+				   new VmonEb(src,32,EbDepth,(1<<23),(1<<22)));
   (new VmonServerAppliance(src))->connect(inlet());
 }
  

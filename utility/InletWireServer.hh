@@ -30,6 +30,7 @@ public:
   void connect();
   void disconnect();
   void post(const Transition&);
+  void post(const Occurrence&);
   void post(const InDatagram&);
 
   void add_input   (Server*);

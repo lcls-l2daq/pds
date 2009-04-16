@@ -1,6 +1,8 @@
 #ifndef Pds_MonCds_hh
 #define Pds_MonCds_hh
 
+#include <sys/uio.h>
+
 #include "pds/mon/MonDesc.hh"
 #include "pds/mon/MonPort.hh"
 #include "pds/service/Semaphore.hh"
@@ -29,6 +31,9 @@ namespace Pds {
 
     void reset();
     void showentries() const;
+
+    //  serialize the description
+    unsigned description(iovec*) const;
 
     Semaphore& payload_sem() const;
   private:

@@ -36,7 +36,9 @@
 
 namespace Pds {
 
-class Appliance : Entry
+  class Occurrence;
+
+  class Appliance : Entry
   {
   public:
     enum {DontDelete = 1};
@@ -53,6 +55,7 @@ class Appliance : Entry
     int               datagrams() const;
     void              post(InDatagram*);
     void              post(Transition*);
+    virtual void      post(Occurrence*);
     Appliance*        forward();
     Appliance*        backward();
   protected:
@@ -72,9 +75,9 @@ class Appliance : Entry
 */
 
 inline int Pds::Appliance::datagrams() const
-  {
+{
   return _datagrams;
-  }
+}
 
 /*
 ** --
@@ -87,14 +90,14 @@ inline int Pds::Appliance::datagrams() const
 */
 
 inline Pds::Appliance* Pds::Appliance::connect(Pds::Appliance* after)
-  {
+{
   return (Pds::Appliance*) insertList(after);
-  }
+}
 
 inline Pds::Appliance* Pds::Appliance::disconnect()
-  {
+{
   return (Pds::Appliance*) remove();
-  }
+}
 
 /*
 ** --
@@ -104,9 +107,9 @@ inline Pds::Appliance* Pds::Appliance::disconnect()
 */
 
 inline Pds::InDatagram* Pds::Appliance::vector(Pds::InDatagram* input)
-  {
+{
   return (this->*_handlers[input->datagram().seq.type()])(input);
-  }
+}
 
 /*
 ** --

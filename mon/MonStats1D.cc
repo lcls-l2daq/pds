@@ -35,6 +35,10 @@ double MonStats1D::sum() const
   return _sumw;
 }
 
+double MonStats1D::sumx() const { return _sumwx; }
+
+double MonStats1D::sumx2() const { return _sumwx2; }
+
 double MonStats1D::mean() const
 {
   return _sumw ? _sumwx/_sumw : 0;

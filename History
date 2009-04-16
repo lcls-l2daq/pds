@@ -1,3 +1,9 @@
+2009-Apr-16	weaver	Added Pulnix TM6740 camera.  Added occurrences to collection messages.
+			Added function to drop evr multicasts and generate opal1k out-of-order (for testing).
+			Fix in GenericPoolW to use counting semaphore for pool resource counting.
+			Fix in Event Builder to keep good events in order.  Individual (errant) events can slip 
+			out-of-order due to dropped contributions and missing PulseId. 
+			Added support for vmon archiving. 
 2009-Apr-3      cpo     Change some default acqiris params so that
                         we don't get as many "WARNING: Parameter has been
                         adapted" messages.  We still have one, which

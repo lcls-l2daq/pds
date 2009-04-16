@@ -23,6 +23,8 @@
 
 using namespace Pds;
 
+static int dropPulseMask = -1;
+
 class L1Xmitter;
 static L1Xmitter* l1xmitGlobal;
 static EvgrBoardInfo<Evr> *erInfoGlobal;  // yuck
@@ -43,6 +45,13 @@ public:
     Sequence seq(Sequence::Event,TransitionId::L1Accept,ctime,
                  fe.TimestampLow,fe.TimestampHigh);
     EvrDatagram datagram(seq, _evtCounter++);
+
+    // for testing
+    if ((fe.TimestampHigh & dropPulseMask)==dropPulseMask) {
+      printf("Dropping %x\n", fe.TimestampHigh);
+      return;
+    }
+
     _outlet.send((char*)&datagram,0,0,_dst);
 //     printf("Received opcode 0x%x timestamp 0x%x/0x%x count %d\n",
 //            fe.EventCode,fe.TimestampHigh,fe.TimestampLow,_evtCounter-1);
@@ -265,4 +274,9 @@ EvrManager::EvrManager(EvgrBoardInfo<Evr> &erInfo,
 
   _er.IrqAssignHandler(erInfo.filedes(), &evrmgr_sig_handler);
   erInfoGlobal = &erInfo;
+}
+
+void EvrManager::drop_pulses(unsigned id)
+{
+  dropPulseMask = id;
 }

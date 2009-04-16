@@ -17,6 +17,7 @@
 #include <sys/time.h>
 #include <signal.h>
 #include "pds/config/Opal1kConfigType.hh"
+#include "pds/config/TM6740ConfigType.hh"
 #include "pds/camera/LvCamera.hh"
 #include "camstream.h"
 #include "pthread.h"
@@ -24,10 +25,7 @@
 #include "pds/zerocopy/dma_splice/dma_splice.h"
 
 #include "pds/camera/Opal1kCamera.hh"
-#define CAMERA_CLASS  Opal1kCamera
-#define str2(a)       #a
-#define str(a)        str2(a)
-#define CAMERA_NAME   str(CAMERA_CLASS)
+#include "pds/camera/TM6740Camera.hh"
 
 #define USE_TCP
 
@@ -54,13 +52,10 @@ static void help(const char *progname)
 {
   printf("%s: stream data from a Camera object to the network.\n"
     "Syntax: %s <dest> [ --count <nimages> ] \\\n"
-    "\t--trigger | --shutter | --fps <fps> | --help\n"
+    "\t--help\n"
     "<dest>: stream processed frames to the specified\n"
     "\taddress with format <host>[:<port>].\n"
-    "--trigger: set to have the camera use an external trigger.\n"
-    "--shutter: set the camera to use an external shutter control.\n"
     "--count <nimages>: number of images to acquire.\n"
-    "--fps <fps>: number of frames per second.\n"
     "--splice: use splice.\n"
     "--help: display this message.\n"
     "\n", progname, progname);
@@ -100,7 +95,7 @@ int main(int argc, char *argv[])
   int i, ret, sockfd=-1;
   long nimages = 0;
   unsigned long long start_time, end_time;
-  CAMERA_CLASS *pCamera;
+  int camera_choice = 0;
   LvCamera::Status Status;
   char *dest_host=NULL;
   char *strport;
@@ -126,6 +121,8 @@ int main(int argc, char *argv[])
     if (strcmp("--help",argv[i]) == 0) {
       help(argv[0]);
       return 0;
+    } else if (strcmp("--camera",argv[i]) == 0) {
+      camera_choice = atoi(argv[++i]);
     } else if (strcmp("--trigger",argv[i]) == 0) {
       exttrigger = 1;
     } else if (strcmp("--shutter",argv[i]) == 0) {
@@ -160,23 +157,43 @@ int main(int argc, char *argv[])
   }
 
   /* Open the camera */
-  printf("Creating camera object of class %s ... ",CAMERA_NAME);
-  fflush(stdout);
-  pCamera = new CAMERA_CLASS();
-  printf("done.\n");
+  PicPortCL* pCamera(0);
+  switch(camera_choice) {
+  case 0:
+    {
+      Opal1kCamera* oCamera = new Opal1kCamera();
+      Opal1kConfigType* Config = new Opal1kConfigType( 32, 100, 
+						       Opal1kConfigType::Eight_bit,
+						       Opal1kConfigType::x1,
+						       Opal1kConfigType::None,
+						       true, false);
+      
+      oCamera->Config(*Config);
+      pCamera = oCamera;
+      break;
+    }
+  default:
+    {
+      TM6740Camera* tCamera = new TM6740Camera();
+      TM6740ConfigType* Config = new TM6740ConfigType( 0x28,  // black-level
+						       0xde,  // gain-tap-a
+						       0xe9,  // gain-tap-b
+						       2000,  // shutter-width-us
+						       false, // gain-balance
+						       TM6740ConfigType::Eight_bit,
+						       TM6740ConfigType::x1,
+						       TM6740ConfigType::x1,
+						       TM6740ConfigType::Linear );
+      tCamera->Config(*Config);
+      pCamera = tCamera;
+      break;
+    }
+  }
 
   /* Configure the camera */
   printf("Configuring camera ... "); 
   fflush(stdout);
   
-  Opal1kConfigType* Config = new Opal1kConfigType( 32, 100, 
-						   Opal1kConfigType::Eight_bit,
-						   Opal1kConfigType::x1,
-						   Opal1kConfigType::None,
-						   true, false);
-
-  pCamera->Config(*Config);
-
   if ((camsig = pCamera->SetNotification(LvCamera::NOTIFYTYPE_SIGNAL)) < 0) {
     printf("failed.\n");
     fprintf(stderr, "Camera::SetNotification: %s.\n", strerror(-ret));
@@ -215,7 +232,7 @@ int main(int argc, char *argv[])
   if (rval != val) return -EINVAL; \
 }
 
-  if (!extshutter) {
+  if (!extshutter && camera_choice==0) {
     unsigned _mode=0, _fps=100000/fps, _it=540/10;
     SetParameter ("Operating Mode","MO",_mode);
     SetParameter ("Frame Period","FP",_fps);
@@ -225,8 +242,8 @@ int main(int argc, char *argv[])
   printf("done.\n"); 
 
   if (usplice > 0)
-    dma_splice_initialize( usplice, pCamera->FrameBufferBaseAddress,
-			   pCamera->FrameBufferEndAddress - pCamera->FrameBufferBaseAddress);
+    dma_splice_initialize( usplice, pCamera->frameBufferBaseAddress(),
+			   pCamera->frameBufferEndAddress() - pCamera->frameBufferBaseAddress());
 
   if (dest_host) {
     /* Initialize the socket */
@@ -317,7 +334,6 @@ int main(int argc, char *argv[])
   clock_gettime(CLOCK_REALTIME, &tp);
 
   int nSkipped = 0, nFrames = 0;
-  unsigned frameId = -1UL;
 
   for(i=1; i != nimages+1; i++) {
     int signal;
@@ -328,7 +344,10 @@ int main(int argc, char *argv[])
     fflush(stdout);
     FD_ZERO(&notify_set);
     FD_SET(fdpipe[0], &notify_set);
-    ret = select(fdpipe[0]+1, &notify_set, NULL, NULL, NULL);
+    struct timeval tv;
+    tv.tv_usec = 0;
+    tv.tv_sec = 2;
+    ret = select(fdpipe[0]+1, &notify_set, NULL, NULL, &tv);
     if (ret < 0) {
       printf("failed.\n");
       perror("select()");
@@ -336,6 +355,8 @@ int main(int argc, char *argv[])
       delete pCamera;
       return -1;
     } else if ((ret <= 0) || (!FD_ISSET(fdpipe[0], &notify_set))) {
+      // timedout
+      printf("timedout ... continue\n");
       i--;
       continue;
     }
@@ -377,10 +398,10 @@ int main(int argc, char *argv[])
 	    break; }
 	}
 
-	if (thisId != ++frameId) {
-	  printf("unexpected frameId %x -> %x\n",frameId,thisId);
-	  frameId = thisId;
-	}
+// 	if (thisId != ++frameId) {
+// 	  printf("unexpected frameId %x -> %x\n",frameId,thisId);
+// 	  frameId = thisId;
+// 	}
 
 	nFrames++;
 	if ((nFrames%fps)==0) {

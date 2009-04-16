@@ -17,6 +17,9 @@ namespace Pds {
 	       CfgClientNfs& cfg,
                EvgrOpcode::Opcode opcode);
     Appliance& appliance();
+  public:
+    // for testing
+    static void drop_pulses(unsigned mask);
   private:
     Evr& _er;
     Fsm& _fsm;

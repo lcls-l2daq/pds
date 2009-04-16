@@ -39,8 +39,17 @@ EbEventBase* EbS::_new_event(const EbBitMask& serverId)
 
   if (_vmoneb) _vmoneb->depth(depth);
 
-  if (!depth)
+  if (!depth) {
+    printf("*** EbS Flushing\n");
+    EbEventBase* event = _pending.forward();
+    while( event != _pending.empty() ) {
+      printf("   %p %x %x\n", 
+	     event, event->remaining().value(), 
+	     ((EbSequenceKey&)event->key()).sequence().high());
+      event = event->forward();
+    }
     _postEvent(_pending.forward());
+  }
 
   CDatagram* datagram = new(&_datagrams) CDatagram(_ctns, _id);
   EbSequenceKey* key = new(&_keys) EbSequenceKey(const_cast<Datagram&>(datagram->datagram()));

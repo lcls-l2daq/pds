@@ -5,6 +5,7 @@ namespace Pds {
 
 class Server;
 class Transition;
+class Occurrence;
 class InDatagram;
 class InletWireIns;
 class Task;
@@ -19,6 +20,7 @@ public:
   virtual void connect() = 0;
   virtual void disconnect() = 0;
   virtual void post(const Transition& tr) = 0;
+  virtual void post(const Occurrence& tr) = 0;
   virtual void post(const InDatagram& dg) = 0;
   virtual void add_input   (Server*) = 0;
   virtual void remove_input(Server*) = 0;

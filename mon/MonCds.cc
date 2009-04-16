@@ -139,6 +139,27 @@ void MonCds::showentries() const
   }
 }
 
+unsigned MonCds::description(iovec* iov) const
+{
+  unsigned element=0;
+  iov[element].iov_base = (void*)&desc();
+  iov[element].iov_len = sizeof(MonDesc);
+  element++;
+  for (unsigned short g=0; g<ngroups(); g++) {
+    MonGroup& gr = *_groups[g];
+    iov[element].iov_base = (void*)&gr.desc();
+    iov[element].iov_len = sizeof(MonDesc);
+    element++;
+    for (unsigned short e=0; e<gr.nentries(); e++) {
+      const MonEntry* entry = gr.entry(e); 
+      iov[element].iov_base = (void*)&entry->desc();
+      iov[element].iov_len = entry->desc().size();
+      element++;
+    }
+  }
+  return element;
+}
+
 Semaphore& MonCds::payload_sem() const
 {
   return _payload_sem;

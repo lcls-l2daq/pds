@@ -28,8 +28,9 @@ namespace Pds {
     ~FexFrameServer();
   public:
     void                            post(FrameServerMsg*);
-    void                            Config(const FrameFexConfigType&,
-					   unsigned camera_offset);
+    void                            setFexConfig(const FrameFexConfigType&);
+    void                            setCameraOffset(unsigned);
+
     const FrameFexConfigType& Config();
   public:
     //  Eb interface
@@ -52,8 +53,8 @@ namespace Pds {
   public:
     unsigned count() const;
   private:
-    unsigned _post_fex  (void* xtc, const Frame& frame, const unsigned short* frame_data) const;
-    unsigned _post_frame(void* xtc, const Frame& frame, const unsigned short* frame_data) const;
+    unsigned _post_fex  (void* xtc, const FrameServerMsg* msg) const;
+    unsigned _post_frame(void* xtc, const FrameServerMsg* msg) const;
 
     TwoDMoments _feature_extract( const Frame&          frame,
 				  const unsigned short* frame_data ) const;
@@ -75,7 +76,6 @@ namespace Pds {
     int        _fd[2];
     Xtc        _xtc;
     unsigned   _count;
-    unsigned   _nposts;
     LinkedList<FrameServerMsg> _msg_queue;
     const FrameFexConfigType* _config;
     unsigned   _camera_offset;

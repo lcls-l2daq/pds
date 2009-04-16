@@ -12,7 +12,7 @@ public:
   virtual ~SegWireSettings() {}
 
   virtual void connect (InletWire& inlet,
-			StreamParams::StreamType stream,
+			StreamParams::StreamType s,
 			int interface) = 0;
 };
 }

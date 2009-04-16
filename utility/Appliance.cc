@@ -55,6 +55,12 @@ void Appliance::post(Transition* input)
     }
   }
 
+void Appliance::post(Occurrence* input)
+  {
+    Appliance* n = (Appliance*)next();
+    n->post(input);
+  }
+
 /*
 ** --
 **

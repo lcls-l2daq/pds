@@ -4,6 +4,7 @@
 #include "Inlet.hh"
 #include "InletWireIns.hh"
 #include "Transition.hh"
+#include "Occurrence.hh"
 #include "pds/service/Task.hh"
 #include "pds/xtc/Datagram.hh"
 #include "pds/xtc/InDatagram.hh"
@@ -20,6 +21,7 @@ static const int TrimInput    = 5;
 static const int TrimOutput   = 6;
 static const int PostInDatagram = 7;  // Assumed to be a "local" out-of-band message, we may pass pointers
 static const int PostTransition = 8;  // Ditto.
+static const int PostOccurrence = 9;  // Ditto.
 
 static const unsigned DatagramSize = sizeof(int); // out-of-band message header size
 static const unsigned PayloadSize  = sizeof(Transition);
@@ -111,6 +113,13 @@ void InletWireServer::post(const Transition& tr)
   unblock((char*)&PostTransition, (char*)&ptr, sizeof(ptr));
 }
 
+void InletWireServer::post(const Occurrence& tr)
+{
+  // assume that this object is constructed from a pool, and control has been handed over.
+  Occurrence* ptr = const_cast<Occurrence*>(&tr);
+  unblock((char*)&PostOccurrence, (char*)&ptr, sizeof(ptr));
+}
+
 void InletWireServer::post(const InDatagram& dg)
 {
   // assume that this object is constructed from a pool, and control has been handed over.
@@ -146,6 +155,7 @@ int InletWireServer::commit(char* datagram,
   Server* srv    = *reinterpret_cast<Server**>(payload);
   InDatagram* dg = *reinterpret_cast<InDatagram**>(payload);
   Transition* tr = *reinterpret_cast<Transition**>(payload);
+  Occurrence* occ= *reinterpret_cast<Occurrence**>(payload);
   switch (request) {
   case AddInput:
     _add_input(srv);
@@ -174,6 +184,9 @@ int InletWireServer::commit(char* datagram,
     break;
   case PostTransition:
     _inlet.post(tr);
+    break;
+  case PostOccurrence:
+    _inlet.post(occ);
     break;
   }
   return 1;

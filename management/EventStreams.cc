@@ -2,7 +2,7 @@
 #include "pds/utility/ToEventWire.hh"
 #include "EventBuilder.hh"
 #include "pds/service/BitList.hh"
-#include "pds/collection/CollectionManager.hh"
+#include "pds/management/PartitionMember.hh"
 #include "pds/service/VmonSourceId.hh"
 //#include "VmonAppliance.hh"
 //#include "pds/collection/McastDb.hh"
@@ -15,7 +15,7 @@
 
 using namespace Pds;
 
-EventStreams::EventStreams(CollectionManager& cmgr) :
+EventStreams::EventStreams(PartitionMember& cmgr) :
   WiredStreams(VmonSourceId(cmgr.header().level(), cmgr.header().ip()))
 {
   const Node& node = cmgr.header();
@@ -29,7 +29,8 @@ EventStreams::EventStreams(CollectionManager& cmgr) :
     _outlets[s] = new ToEventWire(*stream(s)->outlet(), 
 				  cmgr, 
 				  ipaddress, 
-				  MaxSize*netbufdepth);
+				  MaxSize*netbufdepth,
+				  cmgr.occurrences());
 
     EventBuilder* eb = new EventBuilder
       (cmgr.header().procInfo(),

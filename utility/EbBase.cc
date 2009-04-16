@@ -174,7 +174,12 @@ void EbBase::remove(unsigned id)
 
 void EbBase::flush()
   {
-    _postEvent( _pending.reverse() );
+    EbEventBase* event = _pending.forward();
+    EbEventBase* empty = _pending.empty();
+    while( event != empty ) {
+      _post(event);
+      event = _pending.forward();
+    }
   }
 
 /*
@@ -250,12 +255,14 @@ void EbBase::_post(EbEventBase* event)
   }
 
   if (_vmoneb) {
+    ClockTime clock(indatagram->datagram().seq.clock());
+    _vmoneb->post_size(indatagram->datagram().xtc.extent);
     unsigned begin = SysClk::sample();
     _output.post(indatagram);
     unsigned time  = SysClk::sample()-begin;
     _vmoneb->post_time(time);
     _vmoneb->fixup(-1);
-    _vmoneb->update();
+    _vmoneb->update(clock);
   } else {
     _output.post(indatagram);
   }
@@ -272,15 +279,28 @@ void EbBase::_post(EbEventBase* event)
   delete event;
 }
 
+#include "pds/utility/EbEvent.hh"
+
 EbBitMask EbBase::_postEvent(EbEventBase* complete)
 {
-  EbEventBase* event = _pending.forward();
-  EbEventBase* empty = _pending.empty();
-  while( event != empty ) {
-    _post(event);
-    if (event == complete) break;
-    event = _pending.forward();
-  }
+//
+//  The network stack can no longer be trusted to deliver packets in
+//  chronological order (consequence of SMP).
+//
+   EbEventBase* event = _pending.forward();
+   EbEventBase* empty = _pending.empty();
+
+   if (event != complete) 
+     printf("pushed by %x\n",
+ 	   ((EbEvent*)complete)->cdatagram()->datagram().seq.high());
+
+   while( event != empty ) {
+     _post(event);
+     if (event == complete) break;
+     event = _pending.forward();
+   }
+
+//  _post(complete);
 
   return managed();
 }
