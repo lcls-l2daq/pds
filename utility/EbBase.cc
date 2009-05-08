@@ -234,7 +234,7 @@ void EbBase::_post(EbEventBase* event)
 
     char buff[80];
     sprintf(buff,"EbBase::_post fixup seq %08x remaining ",
-	    datagram->seq.high());
+	    datagram->seq.stamp().fiducials());
     remaining.write(&buff[strlen(buff)]);
 
     // statistics
@@ -273,7 +273,7 @@ void EbBase::_post(EbEventBase* event)
   Client* ack = _ack;
   //  if (ack && (!datagram->notEvent() ||
   //              ((1 << datagram->service()) & (PAUSE | DISABLE))))
-  if (ack && (!datagram->seq.notEvent()))
+  if (ack && (datagram->seq.isEvent()))
     ack->send((char*)datagram, (char*) 0, 0);
 
   delete event;
@@ -292,7 +292,7 @@ EbBitMask EbBase::_postEvent(EbEventBase* complete)
 
    if (event != complete) 
      printf("pushed by %x\n",
- 	   ((EbEvent*)complete)->cdatagram()->datagram().seq.high());
+            ((EbEvent*)complete)->cdatagram()->datagram().seq.stamp().fiducials());
 
    while( event != empty ) {
      _post(event);

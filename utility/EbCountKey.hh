@@ -16,8 +16,8 @@ namespace Pds {
       //  Initialize the sequence to a default
       s = Sequence(Sequence::Event, 
 		   TransitionId::L1Accept,
-		   ClockTime(0,0),
-		   0, 0); 
+		   ClockTime(),
+		   TimeStamp()); 
     }
   public:
     PoolDeclare;

@@ -42,8 +42,8 @@ public:
     timespec ts;
     clock_gettime(CLOCK_REALTIME, &ts);
     ClockTime ctime(ts.tv_sec,ts.tv_nsec);
-    Sequence seq(Sequence::Event,TransitionId::L1Accept,ctime,
-                 fe.TimestampLow,fe.TimestampHigh);
+    TimeStamp stamp(fe.TimestampLow,fe.TimestampHigh);
+    Sequence seq(Sequence::Event,TransitionId::L1Accept,ctime,stamp);
     EvrDatagram datagram(seq, _evtCounter++);
 
     // for testing

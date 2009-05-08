@@ -183,9 +183,9 @@ public:
     Datagram& dg = in->datagram();
     Acqiris::DataDescV1& data = *(Acqiris::DataDescV1*)(dg.xtc.payload()+sizeof(Xtc));
     long long acqts = data.timestamp(0).value();
-    unsigned evrfid = dg.seq.high();
+    unsigned evrfid = dg.seq.stamp().fiducials();
     unsigned long long psPerFiducial = 2777777777ULL;
-    long long evrdiff = ((evrfid-_lastEvrFid)&((1<<Pds::Sequence::NumFiducialBits)-1))*psPerFiducial;
+    long long evrdiff = ((evrfid-_lastEvrFid)&((1<<Pds::TimeStamp::NumFiducialBits)-1))*psPerFiducial;
     long long acqdiff = acqts-_lastAcqTS;
     long long diff = abs(evrdiff - acqdiff);
     // empirical number for "fuzzy" equality comparison.

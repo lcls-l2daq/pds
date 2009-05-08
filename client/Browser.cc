@@ -29,7 +29,7 @@ Browser::Browser(const Datagram& dg, InDatagramIterator* iter, int depth, int& a
   // This construction of the identity and contains values is a sleazy
   // trick which lets us print their contents as a simple hex value. 
   printf(" sequence # %08X/%08X with environment 0x%08X service %d\n",
-         dg.seq.high(), dg.seq.low(), dg.env.value(), dg.seq.service()); 
+         dg.seq.stamp().fiducials(), dg.seq.stamp().ticks(), dg.env.value(), dg.seq.service()); 
   printf(" source %08X/%08X, contains %x, extent %d, damage 0x%X\n", 
 	 xtc.src.log(), xtc.src.phy(), 
 	 xtc.contains.value(), 

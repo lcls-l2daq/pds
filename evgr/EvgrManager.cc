@@ -29,7 +29,7 @@ public:
   virtual ~TimeLoader() {}
   enum {NumEvtCodes=33};
   void load() {
-    _nfid++; _nfid&=((1<<Pds::Sequence::NumFiducialBits)-1);
+    _nfid++; _nfid&=((1<<Pds::TimeStamp::NumFiducialBits)-1);
     int numEvtCode=0;
     int ram=0;
     //we send down MSB first

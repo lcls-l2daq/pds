@@ -45,7 +45,7 @@ EbEventBase* EbS::_new_event(const EbBitMask& serverId)
     while( event != _pending.empty() ) {
       printf("   %p %x %x\n", 
 	     event, event->remaining().value(), 
-	     ((EbSequenceKey&)event->key()).sequence().high());
+	     ((EbSequenceKey&)event->key()).sequence().stamp().fiducials());
       event = event->forward();
     }
     _postEvent(_pending.forward());

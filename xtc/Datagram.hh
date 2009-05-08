@@ -28,7 +28,7 @@ namespace Pds {
 
     //  Create an empty datagram with identifiers
     Datagram(const TypeId& ctn, const Src& src) :
-      seq(Sequence::Event,TransitionId::Unknown,ClockTime(0,0),0,0), 
+      seq(Sequence::Event,TransitionId::Unknown,ClockTime(),TimeStamp()), 
       env(0), xtc(ctn,src) {}
 
     //  Create a datagram from a transition

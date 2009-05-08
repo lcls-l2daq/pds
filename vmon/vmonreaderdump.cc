@@ -32,7 +32,7 @@ namespace Pds {
 		 const MonStats1D& stats)
     {
       fprintf(_file,"%08x/%08x  %9g %9g %9g\n",
-	      time.high,time.low,
+	      time.seconds(),time.nanoseconds(),
 	      stats.sum(), stats.sumx(), stats.sumx2());
     }
     void process(const ClockTime& time,
@@ -41,7 +41,7 @@ namespace Pds {
 		 const MonStats2D& stats)
     {
       fprintf(_file,"%08x/%08x  %9g %9g %9g %9g %9g %9g\n",
-	      time.high,time.low,
+	      time.seconds(),time.nanoseconds(),
 	      stats.sum(), stats.sumx(), stats.sumy(),
 	      stats.sumx2(), stats.sumy2(), stats.sumxy());
     }

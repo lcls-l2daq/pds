@@ -17,14 +17,14 @@ OutletWire::~OutletWire() {}
 void OutletWire::_log(const Datagram& dg, int result)
 {
   printf("*** OutletWire send seq %08x %08x, extent %08x error: %s\n",
-         dg.seq.highAll(), dg.seq.low(), dg.xtc.extent, strerror(result));
+         dg.seq.stamp().fiducials(), dg.seq.stamp().ticks(), dg.xtc.extent, strerror(result));
 }
 
 
 void OutletWire::_log(const Datagram& dg, const Ins& ins, int result)
 {
   printf("*** OutletWire send seq %08x %08x, extent %08x, addr %08x, port %d, error: %s\n",
-         dg.seq.highAll(), dg.seq.low(), dg.xtc.extent, 
+         dg.seq.stamp().fiducials(), dg.seq.stamp().ticks(), dg.xtc.extent, 
 	 ins.address(), ins.portId(),
 	 strerror(result));
 }
