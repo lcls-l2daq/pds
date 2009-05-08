@@ -45,7 +45,7 @@ tgtlibs_camsend += $(leutron_libs)
 tgtincs_camsend += leutron/include
 
 tgtsrcs_camreceiver := camreceiver.c display.cc
-tgtsinc_camreceiver := /pcds/package/qt-4.3.4/include
+tgtincs_camreceiver := qt/include
 tgtlibs_camreceiver := qt/QtGui qt/QtCore
 #tgtslib_camreceiver := /usr/lib/qt4/lib/QtGui /usr/lib/qt4/lib/QtCore
 #tgtsinc_camreceiver := /usr/lib/qt4/include
