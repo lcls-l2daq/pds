@@ -23,7 +23,7 @@
 
 using namespace Pds;
 
-static int dropPulseMask = -1;
+static unsigned dropPulseMask = 0xffffffff;
 
 class L1Xmitter;
 static L1Xmitter* l1xmitGlobal;
