@@ -13,6 +13,11 @@ namespace Pds {
   public:
     EvgrManager(EvgrBoardInfo<Evg>& egInfo, EvgrBoardInfo<Evr>& erInfo);
     Appliance& appliance();
+
+  public:
+    unsigned opcodecount() const;
+    unsigned lastopcode() const;
+
   private:
     Evg& _eg;
     Evr& _er;

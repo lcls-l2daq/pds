@@ -23,6 +23,9 @@ static TimeLoader* timeLoaderGlobal;
 static OpcodeLoader* opcodeLoaderGlobal;
 static EvgrBoardInfo<Evr> *erInfoGlobal;
 
+static unsigned _opcodecount=0;
+static unsigned _lastopcode=0;
+
 class TimeLoader {
 public:
   TimeLoader(Evg& eg, Evr& er) : _eg(eg),_er(er),_nfid(0) {}
@@ -46,6 +49,8 @@ public:
   void set() {
     FIFOEvent fe;
     _er.GetFIFOEvent(&fe);
+    _opcodecount++;
+    _lastopcode = fe.EventCode;
     load();
   }
 private:
@@ -219,3 +224,6 @@ EvgrManager::EvgrManager(EvgrBoardInfo<Evg> &egInfo, EvgrBoardInfo<Evr> &erInfo)
   _er.IrqAssignHandler(erInfo.filedes(), &evgrmgr_sig_handler);
   erInfoGlobal = &erInfo;
 }
+
+unsigned EvgrManager::opcodecount() const {return _opcodecount;}
+unsigned EvgrManager::lastopcode() const {return _lastopcode;}
