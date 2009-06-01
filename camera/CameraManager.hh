@@ -64,7 +64,6 @@ namespace Pds {
     CfgClientNfs*   _configService;
     Xtc             _fextc;
     FrameFexConfigType* _fexConfig;
-    Damage          _damage;
   protected:
     unsigned        _nposts;
   };

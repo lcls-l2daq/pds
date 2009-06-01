@@ -31,11 +31,11 @@ namespace Pds {
     
   private:
     // Implements PartitionMember
-    Message& reply     (Message::Type);
-    void     allocated (const Allocation&, unsigned index);
-    void     dissolved ();
-    void     post      (const Transition&);
-    void     post      (const InDatagram&);
+    virtual Message& reply     (Message::Type);
+    virtual void     allocated (const Allocation&, unsigned index);
+    virtual void     dissolved ();
+    virtual void     post      (const Transition&);
+    virtual void     post      (const InDatagram&);
     
   private:
     int                 _reason;

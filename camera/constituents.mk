@@ -14,6 +14,7 @@ libsrcs_camera := DmaSplice.cc \
 		  Opal1kManager.cc \
 	          TM6740Manager.cc
 #	          FrameServer.cc \
+
 libsinc_camera := /usr/include/lvsds
 libincs_camera := leutron/include
 
@@ -46,6 +47,7 @@ tgtincs_camsend += leutron/include
 
 tgtsrcs_camreceiver := camreceiver.c display.cc
 tgtincs_camreceiver := qt/include
+
 tgtlibs_camreceiver := qt/QtGui qt/QtCore
 #tgtslib_camreceiver := /usr/lib/qt4/lib/QtGui /usr/lib/qt4/lib/QtCore
 #tgtsinc_camreceiver := /usr/lib/qt4/include

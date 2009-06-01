@@ -142,6 +142,13 @@ void ObserverLevel::post     (const Transition& tr)
   pre_wire->post(tr);
 }
 
+void ObserverLevel::post     (const InDatagram& in)
+{
+  InletWire* bld_wire = _streams->wire(StreamParams::FrameWork);
+  InletWire* pre_wire = _inlet ? _inlet->input() : bld_wire;
+  pre_wire->post(in);
+}
+
 void ObserverLevel::dissolved()
 {
   // detach the ToEb

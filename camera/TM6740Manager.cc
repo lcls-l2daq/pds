@@ -22,7 +22,7 @@ TM6740Manager::TM6740Manager(const Src& src) :
   CameraManager(src, MaxConfigSize),
   _camera    (new PdsLeutron::TM6740Camera),
   _configdata(0),
-  _configtc  (_tm6740ConfigType, src)
+  _configtc  (_tm6740ConfigType, src, (1<<Damage::UserDefined))
 {
 }
 
@@ -44,9 +44,11 @@ void TM6740Manager::_configure(InDatagram* in)
   _configtc.extent = sizeof(Xtc);
   if (_configtc.damage.value())
     in->datagram().xtc.damage.increase(_configtc.damage.value());
-  else
+  else {
     _configtc.extent += sizeof(_configdata);
-  in->insert(_configtc, _configdata);
+    in->insert(_configtc, _configdata);
+  }
+  _configtc.damage.increase(Damage::UserDefined);
 }
 
 PdsLeutron::PicPortCL& TM6740Manager::camera() { return *_camera; }

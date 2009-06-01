@@ -30,7 +30,7 @@ Opal1kManager::Opal1kManager(const Src& src) :
   CameraManager(src, MaxConfigSize),
   _camera    (new PdsLeutron::Opal1kCamera),
   _configdata(0),
-  _configtc  (_opal1kConfigType, src),
+  _configtc  (_opal1kConfigType, src, (1<<Damage::UserDefined)),
   _occPool   (new GenericPool(sizeof(Occurrence),1))
 {
 }
@@ -44,7 +44,7 @@ Opal1kManager::~Opal1kManager()
 void Opal1kManager::_configure(char* buff)
 {
   _configtc.damage = 0;
-  _configdata = new(buff) Opal1kConfigType;
+  _configdata = new(buff) Opal1kConfigType();
   _camera->Config(*_configdata);
   server().setCameraOffset(_configdata->output_offset());
 }  
@@ -54,18 +54,20 @@ void Opal1kManager::_configure(InDatagram* in)
   _configtc.extent = sizeof(Xtc);
   if (_configtc.damage.value())
     in->datagram().xtc.damage.increase(_configtc.damage.value());
-  else
+  else {
     _configtc.extent += _configdata->size();  
-  in->insert(_configtc, _configdata);
+    in->insert(_configtc, _configdata);
+  }
+  _configtc.damage.increase(Damage::UserDefined);
 }
 
 Pds::Damage Opal1kManager::_handle()
 {
   //  Trigger a clear readout
-  if (_camera->CurrentCount == 2001)
-    _outOfOrder = false;
-  if (_camera->CurrentCount == 2000)
-    _camera->CurrentCount++;
+//   if (_camera->CurrentCount == 2001)
+//     _outOfOrder = false;
+//   if (_camera->CurrentCount == 2000)
+//     _camera->CurrentCount++;
 
   if (!_outOfOrder && _camera->CurrentCount != _nposts) {
     _outOfOrder = true;
@@ -78,7 +80,7 @@ Pds::Damage Opal1kManager::_handle()
 	   _camera->CurrentCount, _nposts);
   }
 
-  return _outOfOrder ? Pds::Damage::OutOfOrder : 0;
+  return Pds::Damage(_outOfOrder ? (1<<Pds::Damage::OutOfOrder) : 0);
 }
 
 void Opal1kManager::_register()
@@ -89,12 +91,14 @@ void Opal1kManager::_register()
 void Opal1kManager::_unregister()
 {
   printf("=== Opal1k dump ===\n nposts %d\n",_nposts);
-  printf("buffered frame ids:");
+  _camera->dump();
+  printf("buffered frame ids: ");
   for(unsigned k=0; k<16; k++) {
-    PdsLeutron::FrameHandle* handle = _camera->GetFrameHandle();
-    unsigned id = _camera->CurrentCount;
-    printf(" %d",id);
-    delete handle;
+    PdsLeutron::FrameHandle* hdl = _camera->GetFrameHandle();
+    unsigned short *data = (unsigned short *)hdl->data;
+    unsigned Count = (data[0]<<24) | (data[1]<<16) | (data[2]<<8) | data[3];
+    printf("%p/%d/%d ",hdl->data, (unsigned)hdl->arg, Count);
+    delete hdl;
   }
   printf("\n");
 }

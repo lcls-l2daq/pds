@@ -22,7 +22,7 @@
 
 #define USE_TCP
 
-#define IMAGE_RINGBUFFER_SIZE	8
+#define IMAGE_RINGBUFFER_SIZE	2
 #define SOCKET_BUFFER_SIZE	(1*1024*1024)	/* buffer of the socket, VERY important in UDP */
 
 #define CREATE_RINGBUFFER(_name_, _type_, _ringsize_) \
@@ -46,6 +46,7 @@ static int flush = 0;
 static char *destfile;
 static int enable_save = 0, enable_display = 0;
 static double disprate = 1;
+static int bw_mode = 1;
 CREATE_RINGBUFFER(images, struct camstream_image_t *, IMAGE_RINGBUFFER_SIZE);
 
 int help(char *name)
@@ -94,7 +95,7 @@ void *writing_main(void *arg)
 	}
 	if (enable_display) {
 		printf("Initializing display ... ");
-		display_init();
+		display_init(bw_mode);
 		printf("done.\n");
 	}
 	pthread_mutex_lock(&images.lock);
@@ -189,6 +190,8 @@ int main (int argc, char *argv[])
 			enable_display = 1;
 		} else if (strcmp("--disprate", argv[i]) == 0) {
 			disprate = atof(argv[++i]);
+		} else if (strcmp("--color", argv[i]) == 0) {
+ 		        bw_mode = 0;
 		} else if (strcmp("--sockbuf", argv[i]) == 0) {
 			sockbufsz = atoi(argv[++i]);
 		} else if (strcmp("--first", argv[i]) == 0) {
@@ -207,12 +210,30 @@ int main (int argc, char *argv[])
 
 	printf("Initializing application data ... ");
 	/* Start the writing thread */
-	ret = pthread_create(&writing_thread, NULL, writing_main, NULL);
+	pthread_attr_t wflags;
+	pthread_attr_init(&wflags);
+	struct sched_param param;
+	ret = pthread_attr_getschedparam(&wflags, &param);
+	if (ret != 0) {
+	  printf("getschedparam failed: %s\n", strerror(ret));
+	  return -ret;
+	}
+	printf("priority = %d\n",param.sched_priority);
+	param.sched_priority = 65;
+	pthread_attr_setschedparam(&wflags,&param);
+	if (ret != 0) {
+	  printf("setschedparam failed: %s\n", strerror(ret));
+	  return -ret;
+	}
+	ret = pthread_attr_getschedparam(&wflags, &param);
+	printf("priority = %d\n",param.sched_priority);
+	ret = pthread_create(&writing_thread, &wflags, writing_main, NULL);
 	if(ret != 0) {
 		printf("failed.\n");
 		fprintf(stderr, "ERROR: pthread_create(): %s.\n", strerror(ret));
 		return -ret;
 	}
+
 	buffer = (char *)malloc(sizeof(struct camstream_image_t));
 	if(buffer == NULL) {
 		printf("failed.\n");

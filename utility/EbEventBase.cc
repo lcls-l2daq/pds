@@ -113,18 +113,14 @@ void EbEventBase::dump(int number)
   printf("   Forward link -> %08X, Backward link -> %08X\n",
          (unsigned)forward(), (unsigned)reverse());
   printf("   Contributions seen/requested = ");
-  for (unsigned i = EbBitMask::BitMaskWords; i > 0; i--)
-    printf("%08x", _contributions.remaining().value(i-1));
+  _contributions.remaining().print();
   printf("/");
-  for (unsigned j = EbBitMask::BitMaskWords; j > 0; j--)
-    printf("%08x", _contract.value(j-1));
+  _contract.print();
   printf("\n");
   printf("   Allocations   seen/requested = ");
-  for (unsigned k = EbBitMask::BitMaskWords; k > 0; k--)
-    printf("%08x", _allocated.remaining().value(k-1));
+  _allocated.remaining().print();
   printf("/");
-  for (unsigned l = EbBitMask::BitMaskWords; l > 0; l--)
-    printf("%08x", _contract.value(l-1));
+  _contract.print();
   printf("\n");
 
   //  printf("   Datagram address = %d, %08X (hex)\n",

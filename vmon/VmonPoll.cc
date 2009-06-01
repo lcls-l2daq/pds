@@ -57,9 +57,10 @@ int VmonPoll::poll()
     }
   }
   else {
+    //  known valid returns from poll are : EINTR - interrupted by a signal
     printf("VmonPoll::poll failed : reason %s\n",strerror(errno));
   }
-  return 0;
+  return 1;
 }
 
 void VmonPoll::routine()

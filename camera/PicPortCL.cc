@@ -36,6 +36,13 @@ namespace PdsLeutron {
     inline void push(int v) { _contents[_tail]=v; _tail=(_tail+1)%_size; }
     inline int  pop ()      { int h(_head); _head=(_head+1)%_size; return _contents[h]; }
     unsigned depth(int) const;
+
+    void dump() const 
+    { 
+      printf("head/tail %d/%d\n",_head,_tail); 
+      for(unsigned k=0; k<_size; k++) printf("%d ",_contents[k]); 
+      printf("\n"); 
+    }
   private:
     int _size;
     int _head;
@@ -146,15 +153,21 @@ int PicPortCL::Init() {
   // an already configured object, if an old one exist destroy it
   if (_pSeqDral != NULL)
     delete _pSeqDral;
-  _pSeqDral = (DsyApp_Seq_AsyncReset*)Seq32_AR_CreateObject(const_cast<char*>(Name()),
-							   (char*)NULL,
-							   ARST_Mode_0);
+
+//   _pSeqDral = (DsyApp_Seq_AsyncReset*)Seq32_AR_CreateObject(const_cast<char*>(Name()),
+//  							   (char*)NULL,
+//  							   ARST_Mode_0);
+  _pSeqDral = trigger_CC1() ?
+    (DsyApp_Seq32*)Seq32_AR_CreateObject(const_cast<char*>(Name()),
+					 (char*)NULL,
+					 ARST_Mode_0) :
+    new DsyApp_Seq32;
 
   // Configure the sequencer, since this part is very dependent 
   // on the Camera we call PicPortCameraConfig which cameras can 
   // re-define.
   lvret = _pSeqDral->GetConfig(&_seqDralConfig);
-  _dumpConfig(_seqDralConfig);
+  //  _dumpConfig(_seqDralConfig);
   if (lvret != I_NoError)
     return -DsyToErrno(lvret);
 
@@ -164,6 +177,7 @@ int PicPortCL::Init() {
   _seqDralConfig.hGrabber = DsyGetGrabberHandleByName(PICPORTCL_NAME, _grabberId);
   _seqDralConfig.Flags = SqFlg_AutoAdjustBuffer;
   _seqDralConfig.NrImages = 16;
+  //  _seqDralConfig.NrImages = 2;
   _seqDralConfig.UseCameraList = true;
   _seqDralConfig.ConnectCamera.MasterCameraType = CameraId;
   _seqDralConfig.ConnectCamera.NrCamera = 1;
@@ -214,7 +228,7 @@ int PicPortCL::Init() {
   }
 
   // Activate the configuration and initialize the frame grabber
-  _dumpConfig(_seqDralConfig);
+  //  _dumpConfig(_seqDralConfig);
   lvret = _pSeqDral->SetConfig(&_seqDralConfig);
   if (lvret != I_NoError)
     return -DsyToErrno(lvret);
@@ -223,10 +237,11 @@ int PicPortCL::Init() {
   lvret = _pSeqDral->Activate();
   if (lvret != I_NoError)
     return -DsyToErrno(lvret);
+  printf("PicPortCL::Activate() complete\n");
 
   if (trigger_CC1()) {
-    _pSeqDral->SetShutterTime(trigger_duration_us());
-    _pSeqDral->SetExternalEvent(ExtEv_Immediate);
+    ((DsyApp_Seq_AsyncReset*)_pSeqDral)->SetShutterTime(trigger_duration_us());
+    ((DsyApp_Seq_AsyncReset*)_pSeqDral)->SetExternalEvent(ExtEv_Immediate);
   }
 
   if (_queue) { delete _queue; }
@@ -234,7 +249,7 @@ int PicPortCL::Init() {
 
   // Update configuration with the activated one
   lvret = _pSeqDral->GetConfig(&_seqDralConfig);
-  _dumpConfig(_seqDralConfig);
+  //  _dumpConfig(_seqDralConfig);
   if (lvret != I_NoError)
     return -DsyToErrno(lvret);
 
@@ -490,3 +505,9 @@ U16BIT FindConnIndex(HGRABBER hGrabber, U16BIT CameraId, const char* conn) {
   return ConnIndex;
 }
 
+void PicPortCL::dump()  
+{
+  if (_queue) {
+    _queue->dump();
+  }
+}

@@ -28,8 +28,9 @@ Browser::Browser(const Datagram& dg, InDatagramIterator* iter, int depth, int& a
   const Xtc& xtc = dg.xtc;
   // This construction of the identity and contains values is a sleazy
   // trick which lets us print their contents as a simple hex value. 
-  printf(" sequence # %08X/%08X with environment 0x%08X service %d\n",
-         dg.seq.stamp().fiducials(), dg.seq.stamp().ticks(), dg.env.value(), dg.seq.service()); 
+  printf(" sequence # %08X/%08X/%02X with environment 0x%08X service %d\n",
+         dg.seq.stamp().fiducials(), dg.seq.stamp().ticks(), dg.seq.stamp().control(),
+	 dg.env.value(), dg.seq.service()); 
   printf(" source %08X/%08X, contains %x, extent %d, damage 0x%X\n", 
 	 xtc.src.log(), xtc.src.phy(), 
 	 xtc.contains.value(), 

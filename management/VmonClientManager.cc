@@ -14,6 +14,7 @@
 #include "pds/mon/MonConsumerClient.hh"
 #include "pds/vmon/VmonClientSocket.hh"
 #include "pdsdata/xtc/DetInfo.hh"
+#include "pds/xtc/InDatagram.hh"
 
 #include <errno.h>
 #include <string.h>
@@ -89,6 +90,11 @@ void VmonClientManager::post(const Transition& tr)
     disconnect();
   }
   delete const_cast<Transition*>(&tr);
+}
+
+void VmonClientManager::post(const InDatagram& in)
+{
+  delete const_cast<InDatagram*>(&in);
 }
 
 

@@ -6,19 +6,17 @@
 namespace Pds {
 
   class PartitionMember;
-  //class VmonAppliance;
+  class VmonEb;
 
   class EventStreams: public WiredStreams {
   public:
     enum { netbufdepth = 8 };
-    enum { ebdepth     = 16 };
+    enum { EbDepth     = 16 };
     enum { MaxSize     = 4*1024*1024 };
 
-    EventStreams(PartitionMember& cmgr);
+    EventStreams(PartitionMember& cmgr,
+		 VmonEb* vmoneb=0);
     virtual ~EventStreams();
-
-  private:
-    //  VmonAppliance* _vmom_appliance;
   };
 
 }

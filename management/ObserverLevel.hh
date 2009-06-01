@@ -27,6 +27,7 @@ namespace Pds {
     void dissolved();
   private:  
     void     post      (const Transition&);
+    void     post      (const InDatagram&);
 
   private:
     unsigned       _node;

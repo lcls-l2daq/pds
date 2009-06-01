@@ -15,8 +15,8 @@ namespace Pds {
 
     virtual ~ControlCallback() {}
 
-    virtual void allocated(SetOfStreams& streams) = 0;
-    virtual void failed(Reason reason) = 0;
+    virtual void attached(SetOfStreams& streams) = 0;
+    virtual void failed  (Reason reason) = 0;
     //    virtual void ready(const Partition* partition) = 0;
     //    virtual void notready(const Partition* partition, 
     //			  const PartitionException* exception) = 0;

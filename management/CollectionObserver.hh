@@ -5,11 +5,13 @@
 
 #include "pds/collection/Node.hh"
 #include "pds/service/GenericPool.hh"
+#include "pds/utility/OutletWireInsList.hh"
 
 namespace Pds {
 
   class Allocation;
   class Transition;
+  class InDatagram;
 
   class CollectionObserver : public CollectionManager {
   public:
@@ -23,6 +25,7 @@ namespace Pds {
     virtual void dissolved() = 0;
   public:
     virtual void post(const Transition&) = 0;
+    virtual void post(const InDatagram&) = 0;
   private:
     void message(const Node& hdr, const Message& msg);
   private:
@@ -31,6 +34,7 @@ namespace Pds {
     GenericPool _pool;
     bool        _isallocated;
     Node        _allocator;
+    OutletWireInsList _rivals;        // list of nodes at this level
   };
 
 };

@@ -41,6 +41,8 @@ namespace PdsLeutron {
     int SendCommand(char *szCommand, char *pszResponse, int iResponseBufferSize);
     unsigned char* frameBufferBaseAddress() const;
     unsigned char* frameBufferEndAddress () const;
+
+    void dump();
   private:
     //  Serial command interface
     virtual int           baudRate() const=0;
@@ -68,7 +70,8 @@ namespace PdsLeutron {
     DaSeq32Cfg             _seqDralConfig;
     LvROI                  _roi;
     int                    _grabberId;
-    DsyApp_Seq_AsyncReset* _pSeqDral;
+    //    DsyApp_Seq_AsyncReset* _pSeqDral;
+    DsyApp_Seq32*          _pSeqDral;
     MyQueue*               _queue;
   private:
     enum NotifyType _notifyMode;

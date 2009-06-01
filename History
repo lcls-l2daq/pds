@@ -1,3 +1,5 @@
+2009-Jun-01	weaver	Tag V00-09-00.  Consistent with pdsdata V00-04-00.  Added management/PartitionControl
+			as a base for run control sequencer.
 2009-Apr-16	weaver	Added Pulnix TM6740 camera.  Added occurrences to collection messages.
 			Added function to drop evr multicasts and generate opal1k out-of-order (for testing).
 			Fix in GenericPoolW to use counting semaphore for pool resource counting.

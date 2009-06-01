@@ -1,6 +1,8 @@
 #include "CollectionObserver.hh"
 
 #include "pds/utility/Transition.hh"
+#include "pds/xtc/CDatagram.hh"
+#include "pds/xtc/XtcType.hh"
 
 #include <string.h>
 
@@ -29,6 +31,7 @@ void CollectionObserver::message(const Node& hdr, const Message& msg)
   if (hdr.level() == Level::Control) {
     if (msg.type()==Message::Transition) {
       const Transition& tr = reinterpret_cast<const Transition&>(msg);
+      OutletWireIns* dst;
       if (tr.phase() == Transition::Execute) {
 	if (tr.id() == TransitionId::Map) {
 	  const Allocation& alloc = 
@@ -43,6 +46,17 @@ void CollectionObserver::message(const Node& hdr, const Message& msg)
 	  _isallocated = true;
 	  _allocator   = hdr;
 	  allocated( alloc, _node );
+
+	  unsigned    nnodes = alloc.nnodes();
+	  unsigned    index  = 0;
+	  _rivals.flush();
+	  for (unsigned n=0; n<nnodes; n++) {
+	    const Node* node = alloc.node(n);
+	    if (node->level() == Level::Event) {
+	      _rivals.insert(index, msg.reply_to());
+	      index++;
+	    }
+	  }
 	}
 	else if (!(_isallocated && hdr==_allocator))
 	  return;
@@ -54,6 +68,14 @@ void CollectionObserver::message(const Node& hdr, const Message& msg)
 	  _isallocated = false;
 	  dissolved();
 	}
+      }
+      else if (((dst=_rivals.lookup(tr.sequence())) &&
+		dst->id() != _node)) {
+	CDatagram* ndg = 
+	  new(&_pool) CDatagram(Datagram(tr, 
+					 _xtcType,
+					 header().procInfo()));
+	post(*ndg);
       }
     }
   }

@@ -47,9 +47,12 @@ class OutletWireHeader : public Sequence
 ** --
 */
 
+#define ExtendedBit (1<<7)
 inline
 Pds::OutletWireHeader::OutletWireHeader(const Pds::Datagram* datagram) :
-  Pds::Sequence(datagram->seq),
+  Pds::Sequence(datagram->seq.clock(),
+		Pds::TimeStamp(datagram->seq.stamp(),
+			       datagram->seq.stamp().control() | ExtendedBit)),
   env(datagram->env.value()),
   damage(datagram->xtc.damage.value()),
   src(datagram->xtc.src),
@@ -57,6 +60,7 @@ Pds::OutletWireHeader::OutletWireHeader(const Pds::Datagram* datagram) :
   length(datagram->xtc.sizeofPayload()+sizeof(Xtc))
   {
   }
+#undef ExtendedBit
 
 /*
 ** ++

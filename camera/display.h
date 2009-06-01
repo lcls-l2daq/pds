@@ -9,7 +9,7 @@
 extern "C" {
 #endif
 
-int display_init(void);
+int display_init(int);
 int display_image(char *image, unsigned long size, unsigned int width, unsigned int height);
 
 #ifdef __cplusplus

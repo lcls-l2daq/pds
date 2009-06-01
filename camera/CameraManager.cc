@@ -25,6 +25,7 @@
 #include <stdio.h>
 #include <new>
 
+
 Pds::CameraManager* signalHandlerArgs[64];
 
 static void cameraSignalHandler(int arg)
@@ -38,7 +39,9 @@ namespace Pds {
   class CameraMapAction : public Action {
   public:
     CameraMapAction(CameraManager& mgr) : _mgr(mgr) {}
-    Transition* fire(Transition* tr) { return _mgr.allocate(tr); }
+    Transition* fire(Transition* tr) {
+      return _mgr.allocate(tr); 
+    }
     InDatagram* fire(InDatagram* dg) { return dg; }
   private:
     CameraManager& _mgr;
@@ -95,8 +98,7 @@ CameraManager::CameraManager(const Src& src,
   _configBuffer(new char[MaxConfigSize+sizeof(FrameFexConfigType)]),
   _configService(new CfgClientNfs(src)),
   _fextc(_frameFexConfigType, src),
-  _fexConfig(0),
-  _damage   (0)
+  _fexConfig(0)
 {
   _fsm->callback(TransitionId::Map        , new CameraMapAction     (*this));
   _fsm->callback(TransitionId::Configure  , new CameraConfigAction  (*this));
@@ -124,10 +126,9 @@ Transition* CameraManager::allocate (Transition* tr)
 
 Transition* CameraManager::configure(Transition* tr)
 {
-  _damage = 0;
-  _damage.increase(Damage::UserDefined);
-
   _fextc.damage = 0;
+  _fextc.damage.increase(Damage::UserDefined);
+  _fexConfig    = 0;
 
   //
   //  retrieve the configuration
@@ -176,7 +177,7 @@ Transition* CameraManager::configure(Transition* tr)
       if ((ret = camera().Start()) < 0)
 	printf("Camera::Start: %s.\n", strerror(-ret));
       else
-	_damage = 0;
+	_fextc.damage = 0;
     }
   }
 
@@ -197,16 +198,14 @@ Transition* CameraManager::disable(Transition* tr)
 
 InDatagram* CameraManager::configure  (InDatagram* in) 
 {
-  in->datagram().xtc.damage.increase(_damage.value());
-
   _fextc.extent = sizeof(Xtc);
 
   if (_fextc.damage.value())
     in->datagram().xtc.damage.increase(_fextc.damage.value()); 
-  else
+  else {
     _fextc.extent += _fexConfig->size();
-
-  in->insert(_fextc, _fexConfig);
+    in->insert(_fextc, _fexConfig);
+  }
 
   _configure(in);
 
@@ -253,10 +252,12 @@ void CameraManager::register_(int sig)
 
 void CameraManager::unregister()
 {
-  struct sigaction action;
-  action.sa_handler = SIG_DFL;
-  sigaction(_sig,&action,NULL);
-  _sig = -1;
+  if (_sig >= 0) {
+    struct sigaction action;
+    action.sa_handler = SIG_DFL;
+    sigaction(_sig,&action,NULL);
+    _sig = -1;
+  }
 
   _unregister();
 }

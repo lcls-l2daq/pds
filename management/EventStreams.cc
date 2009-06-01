@@ -15,7 +15,8 @@
 
 using namespace Pds;
 
-EventStreams::EventStreams(PartitionMember& cmgr) :
+EventStreams::EventStreams(PartitionMember& cmgr,
+			   VmonEb* vmoneb) :
   WiredStreams(VmonSourceId(cmgr.header().level(), cmgr.header().ip()))
 {
   const Node& node = cmgr.header();
@@ -37,7 +38,7 @@ EventStreams::EventStreams(PartitionMember& cmgr) :
        _xtcType,
        level,
        *stream(s)->inlet(), *_outlets[s], s, ipaddress,
-       MaxSize, ebdepth);
+       MaxSize, EbDepth, vmoneb);
     
     if (cmgr.header().level()==Level::Recorder)
       eb->no_build(Sequence::Event,1<<TransitionId::L1Accept);

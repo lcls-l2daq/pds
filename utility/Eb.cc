@@ -106,26 +106,23 @@ int Eb::processIo(Server* serverGeneric)
   //  (1) it is the first contribution, and the event's key(s) are not yet set; or
   //  (2) the contribution came from a later event than expected.
 
-  if(!server->coincides(event->key())) {
-    if(event == event->forward()) {  // case (1)
+  if(event == event->forward())    // case (1)
+    _pending.insert(event);
+  else if(!server->coincides(event->key())) {
+    // case (2):  Remove the contribution from this event.  Now that we have the contribution's
+    //            header, we can definitely search for the correct event-under-construction
+    //            and copy the payload there.  If the correct event doesn't yet exist, it will
+    //            be created, if possible.
+    _misses++;
+    event->deallocate(serverId);  // remove the contribution from this event
+    event = (EbEvent*)_seek(server);
+    if (event == (EbEvent*)_pending.empty()) {
+      event = (EbEvent*)_new_event(serverId);
       _pending.insert(event);
     }
-    else { 
-      // case (2):  Remove the contribution from this event.  Now that we have the contribution's
-      //            header, we can definitely search for the correct event-under-construction
-      //            and copy the payload there.  If the correct event doesn't yet exist, it will
-      //            be created, if possible.
-      _misses++;
-      event->deallocate(serverId);  // remove the contribution from this event
-      event = (EbEvent*)_seek(server);
-      if (event == (EbEvent*)_pending.empty()) {
-	event = (EbEvent*)_new_event(serverId);
-	_pending.insert(event);
-      }
 
-      event->allocated().insert(serverId);
-      event->recopy(payload, sizeofPayload, serverId);
-    }
+    event->allocated().insert(serverId);
+    event->recopy(payload, sizeofPayload, serverId);
   }
   server->assign(event->key());
 

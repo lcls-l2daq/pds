@@ -213,10 +213,12 @@ void EbBase::_post(EbEventBase* event)
   Datagram*   datagram   = const_cast<Datagram*>(&indatagram->datagram());
   EbBitMask   remaining  = event->remaining();
 
-  EbBitMask value(event->allocated().remaining() & _valued_clients);
+  EbBitMask value((event->allocated().remaining() |
+		   event->segments()) &
+		  _valued_clients);
 #ifdef VERBOSE
   printf("(%p) %08x/%08x remaining %08x value %08x payload %d\n",
-    	 this, datagram->seq.high(),datagram->seq.low(),
+    	 this, datagram->seq.service(),datagram->seq.stamp().fiducials(),
   	 remaining.value(0),value.value(0),datagram->xtc.sizeofPayload());
 #endif
   if (value.isZero()) {  // sink
@@ -289,18 +291,21 @@ EbBitMask EbBase::_postEvent(EbEventBase* complete)
 //
    EbEventBase* event = _pending.forward();
    EbEventBase* empty = _pending.empty();
-
-   if (event != complete) 
-     printf("pushed by %x\n",
-            ((EbEvent*)complete)->cdatagram()->datagram().seq.stamp().fiducials());
+   
+   if (event != empty &&
+       event != complete) 
+     printf("%x/%x(%x)... pushed by %x/%x\n",
+	    event->datagram()->seq.service(),
+	    event->datagram()->seq.stamp().fiducials(),
+	    event->remaining().value(0),
+	    complete->datagram()->seq.service(),
+	    complete->datagram()->seq.stamp().fiducials());
 
    while( event != empty ) {
      _post(event);
      if (event == complete) break;
      event = _pending.forward();
    }
-
-//  _post(complete);
 
   return managed();
 }
@@ -339,7 +344,7 @@ int EbBase::processTmo()
       EbBitMask value(event->allocated().remaining() & _valued_clients);
       if (!value.isZero())
 	printf("EbBase::processTmo seq %x/%x  remaining %08x\n",
-	       datagram->seq.high(), datagram->seq.low(),
+	       datagram->seq.service(), datagram->seq.stamp().fiducials(),
 	       event->remaining().value());
 #endif
       ServerManager::arm(_postEvent(event));

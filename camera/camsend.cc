@@ -90,7 +90,8 @@ void *frame_cleanup(void *arg)
 int main(int argc, char *argv[])
 { int exttrigger = 0;
   int extshutter = 0;
-  int fps = 0;
+  double fps = 0;
+  int ifps =0;
   int usplice = 0;
   int i, ret, sockfd=-1;
   long nimages = 0;
@@ -123,8 +124,6 @@ int main(int argc, char *argv[])
       return 0;
     } else if (strcmp("--camera",argv[i]) == 0) {
       camera_choice = atoi(argv[++i]);
-    } else if (strcmp("--trigger",argv[i]) == 0) {
-      exttrigger = 1;
     } else if (strcmp("--shutter",argv[i]) == 0) {
       extshutter = 1;
     } else if (strcmp("--splice",argv[i]) == 0) {
@@ -138,7 +137,8 @@ int main(int argc, char *argv[])
       printf("splice only supported in GCC version 4+\n");
 #endif
     } else if (strcmp("--fps",argv[i]) == 0) {
-      fps = atol(argv[++i]);
+      fps = strtod(argv[++i],NULL);
+      ifps = int(fps);
     } else if (strcmp("--count",argv[i]) == 0) {
       nimages = atol(argv[++i]);
     } else if (strcmp("--bpp",argv[i]) == 0) {
@@ -151,8 +151,8 @@ int main(int argc, char *argv[])
       return -1;
     }
   }
-  if((fps == 0) && (!exttrigger) && (!extshutter)) {
-    fprintf(stderr, "ERROR: you must set the frames per second with --fps.\n");
+  if((fps == 0) && (!extshutter)) {
+    fprintf(stderr, "ERROR: set the frames per second (--fps) or the external shutter (--shutter).\n");
     return -1;
   }
 
@@ -163,7 +163,9 @@ int main(int argc, char *argv[])
     {
       Opal1kCamera* oCamera = new Opal1kCamera();
       Opal1kConfigType* Config = new Opal1kConfigType( 32, 100, 
-						       Opal1kConfigType::Eight_bit,
+						       bitsperpixel==8 ? Opal1kConfigType::Eight_bit : 
+						       bitsperpixel==10 ? Opal1kConfigType::Ten_bit :
+						       Opal1kConfigType::Twelve_bit,
 						       Opal1kConfigType::x1,
 						       Opal1kConfigType::None,
 						       true, false);
@@ -178,7 +180,7 @@ int main(int argc, char *argv[])
       TM6740ConfigType* Config = new TM6740ConfigType( 0x28,  // black-level
 						       0xde,  // gain-tap-a
 						       0xe9,  // gain-tap-b
-						       2000,  // shutter-width-us
+						       unsigned(1.e6/fps),  // shutter-width-us
 						       false, // gain-balance
 						       TM6740ConfigType::Eight_bit,
 						       TM6740ConfigType::x1,
@@ -233,10 +235,13 @@ int main(int argc, char *argv[])
 }
 
   if (!extshutter && camera_choice==0) {
-    unsigned _mode=0, _fps=100000/fps, _it=540/10;
+    //    unsigned _mode=0, _fps=100000/fps, _it=540/10;
+    unsigned _mode=0, _fps=unsigned(100000/fps), _it=_fps-10;
+    unsigned _gain=3000;
     SetParameter ("Operating Mode","MO",_mode);
     SetParameter ("Frame Period","FP",_fps);
     SetParameter ("Integration Time","IT", _it);
+    SetParameter ("Digital Gain","GA", _gain);
   }
 
   printf("done.\n"); 
@@ -378,7 +383,7 @@ int main(int argc, char *argv[])
     if (!dest_host) {
       if (pFrame == NULL) {
 	nSkipped++;
-	if ((nSkipped%fps)==0) {
+	if ((nSkipped%ifps)==0) {
 	  printf("skipped %d frames\n",nSkipped);
 	}
       }
@@ -404,7 +409,7 @@ int main(int argc, char *argv[])
 // 	}
 
 	nFrames++;
-	if ((nFrames%fps)==0) {
+	if ((nFrames%ifps)==0) {
 	  timespec _tp;
 	  clock_gettime(CLOCK_REALTIME, &_tp);
 	  printf("%d/%d/%p : %g sec\n",

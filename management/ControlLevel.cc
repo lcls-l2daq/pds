@@ -40,7 +40,7 @@ bool ControlLevel::attach()
     _streams = new ControlStreams(*this);
     _streams->connect();
     
-    _callback.allocated(*_streams);
+    _callback.attached(*_streams);
     
     Message join(Message::Join);
     mcast(join);

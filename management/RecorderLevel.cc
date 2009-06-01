@@ -12,6 +12,7 @@
 #include "pds/utility/BldServer.hh"
 #include "pds/utility/NetDgServer.hh"
 #include "pds/management/MsgAppliance.hh"
+#include "pds/vmon/VmonEb.hh"
 
 using namespace Pds;
 
@@ -38,7 +39,8 @@ bool RecorderLevel::attach()
 {
   start();
   if (connect()) {
-    _streams = new EventStreams(*this);
+    _streams = new EventStreams(*this,
+				new VmonEb(header().procInfo(),32,16,(1<<24),(1<<22)));
     _streams->connect();
     
     _callback.attached(*_streams);

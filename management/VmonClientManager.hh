@@ -35,6 +35,7 @@ namespace Pds {
 			   unsigned index) {}
     virtual void dissolved() {}
     virtual void post(const Transition&);
+    virtual void post(const InDatagram&);
   public:
     // MonFd interface
     virtual int fd() const;

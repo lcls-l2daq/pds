@@ -20,8 +20,8 @@
 #ifndef PDS_EBBITMASK_
 #define PDS_EBBITMASK_
 
-#include "EbBitMaskArray.hh"
+#include "pds/service/BitMaskArray.hh"
 
-typedef Pds::EbBitMaskArray EbBitMask;
+typedef Pds::BitMaskArray<2> EbBitMask;
 
 #endif
