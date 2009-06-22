@@ -71,6 +71,7 @@ public:
     if (_count%2==0) {_eg.SetSeqRamEvent(ram, pos, pos+WaitForTimestamp, 180); pos++;}
     if (_count%3==0) {_eg.SetSeqRamEvent(ram, pos, pos+WaitForTimestamp, EvgrOpcode::L1Accept); pos++;}
     if (_count%6==0) {_eg.SetSeqRamEvent(ram, pos, pos+WaitForTimestamp, 60); pos++;}
+    if (_count%9==0) {_eg.SetSeqRamEvent(ram, pos, pos+WaitForTimestamp, 40); pos++;}
     if (_count%12==0) {_eg.SetSeqRamEvent(ram, pos, pos+WaitForTimestamp, 30); pos++;}
     if (_count%24==0) {_eg.SetSeqRamEvent(ram, pos, pos+WaitForTimestamp, 15); pos++;}
     if (_count%36==0) {_eg.SetSeqRamEvent(ram, pos, pos+WaitForTimestamp, 10); pos++;}
