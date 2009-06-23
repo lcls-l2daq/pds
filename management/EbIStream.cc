@@ -3,6 +3,7 @@
 #include "pds/utility/ToEb.hh"
 #include "pds/utility/ToEbWire.hh"
 #include "EventBuilder.hh"
+#include "EventStreams.hh"
 #include "pds/management/VmonServerAppliance.hh"
 #include "pds/vmon/VmonEb.hh"
 #include "pds/xtc/XtcType.hh"
@@ -39,7 +40,8 @@ EbIStream::EbIStream(const Src&  src,
 				   *_outlet_wire, 
 				   StreamParams::FrameWork, 
 				   interface,
-				   MaxSize, EbDepth,
+				   EventStreams::MaxSize, 
+				   EventStreams::EbDepth,
 				   new VmonEb(src,32,EbDepth,(1<<23),(1<<22)));
   (new VmonServerAppliance(src))->connect(inlet());
 }
