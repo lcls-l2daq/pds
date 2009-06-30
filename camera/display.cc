@@ -117,9 +117,10 @@ int DisplayImage::display(char *data, unsigned long size, unsigned int width, un
 	  unsigned short scale=0;
 	  unsigned short* d=reinterpret_cast<unsigned short*>(data)+4;
 	  unsigned short* const e=reinterpret_cast<unsigned short*>(data)+(size>>1);
-	  do {
-	    if (*d > scale) scale = *d;
-	  } while (++d < e);
+// 	  do {
+// 	    if (*d > scale) scale = *d;
+// 	  } while (++d < e);
+	  scale = 1;
 	  unsigned char * dst = reinterpret_cast<unsigned char*>(images[image_next]->bits());
 	  d = reinterpret_cast<unsigned short*>(data); 
 	  while ( d < e )
@@ -129,9 +130,10 @@ int DisplayImage::display(char *data, unsigned long size, unsigned int width, un
 	  unsigned char scale=0;
 	  unsigned char* d=reinterpret_cast<unsigned char*>(data)+4;
 	  unsigned char* e=reinterpret_cast<unsigned char*>(data)+(size);
-	  do {
-	    if (*d > scale) scale = *d;
-	  } while (++d < e);
+// 	  do {
+// 	    if (*d > scale) scale = *d;
+// 	  } while (++d < e);
+	  scale = 1;
 	  for (unsigned i = 0; i < 256; i++) {
 	    unsigned v = (i<<8)/scale;
 	    color_table->insert(i, qRgb(v,v,v));
