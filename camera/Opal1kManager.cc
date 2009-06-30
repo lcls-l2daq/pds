@@ -97,7 +97,7 @@ void Opal1kManager::_unregister()
     PdsLeutron::FrameHandle* hdl = _camera->GetFrameHandle();
     unsigned short *data = (unsigned short *)hdl->data;
     unsigned Count = (data[0]<<24) | (data[1]<<16) | (data[2]<<8) | data[3];
-    printf("%p/%d/%d ",hdl->data, (unsigned)hdl->arg, Count);
+    printf("%p/%p/%d ",hdl->data, hdl->arg, Count);
     delete hdl;
   }
   printf("\n");

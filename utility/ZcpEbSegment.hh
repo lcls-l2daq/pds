@@ -7,8 +7,6 @@
 #include "pds/service/ZcpStream.hh"
 #include "pdsdata/xtc/Xtc.hh"
 
-typedef unsigned size_t;
-
 namespace Pds {
 
   class ZcpFragment;

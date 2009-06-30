@@ -13,13 +13,13 @@ namespace Pds {
     CDatagramIterator( const Datagram& dg);
     ~CDatagramIterator();
 
-    void* operator new(unsigned,Pool*);
+    void* operator new(size_t,Pool*);
     void  operator delete(void*);
  };
 
 }
 
-inline void* Pds::CDatagramIterator::operator new(unsigned sz,Pool* pool)
+inline void* Pds::CDatagramIterator::operator new(size_t sz,Pool* pool)
 {
   return pool->alloc(sz);
 }

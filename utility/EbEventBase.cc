@@ -110,8 +110,8 @@ void EbEventBase::dump(int number)
     */
   printf(" Event #%d @ address %p\n",
 	 number, this);
-  printf("   Forward link -> %08X, Backward link -> %08X\n",
-         (unsigned)forward(), (unsigned)reverse());
+  printf("   Forward link -> %p, Backward link -> %p\n",
+         forward(), reverse());
   printf("   Contributions seen/requested = ");
   _contributions.remaining().print();
   printf("/");

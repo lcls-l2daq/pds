@@ -4,9 +4,9 @@ using namespace Pds;
 
 void GenericPool::dump() const 
 {
-  printf("  bounds %x  buffer %p  current %x\n",
+  printf("  bounds %zu  buffer %p  current %zu\n",
 	 _bounds, _buffer, _current);
-  printf("  sizeofObject %x  numofObjects %x  allocs %x  frees %x\n",
+  printf("  sizeofObject %zu  numofObjects %u  allocs %u  frees %u\n",
 	 sizeofObject(), numberofObjects(),
 	 numberofAllocs(), numberofFrees() );
 }

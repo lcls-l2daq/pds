@@ -28,7 +28,7 @@ Frame::Frame(unsigned width, unsigned height,
 	     DmaSplice&  splice) :
   FrameType(width, height, depth, offset)
 {
-  splice.queue(handle.data, data_size(), reinterpret_cast<unsigned>(&handle));
+  splice.queue(handle.data, data_size(), reinterpret_cast<size_t>(&handle));
 }
 
 Frame::Frame(unsigned startCol, unsigned endCol,
@@ -68,7 +68,7 @@ Frame::Frame(unsigned startCol, unsigned endCol,
   src += startRow * fw;
   src += startCol * dbytes;
   
-  splice.queue(src, w, (unsigned)&handle);
+  splice.queue(src, w, (size_t)&handle);
   while(++startRow < endRow)
     splice.queue(src += fw, w, 0);
 }

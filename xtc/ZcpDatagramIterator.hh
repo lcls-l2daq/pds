@@ -25,7 +25,7 @@ namespace Pds {
     ZcpDatagramIterator( const ZcpDatagram& );
     ~ZcpDatagramIterator();
 
-    void* operator new(unsigned,Pool*);
+    void* operator new(size_t,Pool*);
     void  operator delete(void*);
 
     int   skip(int len);                          // advance "len" bytes (without mapping)
@@ -63,7 +63,7 @@ namespace Pds {
   };
 }
 
-inline void* Pds::ZcpDatagramIterator::operator new(unsigned sz,Pool* pool)
+inline void* Pds::ZcpDatagramIterator::operator new(size_t sz,Pool* pool)
 {
   return pool->alloc(sz);
 }

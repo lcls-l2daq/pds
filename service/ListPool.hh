@@ -1,13 +1,11 @@
 #ifndef PDS_LISTPOOL
 #define PDS_LISTPOOL
 
-#include <new>
 #include <stdio.h>
 #include <stdlib.h>
+#include <stddef.h>
 
 #include "ListEntry.hh"
-
-typedef unsigned size_t; // so that its not necessary to bring in <stddef.h>...
 
 namespace Pds {
 class ListPool

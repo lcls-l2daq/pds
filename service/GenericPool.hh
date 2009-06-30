@@ -37,9 +37,9 @@ class GenericPool : public Queue<PoolEntry>, public Pool
   public:
     void dump() const;
   private:
-    int   _bounds;
+    size_t _bounds;
     char* _buffer;
-    int   _current;
+    size_t _current;
   };
 }
 /*
@@ -71,7 +71,7 @@ Pds::GenericPool::GenericPool(size_t sizeofObject, int numberofObjects, unsigned
   Pds::Pool(sizeofObject, numberofObjects, alignBoundary),
   _bounds(sizeofAllocate()*numberofObjects+alignBoundary),
   _buffer(new char[_bounds]),
-  _current(alignBoundary-(((int)_buffer+sizeof(PoolEntry))%alignBoundary))
+  _current(alignBoundary-(((size_t)_buffer+sizeof(PoolEntry))%alignBoundary))
 {
 populate();
 }
@@ -122,7 +122,7 @@ inline void Pds::GenericPool::enque(PoolEntry* entry)
 
 inline void* Pds::GenericPool::allocate(size_t size)
   {
-  int offset  = _current;
+  size_t offset  = _current;
   char* entry = _buffer + offset;
 
   if ((offset += size) <= _bounds)

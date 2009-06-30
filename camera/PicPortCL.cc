@@ -454,8 +454,8 @@ int PicPortCL::SendCommand(char *szCommand, char *pszResponse, int iResponseBuff
 void PicPortCL::ReleaseFrame(void *obj, FrameHandle *pFrame, void *arg) {
   PicPortCL *pThis = (PicPortCL *)obj;
   // Release last image locked (assume image was processed)
-  pThis->_pSeqDral->UnlockImage((int)arg);
-  pThis->_queue->push((int)arg);
+  pThis->_pSeqDral->UnlockImage((size_t)arg);
+  pThis->_queue->push((size_t)arg);
 }
 
 FrameHandle *PicPortCL::PicPortFrameProcess(FrameHandle *pFrame) {

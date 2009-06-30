@@ -38,8 +38,6 @@
 #include "pdsdata/xtc/Xtc.hh"
 #include "pds/service/EbBitMask.hh"
 
-typedef unsigned size_t;
-
 namespace Pds {
 class EbSegment : public LinkedList<EbSegment>
   {
