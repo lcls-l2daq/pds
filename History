@@ -1,3 +1,5 @@
+2009-Jul-07	weaver  Fixed SysClk::sample rollover in VmonEb histos.  Fixed recorder level fixup
+			that added contributions from all event levels.
 2009-Jun-01	weaver	Tag V00-09-00.  Consistent with pdsdata V00-04-00.  Added management/PartitionControl
 			as a base for run control sequencer.
 2009-Apr-16	weaver	Added Pulnix TM6740 camera.  Added occurrences to collection messages.

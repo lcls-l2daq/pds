@@ -53,6 +53,7 @@ class SysClk
 public:
   static unsigned sample();
   static double   nsPerTick();
+  static unsigned since (unsigned prev);
 };
 }
 
@@ -86,6 +87,12 @@ inline unsigned Pds::SysClk::sample()
   asm volatile ("mftb %0": "=r"(time));
   return time;
 }
+
+inline unsigned Pds::SysClk::since (unsigned prev)
+{
+  return sample() - prev;
+}
+
 #else
 inline double Pds::SysClk::nsPerTick()
 {
@@ -98,6 +105,13 @@ inline unsigned Pds::SysClk::sample()
   clock_gettime(CLOCK_REALTIME, &tp);
   return tp.tv_nsec;
 }
+
+inline unsigned Pds::SysClk::since (unsigned prev)
+{
+  unsigned now = sample();
+  return now > prev ? now - prev : now + 1000000000 - prev;
+}
+
 #endif
 
 #endif
