@@ -261,8 +261,7 @@ void EbBase::_post(EbEventBase* event)
     _vmoneb->post_size(indatagram->datagram().xtc.extent);
     unsigned begin = SysClk::sample();
     _output.post(indatagram);
-    unsigned time  = SysClk::sample()-begin;
-    _vmoneb->post_time(time);
+    _vmoneb->post_time(SysClk::since(begin));
     _vmoneb->fixup(-1);
     _vmoneb->update(clock);
   } else {

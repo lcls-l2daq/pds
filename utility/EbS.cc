@@ -56,6 +56,16 @@ EbEventBase* EbS::_new_event(const EbBitMask& serverId)
   return new(&_events) EbEvent(serverId, _clients, datagram, key);
 }
 
+unsigned EbS::_fixup( EbEventBase* event, const Src& client, const EbBitMask& id )
+{
+  unsigned fixup = 0;
+  const Sequence& seq = event->key().sequence();
+  if (!(_no_builds[seq.type()] & (1<<seq.service()))) {
+    EbEvent* ev = (EbEvent*)event;
+    fixup = ev->fixup ( client, TypeId(TypeId::Any,0), id );
+  }
+  return fixup;
+}
 
 bool EbS::_is_complete( EbEventBase* event,
 			const EbBitMask& serverId)

@@ -84,8 +84,7 @@ int Eb::processIo(Server* serverGeneric)
   if (_vmoneb && _vmoneb->time_fetch()) {
     unsigned begin = SysClk::sample();
     sizeofPayload  = server->fetch(payload, MSG_DONTWAIT);
-    unsigned time  = SysClk::sample()-begin;
-    _vmoneb->fetch_time(time);
+    _vmoneb->fetch_time(SysClk::since(begin));
   }
   else
     sizeofPayload  = server->fetch(payload, MSG_DONTWAIT);
