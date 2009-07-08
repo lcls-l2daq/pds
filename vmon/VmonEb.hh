@@ -30,6 +30,7 @@ namespace Pds {
     MonEntryTH1F*     _depth;
     MonEntryTH1F*     _fetch_time;
     MonEntryTH1F*     _post_time;
+    MonEntryTH1F*     _post_time_log;
     MonEntryTH1F*     _post_size;
     unsigned          _tshift;
     unsigned          _sshift;

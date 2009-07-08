@@ -11,6 +11,7 @@
 #include "pdsdata/xtc/Src.hh"
 
 #include <time.h>
+#include <math.h>
 
 using namespace Pds;
 
@@ -27,7 +28,6 @@ static int time_scale(unsigned  maxtime,
   }
   return (tshift > tbins_pwr_max) ? tshift-tbins_pwr_max : 0;
 }
-
 
 VmonEb::VmonEb(const Src& src,
 	       unsigned nservers,
@@ -58,6 +58,17 @@ VmonEb::VmonEb(const Src& src,
 			maxt>>_tshift, t0, t1);
   _post_time = new MonEntryTH1F(post_time);
   group->add(_post_time);
+
+  //
+  //  Add new log(t) histogram
+  //
+  const int logt_bins = 32;
+  const float lt0 = 3.; // 1us
+  const float lt1 = 9.; // 1s
+  MonDescTH1F post_time_log("Log Post Time", "log10 [ns]", "",
+			    logt_bins, lt0, lt1);
+  _post_time_log = new MonEntryTH1F(post_time_log);
+  group->add(_post_time_log);
 
   MonDescTH1F fetch_time("Fetch Time", "[us]", "",
 			 maxt>>_tshift, t0, t1);
@@ -103,6 +114,8 @@ void VmonEb::post_time(unsigned t)
     _post_time->addcontent(1, bin);
   else
     _post_time->addinfo(1, MonEntryTH1F::Overflow);
+
+  _post_time_log->addcontent(1., log10f(double(t)));
 }
 
 void VmonEb::fetch_time(unsigned t)
