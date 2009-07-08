@@ -141,6 +141,7 @@ void VmonEb::update(const ClockTime& now)
   _fixup     ->time(now);
   _depth     ->time(now);
   _post_time ->time(now);
+  _post_time_log ->time(now);
   _fetch_time->time(now);
   _post_size ->time(now);
 }
