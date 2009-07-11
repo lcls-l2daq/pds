@@ -1,3 +1,4 @@
+2009-Jul-10     cpo     Support for configuration of acqiris from database
 2009-Jul-07	weaver  Fixed SysClk::sample rollover in VmonEb histos.  Fixed recorder level fixup
 			that added contributions from all event levels.
 2009-Jun-01	weaver	Tag V00-09-00.  Consistent with pdsdata V00-04-00.  Added management/PartitionControl
