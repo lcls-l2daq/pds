@@ -20,7 +20,7 @@ namespace Pds {
 
     int fetch(const Transition& tr, 
 	      const TypeId&     id, 
-	      char*             dst);
+	      void*             dst);
 
   private:
     enum { PathSize=128 };

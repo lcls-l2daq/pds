@@ -47,6 +47,7 @@
 #include "AcqManager.hh"
 #include "AcqServer.hh"
 #include "pdsdata/acqiris/DataDescV1.hh"
+#include "pds/config/CfgClientNfs.hh"
 
 using namespace Pds;
 
@@ -167,11 +168,23 @@ protected:
   ViSession _instrumentId;
 };
 
+class AcqAllocAction : public Action {
+public:
+  AcqAllocAction(CfgClientNfs& cfg) : _cfg(cfg) {}
+  Transition* fire(Transition* tr) {
+    const Allocate& alloc = reinterpret_cast<const Allocate&>(*tr);
+    _cfg.initialize(alloc.allocation());
+    return tr;
+  }
+private:
+  CfgClientNfs& _cfg;
+};
 class AcqL1Action : public AcqDC282Action {
 public:
-  AcqL1Action(ViSession instrumentId) : AcqDC282Action(instrumentId),
-                                        _lastAcqTS(0),_lastEvrFid(0),
-                                        _nprint(0),_checkTimestamp(0) {}
+  AcqL1Action(ViSession instrumentId, AcqManager* mgr) :
+    AcqDC282Action(instrumentId),
+    _lastAcqTS(0),_lastEvrFid(0),
+    _nprint(0),_checkTimestamp(0),_mgr(mgr) {}
   InDatagram* fire(InDatagram* in) {
     Datagram& dg = in->datagram();
     if (!dg.xtc.damage.value()) validate(in);
@@ -209,6 +222,7 @@ private:
   unsigned _lastEvrFid;
   unsigned _nprint;
   unsigned _checkTimestamp;
+  AcqManager* _mgr;
 };
 
 class AcqDisableAction : public AcqDC282Action {
@@ -225,11 +239,14 @@ private:
 
 class AcqConfigAction : public AcqDC282Action {
 public:
-  AcqConfigAction(ViSession instrumentId, AcqReader& reader, AcqDma& dma, const Src& src) :
-    AcqDC282Action(instrumentId),_reader(reader),_dma(dma), _cfgtc(_acqConfigType,src) {}
+  AcqConfigAction(ViSession instrumentId, AcqReader& reader, AcqDma& dma, const Src& src,
+		  CfgClientNfs& cfg) :
+    AcqDC282Action(instrumentId),_reader(reader),_dma(dma), _cfgtc(_acqConfigType,src),
+    _cfg(cfg) {}
   InDatagram* fire(InDatagram* dg) {
     // insert assumes we have enough space in the input datagram
     dg->insert(_cfgtc, &_config);
+    if (_nerror) dg->datagram().xtc.damage.increase(Pds::Damage::UserDefined);
     return dg;
   }
   Transition* fire(Transition* tr) {
@@ -247,29 +264,25 @@ public:
     printf("Acqiris id 0x%x has %d/%d modules/channels with %d/%d int/ext trigger inputs\n",
            (unsigned)_instrumentId,nbrModulesInInstrument,(unsigned)nbrChans,nbrIntTrigsPerModule,nbrExtTrigsPerModule);
 
-    double sampInterval = 0.5e-6;
-    double delayTime = 0.0;
-    long nbrSamples =50, nbrSegments = 1;
-    Acqiris::HorizV1 horizConfig(sampInterval,delayTime,nbrSamples,nbrSegments);
-
-    long coupling = 3, bandwidth = 0;
-    double fullScale = 1.0, offset = 0.0;
-
-    long trigCoupling = 3; // DC, 50ohms
-    long trigInput = -3; // External input 3.
-    long trigSlope = 0;
-    double trigLevel = 1000.0; // in mV, for external triggers only (otherwise % full-scale).
-    Acqiris::TrigV1 trigConfig(trigCoupling, trigInput, trigSlope, trigLevel);
-
-    long nbrConvertersPerChannel=1;
-    long channelMask = 0xf;
-    long  nbrBanks = 1;
-
-    // Configure timebase
-    _check(AcqrsD1_configHorizontal(_instrumentId, sampInterval, delayTime));
+    // get configuration from database
+    _cfg.fetch(*tr,_acqConfigType, &_config);
+    _config.dump();
+    _nerror=0;
 
     // non-SAR mode
-    _check(AcqrsD1_configMemory(_instrumentId, nbrSamples, nbrSegments));
+    _check("AcqrsD1_configMemory",AcqrsD1_configMemory(_instrumentId, _config.horiz().nbrSamples(), _config.horiz().nbrSegments()));
+    uint32_t nbrSamples,nbrSegments;
+    AcqrsD1_getMemory(_instrumentId, (ViInt32*)&nbrSamples, (ViInt32*)&nbrSegments);
+    if (nbrSamples != _config.horiz().nbrSamples()) {
+      printf("*** Requested %d samples, received %d\n",
+             _config.horiz().nbrSamples(),nbrSamples);
+      _nerror++;
+    }
+    if (nbrSegments != _config.horiz().nbrSegments()) {
+      printf("*** Requested %d segments, received %d\n",
+             _config.horiz().nbrSegments(),nbrSegments);
+      _nerror++;
+    }
 
     // SAR mode (currently doesn't work for reasons I don't understand - cpo)
 //     _check(AcqrsD1_configMode(_instrumentId, 0, 0, 10)); // 10 = SAR mode
@@ -281,31 +294,128 @@ public:
 //                                &nbrSegs,
 //                                &nbrBanks,
 //                                &flags));
-//     printf("*** config %d %d %d %d %d\n",nbrSamplesHi,nbrSamplesLo,nbrSegs,
-//            nbrBanks,flags);
 
-    _check(AcqrsD1_configChannelCombination(_instrumentId,nbrConvertersPerChannel,channelMask));
-    Acqiris::VertV1 vertConfig[AcqConfigType::MaxChan];
+    // use the lowest nibble of the channelmask for the channelcombination, since
+    // this ends up being the same for all channels in a multi-instrument.
+    uint32_t nbrConvertersPerChannel, usedChannels;
+    usedChannels = _config.channelMask()&0xf;
+    _check("AcqrsD1_configChannelCombination",
+           AcqrsD1_configChannelCombination(_instrumentId,_config.nbrConvertersPerChannel(),
+                                            usedChannels));
+    AcqrsD1_getChannelCombination(_instrumentId, (ViInt32*)&nbrConvertersPerChannel,
+                                  (ViInt32*)&usedChannels);
+    if (nbrConvertersPerChannel != _config.nbrConvertersPerChannel()) {
+      printf("*** Requested %d converters per channel, received %d\n",
+             _config.nbrConvertersPerChannel(),nbrConvertersPerChannel);
+      _nerror++;
+    }
+    if (usedChannels != (_config.channelMask()&0xf)) {
+      printf("*** Requested used channels %d, received %d\n",
+             _config.channelMask()&0xf,usedChannels);
+      _nerror++;
+    }
+
+    static const double epsilon = 1.0e-15;
     unsigned nchan=0;
-    // note that analysis software will depend on the vertical configurations
-    // being stored in the same order as the channel waveform data
+    double fullScale,offset;
+    uint32_t coupling,bandwidth;
+
     for (unsigned i=0;i<32;i++) {
+      uint32_t channelMask = _config.channelMask();
       if (channelMask&(1<<i)) {
-        _check(AcqrsD1_configVertical(_instrumentId, i+1, fullScale, offset, coupling, bandwidth));
-        new (vertConfig+nchan) Acqiris::VertV1(fullScale,offset,coupling,bandwidth);
+        _check("AcqrsD1_configVertical",AcqrsD1_configVertical(_instrumentId, i+1, _config.vert(nchan).fullScale(),
+                                      _config.vert(nchan).offset(), _config.vert(nchan).coupling(),
+                                      _config.vert(nchan).bandwidth()));
+        AcqrsD1_getVertical(_instrumentId, i+1, (ViReal64*)&fullScale,
+                            (ViReal64*)&offset, (ViInt32*)&coupling,
+                            (ViInt32*)&bandwidth);
+        if (fabs(fullScale-_config.vert(nchan).fullScale())>epsilon) {
+          printf("*** Requested %e fullscale, received %e\n",
+                 _config.vert(nchan).fullScale(),fullScale);
+          _nerror++;
+        }
+        if (fabs(offset-_config.vert(nchan).offset())>epsilon) {
+          printf("*** Requested %e fullscale, received %e\n",
+                 _config.vert(nchan).offset(),offset);
+          _nerror++;
+        }
+        if (coupling != _config.vert(nchan).coupling()) {
+          printf("*** Requested coupling %d, received %d\n",
+                 _config.vert(nchan).coupling(),coupling);
+          _nerror++;
+        }
+        if (bandwidth != _config.vert(nchan).bandwidth()) {
+          printf("*** Requested bandwidth %d, received %d\n",
+                 _config.vert(nchan).bandwidth(),bandwidth);
+          _nerror++;
+        }
         nchan++;
       }
     }
+
+    // Need to configure horizontal after the vertical, because some horizontal
+    // settings (like fast 8GHz sampling) require the correct channel combinations first,
+    // otherwise the driver will complain.
+    _check("AcqrsD1_configHorizontal",
+           AcqrsD1_configHorizontal(_instrumentId, _config.horiz().sampInterval(),
+                                    _config.horiz().delayTime()));
+    double sampInterval,delayTime;
+    AcqrsD1_getHorizontal(_instrumentId, (ViReal64*)&sampInterval,
+                        (ViReal64*)&delayTime);
+    if (fabs(sampInterval-_config.horiz().sampInterval())>epsilon) {
+      printf("*** Requested %e fullscale, received %e\n",
+             _config.horiz().sampInterval(),sampInterval);
+      _nerror++;
+    }
+    if (fabs(delayTime-_config.horiz().delayTime())>epsilon) {
+      printf("*** Requested %e fullscale, received %e\n",
+             _config.horiz().delayTime(),delayTime);
+      _nerror++;
+    }
+
     // only support edge-trigger (no "TV trigger" for DC282)
-    unsigned srcPattern = _generateTrigPattern(trigInput);
-    _check(AcqrsD1_configTrigClass(_instrumentId, 0, srcPattern, 0, 0, 0.0, 0.0));
-    _check(AcqrsD1_configTrigSource(_instrumentId, trigInput, trigCoupling, trigSlope, trigLevel, 0.0));
+    unsigned srcPattern = _generateTrigPattern(_config.trig().input());
+    _check("AcqrsD1_configTrigClass",AcqrsD1_configTrigClass(_instrumentId, 0, srcPattern, 0, 0, 0.0, 0.0));
+    uint32_t trigClass,srcPatternOut,junk;
+    double djunk;
+    AcqrsD1_getTrigClass(_instrumentId, (ViInt32*)&trigClass, (ViInt32*)&srcPatternOut, (ViInt32*)&junk,
+                         (ViInt32*)&junk, (ViReal64*)&djunk, (ViReal64*)&djunk);
+    if (trigClass!=0) {
+      printf("*** Requested trigger class 0 received %d\n",trigClass);
+      _nerror++;
+    }
+    if (srcPatternOut != srcPattern) {
+      printf("*** Requested src pattern 0x%x received 0x%x\n",srcPattern,srcPatternOut);
+      _nerror++;
+    }
+
+    _check("AcqrsD1_configTrigSource",AcqrsD1_configTrigSource(_instrumentId, _config.trig().input(),
+                                    _config.trig().coupling(), _config.trig().slope(),
+                                    _config.trig().level(), 0.0));
+    uint32_t slope;
+    double level;
+    AcqrsD1_getTrigSource(_instrumentId, _config.trig().input(),
+                          (ViInt32*)&coupling,
+                          (ViInt32*)&slope, (ViReal64*)&level, &djunk);
+    if (fabs(level-_config.trig().level())>epsilon) {
+      printf("*** Requested %e trig level, received %e\n",
+             _config.trig().level(),level);
+      _nerror++;
+    }
+    if (fabs(coupling!=_config.trig().coupling())>epsilon) {
+      printf("*** Requested trig coupling %d, received %d\n",
+             _config.trig().coupling(),coupling);
+      _nerror++;
+    }
+    if (slope != _config.trig().slope()) {
+      printf("*** Requested trig slope %d, received %d\n",
+             _config.trig().slope(),slope);
+      _nerror++;
+    }
+
+    // this might not be the right place for this - cpo
     _reader.start();
 
-    new(&_config) AcqConfigType(nbrConvertersPerChannel,
-                                    channelMask,
-                                    nbrBanks,
-                                    trigConfig,horizConfig,vertConfig);
     _cfgtc.extent = sizeof(Xtc)+sizeof(AcqConfigType);
 
     _dma.setConfig(_config);
@@ -345,12 +455,12 @@ private:
     }
     return srcPattern;
   }
-  void _check(ViStatus status) {
+  void _check(const char* routine, ViStatus status) {
     if(status != VI_SUCCESS)
       {
         char message[256];
         AcqrsD1_errorMessage(_instrumentId,status,message);
-        printf("%s\n",message);
+        printf("%s: %s\n",routine,message);
       }
   }
   AcqReader& _reader;
@@ -358,18 +468,37 @@ private:
   AcqConfigType _config;
   Xtc _cfgtc;
   Src _src;
+  CfgClientNfs& _cfg;
+  unsigned _nerror;
 };
 
 Appliance& AcqManager::appliance() {return _fsm;}
 
-AcqManager::AcqManager(ViSession InstrumentID, AcqServer& server) :
+unsigned AcqManager::temperature(MultiModuleNumber module) {
+  ViInt32 degC;
+  char tempstring[32];
+  sprintf(tempstring,"Temperature %d",module);
+  ViStatus status = AcqrsD1_getInstrumentInfo(_instrumentId,tempstring,
+                                              &degC);
+  if(status != VI_SUCCESS)
+    {
+      char message[256];
+      AcqrsD1_errorMessage(_instrumentId,status,message);
+      printf("Acqiris temperature reading error: %s\n",message);
+    }
+  return degC;
+}
+
+AcqManager::AcqManager(ViSession InstrumentID, AcqServer& server, CfgClientNfs& cfg) :
   _instrumentId(InstrumentID),_fsm(*new Fsm) {
   Task* task = new Task(TaskObject("AcqReadout"));
   AcqReader& reader = *new AcqReader(_instrumentId,server,task);
   AcqDma& dma = *new AcqDma(_instrumentId,reader,server,task);
   server.setDma(&dma);
-  _fsm.callback(TransitionId::Configure,new AcqConfigAction(_instrumentId,reader,dma,server.client()));
-  AcqL1Action& acql1 = *new AcqL1Action(_instrumentId);
+  Action* caction = new AcqConfigAction(_instrumentId,reader,dma,server.client(),cfg);
+  _fsm.callback(TransitionId::Configure,caction);
+  AcqL1Action& acql1 = *new AcqL1Action(_instrumentId,this);
+  _fsm.callback(TransitionId::Map, new AcqAllocAction(cfg));
   _fsm.callback(TransitionId::L1Accept,&acql1);
   _fsm.callback(TransitionId::Disable,new AcqDisableAction(_instrumentId,acql1));
 }

@@ -8,11 +8,14 @@ namespace Pds {
   class Fsm;
   class Appliance;
   class AcqServer;
+  class CfgClientNfs;
 
   class AcqManager {
   public:
-    AcqManager(ViSession instrumentId, AcqServer& server);
+    enum MultiModuleNumber {Module0,Module1,Module2,Module3,Module4};
+    AcqManager(ViSession instrumentId, AcqServer& server, CfgClientNfs& cfg);
     Appliance& appliance();
+    unsigned temperature(MultiModuleNumber module);
   private:
     ViSession _instrumentId;
     Fsm& _fsm;

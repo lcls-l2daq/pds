@@ -28,7 +28,7 @@ void CfgClientNfs::initialize(const Allocation& alloc)
 
 int CfgClientNfs::fetch(const Transition& tr, 
 			const TypeId&     id, 
-			char*             dst)
+			void*             dst)
 {
 
   char filename[128];
