@@ -63,7 +63,8 @@ public:
     _totalSize=Acqiris::DataDescV1::totalSize(config.horiz())*
       config.nbrChannels();
   }
-  void start() { _count=0; _task->call(this);}
+  void resetCount() {_count=0;}
+  void start() {_task->call(this);}
   virtual ~AcqReader() {}
   void routine() {
     ViStatus status;
@@ -92,8 +93,7 @@ public:
   AcqDma(ViSession instrumentId, AcqReader& reader, AcqServer& server,
          Task* task) :
     DmaEngine(task),
-    _instrumentId(instrumentId),_reader(reader),_server(server),_lastAcqTS(0),_count(0) {
-  }
+    _instrumentId(instrumentId),_reader(reader),_server(server),_lastAcqTS(0),_count(0) {}
   void setConfig(AcqConfigType& config) {_config=&config;}
   void routine() {
     ViStatus status=0;
@@ -215,6 +215,15 @@ public:
     _lastAcqTS  = acqts;
     _lastEvrFid = evrfid;
     _checkTimestamp = 1;
+//     if (cpol1%120==0) {
+//       printf("Event %d temps ",cpol1);
+//       printf("%d ",_mgr->temperature(AcqManager::Module0));
+//       printf("%d ",_mgr->temperature(AcqManager::Module1));
+//       printf("%d ",_mgr->temperature(AcqManager::Module2));
+//       printf("%d ",_mgr->temperature(AcqManager::Module3));
+//       printf("%d ",_mgr->temperature(AcqManager::Module4));
+//       printf("\n");
+//     }
     return 0;
   }
 private:
@@ -242,7 +251,7 @@ public:
   AcqConfigAction(ViSession instrumentId, AcqReader& reader, AcqDma& dma, const Src& src,
 		  CfgClientNfs& cfg) :
     AcqDC282Action(instrumentId),_reader(reader),_dma(dma), _cfgtc(_acqConfigType,src),
-    _cfg(cfg) {}
+    _cfg(cfg),_firstTime(1) {}
   InDatagram* fire(InDatagram* dg) {
     // insert assumes we have enough space in the input datagram
     dg->insert(_cfgtc, &_config);
@@ -413,13 +422,16 @@ public:
       _nerror++;
     }
 
-    // this might not be the right place for this - cpo
-    _reader.start();
-
     _cfgtc.extent = sizeof(Xtc)+sizeof(AcqConfigType);
-
     _dma.setConfig(_config);
     _reader.setConfig(_config);
+    _reader.resetCount();
+
+    // now that we're configured, do one-time setup
+    if (_firstTime) {
+      _reader.start();
+      _firstTime=0;
+    }
     return tr;
   }
 private:
@@ -470,6 +482,7 @@ private:
   Src _src;
   CfgClientNfs& _cfg;
   unsigned _nerror;
+  unsigned _firstTime;
 };
 
 Appliance& AcqManager::appliance() {return _fsm;}
