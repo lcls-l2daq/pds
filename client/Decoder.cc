@@ -49,7 +49,7 @@ Decoder::Decoder(Level::Type level) :
 
 Transition* Decoder::transitions(Transition* in) 
   {
-  printf("Transition: id %d\n", in->id());
+    //  printf("Transition: id %d\n", in->id());
   return in;
   }
 
@@ -74,7 +74,7 @@ InDatagram* Decoder::events(InDatagram* in)
 
 InDatagram* Decoder::markers(InDatagram* in) 
   {
-  printf("\nMarker:\n");
+    //  printf("\nMarker:\n");
   return _handleDg(in);
   }
 
@@ -87,7 +87,7 @@ InDatagram* Decoder::markers(InDatagram* in)
 
 InDatagram* Decoder::occurrences(InDatagram* in) 
   {
-  printf("\nOccurrence:\n");
+    //  printf("\nOccurrence:\n");
   return _handleDg(in);
   }
 

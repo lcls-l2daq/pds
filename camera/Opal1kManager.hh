@@ -2,7 +2,6 @@
 #define Pds_Opal1kManager_hh
 
 #include "pds/camera/CameraManager.hh"
-#include "pds/config/Opal1kConfigType.hh"
 
 namespace PdsLeutron {
   class Opal1kCamera;
@@ -12,6 +11,7 @@ namespace Pds {
 
   class Src;
   class GenericPool;
+  class Opal1kConfig;
 
   class Opal1kManager : public CameraManager {
   public:
@@ -24,16 +24,12 @@ namespace Pds {
     void        _unregister();
 
   private:
-    void _configure(char*);
-    void _configure(InDatagram*);
+    void _configure(const void*);
 
     PdsLeutron::PicPortCL& camera();
-    const TypeId& camConfigType();
 
   private:
-    PdsLeutron::Opal1kCamera* _camera;
-    const Opal1kConfigType*   _configdata;
-    Xtc                       _configtc;
+    PdsLeutron::Opal1kCamera*  _camera;
     //  buffer management
     bool            _outOfOrder;
     GenericPool*    _occPool;

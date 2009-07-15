@@ -393,7 +393,7 @@ int main (int argc, char *argv[])
 		  useqrow = i%imgheight;
 		  useqoff = useqrow*imgwidth;
 		  printf("\rReceiving row %d off %d ...   ", useqrow, useqoff);
-		  image = useqbuffer;
+		  image = (struct camstream_image_t*)useqbuffer;
 		}
 		else
 		  image = (struct camstream_image_t *)

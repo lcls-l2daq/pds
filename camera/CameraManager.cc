@@ -16,14 +16,24 @@
 
 #include "pds/config/FrameFexConfigType.hh"
 
-#include "pds/service/GenericPool.hh"
-#include "pds/utility/Occurrence.hh"
-#include "pds/utility/OccurrenceId.hh"
-
 #include <signal.h>
 #include <stdlib.h>
 #include <stdio.h>
 #include <new>
+
+//#define SIMULATE_EVR
+
+#ifdef SIMULATE_EVR
+#include "pds/service/Ins.hh"
+#include "pds/service/Client.hh"
+#include "pds/xtc/EvrDatagram.hh"
+#include "pds/utility/StreamPorts.hh"
+#include "pds/collection/Route.hh"
+
+static Pds::Client* _outlet = 0;
+static Pds::Ins     _dst;
+#endif
+
 
 
 Pds::CameraManager* signalHandlerArgs[64];
@@ -36,10 +46,22 @@ static void cameraSignalHandler(int arg)
 
 namespace Pds {
 
+  class FexConfig : public CfgCache {
+  public:
+    FexConfig(const Src& src) :
+      CfgCache(src,_frameFexConfigType,sizeof(FrameFexConfigType)) {}
+  private:
+    int _size(void* tc) const { return reinterpret_cast<FrameFexConfigType*>(tc)->size(); }
+  };
+
   class CameraMapAction : public Action {
   public:
     CameraMapAction(CameraManager& mgr) : _mgr(mgr) {}
     Transition* fire(Transition* tr) {
+#ifdef SIMULATE_EVR
+      _dst = StreamPorts::event(reinterpret_cast<Allocate*>(tr)->allocation().partitionid(),
+				Level::Segment);
+#endif
       return _mgr.allocate(tr); 
     }
     InDatagram* fire(InDatagram* dg) { return dg; }
@@ -50,8 +72,11 @@ namespace Pds {
   class CameraConfigAction : public Action {
   public:
     CameraConfigAction(CameraManager& mgr) : _mgr(mgr) {}
-    Transition* fire(Transition* tr) { return _mgr.configure(tr); }
-    InDatagram* fire(InDatagram* dg) { return _mgr.configure(dg); }
+    Transition* fire(Transition* tr) { 
+      tr = _mgr.fetchConfigure(tr);
+      tr = _mgr.doConfigure   (tr);
+      return tr; }
+    InDatagram* fire(InDatagram* dg) { return _mgr.recordConfigure(dg); }
   private:
     CameraManager& _mgr;
   };
@@ -60,27 +85,23 @@ namespace Pds {
   public:
     CameraUnconfigAction(CameraManager& mgr) : _mgr(mgr) {}
     Transition* fire(Transition* tr) { return _mgr.unconfigure(tr); }
-    InDatagram* fire(InDatagram* dg) { return _mgr.unconfigure(dg); }
   private:
     CameraManager& _mgr;
   };
 
-  class CameraBeginRunAction : public Action {
+  class CameraBeginCalibAction : public Action {
   public:
-    Transition* fire(Transition* tr) { return tr; }
-    InDatagram* fire(InDatagram* tr) { return tr; }
+    CameraBeginCalibAction(CameraManager& mgr) : _mgr(mgr) {}
+    Transition* fire(Transition* tr) { return _mgr.doConfigure    (tr); }
+    InDatagram* fire(InDatagram* tr) { return _mgr.recordConfigure(tr); }
+  private:
+    CameraManager& _mgr;
   };
 
-  class CameraEndRunAction : public Action {
+  class CameraEndCalibAction : public Action {
   public:
-    Transition* fire(Transition* tr) { return tr; }
-    InDatagram* fire(InDatagram* tr) { return tr; }
-  };
-
-  class CameraDisableAction : public Action {
-  public:
-    CameraDisableAction(CameraManager& mgr) : _mgr(mgr) {}
-    Transition* fire(Transition* tr) { return _mgr.disable(tr); }
+    CameraEndCalibAction(CameraManager& mgr) : _mgr(mgr) {}
+    Transition* fire(Transition* tr) { return _mgr.nextConfigure(tr); }
     InDatagram* fire(InDatagram* tr) { return tr; }
   private:
     CameraManager& _mgr;
@@ -91,65 +112,58 @@ using namespace Pds;
 
 
 CameraManager::CameraManager(const Src& src,
-			     unsigned MaxConfigSize) :
+			     CfgCache*  camConfig) :
   _splice  (new DmaSplice),
   _server  (new FexFrameServer(src,*_splice)),
   _fsm     (new Fsm),
-  _configBuffer(new char[MaxConfigSize+sizeof(FrameFexConfigType)]),
-  _configService(new CfgClientNfs(src)),
-  _fextc(_frameFexConfigType, src),
-  _fexConfig(0)
+  _camConfig    (camConfig),
+  _fexConfig    (new FexConfig(src))
+//   _configBuffer (new char[MaxConfigSize+sizeof(FrameFexConfigType)]),
+//   _configService(new CfgClientNfs(src)),
+//   _fextc        (_frameFexConfigType, src),
+//   _fexConfig    (0)
 {
-  _fsm->callback(TransitionId::Map        , new CameraMapAction     (*this));
-  _fsm->callback(TransitionId::Configure  , new CameraConfigAction  (*this));
-  _fsm->callback(TransitionId::BeginRun   , new CameraBeginRunAction);
-  _fsm->callback(TransitionId::Disable    , new CameraDisableAction (*this));
-  _fsm->callback(TransitionId::EndRun     , new CameraEndRunAction);
-  _fsm->callback(TransitionId::Unconfigure, new CameraUnconfigAction(*this));
+  _fsm->callback(TransitionId::Map            , new CameraMapAction       (*this));
+  _fsm->callback(TransitionId::Configure      , new CameraConfigAction    (*this));
+  _fsm->callback(TransitionId::Unconfigure    , new CameraUnconfigAction  (*this));
+  _fsm->callback(TransitionId::BeginCalibCycle, new CameraBeginCalibAction(*this));
+  _fsm->callback(TransitionId::EndCalibCycle  , new CameraEndCalibAction  (*this));
 }
 
 CameraManager::~CameraManager()
 {
   delete   _fsm;
-  delete[] _configBuffer;
-  delete   _configService;
   delete   _server;
   delete   _splice;
+  delete   _fexConfig;
+  delete   _camConfig;
 }
 
 Transition* CameraManager::allocate (Transition* tr)
 {
   const Allocate& alloc = reinterpret_cast<const Allocate&>(*tr);
-  _configService->initialize(alloc.allocation());
+  _camConfig->init(alloc.allocation());
+  _fexConfig->init(alloc.allocation());
   return tr;
 }
 
-Transition* CameraManager::configure(Transition* tr)
+Transition* CameraManager::fetchConfigure(Transition* tr)
 {
-  _fextc.damage = 0;
-  _fextc.damage.increase(Damage::UserDefined);
-  _fexConfig    = 0;
-
   //
   //  retrieve the configuration
   //
-  char* cfgBuff = _configBuffer;
-  int len;
-  if ((len=_configService->fetch(*tr,camConfigType(), cfgBuff)) <= 0) {
+  if (_camConfig->fetch(tr) <= 0)
     printf("Config::configure failed to retrieve camera configuration\n");
-    return tr;
-  }
 
-  cfgBuff += len;
-  
-  if ((len=_configService->fetch(*tr,_frameFexConfigType, cfgBuff)) <= 0) {
+  if (_fexConfig->fetch(tr) <= 0)
     printf("Config::configure failed to retrieve FrameFex configuration\n");
-    return tr;
-  }
+  
+  return tr;
+}
 
-  _fexConfig = new(cfgBuff) FrameFexConfigType;
-
-  _configure(_configBuffer);
+Transition* CameraManager::doConfigure(Transition* tr)
+{
+  _configure(_camConfig->current());
 
   int ret;
   int sig;
@@ -172,14 +186,17 @@ Transition* CameraManager::configure(Transition* tr)
       //  something about the camera output:
       //     offset, defective pixels, ...
       //
-      _server->setFexConfig(*_fexConfig);
+      _server->setFexConfig(*reinterpret_cast<const FrameFexConfigType*>(_fexConfig->current()));
 
       if ((ret = camera().Start()) < 0)
 	printf("Camera::Start: %s.\n", strerror(-ret));
       else
-	_fextc.damage = 0;
+	return tr;
     }
   }
+
+  _camConfig->damage().increase(Damage::UserDefined);
+  _fexConfig->damage().increase(Damage::UserDefined);
 
   return tr;
 }
@@ -191,30 +208,18 @@ Transition* CameraManager::unconfigure(Transition* tr)
   return tr;
 }
 
-Transition* CameraManager::disable(Transition* tr)
+Transition* CameraManager::nextConfigure    (Transition* tr)
 {
+  _camConfig->next();
+  _fexConfig->next();
   return tr;
 }
 
-InDatagram* CameraManager::configure  (InDatagram* in) 
+InDatagram* CameraManager::recordConfigure  (InDatagram* in) 
 {
-  _fextc.extent = sizeof(Xtc);
-
-  if (_fextc.damage.value())
-    in->datagram().xtc.damage.increase(_fextc.damage.value()); 
-  else {
-    _fextc.extent += _fexConfig->size();
-    in->insert(_fextc, _fexConfig);
-  }
-
-  _configure(in);
-
+  _camConfig->record(in);
+  _fexConfig->record(in);
   return in;
-}
-
-InDatagram* CameraManager::unconfigure(InDatagram* in) 
-{
-  return in; 
 }
 
 FexFrameServer& CameraManager::server() { return *_server; }
@@ -223,6 +228,16 @@ Appliance& CameraManager::appliance() { return *_fsm; }
 
 void CameraManager::handle()
 {
+#ifdef SIMULATE_EVR
+  // simulate an EVR for testing
+    timespec ts;
+    clock_gettime(CLOCK_REALTIME, &ts);
+    ClockTime ctime(ts.tv_sec,ts.tv_nsec);
+    Sequence seq(Sequence::Event,TransitionId::L1Accept,ctime,TimeStamp(0,_nposts));
+    EvrDatagram datagram(seq, _nposts);
+    _outlet->send((char*)&datagram,0,0,_dst);
+#endif
+
   Pds::FrameServerMsg* msg = 
     new Pds::FrameServerMsg(Pds::FrameServerMsg::NewFrame,
 			    camera().GetFrameHandle(),
@@ -237,6 +252,11 @@ void CameraManager::handle()
 
 void CameraManager::register_(int sig)
 {
+#ifdef SIMULATE_EVR
+  _outlet = new Client(sizeof(EvrDatagram),0,
+		       Ins(Route::interface())),
+#endif
+
   _register();
 
   _sig    = sig;
@@ -252,6 +272,13 @@ void CameraManager::register_(int sig)
 
 void CameraManager::unregister()
 {
+#ifdef SIMULATE_EVR
+  if (_outlet) {
+    delete _outlet;
+    _outlet = 0;
+  }
+#endif
+
   if (_sig >= 0) {
     struct sigaction action;
     action.sa_handler = SIG_DFL;

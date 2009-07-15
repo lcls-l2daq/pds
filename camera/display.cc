@@ -128,8 +128,8 @@ int DisplayImage::display(char *data, unsigned long size, unsigned int width, un
  	}
  	else {  // 1 byte per pixel
 	  unsigned char scale=0;
-	  unsigned char* d=reinterpret_cast<unsigned char*>(data)+4;
-	  unsigned char* e=reinterpret_cast<unsigned char*>(data)+(size);
+// 	  unsigned char* d=reinterpret_cast<unsigned char*>(data)+4;
+// 	  unsigned char* e=reinterpret_cast<unsigned char*>(data)+(size);
 // 	  do {
 // 	    if (*d > scale) scale = *d;
 // 	  } while (++d < e);

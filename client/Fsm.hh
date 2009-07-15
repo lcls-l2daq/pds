@@ -15,7 +15,7 @@ namespace Pds {
     Action*     callback(TransitionId::Value id, Action* action);
   
   private:
-    enum State {Idle,Mapped,Configured,Begun,Enabled,NumberOf};
+    enum State {Idle,Mapped,Configured,Begun,Disabled,Enabled,NumberOf};
     Transition* transitions(Transition*);
     InDatagram* occurrences(InDatagram* in);
     InDatagram* events     (InDatagram* in);

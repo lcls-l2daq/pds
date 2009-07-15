@@ -4,12 +4,12 @@
 #include "pds/camera/FexFrameServer.hh"
 
 #include "pds/config/Opal1kConfigType.hh"
+#include "pds/config/CfgCache.hh"
+#include "pdsdata/camera/FrameCoord.hh"
 
 #include "pds/service/GenericPool.hh"
 #include "pds/utility/Occurrence.hh"
 #include "pds/utility/OccurrenceId.hh"
-#include "pds/xtc/InDatagram.hh"
-#include "pds/xtc/Datagram.hh"
 #include "pds/utility/Appliance.hh"
 
 #include <signal.h>
@@ -25,12 +25,19 @@ static const int MaxConfigSize =
   Opal1kConfigType::LUT_Size*sizeof(uint16_t) +
   1000*sizeof(Camera::FrameCoord);
 
+namespace Pds {
+  class Opal1kConfig : public CfgCache {
+  public:
+    Opal1kConfig(const Src& src) :
+      CfgCache(src, _opal1kConfigType, MaxConfigSize) {}
+  private:
+    int _size(void* tc) const { return reinterpret_cast<Opal1kConfigType*>(tc)->size(); }
+  };
+};
 
 Opal1kManager::Opal1kManager(const Src& src) :
-  CameraManager(src, MaxConfigSize),
+  CameraManager(src, new Opal1kConfig(src)),
   _camera    (new PdsLeutron::Opal1kCamera),
-  _configdata(0),
-  _configtc  (_opal1kConfigType, src, (1<<Damage::UserDefined)),
   _occPool   (new GenericPool(sizeof(Occurrence),1))
 {
 }
@@ -41,25 +48,12 @@ Opal1kManager::~Opal1kManager()
   delete   _occPool;
 }
 
-void Opal1kManager::_configure(char* buff)
+void Opal1kManager::_configure(const void* buff)
 {
-  _configtc.damage = 0;
-  _configdata = new(buff) Opal1kConfigType();
-  _camera->Config(*_configdata);
-  server().setCameraOffset(_configdata->output_offset());
+  const Opal1kConfigType& c = *reinterpret_cast<const Opal1kConfigType*>(buff);
+  _camera->Config(c);
+  server().setCameraOffset(c.output_offset());
 }  
-
-void Opal1kManager::_configure(InDatagram* in)
-{
-  _configtc.extent = sizeof(Xtc);
-  if (_configtc.damage.value())
-    in->datagram().xtc.damage.increase(_configtc.damage.value());
-  else {
-    _configtc.extent += _configdata->size();  
-    in->insert(_configtc, _configdata);
-  }
-  _configtc.damage.increase(Damage::UserDefined);
-}
 
 Pds::Damage Opal1kManager::_handle()
 {
@@ -104,5 +98,3 @@ void Opal1kManager::_unregister()
 }
 
 PdsLeutron::PicPortCL& Opal1kManager::camera() { return *_camera; }
-
-const TypeId& Opal1kManager::camConfigType() { return _opal1kConfigType; }

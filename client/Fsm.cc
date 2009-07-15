@@ -9,7 +9,7 @@ using namespace Pds;
 const char* Fsm::_stateName()
 { 
   static const char* _names[] = {
-    "Idle","Mapped","Configured","Begun","Enabled"
+    "Idle","Mapped","Configured","Begun","Disabled","Enabled"
   };
   return (_state < NumberOf ? _names[_state] : "-Invalid-");
 };
@@ -39,6 +39,10 @@ Fsm::State Fsm::_reqState(TransitionId::Value id) {
     return Begun;
     break;
   }
+  case TransitionId::BeginCalibCycle: {
+    return Disabled;
+    break;
+  }
   case TransitionId::Enable: {
     return Enabled;
     break;
@@ -55,8 +59,12 @@ Fsm::State Fsm::_reqState(TransitionId::Value id) {
     return Configured;
     break;
   }
-  case TransitionId::Disable: {
+  case TransitionId::EndCalibCycle: {
     return Begun;
+    break;
+  }
+  case TransitionId::Disable: {
+    return Disabled;
     break;
   }
   case TransitionId::L1Accept: {
