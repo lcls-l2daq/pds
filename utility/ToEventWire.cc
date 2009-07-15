@@ -14,9 +14,9 @@ ToEventWire::ToEventWire(Outlet& outlet,
 			 int interface,
 			 int maxbuf,
 			 const Ins& occurrences) :
-  OutletWire(outlet),
-  _collection(collection),
-  _postman(interface, Mtu::Size, 1 + maxbuf / Mtu::Size),
+  OutletWire  (outlet),
+  _collection (collection),
+  _postman    (interface, Mtu::Size, 1 + maxbuf / Mtu::Size),
   _occurrences(occurrences)
 {
 }
@@ -40,12 +40,16 @@ Occurrence* ToEventWire::forward(Occurrence* tr)
 
 InDatagram* ToEventWire::forward(InDatagram* dg)
 {
-  if (!_nodes.isempty()) {
-    OutletWireIns* dst = _nodes.lookup(dg->datagram().seq);
-    int result = dg->send(_postman, dst->ins());
-    if (result) _log(dg->datagram(), result);
-  }
+  const Sequence& seq = dg->datagram().seq;
+  const Ins& dst = (seq.isEvent() && !_nodes.isempty()) ? _nodes.lookup(seq)->ins() : _bcast;
+  int result = dg->send(_postman, dst);
+  if (result) _log(dg->datagram(), result);
   return 0;
+}
+
+void ToEventWire::bind(NamedConnection, const Ins& ins) 
+{
+  _bcast = ins;
 }
 
 void ToEventWire::bind(unsigned id, const Ins& node) 

@@ -21,7 +21,8 @@
 #ifndef PDS_APPLIANCE
 #define PDS_APPLIANCE
 
-#include "Transition.hh"
+#include "pds/utility/Transition.hh"
+#include "pds/utility/Occurrence.hh"
 
 #include "pds/service/Queue.hh"
 #include "pds/xtc/InDatagram.hh"
@@ -36,8 +37,6 @@
 
 namespace Pds {
 
-  class Occurrence;
-
   class Appliance : Entry
   {
   public:
@@ -47,15 +46,16 @@ namespace Pds {
     virtual ~Appliance() {}
     typedef InDatagram* (Appliance::*pmf)(InDatagram*);
     virtual Transition* transitions(Transition*) = 0;
-    virtual InDatagram* occurrences(InDatagram*) = 0;
+    virtual Occurrence* occurrences(Occurrence*);
     virtual InDatagram* events     (InDatagram*) = 0;
+    virtual InDatagram* occurrences(InDatagram*);
     virtual InDatagram* markers    (InDatagram*);
     Appliance*        connect   (Appliance*);
     Appliance*        disconnect();
     int               datagrams() const;
     void              post(InDatagram*);
     void              post(Transition*);
-    virtual void      post(Occurrence*);
+    void              post(Occurrence*);
     Appliance*        forward();
     Appliance*        backward();
   protected:

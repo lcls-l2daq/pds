@@ -2,6 +2,7 @@
 #define PDS_SEGWIRESETTINGS_HH
 
 #include "StreamParams.hh"
+#include <list>
 
 namespace Pds {
 
@@ -14,6 +15,8 @@ public:
   virtual void connect (InletWire& inlet,
 			StreamParams::StreamType s,
 			int interface) = 0;
+
+  virtual const std::list<Src>& sources() const = 0;
 };
 }
 #endif

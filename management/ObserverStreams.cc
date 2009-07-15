@@ -1,5 +1,5 @@
 #include "ObserverStreams.hh"
-#include "pds/utility/OutletWire.hh"
+#include "pds/utility/OpenOutlet.hh"
 #include "EventBuilder.hh"
 #include "pds/service/BitList.hh"
 #include "pds/management/CollectionObserver.hh"
@@ -10,19 +10,6 @@
 
 #include <sys/types.h>  // required for kill
 #include <signal.h>
-
-namespace Pds {
-  //  Observers forward nothing
-  class ObserverOutlet : public OutletWire {
-  public:
-    ObserverOutlet(Outlet& outlet) : OutletWire(outlet) {}
-    Transition* forward(Transition* dg) { return 0; }
-    Occurrence* forward(Occurrence* occ) { return 0; }
-    InDatagram* forward(InDatagram* dg) { return 0; }
-    void bind(unsigned id, const Ins& node) {}
-    void unbind(unsigned id) {}
-  };
-};
 
 using namespace Pds;
 
@@ -37,7 +24,7 @@ ObserverStreams::ObserverStreams(CollectionObserver& cmgr) :
 
    for (int s = 0; s < StreamParams::NumberOfStreams; s++) {
 
-     _outlets[s] = new ObserverOutlet(*stream(s)->outlet());
+     _outlets[s] = new OpenOutlet(*stream(s)->outlet());
 
     EventBuilder* eb = new EventBuilder
       (cmgr.header().procInfo(),

@@ -63,8 +63,8 @@ VmonEb::VmonEb(const Src& src,
   //  Add new log(t) histogram
   //
   const int logt_bins = 32;
-  const float lt0 = 3.; // 1us
-  const float lt1 = 9.; // 1s
+  const float lt0 = 6.; // 1ms
+  const float lt1 = 9; //  1s
   MonDescTH1F post_time_log("Log Post Time", "log10 [ns]", "",
 			    logt_bins, lt0, lt1);
   _post_time_log = new MonEntryTH1F(post_time_log);

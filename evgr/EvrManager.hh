@@ -9,6 +9,7 @@ namespace Pds {
   class Fsm;
   class Appliance;
   class Evr;
+  class DoneTimer;
   template <class T> class EvgrBoardInfo;
 
   class EvrManager {
@@ -16,6 +17,8 @@ namespace Pds {
     EvrManager(EvgrBoardInfo<Evr>& erInfo, 
 	       CfgClientNfs& cfg,
                EvgrOpcode::Opcode opcode);
+    ~EvrManager();
+  public:
     Appliance& appliance();
   public:
     // for testing
@@ -23,6 +26,7 @@ namespace Pds {
   private:
     Evr& _er;
     Fsm& _fsm;
+    DoneTimer* _done;
   };
 }
 

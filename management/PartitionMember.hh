@@ -7,7 +7,6 @@
 #include "pds/collection/Message.hh"
 #include "pds/collection/Node.hh"
 #include "pds/service/GenericPool.hh"
-#include "pds/utility/OutletWireInsList.hh"
 
 namespace Pds {
 
@@ -15,6 +14,7 @@ namespace Pds {
   class Arp;
   class InDatagram;
   class Transition;
+  class Occurrence;
 
   class PartitionMember : public CollectionManager {
   public:
@@ -36,13 +36,13 @@ namespace Pds {
 			        unsigned);
     virtual void     dissolved ();
     virtual void     post      (const Transition&) = 0;
+    virtual void     post      (const Occurrence&) = 0;
     virtual void     post      (const InDatagram&) = 0;
   protected:
     bool        _isallocated;
     Node        _allocator;
     GenericPool _pool;
     unsigned    _index;
-    OutletWireInsList _rivals;        // list of nodes at this level
     Ins         _occurrences;
   };
 

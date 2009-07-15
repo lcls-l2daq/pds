@@ -27,6 +27,10 @@ Transition* Outlet::transitions(Transition* tr) {
   return _wire->forward(tr);
 }
 
+Occurrence* Outlet::occurrences(Occurrence* tr) {
+  return _wire->forward(tr);
+}
+
 // Any incoming datagram are sent out on the wire (if that is
 // appropriate). The wire can decide if the datagram must be deleted
 // by the stream (by returning zero in forward()) or it can take care
@@ -56,12 +60,6 @@ InDatagram* Outlet::markers(InDatagram* datagram){
     return _wire->forward(datagram);
   else 
     return 0;
-}
-
-void Outlet::post(Occurrence* occ)
-{
-  if (!_wire->forward(occ))
-    delete occ;
 }
 
 //

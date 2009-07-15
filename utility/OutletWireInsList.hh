@@ -55,6 +55,7 @@ class OutletWireInsList
     OutletWireIns  _list; // Current address list (as a doubly-linked list)
     unsigned       _entries; // Number of entries in following array
     OutletWireIns* _ins[EbTmoMask::BitMaskBits]; // Current address list
+    OutletWireIns  _bcast;
   };
 }
 #endif

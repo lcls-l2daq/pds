@@ -35,6 +35,7 @@ namespace Pds {
     virtual void     allocated (const Allocation&, unsigned index);
     virtual void     dissolved ();
     virtual void     post      (const Transition&);
+    virtual void     post      (const Occurrence&);
     virtual void     post      (const InDatagram&);
     
   private:

@@ -10,13 +10,14 @@ namespace Pds {
 
   class SourceLevel: public CollectionSource {
   public:
-    enum { MaxPartitions=16 };
     SourceLevel();
     virtual ~SourceLevel();
   public:
     bool connect(int);
   public:
     void dump() const;
+  public:
+    static unsigned MaxPartitions();
   private:
     virtual void message(const Node& hdr, const Message& msg);
     void _assign_partition(const Node& hdr, const Ins& dst);

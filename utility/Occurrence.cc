@@ -2,13 +2,16 @@
 
 #include "pds/service/Pool.hh"
 
+#include <stdio.h>
+
 using namespace Pds;
 
 Occurrence::Occurrence(OccurrenceId::Value id,
 		       unsigned            size) :
   Message  (Message::Occurrence, size),
   _id      (id)
-{}
+{
+}
 
 OccurrenceId::Value Occurrence::id      () const { return _id; }
 

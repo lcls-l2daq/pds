@@ -102,6 +102,8 @@ void ControlLevel::allocated(const Allocation& alloc,
       wire->add_input(srv);
       Ins mcastIns(ins.address());
       srv->server().join(mcastIns, Ins(header().ip()));
+//       Ins bcastIns = StreamPorts::bcast(alloc.partitionid(), Level::Control);
+//       srv->server().join(bcastIns, Ins(header().ip()));
     }
   }
 }
@@ -120,6 +122,12 @@ void ControlLevel::dissolved()
 }
 
 void ControlLevel::post     (const Transition& tr)
+{
+  InletWire* wire = _streams->wire(StreamParams::FrameWork);
+  wire->post(tr);
+}
+
+void ControlLevel::post     (const Occurrence& tr)
 {
   InletWire* wire = _streams->wire(StreamParams::FrameWork);
   wire->post(tr);

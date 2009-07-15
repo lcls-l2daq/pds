@@ -29,10 +29,10 @@ public:
   OutletWire* wire();
 
   virtual Transition* transitions(Transition*);
+  virtual Occurrence* occurrences(Occurrence*);
   virtual InDatagram* events     (InDatagram*);
   virtual InDatagram* occurrences(InDatagram*);
   virtual InDatagram* markers    (InDatagram*);
-  virtual void        post       (Occurrence*);
 
   void forward(OccurrenceId::Value id);
   void forward(TransitionId::Value id);

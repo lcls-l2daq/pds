@@ -10,6 +10,7 @@
 #include "pds/management/ControlCallback.hh"
 #include "pds/management/PlatformCallback.hh"
 
+#include "pds/collection/PingReply.hh"
 #include "pds/service/Task.hh"
 #include "pds/service/Semaphore.hh"
 #include "pds/service/Routine.hh"
@@ -57,19 +58,23 @@ namespace Pds {
           tv.tv_sec = 0; tv.tv_nsec = 50000000;
           nanosleep(&tv, 0);
         }
-        Transition tr(i->id(),
-                      Transition::Record,
-                      Sequence(Sequence::Event,
-                               i->id(),
-                               i->sequence().clock(),
-                               i->sequence().stamp()),
-                      i->env() );
-        _control.mcast(tr);
+	if (i->id()==TransitionId::Unmap) {
+	  _control._complete(i->id());
+	}
+	else {
+	  Transition tr(i->id(),
+			Transition::Record,
+			Sequence(Sequence::Event,
+				 i->id(),
+				 i->sequence().clock(),
+				 i->sequence().stamp()),
+			i->env() );
+	  _control.mcast(tr);
+	}
       }
-      return 0;
+      return i;
     }
-    InDatagram* occurrences(InDatagram* i) { return 0; }
-    InDatagram* events     (InDatagram* i) { _control._complete(i->datagram().seq.service()); return 0; }
+    InDatagram* events     (InDatagram* i) { _control._complete(i->datagram().seq.service()); return i; }
   private:
     PartitionControl& _control;
   };
@@ -79,10 +84,9 @@ namespace Pds {
     MyCallback(PartitionControl& o,
 	       ControlCallback& cb) : _outlet(&o), _cb(cb) {}
     void attached(SetOfStreams& streams) {
-      //  By default, there are no external clients for this stream
+      _cb.attached(streams);
       Stream& frmk = *streams.stream(StreamParams::FrameWork);
       (new ControlAction(*_outlet))   ->connect(frmk.inlet());
-      _cb.attached(streams);
     }
     void failed(Reason reason) {
       printf("Platform failed to attach: reason %d\n", reason);
@@ -106,14 +110,13 @@ PartitionControl::PartitionControl(unsigned platform,
   ControlLevel    (platform, *new MyCallback(*this, cb), arp),
   _current_state  (Unmapped),
   _target_state   (Unmapped),
-  _paused_current (Unmapped),
-  _paused_target  (Unmapped),
   _eb             (header()),
   _sequenceTask   (new Task(TaskObject("controlSeq"))),
   _sem            (Semaphore::EMPTY),
   _control_cb     (&cb),
   _platform_cb    (0)
 {
+  memset(_transition_env,0,TransitionId::NumberOf*sizeof(unsigned));
 }
 
 PartitionControl::~PartitionControl() 
@@ -121,11 +124,12 @@ PartitionControl::~PartitionControl()
   _sequenceTask->destroy(); 
 }
 
-void PartitionControl::platform_rollcall(PlatformCallback& cb)
+void PartitionControl::platform_rollcall(PlatformCallback* cb)
 {
-  _platform_cb = &cb;
-  Message ping(Message::Ping);
-  mcast(ping);
+  if ((_platform_cb = cb)) {
+    Message ping(Message::Ping);
+    mcast(ping);
+  }
 }
 
 bool PartitionControl::set_partition(const char* name,
@@ -136,23 +140,14 @@ bool PartitionControl::set_partition(const char* name,
   _partition = Allocation(name,dbpath,partitionid());
   for(unsigned k=0; k<nnodes; k++)
     _partition.add(nodes[k]);
-  memset(_transition_env,0,TransitionId::NumberOf*sizeof(unsigned));
   return true;
 }
 
 void PartitionControl::set_target_state(State state)
 {
-  if (state == Paused) { 
-    _paused_current = _current_state;
-    _paused_target  = _target_state;
-  }
   _target_state = state;
   _next();
 }
-
-void PartitionControl::pause () { set_target_state(Paused); }
-void PartitionControl::resume() { set_target_state(_paused_target); }
-
 
 PartitionControl::State PartitionControl::target_state () const { return _target_state; }
 PartitionControl::State PartitionControl::current_state() const { return _current_state; }
@@ -164,12 +159,16 @@ void PartitionControl::message(const Node& hdr, const Message& msg)
   switch(msg.type()) {
   case Message::Ping:
   case Message::Join:
-    if (!_isallocated && _platform_cb) _platform_cb->available(hdr);
+    if (!_isallocated && _platform_cb) _platform_cb->available(hdr,static_cast<const PingReply&>(msg));
     break;
   case Message::Transition:
     {
       const Transition& tr = reinterpret_cast<const Transition&>(msg);
       if (tr.phase() == Transition::Execute) {
+
+	if (hdr==header()) {
+	}
+
 	Transition* out = _eb.build(hdr,tr);
 	if (!out) return;
 
@@ -198,23 +197,26 @@ void PartitionControl::message(const Node& hdr, const Message& msg)
 
 void PartitionControl::_next()
 {
-  if      (_current_state==_target_state) ;
-  else if (_target_state ==Paused) _queue(TransitionId::Pause );
-  else if (_current_state==Paused) _queue(TransitionId::Resume);
+  //  printf("_next  current %d  target %d\n",_current_state, _target_state);
+
+  if      (_current_state==_target_state) 
+    ;
   else if (_target_state > _current_state) 
     switch(_current_state) {
     case Unmapped  : { Allocate alloc(_partition); _queue(alloc); break; }
-    case Mapped    : _queue(TransitionId::Configure); break;
-    case Configured: _queue(TransitionId::BeginRun ); break;
-    case Running   : _queue(TransitionId::Enable   ); break;
+    case Mapped    : _queue(TransitionId::Configure      ); break;
+    case Configured: _queue(TransitionId::BeginRun       ); break;
+    case Running   : _queue(TransitionId::BeginCalibCycle); break;
+    case Disabled  : _queue(TransitionId::Enable         ); break;
     default: break;
     }
   else if (_target_state < _current_state) 
     switch(_current_state) {
     case Mapped    : { Kill kill(header()); _queue(kill); break; }
-    case Configured: _queue(TransitionId::Unconfigure); break;
-    case Running   : _queue(TransitionId::EndRun     ); break;
-    case Enabled   : _queue(TransitionId::Disable    ); break;
+    case Configured: _queue(TransitionId::Unconfigure  ); break;
+    case Running   : _queue(TransitionId::EndRun       ); break;
+    case Disabled  : _queue(TransitionId::EndCalibCycle); break;
+    case Enabled   : _queue(TransitionId::Disable      ); break;
     default: break;
     }
 }
@@ -222,15 +224,16 @@ void PartitionControl::_next()
 void PartitionControl::_complete(TransitionId::Value id)
 {
   switch(id) {
-  case TransitionId::Map:
-  case TransitionId::Unconfigure: _current_state = Mapped; break;
-  case TransitionId::Configure:
-  case TransitionId::EndRun:      _current_state = Configured; break;
-  case TransitionId::BeginRun:
-  case TransitionId::Disable:     _current_state = Running; break;
-  case TransitionId::Enable:      _current_state = Enabled; break;
-  case TransitionId::Pause:       _current_state = Paused; break;
-  case TransitionId::Resume:      _current_state = _paused_current; break;
+  case TransitionId::Unmap          : _current_state = Unmapped  ; break;
+  case TransitionId::Map            :
+  case TransitionId::Unconfigure    : _current_state = Mapped    ; break;
+  case TransitionId::Configure      :
+  case TransitionId::EndRun         : _current_state = Configured; break;
+  case TransitionId::BeginRun       :
+  case TransitionId::EndCalibCycle  : _current_state = Running   ; break;
+  case TransitionId::BeginCalibCycle:
+  case TransitionId::Disable        : _current_state = Disabled  ; break;
+  case TransitionId::Enable         : _current_state = Enabled   ; break;
   default: break;
   }
   _next();

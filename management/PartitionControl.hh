@@ -15,14 +15,14 @@ namespace Pds {
 
   class PartitionControl : public ControlLevel {
   public:
-    enum State { Unmapped, Mapped, Configured, Running, Enabled, Paused };
+    enum State { Unmapped, Mapped, Configured, Running, Disabled, Enabled };
   public:
     PartitionControl       (unsigned platform,
 			    ControlCallback&,
 			    Arp*     arp = 0);
     ~PartitionControl      ();
   public:
-    void  platform_rollcall(PlatformCallback&);
+    void  platform_rollcall(PlatformCallback*);
   public:
     bool  set_partition    (const char* name,
 			    const char* db_path,
@@ -30,13 +30,11 @@ namespace Pds {
 			    unsigned    nnodes);
   public:
     void  set_target_state (State);
-    void  pause            ();
-    void  resume           ();
     State target_state     ()             const;
     State current_state    ()             const;
   public:
     void  set_transition_env(TransitionId::Value, unsigned);
-  private: // Implements ControlLevel
+  public: // Implements ControlLevel
     void  message          (const Node& hdr, 
 			    const Message& msg);
   private:
@@ -49,8 +47,6 @@ namespace Pds {
   private:
     State _current_state;
     State _target_state;
-    State _paused_current;
-    State _paused_target;
     Allocation _partition;
     ControlEb  _eb;
     Task*      _sequenceTask;

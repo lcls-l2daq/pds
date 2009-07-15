@@ -3,7 +3,9 @@
 #include "EventCallback.hh"
 #include "pds/collection/Message.hh"
 #include "pds/utility/Transition.hh"
+#include "pds/utility/Occurrence.hh"
 #include "pds/utility/StreamPorts.hh"
+#include "pds/utility/OutletWire.hh"
 #include "pds/utility/InletWire.hh"
 #include "pds/utility/InletWireServer.hh"
 #include "pds/utility/InletWireIns.hh"
@@ -89,12 +91,15 @@ void RecorderLevel::allocated(const Allocation& alloc,
       printf("RecorderLevel::allocated joining segment from %08x to port %x/%d\n",
 	     node->ip(),ins.address(),ins.portId());
       
-      NetDgServer* srv = new NetDgServer(ins,
+      Ins srvIns(ins.portId());
+      NetDgServer* srv = new NetDgServer(srvIns,
 					 node->procInfo(),
 					 EventStreams::netbufdepth*EventStreams::MaxSize);
       wire->add_input(srv);
       Ins mcastIns(ins.address());
       srv->server().join(mcastIns, Ins(header().ip()));
+      Ins bcastIns = StreamPorts::bcast(partition, Level::Recorder);
+      srv->server().join(bcastIns, Ins(header().ip()));
       printf("RecorderLevel::allocated assign fragment %d  %x/%d\n",
 	     srv->id(),mcastIns.address(),srv->server().portId());
     }
@@ -114,9 +119,19 @@ void RecorderLevel::allocated(const Allocation& alloc,
       controlid++;
     }
   }
+  OutletWire* owire = _streams->stream(StreamParams::FrameWork)->outlet()->wire();
+  owire->bind(OutletWire::Bcast, StreamPorts::bcast(partition, 
+						    Level::Control,
+						    index));
 }
 
 void RecorderLevel::post     (const Transition& tr)
+{
+  InletWire* wire = _streams->wire(StreamParams::FrameWork);
+  wire->post(tr);
+}
+
+void RecorderLevel::post     (const Occurrence& tr)
 {
   InletWire* wire = _streams->wire(StreamParams::FrameWork);
   wire->post(tr);

@@ -58,8 +58,35 @@ void Appliance::post(Transition* input)
 void Appliance::post(Occurrence* input)
   {
     Appliance* n = (Appliance*)next();
-    n->post(input);
+    Occurrence* output = n->occurrences(input);
+    if      (output == 0) delete input;
+    else if (output != (Occurrence*) DontDelete) {
+      if (input != output) delete input;
+      n->post(output);
+    }
   }
+
+/*
+** --
+**
+**
+** ++
+*/
+
+Occurrence* Appliance::occurrences(Occurrence* in){
+  return in;
+}
+
+/*
+** --
+**
+**
+** ++
+*/
+
+InDatagram* Appliance::occurrences(InDatagram* in){
+  return in;
+}
 
 /*
 ** --

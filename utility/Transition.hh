@@ -6,6 +6,7 @@
 #include "pds/service/Pool.hh"
 #include "pdsdata/xtc/Sequence.hh"
 #include "pdsdata/xtc/TransitionId.hh"
+#include "pdsdata/xtc/Env.hh"
 
 namespace Pds {
 
@@ -18,18 +19,18 @@ namespace Pds {
     Transition(TransitionId::Value id,
 	       Phase           phase,
 	       const Sequence& sequence,
-	       unsigned        env, 
+	       const Env&      env, 
 	       unsigned        size=sizeof(Transition));
 
     Transition(TransitionId::Value id,
-	       unsigned        env, 
-	       unsigned        size=sizeof(Transition));
+	       const Env&          env, 
+	       unsigned            size=sizeof(Transition));
     Transition(const Transition&);
 
     TransitionId::Value id      () const;
     Phase           phase   () const;
     const Sequence& sequence() const;
-    unsigned        env     () const;
+    const Env&      env     () const;
 
     void* operator new(size_t size, Pool* pool);
     void* operator new(size_t size);
@@ -39,7 +40,7 @@ namespace Pds {
     TransitionId::Value _id;
     Phase        _phase;
     Sequence     _sequence;
-    unsigned     _env;
+    Env          _env;
   };
 
   class Allocation {

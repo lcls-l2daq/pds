@@ -1,13 +1,14 @@
 #include "PartitionMember.hh"
 
 #include "pds/utility/Transition.hh"
+#include "pds/utility/Occurrence.hh"
 #include "pds/xtc/CDatagram.hh"
 #include "pds/xtc/XtcType.hh"
 
 using namespace Pds;
 
-//  Size the transition reasonably pool large enough for configure
-static const unsigned MaxPayload = 0x100000;  // 1MB
+//  Size the transition pool reasonably large enough for configure
+static const unsigned MaxPayload = 0x1000000;  // 16MB
 static const unsigned ConnectTimeOut = 250; // 1/4 second
 
 PartitionMember::PartitionMember(unsigned char platform,
@@ -35,7 +36,8 @@ void PartitionMember::message(const Node& hdr, const Message& msg)
       if (header().level()!=Level::Control) {
 	arpadd(hdr);
         Ins dst = msg.reply_to();
-        ucast(reply(msg.type()), dst);
+	Message& rply = reply(msg.type());
+        ucast(rply, dst);
       }
       break;
     case Message::Transition:
@@ -51,17 +53,15 @@ void PartitionMember::message(const Node& hdr, const Message& msg)
 	    reinterpret_cast<const Allocate&>(tr).allocation();
 	  unsigned    nnodes = alloc.nnodes();
 	  unsigned    index  = 0;
-	  _rivals.flush();
 	  for (unsigned n=0; n<nnodes; n++) {
 	    const Node* node = alloc.node(n);
-	    if (header() == *node) {
-	      _isallocated = true;
-	      _allocator = hdr;
-	      _occurrences = msg.reply_to();
-	      allocated( alloc, _index=index );
-	    }
 	    if (node->level() == header().level()) {
-	      _rivals.insert(index, msg.reply_to());
+	      if (header() == *node) {
+		_isallocated = true;
+		_allocator = hdr;
+		_occurrences = msg.reply_to();
+		allocated( alloc, _index=index );
+	      }
 	      index++;
 	    }
 	  }
@@ -81,16 +81,12 @@ void PartitionMember::message(const Node& hdr, const Message& msg)
 	if (lpost) {
 	  if (tr.id() != TransitionId::L1Accept) {
 	    arpadd(hdr);
-	    OutletWireIns* dst;
 	    if (tr.phase() == Transition::Execute) {
 	      Transition* ntr = new(&_pool) Transition(tr);
 	      post(*ntr);
 	    }
-	    //  Initiate a datagram for all segment levels and any others
-	    //  which are not targetted by the timestamp vectoring.
-	    else if (header().level()==Level::Segment || 
-		     ((dst=_rivals.lookup(tr.sequence())) &&
-		      dst->id() != _index)) {
+	    //  Initiate a datagram for all segment levels.
+	    else if (header().level()==Level::Segment) {
 	      CDatagram* ndg = 
 		new(&_pool) CDatagram(Datagram(tr, 
 					       _xtcType,
@@ -103,11 +99,15 @@ void PartitionMember::message(const Node& hdr, const Message& msg)
 	  _isallocated = false;
 	  dissolved();
 	}
+	break;
       }
-      break;
     default:
       break;
     }
+  }
+  if (msg.type()==Message::Occurrence) {
+    Occurrence* occ = new(&_pool) Occurrence(reinterpret_cast<const Occurrence&>(msg));
+    post(*occ);
   }
 }
 

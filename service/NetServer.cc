@@ -96,8 +96,7 @@ NetServer::NetServer(unsigned id,
 		     int maxPayload,
 		     int maxDatagrams) :
   Port(Port::VectoredServerPort, sizeofDatagram, maxPayload, maxDatagrams),
-  OobServer(id, socket()),
-  _mcastGroup(0)
+  OobServer(id, socket())
   {
   _construct(sizeofDatagram, maxPayload);
   }
@@ -121,8 +120,7 @@ NetServer::NetServer(unsigned id,
        sizeofDatagram,
        maxPayload,
        maxDatagrams),
-  OobServer(id, socket()),
-  _mcastGroup(0)
+  OobServer(id, socket())
   {
   _construct(sizeofDatagram, maxPayload);
   }
@@ -148,8 +146,7 @@ NetServer::NetServer(unsigned id,
        sizeofDatagram,
        maxPayload,
        maxDatagrams),
-  OobServer(id, socket()),
-  _mcastGroup(0)
+  OobServer(id, socket())
   {
   _construct(sizeofDatagram, maxPayload);
   }
@@ -374,7 +371,7 @@ int NetServer::unblock(char* datagram, char* payload, int size, LinkedList<ZcpFr
 
 NetServer::~NetServer()
   {
-    if (_mcastGroup) resign();
+    resign();
     delete [] _datagram;
 #ifdef ODF_LITTLE_ENDIAN
     delete [] _swap_buffer;
@@ -393,12 +390,14 @@ NetServer::~NetServer()
 */
 
 int NetServer::join(const Ins& group, const Ins& interface){
-  _mcastGroup     = group.address();
-  _mcastInterface = interface.address();
+  McastSubscription s;
+  s.group     = group    .address();
+  s.interface = interface.address();
+  _mcasts.push_back(s);
   struct ip_mreq ipMreq;
   bzero ((char*)&ipMreq, sizeof(ipMreq));
-  ipMreq.imr_multiaddr.s_addr = htonl(_mcastGroup);
-  ipMreq.imr_interface.s_addr = htonl(_mcastInterface);
+  ipMreq.imr_multiaddr.s_addr = htonl(group    .address());
+  ipMreq.imr_interface.s_addr = htonl(interface.address());
   return (setsockopt (_socket, IPPROTO_IP, IP_ADD_MEMBERSHIP, (char*)&ipMreq,
 		      sizeof(ipMreq)) < 0) ? errno : 0; 
 }
@@ -415,12 +414,18 @@ int NetServer::join(const Ins& group, const Ins& interface){
 */
 
 int NetServer::resign(){
-  struct ip_mreq ipMreq;
-  bzero ((char*)&ipMreq, sizeof(ipMreq));
-  ipMreq.imr_multiaddr.s_addr = htonl(_mcastGroup);
-  ipMreq.imr_interface.s_addr = htonl(_mcastInterface);
-  return (setsockopt (_socket, IPPROTO_IP, IP_DROP_MEMBERSHIP, (char*)&ipMreq,
-		      sizeof(ipMreq)) < 0) ? errno : 0;  
+  for(std::list<McastSubscription>::iterator it = _mcasts.begin();
+      it != _mcasts.end(); it++) {
+    struct ip_mreq ipMreq;
+    bzero ((char*)&ipMreq, sizeof(ipMreq));
+    ipMreq.imr_multiaddr.s_addr = htonl(it->group    );
+    ipMreq.imr_interface.s_addr = htonl(it->interface);
+    int result = (setsockopt (_socket, IPPROTO_IP, IP_DROP_MEMBERSHIP, (char*)&ipMreq,
+			      sizeof(ipMreq)) < 0) ? errno : 0;  
+    if (result) return result;
+  }
+  _mcasts.clear();
+  return 0;
 }
 
 /*

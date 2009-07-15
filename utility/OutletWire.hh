@@ -18,6 +18,9 @@ namespace Pds {
     virtual Transition* forward(Transition* dg) = 0;
     virtual Occurrence* forward(Occurrence* occ) = 0;
     virtual InDatagram* forward(InDatagram* dg) = 0;
+
+    enum NamedConnection { Bcast };
+    virtual void bind(NamedConnection, const Ins& ) = 0;
     virtual void bind(unsigned id, const Ins& node) = 0;
     virtual void unbind(unsigned id) = 0;
 

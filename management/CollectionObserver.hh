@@ -5,7 +5,6 @@
 
 #include "pds/collection/Node.hh"
 #include "pds/service/GenericPool.hh"
-#include "pds/utility/OutletWireInsList.hh"
 
 namespace Pds {
 
@@ -34,7 +33,6 @@ namespace Pds {
     GenericPool _pool;
     bool        _isallocated;
     Node        _allocator;
-    OutletWireInsList _rivals;        // list of nodes at this level
   };
 
 };

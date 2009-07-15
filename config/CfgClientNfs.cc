@@ -32,7 +32,7 @@ int CfgClientNfs::fetch(const Transition& tr,
 {
 
   char filename[128];
-  sprintf(filename,"%s/%s",_path,CfgPath::path(tr.env(),_src,id).c_str());
+  sprintf(filename,"%s/%s",_path,CfgPath::path(tr.env().value(),_src,id).c_str());
   int fd = ::open(filename,O_RDONLY);
   if (fd < 0) {
     printf("CfgClientNfs::fetch error opening %s : %s\n",

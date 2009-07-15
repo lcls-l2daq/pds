@@ -7,7 +7,7 @@ using namespace Pds;
 Transition::Transition(TransitionId::Value id,
                        Phase           phase,
                        const Sequence& sequence,
-                       unsigned        env, 
+                       const Env&      env, 
                        unsigned        size) :
   Message(Message::Transition, size),
   _id      (id),
@@ -17,8 +17,8 @@ Transition::Transition(TransitionId::Value id,
 {}
 
 Transition::Transition(TransitionId::Value id,
-                       unsigned        env, 
-                       unsigned        size) :
+                       const Env&          env, 
+                       unsigned            size) :
   Message(Message::Transition, size),
   _id      (id),
   _phase   (Execute),
@@ -42,7 +42,7 @@ Transition::Phase Transition::phase() const {return _phase;}
 
 const Sequence& Transition::sequence() const { return _sequence; }
 
-unsigned Transition::env() const {return _env;}
+const Env& Transition::env() const {return _env;}
 
 void* Transition::operator new(size_t size, Pool* pool)
 {

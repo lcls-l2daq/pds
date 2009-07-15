@@ -4,6 +4,8 @@
 #include "Port.hh"
 #include "OobServer.hh"
 
+#include <list>
+
 namespace Pds {
 
 class NetServer : public Port, public OobServer
@@ -46,7 +48,7 @@ class NetServer : public Port, public OobServer
     int unblock(char* datagram, char* payload, int size);
     int unblock(char* datagram, char* payload, int size, LinkedList<ZcpFragment>&);
   public:
-    int      join(const Ins& group, const Ins& interface);
+    int      join  (const Ins& group, const Ins& interface);
     int      resign();
   private:
     enum {SendFlags = 0};
@@ -62,8 +64,11 @@ class NetServer : public Port, public OobServer
     int                _maxPayload;     // Maximum payload size
     int                _sizeofDatagram; // Size of datagram
 
-    unsigned           _mcastGroup;
-    unsigned           _mcastInterface;
+    struct McastSubscription {
+      unsigned           group;
+      unsigned           interface;
+    };
+    std::list<McastSubscription> _mcasts;
 
 #ifdef ODF_LITTLE_ENDIAN
     char* _swap_buffer;

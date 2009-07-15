@@ -116,7 +116,7 @@ void CollectionServerManager::_connected()
   _client.use(interface);
   _header.fixup(interface, Route::ether());
   if (!_ucastServer) {
-    const unsigned Datagrams = 256;
+    const unsigned Datagrams = 4;
     const unsigned BroadcastServerId = 0;
     _mcastServer =
       new CollectionServer(*this, BroadcastServerId, _mcast, 

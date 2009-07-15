@@ -5,6 +5,7 @@
 #include "pds/utility/Transition.hh"
 #include "pds/utility/SegWireSettings.hh"
 #include "pds/utility/StreamPorts.hh"
+#include "pds/utility/OutletWire.hh"
 #include "pds/utility/InletWire.hh"
 #include "pds/utility/InletWireServer.hh"
 #include "pds/utility/InletWireIns.hh"
@@ -45,7 +46,7 @@ SegmentLevel::SegmentLevel(unsigned platform,
   _streams       (0),
   _inlet         (0),
   _evr           (0),
-  _reply         (Message::Ping)
+  _reply         (settings.sources())
 {
 }
 
@@ -140,6 +141,10 @@ void    SegmentLevel::allocated(const Allocation& alloc,
       vectorid++;
     }
   }
+  OutletWire* owire = _streams->stream(StreamParams::FrameWork)->outlet()->wire();
+  owire->bind(OutletWire::Bcast, StreamPorts::bcast(partition, 
+						    Level::Event,
+						    index));
 }
 
 void    SegmentLevel::dissolved()
@@ -161,6 +166,13 @@ void    SegmentLevel::dissolved()
 }
 
 void    SegmentLevel::post     (const Transition& tr)
+{
+  InletWire* bld_wire = _streams->wire(StreamParams::FrameWork);
+  InletWire* pre_wire = _inlet ? _inlet->input() : bld_wire;
+  pre_wire->post(tr);
+}
+
+void    SegmentLevel::post     (const Occurrence& tr)
 {
   InletWire* bld_wire = _streams->wire(StreamParams::FrameWork);
   InletWire* pre_wire = _inlet ? _inlet->input() : bld_wire;

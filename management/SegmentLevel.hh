@@ -2,6 +2,7 @@
 #define Pds_SegmentLevel_hh
 
 #include "PartitionMember.hh"
+#include "pds/collection/PingReply.hh"
 
 namespace Pds {
 
@@ -29,6 +30,7 @@ namespace Pds {
     void     allocated (const Allocation&, unsigned);
     void     dissolved ();
     void     post      (const Transition&);
+    void     post      (const Occurrence&);
     void     post      (const InDatagram&);
 
   private:
@@ -37,7 +39,7 @@ namespace Pds {
     SegStreams*    _streams;
     EbIStream*     _inlet;
     EvrServer*     _evr;
-    Message        _reply;
+    PingReply      _reply;
   };
 
 }

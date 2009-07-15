@@ -26,6 +26,7 @@ namespace Pds {
     virtual Transition* forward(Transition* dg);
     virtual Occurrence* forward(Occurrence* dg);
     virtual InDatagram* forward(InDatagram* dg);
+    virtual void bind(NamedConnection, const Ins& );
     virtual void bind(unsigned id, const Ins& node);
     virtual void unbind(unsigned id);
     
@@ -37,10 +38,11 @@ namespace Pds {
     bool isempty() const {return _nodes.isempty();}
     
   private:
-    OutletWireInsList _nodes;
+    OutletWireInsList  _nodes;
     CollectionManager& _collection;
-    ToNetEb _postman;
-    const Ins& _occurrences;
+    ToNetEb            _postman;
+    Ins                _bcast;
+    const Ins&         _occurrences;
   };
 }
 

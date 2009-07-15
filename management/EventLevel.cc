@@ -3,7 +3,9 @@
 #include "EventCallback.hh"
 #include "pds/collection/Message.hh"
 #include "pds/utility/Transition.hh"
+#include "pds/utility/Occurrence.hh"
 #include "pds/utility/StreamPorts.hh"
+#include "pds/utility/OutletWire.hh"
 #include "pds/utility/InletWire.hh"
 #include "pds/utility/InletWireServer.hh"
 #include "pds/utility/InletWireIns.hh"
@@ -141,12 +143,15 @@ void    EventLevel::allocated(const Allocation& alloc,
 				   index,
 				   segmentid++);
       
-      NetDgServer* srv = new NetDgServer(ins,
+      Ins srvIns(ins.portId());
+      NetDgServer* srv = new NetDgServer(srvIns,
 					 node.procInfo(),
 					 EventStreams::netbufdepth*EventStreams::MaxSize);
       pre_wire->add_input(srv);
       Ins mcastIns(ins.address());
       srv->server().join(mcastIns, Ins(header().ip()));
+      Ins bcastIns = StreamPorts::bcast(partition, Level::Event);
+      srv->server().join(bcastIns, Ins(header().ip()));
       printf("EventLevel::allocated assign fragment %d  %x/%d\n",
 	     srv->id(),mcastIns.address(),srv->server().portId());
     }
@@ -162,9 +167,20 @@ void    EventLevel::allocated(const Allocation& alloc,
 	recorderid++;
     }
   }
+  OutletWire* owire = _streams->stream(StreamParams::FrameWork)->outlet()->wire();
+  owire->bind(OutletWire::Bcast, StreamPorts::bcast(partition, 
+						    Level::Recorder,
+						    index));
 }
 
 void    EventLevel::post     (const Transition& tr)
+{
+  InletWire* bld_wire = _streams->wire(StreamParams::FrameWork);
+  InletWire* pre_wire = _inlet ? _inlet->input() : bld_wire;
+  pre_wire->post(tr);
+}
+
+void    EventLevel::post     (const Occurrence& tr)
 {
   InletWire* bld_wire = _streams->wire(StreamParams::FrameWork);
   InletWire* pre_wire = _inlet ? _inlet->input() : bld_wire;

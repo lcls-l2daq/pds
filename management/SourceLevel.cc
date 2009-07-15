@@ -1,6 +1,7 @@
 #include "SourceLevel.hh"
 #include "Query.hh"
 
+#include "pds/utility/StreamPorts.hh"
 #include "pds/collection/CollectionPorts.hh"
 #include "pds/collection/CollectionSource.hh"
 #include "pds/collection/Message.hh"
@@ -78,15 +79,20 @@ using namespace Pds;
 
 SourceLevel::SourceLevel() : 
   CollectionSource(MaxPayload, NULL),
-  _control(new Controller[MaxPartitions])
+  _control(new Controller[MaxPartitions()])
 {
-  for(unsigned k=0; k<SourceLevel::MaxPartitions; k++)
+  for(unsigned k=0; k<SourceLevel::MaxPartitions(); k++)
     _control[k] = Controller(k);
 }
 
 SourceLevel::~SourceLevel() 
 {
   delete[] _control;
+}
+
+unsigned SourceLevel::MaxPartitions()
+{
+  return StreamPorts::MaxPartitions;
 }
 
 bool SourceLevel::connect(int i)
@@ -104,12 +110,13 @@ void SourceLevel::_verify_partition(const Node& hdr, const Allocation& alloc)
 
 void SourceLevel::_assign_partition(const Node& hdr, const Ins& dst)
 {
-  unsigned partition = MaxPartitions;
-  for(unsigned p=0; p<MaxPartitions; p++) {
+  unsigned partition = MaxPartitions();
+  for(unsigned p=0; p<MaxPartitions(); p++) {
     if (_control[p].node()==hdr) { partition = p; break; }
-    if (_control[p].node()==UnassignedNode) { partition = p; }
+    if (_control[p].node()==UnassignedNode || 
+	_control[p].allocation().nnodes()==0) { partition = p; }
   }
-  if (partition == MaxPartitions) 
+  if (partition == MaxPartitions()) 
     printf("*** warning: no partitions available for control %x/%d\n",
 	   hdr.ip(), hdr.pid());
   else {
@@ -121,10 +128,15 @@ void SourceLevel::_assign_partition(const Node& hdr, const Ins& dst)
 
 void SourceLevel::_resign_partition(const Node& hdr)
 {
-  for(unsigned k=0; k<MaxPartitions; k++)
+  for(unsigned k=0; k<MaxPartitions(); k++)
     if (_control[k].node()==hdr)
       _control[k] = Controller(k);
 }
+
+// void SourceLevel::_resign_partition(unsigned partitionid)
+// {
+//   _control[partitionid] = Controller(partitionid);
+// }
 
 void SourceLevel::_show_partition(unsigned partition, const Ins& dst)
 {
@@ -182,7 +194,7 @@ void SourceLevel::dump() const
   printf("       When           | Platform | Partition  |       Node             \n"
 	 "     Allocated        |          | id/name    | level/ pid /     ip    \n"
 	 "----------------------+----------+------------+------------------------\n");
-  for(unsigned k=0; k<MaxPartitions; k++) {
+  for(unsigned k=0; k<MaxPartitions(); k++) {
     const Node&       n = _control[k].node();
     const Allocation& a = _control[k].allocation();
     if (!(n==UnassignedNode)) {

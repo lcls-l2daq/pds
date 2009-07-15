@@ -13,6 +13,11 @@
 namespace Pds {
   class StreamPorts {
   public:
+    enum { MaxPartitions=16 };
+  public:
+    static Ins bcast(unsigned    partition,
+		     Level::Type level,
+		     unsigned    srcid=0);
     static Ins event(unsigned    partition,
                      Level::Type level,
                      unsigned    dstid=0,

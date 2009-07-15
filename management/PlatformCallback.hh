@@ -2,11 +2,12 @@
 #define Pds_PlatformCallback_hh
 
 namespace Pds {
-
+  class Node;
+  class PingReply;
   class PlatformCallback {
   public:
     virtual ~PlatformCallback() {}
-    virtual void available(const Node&) = 0;
+    virtual void available(const Node&, const PingReply&) = 0;
   };
 
 };

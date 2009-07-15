@@ -1,4 +1,3 @@
-
 #include <stdio.h>
 #include <unistd.h>
 #include <stdint.h>
@@ -21,6 +20,37 @@
 #include "EvrManager.hh"
 #include "EvgrOpcode.hh"
 
+#include "pds/service/Timer.hh"
+#include "pds/service/Task.hh"
+#include "pds/service/TaskObject.hh"
+#include "pds/service/GenericPool.hh"
+#include "pds/utility/Occurrence.hh"
+#include "pds/utility/OccurrenceId.hh"
+#include "pds/xtc/EnableEnv.hh"
+
+namespace Pds {
+  class DoneTimer : public Timer {
+  public:
+    DoneTimer(Appliance& app) :
+      _app    (app),
+      _pool   (sizeof(Occurrence),1),
+      _task   (new Task(TaskObject("donet"))) {}
+    ~DoneTimer() { _task->destroy(); }
+  public:
+    void set_duration_ms(unsigned v) { _duration = v; }
+  public:
+    void     expired () { _app.post(new (&_pool) Occurrence(OccurrenceId::SequencerDone)); }
+    Task*    task    () { return _task; }
+    unsigned duration() const { return _duration; }
+    unsigned repetitive() const { return 0; }
+  private:
+    Appliance&   _app;
+    GenericPool  _pool;
+    Task*        _task;
+    unsigned     _duration;
+  };
+};
+
 using namespace Pds;
 
 static unsigned dropPulseMask = 0xffffffff;
@@ -31,11 +61,12 @@ static EvgrBoardInfo<Evr> *erInfoGlobal;  // yuck
 
 class L1Xmitter {
 public:
-  L1Xmitter(Evr& er) :
-    _er(er),
+  L1Xmitter(Evr& er, DoneTimer& done) :
+    _er    (er),
+    _done  (done),
     _outlet(sizeof(EvrDatagram),0,
 	    Ins(Route::interface())),
-    _evtCounter(0), _enabled(false) {}
+    _evtCounter(0), _evtStop(0), _enabled(false) {}
   void xmit() {
     FIFOEvent fe;
     _er.GetFIFOEvent(&fe);
@@ -53,19 +84,23 @@ public:
     }
 
     _outlet.send((char*)&datagram,0,0,_dst);
-//     printf("Received opcode 0x%x timestamp 0x%x/0x%x count %d\n",
-//            fe.EventCode,fe.TimestampHigh,fe.TimestampLow,_evtCounter-1);
+
+    if (_evtCounter==_evtStop)
+      _done.expired();
   }
-  void reset() { _evtCounter = 0; }
-  void enable(bool e) { _enabled=e; }
-  bool enable() const { return _enabled; }
-  void dst(const Ins& ins) { _dst=ins; }
+  void reset    () { _evtCounter = 0; }
+  void enable   (bool e) { _enabled=e; }
+  bool enable   () const { return _enabled; }
+  void dst      (const Ins& ins) { _dst=ins; }
+  void stopAfter(unsigned n) { _evtStop = _evtCounter+n; }
 private:
-  Evr& _er;
-  Client   _outlet;
-  Ins      _dst;
-  unsigned _evtCounter;
-  bool     _enabled;
+  Evr&         _er;
+  DoneTimer&   _done;
+  Client       _outlet;
+  Ins          _dst;
+  unsigned     _evtCounter;
+  unsigned     _evtStop;
+  bool         _enabled;
 };
 
 class EvrAction : public Action {
@@ -84,23 +119,41 @@ public:
 
 class EvrEnableAction : public EvrAction {
 public:
-  EvrEnableAction(Evr& er) :
-    EvrAction(er) {}
+  EvrEnableAction(Evr& er, DoneTimer& done) :
+    EvrAction(er),
+    _done    (done) {}
   Transition* fire(Transition* tr) {
+
+    if (l1xmitGlobal->enable()) {
+      const EnableEnv& env = static_cast<const EnableEnv&>(tr->env());
+      l1xmitGlobal->stopAfter(env.events());
+      if (env.timer()) {
+	_done.set_duration_ms  (env.duration());
+	_done.start();
+      }
+    }
+
     unsigned ram=0;
     _er.MapRamEnable(ram,1);
     return tr;
   }
+private:
+  DoneTimer& _done;
 };
 
 class EvrDisableAction : public EvrAction {
 public:
-  EvrDisableAction(Evr& er) : EvrAction(er) {}
+  EvrDisableAction(Evr& er, DoneTimer& done) : 
+    EvrAction(er), _done(done) {}
   Transition* fire(Transition* tr) {
     unsigned ram=0;
     _er.MapRamEnable(ram,0);
+
+    _done.cancel();
     return tr;
   }
+private:
+  DoneTimer& _done;
 };
 
 class EvrBeginRunAction : public EvrAction {
@@ -261,19 +314,25 @@ Appliance& EvrManager::appliance() {return _fsm;}
 EvrManager::EvrManager(EvgrBoardInfo<Evr> &erInfo, 
 		       CfgClientNfs & cfg,
                        EvgrOpcode::Opcode opcode) :
-  _er(erInfo.board()),_fsm(*new Fsm) {
+  _er(erInfo.board()),_fsm(*new Fsm), _done(new DoneTimer(_fsm)) {
 
-  l1xmitGlobal = new L1Xmitter(_er);
-  _fsm.callback(TransitionId::Map, new EvrAllocAction(cfg));
+  l1xmitGlobal = new L1Xmitter(_er, *_done);
+
+  _fsm.callback(TransitionId::Map      , new EvrAllocAction(cfg));
   _fsm.callback(TransitionId::Configure,new EvrConfigAction(_er,opcode,cfg));
-  _fsm.callback(TransitionId::BeginRun,new EvrBeginRunAction(_er));
-  _fsm.callback(TransitionId::Enable,new EvrEnableAction(_er));
-  _fsm.callback(TransitionId::EndRun,new EvrEndRunAction(_er));
-  _fsm.callback(TransitionId::Disable,new EvrDisableAction(_er));
-  _fsm.callback(TransitionId::L1Accept,new EvrL1Action(_er));
+  _fsm.callback(TransitionId::BeginRun ,new EvrBeginRunAction(_er));
+  _fsm.callback(TransitionId::EndRun   ,new EvrEndRunAction  (_er));
+  _fsm.callback(TransitionId::Enable   ,new EvrEnableAction (_er, *_done));
+  _fsm.callback(TransitionId::Disable  ,new EvrDisableAction(_er, *_done));
+  _fsm.callback(TransitionId::L1Accept ,new EvrL1Action(_er));
 
   _er.IrqAssignHandler(erInfo.filedes(), &evrmgr_sig_handler);
   erInfoGlobal = &erInfo;
+}
+
+EvrManager::~EvrManager()
+{
+  delete _done;
 }
 
 void EvrManager::drop_pulses(unsigned id)

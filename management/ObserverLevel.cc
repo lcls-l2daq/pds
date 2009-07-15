@@ -7,25 +7,13 @@
 #include "pds/utility/InletWire.hh"
 #include "pds/utility/InletWireServer.hh"
 #include "pds/utility/InletWireIns.hh"
-#include "pds/utility/OutletWire.hh"
+#include "pds/utility/OpenOutlet.hh"
 
 #include "pds/service/NetServer.hh"
 #include "pds/utility/BldServer.hh"
 #include "pds/utility/NetDgServer.hh"
 #include "pds/management/EbIStream.hh"
 #include "pds/management/MsgAppliance.hh"
-
-namespace Pds {
-  class OpenOutlet : public OutletWire {
-  public:
-    OpenOutlet(Outlet& outlet) : OutletWire(outlet) {}
-    virtual Transition* forward(Transition* dg) { return 0; }
-    virtual Occurrence* forward(Occurrence* dg) { return 0; }
-    virtual InDatagram* forward(InDatagram* dg) { return 0; }
-    virtual void bind(unsigned id, const Ins& node) {}
-    virtual void unbind(unsigned id) {}
-  };
-};
 
 using namespace Pds;
 
@@ -123,12 +111,15 @@ void ObserverLevel::allocated(const Allocation& alloc,
 				   index,
 				   segmentid++);
       
-      NetDgServer* srv = new NetDgServer(ins,
+      Ins srvIns(ins.portId());
+      NetDgServer* srv = new NetDgServer(srvIns,
 					 node.procInfo(),
 					 netbufdepth*MaxSize);
       pre_wire->add_input(srv);
       Ins mcastIns(ins.address());
       srv->server().join(mcastIns, Ins(header().ip()));
+      Ins bcastIns = StreamPorts::bcast(partition, Level::Event);
+      srv->server().join(bcastIns, Ins(header().ip()));
       printf("EventLevel::allocated assign fragment %d  %x/%d\n",
 	     srv->id(),mcastIns.address(),srv->server().portId());
     }
