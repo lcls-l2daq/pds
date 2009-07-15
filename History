@@ -1,3 +1,8 @@
+2009-Jul-14	weaver  Tag V01-00-00.  Consistent with pdsdata V00-05-00.  Added calibration
+			cycles.  Added sequencing in the Evr (nevents or time).  Source levels
+			now identify themselves by DetInfo to the ControlLevel during platform
+			discovery.  Recorded transitions are broadcast (AllEvents, AllRecorders
+			multicast group) to all nodes.
 2009-Jul-13     cpo     Fix bug where AcqManager was putting the same task on the queue
                         when reconfiguring.
 2009-Jul-10     cpo     Support for configuration of acqiris from database
