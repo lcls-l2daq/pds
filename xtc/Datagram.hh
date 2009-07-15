@@ -22,6 +22,10 @@ namespace Pds {
     Datagram(const Datagram& dg) :
       seq(dg.seq), env(dg.env), xtc(dg.xtc) {}
 
+    //  Copy the header
+    Datagram(const Dgram& dg) :
+      seq(dg.seq), env(dg.env), xtc(dg.xtc) {}
+
     //  Replace the TypeId and Src
     Datagram(const Datagram& dg, const TypeId& ctn, const Src& src) :
       seq(dg.seq), env(dg.env), xtc(ctn,src) {}
