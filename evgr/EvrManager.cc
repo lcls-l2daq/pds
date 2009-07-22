@@ -73,7 +73,7 @@ public:
     timespec ts;
     clock_gettime(CLOCK_REALTIME, &ts);
     ClockTime ctime(ts.tv_sec,ts.tv_nsec);
-    TimeStamp stamp(fe.TimestampLow,fe.TimestampHigh);
+    TimeStamp stamp(fe.TimestampLow,fe.TimestampHigh, _evtCounter);
     Sequence seq(Sequence::Event,TransitionId::L1Accept,ctime,stamp);
     EvrDatagram datagram(seq, _evtCounter++);
 

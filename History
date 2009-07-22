@@ -1,3 +1,5 @@
+2009-Jul-22	weaver	Tag V01-00-01.  Uses additional vectoring field in TimeStamp.
+			Added qualifiers to PartitionControl transitions.
 2009-Jul-14	weaver  Tag V01-00-00.  Consistent with pdsdata V00-05-00.  Added calibration
 			cycles.  Added sequencing in the Evr (nevents or time).  Source levels
 			now identify themselves by DetInfo to the ControlLevel during platform

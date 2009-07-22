@@ -68,8 +68,7 @@ void CfgCache::next()
     _configtc.damage = 0;
     _configtc.extent = sizeof(Xtc) + _size(_cur_config);
   }
-  if (cur_config != _cur_config)
-    _changed = true;
+  _changed = (cur_config != _cur_config);
 }
 
 
@@ -83,8 +82,6 @@ void CfgCache::record(InDatagram* dg) const
     else {
       dg->insert(_configtc, _cur_config);
     }
-    CfgCache& p = const_cast<CfgCache&>(*this);
-    p._changed = false;
   }
 }
 

@@ -1,8 +1,19 @@
 #include "Transition.hh"
 
 #include <string.h>
+#include <time.h>
 
 using namespace Pds;
+
+static Sequence now(TransitionId::Value id)
+{
+  timespec tp;
+  clock_gettime(CLOCK_REALTIME, &tp);
+  unsigned pulseId = (tp.tv_nsec >> 23) | (tp.tv_sec << 9);
+  ClockTime clocktime(tp.tv_sec, tp.tv_nsec);
+  TimeStamp timestamp(0, pulseId, 0);
+  return Sequence(Sequence::Event, id, clocktime, timestamp);
+}
 
 Transition::Transition(TransitionId::Value id,
                        Phase           phase,
@@ -17,12 +28,12 @@ Transition::Transition(TransitionId::Value id,
 {}
 
 Transition::Transition(TransitionId::Value id,
-                       const Env&          env, 
-                       unsigned            size) :
-  Message(Message::Transition, size),
+		       const Env&          env, 
+		       unsigned            size) :
+  Message  (Message::Transition, size),
   _id      (id),
   _phase   (Execute),
-  _sequence(),
+  _sequence(now(id)),
   _env     (env)
 {}
 
@@ -114,7 +125,7 @@ unsigned    Allocation::size() const { return sizeof(*this)+(_nnodes-MaxNodes)*s
 
 
 Allocate::Allocate(const Allocation& allocation) :
-  Transition(TransitionId::Map, Transition::Execute, Sequence(), 0,
+  Transition(TransitionId::Map, Transition::Execute, now(TransitionId::Map), 0,
              sizeof(Allocate)+allocation.size()-sizeof(Allocation)),
   _allocation(allocation)
 {

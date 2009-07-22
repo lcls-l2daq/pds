@@ -145,8 +145,10 @@ bool PartitionControl::set_partition(const char* name,
 
 void PartitionControl::set_target_state(State state)
 {
+  State prev_target = _target_state;
   _target_state = state;
-  _next();
+  if (prev_target == _current_state)
+    _next();
 }
 
 PartitionControl::State PartitionControl::target_state () const { return _target_state; }
@@ -243,19 +245,7 @@ void PartitionControl::_queue(TransitionId::Value id)
 {
   //  timestamp and pulseId should come from master EVR
   //  fake it for now
-  timespec tp;
-  clock_gettime(CLOCK_REALTIME, &tp);
-  unsigned  sec  = tp.tv_sec;
-  unsigned  nsec = tp.tv_nsec&~0x7FFFFF;
-  unsigned  pulseId = (tp.tv_nsec >> 23) | (tp.tv_sec << 9);
-  ClockTime clockTime(sec,nsec);
-
-  Transition tr(id,
-		Transition::Execute,
-		Sequence(Sequence::Event,
-			 id,
-			 clockTime, TimeStamp(0, pulseId)),
-		_transition_env[id] );
+  Transition tr(id, _transition_env[id]);
   _queue(tr);
 }
 

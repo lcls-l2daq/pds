@@ -23,8 +23,9 @@ namespace Pds {
 	       unsigned        size=sizeof(Transition));
 
     Transition(TransitionId::Value id,
-	       const Env&          env, 
-	       unsigned            size=sizeof(Transition));
+ 	       const Env&          env, 
+ 	       unsigned            size=sizeof(Transition));
+
     Transition(const Transition&);
 
     TransitionId::Value id      () const;
@@ -35,7 +36,6 @@ namespace Pds {
     void* operator new(size_t size, Pool* pool);
     void* operator new(size_t size);
     void  operator delete(void* buffer);
-
   private:
     TransitionId::Value _id;
     Phase        _phase;

@@ -157,7 +157,7 @@ Transition* CameraManager::fetchConfigure(Transition* tr)
 
   if (_fexConfig->fetch(tr) <= 0)
     printf("Config::configure failed to retrieve FrameFex configuration\n");
-  
+ 
   return tr;
 }
 

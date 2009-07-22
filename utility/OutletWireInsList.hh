@@ -45,7 +45,7 @@ class OutletWireInsList
     void           flush ();
     // Note: we don't check if the database is empty, hence protection
     // against this condition must be done by the caller.
-    OutletWireIns* lookup(const Sequence& seq) {return lookup(seq.stamp().fiducials()>>4);}
+    OutletWireIns* lookup(const Sequence& seq) {return lookup(seq.stamp().vector());}
     OutletWireIns* lookup(unsigned index) {return _ins[index % _entries];}
     bool           isempty() const {return !_entries;}
   private:

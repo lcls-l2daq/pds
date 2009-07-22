@@ -15,7 +15,7 @@ namespace Pds {
 
   class PartitionControl : public ControlLevel {
   public:
-    enum State { Unmapped, Mapped, Configured, Running, Disabled, Enabled };
+    enum State { Unmapped, Mapped, Configured, Running, Disabled, Enabled, NumberOfStates };
   public:
     PartitionControl       (unsigned platform,
 			    ControlCallback&,
@@ -29,7 +29,8 @@ namespace Pds {
 			    const Node* nodes,
 			    unsigned    nnodes);
   public:
-    void  set_target_state (State);
+    virtual void  set_target_state (State);
+  public:
     State target_state     ()             const;
     State current_state    ()             const;
   public:
@@ -45,8 +46,8 @@ namespace Pds {
   public:
     void  _execute         (Transition& tr);
   private:
-    State _current_state;
-    State _target_state;
+    volatile State _current_state;
+    volatile State _target_state;
     Allocation _partition;
     ControlEb  _eb;
     Task*      _sequenceTask;
