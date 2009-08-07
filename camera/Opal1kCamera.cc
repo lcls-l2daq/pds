@@ -44,6 +44,12 @@ void Opal1kCamera::Config(const Opal1kConfigType& config)
 unsigned Opal1kCamera::output_resolution() const 
 { return _inputConfig->output_resolution_bits(); }
 
+unsigned    Opal1kCamera::pixel_rows         () const
+{ return Pds::Opal1k::ConfigV1::Row_Pixels; }
+
+unsigned    Opal1kCamera::pixel_columns      () const
+{ return Pds::Opal1k::ConfigV1::Column_Pixels; }
+
 const Opal1kConfigType& Opal1kCamera::Config() const
 { return *reinterpret_cast<const Opal1kConfigType*>(_outputBuffer); }
 

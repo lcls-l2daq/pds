@@ -59,6 +59,8 @@ namespace PdsLeutron {
     virtual bool        trigger_CC1        () const = 0;
     virtual unsigned    trigger_duration_us() const = 0;
     virtual unsigned    output_resolution  () const = 0;
+    virtual unsigned    pixel_rows         () const = 0;
+    virtual unsigned    pixel_columns      () const = 0;
     // PicPortCameraInit should if necessary initialize the camera.
     virtual int PicPortCameraInit() = 0;
     //  This API can be redefined by any driver that want to do processing

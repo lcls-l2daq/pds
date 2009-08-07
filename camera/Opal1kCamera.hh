@@ -47,6 +47,8 @@ namespace PdsLeutron {
     virtual int PicPortCameraInit();
     virtual FrameHandle *PicPortFrameProcess(FrameHandle *pFrame);
     virtual unsigned output_resolution() const;
+    virtual unsigned    pixel_rows         () const;
+    virtual unsigned    pixel_columns      () const;
   private:
     unsigned long LastCount;
   public:

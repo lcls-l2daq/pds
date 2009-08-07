@@ -12,7 +12,7 @@ namespace Pds {
   public:
     enum { netbufdepth = 8 };
     enum { ebdepth     = 16 };
-    enum { MaxSize     = 4*1024*1024 };
+    enum { MaxSize     = 16*1024*1024 };
 
     ObserverStreams(CollectionObserver& cmgr);
     virtual ~ObserverStreams();

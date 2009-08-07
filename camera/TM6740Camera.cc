@@ -40,6 +40,12 @@ void TM6740Camera::Config(const TM6740ConfigType& config)
 unsigned TM6740Camera::output_resolution() const 
 { return _inputConfig->output_resolution_bits(); }
 
+unsigned    TM6740Camera::pixel_rows         () const
+{ return Pds::Pulnix::TM6740ConfigV1::Row_Pixels >> unsigned(_inputConfig->vertical_binning()); }
+
+unsigned    TM6740Camera::pixel_columns      () const
+{ return Pds::Pulnix::TM6740ConfigV1::Column_Pixels >> unsigned(_inputConfig->horizontal_binning()); }
+
 const TM6740ConfigType& TM6740Camera::Config() const
 { return *reinterpret_cast<const TM6740ConfigType*>(_outputBuffer); }
 

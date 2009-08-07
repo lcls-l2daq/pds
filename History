@@ -1,3 +1,4 @@
+2009-Aug-7	weaver	Fix bug when using procSrv where camera frame sizes are reduced.
 2009-Jul-22	weaver	Tag V01-00-01.  Uses additional vectoring field in TimeStamp.
 			Added qualifiers to PartitionControl transitions.
 2009-Jul-14	weaver  Tag V01-00-00.  Consistent with pdsdata V00-05-00.  Added calibration

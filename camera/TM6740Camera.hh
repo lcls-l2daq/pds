@@ -45,6 +45,8 @@ namespace PdsLeutron {
     virtual unsigned    trigger_duration_us() const;
     virtual int PicPortCameraInit();
     virtual unsigned output_resolution() const;
+    virtual unsigned    pixel_rows         () const;
+    virtual unsigned    pixel_columns      () const;
   private:
     const TM6740ConfigType* _inputConfig;
     char* _outputBuffer;

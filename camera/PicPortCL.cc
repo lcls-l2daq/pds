@@ -194,11 +194,22 @@ int PicPortCL::Init() {
   } else {
     _seqDralConfig.Notification = SqNfy_None;
   }
+
   // Setup the ROI (region Of Interest) to sane values
   LvGrabberNode *vga = DsyGetGrabber(0);
   // Get the sane config from VGA display
   lvret = vga->GetConnectionInfo(vga->GetConnectedMonitor(0), 
-				 &LocalRoi);
+  				 &LocalRoi);
+
+  if (LocalRoi.Height!=pixel_rows() ||
+      LocalRoi.Width !=pixel_columns()) {
+    printf("Resizing ROI from %d x %d to %d x %d\n",
+	   LocalRoi.Width,LocalRoi.Height,
+	   pixel_columns(),pixel_rows());
+    LocalRoi.Height=pixel_rows();
+    LocalRoi.Width =pixel_columns();
+  }
+  
   if (lvret != I_NoError)
     return -DsyToErrno(lvret);
   LocalRoi.SetTargetBuffer(TgtBuffer_CPU);
