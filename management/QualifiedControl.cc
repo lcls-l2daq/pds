@@ -5,8 +5,9 @@ using namespace Pds;
 
 QualifiedControl::QualifiedControl(unsigned         platform,
 				   ControlCallback& cb,
+				   Routine*         tmo,
 				   Arp*             arp) :
-  PartitionControl(platform, cb, arp),
+  PartitionControl(platform, cb, tmo, arp),
   _unqualified_target_state(PartitionControl::Unmapped)
 {
   for(unsigned k=0; k<PartitionControl::NumberOfStates; k++)

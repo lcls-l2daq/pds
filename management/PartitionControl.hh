@@ -19,6 +19,7 @@ namespace Pds {
   public:
     PartitionControl       (unsigned platform,
 			    ControlCallback&,
+			    Routine* tmo = 0,
 			    Arp*     arp = 0);
     ~PartitionControl      ();
   public:
@@ -45,6 +46,8 @@ namespace Pds {
     void  _complete        (TransitionId::Value id);
   public:
     void  _execute         (Transition& tr);
+  public:
+    const ControlEb& eb() const;
   private:
     volatile State _current_state;
     volatile State _target_state;

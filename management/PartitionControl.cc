@@ -106,11 +106,12 @@ using namespace Pds;
 
 PartitionControl::PartitionControl(unsigned platform,
 				   ControlCallback& cb,
+				   Routine* tmo,
 				   Arp*     arp) :
   ControlLevel    (platform, *new MyCallback(*this, cb), arp),
   _current_state  (Unmapped),
   _target_state   (Unmapped),
-  _eb             (header()),
+  _eb             (header(),tmo),
   _sequenceTask   (new Task(TaskObject("controlSeq"))),
   _sem            (Semaphore::EMPTY),
   _control_cb     (&cb),
@@ -261,3 +262,5 @@ void PartitionControl::_execute(Transition& tr) {
 
   _sem.take();  // block until transition is complete
 }
+
+const ControlEb& PartitionControl::eb() const { return _eb; }

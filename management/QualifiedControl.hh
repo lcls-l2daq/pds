@@ -8,6 +8,7 @@ namespace Pds {
   public:
     QualifiedControl(unsigned         platform,
 		     ControlCallback& cb,
+		     Routine*         tmo=0,
 		     Arp*             arp=0);
   public:
     void set_target_state(PartitionControl::State);

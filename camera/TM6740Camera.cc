@@ -58,7 +58,8 @@ const char* TM6740Camera::Name() const
   return (_inputConfig->output_resolution_bits()==10) ? TM6740_NAME_10bits : TM6740_NAME_8bits;
 }
 
-bool TM6740Camera::trigger_CC1() const { return true; }
+//bool TM6740Camera::trigger_CC1() const { return true; }
+bool TM6740Camera::trigger_CC1() const { return false; }
 
 unsigned TM6740Camera::trigger_duration_us() const { return _inputConfig->shutter_width(); }
 
