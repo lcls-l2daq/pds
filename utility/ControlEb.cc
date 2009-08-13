@@ -48,9 +48,12 @@ Transition* ControlEb::build(const Node& hdr,
   return 0;
 }
 
-void ControlEb::expired() { if (_timeout) _timeout->routine(); }
+void ControlEb::expired() {   
+  if (_timeout) _timeout->routine(); 
+}
+
 Task* ControlEb::task() { return _task; }
-unsigned ControlEb::duration() const { return 2000; }
+unsigned ControlEb::duration() const { return 3000; }
 unsigned ControlEb::repetitive() const { return 0; }
 
 Allocation ControlEb::remaining() const
