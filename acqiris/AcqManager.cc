@@ -202,7 +202,7 @@ public:
     long long acqdiff = acqts-_lastAcqTS;
     long long diff = abs(evrdiff - acqdiff);
     // empirical number for "fuzzy" equality comparison.
-    if (_checkTimestamp && (diff>0x1000000)) {
+    if (_checkTimestamp && (diff>1000000000)) {  // changed from 16us to 1ms by jackp
       dg.xtc.damage.increase(Pds::Damage::OutOfSynch);
       if (_nprint++<10) {
         printf("*** Outofsynch: fiducials since last evt: %f (Evr) %f (Acq)\n",
