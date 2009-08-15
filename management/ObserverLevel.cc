@@ -13,7 +13,6 @@
 #include "pds/utility/BldServer.hh"
 #include "pds/utility/NetDgServer.hh"
 #include "pds/management/EbIStream.hh"
-#include "pds/management/MsgAppliance.hh"
 
 using namespace Pds;
 
@@ -79,8 +78,6 @@ bool ObserverLevel::attach()
   
   _callback.attached(*_streams);
   
-  (new MsgAppliance)->connect(_streams->stream()->inlet());
-
   return true;
 }
 

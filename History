@@ -1,3 +1,6 @@
+2009-Aug-15	weaver	Tag V01-00-03.  Removed MsgAppliance usage.  Adjusted Acqiris
+			OutOfSync checking for master EVG rate tolerances and fiducial
+			count rollover.
 2009-Aug-12	weaver	Tag V01-00-02.  Added timeout for control level transitions.
 2009-Aug-7	weaver	Fix bug when using procSrv where camera frame sizes are reduced.
 2009-Jul-22	weaver	Tag V01-00-01.  Uses additional vectoring field in TimeStamp.

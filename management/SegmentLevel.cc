@@ -14,7 +14,6 @@
 #include "pds/xtc/CDatagram.hh"
 #include "pds/management/EventCallback.hh"
 #include "pds/management/EbIStream.hh"
-#include "pds/management/MsgAppliance.hh"
 #include "pdsdata/xtc/DetInfo.hh"
 
 using namespace Pds;
@@ -64,8 +63,6 @@ bool SegmentLevel::attach()
     _streams->connect();
 
     _callback.attached(*_streams);
-
-    (new MsgAppliance)->connect(_streams->stream()->inlet());
 
     _inlet = new EbIStream(header().procInfo(),
                            header().ip(),
