@@ -40,6 +40,7 @@ EbEventBase* EbS::_new_event(const EbBitMask& serverId)
   if (_vmoneb) _vmoneb->depth(depth);
 
   if (!depth) {
+#if 0
     printf("*** EbS Flushing\n");
     EbEventBase* event = _pending.forward();
     while( event != _pending.empty() ) {
@@ -48,6 +49,7 @@ EbEventBase* EbS::_new_event(const EbBitMask& serverId)
 	     ((EbSequenceKey&)event->key()).sequence().stamp().fiducials());
       event = event->forward();
     }
+#endif
     _postEvent(_pending.forward());
   }
 

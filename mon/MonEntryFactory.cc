@@ -3,6 +3,7 @@
 #include "pds/mon/MonEntryTH2F.hh"
 #include "pds/mon/MonEntryProf.hh"
 #include "pds/mon/MonEntryImage.hh"
+#include "pds/mon/MonEntryWaveform.hh"
 
 using namespace Pds;
 
@@ -21,6 +22,9 @@ MonEntry* MonEntryFactory::entry(const MonDescEntry& desc)
     break;
   case MonDescImage::Image:
     entry = new MonEntryImage((const MonDescImage&)desc);
+    break;
+  case MonDescWaveform::Waveform:
+    entry = new MonEntryWaveform((const MonDescWaveform&)desc);
     break;
   }
   return entry;

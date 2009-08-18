@@ -291,6 +291,7 @@ EbBitMask EbBase::_postEvent(EbEventBase* complete)
    EbEventBase* event = _pending.forward();
    EbEventBase* empty = _pending.empty();
    
+#ifdef VERBOSE
    if (event != empty &&
        event != complete) 
      printf("%x/%x(%x)... pushed by %x/%x\n",
@@ -299,6 +300,7 @@ EbBitMask EbBase::_postEvent(EbEventBase* complete)
 	    event->remaining().value(0),
 	    complete->datagram()->seq.service(),
 	    complete->datagram()->seq.stamp().fiducials());
+#endif
 
    while( event != empty ) {
      _post(event);

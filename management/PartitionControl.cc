@@ -74,7 +74,13 @@ namespace Pds {
       }
       return i;
     }
-    InDatagram* events     (InDatagram* i) { _control._complete(i->datagram().seq.service()); return i; }
+    InDatagram* events     (InDatagram* i) {
+//       if (i->datagram().xtc.damage.value()&(1<<Damage::UserDefined))
+// 	_control.set_target_state(_control.current_state());  // backout one step
+
+      _control._complete(i->datagram().seq.service()); 
+      return i; 
+    }
   private:
     PartitionControl& _control;
   };
@@ -90,10 +96,12 @@ namespace Pds {
     }
     void failed(Reason reason) {
       printf("Platform failed to attach: reason %d\n", reason);
+      _cb.failed(reason);
     }
     void dissolved(const Node& node) {
       printf("Partition dissolved by uid %d pid %d ip %x\n",
              node.uid(), node.pid(), node.ip());
+      _cb.dissolved(node);
     }
   private:
     PartitionControl*  _outlet;
@@ -237,6 +245,7 @@ void PartitionControl::_complete(TransitionId::Value id)
   case TransitionId::BeginCalibCycle:
   case TransitionId::Disable        : _current_state = Disabled  ; break;
   case TransitionId::Enable         : _current_state = Enabled   ; break;
+  case TransitionId::L1Accept       : return;
   default: break;
   }
   _next();

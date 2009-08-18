@@ -1,3 +1,5 @@
+2009-Aug-18	weaver	Tag V01-01-00.  Added Waveform and Image classes to mon with no
+			integrating options.
 2009-Aug-15	weaver	Tag V01-00-03.  Removed MsgAppliance usage.  Adjusted Acqiris
 			OutOfSync checking for master EVG rate tolerances and fiducial
 			count rollover.

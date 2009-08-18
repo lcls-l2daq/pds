@@ -35,6 +35,7 @@ EbEventBase* EbC::_new_event(const EbBitMask& serverId)
   if (_vmoneb) _vmoneb->depth(depth);
 
   if (!depth) {
+#if 0
     printf("*** EbC Flushing\n");
     EbEventBase* event = _pending.forward();
     while( event != _pending.empty() ) {
@@ -43,6 +44,7 @@ EbEventBase* EbC::_new_event(const EbBitMask& serverId)
 	     ((EbCountKey&)event->key()).key);
       event = event->forward();
     }
+#endif
     _postEvent(_pending.forward());
   }
 

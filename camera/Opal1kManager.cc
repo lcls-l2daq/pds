@@ -84,6 +84,7 @@ void Opal1kManager::_register()
 
 void Opal1kManager::_unregister()
 {
+#if 0
   printf("=== Opal1k dump ===\n nposts %d\n",_nposts);
   _camera->dump();
   printf("buffered frame ids: ");
@@ -95,6 +96,7 @@ void Opal1kManager::_unregister()
     delete hdl;
   }
   printf("\n");
+#endif
 }
 
 PdsLeutron::PicPortCL& Opal1kManager::camera() { return *_camera; }
