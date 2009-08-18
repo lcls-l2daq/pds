@@ -17,7 +17,7 @@ CollectionObserver::CollectionObserver(unsigned char platform,
   CollectionManager(Level::Observer, platform, MaxPayload, ConnectTimeOut, NULL),
   _partition       (partition),
   _node            (node),
-  _pool            (MaxPayload,4),
+  _pool            (MaxPayload,16),
   _isallocated     (false)
 {
 }
