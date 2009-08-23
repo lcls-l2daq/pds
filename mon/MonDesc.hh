@@ -12,8 +12,9 @@ namespace Pds {
     const char* name() const;
     int short id() const;
     unsigned short nentries() const;
-    void added();
-    void reset();
+    void added  ();
+    void removed();
+    void reset  ();
 
   private:
     friend class MonGroup;

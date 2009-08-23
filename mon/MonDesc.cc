@@ -25,6 +25,7 @@ const char* MonDesc::name() const {return _name;}
 int short MonDesc::id() const {return _id;}
 unsigned short MonDesc::nentries() const {return _nentries;}
 
-void MonDesc::added() {_nentries++;}
-void MonDesc::reset() {_nentries=0;}
+void MonDesc::added  () {_nentries++;}
+void MonDesc::removed() {_nentries--;}
+void MonDesc::reset  () {_nentries=0;}
 void MonDesc::id(int short i) {_id=i;}

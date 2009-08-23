@@ -27,12 +27,14 @@ MonEntryWaveform::MonEntryWaveform(const MonDescWaveform& desc) :
 
 void MonEntryWaveform::params(unsigned nbins, float xlow, float xup)
 {
+  delete[] _y;
   _desc.params(nbins, xlow, xup);
   build(nbins);
 }
 
 void MonEntryWaveform::params(const MonDescWaveform& desc)
 {
+  delete[] _y;
   _desc = desc;
   build(_desc.nbins());
 }

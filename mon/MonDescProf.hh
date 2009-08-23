@@ -20,8 +20,8 @@ namespace Pds {
   private:
     enum {NamesSize=256};
     char _names[NamesSize];
-    unsigned short _nbins;
-    unsigned short _unused;
+    unsigned _nbins;
+    unsigned _unused;
     float _xlow;
     float _xup;
   };

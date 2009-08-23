@@ -124,8 +124,10 @@ void MonServer::payload(unsigned loadsize)
   const int* signatures = _signatures;
   for (unsigned u=0; u<used; u++, signatures++, iov++) {
     const MonEntry* entry = _cds.entry(*signatures); 
-    entry->payload(*iov);
-    _usage.use(*signatures);
+    if (entry) {
+      entry->payload(*iov);
+      _usage.use(*signatures);
+    }
   }
 
   reply(MonMessage::Payload,used+1);

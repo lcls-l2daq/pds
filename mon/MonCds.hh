@@ -17,7 +17,8 @@ namespace Pds {
     MonCds(const char* name);
     ~MonCds();
   
-    void add(MonGroup* group);
+    void add   (MonGroup* group);
+    void remove(MonGroup* group);
 
     //    MonPort::Type type() const;
     const MonDesc& desc() const;

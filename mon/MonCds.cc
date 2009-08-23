@@ -25,13 +25,30 @@ MonCds::~MonCds()
   reset();
 }
 
-void MonCds::add(MonGroup* group)
+void MonCds::add   (MonGroup* group)
 {
   unsigned short used = _desc.nentries();
   if (used == _maxgroups) adjust();
   _groups[used] = group;
   _desc.added();
   group->desc().id(used);
+}
+
+void MonCds::remove(MonGroup* group)
+{
+  unsigned short used = _desc.nentries();
+  unsigned short k=0;
+  while(k < used && _groups[k]!=group) 
+    k++;
+  
+  if (_groups[k]==group)
+    _desc.removed();
+
+  while(k < used-1) {
+    _groups[k] = _groups[k+1];
+    _groups[k]->desc().id(k);
+    k++;
+  }
 }
 
 //MonPort::Type MonCds::type() const {return MonPort::Type(_desc.id());}
