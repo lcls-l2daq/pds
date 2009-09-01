@@ -22,6 +22,7 @@ namespace Pds {
     void fixup     (int server);
     void depth     (unsigned events);
     void fetch_time(unsigned ticks);
+    void damage_count(unsigned dmg);
     void post_time (unsigned ticks);
     void post_size (unsigned bytes);
     void update    (const ClockTime&);
@@ -29,6 +30,7 @@ namespace Pds {
     MonEntryTH1F*     _fixup;
     MonEntryTH1F*     _depth;
     MonEntryTH1F*     _fetch_time;
+    MonEntryTH1F*     _damage_count;
     MonEntryTH1F*     _post_time;
     MonEntryTH1F*     _post_time_log;
     MonEntryTH1F*     _post_size;

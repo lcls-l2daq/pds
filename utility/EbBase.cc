@@ -259,6 +259,7 @@ void EbBase::_post(EbEventBase* event)
   if (_vmoneb) {
     ClockTime clock(indatagram->datagram().seq.clock());
     _vmoneb->post_size(indatagram->datagram().xtc.extent);
+    _vmoneb->damage_count(indatagram->datagram().xtc.damage.value());
     unsigned sample = SysClk::sample();
     _output.post(indatagram);
     _vmoneb->post_time(SysClk::since(sample));

@@ -75,6 +75,11 @@ VmonEb::VmonEb(const Src& src,
   _fetch_time = new MonEntryTH1F(fetch_time);
   group->add(_fetch_time);
 
+  MonDescTH1F damage_count("Damage", "bit #", "",
+			 32, -0.5, 31.5);
+  _damage_count = new MonEntryTH1F(damage_count);
+  group->add(_damage_count);
+
   unsigned maxs;
   _sshift = time_scale(maxsize,maxs);
   float s0 = -0.5;
@@ -127,6 +132,22 @@ void VmonEb::fetch_time(unsigned t)
     _fetch_time->addinfo(1, MonEntryTH1F::Overflow);
 }
 
+// damage histogram
+void VmonEb::damage_count(unsigned dmg)
+{
+  unsigned bin;
+
+  // increment a bin for each 1 bit in 'dmg'
+  for (bin = 0; dmg; bin ++, dmg >>= 1) {
+    if (dmg & 1) {
+      if (bin < _damage_count->desc().nbins())
+        _damage_count->addcontent(1, bin);
+      else
+        _damage_count->addinfo(1, MonEntryTH1F::Overflow);
+    }
+  }
+}
+
 void VmonEb::post_size(unsigned s)
 {
   unsigned bin = s>>_sshift;
@@ -143,5 +164,6 @@ void VmonEb::update(const ClockTime& now)
   _post_time ->time(now);
   _post_time_log ->time(now);
   _fetch_time->time(now);
+  _damage_count->time(now);
   _post_size ->time(now);
 }
