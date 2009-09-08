@@ -118,12 +118,15 @@ void    SegmentLevel::allocated(const Allocation& alloc,
   for (unsigned n=0; n<nnodes; n++) {
     const Node& node = *alloc.node(n);
     if (_is_bld(node)) {
-      Ins ins( _bld_ins(node) );
-      BldServer* srv = new BldServer(ins, _bld_src(node), NetBufferDepth);
-      bld_wire->add_input(srv);
-      srv->server().join(ins, Ins(header().ip()));
-      printf("SegmentLevel::allocated assign bld  fragment %d  %x/%d\n",
-	     srv->id(),ins.address(),srv->server().portId());
+      //
+      //  Choose not to receive bld in the segment level
+      //
+//       Ins ins( _bld_ins(node) );
+//       BldServer* srv = new BldServer(ins, _bld_src(node), NetBufferDepth);
+//       bld_wire->add_input(srv);
+//       srv->server().join(ins, Ins(header().ip()));
+//       printf("SegmentLevel::allocated assign bld  fragment %d  %x/%d\n",
+// 	     srv->id(),ins.address(),srv->server().portId());
     }
     else if (node.level()==Level::Event) {
       // Add vectored output clients on bld_wire
