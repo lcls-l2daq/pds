@@ -22,8 +22,11 @@ void        ControlEb::reset(const Allocation& alloc)
 {
   _alloc = &alloc;
   _remaining.clearAll();
-  _remaining = ~_remaining;
-  _remaining >>= (_remaining.BitMaskBits - alloc.nnodes());
+//   _remaining = ~_remaining;
+//   _remaining >>= (_remaining.BitMaskBits - alloc.nnodes());
+  for(unsigned k=0; k<alloc.nnodes(); k++)
+    if (alloc.node(k)->level() < Pds::Level::Observer)
+      _remaining.setBit(k);
   cancel();
   start();
 }
