@@ -1,3 +1,4 @@
+2009-Sep-10 tomytsai  Add Epics data collector level 1 (segment) node library in pds/epicsArch.
 2009-Aug-22	weaver	Fixed overflow of nbins in MonDescXXX.  Added method for
 			removing groups from MonCds.
 2009-Aug-18	weaver	Tag V01-01-00.  Added Waveform and Image classes to mon with no
@@ -24,9 +25,9 @@
 2009-Apr-16	weaver	Added Pulnix TM6740 camera.  Added occurrences to collection messages.
 			Added function to drop evr multicasts and generate opal1k out-of-order (for testing).
 			Fix in GenericPoolW to use counting semaphore for pool resource counting.
-			Fix in Event Builder to keep good events in order.  Individual (errant) events can slip 
-			out-of-order due to dropped contributions and missing PulseId. 
-			Added support for vmon archiving. 
+			Fix in Event Builder to keep good events in order.  Individual (errant) events can slip
+			out-of-order due to dropped contributions and missing PulseId.
+			Added support for vmon archiving.
 2009-Apr-3      cpo     Change some default acqiris params so that
                         we don't get as many "WARNING: Parameter has been
                         adapted" messages.  We still have one, which
@@ -57,8 +58,8 @@
 			for L1 data that doesn't get one from an evr match.
 2009-Jan-28	weaver	Tag V00-06-01.  zerocopy/dma_splice can now queue sparsely and
 			share "release arguments" across many queued buffers.
-			camera/DmaSplice,Frame,TwoDMoments added to support camera 
-			feature extraction.  xtc/PayloadIterator added; CDatagramIterator 
+			camera/DmaSplice,Frame,TwoDMoments added to support camera
+			feature extraction.  xtc/PayloadIterator added; CDatagramIterator
 			inherits from it.
 2009-Jan-13	weaver	Tag V00-06-00.  Many changes to zero-copy eb including new
 			dma_splice kernel module.
@@ -71,7 +72,7 @@
 2008-Oct-27     cpo     Tag V00-03-01.  Forgot to add AcqServer files and
                         DmaEngine in utility.
 2008-Oct-27     cpo     Tag V00-03-00.  Add support for evg/evr/acqiris.
-2008-Oct-21	weaver  Tag V00-02-02.  Minor fixes to event builder error handling and 
+2008-Oct-21	weaver  Tag V00-02-02.  Minor fixes to event builder error handling and
 			network buffering.
 2008-Oct-15	weaver  Tag V00-02-01.  Many fixes and changes for platform model.
 2008-Oct-10	weaver  Tag V00-02-00.  Collection added platforms.  First commit
