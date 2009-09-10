@@ -1,0 +1,134 @@
+#include <sys/mman.h>
+#include <fcntl.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <unistd.h>
+#include <stdint.h>
+#include <new>
+#include <errno.h>
+#include <math.h>
+
+#include "pdsdata/epics/EpicsPvData.hh"
+#include "pds/service/GenericPool.hh"
+#include "pds/service/Task.hh"
+#include "pds/service/Routine.hh"
+//#include "pds/service/GenericPool.hh"
+#include "pds/xtc/CDatagram.hh"
+#include "pds/client/Fsm.hh"
+#include "pds/client/Action.hh"
+#include "pds/config/CfgClientNfs.hh"
+#include "EpicsArchManager.hh"
+
+using namespace Pds;
+
+class EpicsArchAllocAction : public Action 
+{
+public:
+    EpicsArchAllocAction(CfgClientNfs& cfg) : _cfg(cfg) {}
+    Transition* fire(Transition* tr) 
+    {
+        const Allocate& alloc = reinterpret_cast<const Allocate&>(*tr);
+        _cfg.initialize(alloc.allocation());
+        return tr;
+    }
+private:
+    CfgClientNfs& _cfg;
+};
+
+class EpicsArchL1Action : public Action 
+{
+public:
+    EpicsArchL1Action(EpicsArchManager* mgr) :
+        _mgr(mgr)
+        //, _pool(new GenericPool(sizeof(Datagram)+iMaxXtcSize, 1))
+    {}
+    
+    InDatagram* fire(InDatagram* in) 
+    {
+        //Datagram& dg = in->datagram();
+
+        // we will want to return a datagram that is different
+        // from the input datagram.
+        //Pds::Datagram* out = new(_pool) Pds::Datagram(dg);        
+        
+        //new(&(out->xtc)) MyPVData(nvar);
+        
+        // also: the Datagram has a clocktime timestamp, we should
+        // use that to only archive at a reduced rate
+        //if (deltatime<1.0) return in;
+        //else return out;
+        
+        return in;
+    }
+  
+private:
+//    static const int iMaxXtcSize = sizeof(EpicsPvCtrl<DBR_DOUBLE>) * 2600; // Space enough for 2000+ PVs of type DBR_DOUBLE
+        
+    EpicsArchManager* _mgr;
+    
+    // Pool is not used: See below
+    //GenericPool*        _pool; 
+    /*           
+        1. Pool usage may not be consistent with the caller
+        /reg/lab2/home/tomytsai/project/daq/pds/utility/Appliance.cc: 109
+        /reg/lab2/home/tomytsai/project/daq/pds/utility/Appliance.cc: 37
+        /reg/lab2/home/tomytsai/project/daq/pds/utility/Appliance.hh: 67
+        /reg/lab2/home/tomytsai/project/daq/pds/utility/Appliance.hh: 109
+        /reg/lab2/home/tomytsai/project/daq/pds/client/Fsm.cc: 90
+        
+        2. Which datagram to use?
+            /reg/lab2/home/tomytsai/project/daq/pds/xtc/CDatagram.hh ?
+        
+     */
+};
+
+class EpicsArchDisableAction : public Action 
+{
+public:
+    EpicsArchDisableAction() : _epicsArchl1(epicsArchl1) {}
+    Transition* fire(Transition* in) {
+        printf("EpicsArchManager received %d l1accepts\n",cpol1);
+        return in;
+    }
+private:
+    EpicsArchL1Action& _epicsArchl1;
+};
+
+class EpicsArchConfigAction : public Action {
+public:
+    EpicsArchConfigAction(const Src& src, CfgClientNfs& cfg) :
+        _cfgtc(_epicsArchConfigType,src),
+        _cfg(cfg),_firstTime(1) {}
+    // this is the second "phase" of a transition where everybody
+    // records the results of configure (which will typically be
+    // archived in the xtc file).
+    InDatagram* fire(InDatagram* dg) {
+        // insert assumes we have enough space in the input datagram
+        dg->insert(_cfgtc, &_config);
+        if (_nerror) dg->datagram().xtc.damage.increase(Pds::Damage::UserDefined);
+        return dg;
+    }
+    // this is the first "phase" of a transition where
+    // all CPUs configure in parallel.
+    Transition* fire(Transition* tr) {
+        _cfg.fetch(*tr,_epicsArchConfigType, &_config);
+        return tr;
+    }
+private:
+    EpicsArchConfigType _config;
+    Xtc _cfgtc;
+    Src _src;
+    CfgClientNfs& _cfg;
+};
+
+Appliance& EpicsArchManager::appliance() {return _fsm;}
+
+EpicsArchManager::EpicsArchManager(CfgClientNfs& cfg) :
+    _fsm(*new Fsm) {
+    Action* caction = new EpicsArchConfigAction(_instrumentId,reader,dma,server.client(),cfg);
+    _fsm.callback(TransitionId::Configure,caction);
+    EpicsArchL1Action& epicsArchl1 = *new EpicsArchL1Action(_instrumentId,this);
+    _fsm.callback(TransitionId::Map, new EpicsArchAllocAction(cfg));
+    _fsm.callback(TransitionId::L1Accept,&epicsArchl1);
+    _fsm.callback(TransitionId::Disable,new EpicsArchDisableAction(_instrumentId,epicsArchl1));
+}
