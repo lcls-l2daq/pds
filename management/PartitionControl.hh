@@ -4,6 +4,7 @@
 #include "pds/management/ControlLevel.hh"
 #include "pds/utility/ControlEb.hh"
 #include "pdsdata/xtc/TransitionId.hh"
+#include "pdsdata/xtc/Xtc.hh"
 
 namespace Pds {
 
@@ -35,7 +36,8 @@ namespace Pds {
     State target_state     ()             const;
     State current_state    ()             const;
   public:
-    void  set_transition_env(TransitionId::Value, unsigned);
+    void  set_transition_env    (TransitionId::Value, unsigned);
+    void  set_transition_payload(TransitionId::Value, Xtc*, void*);
   public: // Implements ControlLevel
     void  message          (const Node& hdr, 
 			    const Message& msg);
@@ -55,7 +57,9 @@ namespace Pds {
     ControlEb  _eb;
     Task*      _sequenceTask;
     Semaphore  _sem;
-    unsigned   _transition_env[TransitionId::NumberOf];
+    unsigned   _transition_env    [TransitionId::NumberOf];
+    Xtc*       _transition_xtc    [TransitionId::NumberOf];
+    void*      _transition_payload[TransitionId::NumberOf];
     ControlCallback*  _control_cb;
     PlatformCallback* _platform_cb;
     friend class ControlAction;

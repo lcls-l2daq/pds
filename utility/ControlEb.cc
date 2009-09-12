@@ -56,7 +56,7 @@ void ControlEb::expired() {
 }
 
 Task* ControlEb::task() { return _task; }
-unsigned ControlEb::duration() const { return 3000; }
+unsigned ControlEb::duration() const { return 5000; }
 unsigned ControlEb::repetitive() const { return 0; }
 
 Allocation ControlEb::remaining() const

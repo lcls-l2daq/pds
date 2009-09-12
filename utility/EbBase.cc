@@ -62,6 +62,7 @@ static const char* TaskName(Level::Type level, int stream, Inlet& inlet)
   return name;
 }
 
+static int _nPrints=32;
 
 EbBase::EbBase(const Src& id,
 	       const TypeId& ctns,
@@ -234,10 +235,25 @@ void EbBase::_post(EbEventBase* event)
 
   if(remaining.isNotZero()) {
 
-    char buff[80];
-    sprintf(buff,"EbBase::_post fixup seq %08x remaining ",
-	    datagram->seq.stamp().fiducials());
-    remaining.write(&buff[strlen(buff)]);
+    if (_nPrints) {
+      const int buffsize=256;
+      char buff[buffsize];
+      EbBitMask r = remaining;
+      sprintf(buff,"EbBase::_post fixup seq %08x remaining ",
+	      datagram->seq.stamp().fiducials());
+      r.write(&buff[strlen(buff)]);
+      EbBitMask id(EbBitMask::ONE);
+      for(unsigned i=0; !r.isZero(); i++, id <<= 1) {
+	if ( !(r & id).isZero() ) {
+	  EbServer* srv = (EbServer*)server(i);
+	  snprintf(buff+strlen(buff),buffsize-strlen(buff)," [%x/%x]",
+		   srv->client().log(),srv->client().phy());
+	  r &= ~id;
+	}
+      }
+      printf("%s\n",buff);
+      --_nPrints;
+    }
 
     // statistics
     EbBitMask id(EbBitMask::ONE);
@@ -251,7 +267,6 @@ void EbBase::_post(EbEventBase* event)
 	remaining &= ~id;
       }
     }
-    printf("%s dmg 0x%x\n",buff,dmg);
 
     datagram->xtc.damage.increase(dmg);
   }

@@ -14,12 +14,15 @@
 #include "pds/service/Task.hh"
 #include "pds/service/Semaphore.hh"
 #include "pds/service/Routine.hh"
+#include "pds/service/GenericPool.hh"
 
 #include <time.h> // Required for timespec struct and nanosleep()
 #include <stdlib.h> // Required for timespec struct and nanosleep()
 #include <string.h>
 #include <unistd.h>
 #include <errno.h>
+
+static const unsigned MaxPayload = 0x1000;
 
 namespace Pds {
 
@@ -42,7 +45,8 @@ namespace Pds {
   class ControlAction : public Appliance {
   public:
     ControlAction(PartitionControl& control) :
-      _control(control)
+      _control(control),
+      _pool   (sizeof(Transition)+MaxPayload,1)
     {}
     ~ControlAction() {}
   public:
@@ -62,14 +66,35 @@ namespace Pds {
 	  _control._complete(i->id());
 	}
 	else {
-	  Transition tr(i->id(),
-			Transition::Record,
-			Sequence(Sequence::Event,
-				 i->id(),
-				 i->sequence().clock(),
-				 i->sequence().stamp()),
-			i->env() );
-	  _control.mcast(tr);
+	  Transition* tr;
+	  const Xtc* xtc = _control._transition_xtc[i->id()];
+	  if (xtc && xtc->extent < MaxPayload) {
+	    tr = new(&_pool) Transition(i->id(),
+					Transition::Record,
+					Sequence(Sequence::Event,
+						 i->id(),
+						 i->sequence().clock(),
+						 i->sequence().stamp()),
+					i->env(),
+					sizeof(Transition)+xtc->extent);
+	    char* p = reinterpret_cast<char*>(tr+1);
+	    memcpy(p,xtc,sizeof(Xtc));
+	    memcpy(p += sizeof(Xtc),_control._transition_payload[i->id()],xtc->sizeofPayload());
+	  }
+	  else {
+	    if (xtc) 
+	      printf("PartitionControl transition payload size (0x%x) exceeds maximum.  Discarding.\n",xtc->extent);
+
+	    tr = new(&_pool) Transition(i->id(),
+					Transition::Record,
+					Sequence(Sequence::Event,
+						 i->id(),
+						 i->sequence().clock(),
+						 i->sequence().stamp()),
+					i->env());
+	  }
+	  _control.mcast(*tr);
+	  delete tr;
 	}
       }
       return i;
@@ -83,6 +108,7 @@ namespace Pds {
     }
   private:
     PartitionControl& _control;
+    GenericPool _pool;
   };
 
   class MyCallback : public ControlCallback {
@@ -90,9 +116,9 @@ namespace Pds {
     MyCallback(PartitionControl& o,
 	       ControlCallback& cb) : _outlet(&o), _cb(cb) {}
     void attached(SetOfStreams& streams) {
-      _cb.attached(streams);
       Stream& frmk = *streams.stream(StreamParams::FrameWork);
       (new ControlAction(*_outlet))   ->connect(frmk.inlet());
+      _cb.attached(streams);
     }
     void failed(Reason reason) {
       printf("Platform failed to attach: reason %d\n", reason);
@@ -126,6 +152,7 @@ PartitionControl::PartitionControl(unsigned platform,
   _platform_cb    (0)
 {
   memset(_transition_env,0,TransitionId::NumberOf*sizeof(unsigned));
+  memset(_transition_xtc,0,TransitionId::NumberOf*sizeof(Xtc*));
 }
 
 PartitionControl::~PartitionControl() 
@@ -164,6 +191,11 @@ PartitionControl::State PartitionControl::target_state () const { return _target
 PartitionControl::State PartitionControl::current_state() const { return _current_state; }
 void  PartitionControl::set_transition_env(TransitionId::Value tr, unsigned env)
 { _transition_env[tr] = env; }
+void  PartitionControl::set_transition_payload(TransitionId::Value tr, Xtc* xtc, void* payload)
+{
+  _transition_xtc    [tr] = xtc; 
+  _transition_payload[tr] = payload; 
+}
 
 void PartitionControl::message(const Node& hdr, const Message& msg)
 {
@@ -208,8 +240,6 @@ void PartitionControl::message(const Node& hdr, const Message& msg)
 
 void PartitionControl::_next()
 {
-  //  printf("_next  current %d  target %d\n",_current_state, _target_state);
-
   if      (_current_state==_target_state) 
     ;
   else if (_target_state > _current_state) 
