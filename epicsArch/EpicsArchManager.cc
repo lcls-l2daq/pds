@@ -42,9 +42,9 @@ private:
 class EpicsArchConfigAction : public Action 
 {
 public:
-    EpicsArchConfigAction(EpicsArchManager& manager, const Src& src, CfgClientNfs& cfg) :
+    EpicsArchConfigAction(EpicsArchManager& manager, const Src& src, CfgClientNfs& cfg, int iDebugLevel) :
         //_cfgtc(_epicsArchConfigType,src),
-        _manager(manager), _src(src), _cfg(cfg) 
+        _manager(manager), _src(src), _cfg(cfg), _iDebugLevel(iDebugLevel)
     {}
     
     // this is the first "phase" of a transition where
@@ -60,7 +60,7 @@ public:
     // archived in the xtc file).
     virtual InDatagram* fire(InDatagram* in) 
     {
-        printf( "\n\n===== Writing Configs =====\n" );
+        if (_iDebugLevel>=1) printf( "\n\n===== Writing Configs =====\n" );
 
         // insert assumes we have enough space in the input datagram
         //dg->insert(_cfgtc, &_config);
@@ -83,8 +83,7 @@ public:
             return in;
         }                
                   
-        // !! for debug test only
-        printf( "\nOutput payload size = %d\n", out->datagram().xtc.sizeofPayload());
+        if (_iDebugLevel>=1) printf( "\nOutput payload size = %d\n", out->datagram().xtc.sizeofPayload());
         
         return out;
     }
@@ -92,16 +91,17 @@ public:
 private:
     //EpicsArchConfigType _config;
     //Xtc _cfgtc;
-    EpicsArchManager& _manager;
-    Src _src;
-    CfgClientNfs& _cfg;
+    EpicsArchManager&   _manager;
+    Src                 _src;
+    CfgClientNfs&       _cfg;
+    int                 _iDebugLevel;
 };
 
 class EpicsArchL1AcceptAction : public Action 
 {
 public:
-    EpicsArchL1AcceptAction(EpicsArchManager& manager, float fMinTriggerInterval) :
-        _manager(manager) , _fMinTriggerInterval(fMinTriggerInterval)
+    EpicsArchL1AcceptAction(EpicsArchManager& manager, float fMinTriggerInterval, int iDebugLevel) :
+        _manager(manager) , _fMinTriggerInterval(fMinTriggerInterval), _iDebugLevel(iDebugLevel)
     {
         tsPrev.tv_sec = tsPrev.tv_nsec = 0;   
     }
@@ -124,7 +124,7 @@ public:
         if ( (tsCurrent.tv_sec-tsPrev.tv_sec) + (tsCurrent.tv_nsec-tsPrev.tv_nsec)/1.0e9f < _fMinTriggerInterval )
             return in;    
             
-        printf( "\n\n===== Writing L1 Data =====\n" );            
+        if (_iDebugLevel >= 1) printf( "\n\n===== Writing L1 Data =====\n" );
         InDatagram* out = new ( _manager.getPool() ) Pds::CDatagram( in->datagram() );
         int iFail = _manager.writeMonitoredContent( out->datagram() );                
         
@@ -143,8 +143,7 @@ public:
             return in;
         }                
                   
-        // !! for debug test only
-        printf( "\nOutput payload size = %d\n", out->datagram().xtc.sizeofPayload());
+        if (_iDebugLevel >= 1) printf( "\nOutput payload size = %d\n", out->datagram().xtc.sizeofPayload());
         
         tsPrev = tsCurrent;  
         return out;
@@ -153,7 +152,8 @@ public:
 private:        
     EpicsArchManager&   _manager;
     float               _fMinTriggerInterval;
-    timespec            tsPrev;
+    int                 _iDebugLevel;
+    timespec            tsPrev;    
 };
 
 class EpicsArchDisableAction : public Action 
@@ -174,14 +174,14 @@ private:
 
 const Src EpicsArchManager::srcLevel = Src(Level::Reporter);
 
-EpicsArchManager::EpicsArchManager(CfgClientNfs& cfg, const std::string& sFnConfig, float fMinTriggerInterval) :
-  _sFnConfig(sFnConfig), _fMinTriggerInterval(fMinTriggerInterval),
+EpicsArchManager::EpicsArchManager(CfgClientNfs& cfg, const std::string& sFnConfig, float fMinTriggerInterval, int iDebugLevel) :
+  _sFnConfig(sFnConfig), _fMinTriggerInterval(fMinTriggerInterval), _iDebugLevel(iDebugLevel),
   _pMonitor(NULL) // _pMonitor need to be initialized in the task thread
 {
     _pFsm            = new Fsm();    
     _pActionMap      = new EpicsArchAllocAction(*this, cfg);
-    _pActionConfig   = new EpicsArchConfigAction(*this, EpicsArchManager::srcLevel, cfg);  // Level::Reporter for Epics Archiver
-    _pActionL1Accept = new EpicsArchL1AcceptAction(*this, _fMinTriggerInterval);
+    _pActionConfig   = new EpicsArchConfigAction(*this, EpicsArchManager::srcLevel, cfg, _iDebugLevel);  // Level::Reporter for Epics Archiver
+    _pActionL1Accept = new EpicsArchL1AcceptAction(*this, _fMinTriggerInterval, _iDebugLevel);
     _pActionDisable  = new EpicsArchDisableAction(*this);
     
     _pFsm->callback(TransitionId::Map,        _pActionMap);
@@ -216,7 +216,7 @@ int EpicsArchManager::initMonitor()
 
     try
     {
-        _pMonitor = new EpicsArchMonitor( _sFnConfig );    
+        _pMonitor = new EpicsArchMonitor( _sFnConfig, _iDebugLevel );
     }
     catch (string& sError)
     {

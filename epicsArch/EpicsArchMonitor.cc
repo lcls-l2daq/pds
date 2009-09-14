@@ -16,8 +16,8 @@ using std::string;
 const Src EpicsArchMonitor::srcLevel(Level::Segment);
 const char EpicsArchMonitor::sPvListSeparators[] = " ,;\r\n";
 
-EpicsArchMonitor::EpicsArchMonitor( const std::string& sFnConfig ) :
-  _sFnConfig(sFnConfig)
+EpicsArchMonitor::EpicsArchMonitor( const std::string& sFnConfig, int iDebugLevel ) :
+  _sFnConfig(sFnConfig), _iDebugLevel(iDebugLevel)
 {
     if ( _sFnConfig == "" )
         throw string("EpicsArchMonitor::EpicsArchMonitor(): Invalid parameters");
@@ -50,10 +50,7 @@ EpicsArchMonitor::EpicsArchMonitor( const std::string& sFnConfig ) :
 }
 
 EpicsArchMonitor::~EpicsArchMonitor()
-{
-    // !! debug only
-    printf( "EpicsArchMonitor::~EpicsArchMonitor()\n" );
-    
+{    
     for ( int iPvName = 0; iPvName < (int) _lpvPvList.size(); iPvName++ )
     {           
         EpicsMonitorPv& epicsPvCur = _lpvPvList[iPvName];
@@ -94,7 +91,7 @@ int EpicsArchMonitor::writeToXtc( Datagram& dg )
     for ( int iPvName = 0; iPvName < iNumPv; iPvName++ )
     {
         EpicsMonitorPv& epicsPvCur = _lpvPvList[iPvName];        
-        epicsPvCur.printPv();
+        if (_iDebugLevel >= 1 ) epicsPvCur.printPv();
         
         XtcEpicsPv* pXtcEpicsPvCur = new(&dg.xtc) XtcEpicsPv(typeIdXtc, srcLevel);
 

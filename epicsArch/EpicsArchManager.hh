@@ -14,7 +14,7 @@ class EpicsArchMonitor;
 class EpicsArchManager 
 {
 public:
-    EpicsArchManager(CfgClientNfs& cfg, const std::string& sFnConfig, float fMinTriggerInterval);
+    EpicsArchManager(CfgClientNfs& cfg, const std::string& sFnConfig, float fMinTriggerInterval, int iDebugLevel);
     ~EpicsArchManager();
 
     Appliance& appliance() { return *_pFsm; }
@@ -37,6 +37,7 @@ private:
     
     std::string         _sFnConfig;
     float               _fMinTriggerInterval;
+    int                 _iDebugLevel;
     EpicsArchMonitor*   _pMonitor;    
     GenericPool*        _pPool;     
 };

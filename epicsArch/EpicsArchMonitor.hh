@@ -14,17 +14,18 @@ namespace Pds
 class EpicsArchMonitor
 {
 public:
-    EpicsArchMonitor( const std::string& sFnConfig );
+    EpicsArchMonitor( const std::string& sFnConfig, int iDebugLevel );
     ~EpicsArchMonitor();
     int writeToXtc( Datagram& dg );
     
-    static const int iXtcVersion = 1;    
-    static const Src srcLevel;
-    static const int iMaxXtcSize = 360100; // Space enough for 2000 PVs of type DBR_DOUBLE
-    static const TypeId::Type typeXtc = TypeId::Id_Epics;
+    static const int            iXtcVersion = 1;    
+    static const int            iMaxXtcSize = 360100; // Space enough for 2000 PVs of type DBR_DOUBLE
+    static const TypeId::Type   typeXtc     = TypeId::Id_Epics;
+    static const Src            srcLevel;
     
 private:        
-    std::string _sFnConfig;
+    std::string         _sFnConfig;
+    int                 _iDebugLevel;
     TEpicsMonitorPvList _lpvPvList;     
     
     typedef std::vector<std::string> TPvList;
