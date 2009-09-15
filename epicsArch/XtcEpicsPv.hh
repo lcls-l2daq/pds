@@ -12,7 +12,7 @@ namespace Pds
 class XtcEpicsPv : public Xtc
 {
 public:
-    XtcEpicsPv(TypeId typeId, Src src) : Xtc(typeId,src)
+    XtcEpicsPv(const TypeId& typeId, const Src& src) : Xtc(typeId,src)
     {
         // Standard adjustment: Update the Xtc size field
         alloc( sizeof(*this) - sizeof(Xtc) );

@@ -3,9 +3,7 @@
 
 #include <string>
 #include <vector>
-#include "pdsdata/xtc/TypeId.hh"
-#include "pdsdata/xtc/Level.hh"
-#include "pdsdata/xtc/Src.hh"
+#include "pdsdata/epics/EpicsXtcSettings.hh"
 #include "EpicsMonitorPv.hh"
 
 namespace Pds
@@ -18,10 +16,10 @@ public:
     ~EpicsArchMonitor();
     int writeToXtc( Datagram& dg );
     
-    static const int            iXtcVersion = 1;    
-    static const int            iMaxXtcSize = 360100; // Space enough for 2000 PVs of type DBR_DOUBLE
-    static const TypeId::Type   typeXtc     = TypeId::Id_Epics;
-    static const Src            srcLevel;
+    static const int            iXtcVersion = EpicsXtcSettings::iXtcVersion;    
+    static const int            iMaxXtcSize = EpicsXtcSettings::iMaxXtcSize;
+    static const TypeId::Type   typeXtc     = EpicsXtcSettings::typeXtc;
+    static const DetInfo&        detInfoEpics;
     
 private:        
     std::string         _sFnConfig;

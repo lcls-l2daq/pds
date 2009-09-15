@@ -13,7 +13,7 @@ namespace Pds
     
 using std::string;
 
-const Src EpicsArchMonitor::srcLevel(Level::Segment);
+const DetInfo& EpicsArchMonitor::detInfoEpics = EpicsXtcSettings::detInfo;
 const char EpicsArchMonitor::sPvListSeparators[] = " ,;\r\n";
 
 EpicsArchMonitor::EpicsArchMonitor( const std::string& sFnConfig, int iDebugLevel ) :
@@ -93,7 +93,7 @@ int EpicsArchMonitor::writeToXtc( Datagram& dg )
         EpicsMonitorPv& epicsPvCur = _lpvPvList[iPvName];        
         if (_iDebugLevel >= 1 ) epicsPvCur.printPv();
         
-        XtcEpicsPv* pXtcEpicsPvCur = new(&dg.xtc) XtcEpicsPv(typeIdXtc, srcLevel);
+        XtcEpicsPv* pXtcEpicsPvCur = new(&dg.xtc) XtcEpicsPv(typeIdXtc, detInfoEpics);
 
         int iFail = pXtcEpicsPvCur->setValue( epicsPvCur );
         if ( iFail != 0 )
