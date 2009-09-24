@@ -48,6 +48,7 @@
 #include "AcqServer.hh"
 #include "pdsdata/acqiris/DataDescV1.hh"
 #include "pds/config/CfgClientNfs.hh"
+#include "acqiris/aqdrv4/AcqirisImport.h"
 
 using namespace Pds;
 
@@ -184,7 +185,7 @@ public:
   AcqL1Action(ViSession instrumentId, AcqManager* mgr) :
     AcqDC282Action(instrumentId),
     _lastAcqTS(0),_lastEvrFid(0),
-    _nprint(0),_checkTimestamp(0),_mgr(mgr) {}
+    _nprint(0),_checkTimestamp(0),_mgr(mgr),_outoforder(0) {}
   InDatagram* fire(InDatagram* in) {
     Datagram& dg = in->datagram();
     if (!dg.xtc.damage.value()) validate(in);
@@ -203,27 +204,20 @@ public:
     long long diff = abs(evrdiff - acqdiff);
     // empirical number for "fuzzy" equality comparison.
     if (_checkTimestamp && (diff>1000000000)) {  // changed from 16us to 1ms by jackp
-      dg.xtc.damage.increase(Pds::Damage::OutOfSynch);
       if (_nprint++<10) {
-        printf("*** Outofsynch: fiducials since last evt: %f (Evr) %f (Acq)\n",
+        printf("*** OutOfOrder: fiducials since last evt: %f (Evr) %f (Acq)\n",
                ((float)(evrdiff))/psPerFiducial,
                ((float)(acqdiff))/psPerFiducial);
         printf("*** Timestamps (current/previous) %d/%d (Evr(fiducials)) %lld/%lld (Acq(ps))\n",
                evrfid,_lastEvrFid,acqts,_lastAcqTS);
       }
+      _outoforder=1;
     }
+    if (_outoforder) dg.xtc.damage.increase(Pds::Damage::OutOfOrder);
+
     _lastAcqTS  = acqts;
     _lastEvrFid = evrfid;
     _checkTimestamp = 1;
-//     if (cpol1%120==0) {
-//       printf("Event %d temps ",cpol1);
-//       printf("%d ",_mgr->temperature(AcqManager::Module0));
-//       printf("%d ",_mgr->temperature(AcqManager::Module1));
-//       printf("%d ",_mgr->temperature(AcqManager::Module2));
-//       printf("%d ",_mgr->temperature(AcqManager::Module3));
-//       printf("%d ",_mgr->temperature(AcqManager::Module4));
-//       printf("\n");
-//     }
     return 0;
   }
 private:
@@ -232,6 +226,7 @@ private:
   unsigned _nprint;
   unsigned _checkTimestamp;
   AcqManager* _mgr;
+  unsigned _outoforder;
 };
 
 class AcqDisableAction : public AcqDC282Action {
@@ -255,7 +250,10 @@ public:
   InDatagram* fire(InDatagram* dg) {
     // insert assumes we have enough space in the input datagram
     dg->insert(_cfgtc, &_config);
-    if (_nerror) dg->datagram().xtc.damage.increase(Pds::Damage::UserDefined);
+    if (_nerror) {
+      printf("*** Found %d acqiris configuration errors\n",_nerror);
+      dg->datagram().xtc.damage.increase(Pds::Damage::UserDefined);
+    }
     return dg;
   }
   Transition* fire(Transition* tr) {
@@ -400,12 +398,13 @@ public:
 
     _check("AcqrsD1_configTrigSource",AcqrsD1_configTrigSource(_instrumentId, _config.trig().input(),
                                     _config.trig().coupling(), _config.trig().slope(),
-                                    _config.trig().level(), 0.0));
+                                    _config.trig().level()*1000.0, 0.0));
     uint32_t slope;
     double level;
     AcqrsD1_getTrigSource(_instrumentId, _config.trig().input(),
                           (ViInt32*)&coupling,
                           (ViInt32*)&slope, (ViReal64*)&level, &djunk);
+    level /= 1000.0;
     if (fabs(level-_config.trig().level())>epsilon) {
       printf("*** Requested %e trig level, received %e\n",
              _config.trig().level(),level);
@@ -432,6 +431,7 @@ public:
       _reader.start();
       _firstTime=0;
     }
+
     return tr;
   }
 private:
@@ -502,6 +502,11 @@ unsigned AcqManager::temperature(MultiModuleNumber module) {
   return degC;
 }
 
+const char* AcqManager::calibPath() {
+  static const char* _calibPath = "/reg/g/pcds/pds/acqcalib/";
+  return _calibPath;
+}
+
 AcqManager::AcqManager(ViSession InstrumentID, AcqServer& server, CfgClientNfs& cfg) :
   _instrumentId(InstrumentID),_fsm(*new Fsm) {
   Task* task = new Task(TaskObject("AcqReadout"));
@@ -514,4 +519,14 @@ AcqManager::AcqManager(ViSession InstrumentID, AcqServer& server, CfgClientNfs& 
   _fsm.callback(TransitionId::Map, new AcqAllocAction(cfg));
   _fsm.callback(TransitionId::L1Accept,&acql1);
   _fsm.callback(TransitionId::Disable,new AcqDisableAction(_instrumentId,acql1));
+
+  ViStatus status = Acqrs_calLoad(_instrumentId,AcqManager::calibPath(),1);
+  if(status != VI_SUCCESS) {
+    char message[256];
+    AcqrsD1_errorMessage(_instrumentId,status,message);
+    printf("Acqiris calibration load error: %s\n",message);
+  } else {
+    printf("Loaded acqiris calibration file.\n");
+  }
+
 }

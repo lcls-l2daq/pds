@@ -59,6 +59,8 @@ class L1Xmitter;
 static L1Xmitter* l1xmitGlobal;
 static EvgrBoardInfo<Evr> *erInfoGlobal;  // yuck
 
+#define NEVENTPRINT 100
+
 class L1Xmitter {
 public:
   L1Xmitter(Evr& er, DoneTimer& done) :
@@ -66,7 +68,7 @@ public:
     _done  (done),
     _outlet(sizeof(EvrDatagram),0,
 	    Ins(Route::interface())),
-    _evtCounter(0), _evtStop(0), _enabled(false) {}
+    _evtCounter(0), _evtStop(0), _enabled(false),_lastfid(0) {}
   void xmit() {
     FIFOEvent fe;
     _er.GetFIFOEvent(&fe);
@@ -76,6 +78,15 @@ public:
     TimeStamp stamp(fe.TimestampLow,fe.TimestampHigh, _evtCounter);
     Sequence seq(Sequence::Event,TransitionId::L1Accept,ctime,stamp);
     EvrDatagram datagram(seq, _evtCounter++);
+
+    if (_evtCounter%NEVENTPRINT == 0) {
+      float period=(fe.TimestampHigh-_lastfid)/(float)(NEVENTPRINT)/360.0;
+      float rate=0.0;
+      if (period>1.e-8) rate=1./period;
+      printf("Evr event %d, high/low 0x%x/0x%x, rate(Hz): %7.2f\n",
+	     _evtCounter,fe.TimestampHigh,fe.TimestampLow,rate);
+      _lastfid=fe.TimestampHigh;
+    }
 
     // for testing
     if ((fe.TimestampHigh & dropPulseMask)==dropPulseMask) {
@@ -101,6 +112,7 @@ private:
   unsigned     _evtCounter;
   unsigned     _evtStop;
   bool         _enabled;
+  unsigned     _lastfid;
 };
 
 class EvrAction : public Action {
