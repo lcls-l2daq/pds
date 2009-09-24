@@ -36,6 +36,7 @@ namespace Pds {
     State target_state     ()             const;
     State current_state    ()             const;
   public:
+    void  reconfigure      ();
     void  set_transition_env    (TransitionId::Value, unsigned);
     void  set_transition_payload(TransitionId::Value, Xtc*, void*);
   public: // Implements ControlLevel
@@ -53,6 +54,7 @@ namespace Pds {
   private:
     volatile State _current_state;
     volatile State _target_state;
+    volatile State _queued_target;
     Allocation _partition;
     ControlEb  _eb;
     Task*      _sequenceTask;

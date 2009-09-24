@@ -145,6 +145,7 @@ PartitionControl::PartitionControl(unsigned platform,
   ControlLevel    (platform, *new MyCallback(*this, cb), arp),
   _current_state  (Unmapped),
   _target_state   (Unmapped),
+  _queued_target  (Mapped),
   _eb             (header(),tmo),
   _sequenceTask   (new Task(TaskObject("controlSeq"))),
   _sem            (Semaphore::EMPTY),
@@ -189,6 +190,15 @@ void PartitionControl::set_target_state(State state)
 
 PartitionControl::State PartitionControl::target_state () const { return _target_state; }
 PartitionControl::State PartitionControl::current_state() const { return _current_state; }
+
+void PartitionControl::reconfigure()
+{
+  if (_target_state > Mapped) {
+    _queued_target = _target_state;
+    set_target_state(Mapped);
+  }
+}
+
 void  PartitionControl::set_transition_env(TransitionId::Value tr, unsigned env)
 { _transition_env[tr] = env; }
 void  PartitionControl::set_transition_payload(TransitionId::Value tr, Xtc* xtc, void* payload)
@@ -266,8 +276,12 @@ void PartitionControl::_complete(TransitionId::Value id)
 {
   switch(id) {
   case TransitionId::Unmap          : _current_state = Unmapped  ; break;
-  case TransitionId::Map            :
-  case TransitionId::Unconfigure    : _current_state = Mapped    ; break;
+  case TransitionId::Unconfigure    : 
+    if (_target_state==Mapped) { 
+      _target_state =_queued_target;
+      _queued_target=Mapped;
+    }
+  case TransitionId::Map            : _current_state = Mapped    ; break;
   case TransitionId::Configure      :
   case TransitionId::EndRun         : _current_state = Configured; break;
   case TransitionId::BeginRun       :
