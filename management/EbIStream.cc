@@ -42,7 +42,7 @@ EbIStream::EbIStream(const Src&  src,
 				   interface,
 				   EventStreams::MaxSize, 
 				   EventStreams::EbDepth,
-				   new VmonEb(src,32,EbDepth,(1<<23),(1<<22)));
+				   new VmonEb(src,32,EventStreams::EbDepth,(1<<23),(1<<22)));
   (new VmonServerAppliance(src))->connect(inlet());
 }
  
