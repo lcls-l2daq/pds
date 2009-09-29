@@ -76,8 +76,9 @@ bool SegmentLevel::attach()
                       StreamParams::FrameWork, 
                       header().ip());
 
-    Message join(Message::Ping);
-    mcast(join);
+    //    Message join(Message::Ping);
+    //    mcast(join);
+    mcast(_reply);
     return true;
   } else {
     _callback.failed(EventCallback::PlatformUnavailable);

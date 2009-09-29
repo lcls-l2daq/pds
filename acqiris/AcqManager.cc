@@ -242,11 +242,14 @@ private:
 };
 
 class AcqConfigAction : public AcqDC282Action {
+  enum {MaxConfigSize=0x100000};
 public:
   AcqConfigAction(ViSession instrumentId, AcqReader& reader, AcqDma& dma, const Src& src,
 		  CfgClientNfs& cfg) :
-    AcqDC282Action(instrumentId),_reader(reader),_dma(dma), _cfgtc(_acqConfigType,src),
+    AcqDC282Action(instrumentId),_reader(reader),_dma(dma), 
+    _cfgtc(_acqConfigType,src),
     _cfg(cfg),_firstTime(1) {}
+  ~AcqConfigAction() {}
   InDatagram* fire(InDatagram* dg) {
     // insert assumes we have enough space in the input datagram
     dg->insert(_cfgtc, &_config);
@@ -272,9 +275,13 @@ public:
            (unsigned)_instrumentId,nbrModulesInInstrument,(unsigned)nbrChans,nbrIntTrigsPerModule,nbrExtTrigsPerModule);
 
     // get configuration from database
-    _cfg.fetch(*tr,_acqConfigType, &_config);
-    _config.dump();
     _nerror=0;
+    int len = _cfg.fetch(*tr,_acqConfigType, &_config, sizeof(_config));
+    if (len <= 0) {
+      printf("AcqConfigAction: failed to retrieve configuration : (%d)%s.  Applying default.\n",errno,strerror(errno));
+      _nerror++;
+    }
+    _config.dump();
 
     // non-SAR mode
     _check("AcqrsD1_configMemory",AcqrsD1_configMemory(_instrumentId, _config.horiz().nbrSamples(), _config.horiz().nbrSegments()));

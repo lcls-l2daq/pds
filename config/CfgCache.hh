@@ -32,6 +32,7 @@ namespace Pds {
     CfgClientNfs _config;
     TypeId       _type;
     Xtc          _configtc;
+    unsigned     _bsize;
     char*        _buffer;
     char*        _cur_config;
     char*        _end_config;

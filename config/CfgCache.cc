@@ -14,6 +14,7 @@ CfgCache::CfgCache(const Src&    src,
   _config    (src),
   _type      (id),
   _configtc  (id, src),
+  _bsize     (size),
   _buffer    (new char[size]),
   _cur_config(0),
   _end_config(0),
@@ -34,7 +35,7 @@ int CfgCache::fetch  (Transition* tr)
 {
   _cur_config = 0;
   _changed = true;
-  int len = _config.fetch(*tr, _type, _buffer);
+  int len = _config.fetch(*tr, _type, _buffer, _bsize);
   if (len > 0) {
     printf("CfgCache: configuration is size 0x%x bytes\n",len);
     _cur_config = _buffer;

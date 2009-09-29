@@ -1,3 +1,5 @@
+2009-Sep-29	weaver	Fixed segment level startup "race".  Protected against configuration TC buffer
+			overflows.
 2009-Sep-24	cpo	Support for acqiris calibrations.  Also made outoforder damage persistent in acqiris until executable restarted.  Tag V01-02-00.
 2009-Sep-11	weaver	Added payload to transitions from control level (for recording configuration).
 			Capped printout from event-builders.

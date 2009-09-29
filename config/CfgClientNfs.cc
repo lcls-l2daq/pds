@@ -28,7 +28,8 @@ void CfgClientNfs::initialize(const Allocation& alloc)
 
 int CfgClientNfs::fetch(const Transition& tr, 
 			const TypeId&     id, 
-			void*             dst)
+			void*             dst,
+			unsigned          maxSize)
 {
 
   char filename[128];
@@ -40,7 +41,7 @@ int CfgClientNfs::fetch(const Transition& tr,
     return 0;
   }
 
-  int len = ::read(fd, dst, SSIZE_MAX);
+  int len = ::read(fd, dst, maxSize);
   ::close(fd);
 
   return len;
