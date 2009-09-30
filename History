@@ -1,38 +1,39 @@
-2009-Sep-29	weaver	Fixed segment level startup "race".  Protected against configuration TC buffer
-			overflows.
-2009-Sep-24	cpo	Support for acqiris calibrations.  Also made outoforder damage persistent in acqiris until executable restarted.  Tag V01-02-00.
-2009-Sep-11	weaver	Added payload to transitions from control level (for recording configuration).
-			Capped printout from event-builders.
+2009-Sep-29 tomytsai    Add rceProxy library
+2009-Sep-29 weaver  Fixed segment level startup "race".  Protected against configuration TC buffer
+            overflows.
+2009-Sep-24 cpo Support for acqiris calibrations.  Also made outoforder damage persistent in acqiris until executable restarted.  Tag V01-02-00.
+2009-Sep-11 weaver  Added payload to transitions from control level (for recording configuration).
+            Capped printout from event-builders.
 2009-Sep-10 tomytsai  Add Epics data collector level 1 (segment) node library in pds/epicsArch.
-2009-Aug-22	weaver	Fixed overflow of nbins in MonDescXXX.  Added method for
-			removing groups from MonCds.
-2009-Aug-18	weaver	Tag V01-01-00.  Added Waveform and Image classes to mon with no
-			integrating options.
-2009-Aug-15	weaver	Tag V01-00-03.  Removed MsgAppliance usage.  Adjusted Acqiris
-			OutOfSync checking for master EVG rate tolerances and fiducial
-			count rollover.
-2009-Aug-12	weaver	Tag V01-00-02.  Added timeout for control level transitions.
-2009-Aug-7	weaver	Fix bug when using procSrv where camera frame sizes are reduced.
-2009-Jul-22	weaver	Tag V01-00-01.  Uses additional vectoring field in TimeStamp.
-			Added qualifiers to PartitionControl transitions.
-2009-Jul-14	weaver  Tag V01-00-00.  Consistent with pdsdata V00-05-00.  Added calibration
-			cycles.  Added sequencing in the Evr (nevents or time).  Source levels
-			now identify themselves by DetInfo to the ControlLevel during platform
-			discovery.  Recorded transitions are broadcast (AllEvents, AllRecorders
-			multicast group) to all nodes.
+2009-Aug-22 weaver  Fixed overflow of nbins in MonDescXXX.  Added method for
+            removing groups from MonCds.
+2009-Aug-18 weaver  Tag V01-01-00.  Added Waveform and Image classes to mon with no
+            integrating options.
+2009-Aug-15 weaver  Tag V01-00-03.  Removed MsgAppliance usage.  Adjusted Acqiris
+            OutOfSync checking for master EVG rate tolerances and fiducial
+            count rollover.
+2009-Aug-12 weaver  Tag V01-00-02.  Added timeout for control level transitions.
+2009-Aug-7  weaver  Fix bug when using procSrv where camera frame sizes are reduced.
+2009-Jul-22 weaver  Tag V01-00-01.  Uses additional vectoring field in TimeStamp.
+            Added qualifiers to PartitionControl transitions.
+2009-Jul-14 weaver  Tag V01-00-00.  Consistent with pdsdata V00-05-00.  Added calibration
+            cycles.  Added sequencing in the Evr (nevents or time).  Source levels
+            now identify themselves by DetInfo to the ControlLevel during platform
+            discovery.  Recorded transitions are broadcast (AllEvents, AllRecorders
+            multicast group) to all nodes.
 2009-Jul-13     cpo     Fix bug where AcqManager was putting the same task on the queue
                         when reconfiguring.
 2009-Jul-10     cpo     Support for configuration of acqiris from database
-2009-Jul-07	weaver  Fixed SysClk::sample rollover in VmonEb histos.  Fixed recorder level fixup
-			that added contributions from all event levels.
-2009-Jun-01	weaver	Tag V00-09-00.  Consistent with pdsdata V00-04-00.  Added management/PartitionControl
-			as a base for run control sequencer.
-2009-Apr-16	weaver	Added Pulnix TM6740 camera.  Added occurrences to collection messages.
-			Added function to drop evr multicasts and generate opal1k out-of-order (for testing).
-			Fix in GenericPoolW to use counting semaphore for pool resource counting.
-			Fix in Event Builder to keep good events in order.  Individual (errant) events can slip
-			out-of-order due to dropped contributions and missing PulseId.
-			Added support for vmon archiving.
+2009-Jul-07 weaver  Fixed SysClk::sample rollover in VmonEb histos.  Fixed recorder level fixup
+            that added contributions from all event levels.
+2009-Jun-01 weaver  Tag V00-09-00.  Consistent with pdsdata V00-04-00.  Added management/PartitionControl
+            as a base for run control sequencer.
+2009-Apr-16 weaver  Added Pulnix TM6740 camera.  Added occurrences to collection messages.
+            Added function to drop evr multicasts and generate opal1k out-of-order (for testing).
+            Fix in GenericPoolW to use counting semaphore for pool resource counting.
+            Fix in Event Builder to keep good events in order.  Individual (errant) events can slip
+            out-of-order due to dropped contributions and missing PulseId.
+            Added support for vmon archiving.
 2009-Apr-3      cpo     Change some default acqiris params so that
                         we don't get as many "WARNING: Parameter has been
                         adapted" messages.  We still have one, which
@@ -41,48 +42,48 @@
                         setting didn't have the 50 ohms in it, I believe).
 
 2009-Mar-31     weaver  Tag V00-08-00.  Consistent with pdsdata V00-03-00.
-			Added missing versions to all data type constructions.
-			Added typedefs in config/*Type.hh to track current versions of config objects.
-			Added vmon.
+            Added missing versions to all data type constructions.
+            Added typedefs in config/*Type.hh to track current versions of config objects.
+            Added vmon.
 2009-Mar-24     cpo     Tag V00-07-03.  Better (final?) acqiris data support.
-2009-Mar-20	weaver	Tag V00-07-02.	Added collection "Query" messages for source
-			level management.  Implemented partition id/multicast group
-			assignments in management/[Source,Control]Level,PartitionMember and EvrManager.
-2009-Mar-10	weaver	Tag V00-07-01.  Minor fixes to camera code.
-2009-Mar-04	weaver	Tag V00-07-00.  Many changes to camera interfaces.  Now reads
-			configuration from database and writes record on configure transition.
-			Added a simple insert() to InDatagram class for appending data to
-			an existing datagram.
-2009-Feb-19	weaver  Added mon package for online monitoring support classes.
+2009-Mar-20 weaver  Tag V00-07-02.  Added collection "Query" messages for source
+            level management.  Implemented partition id/multicast group
+            assignments in management/[Source,Control]Level,PartitionMember and EvrManager.
+2009-Mar-10 weaver  Tag V00-07-01.  Minor fixes to camera code.
+2009-Mar-04 weaver  Tag V00-07-00.  Many changes to camera interfaces.  Now reads
+            configuration from database and writes record on configure transition.
+            Added a simple insert() to InDatagram class for appending data to
+            an existing datagram.
+2009-Feb-19 weaver  Added mon package for online monitoring support classes.
 2009-Feb-13     cpo     Improved AcqManager, including out-of-synch detection
                         of dropped triggers.  EvgrManager now works at 360Hz
                         and sends down timestamps much like we expect the
                         MCC EVG to do.
 
-2009-Jan-29	weaver	client/Fsm handles unmap/deallocate.  Added a default Sequeunce
-			for L1 data that doesn't get one from an evr match.
-2009-Jan-28	weaver	Tag V00-06-01.  zerocopy/dma_splice can now queue sparsely and
-			share "release arguments" across many queued buffers.
-			camera/DmaSplice,Frame,TwoDMoments added to support camera
-			feature extraction.  xtc/PayloadIterator added; CDatagramIterator
-			inherits from it.
-2009-Jan-13	weaver	Tag V00-06-00.  Many changes to zero-copy eb including new
-			dma_splice kernel module.
+2009-Jan-29 weaver  client/Fsm handles unmap/deallocate.  Added a default Sequeunce
+            for L1 data that doesn't get one from an evr match.
+2009-Jan-28 weaver  Tag V00-06-01.  zerocopy/dma_splice can now queue sparsely and
+            share "release arguments" across many queued buffers.
+            camera/DmaSplice,Frame,TwoDMoments added to support camera
+            feature extraction.  xtc/PayloadIterator added; CDatagramIterator
+            inherits from it.
+2009-Jan-13 weaver  Tag V00-06-00.  Many changes to zero-copy eb including new
+            dma_splice kernel module.
 2008-Dec-19     cpo     Changes to evgr to support opcodes with rates
                         of 1,5,10,15,30,60,120,240Hz.  Also fix
                         for acqiris "Flags has been modified" warning and
                         bugs in Fsm.
 2008-Nov-14     cpo     Tag V00-05-00.  Many changes to support exporting data to offline.
-2008-Oct-28	weaver  Tag V00-04-00.  Fixed EbKey/Server dependencies.  Renamed InXtc->Xtc.
+2008-Oct-28 weaver  Tag V00-04-00.  Fixed EbKey/Server dependencies.  Renamed InXtc->Xtc.
 2008-Oct-27     cpo     Tag V00-03-01.  Forgot to add AcqServer files and
                         DmaEngine in utility.
 2008-Oct-27     cpo     Tag V00-03-00.  Add support for evg/evr/acqiris.
-2008-Oct-21	weaver  Tag V00-02-02.  Minor fixes to event builder error handling and
-			network buffering.
-2008-Oct-15	weaver  Tag V00-02-01.  Many fixes and changes for platform model.
-2008-Oct-10	weaver  Tag V00-02-00.  Collection added platforms.  First commit
-			of zero-copy event builders.  Also added zerocopy/tub as
-			a buffer between pipes.
-2008-Sep 24	weaver  Tag V00-01-00.  Many changes to event builders and levels.
-2008-Sep-12	weaver	Initial import of utility, xtc, client, management code.
-2008-Sep-09	weaver	Tag V00-00-00.  Initial import of service and collection code.
+2008-Oct-21 weaver  Tag V00-02-02.  Minor fixes to event builder error handling and
+            network buffering.
+2008-Oct-15 weaver  Tag V00-02-01.  Many fixes and changes for platform model.
+2008-Oct-10 weaver  Tag V00-02-00.  Collection added platforms.  First commit
+            of zero-copy event builders.  Also added zerocopy/tub as
+            a buffer between pipes.
+2008-Sep 24 weaver  Tag V00-01-00.  Many changes to event builders and levels.
+2008-Sep-12 weaver  Initial import of utility, xtc, client, management code.
+2008-Sep-09 weaver  Tag V00-00-00.  Initial import of service and collection code.

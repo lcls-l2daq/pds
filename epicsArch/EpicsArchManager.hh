@@ -1,5 +1,5 @@
-#ifndef PDSACQMANAGER_HH
-#define PDSACQMANAGER_HH
+#ifndef EPICS_ARCH_MANAGER_HH
+#define EPICS_ARCH_MANAGER_HH
 
 #include <string>
 
