@@ -205,7 +205,8 @@ int RceProxyManager::onActionMap(const Allocation& alloc)
     Ins insRce( uRceAddr,  RcePnccd::ProxyMsg::ProxyPort );
     udpClient.send(NULL, (char*) &msg, sizeof(msg), insRce);
     
-    printf( "Sent %d bytes to RCE %s/%d\n", sizeof(msg), _sRceIp.c_str(),  RcePnccd::ProxyMsg::ProxyPort );
+    printf( "Sent %d bytes to RCE %s/%d NumLink %d PayloadSizePerLink 0x%x\n", sizeof(msg), _sRceIp.c_str(),  RcePnccd::ProxyMsg::ProxyPort,
+      _iNumLinks, _iPayloadSizePerLink);
     DetInfo& detInfo = (DetInfo&) msg.src;
     printf( "Detector %s Id %d  Device %s Id %d\n", DetInfo::name( detInfo.detector() ), detInfo.detId(),
       DetInfo::name( detInfo.device() ), detInfo.devId() );
