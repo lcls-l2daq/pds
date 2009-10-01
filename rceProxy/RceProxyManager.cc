@@ -116,8 +116,10 @@ private:
 
 const Src RceProxyManager::srcLevel = Src(Level::Source);
 
-RceProxyManager::RceProxyManager(CfgClientNfs& cfg, const string& sRceIp, const Node& selfNode, int iDebugLevel) :
-  _sRceIp(sRceIp), _selfNode(selfNode), _iDebugLevel(iDebugLevel), _cfg(cfg)
+RceProxyManager::RceProxyManager(CfgClientNfs& cfg, const string& sRceIp, int iNumLinks, int iPayloadSizePerLink, 
+  const Node& selfNode, int iDebugLevel) :
+  _sRceIp(sRceIp), _iNumLinks(iNumLinks), _iPayloadSizePerLink(iPayloadSizePerLink), 
+  _selfNode(selfNode), _iDebugLevel(iDebugLevel), _cfg(cfg)
 {
     _pFsm            = new Fsm();    
     _pActionMap      = new RceProxyAllocAction(*this, cfg);
@@ -194,7 +196,7 @@ int RceProxyManager::onActionMap(const Allocation& alloc)
     }
 
     RcePnccd::ProxyMsg msg;
-    setupProxyMsg( insEvr, vInsEvent, _cfg.src(), msg );
+    setupProxyMsg( insEvr, vInsEvent, _iNumLinks, _iPayloadSizePerLink, _cfg.src(), msg );
     
     Client udpClient(0, sizeof(msg)); 
     
@@ -211,7 +213,8 @@ int RceProxyManager::onActionMap(const Allocation& alloc)
     return 0;
 }
 
-int RceProxyManager::setupProxyMsg( const Ins& insEvr, const vector<Ins>& vInsEvent, const Src& srcProxy, RcePnccd::ProxyMsg& msg )
+int RceProxyManager::setupProxyMsg( const Ins& insEvr, const vector<Ins>& vInsEvent, int iNumLinks, 
+  int iPayloadSizePerLink, const Src& srcProxy, RcePnccd::ProxyMsg& msg )
 {
     msg.byteOrderIsBigEndian = 0;
     msg.numberOfEventLevels = vInsEvent.size();
@@ -225,8 +228,8 @@ int RceProxyManager::setupProxyMsg( const Ins& insEvr, const vector<Ins>& vInsEv
     msg.evrMcAddr.mcaddr = insEvr.address();
     msg.evrMcAddr.mcport = insEvr.portId();
 
-    msg.payloadSizePerLink = 0;
-    msg.numberOfLinks = 2;
+    msg.payloadSizePerLink = iPayloadSizePerLink;
+    msg.numberOfLinks = iNumLinks;
     msg.src = srcProxy;
     
     return 0;

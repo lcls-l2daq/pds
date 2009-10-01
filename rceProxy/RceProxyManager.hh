@@ -22,7 +22,8 @@ class CfgClientNfs;
 class RceProxyManager 
 {
 public:
-    RceProxyManager(CfgClientNfs& cfg, const std::string& sRceIp, const Node& selfNode, int iDebugLevel);
+    RceProxyManager(CfgClientNfs& cfg, const std::string& sRceIp, int iNumLinks, int iPayloadSizePerLink, 
+      const Node& selfNode, int iDebugLevel);
     ~RceProxyManager();
 
     Appliance& appliance() { return *_pFsm; }
@@ -34,6 +35,8 @@ private:
     static const Src srcLevel; // Src for Epics Archiver
     
     std::string         _sRceIp;
+    int                 _iNumLinks;
+    int                 _iPayloadSizePerLink;    
     const Node&         _selfNode;
     int                 _iDebugLevel;    
 
@@ -45,7 +48,8 @@ private:
     Action*             _pActionDisable;
     
     /* static private functions */
-    static int setupProxyMsg( const Ins& insEvr, const std::vector<Ins>& vInsEvent, const Src& srcProxy, RcePnccd::ProxyMsg& msg );
+    static int setupProxyMsg( const Ins& insEvr, const std::vector<Ins>& vInsEvent, int iNumLinks, 
+      int iPayloadSizePerLink, const Src& srcProxy, RcePnccd::ProxyMsg& msg );
 };
 
 } // namespace Pds
