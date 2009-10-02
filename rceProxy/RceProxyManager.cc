@@ -217,6 +217,7 @@ int RceProxyManager::onActionMap(const Allocation& alloc)
 int RceProxyManager::setupProxyMsg( const Ins& insEvr, const vector<Ins>& vInsEvent, int iNumLinks, 
   int iPayloadSizePerLink, const Src& srcProxy, RcePnccd::ProxyMsg& msg )
 {
+    memset( &msg, 0, sizeof(msg) );
     msg.byteOrderIsBigEndian = 0;
     msg.numberOfEventLevels = vInsEvent.size();
     
