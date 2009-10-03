@@ -58,6 +58,16 @@ int EpicsMonitorPv::release()
     
 int EpicsMonitorPv::onCaChannelConnected()
 {        
+    // Check if the connction has been established before
+	// if yes, it means the connection was lost before, but is automatically
+	// recovered by channel access library now
+    if ( _evidTime != NULL )
+	{
+	    // reset the flag to true to enable the processing
+	    _bConnected = true;
+		return 0;
+	}
+
     /* Get type and array count */
     _ulNumElems  = ca_element_count(_chidPv);
     _lDbfType = ca_field_type(_chidPv);
@@ -95,7 +105,7 @@ int EpicsMonitorPv::onCaChannelConnected()
             return 1;
         }
     }
-        
+
     /* install monitors: */
     /*   1. PV with control values */
     const unsigned long ulEventMask = DBE_VALUE | DBE_ALARM;   /* Event mask used */    
@@ -140,7 +150,9 @@ int EpicsMonitorPv::onCaChannelConnected()
 
 int EpicsMonitorPv::onCaChannelDisconnected()
 {
-    release();
+    // The channel might be just temporarily reset
+	// so here we only set the flag to be false, and wait for it to come back in the future 
+	_bConnected = false;
     return 0;
 }
 
@@ -154,6 +166,13 @@ void EpicsMonitorPv::onSubscriptionUpdate(const evargs& args)
         return;
     }
 
+	if ( args.count != _ulNumElems )
+	{
+        printf( "EpicsMonitorPv::onSubscriptionUpdate(): Inconsistent Pv Element Count, Type %ld Count %ld (Prev Count %d)\n", 
+		  args.type, args.count, _ulNumElems );
+        return;
+	}
+
     if ( args.type == _lDbrTimeType )
     {
         _bTimeValueUpdated = true;
@@ -165,6 +184,7 @@ void EpicsMonitorPv::onSubscriptionUpdate(const evargs& args)
         memcpy(_pCtrlValue, args.dbr, dbr_size_n(args.type, args.count));
         
         _iCaStatus = ca_clear_subscription( _evidCtrl );
+		_evidCtrl = NULL;
         if (_iCaStatus != ECA_NORMAL)
         {
             printf( "EpicsMonitorPv::onSubscriptionUpdate()::ca_clear_subscription() Failed for Pv %s CA errmsg: %s\n", 
