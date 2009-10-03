@@ -166,10 +166,10 @@ void EpicsMonitorPv::onSubscriptionUpdate(const evargs& args)
         return;
     }
 
-	if ( args.count != _ulNumElems )
+	if ( args.count != (int) _ulNumElems )
 	{
         printf( "EpicsMonitorPv::onSubscriptionUpdate(): Inconsistent Pv Element Count, Type %ld Count %ld (Prev Count %d)\n", 
-		  args.type, args.count, _ulNumElems );
+		  args.type, args.count, (int) _ulNumElems );
         return;
 	}
 
