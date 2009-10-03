@@ -65,6 +65,7 @@ EpicsArchMonitor::~EpicsArchMonitor()
 
 int EpicsArchMonitor::writeToXtc( Datagram& dg )
 {
+    static int iNumWrite = 0;    
     const int iNumPv = _lpvPvList.size();
     
     ca_poll();
@@ -83,9 +84,13 @@ int EpicsArchMonitor::writeToXtc( Datagram& dg )
             //      1. The PV's ctrl value is not updated
             //      2. The PV's time value is not updated, but the ctrl value has been written out previously
             
+            printf( "EpicsArchMonitor::writeToXtc():PV %s has never been updated yet (%d-th writing)\n", epicsPvCur.getPvName().c_str(),
+              iNumWrite );
+            
             return 1;
         }
     }
+    iNumWrite++;
     
     bool bAllPvWritingOkay = true;
     for ( int iPvName = 0; iPvName < iNumPv; iPvName++ )
