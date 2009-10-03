@@ -15,8 +15,9 @@ namespace Pds
 class EpicsMonitorPv
 {
 public:
-    EpicsMonitorPv() : _bConnected(false), _iPvId(-1), _chidPv(NULL), _lDbfType(-1), _evidCtrl(NULL), _evidTime(NULL),
-      _pTimeValue(NULL), _pCtrlValue(NULL), _bTimeValueUpdated(false), _bCtrlValueUpdated(false), 
+    EpicsMonitorPv() : _bConnected(false), _iPvId(-1), _chidPv(NULL),  _ulNumElems(0), _lDbfType(-1), 
+	  _evidCtrl(NULL), _evidTime(NULL), _pTimeValue(NULL), _pCtrlValue(NULL), 
+	  _bTimeValueUpdated(false), _bCtrlValueUpdated(false), 
       _bCtrlValueWritten(false), _lDbrLastUpdateType(-1)
     {}
     
