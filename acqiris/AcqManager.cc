@@ -214,6 +214,9 @@ public:
       _outoforder=1;
     }
     if (_outoforder) dg.xtc.damage.increase(Pds::Damage::OutOfOrder);
+    // temporary kludge by cpo to eliminate persistent acqiris damage
+    // until I understand it better.
+    if (_outoforder) _outoforder=0;
 
     _lastAcqTS  = acqts;
     _lastEvrFid = evrfid;
