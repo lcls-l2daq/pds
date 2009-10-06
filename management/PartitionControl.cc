@@ -256,7 +256,7 @@ void PartitionControl::_next()
     switch(_current_state) {
     case Unmapped  : { Allocate alloc(_partition); _queue(alloc); break; }
     case Mapped    : _queue(TransitionId::Configure      ); break;
-    case Configured: _queue(TransitionId::BeginRun       ); break;
+    case Configured: { RunInfo rinfo(1234,5678); _queue(rinfo); break; }
     case Running   : _queue(TransitionId::BeginCalibCycle); break;
     case Disabled  : _queue(TransitionId::Enable         ); break;
     default: break;

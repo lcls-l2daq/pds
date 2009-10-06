@@ -85,6 +85,16 @@ namespace Pds {
     Allocation _allocation;
   };
 
+  class RunInfo : public Transition {
+  public:
+    RunInfo(unsigned run, unsigned experiment);
+    unsigned run();
+    unsigned experiment();
+  private:
+    unsigned _run;
+    unsigned _experiment;
+  };
+
   class Kill : public Transition {
   public:
     Kill(const Node& allocator);

@@ -142,6 +142,13 @@ Allocate::Allocate(const Allocation& allocation,
 const Allocation& Allocate::allocation() const
 { return _allocation; }
 
+RunInfo::RunInfo(unsigned run, unsigned experiment) :
+  Transition(TransitionId::BeginRun, Transition::Execute,
+             now(TransitionId::BeginRun), 0,
+             sizeof(RunInfo)),
+  _run(run),_experiment(experiment){}
+unsigned RunInfo::run() {return _run;}
+unsigned RunInfo::experiment() {return _experiment;}
 
 Kill::Kill(const Node& allocator) : 
   Transition(TransitionId::Unmap, Transition::Execute, Sequence(), 0, 
