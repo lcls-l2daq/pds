@@ -14,7 +14,7 @@ class EpicsArchMonitor
 public:
     EpicsArchMonitor( const std::string& sFnConfig, int iDebugLevel );
     ~EpicsArchMonitor();
-    int writeToXtc( Datagram& dg );
+    int writeToXtc( Datagram& dg, bool bCtrlValue );
     
     static const int            iXtcVersion = EpicsXtcSettings::iXtcVersion;    
     static const int            iMaxXtcSize = EpicsXtcSettings::iMaxXtcSize;
@@ -22,6 +22,7 @@ public:
     static const DetInfo&        detInfoEpics;
     
 private:        
+
     std::string         _sFnConfig;
     int                 _iDebugLevel;
     TEpicsMonitorPvList _lpvPvList;     

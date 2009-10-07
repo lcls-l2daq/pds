@@ -66,15 +66,14 @@ public:
         //dg->insert(_cfgtc, &_config);
         //if (_nerror) dg->datagram().xtc.damage.increase(Pds::Damage::UserDefined);
         InDatagram* out = new ( _manager.getPool() ) Pds::CDatagram( in->datagram() );
-        int iFail = _manager.writeMonitoredContent( out->datagram() );                
+        int iFail = _manager.writeMonitoredContent( out->datagram(), true );
         
         /*
-         * Possible failure modes for _manager.writeMonitoredContent()
+         * Possible failure modes for _manager.writeMonitoredConfigContent()
          *
          * 1. Some PV's ctrl value has not been updated
-         * 2. Some PV's time value has not been updated, but its ctrl value has been written out previously
-         * 3. Memory pool size is not enough for storing PV data
-         * 4. Other reasons. cf. EpicsMonitorPv::writeXtc()
+         * 2. Memory pool size is not enough for storing PV data
+         * 3. Other reasons. cf. EpicsMonitorPv::writeXtc()
          */
         if ( iFail != 0 )
         {
@@ -126,15 +125,14 @@ public:
             
         if (_iDebugLevel >= 1) printf( "\n\n===== Writing L1 Data =====\n" );
         InDatagram* out = new ( _manager.getPool() ) Pds::CDatagram( in->datagram() );
-        int iFail = _manager.writeMonitoredContent( out->datagram() );                
+        int iFail = _manager.writeMonitoredContent( out->datagram(), false );                
         
         /*
-         * Possible failure modes for _manager.writeMonitoredContent()
+         * Possible failure modes for _manager.writeMonitoredTimeContent()
          *
-         * 1. Some PV's ctrl value has not been updated
-         * 2. Some PV's time value has not been updated, but its ctrl value has been written out previously
-         * 3. Memory pool size is not enough for storing PV data
-         * 4. Other reasons. cf. EpicsMonitorPv::writeXtc()
+         * 1. Some PV's time value has not been updated
+         * 2. Memory pool size is not enough for storing PV data
+         * 3. Other reasons. cf. EpicsMonitorPv::writeXtc()
          */
         if ( iFail != 0 )
         {
@@ -229,13 +227,14 @@ int EpicsArchManager::initMonitor()
     return 0;
 }
 
-int EpicsArchManager::writeMonitoredContent( Datagram& dg )
+int EpicsArchManager::writeMonitoredContent( Datagram& dg, bool bCtrlValue )
 {
     if ( _pMonitor == NULL )
     {
-        printf( "EpicsArchManager::writeMonitoredContent(): Epics Monitor has not been init-ed\n" );
+        printf( "EpicsArchManager::writeMonitoredConfigContent(): Epics Monitor has not been init-ed\n" );
         return 100;
     }        
 
-    return _pMonitor->writeToXtc( dg );
+    return _pMonitor->writeToXtc( dg, bCtrlValue );
 }
+

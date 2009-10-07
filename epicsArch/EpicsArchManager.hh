@@ -18,7 +18,7 @@ public:
     ~EpicsArchManager();
 
     Appliance& appliance() { return *_pFsm; }
-    int writeMonitoredContent( Datagram& dg );
+    int writeMonitoredContent( Datagram& dg, bool bCtrlValue );
 
     GenericPool* getPool() { return _pPool; }
     // event handlers

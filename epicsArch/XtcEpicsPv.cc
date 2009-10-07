@@ -5,12 +5,12 @@ namespace Pds
 {
 Xtc* XtcEpicsPv::_pGlobalXtc = NULL;
     
-int XtcEpicsPv::setValue(EpicsMonitorPv& epicsPv )
+int XtcEpicsPv::setValue(EpicsMonitorPv& epicsPv, bool bCtrlValue )
 {      
     char* pXtcMem = (char*)(this+1);
     int iSizeXtcEpics = 0;
-    
-    int iFail = epicsPv.writeXtc( pXtcMem, iSizeXtcEpics );
+        
+    int iFail = epicsPv.writeXtc( pXtcMem, bCtrlValue, iSizeXtcEpics );
     if ( iFail != 0 )
         return 1;
             

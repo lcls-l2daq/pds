@@ -59,14 +59,14 @@ int EpicsMonitorPv::release()
 int EpicsMonitorPv::onCaChannelConnected()
 {        
     // Check if the connction has been established before
-	// if yes, it means the connection was lost before, but is automatically
-	// recovered by channel access library now
+  // if yes, it means the connection was lost before, but is automatically
+  // recovered by channel access library now
     if ( _evidTime != NULL )
-	{
-	    // reset the flag to true to enable the processing
-	    _bConnected = true;
-		return 0;
-	}
+  {
+      // reset the flag to true to enable the processing
+      _bConnected = true;
+    return 0;
+  }
 
     /* Get type and array count */
     _ulNumElems  = ca_element_count(_chidPv);
@@ -151,8 +151,8 @@ int EpicsMonitorPv::onCaChannelConnected()
 int EpicsMonitorPv::onCaChannelDisconnected()
 {
     // The channel might be just temporarily reset
-	// so here we only set the flag to be false, and wait for it to come back in the future 
-	_bConnected = false;
+  // so here we only set the flag to be false, and wait for it to come back in the future 
+  _bConnected = false;
     return 0;
 }
 
@@ -166,12 +166,12 @@ void EpicsMonitorPv::onSubscriptionUpdate(const evargs& args)
         return;
     }
 
-	if ( args.count != (int) _ulNumElems )
-	{
+  if ( args.count != (int) _ulNumElems )
+  {
         printf( "EpicsMonitorPv::onSubscriptionUpdate(): Inconsistent Pv Element Count, Type %ld Count %ld (Prev Count %d)\n", 
-		  args.type, args.count, (int) _ulNumElems );
+      args.type, args.count, (int) _ulNumElems );
         return;
-	}
+  }
 
     if ( args.type == _lDbrTimeType )
     {
@@ -184,7 +184,7 @@ void EpicsMonitorPv::onSubscriptionUpdate(const evargs& args)
         memcpy(_pCtrlValue, args.dbr, dbr_size_n(args.type, args.count));
         
         _iCaStatus = ca_clear_subscription( _evidCtrl );
-		_evidCtrl = NULL;
+        _evidCtrl = NULL;
         if (_iCaStatus != ECA_NORMAL)
         {
             printf( "EpicsMonitorPv::onSubscriptionUpdate()::ca_clear_subscription() Failed for Pv %s CA errmsg: %s\n", 
@@ -246,7 +246,7 @@ const EpicsMonitorPv::TWriteXtcValueFuncPointer EpicsMonitorPv::lfuncWriteXtcTim
     &EpicsMonitorPv::writeXtcTimeValueByDbrId<DBR_DOUBLE>
 };
 
-int EpicsMonitorPv::writeXtc( char* pcXtcMem, int& iSizeXtc )
+int EpicsMonitorPv::writeXtc( char* pcXtcMem, bool bCtrlValue, int& iSizeXtc )
 {
     if ( pcXtcMem == NULL ) return 1;
     
@@ -262,7 +262,7 @@ int EpicsMonitorPv::writeXtc( char* pcXtcMem, int& iSizeXtc )
         return 3;
     }       
 
-    if ( !_bCtrlValueWritten )
+    if ( bCtrlValue )
     { 
         if ( !_bCtrlValueUpdated )
         {

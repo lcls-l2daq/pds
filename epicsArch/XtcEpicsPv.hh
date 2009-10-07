@@ -25,7 +25,7 @@ public:
         return Xtc::operator new(size, pXtc);
     }
     
-    int setValue(EpicsMonitorPv& epicsPv );
+    int setValue(EpicsMonitorPv& epicsPv, bool bCtrlValue );
     
 private:
     static Xtc* _pGlobalXtc; // global Xtc that contains ALL epics pv xtcs

@@ -63,44 +63,25 @@ EpicsArchMonitor::~EpicsArchMonitor()
     ca_task_exit();
 }
 
-int EpicsArchMonitor::writeToXtc( Datagram& dg )
+int EpicsArchMonitor::writeToXtc( Datagram& dg, bool bCtrlValue )
 {
-    static int iNumWrite = 0;    
     const int iNumPv = _lpvPvList.size();
     
     ca_poll();
     
     TypeId typeIdXtc(EpicsArchMonitor::typeXtc, EpicsArchMonitor::iXtcVersion);
-    char* pPoolBufferOverflowWarning = (char*) &dg + (int)(0.9*EpicsArchMonitor::iMaxXtcSize);
-    
-    int iCheckPvCtrlValueReady = 0;
-    for ( ; iCheckPvCtrlValueReady < iNumPv; iCheckPvCtrlValueReady++ )
-    {
-        EpicsMonitorPv& epicsPvCur = _lpvPvList[iCheckPvCtrlValueReady];
-        if ( !epicsPvCur.isReadyToWrite() )
-        {
-            // This PV's value is not ready: Quit the writing and wait for next trigger
-            // Two possible reason:
-            //      1. The PV's ctrl value is not updated
-            //      2. The PV's time value is not updated, but the ctrl value has been written out previously
-            
-            printf( "EpicsArchMonitor::writeToXtc():PV %s has never been updated yet (%d-th writing)\n", epicsPvCur.getPvName().c_str(),
-              iNumWrite );
-            
-            return 1;
-        }
-    }
-    iNumWrite++;
+    char* pPoolBufferOverflowWarning = (char*) &dg + (int)(0.9*EpicsArchMonitor::iMaxXtcSize);    
     
     bool bAllPvWritingOkay = true;
     for ( int iPvName = 0; iPvName < iNumPv; iPvName++ )
     {
-        EpicsMonitorPv& epicsPvCur = _lpvPvList[iPvName];        
+        EpicsMonitorPv& epicsPvCur = _lpvPvList[iPvName];
+              
         if (_iDebugLevel >= 1 ) epicsPvCur.printPv();
         
         XtcEpicsPv* pXtcEpicsPvCur = new(&dg.xtc) XtcEpicsPv(typeIdXtc, detInfoEpics);
 
-        int iFail = pXtcEpicsPvCur->setValue( epicsPvCur );
+        int iFail = pXtcEpicsPvCur->setValue( epicsPvCur, bCtrlValue );
         if ( iFail != 0 )
             bAllPvWritingOkay = false;
             
@@ -113,7 +94,7 @@ int EpicsArchMonitor::writeToXtc( Datagram& dg )
             return 2;
         }
     }
-                        
+    
     /// ca_pend For debug print
     //printf("Size of Data: Xtc %d Datagram %d Payload %d Total %d\n", 
     //    sizeof(Xtc), sizeof(Datagram), pDatagram->xtc.sizeofPayload(), 

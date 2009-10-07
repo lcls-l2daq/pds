@@ -16,8 +16,8 @@ class EpicsMonitorPv
 {
 public:
     EpicsMonitorPv() : _bConnected(false), _iPvId(-1), _chidPv(NULL),  _ulNumElems(0), _lDbfType(-1), 
-	  _evidCtrl(NULL), _evidTime(NULL), _pTimeValue(NULL), _pCtrlValue(NULL), 
-	  _bTimeValueUpdated(false), _bCtrlValueUpdated(false), 
+    _evidCtrl(NULL), _evidTime(NULL), _pTimeValue(NULL), _pCtrlValue(NULL), 
+    _bTimeValueUpdated(false), _bCtrlValueUpdated(false), 
       _bCtrlValueWritten(false), _lDbrLastUpdateType(-1)
     {}
     
@@ -30,13 +30,12 @@ public:
     int init(int iPvId, const std::string& sPvName);
     int release();
     int printPv() const;    
-    int writeXtc( char* pcXtcMem, int& iSizeXtc );    
+    int writeXtc( char* pcXtcMem, bool bCtrlValue, int& iSizeXtc );    
     
     /* Get & Set functions */
     const std::string&  getPvName() const   { return _sPvName; }        
     const int getPvTypeId() const           { return _lDbfType; }    
     bool isConnected() const                { return _bConnected; }
-    bool isReadyToWrite() const             { return (_bCtrlValueWritten? _bTimeValueUpdated: _bCtrlValueUpdated); }
     
     /*
        Class usage control:
