@@ -188,8 +188,6 @@ OfflineClient::OfflineClient(const char* path, const char* instrument_name, cons
         }
 
         if (conn != NULL) {
-            printf("LogBook::Connection::open() succeeded\n");
-
             // begin transaction
             conn->beginTransaction();
 
@@ -199,11 +197,11 @@ OfflineClient::OfflineClient(const char* path, const char* instrument_name, cons
 
             conn->getExperiments(experiments, instrument);
 
-            std::cout << "Experiment list:" << std::endl;
-            for (size_t ii = 0 ; ii < experiments.size(); ii++) {
-                std::cout << " . " << experiments[ii].name;
-                std::cout << "  #" << experiments[ii].id << std::endl;
-            }
+//          std::cout << "Experiment list:" << std::endl;
+//          for (size_t ii = 0 ; ii < experiments.size(); ii++) {
+//              std::cout << " . " << experiments[ii].name;
+//              std::cout << "  #" << experiments[ii].id << std::endl;
+//          }
             for (size_t ii = 0 ; ii < experiments.size(); ii++) {
                 if (experiments[ii].name.compare(_experiment_name) == 0) {
                     _experiment_number = (unsigned int) experiments[ii].id;
@@ -230,7 +228,7 @@ OfflineClient::OfflineClient(const char* path, const char* instrument_name, cons
 
     if (!found) {
       _experiment_number = 0;
-      printf ("Error: OfflineClient(): inst:exper %s:%s not found, using experiment ID 0\n",
+      printf ("Error: OfflineClient(): experiment %s/%s not found, using experiment ID 0\n",
               _instrument_name, _experiment_name);
     }
 
