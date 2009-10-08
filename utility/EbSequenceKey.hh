@@ -5,7 +5,9 @@
 
 #include "pds/xtc/Datagram.hh"
 #include "pds/service/Pool.hh"
+#include "pdsdata/xtc/Sequence.hh"
 #include "EbSequenceSrv.hh"
+#include "BldSequenceSrv.hh"
 
 namespace Pds {
   class EbSequenceKey : public EbEventKey {
@@ -16,6 +18,18 @@ namespace Pds {
     virtual bool precedes (const EbSequenceSrv& s) { return key.seq.stamp() <= s.sequence().stamp(); } 
     virtual bool coincides(const EbSequenceSrv& s) { return key.seq.stamp() == s.sequence().stamp(); } 
     virtual void assign   (const EbSequenceSrv& s) { key.seq = s.sequence(); key.env = s.env(); }
+
+    virtual bool precedes (const BldSequenceSrv& s) { return key.seq.stamp() <= s.sequence().stamp(); } 
+    virtual bool coincides(const BldSequenceSrv& s) { return key.seq.stamp() == s.sequence().stamp(); } 
+    virtual void assign   (const BldSequenceSrv& s) 
+    {
+      const TimeStamp& ts = key.seq.stamp();
+      key.seq = Sequence(key.seq.clock(),
+			 TimeStamp(ts.ticks(),
+				   s.sequence().stamp().fiducials(),
+				   ts.vector(),
+				   ts.control()));
+    }
   public:
     const Sequence& sequence() const { return key.seq; }
     const Env&      env     () const { return key.env; }

@@ -4,6 +4,7 @@
 namespace Pds {
 
   class Sequence;
+  class BldSequenceSrv;
   class EbSequenceSrv;
   class EbCountSrv;
   class EvrServer;
@@ -23,7 +24,8 @@ namespace Pds {
   public:
     virtual ~EbEventKey() {}
   public:
-     EbEventKeyDeclare(EbSequenceSrv);
+    EbEventKeyDeclare(EbSequenceSrv);
+    EbEventKeyDeclare(BldSequenceSrv);
     EbEventKeyDeclare(EbCountSrv);
     virtual void assign   (const EvrServer&) {}
   public:
