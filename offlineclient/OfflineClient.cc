@@ -28,6 +28,7 @@ public:
     LogBook::Connection * conn = NULL;
     LusiTime::Time now;
 
+    printf("Storing BeginRun logbook information\n");
     try {
       conn = LogBook::Connection::open(_offlineclient->GetPath());
 
@@ -60,6 +61,7 @@ public:
     } catch (const LogBook::DatabaseError& e) {
       printf ("Database operation failed: %s\n", e.what());
     }
+    printf("Completed storing BeginRun logbook information\n");
 
     if (conn != NULL) {
       // close connection
@@ -106,6 +108,7 @@ public:
     LogBook::Connection * conn = NULL;
     LusiTime::Time now;
 
+    printf("Storing EndRun logbook information\n");
     try {
       conn = LogBook::Connection::open(_offlineclient->GetPath());
 
@@ -134,6 +137,7 @@ public:
     } catch (const LogBook::DatabaseError& e) {
       printf ("Database operation failed: %s\n", e.what());
     }
+    printf("Completed storing EndRun logbook information\n");
 
     if (conn != NULL) {
       // close connection
@@ -263,6 +267,7 @@ int OfflineClient::AllocateRunNumber(unsigned int *runNumber) {
       *runNumber = _run_number = 0;
       returnVal = 0;  // OK
     } else {
+      printf("Allocating run number\n");
       try {
         conn = LogBook::Connection::open(_path);
 
@@ -293,6 +298,7 @@ int OfflineClient::AllocateRunNumber(unsigned int *runNumber) {
         printf ("Database operation failed: %s\n", e.what());
         returnVal = -1; // ERROR
       }
+      printf("Completed allocating run number %d\n",_run_number);
 
       if (conn != NULL) {
         // close connection
