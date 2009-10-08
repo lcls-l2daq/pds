@@ -15,6 +15,8 @@
 #include "EvgrManager.hh"
 #include "EvgrOpcode.hh"
 
+#include "pds/config/EvrConfigType.hh"
+
 using namespace Pds;
 
 class TimeLoader;
@@ -59,6 +61,8 @@ private:
   unsigned _nfid;
 };
 
+#define OPCODEC(rate) EvrConfigType::opcode(EvrConfigType::Off,EvrConfigType::rate)
+
 class OpcodeLoader {
 public:
   OpcodeLoader(Evg& eg, Evr& er) : _count(0),_eg(eg),_er(er) {}
@@ -67,16 +71,15 @@ public:
     int pos=TimeLoader::NumEvtCodes;
     _count++; _count%=360;
 
-    _eg.SetSeqRamEvent(ram, pos, pos+WaitForTimestamp, 181); pos++;
-    if (_count%2==0) {_eg.SetSeqRamEvent(ram, pos, pos+WaitForTimestamp, 180); pos++;}
-    if (_count%3==0) {_eg.SetSeqRamEvent(ram, pos, pos+WaitForTimestamp, EvgrOpcode::L1Accept); pos++;}
-    if (_count%6==0) {_eg.SetSeqRamEvent(ram, pos, pos+WaitForTimestamp, 60); pos++;}
-    if (_count%9==0) {_eg.SetSeqRamEvent(ram, pos, pos+WaitForTimestamp, 40); pos++;}
-    if (_count%12==0) {_eg.SetSeqRamEvent(ram, pos, pos+WaitForTimestamp, 30); pos++;}
-    if (_count%24==0) {_eg.SetSeqRamEvent(ram, pos, pos+WaitForTimestamp, 15); pos++;}
-    if (_count%36==0) {_eg.SetSeqRamEvent(ram, pos, pos+WaitForTimestamp, 10); pos++;}
-    if (_count%72==0) {_eg.SetSeqRamEvent(ram, pos, pos+WaitForTimestamp, 5); pos++;}
-    if (_count%360==0) {_eg.SetSeqRamEvent(ram, pos, pos+WaitForTimestamp, 1); pos++;}
+    _eg.SetSeqRamEvent(ram, pos, pos+WaitForTimestamp, 9); pos++;
+    if (_count%2  ==0) {_eg.SetSeqRamEvent(ram, pos, pos+WaitForTimestamp, 180); pos++;}
+    if (_count%3  ==0) {_eg.SetSeqRamEvent(ram, pos, pos+WaitForTimestamp, OPCODEC(r120Hz)); pos++;}
+    if (_count%6  ==0) {_eg.SetSeqRamEvent(ram, pos, pos+WaitForTimestamp, OPCODEC(r60Hz)); pos++;}
+    if (_count%12 ==0) {_eg.SetSeqRamEvent(ram, pos, pos+WaitForTimestamp, OPCODEC(r30Hz)); pos++;}
+    if (_count%36 ==0) {_eg.SetSeqRamEvent(ram, pos, pos+WaitForTimestamp, OPCODEC(r10Hz)); pos++;}
+    if (_count%72 ==0) {_eg.SetSeqRamEvent(ram, pos, pos+WaitForTimestamp, OPCODEC(r5Hz)); pos++;}
+    if (_count%360==0) {_eg.SetSeqRamEvent(ram, pos, pos+WaitForTimestamp, OPCODEC(r1Hz)); pos++;}
+    if (_count%720==0) {_eg.SetSeqRamEvent(ram, pos, pos+WaitForTimestamp, OPCODEC(r0_5Hz)); pos++;}
     _eg.SetSeqRamEvent(ram, pos, pos+WaitForTimestamp, EvgrOpcode::EndOfSequence);
   }
 private:
@@ -157,7 +160,7 @@ public:
     // setup map ram
     int ram=0; int enable=1;
     _er.MapRamEnable(ram,0);
-    int opcode=181; // for testing, use the highest rate opcode (360Hz).
+    int opcode=9; // for testing, use the highest rate opcode (360Hz).
     _er.SetFIFOEvent(ram, opcode, enable);
     int trig=0; int set=-1; int clear=-1;
     _er.SetPulseMap(ram, opcode, trig, set, clear);

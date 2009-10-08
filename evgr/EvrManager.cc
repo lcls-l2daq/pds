@@ -18,7 +18,6 @@
 #include "pds/config/EvrConfigType.hh"
 #include "EvgrBoardInfo.hh"
 #include "EvrManager.hh"
-#include "EvgrOpcode.hh"
 
 #include "pds/service/Timer.hh"
 #include "pds/service/Task.hh"
@@ -193,10 +192,8 @@ public:
 class EvrConfigAction : public EvrAction {
 public:
   EvrConfigAction(Evr& er,
-		  EvgrOpcode::Opcode opcode,
 		  CfgClientNfs& cfg) :
     EvrAction(er),
-    _opcode(opcode),
     _cfg(cfg),
     _cfgtc(_evrConfigType,cfg.src()),
     _configBuffer(new char[sizeof(EvrConfigType)+
@@ -227,14 +224,15 @@ public:
 
     _er.Reset();
 
+    
     // setup map ram
     int ram=0; int enable=l1xmitGlobal->enable();
     _er.MapRamEnable(ram,0);
-    _er.SetFIFOEvent(ram, _opcode, enable);
+    _er.SetFIFOEvent(ram, cfg.opcode(), enable);
 
     for(unsigned k=0; k<cfg.npulses(); k++) {
       const EvrData::PulseConfig& pc = cfg.pulse(k);
-      _er.SetPulseMap(ram, _opcode, pc.trigger(), pc.set(), pc.clear());
+      _er.SetPulseMap(ram, cfg.opcode(), pc.trigger(), pc.set(), pc.clear());
       _er.SetPulseProperties(pc.pulse(), 
 			     pc.polarity() ? 0 : 1, 
 			     pc.map_reset_enable(),
@@ -264,7 +262,6 @@ public:
   }
 
 private:
-  EvgrOpcode::Opcode _opcode;
   CfgClientNfs& _cfg;
   Xtc _cfgtc;
   char* _configBuffer;
@@ -324,14 +321,13 @@ extern "C" {
 Appliance& EvrManager::appliance() {return _fsm;}
 
 EvrManager::EvrManager(EvgrBoardInfo<Evr> &erInfo, 
-		       CfgClientNfs & cfg,
-                       EvgrOpcode::Opcode opcode) :
+		       CfgClientNfs & cfg) :
   _er(erInfo.board()),_fsm(*new Fsm), _done(new DoneTimer(_fsm)) {
 
   l1xmitGlobal = new L1Xmitter(_er, *_done);
 
   _fsm.callback(TransitionId::Map      , new EvrAllocAction(cfg));
-  _fsm.callback(TransitionId::Configure,new EvrConfigAction(_er,opcode,cfg));
+  _fsm.callback(TransitionId::Configure,new EvrConfigAction(_er,cfg));
   _fsm.callback(TransitionId::BeginRun ,new EvrBeginRunAction(_er));
   _fsm.callback(TransitionId::EndRun   ,new EvrEndRunAction  (_er));
   _fsm.callback(TransitionId::Enable   ,new EvrEnableAction (_er, *_done));

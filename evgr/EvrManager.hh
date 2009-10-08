@@ -15,8 +15,7 @@ namespace Pds {
   class EvrManager {
   public:
     EvrManager(EvgrBoardInfo<Evr>& erInfo, 
-	       CfgClientNfs& cfg,
-               EvgrOpcode::Opcode opcode);
+	       CfgClientNfs& cfg);
     ~EvrManager();
   public:
     Appliance& appliance();

@@ -2,9 +2,11 @@
 #define Pds_EvrConfigType_hh
 
 #include "pdsdata/xtc/TypeId.hh"
-#include "pdsdata/evr/ConfigV1.hh"
+#include "pdsdata/evr/ConfigV2.hh"
+#include "pdsdata/evr/PulseConfig.hh"
+#include "pdsdata/evr/OutputMap.hh"
 
-typedef Pds::EvrData::ConfigV1 EvrConfigType;
+typedef Pds::EvrData::ConfigV2 EvrConfigType;
 
 static Pds::TypeId _evrConfigType(Pds::TypeId::Id_EvrConfig,
 				  EvrConfigType::Version);
