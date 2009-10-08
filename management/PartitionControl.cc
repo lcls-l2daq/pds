@@ -150,7 +150,9 @@ PartitionControl::PartitionControl(unsigned platform,
   _sequenceTask   (new Task(TaskObject("controlSeq"))),
   _sem            (Semaphore::EMPTY),
   _control_cb     (&cb),
-  _platform_cb    (0)
+  _platform_cb    (0),
+  _run            (0),
+  _experiment     (0)
 {
   memset(_transition_env,0,TransitionId::NumberOf*sizeof(unsigned));
   memset(_transition_xtc,0,TransitionId::NumberOf*sizeof(Xtc*));
@@ -197,6 +199,12 @@ void PartitionControl::reconfigure()
     _queued_target = _target_state;
     set_target_state(Mapped);
   }
+}
+
+void  PartitionControl::set_run(unsigned run) {_run=run;}
+
+void  PartitionControl::set_experiment(unsigned experiment) {
+  _experiment=experiment;
 }
 
 void  PartitionControl::set_transition_env(TransitionId::Value tr, unsigned env)
@@ -256,7 +264,7 @@ void PartitionControl::_next()
     switch(_current_state) {
     case Unmapped  : { Allocate alloc(_partition); _queue(alloc); break; }
     case Mapped    : _queue(TransitionId::Configure      ); break;
-    case Configured: { RunInfo rinfo(1234,5678); _queue(rinfo); break; }
+    case Configured: { RunInfo rinfo(_run,_experiment); _queue(rinfo); break; }
     case Running   : _queue(TransitionId::BeginCalibCycle); break;
     case Disabled  : _queue(TransitionId::Enable         ); break;
     default: break;

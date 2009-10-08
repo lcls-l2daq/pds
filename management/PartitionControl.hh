@@ -39,6 +39,8 @@ namespace Pds {
     void  reconfigure      ();
     void  set_transition_env    (TransitionId::Value, unsigned);
     void  set_transition_payload(TransitionId::Value, Xtc*, void*);
+    void  set_run(unsigned run);
+    void  set_experiment(unsigned experiment);
   public: // Implements ControlLevel
     void  message          (const Node& hdr, 
 			    const Message& msg);
@@ -64,6 +66,8 @@ namespace Pds {
     void*      _transition_payload[TransitionId::NumberOf];
     ControlCallback*  _control_cb;
     PlatformCallback* _platform_cb;
+    unsigned   _run;
+    unsigned   _experiment;
     friend class ControlAction;
   };
 
