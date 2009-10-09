@@ -32,7 +32,8 @@ namespace RcePnccd {
       mcaddress   evrMcAddr;
       uint32_t    payloadSizePerLink;
       uint32_t    numberOfLinks;
-      Pds::Src    src;
+      Pds::Src    procInfoSrc;
+      Pds::Src    detInfoSrc;      
   };
 
 }

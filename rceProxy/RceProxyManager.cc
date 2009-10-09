@@ -196,7 +196,7 @@ int RceProxyManager::onActionMap(const Allocation& alloc)
     }
 
     RcePnccd::ProxyMsg msg;
-    setupProxyMsg( insEvr, vInsEvent, _iNumLinks, _iPayloadSizePerLink, _cfg.src(), msg );
+    setupProxyMsg( insEvr, vInsEvent, _iNumLinks, _iPayloadSizePerLink, _selfNode.procInfo(), _cfg.src(), msg );
     
     Client udpClient(0, sizeof(msg)); 
     
@@ -207,7 +207,7 @@ int RceProxyManager::onActionMap(const Allocation& alloc)
     
     printf( "Sent %d bytes to RCE %s/%d NumLink %d PayloadSizePerLink 0x%x\n", sizeof(msg), _sRceIp.c_str(),  RcePnccd::ProxyMsg::ProxyPort,
       _iNumLinks, _iPayloadSizePerLink);
-    DetInfo& detInfo = (DetInfo&) msg.src;
+    DetInfo& detInfo = (DetInfo&) msg.detInfoSrc;
     printf( "Detector %s Id %d  Device %s Id %d\n", DetInfo::name( detInfo.detector() ), detInfo.detId(),
       DetInfo::name( detInfo.device() ), detInfo.devId() );
     
@@ -215,7 +215,7 @@ int RceProxyManager::onActionMap(const Allocation& alloc)
 }
 
 int RceProxyManager::setupProxyMsg( const Ins& insEvr, const vector<Ins>& vInsEvent, int iNumLinks, 
-  int iPayloadSizePerLink, const Src& srcProxy, RcePnccd::ProxyMsg& msg )
+  int iPayloadSizePerLink, const ProcInfo& procInfo, const Src& srcProxy, RcePnccd::ProxyMsg& msg )
 {
     memset( &msg, 0, sizeof(msg) );
     msg.byteOrderIsBigEndian = 0;
@@ -232,7 +232,8 @@ int RceProxyManager::setupProxyMsg( const Ins& insEvr, const vector<Ins>& vInsEv
 
     msg.payloadSizePerLink = iPayloadSizePerLink;
     msg.numberOfLinks = iNumLinks;
-    msg.src = srcProxy;
+    msg.procInfoSrc = procInfo;
+    msg.detInfoSrc = srcProxy;
     
     return 0;
 }

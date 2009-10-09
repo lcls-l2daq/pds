@@ -49,7 +49,7 @@ private:
     
     /* static private functions */
     static int setupProxyMsg( const Ins& insEvr, const std::vector<Ins>& vInsEvent, int iNumLinks, 
-      int iPayloadSizePerLink, const Src& srcProxy, RcePnccd::ProxyMsg& msg );
+      int iPayloadSizePerLink, const ProcInfo& procInfo, const Src& srcProxy, RcePnccd::ProxyMsg& msg );
 };
 
 } // namespace Pds
