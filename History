@@ -1,3 +1,4 @@
+2009-Oct-8  tomytsai    Add procInfo field into RceProxyMsg structure in rceProxy library
 2009-Oct-8	weaver  Tag V01-04-00.  Evr retrieves opcode from configuration db.
 			Changed event-builder to only use Sequence::fiducials() from BLD and no other Seq fields.
 2009-Oct-7      caf     Version to support logbook entries and filename convention.  Tag V01-03-00.
