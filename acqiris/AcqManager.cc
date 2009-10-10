@@ -214,6 +214,11 @@ public:
       _outoforder=1;
     }
     if (_outoforder) dg.xtc.damage.increase(Pds::Damage::OutOfOrder);
+    //
+    //  OutOfOrder calculation is not robust against long periods between events
+    //    because of differing clock rates in the acqiris and master timing system
+    //
+    _outoforder=0;
 
     _lastAcqTS  = acqts;
     _lastEvrFid = evrfid;
