@@ -9,6 +9,7 @@
 #include "pds/utility/SetOfStreams.hh"
 #include "pds/management/ControlCallback.hh"
 #include "pds/management/PlatformCallback.hh"
+#include "pds/management/RunAllocator.hh"
 
 #include "pds/collection/PingReply.hh"
 #include "pds/service/Task.hh"
@@ -151,7 +152,6 @@ PartitionControl::PartitionControl(unsigned platform,
   _sem            (Semaphore::EMPTY),
   _control_cb     (&cb),
   _platform_cb    (0),
-  _run            (0),
   _experiment     (0)
 {
   memset(_transition_env,0,TransitionId::NumberOf*sizeof(unsigned));
@@ -201,7 +201,9 @@ void PartitionControl::reconfigure()
   }
 }
 
-void  PartitionControl::set_run(unsigned run) {_run=run;}
+void  PartitionControl::set_runAllocator(RunAllocator* ra) {
+  _runAllocator = ra;
+}
 
 void  PartitionControl::set_experiment(unsigned experiment) {
   _experiment=experiment;
@@ -264,7 +266,13 @@ void PartitionControl::_next()
     switch(_current_state) {
     case Unmapped  : { Allocate alloc(_partition); _queue(alloc); break; }
     case Mapped    : _queue(TransitionId::Configure      ); break;
-    case Configured: { RunInfo rinfo(_run,_experiment); _queue(rinfo); break; }
+    case Configured: {
+      unsigned run = _runAllocator->alloc();
+      if (run!=RunAllocator::Error) {
+        RunInfo rinfo(run,_experiment); _queue(rinfo);
+      }
+      break;
+    }
     case Running   : _queue(TransitionId::BeginCalibCycle); break;
     case Disabled  : _queue(TransitionId::Enable         ); break;
     default: break;

@@ -4,6 +4,7 @@
 #include "pds/management/PartitionControl.hh"
 
 namespace Pds {
+  class RunAllocator;
   class QualifiedControl : public PartitionControl {
   public:
     QualifiedControl(unsigned         platform,
