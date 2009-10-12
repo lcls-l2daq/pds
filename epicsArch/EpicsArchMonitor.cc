@@ -14,7 +14,7 @@ namespace Pds
 using std::string;
 
 const DetInfo& EpicsArchMonitor::detInfoEpics = EpicsXtcSettings::detInfo;
-const char EpicsArchMonitor::sPvListSeparators[] = " ,;\r\n";
+const char EpicsArchMonitor::sPvListSeparators[] = " ,;\r\n#";
 
 EpicsArchMonitor::EpicsArchMonitor( const std::string& sFnConfig, int iDebugLevel ) :
   _sFnConfig(sFnConfig), _iDebugLevel(iDebugLevel)
@@ -169,6 +169,8 @@ int EpicsArchMonitor::_splitPvList( const string& sPvList, TPvList& vsPvList )
         }
         
         vsPvList.push_back( sPvList.substr( uOffsetStart, uOffsetEnd - uOffsetStart ) );
+        if ( sPvList[uOffsetEnd] == '#' ) break; // skip the remaining characters
+        
         uOffsetStart = sPvList.find_first_not_of( sPvListSeparators, uOffsetEnd+1 );        
     }
     return 0;
