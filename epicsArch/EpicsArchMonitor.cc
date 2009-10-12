@@ -14,7 +14,7 @@ namespace Pds
 using std::string;
 
 const DetInfo& EpicsArchMonitor::detInfoEpics = EpicsXtcSettings::detInfo;
-const char EpicsArchMonitor::sPvListSeparators[] = " ,;\r\n#";
+const char EpicsArchMonitor::sPvListSeparators[] = " ,;\t\r\n#";
 
 EpicsArchMonitor::EpicsArchMonitor( const std::string& sFnConfig, int iDebugLevel ) :
   _sFnConfig(sFnConfig), _iDebugLevel(iDebugLevel)
