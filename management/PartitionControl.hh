@@ -36,6 +36,7 @@ namespace Pds {
   public:
     State target_state     ()             const;
     State current_state    ()             const;
+    static const char* name(State);
   public:
     void  reconfigure      ();
     void  set_transition_env    (TransitionId::Value, unsigned);

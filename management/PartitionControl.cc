@@ -333,3 +333,10 @@ void PartitionControl::_execute(Transition& tr) {
 }
 
 const ControlEb& PartitionControl::eb() const { return _eb; }
+
+const char* PartitionControl::name(State s)
+{
+  static const char* names[] = {"Unmapped", "Mapped", "Configured", "Running",
+				"Disabled", "Enabled", NULL };
+  return names[s];
+}
