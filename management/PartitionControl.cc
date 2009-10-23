@@ -184,6 +184,9 @@ bool PartitionControl::set_partition(const char* name,
 
 void PartitionControl::set_target_state(State state)
 {
+  printf("PartitionControl::set_target_state curr %s  prevtgt %s  tgt %s\n",
+	 name(_current_state), name(_target_state), name(state));
+
   State prev_target = _target_state;
   _target_state = state;
   if (prev_target == _current_state)
@@ -294,8 +297,10 @@ void PartitionControl::_complete(TransitionId::Value id)
   case TransitionId::Unmap          : _current_state = Unmapped  ; break;
   case TransitionId::Unconfigure    : 
     if (_target_state==Mapped) { 
-      _target_state =_queued_target;
+      _current_state = _target_state;
+      set_target_state(_queued_target);
       _queued_target=Mapped;
+      return;
     }
   case TransitionId::Map            : _current_state = Mapped    ; break;
   case TransitionId::Configure      :
