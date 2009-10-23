@@ -1,5 +1,4 @@
 #include <string.h>
-#include "pds/client/Fsm.hh"
 #include "pds/client/Action.hh"
 #include "pdsdata/xtc/Xtc.hh"
 #include "pdsdata/xtc/TypeId.hh"
@@ -8,161 +7,6 @@
 #include "LogBook/Connection.h"
 
 using namespace Pds;
-
-//
-// OfflineDbBeginRun
-//
-class OfflineDbBeginRun : public Action {
-public:
-
-  OfflineDbBeginRun(OfflineClient* offlineclient) :
-    _offlineclient (offlineclient)
-  {
-  }
-
-  InDatagram* fire(InDatagram* dg) {
-    return dg;
-  }
-
-  Transition* fire(Transition* tr) {
-    LogBook::Connection * conn = NULL;
-    LusiTime::Time now;
-
-    printf("Storing BeginRun logbook information\n");
-    try {
-      conn = LogBook::Connection::open(_offlineclient->GetPath());
-
-      if (conn != NULL) {
-          // begin transaction
-          conn->beginTransaction();
-
-          // retrieve run # that was allocated earlier
-	  RunInfo& rinfo = *reinterpret_cast<RunInfo*>(tr);
-          _run_number = rinfo.run();
-
-          // begin run
-          now = LusiTime::Time::now();
-          conn->beginRun(_offlineclient->GetInstrumentName(),
-                         _offlineclient->GetExperimentName(),
-                         _run_number, "DATA", now); // TODO DATA/CALIB
-          // commit transaction
-          conn->commitTransaction();
-      } else {
-          // TODO improve error handling
-          printf("LogBook::Connection::connect() failed\n");
-      }
-
-    } catch (const LogBook::ValueTypeMismatch& e) {
-      printf ("Parameter type mismatch %s:\n", e.what());
-
-    } catch (const LogBook::WrongParams& e) {
-      printf ("Problem with parameters %s:\n", e.what());
-    
-    } catch (const LogBook::DatabaseError& e) {
-      printf ("Database operation failed: %s\n", e.what());
-    }
-    printf("Completed storing BeginRun logbook information\n");
-
-    if (conn != NULL) {
-      // close connection
-      delete conn ;
-    }
-
-    return tr;
-  }
-private:
-  OfflineClient* _offlineclient;
-  unsigned _run_number;
-};
-
-//
-// OfflineNullBeginRun
-//
-class OfflineNullBeginRun : public Action {
-public:
-  OfflineNullBeginRun() {}
-
-  InDatagram* fire(InDatagram* dg) {
-    return dg;
-  }
-
-  Transition* fire(Transition* tr) {
-    // null database
-    return tr;
-  }
-};
-
-//
-// OfflineDbEndRun
-//
-class OfflineDbEndRun : public Action {
-public:
-  OfflineDbEndRun(OfflineClient* offlineclient) :
-    _offlineclient (offlineclient)
-  {
-  }
-  InDatagram* fire(InDatagram* dg) {
-    return dg;
-  }
-  Transition* fire(Transition* tr) {
-    LogBook::Connection * conn = NULL;
-    LusiTime::Time now;
-
-    printf("Storing EndRun logbook information\n");
-    try {
-      conn = LogBook::Connection::open(_offlineclient->GetPath());
-
-      if (conn != NULL) {
-          // begin transaction
-          conn->beginTransaction();
-
-          // end run
-          now = LusiTime::Time::now();
-          conn->endRun(_offlineclient->GetInstrumentName(),
-                         _offlineclient->GetExperimentName(),
-                         _offlineclient->GetRunNumber(), now);
-          // commit transaction
-          conn->commitTransaction();
-      } else {
-          // TODO improve error handling
-          printf("LogBook::Connection::connect() failed\n");
-      }
-
-    } catch (const LogBook::ValueTypeMismatch& e) {
-      printf ("Parameter type mismatch %s:\n", e.what());
-
-    } catch (const LogBook::WrongParams& e) {
-      printf ("Problem with parameters %s:\n", e.what());
-    
-    } catch (const LogBook::DatabaseError& e) {
-      printf ("Database operation failed: %s\n", e.what());
-    }
-    printf("Completed storing EndRun logbook information\n");
-
-    if (conn != NULL) {
-      // close connection
-      delete conn ;
-    }
-
-    return tr;
-  }
-private:
-  OfflineClient* _offlineclient;
-};
-
-//
-// OfflineNullEndRun
-//
-class OfflineNullEndRun : public Action {
-public:
-  OfflineNullEndRun() {}
-  InDatagram* fire(InDatagram* dg) {
-    return dg;
-  }
-  Transition* fire(Transition* tr) {
-    return tr;
-  }
-};
 
 //
 // OfflineClient
@@ -235,16 +79,6 @@ OfflineClient::OfflineClient(const char* path, const char* instrument_name, cons
       printf ("Error: OfflineClient(): experiment %s/%s not found, using experiment ID 0\n",
               _instrument_name, _experiment_name);
     }
-
-  if (path && (strcmp(path, "/dev/null") != 0)) {
-    // connect callbacks for real database
-    callback(TransitionId::BeginRun, new OfflineDbBeginRun(this));
-    callback(TransitionId::EndRun, new OfflineDbEndRun(this));
-  } else {
-    // connect callbacks for null database
-    callback(TransitionId::BeginRun, new OfflineNullBeginRun());
-    callback(TransitionId::EndRun, new OfflineNullEndRun);
-  }
 }
 
 //
@@ -310,15 +144,6 @@ int OfflineClient::AllocateRunNumber(unsigned int *runNumber) {
 }
 
 //
-// GetRunNumber
-//
-// This routine returns the run number previously allocated by AllocateRunNumber().
-//
-unsigned int OfflineClient::GetRunNumber() {
-    return (_run_number);
-}
-
-//
 // GetExperimentNumber
 //
 unsigned int OfflineClient::GetExperimentNumber() {
@@ -345,3 +170,4 @@ const char * OfflineClient::GetInstrumentName() {
 const char * OfflineClient::GetPath() {
     return (_path);
 }
+

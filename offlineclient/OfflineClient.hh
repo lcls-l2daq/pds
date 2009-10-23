@@ -2,15 +2,13 @@
 #ifndef OFFLINECLIENT_HH
 #define OFFLINECLIENT_HH
 
-#include "pds/client/Fsm.hh"
 
 namespace Pds {
 
-  class OfflineClient : public Fsm {
+  class OfflineClient {
   public:
     OfflineClient(const char *path, const char *instrument, const char *experiment);
     int AllocateRunNumber(unsigned int *runNumber);
-    unsigned int GetRunNumber();
     unsigned int GetExperimentNumber();
     const char * GetExperimentName();
     const char * GetInstrumentName();
