@@ -38,6 +38,8 @@ namespace Pds {
     int  poll      ();
     int  processTmo();
     void dump      (int);
+  public:
+    static void printFixups(int);
   private:
     friend class serverRundown;
   protected:

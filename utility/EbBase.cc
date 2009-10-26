@@ -567,3 +567,5 @@ bool EbBase::_is_complete( EbEventBase* event,
   EbBitMask remaining = event->remaining(serverId);
   return remaining.isZero();
 }
+
+void EbBase::printFixups(int n) { _nPrints=n; }
