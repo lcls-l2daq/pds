@@ -152,9 +152,9 @@ void    EventLevel::allocated(const Allocation& alloc,
       printf("EventLevel::allocated assign fragment %d  %x/%d\n",
 	     srv->id(),mcastIns.address(),srv->server().portId());
     }
-    else if (node.level() == Level::Recorder) {
+    else if (node.level() == Level::Control) {
 	Ins ins = StreamPorts::event(partition,
-				     Level::Recorder,
+				     Level::Control,
 				     recorderid,
 				     index);
 	InletWireIns wireIns(recorderid, ins);
@@ -166,7 +166,7 @@ void    EventLevel::allocated(const Allocation& alloc,
   }
   OutletWire* owire = _streams->stream(StreamParams::FrameWork)->outlet()->wire();
   owire->bind(OutletWire::Bcast, StreamPorts::bcast(partition, 
-						    Level::Recorder,
+						    Level::Control,
 						    index));
 }
 

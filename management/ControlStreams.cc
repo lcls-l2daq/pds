@@ -27,13 +27,17 @@ ControlStreams::ControlStreams(PartitionMember& cmgr) :
 // 				  MaxSize*netbufdepth,
 // 				  cmgr.occurrences());
 
-    _inlet_wires[s] = 
+    EventBuilder* eb = 
       new EventBuilder(cmgr.header().procInfo(),
 		       _xtcType,
 		       level, *stream(s)->inlet(),
 		       *_outlets[s], s, ipaddress,
 		       MaxSize, eventpooldepth);
     //		vmoneb);
+
+    eb->no_build(Sequence::Event,1<<TransitionId::L1Accept);
+
+    _inlet_wires[s] = eb;
   }
 }
 

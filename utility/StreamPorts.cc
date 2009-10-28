@@ -10,7 +10,6 @@ using namespace Pds;
 //
 static const int MaxPartitionL1s = 64;
 static const int MaxPartitionL2s = 64;
-static const int MaxPartitionL3s = 16;
 static const int MaxBLDServers   = 32;
 static const int BaseMcastAddr = 0xefff1100;
 
@@ -18,22 +17,19 @@ static const int BaseMcastAddr = 0xefff1100;
 static const int SegmentMcastAddr  = BaseMcastAddr    +StreamPorts::MaxPartitions; 
 // L1  -> L2 : 0xefff1120
 static const int EventMcastAddr    = SegmentMcastAddr +StreamPorts::MaxPartitions;
-// L2  -> L3 : 0xefff1520
-static const int RecorderMcastAddr = EventMcastAddr   +StreamPorts::MaxPartitions*MaxPartitionL2s;
-// L3  -> L0 : 0xefff1620
-static const int ControlMcastAddr  = RecorderMcastAddr+StreamPorts::MaxPartitions*MaxPartitionL3s;
+// L2  -> L0 : 0xefff1620
+static const int ControlMcastAddr  = EventMcastAddr   +StreamPorts::MaxPartitions*MaxPartitionL2s;
 // VMON server<->client // 0xeffff1630
 static const int VmonMcastAddr     = ControlMcastAddr +StreamPorts::MaxPartitions;
 // BLD -> L1,L2 : 0xefff1800
-static const int BLDMcastAddr      = 0xefff1800;
+static const int BLDMcastAddr      = 0xefff1800;  // FIXED value for external code
 
 static const unsigned PortBase         = 10002;
 static const unsigned SegmentPortBase  = PortBase;                           // 10002
 static const unsigned EventPortBase    = SegmentPortBase+1;                  // 10003
-static const unsigned RecorderPortBase = EventPortBase   +MaxPartitionL1s;   // 10067
-static const unsigned ControlPortBase  = RecorderPortBase+MaxPartitionL2s;   // 10131
-static const unsigned VmonPortBase     = ControlPortBase +MaxPartitionL3s;   // 10147
-static const unsigned BLDPortBase      = VmonPortBase+1;                     // 10148
+static const unsigned ControlPortBase  = EventPortBase   +MaxPartitionL1s;   // 10067
+static const unsigned VmonPortBase     = ControlPortBase +MaxPartitionL2s;   // 10131
+static const unsigned BLDPortBase      = 10148;   // FIXED value for external code
 
 
 Ins StreamPorts::bcast(unsigned    partition,
@@ -44,9 +40,6 @@ Ins StreamPorts::bcast(unsigned    partition,
   case Level::Event:
     return Ins(EventMcastAddr    + partition*MaxPartitionL2s + MaxPartitionL2s-1, 
 	       EventPortBase     + srcid);
-  case Level::Recorder:
-    return Ins(RecorderMcastAddr + partition*MaxPartitionL3s + MaxPartitionL3s-1, 
-	       RecorderPortBase  + srcid);
   case Level::Control:
     return Ins(ControlMcastAddr  + partition, 
 	       ControlPortBase   + srcid);
@@ -68,9 +61,6 @@ Ins StreamPorts::event(unsigned    partition,
   case Level::Event:
     return Ins(EventMcastAddr + partition*MaxPartitionL2s + dstid,
 	       EventPortBase + srcid);
-  case Level::Recorder:
-    return Ins(RecorderMcastAddr + partition*MaxPartitionL3s + dstid,
-	       RecorderPortBase + srcid);
   case Level::Control:
     return Ins(ControlMcastAddr + partition,
 	       ControlPortBase + srcid);

@@ -86,24 +86,25 @@ void ControlLevel::allocated(const Allocation& alloc,
 
   // setup event servers
   unsigned nnodes     = alloc.nnodes();
-  unsigned recorderid = 0;
+  unsigned eventid = 0;
   for (unsigned n=0; n<nnodes; n++) {
     const Node* node = alloc.node(n);
-    if (node->level() == Level::Recorder) {
-      // Add vectored output clients on bld_wire
+    if (node->level() == Level::Event) {
+      // Add vectored output clients on wire
       Ins ins = StreamPorts::event(alloc.partitionid(),
 				   Level::Control,
 				   index,
-				   recorderid++);
+				   eventid++);
       
+      Ins srvIns(ins.portId());
       NetDgServer* srv = new NetDgServer(ins,
 					 node->procInfo(),
-					 ControlStreams::netbufdepth);
+					 ControlStreams::netbufdepth*ControlStreams::MaxSize);
       wire->add_input(srv);
       Ins mcastIns(ins.address());
       srv->server().join(mcastIns, Ins(header().ip()));
-//       Ins bcastIns = StreamPorts::bcast(alloc.partitionid(), Level::Control);
-//       srv->server().join(bcastIns, Ins(header().ip()));
+      Ins bcastIns = StreamPorts::bcast(alloc.partitionid(), Level::Control);
+      srv->server().join(bcastIns, Ins(header().ip()));
     }
   }
 }

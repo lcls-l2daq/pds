@@ -42,9 +42,6 @@ EbTimeouts::EbTimeouts(int stream,
       case Level::Event:
 	_tmos[type*TransitionId::NumberOf+service] = 2;
 	break;
-      case Level::Recorder:
-	_tmos[type*TransitionId::NumberOf+service] = 2;
-	break;
       default:
 	break;
       }

@@ -40,9 +40,6 @@ EventStreams::EventStreams(PartitionMember& cmgr,
        *stream(s)->inlet(), *_outlets[s], s, ipaddress,
        MaxSize, EbDepth, vmoneb);
     
-    if (cmgr.header().level()==Level::Recorder)
-      eb->no_build(Sequence::Event,1<<TransitionId::L1Accept);
-
     _inlet_wires[s] = eb;
   }
   //  _vmom_appliance = new VmonAppliance(vmon());
