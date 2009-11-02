@@ -60,7 +60,9 @@ EpicsArchMonitor::~EpicsArchMonitor()
             printf( "xtcEpicsTest()::EpicsMonitorPv::release(%s) failed\n", epicsPvCur.getPvName().c_str());
     }    
     
-    ca_task_exit();
+    int iFail = ca_task_exit();
+    if (ECA_NORMAL != iFail ) 
+      SEVCHK( iFail, "EpicsArchMonitor::~EpicsArchMonitor(): ca_task_exit() failed" );    
 }
 
 int EpicsArchMonitor::writeToXtc( Datagram& dg, bool bCtrlValue )
@@ -137,7 +139,6 @@ int EpicsArchMonitor::_setupPvList(const TPvList& vsPvList, TEpicsMonitorPvList&
     for ( int iPvName = 0; iPvName < (int) vsPvList.size(); iPvName++ )
     {                
         EpicsMonitorPv& epicsPvCur = lpvPvList[iPvName];
-        //int iFail = epicsPvCur.init( lsPvName[iPvName] );
         
         string sPvName( vsPvList[iPvName] );
         int iFail = epicsPvCur.init( iPvName, sPvName.c_str() );
