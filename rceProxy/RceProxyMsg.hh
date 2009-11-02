@@ -22,7 +22,7 @@ namespace RcePnccd {
   class ProxyMsg {
     public:
       ProxyMsg() {};
-      virtual ~ProxyMsg() {};
+      ~ProxyMsg() {};
 
     public:
       enum {MaxEventLevelServers=64, ProxyPort=5000};
