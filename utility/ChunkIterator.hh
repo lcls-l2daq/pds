@@ -17,6 +17,8 @@
 #define HDR_POOL   Pds::Pool
 #define HDR_POOL_E Pds::HeapEntry
 
+//#define TEST_INCOMPLETE_CONTRIBUTIONS
+
 namespace Pds {
 /*
 **  A chunk iterator for a contiguous datagram
@@ -42,15 +44,16 @@ public:
   const char* payload() { return _payload; }
   unsigned payloadSize() { return _nextSize; }
 
-  unsigned last() {
-    return _remaining==1; 
-  }
-
   unsigned next() {
     _payload += _nextSize;
     _header.offset += _nextSize;
     _nextSize = Mtu::Size;
+#ifdef TEST_INCOMPLETE_CONTRIBUTIONS
+    --_remaining;
+    return 0;
+#else
     return --_remaining;
+#endif
   }
 
 private:

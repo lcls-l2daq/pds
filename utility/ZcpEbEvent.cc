@@ -135,15 +135,14 @@ InDatagram* ZcpEbEvent::finalize()
 
 unsigned ZcpEbEvent::fixup(const Src&       client, 
 			   const EbBitMask& id, 
-			   const TypeId&    type,
 			   ZcpFragment&     frag)
 {
   Damage damaged((segments()&id).isZero() ? 
-		 1 << Damage::DroppedContribution :
-		 1 << Damage::IncompleteContribution );
-  Xtc xtc(type, client, damaged);
+		 (1 << Damage::DroppedContribution) :
+		 (1 << Damage::IncompleteContribution) | (1<<Damage::ContainsIncomplete ));
+  Xtc xtc(TypeId(TypeId::Any,0), client, damaged);
   frag.uinsert((char*)&xtc,sizeof(Xtc));
   _zdatagram->_insert(frag,sizeof(Xtc));
-  return damaged.value();
+  return damaged.value() & ~(1<<Damage::IncompleteContribution);
 }
 

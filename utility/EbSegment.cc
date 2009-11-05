@@ -93,8 +93,8 @@ EbSegment::EbSegment(const Xtc& header,
 ** --
 */
 
-EbSegment* EbSegment::consume(int sizeofFragment, int expected)
-  {
+void EbSegment::consume(int sizeofFragment, int expected)
+{
   int offset = _offset;
 
   if(offset != expected)
@@ -111,9 +111,7 @@ EbSegment* EbSegment::consume(int sizeofFragment, int expected)
 
   _offset     = sizeofFragment + offset;
   _remaining -= sizeofFragment;
-
-  return notComplete();
-  }
+}
 
 /*
 ** ++
@@ -126,10 +124,10 @@ EbSegment* EbSegment::consume(int sizeofFragment, int expected)
 ** --
 */
 
-unsigned EbSegment::fixup(const TypeId& type){
+unsigned EbSegment::fixup(){
   printf("EbSegment::fixup offset/remaining/size %d/%d/%d\n",_offset,_remaining,_header.sizeofPayload());
-  Damage damaged(1 << Damage::IncompleteContribution);
-  Xtc* xtc = new(_base) Xtc(type, _header.src, damaged);
+  Xtc* xtc = new(_base) Xtc(_header.contains, _header.src, 
+			    Damage(1 << Damage::IncompleteContribution));
   xtc->alloc(_header.sizeofPayload());
-  return damaged.value();
+  return (1<<Damage::ContainsIncomplete);
 }

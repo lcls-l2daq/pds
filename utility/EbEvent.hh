@@ -45,14 +45,14 @@ class EbEvent : public EbEventBase
   public:
     PoolDeclare;
   public:
-    EbSegment* consume(const EbServer*,
-		       int sizeofPayload,
-		       EbBitMask client);
+    bool consume(const EbServer*,
+		 int sizeofPayload,
+		 EbBitMask client);
   public:
     char*         recopy    (char* payload, 
 			     int sizeofPayload, 
 			     EbBitMask server);
-    unsigned      fixup     (const Src&, const TypeId&, const EbBitMask&);
+    unsigned      fixup     (const Src&, const EbBitMask&);
     char*         payload   (EbBitMask client);
     EbSegment*    hasSegment(EbBitMask client);
 

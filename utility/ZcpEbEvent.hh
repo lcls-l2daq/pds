@@ -27,7 +27,7 @@ class ZcpEbEvent : public EbEventBase
     bool          consume(EbServer*, const EbBitMask&, ZcpFragment&);
     InDatagram*   finalize();
   public:
-    unsigned      fixup(const Src&, const EbBitMask&, const TypeId&, ZcpFragment&);
+    unsigned      fixup(const Src&, const EbBitMask&, ZcpFragment&);
   private:
     ZcpDatagram*  _zdatagram;
     LinkedList<ZcpEbSegment> _pending;       // Listhead, Segments pending fragments

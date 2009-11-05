@@ -111,31 +111,35 @@ EbSegment* EbEvent::hasSegment(EbBitMask id)
 **   the information from the just arrived fragment. These two cases
 **   are differentiated by passing in a pointer to a segment descriptor
 **   ("inProgress") which is NIL (zero) if assembly is not in-progress.
-**   The function returns a pointer to the segment descriptor if more
-**   fragments are expected. If not it returns a NIL (zero) pointer.
+**   The function returns a boolean indicating if more fragments are expected.
 **
 ** --
 */
 
-EbSegment* EbEvent::consume(const EbServer* srv,
-			    int sizeofPayload,
-			    EbBitMask client)
+bool EbEvent::consume(const EbServer* srv,
+		      int sizeofPayload,
+		      EbBitMask client)
 {
   Datagram* out = datagram();
 
   const Xtc& xtc = srv->xtc();
 
-  out->xtc.damage.increase(xtc.damage.value());
+  out->xtc.damage.increase(xtc.damage.value() & ~(1<<Damage::IncompleteContribution));
 
   if(srv->more()) {
     unsigned   offset  = srv->offset();
     EbSegment* segment = hasSegment(client);
     if(segment) {
-      if ((segment = segment->consume(sizeofPayload, offset)))
-	return segment;
-      else {
+      segment->consume(sizeofPayload, offset);
+      switch(segment->complete()) {
+      case EbSegment::IsComplete:
 	segments() &= ~client;
-	return (EbSegment*)0;
+	return false;
+      case EbSegment::WontComplete:
+	out->xtc.damage.increase(1<<Damage::ContainsIncomplete);
+	return false;
+      case EbSegment::MayComplete:
+	return true;
       }
     }
 
@@ -151,11 +155,20 @@ EbSegment* EbEvent::consume(const EbServer* srv,
 					length,
 					client,
 					(EbSegment*)&_pending);
-    return segment->notComplete();
+    switch(segment->complete()) {
+    case EbSegment::IsComplete:
+      segments() &= ~client;
+      return false;
+    case EbSegment::WontComplete:
+      out->xtc.damage.increase(1<<Damage::ContainsIncomplete);
+      return false;
+    case EbSegment::MayComplete:
+      return true;
+    }
   }
   
   out->xtc.alloc(sizeofPayload);
-  return (EbSegment*)0;
+  return false;
 }
 
 /*
@@ -213,19 +226,20 @@ char* EbEvent::recopy(char* payloadIn, int sizeofPayload, EbBitMask client)
 ** --
 */
 
-unsigned EbEvent::fixup(const Src& client, const TypeId& type, const EbBitMask& id)
+unsigned EbEvent::fixup(const Src& client, const EbBitMask& id)
   {
   EbSegment* segment = hasSegment(id);
   if(segment)
     {
-    return segment->fixup(type);
+    return segment->fixup();
     }
   else
     {
     Damage damaged(1 << Damage::DroppedContribution);
     // kludge away the bld dummy contribution until we understand
     // data corruption. - weaver,cpo
-    if (client.level()!=Level::Reporter) new(&datagram()->xtc) Xtc(type, client, damaged);
+    if (client.level()!=Level::Reporter) 
+      new(&datagram()->xtc) Xtc(TypeId(TypeId::Any,0), client, damaged);
     return damaged.value();
     }
   }

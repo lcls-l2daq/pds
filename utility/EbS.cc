@@ -64,7 +64,7 @@ unsigned EbS::_fixup( EbEventBase* event, const Src& client, const EbBitMask& id
   const Sequence& seq = event->key().sequence();
   if (!(_no_builds[seq.type()] & (1<<seq.service()))) {
     EbEvent* ev = (EbEvent*)event;
-    fixup = ev->fixup ( client, TypeId(TypeId::Any,0), id );
+    fixup = ev->fixup ( client, id );
   }
   return fixup;
 }

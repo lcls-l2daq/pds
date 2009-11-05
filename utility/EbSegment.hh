@@ -44,6 +44,7 @@ class EbSegment : public LinkedList<EbSegment>
   public:
     void* operator new(size_t, char**);
   public:
+    enum Completion { IsComplete, MayComplete, WontComplete };
     EbSegment(const Xtc& header,
 	      char* base,
 	      int size,
@@ -54,19 +55,19 @@ class EbSegment : public LinkedList<EbSegment>
   public:
    ~EbSegment() {}
   public:
-    EbSegment* consume(int sizeofFragment, int offsetExpected);
+    void       consume(int sizeofFragment, int offsetExpected);
     char*      payload();
     char*      base();
     int        remaining() const;
     EbBitMask  client() const;
-    unsigned   fixup(const TypeId&);
-    EbSegment* notComplete();
+    unsigned   fixup();
+    Completion complete();
   private:
     char*     _base;
     int       _offset;
     int       _remaining;
     EbBitMask _client;
-    Xtc     _header;
+    Xtc       _header;
   };
 }
 
@@ -154,20 +155,19 @@ inline EbBitMask Pds::EbSegment::client() const
 ** --
 */
 
-inline Pds::EbSegment* Pds::EbSegment::notComplete(){
-  if(!_remaining)
-    {
+inline Pds::EbSegment::Completion Pds::EbSegment::complete() 
+{
+  if(!_remaining) {   //  the contribution is complete
     disconnect();
-    return (Pds::EbSegment*)0;
-    }
-  else if (_offset >= (int)(_header.sizeofPayload()+sizeof(Xtc))) 
-    {
-    fixup(_header.contains);
+    return IsComplete;
+  }
+  else if (_offset >= (int)(_header.extent)) { // the contribution isnt complete
+    fixup();                                   // and no more fragments are expected
     disconnect();
-    return (Pds::EbSegment*)0;
-    }
+    return WontComplete;
+  }
   else
-    return this;
+    return MayComplete;
 }
 
 #endif

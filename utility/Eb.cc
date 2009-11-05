@@ -62,7 +62,7 @@ Eb::Eb(const Src& id,
 unsigned Eb::_fixup( EbEventBase* event, const Src& client, const EbBitMask& id )
 {
   EbEvent* ev = (EbEvent*)event;
-  return ev->fixup ( client, TypeId(TypeId::Any,0), id );
+  return ev->fixup ( client, id );
 }
 
 int Eb::processIo(Server* serverGeneric)
