@@ -14,7 +14,8 @@ namespace Pds {
 	   unsigned nservers,
 	   unsigned maxdepth,
 	   unsigned maxtime,
-	   unsigned maxsize);
+	   unsigned maxsize,
+	   const char* group="Eb");
     ~VmonEb();
   public:
     bool time_fetch() const { return _fetch_time!=0; }

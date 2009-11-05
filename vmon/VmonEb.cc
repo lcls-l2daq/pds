@@ -33,9 +33,10 @@ VmonEb::VmonEb(const Src& src,
 	       unsigned nservers,
 	       unsigned maxdepth,
 	       unsigned maxtime,
-	       unsigned maxsize)
+	       unsigned maxsize,
+	       const char* group_name)
 {
-  MonGroup* group = new MonGroup("Eb");
+  MonGroup* group = new MonGroup(group_name);
   VmonServerManager::instance()->cds().add(group);
 
   MonDescTH1F fixup("Fixups", "server", "", 

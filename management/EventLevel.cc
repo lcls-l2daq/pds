@@ -16,6 +16,9 @@
 #include "pds/xtc/CDatagram.hh"
 #include "pds/management/EbIStream.hh"
 
+#include "pds/vmon/VmonEb.hh"
+#include "pdsdata/xtc/BldInfo.hh"
+
 using namespace Pds;
 
 
@@ -55,7 +58,9 @@ bool EventLevel::attach()
 {
   start();
   if (connect()) {
-    _streams = new EventStreams(*this);
+    _streams = new EventStreams(*this,
+				new VmonEb(header().procInfo(), BldInfo::NumberOf+1,
+					   EventStreams::EbDepth,(1<<23),(1<<22),"BldEb"));
     _streams->connect();
 
     _inlet = new EbIStream(header().procInfo(),

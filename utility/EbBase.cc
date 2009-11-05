@@ -223,6 +223,19 @@ void EbBase::_post(EbEventBase* event)
   	 remaining.value(0),value.value(0),datagram->xtc.sizeofPayload());
 #endif
   if (value.isZero()) {  // sink
+
+    // statistics
+    if (_vmoneb) {
+      EbBitMask id(EbBitMask::ONE);
+      for(unsigned i=0; !remaining.isZero(); i++, id <<= 1) {
+	if ( !(remaining & id).isZero() ) {
+	  _vmoneb->fixup(_clients.BitMaskBits);
+	  remaining &= ~id;
+	}
+      }
+      _vmoneb->fixup(-1);
+    }
+
     delete indatagram;
     delete event;
     return;

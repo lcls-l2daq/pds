@@ -1,3 +1,4 @@
+2009-Nov-5  weaver	Added vmon histograms to bld event builder.
 2009-Oct-28 weaver	Tag V01-05-00.  Removed Recorder level.  Fixed ControlStreams bug which caused damage 0x8000
 			on Configure.
 2009-Oct-8  cpo         Fix bug with run number allocation during automatic reconfig when changing config db.  Tagged V01-03-02.
