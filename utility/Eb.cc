@@ -112,6 +112,18 @@ int Eb::processIo(Server* serverGeneric)
     //            header, we can definitely search for the correct event-under-construction
     //            and copy the payload there.  If the correct event doesn't yet exist, it will
     //            be created, if possible.
+
+    //
+    //  this logic doesn't handle the case of segments which may have existed in
+    //  the incorrectly matched event.  we shouldn't deallocate those.
+    //
+    { const ClockTime& clk = event->key().sequence().clock();
+      printf("miss %x  seq %08x  ts %08x/%08x  srv %x\n", 
+	     _misses, 
+	     event->key().sequence().stamp().fiducials(), 
+	     clk.seconds(), clk.nanoseconds(), 
+	     serverId.value());
+    }
     _misses++;
     event->deallocate(serverId);  // remove the contribution from this event
     event = (EbEvent*)_seek(server);

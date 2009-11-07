@@ -17,7 +17,10 @@
 #define HDR_POOL   Pds::Pool
 #define HDR_POOL_E Pds::HeapEntry
 
-//#define TEST_INCOMPLETE_CONTRIBUTIONS
+//#define DROP_FIRST
+//#define DROP_AFTER_FIRST
+//#define DROP_LAST
+//#define DROP_MIDDLES
 
 namespace Pds {
 /*
@@ -37,6 +40,9 @@ public:
       _nextSize=Mtu::Size;
       _remaining--;
     }
+#ifdef DROP_FIRST
+    next();
+#endif
   }
   ~DgChunkIterator() {}
 
@@ -45,14 +51,33 @@ public:
   unsigned payloadSize() { return _nextSize; }
 
   unsigned next() {
+#ifdef DROP_AFTER_FIRST
+    return 0;
+#else
+#ifdef DROP_MIDDLES
+    if (_remaining < 2) return 0;
+    while (--_remaining) {
+      _payload += _nextSize;
+      _header.offset += _nextSize;
+      _nextSize = Mtu::Size;
+    }
+    return 1;
+#else
+#ifdef DROP_LAST
+    if (_remaining==2) 
+      return 0;
+
     _payload += _nextSize;
     _header.offset += _nextSize;
     _nextSize = Mtu::Size;
-#ifdef TEST_INCOMPLETE_CONTRIBUTIONS
-    --_remaining;
-    return 0;
-#else
     return --_remaining;
+#else  // drop nothing
+    _payload += _nextSize;
+    _header.offset += _nextSize;
+    _nextSize = Mtu::Size;
+    return --_remaining;
+#endif
+#endif
 #endif
   }
 
