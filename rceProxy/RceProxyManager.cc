@@ -22,6 +22,7 @@
 #include "RceProxyManager.hh"
 #include "RceProxyMsg.hh"
 #include "pdsdata/xtc/DetInfo.hh"
+#include "pds/config/pnCCDConfigType.hh"
 
 using namespace Pds;
 using std::string;
@@ -47,14 +48,17 @@ private:
 class RceProxyConfigAction : public Action 
 {
 public:
-    RceProxyConfigAction(RceProxyManager& manager, const Src& src, CfgClientNfs& cfg, int iDebugLevel) :
-        _manager(manager), _src(src), _cfg(cfg), _iDebugLevel(iDebugLevel)
+  RceProxyConfigAction(RceProxyManager& manager, const Src& src, CfgClientNfs& cfg, int iDebugLevel, unsigned iNumLinks, unsigned iPayloadSizePerLink) :
+        _manager(manager), _src(src), _cfg(cfg), _iDebugLevel(iDebugLevel),
+        _cfgtc(_pnCCDConfigType,cfg.src()),
+        _iNumLinks(iNumLinks),_iPayloadSizePerLink(iPayloadSizePerLink)
     {}
-    
+
     // this is the first "phase" of a transition where
     // all CPUs configure in parallel.
     virtual Transition* fire(Transition* tr) 
     {
+        // in the long term, we should get this from database - cpo
         //_cfg.fetch(*tr,_epicsArchConfigType, &_config);
         return tr;
     }
@@ -64,16 +68,21 @@ public:
     // archived in the xtc file).
     virtual InDatagram* fire(InDatagram* in) 
     {
+        pnCCDConfigType config(_iNumLinks,_iPayloadSizePerLink);
+        _cfgtc.extent = sizeof(Xtc)+sizeof(pnCCDConfigType);
+        in->insert(_cfgtc, &config);
         return in;
     }
 
 private:
     //RceProxyConfigType _config;
-    //Xtc _cfgtc;
-    RceProxyManager&   _manager;
+    RceProxyManager&    _manager;
     Src                 _src;
     CfgClientNfs&       _cfg;
     int                 _iDebugLevel;
+    Xtc                 _cfgtc;
+    unsigned            _iNumLinks;
+    unsigned            _iPayloadSizePerLink;
 };
 
 class RceProxyL1AcceptAction : public Action 
@@ -117,13 +126,14 @@ private:
 const Src RceProxyManager::srcLevel = Src(Level::Source);
 
 RceProxyManager::RceProxyManager(CfgClientNfs& cfg, const string& sRceIp, int iNumLinks, int iPayloadSizePerLink, 
-  const Node& selfNode, int iDebugLevel) :
+                                 const Node& selfNode, int iDebugLevel) :
   _sRceIp(sRceIp), _iNumLinks(iNumLinks), _iPayloadSizePerLink(iPayloadSizePerLink), 
   _selfNode(selfNode), _iDebugLevel(iDebugLevel), _cfg(cfg)
 {
     _pFsm            = new Fsm();    
     _pActionMap      = new RceProxyAllocAction(*this, cfg);
-    _pActionConfig   = new RceProxyConfigAction(*this, RceProxyManager::srcLevel, cfg, _iDebugLevel);
+    _pActionConfig   = new RceProxyConfigAction(*this, RceProxyManager::srcLevel, cfg, _iDebugLevel,_iNumLinks,iPayloadSizePerLink);
+    // this should go away when we get the configuration from the database - cpo
     _pActionL1Accept = new RceProxyL1AcceptAction(*this, _iDebugLevel);
     _pActionDisable  = new RceProxyDisableAction(*this);
     

@@ -18,12 +18,13 @@ class Ins;
 class Fsm;
 class Appliance;
 class CfgClientNfs;
+class Action;
 
 class RceProxyManager 
 {
 public:
     RceProxyManager(CfgClientNfs& cfg, const std::string& sRceIp, int iNumLinks, int iPayloadSizePerLink, 
-      const Node& selfNode, int iDebugLevel);
+                    const Node& selfNode, int iDebugLevel);
     ~RceProxyManager();
 
     Appliance& appliance() { return *_pFsm; }
@@ -34,18 +35,19 @@ public:
 private:  
     static const Src srcLevel; // Src for Epics Archiver
     
-    std::string         _sRceIp;
-    int                 _iNumLinks;
-    int                 _iPayloadSizePerLink;    
-    const Node&         _selfNode;
-    int                 _iDebugLevel;    
+    std::string           _sRceIp;
+    int                   _iNumLinks;
+    int                   _iPayloadSizePerLink;    
+    const Node&           _selfNode;
+    int                   _iDebugLevel;    
 
-    CfgClientNfs&       _cfg;
-    Fsm*                _pFsm;
-    Action*             _pActionConfig;
-    Action*             _pActionMap;
-    Action*             _pActionL1Accept;
-    Action*             _pActionDisable;
+    CfgClientNfs&         _cfg;
+    Fsm*                  _pFsm;
+//     RceProxyConfigAction* _pActionConfig;
+  Action* _pActionConfig;
+    Action*               _pActionMap;
+    Action*               _pActionL1Accept;
+    Action*               _pActionDisable;
     
     /* static private functions */
     static int setupProxyMsg( const Ins& insEvr, const std::vector<Ins>& vInsEvent, int iNumLinks, 
