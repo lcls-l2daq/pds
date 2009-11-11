@@ -9,6 +9,14 @@ static double integral(unsigned binx1,
 		       unsigned biny1,  
 		       unsigned biny2,
 		       unsigned nbinsx,
+		       const float* con) __attribute__((unused));
+
+
+static double integral(unsigned binx1,  
+		       unsigned binx2,
+		       unsigned biny1,  
+		       unsigned biny2,
+		       unsigned nbinsx,
 		       const float* con)
 {
   double sum=0;

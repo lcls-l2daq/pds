@@ -88,7 +88,7 @@ void *frame_cleanup(void *arg)
 }
 
 int main(int argc, char *argv[])
-{ int exttrigger = 0;
+{ // int exttrigger = 0;
   int extshutter = 0;
   double fps = 0;
   int ifps =0;

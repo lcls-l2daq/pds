@@ -21,6 +21,7 @@
 
 // high = 1 means you want the highest priority signal avaliable, lowest otherwise
 extern "C" int __libc_allocate_rtsig (int high);
+static void _dumpConfig(const DaSeq32Cfg& cfg) __attribute__((unused));
 
 namespace PdsLeutron {
   //  Only one thread calls "push", and one other calls "pop"
@@ -40,7 +41,7 @@ namespace PdsLeutron {
     void dump() const 
     { 
       printf("head/tail %d/%d\n",_head,_tail); 
-      for(unsigned k=0; k<_size; k++) printf("%d ",_contents[k]); 
+      for(unsigned k=0; k<static_cast<unsigned>(_size); k++) printf("%d ",_contents[k]); 
       printf("\n"); 
     }
   private:

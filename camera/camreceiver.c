@@ -345,7 +345,7 @@ int main (int argc, char *argv[])
 		unsigned long tx;
 		uint32_t imgsize, imgwidth, imgheight;
 		int sync = 1;
-		int useqrow,useqoff;
+		int useqrow = 0,useqoff = 0;
 
 		printf("\rWaiting for image %lu ... ", i+1);
 		/* First we receive the header */

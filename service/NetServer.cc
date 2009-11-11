@@ -60,13 +60,17 @@ void NetServer::_construct(int sizeofDatagram, int maxPayload)
     char* datagram   = new char[sizeofDatagram];
     _datagram        = datagram;
     _iov[0].iov_base = datagram;
-    _payload         = reinterpret_cast<char**>(&_iov[1].iov_base);
+    // JT 11/9/09: This is a hack to quiet gcc's overly-anal
+    // "type-punned" alias warning.
+    // _payload         = reinterpret_cast<char**>(&_iov[1].iov_base);
+    _payload         = (char**)(void*)(&_iov[1].iov_base);
     _iov[1].iov_len  = maxPayload;
     _hdr.msg_iovlen  = (_maxPayload = maxPayload) ? 2 : 1;
     }
   else
     {
-    _payload         = reinterpret_cast<char**>(&_iov[0].iov_base);
+    // _payload         = reinterpret_cast<char**>(&_iov[0].iov_base);
+    _payload         = (char**)(void*)(&_iov[0].iov_base);
     _hdr.msg_iovlen  = 1;
     _datagram        = (char*)0;
     _iov[0].iov_len  = maxPayload;

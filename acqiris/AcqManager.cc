@@ -291,7 +291,8 @@ public:
     // non-SAR mode
     _check("AcqrsD1_configMemory",AcqrsD1_configMemory(_instrumentId, _config.horiz().nbrSamples(), _config.horiz().nbrSegments()));
     uint32_t nbrSamples,nbrSegments;
-    AcqrsD1_getMemory(_instrumentId, (ViInt32*)&nbrSamples, (ViInt32*)&nbrSegments);
+    // JT 11/9/09: This is a hack to remove "type-punned" warnings.
+    AcqrsD1_getMemory(_instrumentId, (ViInt32*)(void*)&nbrSamples, (ViInt32*)(void*)&nbrSegments);
     if (nbrSamples != _config.horiz().nbrSamples()) {
       printf("*** Requested %d samples, received %d\n",
              _config.horiz().nbrSamples(),nbrSamples);
@@ -321,8 +322,8 @@ public:
     _check("AcqrsD1_configChannelCombination",
            AcqrsD1_configChannelCombination(_instrumentId,_config.nbrConvertersPerChannel(),
                                             usedChannels));
-    AcqrsD1_getChannelCombination(_instrumentId, (ViInt32*)&nbrConvertersPerChannel,
-                                  (ViInt32*)&usedChannels);
+    AcqrsD1_getChannelCombination(_instrumentId, (ViInt32*)(void*)&nbrConvertersPerChannel,
+                                  (ViInt32*)(void*)&usedChannels);
     if (nbrConvertersPerChannel != _config.nbrConvertersPerChannel()) {
       printf("*** Requested %d converters per channel, received %d\n",
              _config.nbrConvertersPerChannel(),nbrConvertersPerChannel);
@@ -346,8 +347,8 @@ public:
                                       _config.vert(nchan).offset(), _config.vert(nchan).coupling(),
                                       _config.vert(nchan).bandwidth()));
         AcqrsD1_getVertical(_instrumentId, i+1, (ViReal64*)&fullScale,
-                            (ViReal64*)&offset, (ViInt32*)&coupling,
-                            (ViInt32*)&bandwidth);
+                            (ViReal64*)&offset, (ViInt32*)(void*)&coupling,
+                            (ViInt32*)(void*)&bandwidth);
         if (fabs(fullScale-_config.vert(nchan).fullScale())>epsilon) {
           printf("*** Requested %e fullscale, received %e\n",
                  _config.vert(nchan).fullScale(),fullScale);
@@ -397,8 +398,8 @@ public:
     _check("AcqrsD1_configTrigClass",AcqrsD1_configTrigClass(_instrumentId, 0, srcPattern, 0, 0, 0.0, 0.0));
     uint32_t trigClass,srcPatternOut,junk;
     double djunk;
-    AcqrsD1_getTrigClass(_instrumentId, (ViInt32*)&trigClass, (ViInt32*)&srcPatternOut, (ViInt32*)&junk,
-                         (ViInt32*)&junk, (ViReal64*)&djunk, (ViReal64*)&djunk);
+    AcqrsD1_getTrigClass(_instrumentId, (ViInt32*)(void*)&trigClass, (ViInt32*)(void*)&srcPatternOut, (ViInt32*)(void*)&junk,
+                         (ViInt32*)(void*)&junk, (ViReal64*)&djunk, (ViReal64*)&djunk);
     if (trigClass!=0) {
       printf("*** Requested trigger class 0 received %d\n",trigClass);
       _nerror++;
@@ -414,8 +415,8 @@ public:
     uint32_t slope;
     double level;
     AcqrsD1_getTrigSource(_instrumentId, _config.trig().input(),
-                          (ViInt32*)&coupling,
-                          (ViInt32*)&slope, (ViReal64*)&level, &djunk);
+                          (ViInt32*)(void*)&coupling,
+                          (ViInt32*)(void*)&slope, (ViReal64*)&level, &djunk);
     level /= 1000.0;
     if (fabs(level-_config.trig().level())>epsilon) {
       printf("*** Requested %e trig level, received %e\n",

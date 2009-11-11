@@ -4,7 +4,7 @@
 #include "pdsdata/xtc/TypeId.hh"
 #include "pdsdata/pnCCD/ConfigV1.hh"
 
-typedef Pds::pnCCDData::ConfigV1 pnCCDConfigType;
+typedef Pds::PNCCD::ConfigV1 pnCCDConfigType;
 
 static Pds::TypeId _pnCCDConfigType(Pds::TypeId::Id_pnCCDconfig,
                                     pnCCDConfigType::Version);
