@@ -6,9 +6,8 @@
 namespace Pds {
 
 class EventCallback;
-class EventStreams;
+class WiredStreams;
 class Arp;
-class EbIStream;
 
 class EventLevel: public PartitionMember {
 public:
@@ -30,8 +29,7 @@ private:
 
 private:
   EventCallback& _callback;         // object to notify
-  EventStreams*  _streams;          // appliance streams
-  EbIStream*     _inlet;
+  WiredStreams*  _streams;          // appliance streams
   Message        _reply;
 };
 

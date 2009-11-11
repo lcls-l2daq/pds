@@ -1,10 +1,12 @@
 #include "SegStreams.hh"
 #include "EventBuilder.hh"
 #include "pds/management/PartitionMember.hh"
+#include "pds/management/VmonServerAppliance.hh"
 #include "pds/utility/ToEventWire.hh"
 #include "pds/utility/SegWireSettings.hh"
 #include "pds/utility/InletWire.hh"
 #include "pds/service/VmonSourceId.hh"
+#include "pds/vmon/VmonEb.hh"
 #include "pds/xtc/XtcType.hh"
 
 using namespace Pds;
@@ -13,10 +15,11 @@ static const unsigned MaxSize = 4*1024*1024;
 
 SegStreams::SegStreams(PartitionMember& cmgr) :
   WiredStreams(VmonSourceId(cmgr.header().level(), cmgr.header().ip()))
-  //  _vmom_appliance(new VmonAppliance(vmon()))
 {
-  Level::Type level  = cmgr.header().level();
-  unsigned ipaddress = cmgr.header().ip();
+  const Node& node = cmgr.header();
+  Level::Type level  = node.level();
+  unsigned ipaddress = node.ip();
+  const Src& src = node.procInfo();
   for (int s = 0; s < StreamParams::NumberOfStreams; s++) {
 
     _outlets[s] = new ToEventWire(*stream(s)->outlet(), 
@@ -25,14 +28,18 @@ SegStreams::SegStreams(PartitionMember& cmgr) :
 				  MaxSize*ebdepth,
 				  cmgr.occurrences());
 
-    _inlet_wires[s] = 
-      new EventBuilder(cmgr.header().procInfo(),
-		       _xtcType,
-		       level,
-		       *stream(s)->inlet(), *_outlets[s], s, ipaddress,
-		       MaxSize, ebdepth);
+    _inlet_wires[s] = new L1EventBuilder(src,
+					 _xtcType,
+					 level,
+					 *stream(s)->inlet(),
+					 *_outlets[s],
+					 s,
+					 ipaddress,
+					 MaxSize, ebdepth,
+					 new VmonEb(src,32,ebdepth,(1<<24),(1<<22)));
+
+    (new VmonServerAppliance(src))->connect(stream(s)->inlet());
   }
-  //  _vmom_appliance->connect(stream(StreamParams::Occurrence)->inlet());
 }
 
 SegStreams::~SegStreams() 
@@ -41,5 +48,4 @@ SegStreams::~SegStreams()
     delete _inlet_wires[s];
     delete _outlets[s];
   }
-  //  delete _vmom_appliance;
 }

@@ -8,6 +8,7 @@
 #include "pdsdata/xtc/Sequence.hh"
 #include "EbSequenceSrv.hh"
 #include "BldSequenceSrv.hh"
+#include "EvrServer.hh"
 
 namespace Pds {
   class EbSequenceKey : public EbEventKey {
@@ -30,6 +31,10 @@ namespace Pds {
 				   ts.vector(),
 				   ts.control()));
     }
+
+    virtual bool precedes (const EvrServer& s) { return key.seq.stamp() <= s.sequence().stamp(); } 
+    virtual bool coincides(const EvrServer& s) { return key.seq.stamp() == s.sequence().stamp(); } 
+    virtual void assign   (const EvrServer& s) { key.seq = s.sequence(); }
   public:
     const Sequence& sequence() const { return key.seq; }
     const Env&      env     () const { return key.env; }

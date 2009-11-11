@@ -17,9 +17,9 @@ static const int BaseMcastAddr = 0xefff1100;
 static const int SegmentMcastAddr  = BaseMcastAddr    +StreamPorts::MaxPartitions; 
 // L1  -> L2 : 0xefff1120
 static const int EventMcastAddr    = SegmentMcastAddr +StreamPorts::MaxPartitions;
-// L2  -> L0 : 0xefff1620
+// L2  -> L0 : 0xefff1520
 static const int ControlMcastAddr  = EventMcastAddr   +StreamPorts::MaxPartitions*MaxPartitionL2s;
-// VMON server<->client // 0xeffff1630
+// VMON server<->client // 0xeffff1530
 static const int VmonMcastAddr     = ControlMcastAddr +StreamPorts::MaxPartitions;
 // BLD -> L1,L2 : 0xefff1800
 static const int BLDMcastAddr      = 0xefff1800;  // FIXED value for external code

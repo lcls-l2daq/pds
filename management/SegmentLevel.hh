@@ -7,10 +7,9 @@
 namespace Pds {
 
   class SegWireSettings;
-  class SegStreams;
+  class WiredStreams;
   class Arp;
   class EventCallback;
-  class EbIStream;
   class EvrServer;
 
   class SegmentLevel: public PartitionMember {
@@ -33,11 +32,10 @@ namespace Pds {
     void     post      (const Occurrence&);
     void     post      (const InDatagram&);
 
-  private:
+  protected:
     SegWireSettings& _settings;
     EventCallback& _callback;
-    SegStreams*    _streams;
-    EbIStream*     _inlet;
+    WiredStreams*  _streams;
     EvrServer*     _evr;
     PingReply      _reply;
   };

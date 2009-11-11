@@ -538,31 +538,11 @@ void EbBase::_iterate_dump()
 #include <time.h>
 
 void EbBase::dump(int detail)
-  {
+{
   time_t timeNow = time(NULL);
   printf("Dump of Event Builder %04X/%04X (log/phy)...\n",
          _id.log(), _id.phy());
   printf("--------------------------------------------\n");
-
-  if (detail) {
-    _iterate_dump();
-
-    EbEventBase* event = _pending.forward();
-
-    if(event != _pending.empty())
-      {
-      printf("Pending queue contains...\n");
-      int number = 1;
-      do
-        {
-        event->dump(number++);
-        event = event->forward();
-        }
-      while(event != _pending.empty());
-      }
-    else
-      printf("Pending queue is empty...\n");
-    }
 
   printf(" Time of dump: ");
   printf(ctime(&timeNow));
@@ -571,7 +551,23 @@ void EbBase::dump(int detail)
   printf(" %u Contributions, %u Chunks, %u Cache misses, %u Discards\n",
          _hits, _segments, _misses, _discards);
   _dump(detail);
+
+  if (detail) {
+    printf("%17s %17s %8s %8s %8s\n","clock","stamp","alloc","segm","rem");
+    EbEventBase* event = _pending.forward();
+    EbEventBase* empty = _pending.empty();
+    while( event != empty ) {
+      const Sequence seq = event->key().sequence();
+      printf("%08x/%08x %08x/%08x %08x %08x %08x\n",
+	     seq.clock().seconds(),seq.clock().nanoseconds(),
+	     seq.stamp().fiducials(), seq.stamp().ticks(),
+	     event->allocated().remaining().value(),
+	     event->segments().value(),
+	     event->remaining().value());
+      event = event->forward();
+    }
   }
+}
 
 
 bool EbBase::_is_complete( EbEventBase* event,

@@ -26,8 +26,9 @@ namespace Pds {
     virtual bool coincides(const EbCountSrv& s) { return key == s.count(); }
     virtual void assign   (const EbCountSrv& s) { key = s.count(); }
     //  Special service from the EVR
-    virtual void assign   (const EvrServer& s)
-    { key = s.count(); seq = s.sequence(); }
+    virtual bool precedes (const EvrServer& s) { return key <= s.count(); }
+    virtual bool coincides(const EvrServer& s) { return key == s.count(); }
+    virtual void assign   (const EvrServer& s) { key = s.count(); seq = s.sequence(); }
   public:
     const Sequence& sequence() const { return seq; }
   public:

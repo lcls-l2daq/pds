@@ -113,13 +113,13 @@ int Eb::processIo(Server* serverGeneric)
     //            and copy the payload there.  If the correct event doesn't yet exist, it will
     //            be created, if possible.
 
-//     { const ClockTime& clk = event->key().sequence().clock();
-//       printf("miss %x  seq %08x  ts %08x/%08x  srv %x\n", 
-// 	     _misses, 
-// 	     event->key().sequence().stamp().fiducials(), 
-// 	     clk.seconds(), clk.nanoseconds(), 
-// 	     serverId.value());
-//     }
+//      { const ClockTime& clk = event->key().sequence().clock();
+//        printf("miss %x  seq %08x  ts %08x/%08x  srv %x\n", 
+//  	     _misses, 
+//  	     event->key().sequence().stamp().fiducials(), 
+//  	     clk.seconds(), clk.nanoseconds(), 
+//  	     serverId.value());
+//      }
     _misses++;
     event->deallocate(serverId);  // remove the contribution from this event
     event = (EbEvent*)_seek(server);

@@ -24,7 +24,6 @@ class EbEventBase : public LinkedList<EbEventBase>
   public:
     EbBitMask        remaining () const;
     EbBitMask        remaining (EbBitMask id);
-    void             dump      (int number);
     EbBitMask        deallocate(EbBitMask id);
     int              timeouts  (const EbTimeouts& ebtimeouts);
     const EbBitMask& segments  () const;

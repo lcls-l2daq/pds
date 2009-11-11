@@ -21,29 +21,12 @@
 
 using namespace Pds;
 
-
-static inline bool _is_bld(const Node& n)
-{
-  return n.level() == Level::Reporter;
-}
-
-static inline Ins _bld_ins(const Node& n)
-{
-  return Ins(n.ip(), StreamPorts::bld(0).portId());
-}
-
-static inline Src _bld_src(const Node& n)
-{
-  return n.procInfo();
-}
-
 EventLevel::EventLevel(unsigned platform,
 		       EventCallback& callback,
 		       Arp* arp) :
   PartitionMember(platform, Level::Event, arp),
   _callback   (callback),
   _streams    (0),
-  _inlet      (0),
   _reply      (Message::Ping)
 {
 }
@@ -51,24 +34,14 @@ EventLevel::EventLevel(unsigned platform,
 EventLevel::~EventLevel() 
 {
   if (_streams) delete _streams;
-  if (_inlet  ) delete _inlet;
 }
 
 bool EventLevel::attach()
 {
   start();
   if (connect()) {
-    _streams = new EventStreams(*this,
-				new VmonEb(header().procInfo(), BldInfo::NumberOf+1,
-					   EventStreams::EbDepth,(1<<23),(1<<22),"BldEb"));
+    _streams = new EventStreams(*this);
     _streams->connect();
-
-    _inlet = new EbIStream(header().procInfo(),
-                           header().ip(),
-                           Level::Event,
-                           *_streams->wire(StreamParams::FrameWork));
-    _inlet->input()->connect();
-    _streams->wire(StreamParams::FrameWork)->add_input(_inlet->output());
 
     _callback.attached(*_streams);
 
@@ -83,30 +56,16 @@ bool EventLevel::attach()
 
 void EventLevel::dissolved()
 {
-  // detach the ToEb
-  InletWireServer* wire = 
-    dynamic_cast<InletWireServer*>(_streams->wire(StreamParams::FrameWork));
-  wire->unmanage(wire->server(0));
-
-  // destroy all inputs and outputs
-  _inlet->input()->disconnect();
   _streams->disconnect();
-
-  // reattach the ToEb
   _streams->connect();
-  _inlet->input()->connect();
-  wire->add_input(_inlet->output());
 }
 
 void EventLevel::detach()
 {
   if (_streams) {
     _streams->disconnect();
-    _inlet->input()->disconnect();
     delete _streams;
-    delete _inlet;
     _streams = 0;
-    _inlet   = 0;
     //    _callback.dissolved(_dissolver);
   }
   cancel();
@@ -120,8 +79,7 @@ Message& EventLevel::reply(Message::Type)
 void    EventLevel::allocated(const Allocation& alloc,
 			      unsigned          index) 
 {
-  InletWire* bld_wire = _streams->wire(StreamParams::FrameWork);
-  InletWire* pre_wire = _inlet ? _inlet->input() : bld_wire;
+  InletWire* inlet = _streams->wire(StreamParams::FrameWork);
 
   // setup BLD and event servers
   unsigned partition  = alloc.partitionid();
@@ -130,15 +88,7 @@ void    EventLevel::allocated(const Allocation& alloc,
   unsigned segmentid  = 0;
   for (unsigned n=0; n<nnodes; n++) {
     const Node& node = *alloc.node(n);
-    if (_is_bld(node)) {
-      Ins ins( _bld_ins(node) );
-      BldServer* srv = new BldServer(ins, _bld_src(node), EventStreams::netbufdepth);
-      bld_wire->add_input(srv);
-      srv->server().join(ins, Ins(header().ip()));
-      printf("EventLevel::allocated assign bld  fragment %d  %x/%d\n",
-	     srv->id(),ins.address(),srv->server().portId());
-    }
-    else if (node.level() == Level::Segment) {
+    if (node.level() == Level::Segment) {
       // Add vectored output clients on bld_wire
       Ins ins = StreamPorts::event(partition,
 				   Level::Event,
@@ -149,7 +99,7 @@ void    EventLevel::allocated(const Allocation& alloc,
       NetDgServer* srv = new NetDgServer(srvIns,
 					 node.procInfo(),
 					 EventStreams::netbufdepth*EventStreams::MaxSize);
-      pre_wire->add_input(srv);
+      inlet->add_input(srv);
       Ins mcastIns(ins.address());
       srv->server().join(mcastIns, Ins(header().ip()));
       Ins bcastIns = StreamPorts::bcast(partition, Level::Event);
@@ -163,7 +113,7 @@ void    EventLevel::allocated(const Allocation& alloc,
 				     recorderid,
 				     index);
 	InletWireIns wireIns(recorderid, ins);
-	bld_wire->add_output(wireIns);
+	inlet->add_output(wireIns);
 	printf("EventLevel::message adding output %d to %x/%d\n",
 	       recorderid, ins.address(), ins.portId());
 	recorderid++;
@@ -177,23 +127,17 @@ void    EventLevel::allocated(const Allocation& alloc,
 
 void    EventLevel::post     (const Transition& tr)
 {
-  InletWire* bld_wire = _streams->wire(StreamParams::FrameWork);
-  InletWire* pre_wire = _inlet ? _inlet->input() : bld_wire;
-  pre_wire->post(tr);
+  _streams->wire(StreamParams::FrameWork)->post(tr);
 }
 
 void    EventLevel::post     (const Occurrence& tr)
 {
-  InletWire* bld_wire = _streams->wire(StreamParams::FrameWork);
-  InletWire* pre_wire = _inlet ? _inlet->input() : bld_wire;
-  pre_wire->post(tr);
+  _streams->wire(StreamParams::FrameWork)->post(tr);
 }
 
 void    EventLevel::post     (const InDatagram& in)
 {
-  InletWire* bld_wire = _streams->wire(StreamParams::FrameWork);
-  InletWire* pre_wire = _inlet ? _inlet->input() : bld_wire;
-  pre_wire->post(in);
+  _streams->wire(StreamParams::FrameWork)->post(in);
 }
 
 #if 0 // revisit

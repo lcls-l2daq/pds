@@ -1,13 +1,11 @@
 #include "EventStreams.hh"
-#include "pds/utility/ToEventWire.hh"
 #include "EventBuilder.hh"
-#include "pds/service/BitList.hh"
+#include "pds/utility/ToEventWire.hh"
 #include "pds/management/PartitionMember.hh"
+#include "pds/management/VmonServerAppliance.hh"
 #include "pds/service/VmonSourceId.hh"
-//#include "VmonAppliance.hh"
-//#include "pds/collection/McastDb.hh"
-//#include "pds/collection/BcastRegistery.hh"
-#include "pds/utility/EbS.hh"
+#include "pds/service/BitList.hh"
+#include "pds/vmon/VmonEb.hh"
 #include "pds/xtc/XtcType.hh"
 
 #include <sys/types.h>  // required for kill
@@ -15,17 +13,14 @@
 
 using namespace Pds;
 
-EventStreams::EventStreams(PartitionMember& cmgr,
-			   VmonEb* vmoneb) :
+EventStreams::EventStreams(PartitionMember& cmgr) :
   WiredStreams(VmonSourceId(cmgr.header().level(), cmgr.header().ip()))
 {
   const Node& node = cmgr.header();
   Level::Type level = node.level();
   int ipaddress = node.ip();
-
-  //  VmonEb vmoneb(vmon());
-
-   for (int s = 0; s < StreamParams::NumberOfStreams; s++) {
+  const Src& src = cmgr.header().procInfo();
+  for (int s = 0; s < StreamParams::NumberOfStreams; s++) {
 
     _outlets[s] = new ToEventWire(*stream(s)->outlet(), 
 				  cmgr, 
@@ -33,17 +28,18 @@ EventStreams::EventStreams(PartitionMember& cmgr,
 				  MaxSize*netbufdepth,
 				  cmgr.occurrences());
 
-    EventBuilder* eb = new EventBuilder
-      (cmgr.header().procInfo(),
-       _xtcType,
-       level,
-       *stream(s)->inlet(), *_outlets[s], s, ipaddress,
-       MaxSize, EbDepth, vmoneb);
-    
-    _inlet_wires[s] = eb;
+    _inlet_wires[s] = new EventBuilder(src,
+				       _xtcType,
+				       level,
+				       *stream(s)->inlet(), 
+				       *_outlets[s],
+				       s,
+				       ipaddress,
+				       MaxSize, EbDepth,
+				       new VmonEb(src,32,EbDepth,(1<<23),(1<<22)));
+				       
+    (new VmonServerAppliance(src))->connect(stream(s)->inlet());
   }
-  //  _vmom_appliance = new VmonAppliance(vmon());
-  //  _vmom_appliance->connect(stream(StreamParams::Occurrence)->inlet());
 }
 
 EventStreams::~EventStreams()
@@ -52,5 +48,4 @@ EventStreams::~EventStreams()
     delete _inlet_wires[s];
     delete _outlets[s];
   }
-  //  delete _vmom_appliance;
 }

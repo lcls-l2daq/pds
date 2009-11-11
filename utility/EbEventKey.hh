@@ -27,7 +27,7 @@ namespace Pds {
     EbEventKeyDeclare(EbSequenceSrv);
     EbEventKeyDeclare(BldSequenceSrv);
     EbEventKeyDeclare(EbCountSrv);
-    virtual void assign   (const EvrServer&) {}
+    EbEventKeyDeclare(EvrServer);
   public:
     virtual const Sequence& sequence() const = 0;
   };
