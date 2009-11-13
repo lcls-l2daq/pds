@@ -126,8 +126,8 @@ CameraManager::CameraManager(const Src& src,
   _fsm->callback(TransitionId::Map            , new CameraMapAction       (*this));
   _fsm->callback(TransitionId::Configure      , new CameraConfigAction    (*this));
   _fsm->callback(TransitionId::Unconfigure    , new CameraUnconfigAction  (*this));
-  _fsm->callback(TransitionId::BeginCalibCycle, new CameraBeginCalibAction(*this));
-  _fsm->callback(TransitionId::EndCalibCycle  , new CameraEndCalibAction  (*this));
+//   _fsm->callback(TransitionId::BeginCalibCycle, new CameraBeginCalibAction(*this));
+//   _fsm->callback(TransitionId::EndCalibCycle  , new CameraEndCalibAction  (*this));
 }
 
 CameraManager::~CameraManager()

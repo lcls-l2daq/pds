@@ -1,3 +1,8 @@
+2009-Nov-12 weaver	Fix to CameraManager to configure only on Configure (not BeginCalib yet).  Fix to 
+			SegmentLevel and InletWireServer to properly dissolve/allocate the stream (handling
+			the event builder inputs and stream outlet wires).  Change to XtcIterator::iterate()
+			to jump current hierarchy level on receipt of -1 from process() (rather than just
+			out of the entire hierarchy).
 2009-Nov-10 weaver	Tag V01-06-00.  Segregated bld into a separate "segment-level" event builder.
 2009-Nov-5  weaver	Added vmon histograms to bld event builder.  Fixed bug which prevented damage 0x8000 from
 			sometimes propagating up.  Now, damage 0x8000 is marked on the incomplete contribution and

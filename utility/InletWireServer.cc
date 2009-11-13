@@ -22,6 +22,7 @@ static const int TrimOutput   = 6;
 static const int PostInDatagram = 7;  // Assumed to be a "local" out-of-band message, we may pass pointers
 static const int PostTransition = 8;  // Ditto.
 static const int PostOccurrence = 9;  // Ditto.
+static const int RemoveOutputs = 10;
 
 static const unsigned DatagramSize = sizeof(int); // out-of-band message header size
 static const unsigned PayloadSize  = sizeof(Transition);
@@ -84,6 +85,12 @@ void InletWireServer::add_output(const InletWireIns& iwi)
 void InletWireServer::remove_output(const InletWireIns& iwi)
 {
   unblock((char*)&RemoveOutput, (char*)&iwi, sizeof(iwi));
+  _sem.take();
+}
+
+void InletWireServer::remove_outputs()
+{
+  unblock((char*)&RemoveOutputs, (char*)this, sizeof(this)); // dummy arguments
   _sem.take();
 }
 
@@ -171,6 +178,11 @@ int InletWireServer::commit(char* datagram,
     break;
   case RemoveOutput:
     remove_output(iwi.id());
+    _sem.give();
+    break;
+  case RemoveOutputs:
+    for (int id=0; id<EbBitMaskArray::BitMaskBits; id++)
+      if (_outputs.hasBitSet(id)) remove_output(id);
     _sem.give();
     break;
   case TrimInput:

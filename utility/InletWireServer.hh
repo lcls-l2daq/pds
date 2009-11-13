@@ -39,6 +39,7 @@ public:
 
   void add_output(const InletWireIns& iwi);
   void remove_output(const InletWireIns& iwi);
+  void remove_outputs();
   void trim_output(const InletWireIns& iwi);
 
   // Must be reimplemented by those inlets which need to add and remove servers

@@ -293,6 +293,7 @@ void PartitionControl::_next()
 
 void PartitionControl::_complete(TransitionId::Value id)
 {
+  State current = _current_state;
   switch(id) {
   case TransitionId::Unmap          : _current_state = Unmapped  ; break;
   case TransitionId::Unconfigure    : 
@@ -313,7 +314,8 @@ void PartitionControl::_complete(TransitionId::Value id)
   case TransitionId::L1Accept       : return;
   default: break;
   }
-  _next();
+  if (current != _current_state)
+    _next();
 }
 
 void PartitionControl::_queue(TransitionId::Value id)

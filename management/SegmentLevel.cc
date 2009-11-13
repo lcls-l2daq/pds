@@ -114,11 +114,8 @@ void    SegmentLevel::allocated(const Allocation& alloc,
 
 void    SegmentLevel::dissolved()
 {
-  // destroy all inputs and outputs
-  _streams->disconnect();
-
-  // reattach the ToEb
-  _streams->connect();
+  static_cast<InletWireServer*>(_streams->wire())->remove_input(_evr);
+  static_cast<InletWireServer*>(_streams->wire())->remove_outputs();
 }
 
 void    SegmentLevel::post     (const Transition& tr)

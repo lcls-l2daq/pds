@@ -1,6 +1,7 @@
 #ifndef Pds_CameraManager_hh
 #define Pds_CameraManager_hh
 
+#include "pds/camera/FexFrameServer.hh"
 #include "pdsdata/xtc/Xtc.hh"
 #include "pds/config/CfgCache.hh"
 
@@ -16,7 +17,6 @@ namespace Pds {
   class CfgCache;
   class Fsm;
   class DmaSplice;
-  class FexFrameServer;
   class Transition;
   class InDatagram;
 

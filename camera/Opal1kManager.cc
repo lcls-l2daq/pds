@@ -1,7 +1,7 @@
 #include "pds/camera/Opal1kManager.hh"
 
 #include "pds/camera/Opal1kCamera.hh"
-#include "pds/camera/FexFrameServer.hh"
+//#include "pds/camera/FexFrameServer.hh"
 
 #include "pds/config/Opal1kConfigType.hh"
 #include "pds/config/CfgCache.hh"

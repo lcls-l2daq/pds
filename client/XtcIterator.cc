@@ -38,10 +38,14 @@ using namespace Pds;
 
 int XtcIterator::iterate(const Xtc& xtc, InDatagramIterator* root) 
   {
-    if (xtc.damage.value() & ( 1 << Damage::IncompleteContribution))
-      return -1;
+    int sizeofPayload = xtc.sizeofPayload();
 
-    int remaining = xtc.sizeofPayload();
+    if (xtc.damage.value() & ( 1 << Damage::IncompleteContribution)) {
+      root->skip(sizeofPayload);
+      return sizeofPayload;
+    }
+
+    int remaining = sizeofPayload;
     iovec iov[1];
 
     while(remaining > 0) {
@@ -62,11 +66,16 @@ int XtcIterator::iterate(const Xtc& xtc, InDatagramIterator* root)
 	return xlen;
       }
       int len = process(xtc, root);
-      if (len < 0) return len;
-      if (len < xlen)
+      if (len < 0) {
+	root->skip(remaining);
+	return sizeofPayload;
+      }
+      if (len < xlen) {
 	root->skip(xlen-len);
+	len = xlen;
+      }
 
-      remaining -= xlen;
+      remaining -= len;
     }
 
     return xtc.sizeofPayload();
