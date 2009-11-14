@@ -10,6 +10,8 @@
 
 using namespace Pds;
 
+enum { MaxSize = 4*1024*1024 };
+enum { EbDepth = 12 };
 
 EbIStream::EbIStream(const Src&  src,
 		     int         interface,
@@ -40,9 +42,9 @@ EbIStream::EbIStream(const Src&  src,
 				   *_outlet_wire, 
 				   StreamParams::FrameWork, 
 				   interface,
-				   EventStreams::MaxSize, 
-				   EventStreams::EbDepth,
-				   new VmonEb(src,32,EventStreams::EbDepth,(1<<23),(1<<22)));
+				   MaxSize, 
+				   EbDepth,
+				   new VmonEb(src,32,EbDepth,(1<<23),(1<<22)));
   (new VmonServerAppliance(src))->connect(inlet());
 }
  

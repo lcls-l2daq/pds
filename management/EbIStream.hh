@@ -15,8 +15,6 @@ namespace Pds {
   class ToEb;
 
   class EbIStream : public Stream {
-    enum { MaxSize = 4*1024*1024 };
-    enum { EbDepth = 12 };
   public:
     EbIStream(const Src& src,
 	      int        interface,

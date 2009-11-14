@@ -25,7 +25,7 @@ EventStreams::EventStreams(PartitionMember& cmgr) :
     _outlets[s] = new ToEventWire(*stream(s)->outlet(), 
 				  cmgr, 
 				  ipaddress, 
-				  MaxSize*netbufdepth,
+				  MaxSize()*netbufdepth(),
 				  cmgr.occurrences());
 
     _inlet_wires[s] = new EventBuilder(src,
@@ -35,8 +35,8 @@ EventStreams::EventStreams(PartitionMember& cmgr) :
 				       *_outlets[s],
 				       s,
 				       ipaddress,
-				       MaxSize, EbDepth,
-				       new VmonEb(src,32,EbDepth,(1<<23),(1<<22)));
+				       MaxSize(), EbDepth(),
+				       new VmonEb(src,32,EbDepth(),(1<<23),(1<<22)));
 				       
     (new VmonServerAppliance(src))->connect(stream(s)->inlet());
   }
@@ -49,3 +49,8 @@ EventStreams::~EventStreams()
     delete _outlets[s];
   }
 }
+
+unsigned EventStreams::netbufdepth() const { return 8; }
+unsigned EventStreams::EbDepth    () const { return 16; }
+unsigned EventStreams::MaxSize    () const { return 16*1024*1024; }
+

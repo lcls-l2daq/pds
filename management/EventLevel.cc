@@ -98,7 +98,7 @@ void    EventLevel::allocated(const Allocation& alloc,
       Ins srvIns(ins.portId());
       NetDgServer* srv = new NetDgServer(srvIns,
 					 node.procInfo(),
-					 EventStreams::netbufdepth*EventStreams::MaxSize);
+					 _streams->netbufdepth()*_streams->MaxSize());
       inlet->add_input(srv);
       Ins mcastIns(ins.address());
       srv->server().join(mcastIns, Ins(header().ip()));
