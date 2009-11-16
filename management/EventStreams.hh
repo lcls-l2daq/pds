@@ -9,12 +9,15 @@ namespace Pds {
 
   class EventStreams: public WiredStreams {
   public:
-    EventStreams(PartitionMember& cmgr);
-    virtual ~EventStreams();
+    enum { netbufdepth = 8 };
+    enum { EbDepth = 16 };
+    enum { MaxSize = 16*1024*1024 };
   public:
-    virtual unsigned netbufdepth() const;
-    virtual unsigned EbDepth    () const;
-    virtual unsigned MaxSize    () const;
+    EventStreams(PartitionMember& cmgr, 
+		 unsigned max_size      = MaxSize,
+		 unsigned net_buf_depth = netbufdepth,
+		 unsigned eb_depth      = EbDepth);
+    virtual ~EventStreams();
   };
 
 }

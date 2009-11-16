@@ -13,7 +13,10 @@
 
 using namespace Pds;
 
-EventStreams::EventStreams(PartitionMember& cmgr) :
+EventStreams::EventStreams(PartitionMember& cmgr,
+			   unsigned max_size,
+			   unsigned net_buf_depth,
+			   unsigned eb_depth) :
   WiredStreams(VmonSourceId(cmgr.header().level(), cmgr.header().ip()))
 {
   const Node& node = cmgr.header();
@@ -25,7 +28,7 @@ EventStreams::EventStreams(PartitionMember& cmgr) :
     _outlets[s] = new ToEventWire(*stream(s)->outlet(), 
 				  cmgr, 
 				  ipaddress, 
-				  MaxSize()*netbufdepth(),
+				  max_size*net_buf_depth,
 				  cmgr.occurrences());
 
     _inlet_wires[s] = new EventBuilder(src,
@@ -35,8 +38,8 @@ EventStreams::EventStreams(PartitionMember& cmgr) :
 				       *_outlets[s],
 				       s,
 				       ipaddress,
-				       MaxSize(), EbDepth(),
-				       new VmonEb(src,32,EbDepth(),(1<<23),(1<<22)));
+				       max_size, eb_depth,
+				       new VmonEb(src,32,eb_depth,(1<<23),(1<<22)));
 				       
     (new VmonServerAppliance(src))->connect(stream(s)->inlet());
   }
@@ -50,7 +53,4 @@ EventStreams::~EventStreams()
   }
 }
 
-unsigned EventStreams::netbufdepth() const { return 8; }
-unsigned EventStreams::EbDepth    () const { return 16; }
-unsigned EventStreams::MaxSize    () const { return 16*1024*1024; }
 
