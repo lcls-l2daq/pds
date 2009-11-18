@@ -132,7 +132,10 @@ int OfflineClient::AllocateRunNumber(unsigned int *runNumber) {
         printf ("Database operation failed: %s\n", e.what());
         returnVal = -1; // ERROR
       }
-      printf("Completed allocating run number %d\n",_run_number);
+
+      if (0 == returnVal) {
+        printf("Completed allocating run number %d\n",_run_number);
+      }
 
       if (conn != NULL) {
         // close connection
@@ -140,6 +143,14 @@ int OfflineClient::AllocateRunNumber(unsigned int *runNumber) {
       }
     }
   }
+
+  if (-1 == returnVal) {
+    _run_number = 0;
+    if (runNumber)
+      *runNumber = _run_number;
+    printf("%s returning error, setting run number = 0\n", __FUNCTION__);
+  }
+
   return (returnVal);
 }
 
