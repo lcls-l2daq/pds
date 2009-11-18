@@ -26,8 +26,7 @@ EventLevel::EventLevel(unsigned platform,
 		       Arp* arp) :
   PartitionMember(platform, Level::Event, arp),
   _callback   (callback),
-  _streams    (0),
-  _reply      (Message::Ping)
+  _streams    (0)
 {
 }
 
@@ -45,8 +44,8 @@ bool EventLevel::attach()
 
     _callback.attached(*_streams);
 
-    Message join(Message::Join);
-    mcast(join);
+    _reply.ready(true);
+    mcast(_reply);
     return true;
   } else {
     _callback.failed(EventCallback::PlatformUnavailable);

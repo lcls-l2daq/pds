@@ -41,7 +41,7 @@ bool ControlLevel::attach()
     _streams->connect();
     
     _callback.attached(*_streams);
-    
+
     Message join(Message::Join);
     mcast(join);
     ucast(join, CollectionPorts::platform());

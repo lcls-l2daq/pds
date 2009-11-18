@@ -2,6 +2,7 @@
 #define PDS_EVENTLEVEL_HH
 
 #include "PartitionMember.hh"
+#include "pds/collection/PingReply.hh"
 
 namespace Pds {
 
@@ -30,7 +31,7 @@ private:
 private:
   EventCallback& _callback;         // object to notify
   EventStreams*  _streams;          // appliance streams
-  Message        _reply;
+  PingReply      _reply;
 };
 
 }

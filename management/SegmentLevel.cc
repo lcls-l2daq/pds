@@ -50,8 +50,7 @@ bool SegmentLevel::attach()
                       StreamParams::FrameWork, 
                       header().ip());
 
-    //    Message join(Message::Ping);
-    //    mcast(join);
+    _reply.ready(true);
     mcast(_reply);
     return true;
   } else {

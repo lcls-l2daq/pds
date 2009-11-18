@@ -9,11 +9,15 @@
 namespace Pds {
   class PingReply : public Message {
   public:
+    PingReply();
     PingReply(const std::list<Src>& sources);
   public:
     unsigned   nsources() const;
     const Src& source(unsigned i) const;
+    bool       ready() const;
+    void       ready(bool);
   private:
+    bool _ready;
     enum { MAX_SOURCES=4 };
     Src _sources[MAX_SOURCES];
   };

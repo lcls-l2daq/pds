@@ -100,6 +100,8 @@ int Eb::processIo(Server* serverGeneric)
     }
     return 1;
   }
+  if (sizeofPayload > Mtu::Size)
+    printf("Eb::processIo single-chunk 0x%x bytes\n",sizeofPayload);
 
   //  The event key for the contribution may not match that of the event for two reasons:
   //  (1) it is the first contribution, and the event's key(s) are not yet set; or
