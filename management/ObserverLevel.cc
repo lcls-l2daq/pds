@@ -17,7 +17,7 @@
 using namespace Pds;
 
 static const int netbufdepth = 8;
-static const int MaxSize = (1<<22);
+static const int MaxSize = (1<<24);
 
 static inline bool _is_bld(const Node& n)
 {
