@@ -8,7 +8,6 @@ namespace Pds {
 
   class EventCallback;
   class ObserverStreams;
-  class EbIStream;
   class Allocation;
   class OutletWire;
 
@@ -33,7 +32,6 @@ namespace Pds {
     unsigned       _node;
     EventCallback& _callback;         // object to notify
     ObserverStreams * _streams;          // appliance streams
-    EbIStream*     _inlet;
     OutletWire*    _outlets[StreamParams::NumberOfStreams];
 };
 

@@ -10,14 +10,7 @@
 #include "pds/utility/InletWireServer.hh"
 #include "pds/utility/InletWireIns.hh"
 
-#include "pds/service/NetServer.hh"
-#include "pds/utility/BldServer.hh"
 #include "pds/utility/NetDgServer.hh"
-#include "pds/xtc/CDatagram.hh"
-#include "pds/management/EbIStream.hh"
-
-#include "pds/vmon/VmonEb.hh"
-#include "pdsdata/xtc/BldInfo.hh"
 
 using namespace Pds;
 
