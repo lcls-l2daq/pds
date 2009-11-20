@@ -31,8 +31,7 @@ namespace Pds {
     void disconnect();
   public:
     // CollectionObserver interface
-    virtual void allocated(const Allocation&,
-			   unsigned index) {}
+    virtual void allocated(const Allocation&) {}
     virtual void dissolved() {}
     virtual void post(const Transition&);
     virtual void post(const InDatagram&);

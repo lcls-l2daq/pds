@@ -25,7 +25,7 @@ using namespace Pds;
 VmonClientManager::VmonClientManager(unsigned char platform,
 				     const char* partition,
 				     MonConsumerClient& consumer) :
-  CollectionObserver(platform, partition, 0),
+  CollectionObserver(platform, partition),
   _consumer (consumer),
   _socket   (new VmonClientSocket),
   _partition(-1),

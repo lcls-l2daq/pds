@@ -16,9 +16,10 @@ using namespace Pds;
 
 ObserverLevel::ObserverLevel(unsigned platform,
 			     const char* partition,
-			     unsigned node,
+			     unsigned nodes,
 			     EventCallback& callback) :
-  CollectionObserver(platform, partition, node),
+  CollectionObserver(platform, partition),
+  _nodes            (nodes),
   _callback         (callback),
   _streams          (0)
 {
@@ -51,8 +52,7 @@ bool ObserverLevel::attach()
   }
 }
 
-void ObserverLevel::allocated(const Allocation& alloc,
-			      unsigned index)
+void ObserverLevel::allocated(const Allocation& alloc)
 {
   InletWire* inlet = _streams->wire(StreamParams::FrameWork);
 
@@ -63,23 +63,29 @@ void ObserverLevel::allocated(const Allocation& alloc,
   for (unsigned n=0; n<nnodes; n++) {
     const Node& node = *alloc.node(n);
     if (node.level() == Level::Segment) {
-      // Add vectored output clients on bld_wire
-      Ins ins = StreamPorts::event(partition,
-				   Level::Event,
-				   index,
-				   segmentid++);
-      
-      Ins srvIns(ins.portId());
+      Ins srvIns(StreamPorts::event(partition,
+				    Level::Event,
+				    0,  // this parameter is ignored for the port server assignment
+				    segmentid).portId());
       NetDgServer* srv = new NetDgServer(srvIns,
 					 node.procInfo(),
 					 EventStreams::netbufdepth*EventStreams::MaxSize);
       inlet->add_input(srv);
-      Ins mcastIns(ins.address());
-      srv->server().join(mcastIns, Ins(header().ip()));
+
+      for(unsigned mask=_nodes,index=0; mask!=0; mask>>=1,index++) {
+	if (mask&1) {
+	  Ins mcastIns(StreamPorts::event(partition,
+					  Level::Event,
+					  index,
+					  segmentid).address());
+	  srv->server().join(mcastIns, Ins(header().ip()));
+	  printf("ObserverLevel::allocated assign fragment %d  %x/%d\n",
+		 srv->id(),mcastIns.address(),srv->server().portId());
+	}
+      }
       Ins bcastIns = StreamPorts::bcast(partition, Level::Event);
       srv->server().join(bcastIns, Ins(header().ip()));
-      printf("EventLevel::allocated assign fragment %d  %x/%d\n",
-	     srv->id(),mcastIns.address(),srv->server().portId());
+      segmentid++;
     }
   }
 }

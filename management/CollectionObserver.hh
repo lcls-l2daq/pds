@@ -15,12 +15,10 @@ namespace Pds {
   class CollectionObserver : public CollectionManager {
   public:
     CollectionObserver(unsigned char platform,
-		       const char*   partition,
-		       unsigned      node);
+		       const char*   partition);
     ~CollectionObserver();
   public:
-    virtual void allocated(const Allocation&,
-			   unsigned index) = 0;
+    virtual void allocated(const Allocation&) = 0;
     virtual void dissolved() = 0;
   public:
     virtual void post(const Transition&) = 0;
@@ -29,7 +27,6 @@ namespace Pds {
     void message(const Node& hdr, const Message& msg);
   private:
     const char* _partition;
-    unsigned    _node;
     GenericPool _pool;
     bool        _isallocated;
     Node        _allocator;

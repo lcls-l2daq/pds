@@ -12,11 +12,9 @@ static const unsigned MaxPayload = sizeof(Allocate);
 static const unsigned ConnectTimeOut = 250; // 1/4 second
 
 CollectionObserver::CollectionObserver(unsigned char platform,
-				       const char*   partition,
-				       unsigned      node) :
+				       const char*   partition) :
   CollectionManager(Level::Observer, platform, MaxPayload, ConnectTimeOut, NULL),
   _partition       (partition),
-  _node            (node),
   _pool            (MaxPayload,16),
   _isallocated     (false)
 {
@@ -44,7 +42,7 @@ void CollectionObserver::message(const Node& hdr, const Message& msg)
 	  }
 	  _isallocated = true;
 	  _allocator   = hdr;
-	  allocated( alloc, _node );
+	  allocated( alloc );
 	}
 	else if (!(_isallocated && hdr==_allocator))
 	  return;
