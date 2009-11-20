@@ -1,4 +1,4 @@
-2009-Nov-18 weaver	Changed ObserverLevel to take a mask of event-level nodes to monitor.
+2009-Nov-18 weaver	Tag V01-06-01.  Changed ObserverLevel to take a mask of event-level nodes to monitor.
 2009-Nov-12 weaver	Fix to CameraManager to configure only on Configure (not BeginCalib yet).  Fix to 
 			SegmentLevel and InletWireServer to properly dissolve/allocate the stream (handling
 			the event builder inputs and stream outlet wires).  Change to XtcIterator::iterate()
