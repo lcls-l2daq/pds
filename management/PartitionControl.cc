@@ -152,7 +152,8 @@ PartitionControl::PartitionControl(unsigned platform,
   _sem            (Semaphore::EMPTY),
   _control_cb     (&cb),
   _platform_cb    (0),
-  _experiment     (0)
+  _experiment     (0),
+  _use_run_info   (true)
 {
   memset(_transition_env,0,TransitionId::NumberOf*sizeof(unsigned));
   memset(_transition_xtc,0,TransitionId::NumberOf*sizeof(Xtc*));
@@ -210,6 +211,10 @@ void  PartitionControl::set_runAllocator(RunAllocator* ra) {
 
 void  PartitionControl::set_experiment(unsigned experiment) {
   _experiment=experiment;
+}
+
+void  PartitionControl::use_run_info(bool r) {
+  _use_run_info=r;
 }
 
 void  PartitionControl::set_transition_env(TransitionId::Value tr, unsigned env)
@@ -270,10 +275,14 @@ void PartitionControl::_next()
     case Unmapped  : { Allocate alloc(_partition); _queue(alloc); break; }
     case Mapped    : _queue(TransitionId::Configure      ); break;
     case Configured: {
-      unsigned run = _runAllocator->alloc();
-      if (run!=RunAllocator::Error) {
-        RunInfo rinfo(run,_experiment); _queue(rinfo);
+      if (_use_run_info) {
+	unsigned run = _runAllocator->alloc();
+	if (run!=RunAllocator::Error) {
+	  RunInfo rinfo(run,_experiment); _queue(rinfo);
+	}
       }
+      else
+	_queue(TransitionId::BeginRun  );
       break;
     }
     case Running   : _queue(TransitionId::BeginCalibCycle); break;

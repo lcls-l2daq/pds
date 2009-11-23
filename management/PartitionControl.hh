@@ -44,6 +44,7 @@ namespace Pds {
     void  set_run(unsigned run);
     void  set_runAllocator(RunAllocator* ra);
     void  set_experiment(unsigned experiment);
+    void  use_run_info(bool);
   public: // Implements ControlLevel
     void  message          (const Node& hdr, 
 			    const Message& msg);
@@ -72,6 +73,7 @@ namespace Pds {
     RunAllocator*     _runAllocator;
     unsigned   _run;
     unsigned   _experiment;
+    bool       _use_run_info;
     friend class ControlAction;
   };
 
