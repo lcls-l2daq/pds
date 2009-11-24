@@ -39,26 +39,28 @@
 #include "pdsdata/xtc/Xtc.hh"
 
 namespace Pds {
+  class InDatagramIterator;
+}
 
-class InDatagramIterator;
-
-class XtcIterator
-  {
+namespace PdsClient {
+  class XtcIterator {
   public:
-    XtcIterator(const Xtc& xtc, InDatagramIterator* root);
+    XtcIterator(const Pds::Xtc& xtc, Pds::InDatagramIterator* root);
     XtcIterator() {}
-   virtual ~XtcIterator() { }
+    virtual ~XtcIterator() { }
   public:
-    virtual int       process(const Xtc&, InDatagramIterator*) = 0;
+    virtual int       process(const Pds::Xtc&, Pds::InDatagramIterator*) = 0;
   public:
     int               iterate();
-    int               iterate(const Xtc&, InDatagramIterator*);
-    const InDatagramIterator* root()              const;
+    int               iterate(const Pds::Xtc&, Pds::InDatagramIterator*);
+    const Pds::InDatagramIterator* root()              const;
   private:
-    const Xtc* _xtc;
-    InDatagramIterator* _root; // Collection to process in the absence of an argument...
+    const Pds::Xtc* _xtc;
+    Pds::InDatagramIterator* _root; // Collection to process in the absence of an argument...
   };
 }
+
+using PdsClient::XtcIterator;
 
 /*
 ** ++
@@ -70,8 +72,8 @@ class XtcIterator
 ** --
 */
 
-inline Pds::XtcIterator::XtcIterator(const Pds::Xtc& xtc,
-					 Pds::InDatagramIterator* root) :
+inline XtcIterator::XtcIterator(const Pds::Xtc& xtc,
+				Pds::InDatagramIterator* root) :
   _xtc (&xtc),
   _root(root)
   {
@@ -85,7 +87,7 @@ inline Pds::XtcIterator::XtcIterator(const Pds::Xtc& xtc,
 ** --
 */
 
-inline const Pds::InDatagramIterator* Pds::XtcIterator::root() const
+inline const Pds::InDatagramIterator* XtcIterator::root() const
   {
   return _root;
   } 
@@ -99,7 +101,7 @@ inline const Pds::InDatagramIterator* Pds::XtcIterator::root() const
 ** --
 */
 
-inline int  Pds::XtcIterator::iterate() 
+inline int  XtcIterator::iterate() 
 {
   return iterate(*_xtc, _root);
 } 
