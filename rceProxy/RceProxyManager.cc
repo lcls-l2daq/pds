@@ -45,6 +45,21 @@ private:
     CfgClientNfs& _cfg;
 };
 
+class RceProxyUnmapAction : public Action
+{
+public:
+    RceProxyUnmapAction(RceProxyManager& manager) : _manager(manager) {}
+    
+    virtual Transition* fire(Transition* tr)     
+    {
+        const Allocate& alloc = reinterpret_cast<const Allocate&>(*tr);
+        _manager.onActionUnmap(alloc.allocation());
+        return tr;
+    }
+private:
+    RceProxyManager& _manager;
+};
+
 class RceProxyConfigAction : public Action 
 {
 public:
@@ -132,12 +147,14 @@ RceProxyManager::RceProxyManager(CfgClientNfs& cfg, const string& sRceIp, int iN
 {
     _pFsm            = new Fsm();    
     _pActionMap      = new RceProxyAllocAction(*this, cfg);
+    _pActionUnmap    = new RceProxyUnmapAction(*this);
     _pActionConfig   = new RceProxyConfigAction(*this, RceProxyManager::srcLevel, cfg, _iDebugLevel,_iNumLinks,iPayloadSizePerLink);
     // this should go away when we get the configuration from the database - cpo
     _pActionL1Accept = new RceProxyL1AcceptAction(*this, _iDebugLevel);
     _pActionDisable  = new RceProxyDisableAction(*this);
     
     _pFsm->callback(TransitionId::Map,        _pActionMap);
+    _pFsm->callback(TransitionId::Unmap,      _pActionUnmap);
     _pFsm->callback(TransitionId::Configure,  _pActionConfig);
     _pFsm->callback(TransitionId::L1Accept,   _pActionL1Accept);
     _pFsm->callback(TransitionId::Disable,    _pActionDisable);        
@@ -148,6 +165,7 @@ RceProxyManager::~RceProxyManager()
     delete _pActionDisable;
     delete _pActionL1Accept;
     delete _pActionConfig;
+    delete _pActionUnmap; 
     delete _pActionMap; 
     
     delete _pFsm;    
@@ -217,6 +235,26 @@ int RceProxyManager::onActionMap(const Allocation& alloc)
     
     printf( "Sent %d bytes to RCE %s/%d NumLink %d PayloadSizePerLink 0x%x\n", sizeof(msg), _sRceIp.c_str(),  RcePnccd::ProxyMsg::ProxyPort,
       _iNumLinks, _iPayloadSizePerLink);
+    DetInfo& detInfo = (DetInfo&) msg.detInfoSrc;
+    printf( "Detector %s Id %d  Device %s Id %d\n", DetInfo::name( detInfo.detector() ), detInfo.detId(),
+      DetInfo::name( detInfo.device() ), detInfo.devId() );
+    
+    return 0;
+}
+
+int RceProxyManager::onActionUnmap(const Allocation& alloc)
+{
+    RcePnccd::ProxyMsg msg;
+    memset( &msg, 0, sizeof(msg) );       
+    
+    Client udpClient(0, sizeof(msg)); 
+    
+    unsigned int uRceAddr = ntohl( inet_addr( _sRceIp.c_str() ) );
+        
+    Ins insRce( uRceAddr,  RcePnccd::ProxyMsg::ProxyPort );
+    udpClient.send(NULL, (char*) &msg, sizeof(msg), insRce);
+    
+    printf( "Sent %d bytes to RCE %s/%d (Unmap)\n", sizeof(msg), _sRceIp.c_str(),  RcePnccd::ProxyMsg::ProxyPort );
     DetInfo& detInfo = (DetInfo&) msg.detInfoSrc;
     printf( "Detector %s Id %d  Device %s Id %d\n", DetInfo::name( detInfo.detector() ), detInfo.detId(),
       DetInfo::name( detInfo.device() ), detInfo.devId() );

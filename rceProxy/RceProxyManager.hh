@@ -31,6 +31,7 @@ public:
 
     // event handlers
     int onActionMap(const Allocation& allocation);
+    int onActionUnmap(const Allocation& allocation);
     
 private:  
     static const Src srcLevel; // Src for Epics Archiver
@@ -46,6 +47,7 @@ private:
 //     RceProxyConfigAction* _pActionConfig;
   Action* _pActionConfig;
     Action*               _pActionMap;
+    Action*               _pActionUnmap;
     Action*               _pActionL1Accept;
     Action*               _pActionDisable;
     
