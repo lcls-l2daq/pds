@@ -17,7 +17,7 @@ template <class T> EvgrBoardInfo<T>::EvgrBoardInfo(const char* dev) {
   void* ptr = mmap(0, sizeof(T), PROT_READ | PROT_WRITE,
                    MAP_SHARED, _fd, 0);
   if (ptr == MAP_FAILED) {
-    printf("Failed to mmap %s",dev);
+    printf("Failed to mmap %s\n",dev);
     _board=0;
   } else {
     _board = new(ptr) T;

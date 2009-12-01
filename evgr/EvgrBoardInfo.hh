@@ -10,6 +10,7 @@ namespace Pds {
     sem_t* sem()  {return &_sem;}
     int filedes() {return _fd;}
     T& board()    {return *_board;}
+    bool mapped() {return (_board != 0);}
   private:
     int _fd;
     T*  _board;

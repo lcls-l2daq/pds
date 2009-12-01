@@ -5,6 +5,8 @@
 #include <new>
 #include <pthread.h>
 #include <semaphore.h>
+#include <signal.h>
+#include <stdlib.h>
 
 #include "evgr/evr/evr.hh"
 #include "pds/client/Fsm.hh"
@@ -336,6 +338,18 @@ EvrManager::EvrManager(EvgrBoardInfo<Evr> &erInfo,
 
   _er.IrqAssignHandler(erInfo.filedes(), &evrmgr_sig_handler);
   erInfoGlobal = &erInfo;
+
+  // Unix signal support
+  struct sigaction int_action;
+
+  int_action.sa_handler = EvrManager::sigintHandler;
+  sigemptyset(&int_action.sa_mask);
+  int_action.sa_flags = 0;
+  int_action.sa_flags |= SA_RESTART;
+
+  if (sigaction(SIGINT, &int_action, 0) > 0) {
+    printf("Couldn't set up SIGINT handler\n");
+  }
 }
 
 EvrManager::~EvrManager()
@@ -346,4 +360,21 @@ EvrManager::~EvrManager()
 void EvrManager::drop_pulses(unsigned id)
 {
   dropPulseMask = id;
+}
+
+void EvrManager::sigintHandler(int)
+{
+  printf("SIGINT received\n");
+
+  if (erInfoGlobal && erInfoGlobal->mapped()) {
+    Evr& er = erInfoGlobal->board();
+    printf("Stopping triggers and multicast... ");
+    unsigned ram=0;
+    er.MapRamEnable(ram,0);
+    printf("stopped\n");
+  }
+  else {
+    printf("evr not mapped\n");
+  }
+  exit(0);
 }

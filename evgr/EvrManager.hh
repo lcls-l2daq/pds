@@ -17,6 +17,9 @@ namespace Pds {
     EvrManager(EvgrBoardInfo<Evr>& erInfo, 
 	       CfgClientNfs& cfg);
     ~EvrManager();
+
+    // SIGINT handler
+    static void sigintHandler(int);
   public:
     Appliance& appliance();
   public:
