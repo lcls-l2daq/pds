@@ -12,8 +12,6 @@ namespace RcePnccd
 
 namespace Pds 
 {
-//  using namespace RcePnccd;
-
   class Allocation;
   class Src;
   class Ins;
