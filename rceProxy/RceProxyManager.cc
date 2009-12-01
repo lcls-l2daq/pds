@@ -141,6 +141,7 @@ class RceProxyDisableAction : public Action
 };
 
 const Src RceProxyManager::srcLevel = Src(Level::Source);
+RcePnccd::ProxyMsg RceProxyManager::_msg;
 
 RceProxyManager::RceProxyManager(CfgClientNfs& cfg, const string& sRceIp, int iNumLinks, int iPayloadSizePerLink, 
     const Node& selfNode, int iDebugLevel) :
