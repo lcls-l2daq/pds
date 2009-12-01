@@ -8,6 +8,7 @@
 #include <math.h>
 #include <new>
 #include <vector>
+#include <time.h>
 
 #include "pds/service/GenericPool.hh"
 #include "pds/service/Task.hh"
@@ -49,8 +50,8 @@ class RceProxyUnmapAction : public Action
 {
 public:
     RceProxyUnmapAction(RceProxyManager& manager) : _manager(manager) {}
-    
-    virtual Transition* fire(Transition* tr)     
+
+    virtual Transition* fire(Transition* tr)
     {
         const Allocate& alloc = reinterpret_cast<const Allocate&>(*tr);
         _manager.onActionUnmap(alloc.allocation());
@@ -75,6 +76,7 @@ public:
     {
         // in the long term, we should get this from database - cpo
         //_cfg.fetch(*tr,_epicsArchConfigType, &_config);
+      _manager.onActionConfigure();
         return tr;
     }
 
@@ -147,17 +149,15 @@ RceProxyManager::RceProxyManager(CfgClientNfs& cfg, const string& sRceIp, int iN
 {
     _pFsm            = new Fsm();    
     _pActionMap      = new RceProxyAllocAction(*this, cfg);
-    _pActionUnmap    = new RceProxyUnmapAction(*this);
     _pActionConfig   = new RceProxyConfigAction(*this, RceProxyManager::srcLevel, cfg, _iDebugLevel,_iNumLinks,iPayloadSizePerLink);
     // this should go away when we get the configuration from the database - cpo
     _pActionL1Accept = new RceProxyL1AcceptAction(*this, _iDebugLevel);
     _pActionDisable  = new RceProxyDisableAction(*this);
     
     _pFsm->callback(TransitionId::Map,        _pActionMap);
-    _pFsm->callback(TransitionId::Unmap,      _pActionUnmap);
     _pFsm->callback(TransitionId::Configure,  _pActionConfig);
     _pFsm->callback(TransitionId::L1Accept,   _pActionL1Accept);
-    _pFsm->callback(TransitionId::Disable,    _pActionDisable);        
+    _pFsm->callback(TransitionId::Disable,    _pActionDisable);
 }
 
 RceProxyManager::~RceProxyManager()
@@ -165,10 +165,52 @@ RceProxyManager::~RceProxyManager()
     delete _pActionDisable;
     delete _pActionL1Accept;
     delete _pActionConfig;
-    delete _pActionUnmap; 
     delete _pActionMap; 
     
     delete _pFsm;    
+}
+
+int RceProxyManager::onActionConfigure() {
+  Client udpClient(0, sizeof(_msg));
+
+  unsigned int uRceAddr = ntohl( inet_addr( _sRceIp.c_str() ) );
+
+  Ins insRce( uRceAddr,  RcePnccd::ProxyMsg::ProxyPort );
+  udpClient.send(NULL, (char*) &_msg, sizeof(_msg), insRce);
+
+  printf("RceProxy Configure transition\n");
+  printf( "Sent %d bytes to RCE %s/%d NumLink %d PayloadSizePerLink 0x%x\n", sizeof(_msg), _sRceIp.c_str(),  RcePnccd::ProxyMsg::ProxyPort,
+      _iNumLinks, _iPayloadSizePerLink);
+  DetInfo& detInfo = (DetInfo&) _msg.detInfoSrc;
+  printf( "Detector %s Id %d  Device %s Id %d\n", DetInfo::name( detInfo.detector() ), detInfo.detId(),
+      DetInfo::name( detInfo.device() ), detInfo.devId() );
+
+  printf(" Sleeping for 300ms to allow RCE time to configure\n");
+  timespec _sleepTime, _fooTime;
+  _sleepTime.tv_sec = 0;
+  _sleepTime.tv_nsec = 500000000;
+  if (nanosleep(&_sleepTime, &_fooTime)<0) perror("nanosleep in RceProxyManager::onActionMap");
+  return 0;
+}
+
+int RceProxyManager::onActionUnmap(const Allocation& alloc)
+{
+    RcePnccd::ProxyMsg msg;
+    memset( &msg, 0, sizeof(msg) );
+
+    Client udpClient(0, sizeof(msg));
+
+    unsigned int uRceAddr = ntohl( inet_addr( _sRceIp.c_str() ) );
+
+    Ins insRce( uRceAddr,  RcePnccd::ProxyMsg::ProxyPort );
+    udpClient.send(NULL, (char*) &msg, sizeof(msg), insRce);
+
+    printf( "Sent %d bytes to RCE %s/%d (Unmap)\n", sizeof(msg), _sRceIp.c_str(),  RcePnccd::ProxyMsg::ProxyPort );
+    DetInfo& detInfo = (DetInfo&) msg.detInfoSrc;
+    printf( "Detector %s Id %d  Device %s Id %d\n", DetInfo::name( detInfo.detector() ), detInfo.detId(),
+      DetInfo::name( detInfo.device() ), detInfo.devId() );
+
+    return 0;
 }
 
 int RceProxyManager::onActionMap(const Allocation& alloc)
@@ -223,65 +265,31 @@ int RceProxyManager::onActionMap(const Allocation& alloc)
         return 2;
     }
 
-    RcePnccd::ProxyMsg msg;
-    setupProxyMsg( insEvr, vInsEvent, _iNumLinks, _iPayloadSizePerLink, _selfNode.procInfo(), _cfg.src(), msg );
-    
-    Client udpClient(0, sizeof(msg)); 
-    
-    unsigned int uRceAddr = ntohl( inet_addr( _sRceIp.c_str() ) );
-        
-    Ins insRce( uRceAddr,  RcePnccd::ProxyMsg::ProxyPort );
-    udpClient.send(NULL, (char*) &msg, sizeof(msg), insRce);
-    
-    printf( "Sent %d bytes to RCE %s/%d NumLink %d PayloadSizePerLink 0x%x\n", sizeof(msg), _sRceIp.c_str(),  RcePnccd::ProxyMsg::ProxyPort,
-      _iNumLinks, _iPayloadSizePerLink);
-    DetInfo& detInfo = (DetInfo&) msg.detInfoSrc;
-    printf( "Detector %s Id %d  Device %s Id %d\n", DetInfo::name( detInfo.detector() ), detInfo.detId(),
-      DetInfo::name( detInfo.device() ), detInfo.devId() );
-    
-    return 0;
-}
-
-int RceProxyManager::onActionUnmap(const Allocation& alloc)
-{
-    RcePnccd::ProxyMsg msg;
-    memset( &msg, 0, sizeof(msg) );       
-    
-    Client udpClient(0, sizeof(msg)); 
-    
-    unsigned int uRceAddr = ntohl( inet_addr( _sRceIp.c_str() ) );
-        
-    Ins insRce( uRceAddr,  RcePnccd::ProxyMsg::ProxyPort );
-    udpClient.send(NULL, (char*) &msg, sizeof(msg), insRce);
-    
-    printf( "Sent %d bytes to RCE %s/%d (Unmap)\n", sizeof(msg), _sRceIp.c_str(),  RcePnccd::ProxyMsg::ProxyPort );
-    DetInfo& detInfo = (DetInfo&) msg.detInfoSrc;
-    printf( "Detector %s Id %d  Device %s Id %d\n", DetInfo::name( detInfo.detector() ), detInfo.detId(),
-      DetInfo::name( detInfo.device() ), detInfo.devId() );
+    setupProxyMsg( insEvr, vInsEvent, _iNumLinks, _iPayloadSizePerLink, _selfNode.procInfo(), _cfg.src());
     
     return 0;
 }
 
 int RceProxyManager::setupProxyMsg( const Ins& insEvr, const vector<Ins>& vInsEvent, int iNumLinks, 
-  int iPayloadSizePerLink, const ProcInfo& procInfo, const Src& srcProxy, RcePnccd::ProxyMsg& msg )
+  int iPayloadSizePerLink, const ProcInfo& procInfo, const Src& srcProxy)
 {
-    memset( &msg, 0, sizeof(msg) );
-    msg.byteOrderIsBigEndian = 0;
-    msg.numberOfEventLevels = vInsEvent.size();
+    memset( &_msg, 0, sizeof(_msg) );
+    _msg.byteOrderIsBigEndian = 0;
+    _msg.numberOfEventLevels = vInsEvent.size();
     
     for ( int iEvent = 0; iEvent < (int) vInsEvent.size(); iEvent++ )
     {
-        msg.mcAddrs[iEvent].mcaddr = vInsEvent[iEvent].address();
-        msg.mcAddrs[iEvent].mcport = vInsEvent[iEvent].portId();
+        _msg.mcAddrs[iEvent].mcaddr = vInsEvent[iEvent].address();
+        _msg.mcAddrs[iEvent].mcport = vInsEvent[iEvent].portId();
     }
     
-    msg.evrMcAddr.mcaddr = insEvr.address();
-    msg.evrMcAddr.mcport = insEvr.portId();
+    _msg.evrMcAddr.mcaddr = insEvr.address();
+    _msg.evrMcAddr.mcport = insEvr.portId();
 
-    msg.payloadSizePerLink = iPayloadSizePerLink;
-    msg.numberOfLinks = iNumLinks;
-    msg.procInfoSrc = procInfo;
-    msg.detInfoSrc = srcProxy;
+    _msg.payloadSizePerLink = iPayloadSizePerLink;
+    _msg.numberOfLinks = iNumLinks;
+    _msg.procInfoSrc = procInfo;
+    _msg.detInfoSrc = srcProxy;
     
     return 0;
 }
