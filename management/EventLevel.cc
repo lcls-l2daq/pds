@@ -96,8 +96,11 @@ void    EventLevel::allocated(const Allocation& alloc,
       srv->server().join(mcastIns, Ins(header().ip()));
       Ins bcastIns = StreamPorts::bcast(partition, Level::Event);
       srv->server().join(bcastIns, Ins(header().ip()));
-      printf("EventLevel::allocated assign fragment %d  %x/%d\n",
-	     srv->id(),mcastIns.address(),srv->server().portId());
+      printf("EventLevel::allocated assign fragment %d  src %x/%d  dst %x/%d  fd %d\n",
+	     srv->id(),
+	     node.procInfo().ipAddr(),node.procInfo().processId(),
+	     mcastIns.address(),srv->server().portId(),
+	     srv->fd());
     }
     else if (node.level() == Level::Control) {
 	Ins ins = StreamPorts::event(partition,

@@ -33,25 +33,40 @@ void EbS::no_build(Sequence::Type type, unsigned mask)
   _no_builds[type] |= mask;
 }
 
+//
+//  Allocate a new datagram buffer and copy payload into it (from a previously allocated buffer)
+//
+EbEventBase* EbS::_new_event(const EbBitMask& serverId, char* payload, unsigned sizeofPayload)
+{
+  CDatagram* datagram = new(&_datagrams) CDatagram(_ctns, _id);
+  EbSequenceKey* key = new(&_keys) EbSequenceKey(const_cast<Datagram&>(datagram->datagram()));
+  EbEvent* event = new(&_events) EbEvent(serverId, _clients, datagram, key);
+  event->allocated().insert(serverId);
+  event->recopy(payload, sizeofPayload, serverId);
+
+  unsigned depth = _datagrams.depth();
+
+  if (_vmoneb) _vmoneb->depth(depth);
+
+  if (depth==0)
+    _postEvent(_pending.forward());
+  //    arm(_postEvent(_pending.forward()));
+
+  return event;
+}
+
+//
+//  Allocate a new datagram buffer
+//
 EbEventBase* EbS::_new_event(const EbBitMask& serverId)
 {
   unsigned depth = _datagrams.depth();
 
   if (_vmoneb) _vmoneb->depth(depth);
 
-  if (!depth) {
-#if 0
-    printf("*** EbS Flushing\n");
-    EbEventBase* event = _pending.forward();
-    while( event != _pending.empty() ) {
-      printf("   %p %x %x\n", 
-	     event, event->remaining().value(), 
-	     ((EbSequenceKey&)event->key()).sequence().stamp().fiducials());
-      event = event->forward();
-    }
-#endif
+  if (depth==1) // keep one buffer for recopy possibility
     _postEvent(_pending.forward());
-  }
+  //    arm(_postEvent(_pending.forward()));
 
   CDatagram* datagram = new(&_datagrams) CDatagram(_ctns, _id);
   EbSequenceKey* key = new(&_keys) EbSequenceKey(const_cast<Datagram&>(datagram->datagram()));

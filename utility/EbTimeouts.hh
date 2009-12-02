@@ -30,8 +30,8 @@ public:
   static unsigned duration(int);
 
 private:
-  short _tmos[TransitionId::NumberOf*Sequence::NumberOfTypes];
   unsigned _duration;
+  short _tmos;
 };
 }
 #endif

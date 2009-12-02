@@ -23,6 +23,7 @@ class EbC : public Eb
     ~EbC();
   private:
     EbEventBase* _new_event  ( const EbBitMask& );
+    EbEventBase* _new_event  ( const EbBitMask&, char* payload, unsigned sizeofPayload );
   private:
     GenericPool _keys;
   };

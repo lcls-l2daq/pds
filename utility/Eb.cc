@@ -94,6 +94,7 @@ int Eb::processIo(Server* serverGeneric)
   //  If there was an error on receive, remove the contribution from the event.
   //  Remove the event if this was the only contribution.
   if(sizeofPayload<0) {
+    printf("Eb::processIo sizeofPayload %d\n",sizeofPayload);
     if(event->deallocate(serverId).isZero()) { // this was the only contributor
       delete event->finalize();
       delete event;
@@ -124,12 +125,13 @@ int Eb::processIo(Server* serverGeneric)
     event->deallocate(serverId);  // remove the contribution from this event
     event = (EbEvent*)_seek(server);
     if (event == (EbEvent*)_pending.empty()) {
-      event = (EbEvent*)_new_event(serverId);
+      event = (EbEvent*)_new_event(serverId, payload, sizeofPayload); // copies payload into new event
       _pending.insert(event);
     }
-
-    event->allocated().insert(serverId);
-    event->recopy(payload, sizeofPayload, serverId);
+    else {
+      event->allocated().insert(serverId);
+      event->recopy(payload, sizeofPayload, serverId);
+    }
   }
   server->assign(event->key());
 
@@ -141,8 +143,10 @@ int Eb::processIo(Server* serverGeneric)
 
   _hits++;
 
-  if (_is_complete(event, serverId))
+  if (_is_complete(event, serverId)) {
     _postEvent(event);
+    return 1;
+  }
 
   //  return 0;
   //  Remain armed to build future events.

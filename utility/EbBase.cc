@@ -62,7 +62,7 @@ static const char* TaskName(Level::Type level, int stream, Inlet& inlet)
   return name;
 }
 
-static int _nPrints=32;
+static int _nPrints=-1;
 
 EbBase::EbBase(const Src& id,
 	       const TypeId& ctns,
@@ -397,6 +397,8 @@ int EbBase::poll()
   if(!ServerManager::poll()) return 0;
 
   if(active().isZero()) ServerManager::arm(managed());
+
+  //  ServerManager::arm(_pending.forward()!=_pending.empty() ? _pending.forward()->remaining() : managed());
 
   return 1;
   }

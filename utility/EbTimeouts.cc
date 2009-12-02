@@ -5,48 +5,25 @@
 
 using namespace Pds;
 
-static const int framework_tmo = 500; // 10 ms
+static const int framework_tmo = 500;  // 50 ms
 static const int occurence_tmo = 200; // 200 ms
 
 EbTimeouts::EbTimeouts(const EbTimeouts& ebtimeouts) 
-  : _duration(ebtimeouts._duration)
+  : _duration(ebtimeouts._duration),
+    _tmos(2)
 {
-  const int array_size = TransitionId::NumberOf*
-    Sequence::NumberOfTypes*sizeof(_tmos[0]);
-  memcpy(_tmos, ebtimeouts._tmos, array_size);
 }
 
 EbTimeouts::EbTimeouts(int stream, 
 		       Level::Type level) {
-  const int array_size = TransitionId::NumberOf*
-    Sequence::NumberOfTypes*sizeof(_tmos[0]);
-  memset(_tmos, 0, array_size);
 
   if (stream == StreamParams::FrameWork) {
     _duration = framework_tmo;
   } else {
     _duration = occurence_tmo;
   }
-
-  for (unsigned t=0; t<Sequence::NumberOfTypes; t++) {
-    for (unsigned s=0; s<TransitionId::NumberOf; s++) {
-      Sequence::Type type = Sequence::Type(t);
-      TransitionId::Value service = TransitionId::Value(s);
-      switch (level) {
-      case Level::Control:
-	_tmos[type*TransitionId::NumberOf+service] = 2;
-	break;
-      case Level::Segment:
-	_tmos[type*TransitionId::NumberOf+service] = 2;
-	break;
-      case Level::Event:
-	_tmos[type*TransitionId::NumberOf+service] = 2;
-	break;
-      default:
-	break;
-      }
-    }
-  }
+  
+  _tmos = 2;
 }
 
 unsigned EbTimeouts::duration() const {
@@ -54,25 +31,15 @@ unsigned EbTimeouts::duration() const {
 }
 
 unsigned EbTimeouts::duration(int s) {
-  if (s == StreamParams::FrameWork)
-    return framework_tmo;
-  return occurence_tmo;
+  return (s == StreamParams::FrameWork) ? framework_tmo : occurence_tmo;
 }
 
 int EbTimeouts::timeouts(const Sequence* sequence) const {
   //  return _tmos[sequence->type()*TransitionId::NumberOf+
   //  	       sequence->service()];
-  return _tmos[0];
+  return _tmos;
 }
 
 void EbTimeouts::dump() const
 {
-  for (unsigned s=0; s<TransitionId::NumberOf; s++) {
-    printf("  %2d ->", s);
-    for (unsigned t=0; t<Sequence::NumberOfTypes; t++) {
-      printf(" %3d", 
-	     _tmos[t*TransitionId::NumberOf+s]);
-    }
-    printf("\n");
-  }
 }

@@ -28,25 +28,34 @@ EbC::~EbC()
 {
 }
 
+EbEventBase* EbC::_new_event(const EbBitMask& serverId, char* payload, unsigned sizeofPayload)
+{
+  CDatagram* datagram = new(&_datagrams) CDatagram(_ctns, _id);
+  EbCountKey* key = new(&_keys) EbCountKey(const_cast<Datagram&>(datagram->datagram()).seq);
+  EbEvent* event = new(&_events) EbEvent(serverId, _clients, datagram, key);
+  event->allocated().insert(serverId);
+  event->recopy(payload, sizeofPayload, serverId);
+
+  unsigned depth = _datagrams.depth();
+
+  if (_vmoneb) _vmoneb->depth(depth);
+
+  if (depth==0)
+    _postEvent(_pending.forward());
+  //    arm(_postEvent(_pending.forward()));
+
+  return event;
+}
+
 EbEventBase* EbC::_new_event(const EbBitMask& serverId)
 {
   unsigned depth = _datagrams.depth();
 
   if (_vmoneb) _vmoneb->depth(depth);
 
-  if (!depth) {
-#if 0
-    printf("*** EbC Flushing\n");
-    EbEventBase* event = _pending.forward();
-    while( event != _pending.empty() ) {
-      printf("   %p %x %x\n", 
-	     event, event->remaining().value(), 
-	     ((EbCountKey&)event->key()).key);
-      event = event->forward();
-    }
-#endif
+  if (depth==1)
     _postEvent(_pending.forward());
-  }
+  //    arm(_postEvent(_pending.forward()));
 
   CDatagram* datagram = new(&_datagrams) CDatagram(_ctns, _id);
   EbCountKey* key = new(&_keys) EbCountKey(const_cast<Datagram&>(datagram->datagram()).seq);

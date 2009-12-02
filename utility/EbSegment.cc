@@ -99,8 +99,8 @@ void EbSegment::consume(int sizeofFragment, int expected)
 
   if(offset != expected)
     {
-      printf("EbSegment::consume offset/expected/recvd %d/%d/%d\n",
-	     offset,expected,_header.sizeofPayload()-_remaining+sizeof(Xtc));
+      printf("EbSegment::consume offset/expected/recvd %d/%d/%d  %x\n",
+	     offset,expected,_header.sizeofPayload()-_remaining+sizeof(Xtc),_client.value());
     char* base         = _base;
     unsigned* in       = (unsigned*)(base + sizeofFragment + offset);
     unsigned* out      = (unsigned*)(base + sizeofFragment + expected);
@@ -125,7 +125,7 @@ void EbSegment::consume(int sizeofFragment, int expected)
 */
 
 unsigned EbSegment::fixup(){
-  printf("EbSegment::fixup offset/remaining/size %d/%d/%d\n",_offset,_remaining,_header.sizeofPayload());
+  printf("EbSegment::fixup offset/remaining/size %d/%d/%d  %x\n",_offset,_remaining,_header.sizeofPayload(),_client.value());
   Xtc* xtc = new(_base) Xtc(_header.contains, _header.src, 
 			    Damage(1 << Damage::IncompleteContribution));
   xtc->alloc(_header.sizeofPayload());

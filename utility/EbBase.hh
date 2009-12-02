@@ -55,6 +55,7 @@ namespace Pds {
   protected:
     virtual unsigned     _fixup      ( EbEventBase*, const Src&, const EbBitMask& ) = 0;
     virtual EbEventBase* _new_event  ( const EbBitMask& ) = 0;
+    virtual EbEventBase* _new_event  ( const EbBitMask&, char*, unsigned ) = 0;
     virtual bool         _is_complete( EbEventBase*, const EbBitMask& );
     virtual void         _dump       ( int detail ) = 0;
   protected:

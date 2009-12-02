@@ -25,6 +25,7 @@ class EbS : public Eb
     void no_build(Sequence::Type type, unsigned mask);
   private:
     EbEventBase* _new_event  ( const EbBitMask& );
+    EbEventBase* _new_event  ( const EbBitMask&, char* payload, unsigned sizeofPayload );
     unsigned     _fixup      ( EbEventBase*, const Src&, const EbBitMask& );
     bool         _is_complete( EbEventBase*, const EbBitMask& );
   private:
