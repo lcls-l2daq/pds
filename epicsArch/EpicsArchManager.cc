@@ -70,16 +70,24 @@ public:
         
         /*
          * Possible failure modes for _manager.writeMonitoredConfigContent()
-         *
-         * 1. Some PV's ctrl value has not been updated
-         * 2. Memory pool size is not enough for storing PV data
-         * 3. Other reasons. cf. EpicsMonitorPv::writeXtc()
+         *   cf. EpicsArchMonitor::writeToXtc() return codes
+         * 
+         * Error Code     Reason
+         * 
+         * 2              Memory pool size is not enough for storing PV data
+         * 3              All PV write failed. No PV value is outputted
+         * 4              Some PV values have been outputted, but some has write error
+         * 5              Some PV values have been outputted, but some has not been connected
          */
         if ( iFail != 0 )
         {
-            printf( "EpicsArchConfigAction::fire(): writeMonitoredContent() failed, error code = %d\n", iFail );
+          if ( iFail == 3 )
+          {              
             delete out;
             return in;
+          }
+          // set damage bit
+          out->datagram().xtc.damage.increase(Pds::Damage::ContainsIncomplete);
         }                
                   
         if (_iDebugLevel>=1) printf( "\nOutput payload size = %d\n", out->datagram().xtc.sizeofPayload());
@@ -128,17 +136,25 @@ public:
         int iFail = _manager.writeMonitoredContent( out->datagram(), false );                
         
         /*
-         * Possible failure modes for _manager.writeMonitoredTimeContent()
-         *
-         * 1. Some PV's time value has not been updated
-         * 2. Memory pool size is not enough for storing PV data
-         * 3. Other reasons. cf. EpicsMonitorPv::writeXtc()
+         * Possible failure modes for _manager.writeMonitoredConfigContent()
+         *   cf. EpicsArchMonitor::writeToXtc() return codes
+         * 
+         * Error Code     Reason
+         * 
+         * 2              Memory pool size is not enough for storing PV data
+         * 3              All PV write failed. No PV value is outputted
+         * 4              Some PV values have been outputted, but some has write error
+         * 5              Some PV values have been outputted, but some has not been connected
          */
         if ( iFail != 0 )
         {
-            printf( "EpicsArchL1AcceptAction::fire(): writeMonitoredContent() failed, error code = %d\n", iFail );
+          if ( iFail == 3 )
+          {              
             delete out;
             return in;
+          }
+          // set damage bit
+          out->datagram().xtc.damage.increase(Pds::Damage::ContainsIncomplete);
         }                
                   
         if (_iDebugLevel >= 1) printf( "\nOutput payload size = %d\n", out->datagram().xtc.sizeofPayload());

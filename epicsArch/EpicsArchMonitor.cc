@@ -74,7 +74,9 @@ int EpicsArchMonitor::writeToXtc( Datagram& dg, bool bCtrlValue )
     TypeId typeIdXtc(EpicsArchMonitor::typeXtc, EpicsArchMonitor::iXtcVersion);
     char* pPoolBufferOverflowWarning = (char*) &dg + (int)(0.9*EpicsArchMonitor::iMaxXtcSize);    
     
-    bool bAllPvWritingOkay = true;
+    bool bAnyPvWriteOkay      = false;
+    bool bSomePvWriteError    = false; 
+    bool bSomePvNotConnected  = false; // PV not connected: Less serious than the "Write Error"
     for ( int iPvName = 0; iPvName < iNumPv; iPvName++ )
     {
         EpicsMonitorPv& epicsPvCur = _lpvPvList[iPvName];
@@ -84,8 +86,17 @@ int EpicsArchMonitor::writeToXtc( Datagram& dg, bool bCtrlValue )
         XtcEpicsPv* pXtcEpicsPvCur = new(&dg.xtc) XtcEpicsPv(typeIdXtc, detInfoEpics);
 
         int iFail = pXtcEpicsPvCur->setValue( epicsPvCur, bCtrlValue );
-        if ( iFail != 0 )
-            bAllPvWritingOkay = false;
+        if ( iFail == 0 ) 
+          bAnyPvWriteOkay = true;
+        else if ( iFail == 2 ) // Error code 2 means this PV has no connection
+        {
+          if ( bCtrlValue ) // If this happens in the "config" action (ctrl value is about to be written)
+            epicsPvCur.release(); // release this PV and never update it again
+            
+          bSomePvNotConnected = true;
+        }
+        else
+          bSomePvWriteError = true;
             
         char* pCurBufferPointer = (char*) dg.xtc.next();                
         if ( pCurBufferPointer > pPoolBufferOverflowWarning  )
@@ -102,10 +113,12 @@ int EpicsArchMonitor::writeToXtc( Datagram& dg, bool bCtrlValue )
     //    sizeof(Xtc), sizeof(Datagram), pDatagram->xtc.sizeofPayload(), 
     //    sizeof(Datagram) + pDatagram->xtc.sizeofPayload() );
 
-    if ( !bAllPvWritingOkay )
-        return 3;
+    // checking errors, from the most serious one to the less serious one
+    if ( !bAnyPvWriteOkay )     return 3; // No PV has been outputted    
+    if ( bSomePvWriteError )    return 4; // Some PV values have been outputted, but some has write error    
+    if ( bSomePvNotConnected )  return 5; // Some PV values have been outputted, but some has not been connected
 
-    return 0;
+    return 0; // All PV values are outputted successfully
 }
 
 /*

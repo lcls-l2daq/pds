@@ -11,8 +11,12 @@ int XtcEpicsPv::setValue(EpicsMonitorPv& epicsPv, bool bCtrlValue )
     int iSizeXtcEpics = 0;
         
     int iFail = epicsPv.writeXtc( pXtcMem, bCtrlValue, iSizeXtcEpics );
-    if ( iFail != 0 )
-        return 1;
+
+    
+    if ( iFail == 2 ) // Error code 2 means no PV connection yet, which is a special case
+      return 2; // let the caller function know this case
+    else if ( iFail != 0 )
+      return 1;
             
     // Adjust self size
     alloc( iSizeXtcEpics );

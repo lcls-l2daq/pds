@@ -1,23 +1,25 @@
-2009-Dec-03 weaver	Tag V01-08-01.  Enabled select mask in the event builder.  Fixed data
-			corruption associated with event builder "cache misses" (on split events).
-			Tagged top-level xtc with IncompleteContribution damage when cache-miss chunk
-			writes beyond end of xtc payload (rce only - last chunk size is not maximum).
-2009-Nov-18 weaver	Tag V01-06-01.  Changed ObserverLevel to take a mask of event-level nodes to monitor.
-2009-Nov-12 weaver	Fix to CameraManager to configure only on Configure (not BeginCalib yet).  Fix to 
-			SegmentLevel and InletWireServer to properly dissolve/allocate the stream (handling
-			the event builder inputs and stream outlet wires).  Change to XtcIterator::iterate()
-			to jump current hierarchy level on receipt of -1 from process() (rather than just
-			out of the entire hierarchy).
-2009-Nov-10 weaver	Tag V01-06-00.  Segregated bld into a separate "segment-level" event builder.
-2009-Nov-5  weaver	Added vmon histograms to bld event builder.  Fixed bug which prevented damage 0x8000 from
-			sometimes propagating up.  Now, damage 0x8000 is marked on the incomplete contribution and
-			damage 0x10000 is propagated up.  XtcIterator changed accordingly.
-2009-Oct-28 weaver	Tag V01-05-00.  Removed Recorder level.  Fixed ControlStreams bug which caused damage 0x8000
-			on Configure.
+2009-Dec-03 tomytsai    Update epicsArch classes to skip missing PVs and report damage, and also limit on the number of 
+      no-connection errors reported to the console (or log file)
+2009-Dec-03 weaver  Tag V01-08-01.  Enabled select mask in the event builder.  Fixed data
+      corruption associated with event builder "cache misses" (on split events).
+      Tagged top-level xtc with IncompleteContribution damage when cache-miss chunk
+      writes beyond end of xtc payload (rce only - last chunk size is not maximum).
+2009-Nov-18 weaver  Tag V01-06-01.  Changed ObserverLevel to take a mask of event-level nodes to monitor.
+2009-Nov-12 weaver  Fix to CameraManager to configure only on Configure (not BeginCalib yet).  Fix to 
+      SegmentLevel and InletWireServer to properly dissolve/allocate the stream (handling
+      the event builder inputs and stream outlet wires).  Change to XtcIterator::iterate()
+      to jump current hierarchy level on receipt of -1 from process() (rather than just
+      out of the entire hierarchy).
+2009-Nov-10 weaver  Tag V01-06-00.  Segregated bld into a separate "segment-level" event builder.
+2009-Nov-5  weaver  Added vmon histograms to bld event builder.  Fixed bug which prevented damage 0x8000 from
+      sometimes propagating up.  Now, damage 0x8000 is marked on the incomplete contribution and
+      damage 0x10000 is propagated up.  XtcIterator changed accordingly.
+2009-Oct-28 weaver  Tag V01-05-00.  Removed Recorder level.  Fixed ControlStreams bug which caused damage 0x8000
+      on Configure.
 2009-Oct-8  cpo         Fix bug with run number allocation during automatic reconfig when changing config db.  Tagged V01-03-02.
 2009-Oct-8  tomytsai    Add procInfo field into RceProxyMsg structure in rceProxy library
 2009-Oct-8  weaver      Tag V01-04-00.  Evr retrieves opcode from configuration db.
-			Changed event-builder to only use Sequence::fiducials() from BLD and no other Seq fields.
+      Changed event-builder to only use Sequence::fiducials() from BLD and no other Seq fields.
 2009-Oct-7      caf     Version to support logbook entries and filename convention.  Tag V01-03-00.
 2009-Sep-30     weaver/cpo Put in kludge to avoid corrupt xtc files where we don't do a fixup for dropped BLD contributions.
 2009-Sep-29 tomytsai    Add rceProxy library

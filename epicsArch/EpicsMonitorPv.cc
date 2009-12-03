@@ -58,13 +58,13 @@ int EpicsMonitorPv::release()
     
 int EpicsMonitorPv::onCaChannelConnected()
 {        
-    // Check if the connction has been established before
+  // Check if the connction has been established before
   // if yes, it means the connection was lost before, but is automatically
   // recovered by channel access library now
-    if ( _evidTime != NULL )
+  if ( _evidTime != NULL )
   {
-      // reset the flag to true to enable the processing
-      _bConnected = true;
+    // reset the flag to true to enable the processing
+    _bConnected = true;
     return 0;
   }
 
@@ -151,8 +151,8 @@ int EpicsMonitorPv::onCaChannelConnected()
 int EpicsMonitorPv::onCaChannelDisconnected()
 {
     // The channel might be just temporarily reset
-  // so here we only set the flag to be false, and wait for it to come back in the future 
-  _bConnected = false;
+    // so here we only set the flag to be false, and wait for it to come back in the future 
+    _bConnected = false;
     return 0;
 }
 
@@ -252,8 +252,12 @@ int EpicsMonitorPv::writeXtc( char* pcXtcMem, bool bCtrlValue, int& iSizeXtc )
     
     if ( ! _bConnected || _lDbrLastUpdateType == -1 )
     {
-        printf( "EpicsMonitorPv::writeXtc(): Pv %s not Connected\n", _sPvName.c_str() );
-        return 2;
+        if ( _iNumReportForNoConnection < _iMaxNumReportForNoConnection )
+        {
+          printf( "EpicsMonitorPv::writeXtc(): Pv %s not Connected\n", _sPvName.c_str() );
+          _iNumReportForNoConnection++;
+        }
+        return 2; // This error code (2) is a special case, and will be checked by the caller function.
     }        
     
     if ( _lDbfType < 0 || _lDbfType >= _iSizeBasicDbrTypes )

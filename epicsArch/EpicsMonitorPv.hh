@@ -17,8 +17,8 @@ class EpicsMonitorPv
 public:
     EpicsMonitorPv() : _bConnected(false), _iPvId(-1), _chidPv(NULL),  _ulNumElems(0), _lDbfType(-1), 
     _evidCtrl(NULL), _evidTime(NULL), _pTimeValue(NULL), _pCtrlValue(NULL), 
-    _bTimeValueUpdated(false), _bCtrlValueUpdated(false), 
-      _bCtrlValueWritten(false), _lDbrLastUpdateType(-1)
+    _bTimeValueUpdated(false), _bCtrlValueUpdated(false), _bCtrlValueWritten(false), _lDbrLastUpdateType(-1),
+    _iNumReportForNoConnection(0)
     {}
     
     ~EpicsMonitorPv(); // non-virtual destructor: this class is not for inheritance
@@ -55,11 +55,13 @@ public:
         if ( epicsMonitorPv1.isConnected() )
             throw std::string( "EpicsMonitorPv::operator=(): Multiple copies of an initialized pv is not allowed\n" );
         return *this; // do nothing
-    }    
+    }        
     
 private:
     static void caConnectionHandler( struct connection_handler_args args );
     static void caSubscriptionHandler(evargs args);
+    
+    static const int _iMaxNumReportForNoConnection = 10;    
     
     int onCaChannelConnected();
     int onCaChannelDisconnected();
@@ -97,6 +99,8 @@ private:
     bool _bCtrlValueUpdated;
     bool _bCtrlValueWritten;
     long _lDbrLastUpdateType;
+    
+    int  _iNumReportForNoConnection;
     
     static const int _iSizeBasicDbrTypes = EpicsDbrTools::iSizeBasicDbrTypes;
     typedef int (EpicsMonitorPv::*TPrintPvFuncPointer)() const;
