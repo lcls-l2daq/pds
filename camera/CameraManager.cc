@@ -117,7 +117,8 @@ CameraManager::CameraManager(const Src& src,
   _server  (new FexFrameServer(src,*_splice)),
   _fsm     (new Fsm),
   _camConfig    (camConfig),
-  _fexConfig    (new FexConfig(src))
+  _fexConfig    (new FexConfig(src)),
+  _configured (false)
 //   _configBuffer (new char[MaxConfigSize+sizeof(FrameFexConfigType)]),
 //   _configService(new CfgClientNfs(src)),
 //   _fextc        (_frameFexConfigType, src),
@@ -128,13 +129,30 @@ CameraManager::CameraManager(const Src& src,
   _fsm->callback(TransitionId::Unconfigure    , new CameraUnconfigAction  (*this));
 //   _fsm->callback(TransitionId::BeginCalibCycle, new CameraBeginCalibAction(*this));
 //   _fsm->callback(TransitionId::EndCalibCycle  , new CameraEndCalibAction  (*this));
+
+  // Unix signal support
+  struct sigaction int_action;
+
+  int_action.sa_handler = CameraManager::sigintHandler;
+  sigemptyset(&int_action.sa_mask);
+  int_action.sa_flags = 0;
+  int_action.sa_flags |= SA_RESTART;
+  signalHandlerArgs[SIGINT] = this;
+
+  if (sigaction(SIGINT, &int_action, 0) > 0) {
+    printf("Couldn't set up SIGINT handler\n");
+  }
+
 }
 
 CameraManager::~CameraManager()
 {
   delete   _fsm;
   delete   _server;
-  delete   _splice;
+  if (_splice) {
+    delete   _splice;
+    _splice = 0;
+  }
   delete   _fexConfig;
   delete   _camConfig;
 }
@@ -190,8 +208,10 @@ Transition* CameraManager::doConfigure(Transition* tr)
 
       if ((ret = camera().Start()) < 0)
 	printf("Camera::Start: %s.\n", strerror(-ret));
-      else
-	return tr;
+      else {
+        _configured = true;
+        return tr;
+      }
     }
   }
 
@@ -203,8 +223,11 @@ Transition* CameraManager::doConfigure(Transition* tr)
 
 Transition* CameraManager::unconfigure(Transition* tr)
 {
-  camera().Stop();
-  unregister();
+  if (true == _configured) {
+    _configured = false;
+    camera().Stop();
+    unregister();
+  }
   return tr;
 }
 
@@ -287,5 +310,35 @@ void CameraManager::unregister()
   }
 
   _unregister();
+}
+
+void CameraManager::sigintHandler(int)
+{
+  printf("SIGINT received\n");
+
+  Pds::CameraManager* mgr = signalHandlerArgs[SIGINT];
+
+  if (mgr) {
+    if (true == mgr->_configured) {
+      mgr->_configured = false;
+      printf("Calling camera().Stop()... ");
+      mgr->camera().Stop();
+      printf("done.\n");
+      // unregister();
+    }
+    else {
+      printf("%s: not configured\n", __FUNCTION__);
+    }
+
+    if (mgr->_splice) {
+      delete mgr->_splice;
+      mgr->_splice = 0;
+    }
+  }
+  else {
+    printf("%s: signal handler arg %d is NULL\n", __FUNCTION__, SIGINT);
+  }
+
+  exit(0);
 }
 

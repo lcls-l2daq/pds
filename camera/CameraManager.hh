@@ -28,6 +28,9 @@ namespace Pds {
 
     Appliance&      appliance();
     FexFrameServer& server();
+
+    // Unix signal handler
+    static void sigintHandler(int);
     
   public:
     Transition* allocate      (Transition* tr);
@@ -60,6 +63,7 @@ namespace Pds {
     int             _sig;
     CfgCache*       _camConfig;
     CfgCache*       _fexConfig;
+    bool            _configured;
   protected:
     unsigned        _nposts;
   };
