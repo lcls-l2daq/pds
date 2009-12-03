@@ -62,6 +62,7 @@ class EbSegment : public LinkedList<EbSegment>
     EbBitMask  client() const;
     unsigned   fixup();
     Completion complete();
+    void       deallocate(char*, int);
   private:
     char*     _base;
     int       _offset;

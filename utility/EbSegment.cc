@@ -22,6 +22,9 @@
 #include <stdio.h>
 using namespace Pds;
 
+
+extern int nEbPrints;
+
 /*
 ** ++
 **
@@ -99,28 +102,34 @@ void EbSegment::consume(int sizeofFragment, int expected)
 
   if(offset != expected)
     {
-      printf("EbSegment::consume offset/expected/recvd %d/%d/%d  %x\n",
-	     offset,expected,_header.sizeofPayload()-_remaining+sizeof(Xtc),_client.value());
+      if (nEbPrints)
+	printf("EbSegment::consume offset/expected/recvd %d/%d/%d  %x\n",
+	       offset,expected,_header.extent-_remaining,_client.value());
 
       char* base         = _base;
+      unsigned* in       = (unsigned*)(base + sizeofFragment + offset);
       unsigned* out      = (unsigned*)(base + sizeofFragment + expected);
-
-      //
-      //  If the fragment has overwritten the end of the allocated space,
-      //  record damage and give up.
-      //
-      if (out >= (unsigned*)_header.next())
-	_header.damage.increase(Damage::IncompleteContribution);
-      else {
-	unsigned* in       = (unsigned*)(base + sizeofFragment + offset);
-	unsigned remaining = (unsigned)sizeofFragment >> 2;
-	offset             = expected;
-	if(remaining) do *(--out) = *(--in); while(--remaining);
-      }
+      unsigned remaining = (unsigned)sizeofFragment >> 2;
+      offset             = expected;
+      if(remaining) do *(--out) = *(--in); while(--remaining);
     }
 
   _offset     = sizeofFragment + offset;
   _remaining -= sizeofFragment;
+}
+
+
+void EbSegment::deallocate(char* payload, int sizeofFragment)
+{
+  //
+  //  If the fragment has overwritten the end of the allocated space,
+  //  record damage and give up.
+  //
+  if (sizeofFragment + _offset >= _header.extent) {
+    _header.damage.increase(Damage::IncompleteContribution);
+    if (nEbPrints)
+      printf("EbSegment overwrote next %x %x\n",_offset,_header.extent);
+  }
 }
 
 /*
@@ -135,8 +144,8 @@ void EbSegment::consume(int sizeofFragment, int expected)
 */
 
 unsigned EbSegment::fixup(){
-  Damage dmg(_header.damage);  // propagate recorded damage up
-  printf("EbSegment::fixup offset/remaining/size %d/%d/%d  %x\n",_offset,_remaining,_header.sizeofPayload(),_client.value());
+  Damage dmg(_header.damage.value());  // propagate recorded damage up
+  printf("EbSegment::fixup offset/remaining/size %d/%d/%d  %x\n",_offset,_remaining,_header.extent,_client.value());
   Xtc* xtc = new(_base) Xtc(_header.contains, _header.src, 
 			    Damage(dmg.value() | (1 << Damage::IncompleteContribution)));
   xtc->alloc(_header.sizeofPayload());

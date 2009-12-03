@@ -171,6 +171,14 @@ bool EbEvent::consume(const EbServer* srv,
   return false;
 }
 
+EbBitMask EbEvent::deallocate(EbBitMask client, char* payload, int sizeofPayload)
+{
+  EbSegment* segment = hasSegment(client);
+  if (segment)
+    segment->deallocate(payload,sizeofPayload);
+  return EbEventBase::deallocate(client);
+}
+
 /*
 ** ++
 **

@@ -49,6 +49,7 @@ class EbEvent : public EbEventBase
 		 int sizeofPayload,
 		 EbBitMask client);
   public:
+    EbBitMask     deallocate(EbBitMask, char*, int);
     char*         recopy    (char* payload, 
 			     int sizeofPayload, 
 			     EbBitMask server);

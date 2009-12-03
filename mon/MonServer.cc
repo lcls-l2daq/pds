@@ -17,16 +17,18 @@ MonServer::MonServer(const Src& src,
 		     const MonCds& cds, 
 		     MonUsage& usage, 
 		     MonSocket& socket) :
-  _cds    (cds),
-  _usage  (usage),
-  _socket (socket),
-  _reply  (src,MonMessage::NoOp),
-  _iovreply(0),
-  _iovcnt (0),
+  _cds     (cds),
+  _usage   (usage),
+  _socket  (socket),
+  _reply   (src,MonMessage::NoOp),
   _signatures(0),
   _sigcnt (0),
   _enabled(true)
 {
+  _iovreply = new iovec[1];
+  _iovreply[0].iov_base = &_reply;
+  _iovreply[0].iov_len = sizeof(_reply);
+  _iovcnt = 1;
 }
 
 MonServer::~MonServer() 
@@ -104,6 +106,8 @@ void MonServer::description()
 
 void MonServer::payload()
 {
+  adjust();
+
   unsigned used = 0;
   iovec* iov = _iovreply+1;
   for (unsigned short g=0; g<_cds.ngroups(); g++) {
@@ -117,6 +121,8 @@ void MonServer::payload()
 
 void MonServer::payload(unsigned loadsize)
 {
+  adjust();
+
   _socket.read(_signatures, loadsize);
 
   unsigned used = loadsize>>2;

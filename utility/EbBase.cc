@@ -62,7 +62,7 @@ static const char* TaskName(Level::Type level, int stream, Inlet& inlet)
   return name;
 }
 
-static int _nPrints=32;
+int nEbPrints=32;
 
 EbBase::EbBase(const Src& id,
 	       const TypeId& ctns,
@@ -248,7 +248,7 @@ void EbBase::_post(EbEventBase* event)
 
   if(remaining.isNotZero()) {
 
-    if (_nPrints) {
+    if (nEbPrints) {
       const int buffsize=256;
       char buff[buffsize];
       EbBitMask r = remaining;
@@ -265,7 +265,7 @@ void EbBase::_post(EbEventBase* event)
 	}
       }
       printf("%s\n",buff);
-      --_nPrints;
+      --nEbPrints;
     }
 
     // statistics
@@ -586,4 +586,4 @@ bool EbBase::_is_complete( EbEventBase* event,
   return remaining.isZero();
 }
 
-void EbBase::printFixups(int n) { _nPrints=n; }
+void EbBase::printFixups(int n) { nEbPrints=n; }
