@@ -262,7 +262,11 @@ int EpicsMonitorPv::writeXtc( char* pcXtcMem, bool bCtrlValue, int& iSizeXtc )
     
     if ( _lDbfType < 0 || _lDbfType >= _iSizeBasicDbrTypes )
     {
-        printf("EpicsMonitorPv::writeXtc(): Unknown data type %ld\n", _lDbfType);
+        if ( _iNumReportForNoConnection < _iMaxNumReportForNoConnection )
+        {
+          printf("EpicsMonitorPv::writeXtc(): Unknown data type %ld\n", _lDbfType);
+          _iNumReportForNoConnection++;
+        }
         return 3;
     }       
 
