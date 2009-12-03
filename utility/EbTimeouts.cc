@@ -5,7 +5,7 @@
 
 using namespace Pds;
 
-static const int framework_tmo = 500;  // 50 ms
+static const int framework_tmo =  50;  // 50 ms
 static const int occurence_tmo = 200; // 200 ms
 
 EbTimeouts::EbTimeouts(const EbTimeouts& ebtimeouts) 

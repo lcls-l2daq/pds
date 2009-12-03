@@ -28,7 +28,7 @@ class EbS : public Eb
     EbEventBase* _new_event  ( const EbBitMask&, char* payload, unsigned sizeofPayload );
     unsigned     _fixup      ( EbEventBase*, const Src&, const EbBitMask& );
     bool         _is_complete( EbEventBase*, const EbBitMask& );
-  private:
+  protected:
     GenericPool _keys;
     unsigned    _no_builds[Sequence::NumberOfTypes];
   };

@@ -67,6 +67,8 @@ unsigned Eb::_fixup( EbEventBase* event, const Src& client, const EbBitMask& id 
 
 int Eb::processIo(Server* serverGeneric)
 {
+  //  printf("Eb::pIo fd %x\n",serverGeneric->fd());
+
   EbServer* server = (EbServer*)serverGeneric;
 
   //  Find the next event waiting for a contribution from this server.
@@ -145,14 +147,14 @@ int Eb::processIo(Server* serverGeneric)
 
   if (_is_complete(event, serverId)) {
     _postEvent(event);
-    return 1;
+    //    return 1;
   }
 
-  //  return 0;
+  return 0;
   //  Remain armed to build future events.
   //  In general, events will be flushed by later complete events
   //  (or a full queue) rather than timing out.
-  return 1;
+  //  return 1;
 }
 
 

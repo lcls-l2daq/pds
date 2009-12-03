@@ -62,7 +62,7 @@ static const char* TaskName(Level::Type level, int stream, Inlet& inlet)
   return name;
 }
 
-static int _nPrints=-1;
+static int _nPrints=32;
 
 EbBase::EbBase(const Src& id,
 	       const TypeId& ctns,
@@ -190,17 +190,17 @@ void EbBase::flush()
 ** --
 */
 
-EbBitMask EbBase::_armMask(EbEventBase* current, EbEventBase* empty)
+EbBitMask EbBase::_armMask()
 {
-  EbBitMask participants = managed();
-  _clients = participants;
+  EbEventBase* current = _pending.forward();
+  EbEventBase* empty   = _pending.empty();
 
-  if (current == empty) return  participants;
+  if (current == empty) return _clients=managed();
 
-  do{
-    participants &= current->remaining();
-  }
-  while ((current = current->forward()) != empty);
+  EbBitMask participants = current->remaining();
+
+  while ((current = current->forward()) != empty)
+    participants |= current->remaining();
 
   return participants;
 }
@@ -366,7 +366,7 @@ int EbBase::processTmo()
   if (event != empty) {
     if (event->timeouts(_ebtimeouts) > 0) {
       //  mw- Recalculate enable mask - could be done faster (not redone)
-      ServerManager::arm(_armMask(event,empty));
+      ServerManager::arm(_armMask());
     } else {
 #ifdef VERBOSE
       InDatagram* indatagram   = event->finalize();
@@ -377,7 +377,8 @@ int EbBase::processTmo()
 	       datagram->seq.service(), datagram->seq.stamp().fiducials(),
 	       event->remaining().value());
 #endif
-      ServerManager::arm(_postEvent(event));
+      _postEvent(event);
+      ServerManager::arm(_armMask());
     }
   } else {
     ServerManager::arm(managed());
@@ -394,11 +395,17 @@ int EbBase::processTmo()
 
 int EbBase::poll()
   {
+//     { printf("EbB::poll ifds  ");
+//       unsigned* p = reinterpret_cast<unsigned*>(ioList());
+//       unsigned nfd = numFds() >> 5;
+//       do { printf("%08x ",*p++); } while(nfd--);
+//       printf("\n"); }
+
   if(!ServerManager::poll()) return 0;
 
-  if(active().isZero()) ServerManager::arm(managed());
+  //  if(active().isZero()) ServerManager::arm(managed());
 
-  //  ServerManager::arm(_pending.forward()!=_pending.empty() ? _pending.forward()->remaining() : managed());
+  ServerManager::arm(_armMask());
 
   return 1;
   }
