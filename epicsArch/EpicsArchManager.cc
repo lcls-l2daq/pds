@@ -82,10 +82,7 @@ public:
         if ( iFail != 0 )
         {
           // set damage bit          
-          if ( iFail == 3 )
-            out->datagram().xtc.damage.increase(Pds::Damage::DroppedContribution);
-          else
-            out->datagram().xtc.damage.increase(Pds::Damage::ContainsIncomplete);
+          out->datagram().xtc.damage.increase(Pds::Damage::UserDefined);
         }                
                   
         if (_iDebugLevel>=1) printf( "\nOutput payload size = %d\n", out->datagram().xtc.sizeofPayload());
