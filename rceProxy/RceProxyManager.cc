@@ -150,12 +150,14 @@ RceProxyManager::RceProxyManager(CfgClientNfs& cfg, const string& sRceIp, int iN
     {
   _pFsm            = new Fsm();
   _pActionMap      = new RceProxyAllocAction(*this, cfg);
+  _pActionUnmap    = new RceProxyUnmapAction(*this);
   _pActionConfig   = new RceProxyConfigAction(*this, RceProxyManager::srcLevel, cfg, _iDebugLevel,_iNumLinks,iPayloadSizePerLink);
   // this should go away when we get the configuration from the database - cpo
   _pActionL1Accept = new RceProxyL1AcceptAction(*this, _iDebugLevel);
   _pActionDisable  = new RceProxyDisableAction(*this);
 
   _pFsm->callback(TransitionId::Map,        _pActionMap);
+  _pFsm->callback(TransitionId::Unmap,      _pActionUnmap);
   _pFsm->callback(TransitionId::Configure,  _pActionConfig);
   _pFsm->callback(TransitionId::L1Accept,   _pActionL1Accept);
   _pFsm->callback(TransitionId::Disable,    _pActionDisable);
