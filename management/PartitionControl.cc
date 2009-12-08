@@ -53,8 +53,14 @@ namespace Pds {
   public:
     Transition* transitions(Transition* i) {
       if (i->phase() == Transition::Execute) {
-        if (i->id()==TransitionId::Disable) {
+        if (i->id()==TransitionId::Disable ||
+	    i->id()==TransitionId::Map) {
           //
+	  //  The map transition instructs the event-builder streams 
+	  //  to register for multicasts.  Without some ping/reply
+	  //  protocol, we can't verify the registration is complete;
+	  //  so wait some reasonable time.
+	  //
           //  The disable transition often splits the last L1Accept.
           //  There is no way to know when the last L1A has passed through
           //  all levels, so wait some reasonable time.
