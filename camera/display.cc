@@ -135,7 +135,8 @@ int DisplayImage::display(char *data, unsigned long size, unsigned int width, un
 // 	  } while (++d < e);
 	  scale = 1;
 	  for (unsigned i = 0; i < 256; i++) {
-	    unsigned v = (i<<8)/scale;
+	    //	    unsigned v = (i<<8)/scale;
+	    unsigned v = i;
 	    color_table->insert(i, qRgb(v,v,v));
 	  }
 	  images[image_next]->setColorTable(*color_table);

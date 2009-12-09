@@ -21,6 +21,11 @@
 //#define DROP_AFTER_FIRST
 //#define DROP_LAST
 //#define DROP_MIDDLES
+//#define GEN_MISS
+
+#ifdef GEN_MISS
+static Pds::OutletWireHeader _miss_header;
+#endif
 
 namespace Pds {
 /*
@@ -71,11 +76,24 @@ public:
     _header.offset += _nextSize;
     _nextSize = Mtu::Size;
     return --_remaining;
+#else
+#ifdef GEN_MISS
+    if (_remaining==2) {  // swap last chunk
+      OutletWireHeader h = _header;
+      _header = _miss_header;
+      _miss_header = h;
+    }
+    _payload += _nextSize;
+    _header.offset += _nextSize;
+    _nextSize = Mtu::Size;
+    return --_remaining;
+
 #else  // drop nothing
     _payload += _nextSize;
     _header.offset += _nextSize;
     _nextSize = Mtu::Size;
     return --_remaining;
+#endif
 #endif
 #endif
 #endif
