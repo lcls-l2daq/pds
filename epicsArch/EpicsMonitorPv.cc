@@ -74,6 +74,8 @@ int EpicsMonitorPv::onCaChannelConnected()
 
     _lDbrTimeType = dbf_type_to_DBR_TIME(_lDbfType);
     _lDbrCtrlType = dbf_type_to_DBR_CTRL(_lDbfType);
+    if ( _lDbfType == DBF_STRING ) // string doesn't have ctrl type
+	_lDbrCtrlType = DBR_STS_STRING; // use time type instead
 
     _bConnected = true;
     _bTimeValueUpdated = false;
@@ -109,7 +111,8 @@ int EpicsMonitorPv::onCaChannelConnected()
     /* install monitors: */
     /*   1. PV with control values */
     const unsigned long ulEventMask = DBE_VALUE | DBE_ALARM;   /* Event mask used */    
-    if ( _lDbfType != DBF_STRING )
+
+    //if ( _lDbfType != DBF_STRING )
     {        
         _iCaStatus = ca_create_subscription(_lDbrCtrlType,
                                         _ulNumElems,
