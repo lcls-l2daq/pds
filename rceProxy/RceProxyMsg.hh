@@ -36,8 +36,6 @@ namespace RceFBld {
       Pds::Src    procInfoSrc;
       Pds::Src    detInfoSrc;
       Pds::TypeId contains;
-      in_addr_t   proxyAddress;
-      uint32_t    proxyPort;
   };
 
   class ProxyReplyMsg {
