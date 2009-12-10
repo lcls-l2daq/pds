@@ -22,8 +22,8 @@ namespace RceFBld {
 
   class ProxyMsg {
     public:
-      ProxyMsg();
-      ~ProxyMsg();
+      ProxyMsg() : numberOfEventLevels(0) {};
+      ~ProxyMsg() {};
 
     public:
       enum {MaxEventLevelServers=64, ProxyPort=5000};
@@ -43,8 +43,8 @@ namespace RceFBld {
   class ProxyReplyMsg {
 
     public:
-      ProxyReplyMsg();
-      ~ProxyReplyMsg();
+      ProxyReplyMsg() : damage(Pds::Damage(0)) {};
+      ~ProxyReplyMsg() {};
 
     public:
       Pds::Damage   damage;
