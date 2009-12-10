@@ -39,6 +39,16 @@ namespace RceFBld {
       uint32_t    proxyPort;
   };
 
+  class ProxyReplyMsg {
+
+    public:
+      ProxyReplyMsg();
+      ~ProxyReplyMsg();
+
+    public:
+      Pds::Damage   damage;
+  };
+
 }
 
 #endif /* PROXYMSG_HH_ */
