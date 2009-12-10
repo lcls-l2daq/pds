@@ -11,6 +11,7 @@
 #include <netinet/in.h>
 #include <arpa/inet.h>
 #include "pdsdata/xtc/Src.hh"
+#include "pdsdata/xtc/Damage.hh"
 
 struct mcaddress {
     in_addr_t mcaddr;
