@@ -141,7 +141,7 @@ class RceProxyDisableAction : public Action
 };
 
 const Src RceProxyManager::srcLevel = Src(Level::Source);
-RcePnccd::ProxyMsg RceProxyManager::_msg;
+RceFBld::ProxyMsg RceProxyManager::_msg;
 
 RceProxyManager::RceProxyManager(CfgClientNfs& cfg, const string& sRceIp, int iNumLinks, int iPayloadSizePerLink, 
     const Node& selfNode, int iDebugLevel) :
@@ -178,11 +178,11 @@ int RceProxyManager::onActionConfigure() {
 
   unsigned int uRceAddr = ntohl( inet_addr( _sRceIp.c_str() ) );
 
-  Ins insRce( uRceAddr,  RcePnccd::ProxyMsg::ProxyPort );
+  Ins insRce( uRceAddr,  RceFBld::ProxyMsg::ProxyPort );
   udpClient.send(NULL, (char*) &_msg, sizeof(_msg), insRce);
 
   printf("RceProxy Configure transition\n");
-  printf( "Sent %d bytes to RCE %s/%d NumLink %d PayloadSizePerLink 0x%x\n", sizeof(_msg), _sRceIp.c_str(),  RcePnccd::ProxyMsg::ProxyPort,
+  printf( "Sent %d bytes to RCE %s/%d NumLink %d PayloadSizePerLink 0x%x\n", sizeof(_msg), _sRceIp.c_str(),  RceFBld::ProxyMsg::ProxyPort,
       _iNumLinks, _iPayloadSizePerLink);
   DetInfo& detInfo = (DetInfo&) _msg.detInfoSrc;
   printf( "Detector %s Id %d  Device %s Id %d\n", DetInfo::name( detInfo.detector() ), detInfo.detId(),
@@ -198,17 +198,17 @@ int RceProxyManager::onActionConfigure() {
 
 int RceProxyManager::onActionUnmap(const Allocation& alloc)
 {
-  RcePnccd::ProxyMsg msg;
+  RceFBld::ProxyMsg msg;
   memset( &msg, 0, sizeof(msg) );
 
   Client udpClient(0, sizeof(msg));
 
   unsigned int uRceAddr = ntohl( inet_addr( _sRceIp.c_str() ) );
 
-  Ins insRce( uRceAddr,  RcePnccd::ProxyMsg::ProxyPort );
+  Ins insRce( uRceAddr,  RceFBld::ProxyMsg::ProxyPort );
   udpClient.send(NULL, (char*) &msg, sizeof(msg), insRce);
 
-  printf( "Sent %d bytes to RCE %s/%d (Unmap)\n", sizeof(msg), _sRceIp.c_str(),  RcePnccd::ProxyMsg::ProxyPort );
+  printf( "Sent %d bytes to RCE %s/%d (Unmap)\n", sizeof(msg), _sRceIp.c_str(),  RceFBld::ProxyMsg::ProxyPort );
   DetInfo& detInfo = (DetInfo&) msg.detInfoSrc;
   printf( "Detector %s Id %d  Device %s Id %d\n", DetInfo::name( detInfo.detector() ), detInfo.detId(),
       DetInfo::name( detInfo.device() ), detInfo.devId() );
@@ -261,10 +261,10 @@ int RceProxyManager::onActionMap(const Allocation& alloc)
     }
   }
 
-  if ( vInsEvent.size() > RcePnccd::ProxyMsg::MaxEventLevelServers )
+  if ( vInsEvent.size() > RceFBld::ProxyMsg::MaxEventLevelServers )
   {
     printf( "RceProxyManager::onActionMap(): Too many (%d) Event Level Servers (> %d)\n", vInsEvent.size(),
-        RcePnccd::ProxyMsg::MaxEventLevelServers );
+        RceFBld::ProxyMsg::MaxEventLevelServers );
     return 2;
   }
 

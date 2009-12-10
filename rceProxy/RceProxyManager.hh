@@ -54,7 +54,7 @@ namespace Pds
 
       /* static private member attributes */
 
-      static RcePnccd::ProxyMsg    _msg;
+      static RceFBld::ProxyMsg    _msg;
 
       /* static private functions */
       static int setupProxyMsg( const Ins& insEvr, const std::vector<Ins>& vInsEvent, int iNumLinks,
