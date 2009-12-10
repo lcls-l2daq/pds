@@ -75,7 +75,7 @@ int EpicsMonitorPv::onCaChannelConnected()
     _lDbrTimeType = dbf_type_to_DBR_TIME(_lDbfType);
     _lDbrCtrlType = dbf_type_to_DBR_CTRL(_lDbfType);
     if ( _lDbfType == DBF_STRING ) // string doesn't have ctrl type
-	_lDbrCtrlType = DBR_STS_STRING; // use status type instead
+  _lDbrCtrlType = DBR_STS_STRING; // use status type instead
 
     _bConnected = true;
     _bTimeValueUpdated = false;
@@ -112,23 +112,20 @@ int EpicsMonitorPv::onCaChannelConnected()
     /*   1. PV with control values */
     const unsigned long ulEventMask = DBE_VALUE | DBE_ALARM;   /* Event mask used */    
 
-    //if ( _lDbfType != DBF_STRING )
-    {        
-        _iCaStatus = ca_create_subscription(_lDbrCtrlType,
-                                        _ulNumElems,
-                                        _chidPv,
-                                        ulEventMask,
-                                        caSubscriptionHandler,
-                                        this,
-                                        &_evidCtrl);
-        if ( _iCaStatus != ECA_NORMAL )
-        {
-            free ( _pCtrlValue );
-            _pCtrlValue = NULL;
-            printf( "EpicsMonitorPv::onCaChannelConnected()::ca_create_subscription(CTRL) failed, Pv %s CA errmsg: %s\n", 
-                _sPvName.c_str(), ca_message(_iCaStatus));
-            return 2;
-        }
+    _iCaStatus = ca_create_subscription(_lDbrCtrlType,
+                                    _ulNumElems,
+                                    _chidPv,
+                                    ulEventMask,
+                                    caSubscriptionHandler,
+                                    this,
+                                    &_evidCtrl);
+    if ( _iCaStatus != ECA_NORMAL )
+    {
+        free ( _pCtrlValue );
+        _pCtrlValue = NULL;
+        printf( "EpicsMonitorPv::onCaChannelConnected()::ca_create_subscription(CTRL) failed, Pv %s CA errmsg: %s\n", 
+            _sPvName.c_str(), ca_message(_iCaStatus));
+        return 2;
     }
        
     /*   2. PV with time values */
