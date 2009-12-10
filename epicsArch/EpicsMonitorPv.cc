@@ -75,7 +75,7 @@ int EpicsMonitorPv::onCaChannelConnected()
     _lDbrTimeType = dbf_type_to_DBR_TIME(_lDbfType);
     _lDbrCtrlType = dbf_type_to_DBR_CTRL(_lDbfType);
     if ( _lDbfType == DBF_STRING ) // string doesn't have ctrl type
-	_lDbrCtrlType = DBR_STS_STRING; // use time type instead
+	_lDbrCtrlType = DBR_STS_STRING; // use status type instead
 
     _bConnected = true;
     _bTimeValueUpdated = false;
