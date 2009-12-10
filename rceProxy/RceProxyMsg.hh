@@ -17,12 +17,12 @@ struct mcaddress {
     uint32_t  mcport;
 };
 
-namespace RcePnccd {
+namespace RceFBld {
 
   class ProxyMsg {
     public:
-      ProxyMsg() {};
-      ~ProxyMsg() {};
+      ProxyMsg();
+      ~ProxyMsg();
 
     public:
       enum {MaxEventLevelServers=64, ProxyPort=5000};
@@ -33,7 +33,10 @@ namespace RcePnccd {
       uint32_t    payloadSizePerLink;
       uint32_t    numberOfLinks;
       Pds::Src    procInfoSrc;
-      Pds::Src    detInfoSrc;      
+      Pds::Src    detInfoSrc;
+      Pds::TypeId contains;
+      in_addr_t   proxyAddress;
+      uint32_t    proxyPort;
   };
 
 }
