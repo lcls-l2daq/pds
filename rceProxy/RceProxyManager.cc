@@ -67,7 +67,7 @@ class RceProxyConfigAction : public Action
     RceProxyConfigAction(RceProxyManager& manager, const Src& src, CfgClientNfs& cfg, int iDebugLevel, unsigned iNumLinks, unsigned iPayloadSizePerLink) :
       _manager(manager), _src(src), _cfg(cfg), _iDebugLevel(iDebugLevel),
       _cfgtc(_pnCCDConfigType,cfg.src()),
-      _iNumLinks(iNumLinks),_iPayloadSizePerLink(iPayloadSizePerLink)
+      _iNumLinks(iNumLinks),_iPayloadSizePerLink(iPayloadSizePerLink), _damageFromRce(0)
       {}
 
     // this is the first "phase" of a transition where
@@ -76,8 +76,9 @@ class RceProxyConfigAction : public Action
     {
       // in the long term, we should get this from database - cpo
       //_cfg.fetch(*tr,_epicsArchConfigType, &_config);
-      int iFail = _manager.onActionConfigure();
-      if ( iFail != 0 ) return NULL;
+      int iFail = _manager.onActionConfigure(&_damageFromRce);
+      if ( iFail != 0 )
+        _damageFromRce.increase(Damage::UserDefined);
       return tr;
     }
 
@@ -89,6 +90,10 @@ class RceProxyConfigAction : public Action
       pnCCDConfigType config(_iNumLinks,_iPayloadSizePerLink);
       _cfgtc.extent = sizeof(Xtc)+sizeof(pnCCDConfigType);
       in->insert(_cfgtc, &config);
+      
+      if ( _damageFromRce.value() != 0 )
+        in->datagram().xtc.damage.increase(_damageFromRce.value());
+        
       return in;
     }
 
@@ -101,6 +106,7 @@ class RceProxyConfigAction : public Action
     Xtc                 _cfgtc;
     unsigned            _iNumLinks;
     unsigned            _iPayloadSizePerLink;
+    Damage              _damageFromRce;
 };
 
 class RceProxyL1AcceptAction : public Action 
@@ -174,8 +180,8 @@ RceProxyManager::~RceProxyManager()
   delete _pFsm;
 }
 
-int RceProxyManager::onActionConfigure() {
-
+int RceProxyManager::onActionConfigure(Damage* pDamageFromRce) 
+{
   printf("RceProxy Configure transition\n");
   printf( "Sent %d bytes to RCE %s/%d NumLink %d PayloadSizePerLink 0x%x\n", sizeof(_msg), _sRceIp.c_str(),  RceFBld::ProxyMsg::ProxyPort,
       _iNumLinks, _iPayloadSizePerLink);
@@ -232,11 +238,7 @@ int RceProxyManager::onActionConfigure() {
   }
   
   printf( "Received Reply: Damage %d\n", msgReply.damage.value() );
-  if ( msgReply.damage.value() != 0 )
-  {
-    printf( "RceProxyManager::onActionConfigure(): Damage is set by RCE\n" );
-    return 6;
-  }
+  *pDamageFromRce = msgReply.damage;
     
   close(iSocket);
 

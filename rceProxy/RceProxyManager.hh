@@ -19,6 +19,7 @@ namespace Pds
   class Appliance;
   class CfgClientNfs;
   class Action;
+  class Damage;
 
   class RceProxyManager
   {
@@ -32,7 +33,7 @@ namespace Pds
       // event handlers
       int onActionMap(const Allocation& allocation);
       int onActionUnmap(const Allocation& allocation);
-      int onActionConfigure();
+      int onActionConfigure(Damage* pDamageFromRce);
 
     private:
       static const Src srcLevel; // Src for Epics Archiver
