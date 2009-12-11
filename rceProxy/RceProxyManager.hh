@@ -24,7 +24,7 @@ namespace Pds
   {
     public:
       RceProxyManager(CfgClientNfs& cfg, const std::string& sRceIp, int iNumLinks, int iPayloadSizePerLink,
-          const Node& selfNode, int iDebugLevel);
+          TypeId typeidData, const Node& selfNode, int iDebugLevel);
       ~RceProxyManager();
 
       Appliance& appliance() { return *_pFsm; }
@@ -40,6 +40,7 @@ namespace Pds
       std::string           _sRceIp;
       int                   _iNumLinks;
       int                   _iPayloadSizePerLink;
+      TypeId                _typeidData;
       const Node&           _selfNode;
       int                   _iDebugLevel;
 
@@ -58,7 +59,7 @@ namespace Pds
 
       /* static private functions */
       static int setupProxyMsg( const Ins& insEvr, const std::vector<Ins>& vInsEvent, int iNumLinks,
-          int iPayloadSizePerLink, const ProcInfo& procInfo, const Src& srcProxy );
+          int iPayloadSizePerLink, const ProcInfo& procInfo, const Src& srcProxy, TypeId typeidData );
   };
 
 } // namespace Pds

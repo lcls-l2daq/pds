@@ -35,12 +35,12 @@ class RceProxyAllocAction : public Action
     RceProxyAllocAction(RceProxyManager& manager, CfgClientNfs& cfg) : _manager(manager), _cfg(cfg) {}
 
     virtual Transition* fire(Transition* tr)     
-        {
+    {
       const Allocate& alloc = reinterpret_cast<const Allocate&>(*tr);
       _cfg.initialize(alloc.allocation());
       _manager.onActionMap(alloc.allocation());
       return tr;
-        }
+    }
   private:
     RceProxyManager& _manager;
     CfgClientNfs& _cfg;
@@ -52,11 +52,11 @@ class RceProxyUnmapAction : public Action
     RceProxyUnmapAction(RceProxyManager& manager) : _manager(manager) {}
 
     virtual Transition* fire(Transition* tr)
-        {
+    {
       const Allocate& alloc = reinterpret_cast<const Allocate&>(*tr);
       _manager.onActionUnmap(alloc.allocation());
       return tr;
-        }
+    }
   private:
     RceProxyManager& _manager;
 };
@@ -73,23 +73,23 @@ class RceProxyConfigAction : public Action
     // this is the first "phase" of a transition where
     // all CPUs configure in parallel.
     virtual Transition* fire(Transition* tr) 
-        {
+    {
       // in the long term, we should get this from database - cpo
       //_cfg.fetch(*tr,_epicsArchConfigType, &_config);
       _manager.onActionConfigure();
       return tr;
-        }
+    }
 
     // this is the second "phase" of a transition where everybody
     // records the results of configure (which will typically be
     // archived in the xtc file).
     virtual InDatagram* fire(InDatagram* in) 
-        {
+    {
       pnCCDConfigType config(_iNumLinks,_iPayloadSizePerLink);
       _cfgtc.extent = sizeof(Xtc)+sizeof(pnCCDConfigType);
       in->insert(_cfgtc, &config);
       return in;
-        }
+    }
 
   private:
     //RceProxyConfigType _config;
@@ -107,18 +107,18 @@ class RceProxyL1AcceptAction : public Action
   public:
     RceProxyL1AcceptAction(RceProxyManager& manager, int iDebugLevel) :
       _manager(manager), _iDebugLevel(iDebugLevel)
-      {
-      }
+    {
+    }
 
     ~RceProxyL1AcceptAction()
     {}
 
     virtual InDatagram* fire(InDatagram* in)     
-        {
+    {
       // Stop the propagation of L1Accept datagram for RceProxy
       // The real L1 Data will be sent from RCE
       return NULL;
-        }
+    }
 
   private:
     RceProxyManager&   _manager;
@@ -133,9 +133,9 @@ class RceProxyDisableAction : public Action
     {}
 
     virtual Transition* fire(Transition* in) 
-        {
+    {
       return in;
-        }
+    }
   private:
     RceProxyManager& _manager;
 };
@@ -144,10 +144,10 @@ const Src RceProxyManager::srcLevel = Src(Level::Source);
 RceFBld::ProxyMsg RceProxyManager::_msg;
 
 RceProxyManager::RceProxyManager(CfgClientNfs& cfg, const string& sRceIp, int iNumLinks, int iPayloadSizePerLink, 
-    const Node& selfNode, int iDebugLevel) :
-    _sRceIp(sRceIp), _iNumLinks(iNumLinks), _iPayloadSizePerLink(iPayloadSizePerLink),
+    TypeId typeidData, const Node& selfNode, int iDebugLevel) :
+    _sRceIp(sRceIp), _iNumLinks(iNumLinks), _iPayloadSizePerLink(iPayloadSizePerLink), _typeidData(typeidData),
     _selfNode(selfNode), _iDebugLevel(iDebugLevel), _cfg(cfg)
-    {
+{
   _pFsm            = new Fsm();
   _pActionMap      = new RceProxyAllocAction(*this, cfg);
   _pActionUnmap    = new RceProxyUnmapAction(*this);
@@ -161,7 +161,7 @@ RceProxyManager::RceProxyManager(CfgClientNfs& cfg, const string& sRceIp, int iN
   _pFsm->callback(TransitionId::Configure,  _pActionConfig);
   _pFsm->callback(TransitionId::L1Accept,   _pActionL1Accept);
   _pFsm->callback(TransitionId::Disable,    _pActionDisable);
-    }
+}
 
 RceProxyManager::~RceProxyManager()
 {
@@ -188,7 +188,7 @@ int RceProxyManager::onActionConfigure() {
   printf( "Detector %s Id %d  Device %s Id %d\n", DetInfo::name( detInfo.detector() ), detInfo.detId(),
       DetInfo::name( detInfo.device() ), detInfo.devId() );
 
-  printf(" Sleeping for 300ms to allow RCE time to configure\n");
+  printf(" Sleeping for 500ms to allow RCE time to configure\n");
   timespec _sleepTime, _fooTime;
   _sleepTime.tv_sec = 0;
   _sleepTime.tv_nsec = 500000000;
@@ -268,13 +268,13 @@ int RceProxyManager::onActionMap(const Allocation& alloc)
     return 2;
   }
 
-  setupProxyMsg( insEvr, vInsEvent, _iNumLinks, _iPayloadSizePerLink, _selfNode.procInfo(), _cfg.src());
+  setupProxyMsg( insEvr, vInsEvent, _iNumLinks, _iPayloadSizePerLink, _selfNode.procInfo(), _cfg.src(), _typeidData );
 
   return 0;
 }
 
 int RceProxyManager::setupProxyMsg( const Ins& insEvr, const vector<Ins>& vInsEvent, int iNumLinks, 
-    int iPayloadSizePerLink, const ProcInfo& procInfo, const Src& srcProxy)
+    int iPayloadSizePerLink, const ProcInfo& procInfo, const Src& srcProxy, TypeId typeidData)
 {
   memset( &_msg, 0, sizeof(_msg) );
   _msg.byteOrderIsBigEndian = 0;
@@ -290,9 +290,10 @@ int RceProxyManager::setupProxyMsg( const Ins& insEvr, const vector<Ins>& vInsEv
   _msg.evrMcAddr.mcport = insEvr.portId();
 
   _msg.payloadSizePerLink = iPayloadSizePerLink;
-  _msg.numberOfLinks = iNumLinks;
-  _msg.procInfoSrc = procInfo;
-  _msg.detInfoSrc = srcProxy;
+  _msg.numberOfLinks      = iNumLinks;
+  _msg.procInfoSrc        = procInfo;
+  _msg.detInfoSrc         = srcProxy;
+  _msg.contains           = typeidData;
 
   return 0;
 }
