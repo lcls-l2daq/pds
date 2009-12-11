@@ -203,6 +203,24 @@ int RceProxyManager::onActionConfigure() {
     return 2;
   }
   
+  timeval timeout = { 0, 500000 }; // timeout in 500 ms
+  
+  fd_set  fdsetRead;
+  FD_ZERO(&fdsetRead);
+  FD_SET(iSocket, &fdsetRead);
+  iStatus = select(iSocket+1, &fdsetRead, NULL, NULL, &timeout);
+  if ( iStatus == -1 )
+  {
+    printf( "RceProxyManager::onActionConfigure(): select() failed, %s\n", strerror(errno) );
+    return 3;
+  }
+  else if ( iStatus == 0 ) // No socket is ready within the timeout
+  {
+    close(iSocket);
+    printf( "RceProxyManager::onActionConfigure(): No Ack message from RCE within the timeout.\n" );
+    return 4;    
+  }
+  
   RceFBld::ProxyReplyMsg msgReply;
   memset( &msgReply, 0, sizeof(msgReply) );
   
@@ -210,17 +228,17 @@ int RceProxyManager::onActionConfigure() {
   if ( iStatus == -1 )
   {
     printf( "RceProxyManager::onActionConfigure(): recvfrom() failed\n" );
-    return 3;      
+    return 5;      
   }
   
   printf( "Received Reply: Damage %d\n", msgReply.damage.value() );
   if ( msgReply.damage.value() != 0 )
   {
     printf( "RceProxyManager::onActionConfigure(): Damage is set by RCE\n" );
-    return 4;
+    return 6;
   }
     
-  shutdown(iSocket, SHUT_RDWR);
+  close(iSocket);
 
   //Client udpClient(0, sizeof(_msg));
   //unsigned int uRceAddr = ntohl( inet_addr( _sRceIp.c_str() ) );  
