@@ -76,7 +76,8 @@ class RceProxyConfigAction : public Action
     {
       // in the long term, we should get this from database - cpo
       //_cfg.fetch(*tr,_epicsArchConfigType, &_config);
-      _manager.onActionConfigure();
+      int iFail = _manager.onActionConfigure();
+      if ( iFail != 0 ) return NULL;
       return tr;
     }
 
@@ -174,25 +175,63 @@ RceProxyManager::~RceProxyManager()
 }
 
 int RceProxyManager::onActionConfigure() {
-  Client udpClient(0, sizeof(_msg));
-
-  unsigned int uRceAddr = ntohl( inet_addr( _sRceIp.c_str() ) );
-
-  Ins insRce( uRceAddr,  RceFBld::ProxyMsg::ProxyPort );
-  udpClient.send(NULL, (char*) &_msg, sizeof(_msg), insRce);
 
   printf("RceProxy Configure transition\n");
   printf( "Sent %d bytes to RCE %s/%d NumLink %d PayloadSizePerLink 0x%x\n", sizeof(_msg), _sRceIp.c_str(),  RceFBld::ProxyMsg::ProxyPort,
       _iNumLinks, _iPayloadSizePerLink);
   DetInfo& detInfo = (DetInfo&) _msg.detInfoSrc;
   printf( "Detector %s Id %d  Device %s Id %d\n", DetInfo::name( detInfo.detector() ), detInfo.detId(),
-      DetInfo::name( detInfo.device() ), detInfo.devId() );
+      DetInfo::name( detInfo.device() ), detInfo.devId() );      
+  
+  int iSocket = socket(AF_INET, SOCK_DGRAM, 0);   
+  if ( iSocket == -1 ) 
+  {
+    printf( "RceProxyManager::onActionConfigure(): socket() failed\n" );
+    return 1;
+  }
 
-  printf(" Sleeping for 500ms to allow RCE time to configure\n");
-  timespec _sleepTime, _fooTime;
-  _sleepTime.tv_sec = 0;
-  _sleepTime.tv_nsec = 500000000;
-  if (nanosleep(&_sleepTime, &_fooTime)<0) perror("nanosleep in RceProxyManager::onActionConfigure");
+  sockaddr_in sockaddrServer;
+  sockaddrServer.sin_family      = AF_INET;
+  sockaddrServer.sin_addr.s_addr = inet_addr(_sRceIp.c_str());
+  sockaddrServer.sin_port        = htons(RceFBld::ProxyMsg::ProxyPort);
+  
+  int iSizeSockAddr = sizeof(sockaddr_in);    
+  int iStatus = sendto( iSocket, (char*) &_msg, sizeof(_msg), 0, (struct sockaddr*)&sockaddrServer, iSizeSockAddr );
+  if ( iStatus == -1 )
+  {
+    printf( "RceProxyManager::onActionConfigure(): sendto() failed\n" );
+    return 2;
+  }
+  
+  RceFBld::ProxyReplyMsg msgReply;
+  memset( &msgReply, 0, sizeof(msgReply) );
+  
+  iStatus = recvfrom(iSocket, &msgReply, sizeof(msgReply), 0, (struct sockaddr*)&sockaddrServer, (socklen_t*) &iSizeSockAddr);
+  if ( iStatus == -1 )
+  {
+    printf( "RceProxyManager::onActionConfigure(): recvfrom() failed\n" );
+    return 3;      
+  }
+  
+  printf( "Received Reply: Damage %d\n", msgReply.damage.value() );
+  if ( msgReply.damage.value() != 0 )
+  {
+    printf( "RceProxyManager::onActionConfigure(): Damage is set by RCE\n" );
+    return 4;
+  }
+    
+  shutdown(iSocket, SHUT_RDWR);
+
+  //Client udpClient(0, sizeof(_msg));
+  //unsigned int uRceAddr = ntohl( inet_addr( _sRceIp.c_str() ) );  
+  //Ins insRce( uRceAddr,  RceFBld::ProxyMsg::ProxyPort );
+  //udpClient.send(NULL, (char*) &_msg, sizeof(_msg), insRce);
+
+  //printf(" Sleeping for 500ms to allow RCE time to configure\n");
+  //timespec _sleepTime, _fooTime;
+  //_sleepTime.tv_sec = 0;
+  //_sleepTime.tv_nsec = 500000000;
+  //if (nanosleep(&_sleepTime, &_fooTime)<0) perror("nanosleep in RceProxyManager::onActionConfigure");
   return 0;
 }
 
