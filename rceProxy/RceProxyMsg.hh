@@ -22,7 +22,7 @@ namespace RceFBld {
 
   class ProxyMsg {
     public:
-      ProxyMsg() : numberOfEventLevels(0) {};
+      ProxyMsg() : numberOfLinks(0) {};
       ~ProxyMsg() {};
 
     public:
