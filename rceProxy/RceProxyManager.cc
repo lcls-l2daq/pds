@@ -203,7 +203,7 @@ int RceProxyManager::onActionConfigure() {
     return 2;
   }
   
-  timeval timeout = { 0, 500000 }; // timeout in 500 ms
+  timeval timeout = { 2, 0 }; // timeout in 2 secs
   
   fd_set  fdsetRead;
   FD_ZERO(&fdsetRead);
