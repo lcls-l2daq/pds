@@ -260,17 +260,72 @@ int RceProxyManager::onActionUnmap(const Allocation& alloc)
   RceFBld::ProxyMsg msg;
   memset( &msg, 0, sizeof(msg) );
 
-  Client udpClient(0, sizeof(msg));
+  printf("RceProxy Unmap transition\n");  
+  printf( "Sending %d bytes to RCE %s/%d (Unmap)\n", sizeof(msg), _sRceIp.c_str(),  RceFBld::ProxyMsg::ProxyPort );
+  
+  int iSocket = socket(AF_INET, SOCK_DGRAM, 0);
+  if ( iSocket == -1 ) 
+  {
+    printf( "RceProxyManager::onActionUnmap(): socket() failed\n" );
+    return 1;
+  }
+      
+  sockaddr_in sockaddrServer;
+  sockaddrServer.sin_family      = AF_INET;
+  sockaddrServer.sin_addr.s_addr = inet_addr(_sRceIp.c_str());
+  sockaddrServer.sin_port        = htons(RceFBld::ProxyMsg::ProxyPort);
+  
+  int iSizeSockAddr = sizeof(sockaddr_in);    
+  int iStatus = sendto( iSocket, (char*) &msg, sizeof(msg), 0, (struct sockaddr*)&sockaddrServer, iSizeSockAddr );
+  if ( iStatus == -1 )
+  {
+    printf( "RceProxyManager::onActionUnmap(): sendto() failed\n" );
+    return 2;
+  }
+  
+  timeval timeout = { 2, 0 }; // timeout in 2 secs
+  
+  fd_set  fdsetRead;
+  FD_ZERO(&fdsetRead);
+  FD_SET(iSocket, &fdsetRead);
+  iStatus = select(iSocket+1, &fdsetRead, NULL, NULL, &timeout);
+  if ( iStatus == -1 )
+  {
+    printf( "RceProxyManager::onActionUnmap(): select() failed, %s\n", strerror(errno) );
+    return 3;
+  }
+  else if ( iStatus == 0 ) // No socket is ready within the timeout
+  {
+    close(iSocket);
+    printf( "RceProxyManager::onActionUnmap(): No Ack message from RCE within the timeout.\n" );
+    return 4;    
+  }
+  
+  RceFBld::ProxyReplyMsg msgReply;
+  memset( &msgReply, 0, sizeof(msgReply) );
+  
+  iStatus = recvfrom(iSocket, &msgReply, sizeof(msgReply), 0, (struct sockaddr*)&sockaddrServer, (socklen_t*) &iSizeSockAddr);
+  if ( iStatus == -1 )
+  {
+    printf( "RceProxyManager::onActionUnmap(): recvfrom() failed\n" );
+    return 5;      
+  }
+  
+  printf( "Received Reply: Damage %d\n", msgReply.damage.value() );
+    
+  close(iSocket);
+  
+  //Client udpClient(0, sizeof(msg));
 
-  unsigned int uRceAddr = ntohl( inet_addr( _sRceIp.c_str() ) );
+  //unsigned int uRceAddr = ntohl( inet_addr( _sRceIp.c_str() ) );
 
-  Ins insRce( uRceAddr,  RceFBld::ProxyMsg::ProxyPort );
-  udpClient.send(NULL, (char*) &msg, sizeof(msg), insRce);
+  //Ins insRce( uRceAddr,  RceFBld::ProxyMsg::ProxyPort );
+  //udpClient.send(NULL, (char*) &msg, sizeof(msg), insRce);
 
-  printf( "Sent %d bytes to RCE %s/%d (Unmap)\n", sizeof(msg), _sRceIp.c_str(),  RceFBld::ProxyMsg::ProxyPort );
-  DetInfo& detInfo = (DetInfo&) msg.detInfoSrc;
-  printf( "Detector %s Id %d  Device %s Id %d\n", DetInfo::name( detInfo.detector() ), detInfo.detId(),
-      DetInfo::name( detInfo.device() ), detInfo.devId() );
+  //printf( "Sent %d bytes to RCE %s/%d (Unmap)\n", sizeof(msg), _sRceIp.c_str(),  RceFBld::ProxyMsg::ProxyPort );
+  //DetInfo& detInfo = (DetInfo&) msg.detInfoSrc;
+  //printf( "Detector %s Id %d  Device %s Id %d\n", DetInfo::name( detInfo.detector() ), detInfo.detId(),
+  //    DetInfo::name( detInfo.device() ), detInfo.devId() );
 
   return 0;
 }
