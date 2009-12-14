@@ -32,10 +32,12 @@ namespace Pds
 
       // event handlers
       int onActionMap(const Allocation& allocation);
-      int onActionUnmap(const Allocation& allocation);
-      int onActionConfigure(Damage* pDamageFromRce);
+      int onActionUnmap(const Allocation& allocation, Damage& damageFromRce);
+      int onActionConfigure(Damage& damageFromRce);           
 
     private:
+      int sendMessageToRce(const RceFBld::ProxyMsg& msg, RceFBld::ProxyReplyMsg& msgReply);
+    
       static const Src srcLevel; // Src for Epics Archiver
 
       std::string           _sRceIp;

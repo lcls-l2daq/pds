@@ -49,16 +49,26 @@ class RceProxyAllocAction : public Action
 class RceProxyUnmapAction : public Action
 {
   public:
-    RceProxyUnmapAction(RceProxyManager& manager) : _manager(manager) {}
+    RceProxyUnmapAction(RceProxyManager& manager) : _manager(manager), _damageFromRce(0) {}
 
     virtual Transition* fire(Transition* tr)
     {
       const Allocate& alloc = reinterpret_cast<const Allocate&>(*tr);
-      _manager.onActionUnmap(alloc.allocation());
+      _manager.onActionUnmap(alloc.allocation(), _damageFromRce);
       return tr;
     }
+    
+    virtual InDatagram* fire(InDatagram* in) 
+    {
+      if ( _damageFromRce.value() != 0 )
+        in->datagram().xtc.damage.increase(_damageFromRce.value());
+        
+      return in;
+    }
+    
   private:
     RceProxyManager& _manager;
+    Damage           _damageFromRce;
 };
 
 class RceProxyConfigAction : public Action 
@@ -76,7 +86,7 @@ class RceProxyConfigAction : public Action
     {
       // in the long term, we should get this from database - cpo
       //_cfg.fetch(*tr,_epicsArchConfigType, &_config);
-      int iFail = _manager.onActionConfigure(&_damageFromRce);
+      int iFail = _manager.onActionConfigure(_damageFromRce);
       if ( iFail != 0 )
         _damageFromRce.increase(Damage::UserDefined);
       return tr;
@@ -180,154 +190,35 @@ RceProxyManager::~RceProxyManager()
   delete _pFsm;
 }
 
-int RceProxyManager::onActionConfigure(Damage* pDamageFromRce) 
+int RceProxyManager::onActionConfigure(Damage& damageFromRce) 
 {
   printf("RceProxy Configure transition\n");
   printf( "Sent %d bytes to RCE %s/%d NumLink %d PayloadSizePerLink 0x%x\n", sizeof(_msg), _sRceIp.c_str(),  RceFBld::ProxyMsg::ProxyPort,
       _iNumLinks, _iPayloadSizePerLink);
   DetInfo& detInfo = (DetInfo&) _msg.detInfoSrc;
-  printf( "Detector %s Id %d  Device %s Id %d\n", DetInfo::name( detInfo.detector() ), detInfo.detId(),
-      DetInfo::name( detInfo.device() ), detInfo.devId() );      
-  
-  int iSocket = socket(AF_INET, SOCK_DGRAM, 0);   
-  if ( iSocket == -1 ) 
-  {
-    printf( "RceProxyManager::onActionConfigure(): socket() failed\n" );
-    return 1;
-  }
-
-  sockaddr_in sockaddrServer;
-  sockaddrServer.sin_family      = AF_INET;
-  sockaddrServer.sin_addr.s_addr = inet_addr(_sRceIp.c_str());
-  sockaddrServer.sin_port        = htons(RceFBld::ProxyMsg::ProxyPort);
-  
-  int iSizeSockAddr = sizeof(sockaddr_in);    
-  int iStatus = sendto( iSocket, (char*) &_msg, sizeof(_msg), 0, (struct sockaddr*)&sockaddrServer, iSizeSockAddr );
-  if ( iStatus == -1 )
-  {
-    printf( "RceProxyManager::onActionConfigure(): sendto() failed\n" );
-    return 2;
-  }
-  
-  timeval timeout = { 2, 0 }; // timeout in 2 secs
-  
-  fd_set  fdsetRead;
-  FD_ZERO(&fdsetRead);
-  FD_SET(iSocket, &fdsetRead);
-  iStatus = select(iSocket+1, &fdsetRead, NULL, NULL, &timeout);
-  if ( iStatus == -1 )
-  {
-    printf( "RceProxyManager::onActionConfigure(): select() failed, %s\n", strerror(errno) );
-    return 3;
-  }
-  else if ( iStatus == 0 ) // No socket is ready within the timeout
-  {
-    close(iSocket);
-    printf( "RceProxyManager::onActionConfigure(): No Ack message from RCE within the timeout.\n" );
-    return 4;    
-  }
-  
-  RceFBld::ProxyReplyMsg msgReply;
-  memset( &msgReply, 0, sizeof(msgReply) );
-  
-  iStatus = recvfrom(iSocket, &msgReply, sizeof(msgReply), 0, (struct sockaddr*)&sockaddrServer, (socklen_t*) &iSizeSockAddr);
-  if ( iStatus == -1 )
-  {
-    printf( "RceProxyManager::onActionConfigure(): recvfrom() failed\n" );
-    return 5;      
-  }
-  
-  printf( "Received Reply: Damage %d\n", msgReply.damage.value() );
-  *pDamageFromRce = msgReply.damage;
-    
-  close(iSocket);
-
-  //Client udpClient(0, sizeof(_msg));
-  //unsigned int uRceAddr = ntohl( inet_addr( _sRceIp.c_str() ) );  
-  //Ins insRce( uRceAddr,  RceFBld::ProxyMsg::ProxyPort );
-  //udpClient.send(NULL, (char*) &_msg, sizeof(_msg), insRce);
-
-  //printf(" Sleeping for 500ms to allow RCE time to configure\n");
-  //timespec _sleepTime, _fooTime;
-  //_sleepTime.tv_sec = 0;
-  //_sleepTime.tv_nsec = 500000000;
-  //if (nanosleep(&_sleepTime, &_fooTime)<0) perror("nanosleep in RceProxyManager::onActionConfigure");
-  return 0;
+  printf( "Detector %s Id %d  Device %s Id %d Type id %s ver %d\n", DetInfo::name( detInfo.detector() ), detInfo.detId(),
+      DetInfo::name( detInfo.device() ), detInfo.devId(), TypeId::name(_typeidData.id()), _typeidData.version() );
+      
+  RceFBld::ProxyReplyMsg msgReply;        
+  int iFail = sendMessageToRce( _msg, msgReply );
+  if ( iFail != 0 ) return 1;
+  damageFromRce = msgReply.damage;
+  return 0;          
 }
 
-int RceProxyManager::onActionUnmap(const Allocation& alloc)
+int RceProxyManager::onActionUnmap(const Allocation& alloc, Damage& damageFromRce)
 {
-  RceFBld::ProxyMsg msg;
-  memset( &msg, 0, sizeof(msg) );
-
+  RceFBld::ProxyMsg msgUnmap;
+  memset( &msgUnmap, 0, sizeof(msgUnmap) );
+  
   printf("RceProxy Unmap transition\n");  
-  printf( "Sending %d bytes to RCE %s/%d (Unmap)\n", sizeof(msg), _sRceIp.c_str(),  RceFBld::ProxyMsg::ProxyPort );
-  
-  int iSocket = socket(AF_INET, SOCK_DGRAM, 0);
-  if ( iSocket == -1 ) 
-  {
-    printf( "RceProxyManager::onActionUnmap(): socket() failed\n" );
-    return 1;
-  }
-      
-  sockaddr_in sockaddrServer;
-  sockaddrServer.sin_family      = AF_INET;
-  sockaddrServer.sin_addr.s_addr = inet_addr(_sRceIp.c_str());
-  sockaddrServer.sin_port        = htons(RceFBld::ProxyMsg::ProxyPort);
-  
-  int iSizeSockAddr = sizeof(sockaddr_in);    
-  int iStatus = sendto( iSocket, (char*) &msg, sizeof(msg), 0, (struct sockaddr*)&sockaddrServer, iSizeSockAddr );
-  if ( iStatus == -1 )
-  {
-    printf( "RceProxyManager::onActionUnmap(): sendto() failed\n" );
-    return 2;
-  }
-  
-  timeval timeout = { 2, 0 }; // timeout in 2 secs
-  
-  fd_set  fdsetRead;
-  FD_ZERO(&fdsetRead);
-  FD_SET(iSocket, &fdsetRead);
-  iStatus = select(iSocket+1, &fdsetRead, NULL, NULL, &timeout);
-  if ( iStatus == -1 )
-  {
-    printf( "RceProxyManager::onActionUnmap(): select() failed, %s\n", strerror(errno) );
-    return 3;
-  }
-  else if ( iStatus == 0 ) // No socket is ready within the timeout
-  {
-    close(iSocket);
-    printf( "RceProxyManager::onActionUnmap(): No Ack message from RCE within the timeout.\n" );
-    return 4;    
-  }
-  
-  RceFBld::ProxyReplyMsg msgReply;
-  memset( &msgReply, 0, sizeof(msgReply) );
-  
-  iStatus = recvfrom(iSocket, &msgReply, sizeof(msgReply), 0, (struct sockaddr*)&sockaddrServer, (socklen_t*) &iSizeSockAddr);
-  if ( iStatus == -1 )
-  {
-    printf( "RceProxyManager::onActionUnmap(): recvfrom() failed\n" );
-    return 5;      
-  }
-  
-  printf( "Received Reply: Damage %d\n", msgReply.damage.value() );
-    
-  close(iSocket);
-  
-  //Client udpClient(0, sizeof(msg));
-
-  //unsigned int uRceAddr = ntohl( inet_addr( _sRceIp.c_str() ) );
-
-  //Ins insRce( uRceAddr,  RceFBld::ProxyMsg::ProxyPort );
-  //udpClient.send(NULL, (char*) &msg, sizeof(msg), insRce);
-
-  //printf( "Sent %d bytes to RCE %s/%d (Unmap)\n", sizeof(msg), _sRceIp.c_str(),  RceFBld::ProxyMsg::ProxyPort );
-  //DetInfo& detInfo = (DetInfo&) msg.detInfoSrc;
-  //printf( "Detector %s Id %d  Device %s Id %d\n", DetInfo::name( detInfo.detector() ), detInfo.detId(),
-  //    DetInfo::name( detInfo.device() ), detInfo.devId() );
-
-  return 0;
+  printf( "Sending %d bytes to RCE %s/%d (Unmap)\n", sizeof(msgUnmap), _sRceIp.c_str(),  RceFBld::ProxyMsg::ProxyPort );
+   
+  RceFBld::ProxyReplyMsg msgReply;  
+  int iFail = sendMessageToRce( msgUnmap, msgReply );
+  if ( iFail != 0 ) return 1;
+  damageFromRce = msgReply.damage;
+  return 0;  
 }
 
 int RceProxyManager::onActionMap(const Allocation& alloc)
@@ -384,6 +275,62 @@ int RceProxyManager::onActionMap(const Allocation& alloc)
 
   setupProxyMsg( insEvr, vInsEvent, _iNumLinks, _iPayloadSizePerLink, _selfNode.procInfo(), _cfg.src(), _typeidData );
 
+  return 0;
+}
+
+int RceProxyManager::sendMessageToRce(const RceFBld::ProxyMsg& msg, RceFBld::ProxyReplyMsg& msgReply)
+{
+  int iSocket = socket(AF_INET, SOCK_DGRAM, 0);
+  if ( iSocket == -1 ) 
+  {
+    printf( "RceProxyManager::onActionUnmap(): socket() failed\n" );
+    return 1;
+  }
+      
+  sockaddr_in sockaddrServer;
+  sockaddrServer.sin_family      = AF_INET;
+  sockaddrServer.sin_addr.s_addr = inet_addr(_sRceIp.c_str());
+  sockaddrServer.sin_port        = htons(RceFBld::ProxyMsg::ProxyPort);
+  
+  int iSizeSockAddr = sizeof(sockaddr_in);    
+  int iStatus = sendto( iSocket, (char*) &msg, sizeof(msg), 0, (struct sockaddr*)&sockaddrServer, iSizeSockAddr );
+  if ( iStatus == -1 )
+  {
+    printf( "RceProxyManager::sendMessageToRce(): sendto() failed\n" );
+    return 2;
+  }
+  
+  timeval timeout = { 2, 0 }; // timeout in 2 secs
+  
+  fd_set  fdsetRead;
+  FD_ZERO(&fdsetRead);
+  FD_SET(iSocket, &fdsetRead);
+  iStatus = select(iSocket+1, &fdsetRead, NULL, NULL, &timeout);
+  if ( iStatus == -1 )
+  {
+    printf( "RceProxyManager::sendMessageToRce(): select() failed, %s\n", strerror(errno) );
+    return 3;
+  }
+  else if ( iStatus == 0 ) // No socket is ready within the timeout
+  {
+    close(iSocket);
+    printf( "RceProxyManager::sendMessageToRce(): No Ack message from RCE within the timeout.\n" );
+    return 4;    
+  }
+  
+  memset( &msgReply, 0, sizeof(msgReply) );
+  
+  iStatus = recvfrom(iSocket, &msgReply, sizeof(msgReply), 0, (struct sockaddr*)&sockaddrServer, (socklen_t*) &iSizeSockAddr);
+  if ( iStatus == -1 )
+  {
+    printf( "RceProxyManager::sendMessageToRce(): recvfrom() failed\n" );
+    return 5;      
+  }
+  
+  printf( "Received Reply: Damage %d\n", msgReply.damage.value() );
+    
+  close(iSocket);  
+  
   return 0;
 }
 
