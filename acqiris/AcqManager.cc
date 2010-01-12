@@ -213,7 +213,10 @@ public:
       }
       _outoforder=1;
     }
-    if (_outoforder) dg.xtc.damage.increase(Pds::Damage::OutOfOrder);
+    //
+    //  Removed for one-shot mode, where shots may be separated by minutes
+    //
+    //    if (_outoforder) dg.xtc.damage.increase(Pds::Damage::OutOfOrder);
     //
     //  OutOfOrder calculation is not robust against long periods between events
     //    because of differing clock rates in the acqiris and master timing system
