@@ -61,11 +61,11 @@ void PartitionMember::message(const Node& hdr, const Message& msg)
 		_allocator = hdr;
 		_occurrences = msg.reply_to();
 		allocated( alloc, _index=index );
+		lpost = true;
 	      }
 	      index++;
 	    }
 	  }
-	  lpost = true;
 	}
 	else if (tr.phase() == Transition::Execute && 
 		 tr.id() == TransitionId::Unmap) {
