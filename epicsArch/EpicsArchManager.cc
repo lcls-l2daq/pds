@@ -8,7 +8,6 @@
 #include <errno.h>
 #include <math.h>
 
-#include "pds/service/GenericPool.hh"
 #include "pds/service/Task.hh"
 #include "pds/service/Routine.hh"
 #include "pds/service/GenericPool.hh"
@@ -168,8 +167,6 @@ public:
         
     virtual Transition* fire(Transition* in) 
     {
-        //printf("EpicsArchManager received %d l1accepts\n",cpol1);
-        // Call _mrg.Disable()
         return in;
     }
 private:
@@ -211,6 +208,7 @@ EpicsArchManager::~EpicsArchManager()
 
 int EpicsArchManager::onActionMap()
 {
+    // initialize thread-specific data
     return initMonitor();
 }
 
