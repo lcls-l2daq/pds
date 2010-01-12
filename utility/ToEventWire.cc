@@ -7,6 +7,8 @@
 #include "pds/xtc/Datagram.hh"
 #include "pds/xtc/InDatagram.hh"
 
+#include <errno.h>
+
 using namespace Pds;
 
 ToEventWire::ToEventWire(Outlet& outlet,
@@ -41,8 +43,14 @@ Occurrence* ToEventWire::forward(Occurrence* tr)
 InDatagram* ToEventWire::forward(InDatagram* dg)
 {
   const Sequence& seq = dg->datagram().seq;
-  const Ins& dst = (seq.isEvent() && !_nodes.isempty()) ? _nodes.lookup(seq)->ins() : _bcast;
-  int result = dg->send(_postman, dst);
+  int result;
+  if (!_nodes.isempty()) {
+    const Ins& dst = (seq.isEvent()) ? _nodes.lookup(seq)->ins() : _bcast;
+    result = dg->send(_postman, dst);
+  }
+  else {
+    result = EDESTADDRREQ;
+  }
   if (result) _log(dg->datagram(), result);
   return 0;
 }
