@@ -20,6 +20,7 @@ namespace Pds {
 
     void* operator new(size_t, Pool*);
     void* operator new(size_t, RingPool*);
+    void* operator new(size_t, void*);
     void  operator delete(void* buffer);
 
     const Datagram& datagram() const;
@@ -46,7 +47,7 @@ inline Pds::CDatagram::CDatagram(const Datagram& dg) :
 }
 
 inline Pds::CDatagram::CDatagram(const Datagram& dg,
-				 const Xtc& xtc) :
+         const Xtc& xtc) :
   _datagram(dg)
 {
   int size = xtc.sizeofPayload();
@@ -65,14 +66,19 @@ inline Pds::CDatagram::CDatagram(const Datagram& dg, const TypeId& ctn,
 }
 
 inline void* Pds::CDatagram::operator new(size_t size, Pds::RingPool* pool)
-  {
+{
   return pool->alloc(size);
-  }
+}
 
 inline void* Pds::CDatagram::operator new(size_t size, Pds::Pool* pool)
-  {
+{
   return pool->alloc(size);
-  }
+}
+
+inline void* Pds::CDatagram::operator new(size_t size, void* pMem)
+{
+  return pMem;
+}
 
 inline void Pds::CDatagram::operator delete(void* buffer)
   {

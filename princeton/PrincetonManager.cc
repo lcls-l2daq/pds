@@ -23,6 +23,8 @@ using std::string;
 
 namespace Pds 
 {
+  
+using namespace Princeton;
 
 class PrincetonAllocAction : public Action 
 {
@@ -45,16 +47,16 @@ private:
 class PrincetonConfigAction : public Action 
 {
 public:
-    PrincetonConfigAction(PrincetonManager& manager, const Src& src, const TypeId& typeId, CfgClientNfs& cfg, int iDebugLevel) :
-        _manager(manager), _src(src), _typeId(typeId), _cfg(cfg), _iDebugLevel(iDebugLevel),
-        _cfgtc(typeId,src), _configCamera(), _iConfigCameraFail(0)
+    PrincetonConfigAction(PrincetonManager& manager, CfgClientNfs& cfg, int iDebugLevel) :
+        _manager(manager), _cfg(cfg), _iDebugLevel(iDebugLevel),
+        _cfgtc(_typePrincetonConfig, cfg.src()), _configCamera(), _iConfigCameraFail(0)
     {}
     
     // this is the first "phase" of a transition where
     // all CPUs configure in parallel.
     virtual Transition* fire(Transition* tr) 
     {
-      _cfg.fetch(*tr, _typeId, &_configCamera, sizeof(_configCamera));
+      _cfg.fetch(*tr, _typePrincetonConfig, &_configCamera, sizeof(_configCamera));
       _iConfigCameraFail = _manager.configCamera(_configCamera);
       
       return tr;
@@ -67,8 +69,8 @@ public:
     {
         if (_iDebugLevel>=1) printf( "\n\n===== Writing Configs =====\n" );
 
-        // insert assumes we have enough space in the input datagram
-        _cfgtc.extent = sizeof(Xtc)+sizeof(_configCamera);
+        // insert assumes we have enough space in the memory pool for in datagram
+        _cfgtc.alloc( sizeof(_configCamera) );
         in->insert(_cfgtc, &_configCamera);
         
         if ( _iConfigCameraFail  != 0 )
@@ -81,14 +83,23 @@ public:
 
 private:
     PrincetonManager&   _manager;
-    Src                 _src;
-    TypeId              _typeId;
     CfgClientNfs&       _cfg;
-    int                 _iDebugLevel;
+    const int           _iDebugLevel;
     Xtc                 _cfgtc;
     Princeton::ConfigV1 _configCamera;    
     int                 _iConfigCameraFail;
+    
+    /*
+     * private static consts
+     */
+    static const TypeId _typePrincetonConfig;
+    
 };
+
+/*
+ * Definition of private static consts
+ */
+const TypeId PrincetonConfigAction::_typePrincetonConfig = TypeId(TypeId::Id_PrincetonConfig, Princeton::ConfigV1::Version);
 
 class PrincetonUnconfigAction : public Action 
 {
@@ -136,8 +147,8 @@ public:
         if ( !bCaptureEnd )
           return in; // Return empty data        
         
-        InDatagram* out = NULL;
-        int iFail = _manager.captureEnd( in, out );
+        InDatagram* out = in;
+        int iFail = _manager.captureEnd( iShotId, in, out );
         
         /*
          * Possible failure modes for _manager.writeMonitoredConfigContent()
@@ -185,7 +196,7 @@ PrincetonManager::PrincetonManager(CfgClientNfs& cfg, const string& sFnOutput, i
   _iDebugLevel(iDebugLevel)
 {
     _pActionMap      = new PrincetonAllocAction(*this, cfg);
-    _pActionConfig   = new PrincetonConfigAction(*this, _srcLevel, _typePrincetonConfig, cfg, _iDebugLevel);
+    _pActionConfig   = new PrincetonConfigAction(*this, cfg, _iDebugLevel);
     _pActionUnconfig = new PrincetonUnconfigAction(*this, _iDebugLevel);  
     _pActionDisable  = new PrincetonDisableAction(*this, _iDebugLevel);
     _pActionL1Accept = new PrincetonL1AcceptAction(*this, _iDebugLevel);
@@ -205,7 +216,7 @@ PrincetonManager::PrincetonManager(CfgClientNfs& cfg, const string& sFnOutput, i
     try
     {
       
-    _pServer = new PrincetonServer(bUseCaptureThread, _bStreamMode, sFnOutput, _iDebugLevel);
+    _pServer = new PrincetonServer(bUseCaptureThread, _bStreamMode, sFnOutput, cfg.src(), _iDebugLevel);
     
     }
     catch ( PrincetonServerException& eServer )
@@ -243,20 +254,14 @@ int PrincetonManager::unconfigCamera()
   return _pServer->unconfigCamera();
 }
 
-int PrincetonManager::captureStart(int iShotId)
+int PrincetonManager::captureStart(int iShotIdStart)
 {
-  return _pServer->captureStart(iShotId);
+  return _pServer->captureStart(iShotIdStart);
 }
 
-int PrincetonManager::captureEnd(InDatagram* in, InDatagram*& out)
+int PrincetonManager::captureEnd(int iShotIdEnd, InDatagram* in, InDatagram*& out)
 {
-  return _pServer->captureEnd(in, out);
+  return _pServer->captureEnd(iShotIdEnd, in, out);
 }
-
-/*
- * Definition of private static consts
- */
-const Src     PrincetonManager::_srcLevel(Level::Source); // Src for Princeton cameras
-const TypeId  PrincetonManager::_typePrincetonConfig(TypeId::Id_PrincetonConfig, Princeton::ConfigV1::Version);
 
 } //namespace Pds 

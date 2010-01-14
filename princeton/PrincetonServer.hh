@@ -8,6 +8,7 @@
 
 #include "pvcam/include/master.h"
 #include "pvcam/include/pvcam.h"
+#include "pdsdata/xtc/DetInfo.hh"
 #include "pdsdata/princeton/ConfigV1.hh"
 #include "pdsdata/princeton/FrameV1.hh"
 #include "pds/xtc/InDatagram.hh"
@@ -18,13 +19,13 @@ namespace Pds
 class PrincetonServer
 {
 public:
-  PrincetonServer(bool bUseCaptureThread, bool bStreamMode, std::string sFnOutput, int iDebugLevel);
+  PrincetonServer(bool bUseCaptureThread, bool bStreamMode, std::string sFnOutput, const Src& src, int iDebugLevel);
   ~PrincetonServer();
   
   int   configCamera(Princeton::ConfigV1& config);
   int   unconfigCamera();
-  int   captureStart(int iShotId);
-  int   captureEnd(InDatagram* in, InDatagram* out);
+  int   captureStart(int iShotIdStart);
+  int   captureEnd(int iShotIdEnd, InDatagram* in, InDatagram*& out);
   
 private:
 
@@ -36,8 +37,11 @@ private:
   int   setupCooling();  
   int   validateCameraSettings(Princeton::ConfigV1& config);
   void  setupROI(rgn_type& region);
-  int   isCaptureInProgress();
+  int   isExposureInProgress();
   int   isNewFrameAvailable();
+  int   waitForNewFrameAvailable(uns32& uNumBufferAvailable);
+  int   processFrame(uns32 uNumBufferAvailable, InDatagram* in, InDatagram*& out);
+  int   checkInitSettings();
   
   int   initControlThread();
   int   runMonitorThread();
@@ -46,29 +50,33 @@ private:
   /*
    * Initial settings
    */
-  bool        _bUseCaptureThread;
-  bool        _bStreamMode;
-  std::string _sFnOutput;
-  int         _iDebugLevel;
+  const bool        _bUseCaptureThread;
+  const bool        _bStreamMode;
+  const std::string _sFnOutput;
+  const Src         _src;
+  const int         _iDebugLevel;
   
   /*
    * Internal data
    */
   short               _hCam;
-  int                 _iCurrentShotId;
-  Princeton::ConfigV1 _configCamera;
+  int                 _iCurShotIdStart;
+  int                 _iCurShotIdEnd;
+  float               _fReadoutTime;          // in seconds
+  Princeton::ConfigV1 _configCamera; 
   unsigned char*      _pCircBufferWithHeader; // special value: NULL -> Camera has not been configured  
   int                 _iCameraAbortAndReset;  // 0 -> normal, 1 -> aborting
   int                 _iEventCaptureEnd;      // 0 -> normal, 1 -> capture end event triggered
+  bool                _bForceCameraReset;     
+  DetInfo             _detInfo;
   
   /*
    * private static consts
    */  
-  static const short  _iCoolingTemperature    = -1000; // = -10 degrees Celsius
-  static const int    _iMaxCoolingTime        = 10000; // in miliseconds
+  static const int    _iMaxCoolingTime        = 10000;  // in miliseconds
   static const int    _iCircBufFrameCount     = 5;
-  static const int16  _modeExposure           = BULB_MODE;
-  static const int    _iMaxExposureTime       = 30000; // Limit exposure time to prevent CCD from burning
+  static const int    _iMaxExposureTime       = 30000;  // Limit exposure time to prevent CCD from burning
+  static const int    _iMaxReadoutTime        = 3000;   // Max readout time          
   
   static void* threadEntryMonitor(void * pServer);
   static void* threadEntryCapture(void * pServer);

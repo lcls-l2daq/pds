@@ -30,10 +30,10 @@ public:
     // Camera control: Gateway functions for accessing PrincetonServer class
     int configCamera(Princeton::ConfigV1& config);
     int unconfigCamera();
-    int captureStart(int iShotId);
-    int captureEnd(InDatagram* in, InDatagram*& out);
+    int captureStart(int iShotIdStart);
+    int captureEnd(int iShotIdEnd, InDatagram* in, InDatagram*& out);
     
-private:      
+private:          
     int                 _iDebugLevel;
     
     Fsm*                _pFsm;
@@ -45,11 +45,7 @@ private:
     
     PrincetonServer*    _pServer;
     GenericPool*        _pPool;    
-    bool                _bStreamMode;
-    
-    /* private static consts */
-    static const Src    _srcLevel; // Src for Princeton cameras    
-    static const TypeId _typePrincetonConfig;
+    bool                _bStreamMode;    
 };
 
 class PrincetonManagerException : public std::runtime_error

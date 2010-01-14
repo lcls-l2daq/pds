@@ -74,8 +74,8 @@ class RceProxyUnmapAction : public Action
 class RceProxyConfigAction : public Action 
 {
   public:
-    RceProxyConfigAction(RceProxyManager& manager, const Src& src, CfgClientNfs& cfg, int iDebugLevel, unsigned iNumLinks, unsigned iPayloadSizePerLink) :
-      _manager(manager), _src(src), _cfg(cfg), _iDebugLevel(iDebugLevel),
+    RceProxyConfigAction(RceProxyManager& manager, CfgClientNfs& cfg, int iDebugLevel, unsigned iNumLinks, unsigned iPayloadSizePerLink) :
+      _manager(manager), _cfg(cfg), _iDebugLevel(iDebugLevel),
       _cfgtc(_pnCCDConfigType,cfg.src()),
       _iNumLinks(iNumLinks),_iPayloadSizePerLink(iPayloadSizePerLink), _damageFromRce(0)
       {}
@@ -110,7 +110,6 @@ class RceProxyConfigAction : public Action
   private:
     //RceProxyConfigType _config;
     RceProxyManager&    _manager;
-    Src                 _src;
     CfgClientNfs&       _cfg;
     int                 _iDebugLevel;
     Xtc                 _cfgtc;
@@ -157,7 +156,6 @@ class RceProxyDisableAction : public Action
     RceProxyManager& _manager;
 };
 
-const Src RceProxyManager::srcLevel = Src(Level::Source);
 RceFBld::ProxyMsg RceProxyManager::_msg;
 
 RceProxyManager::RceProxyManager(CfgClientNfs& cfg, const string& sRceIp, int iNumLinks, int iPayloadSizePerLink, 
@@ -168,7 +166,7 @@ RceProxyManager::RceProxyManager(CfgClientNfs& cfg, const string& sRceIp, int iN
   _pFsm            = new Fsm();
   _pActionMap      = new RceProxyAllocAction(*this, cfg);
   _pActionUnmap    = new RceProxyUnmapAction(*this);
-  _pActionConfig   = new RceProxyConfigAction(*this, RceProxyManager::srcLevel, cfg, _iDebugLevel,_iNumLinks,iPayloadSizePerLink);
+  _pActionConfig   = new RceProxyConfigAction(*this, cfg, _iDebugLevel,_iNumLinks,iPayloadSizePerLink);
   // this should go away when we get the configuration from the database - cpo
   _pActionL1Accept = new RceProxyL1AcceptAction(*this, _iDebugLevel);
   _pActionDisable  = new RceProxyDisableAction(*this);

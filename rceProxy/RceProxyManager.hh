@@ -36,9 +36,7 @@ namespace Pds
       int onActionConfigure(Damage& damageFromRce);           
 
     private:
-      int sendMessageToRce(const RceFBld::ProxyMsg& msg, RceFBld::ProxyReplyMsg& msgReply);
-    
-      static const Src srcLevel; // Src for Epics Archiver
+      int sendMessageToRce(const RceFBld::ProxyMsg& msg, RceFBld::ProxyReplyMsg& msgReply);    
 
       std::string           _sRceIp;
       int                   _iNumLinks;
