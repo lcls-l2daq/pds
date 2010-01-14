@@ -11,6 +11,7 @@
 #include <netinet/in.h>
 #include <arpa/inet.h>
 #include "pdsdata/xtc/Src.hh"
+#include "pdsdata/xtc/TypeId.hh"
 #include "pdsdata/xtc/Damage.hh"
 
 struct mcaddress {
@@ -36,6 +37,8 @@ namespace RceFBld {
       Pds::Src    procInfoSrc;
       Pds::Src    detInfoSrc;
       Pds::TypeId contains;
+      uint32_t    maxTrafficShapingWidth;
+      uint32_t    trafficShapingInitialPhase;
   };
 
   class ProxyReplyMsg {
