@@ -159,14 +159,15 @@ class RceProxyDisableAction : public Action
 RceFBld::ProxyMsg RceProxyManager::_msg;
 
 RceProxyManager::RceProxyManager(CfgClientNfs& cfg, const string& sRceIp, int iNumLinks, int iPayloadSizePerLink, 
-    TypeId typeidData, const Node& selfNode, int iDebugLevel) :
-    _sRceIp(sRceIp), _iNumLinks(iNumLinks), _iPayloadSizePerLink(iPayloadSizePerLink), _typeidData(typeidData),
+    TypeId typeidData, int iTsWidth, int iPhase, const Node& selfNode, int iDebugLevel) :
+    _sRceIp(sRceIp), _iNumLinks(iNumLinks), _iPayloadSizePerLink(iPayloadSizePerLink), 
+    _typeidData(typeidData), _iTsWidth(iTsWidth), _iPhase(iPhase), 
     _selfNode(selfNode), _iDebugLevel(iDebugLevel), _cfg(cfg)
 {
   _pFsm            = new Fsm();
   _pActionMap      = new RceProxyAllocAction(*this, cfg);
   _pActionUnmap    = new RceProxyUnmapAction(*this);
-  _pActionConfig   = new RceProxyConfigAction(*this, cfg, _iDebugLevel,_iNumLinks,iPayloadSizePerLink);
+  _pActionConfig   = new RceProxyConfigAction(*this, cfg, _iDebugLevel,_iNumLinks,_iPayloadSizePerLink);
   // this should go away when we get the configuration from the database - cpo
   _pActionL1Accept = new RceProxyL1AcceptAction(*this, _iDebugLevel);
   _pActionDisable  = new RceProxyDisableAction(*this);
@@ -196,6 +197,8 @@ int RceProxyManager::onActionConfigure(Damage& damageFromRce)
   DetInfo& detInfo = (DetInfo&) _msg.detInfoSrc;
   printf( "Detector %s Id %d  Device %s Id %d Type id %s ver %d\n", DetInfo::name( detInfo.detector() ), detInfo.detId(),
       DetInfo::name( detInfo.device() ), detInfo.devId(), TypeId::name(_typeidData.id()), _typeidData.version() );
+  
+  printf( "Traffic shaping width %d  Phase %d\n", _msg.maxTrafficShapingWidth, _msg.trafficShapingInitialPhase );
       
   RceFBld::ProxyReplyMsg msgReply;        
   int iFail = sendMessageToRce( _msg, msgReply );
@@ -271,7 +274,7 @@ int RceProxyManager::onActionMap(const Allocation& alloc)
     return 2;
   }
 
-  setupProxyMsg( insEvr, vInsEvent, _iNumLinks, _iPayloadSizePerLink, _selfNode.procInfo(), _cfg.src(), _typeidData );
+  setupProxyMsg( insEvr, vInsEvent, _iNumLinks, _iPayloadSizePerLink, _selfNode.procInfo(), _cfg.src(), _typeidData, _iTsWidth, _iPhase );
 
   return 0;
 }
@@ -333,7 +336,7 @@ int RceProxyManager::sendMessageToRce(const RceFBld::ProxyMsg& msg, RceFBld::Pro
 }
 
 int RceProxyManager::setupProxyMsg( const Ins& insEvr, const vector<Ins>& vInsEvent, int iNumLinks, 
-    int iPayloadSizePerLink, const ProcInfo& procInfo, const Src& srcProxy, TypeId typeidData)
+    int iPayloadSizePerLink, const ProcInfo& procInfo, const Src& srcProxy, TypeId typeidData, int iTsWidth, int iPhase)
 {
   memset( &_msg, 0, sizeof(_msg) );
   _msg.byteOrderIsBigEndian = 0;
@@ -348,11 +351,13 @@ int RceProxyManager::setupProxyMsg( const Ins& insEvr, const vector<Ins>& vInsEv
   _msg.evrMcAddr.mcaddr = insEvr.address();
   _msg.evrMcAddr.mcport = insEvr.portId();
 
-  _msg.payloadSizePerLink = iPayloadSizePerLink;
-  _msg.numberOfLinks      = iNumLinks;
-  _msg.procInfoSrc        = procInfo;
-  _msg.detInfoSrc         = srcProxy;
-  _msg.contains           = typeidData;
-
+  _msg.payloadSizePerLink         = iPayloadSizePerLink;
+  _msg.numberOfLinks              = iNumLinks;
+  _msg.procInfoSrc                = procInfo;
+  _msg.detInfoSrc                 = srcProxy;
+  _msg.contains                   = typeidData;
+  _msg.maxTrafficShapingWidth     = iTsWidth;
+  _msg.trafficShapingInitialPhase = iPhase;
+  
   return 0;
 }
