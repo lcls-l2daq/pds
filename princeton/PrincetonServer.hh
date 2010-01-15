@@ -12,6 +12,7 @@
 #include "pdsdata/princeton/ConfigV1.hh"
 #include "pdsdata/princeton/FrameV1.hh"
 #include "pds/xtc/InDatagram.hh"
+#include "pds/xtc/Datagram.hh"
 
 namespace Pds 
 {
@@ -33,19 +34,22 @@ private:
   int   deinitCamera();
   int   startContinuousCapture();
   void  abortAndResetCamera();
-  
-  int   setupCooling();  
-  int   validateCameraSettings(Princeton::ConfigV1& config);
-  void  setupROI(rgn_type& region);
-  int   isExposureInProgress();
-  int   isNewFrameAvailable();
-  int   waitForNewFrameAvailable(uns32& uNumBufferAvailable);
-  int   processFrame(uns32 uNumBufferAvailable, InDatagram* in, InDatagram*& out);
-  int   checkInitSettings();
-  
-  int   initControlThread();
+
+  int   initControlThreads();
   int   runMonitorThread();
   int   runCaptureThread();
+
+  int   checkInitSettings();    
+  int   validateCameraSettings(Princeton::ConfigV1& config);
+  int   setupCooling();    
+  int   isExposureInProgress();
+  int   waitForNewFrameAvailable();
+  int   processFrame(InDatagram* in, InDatagram*& out);
+  int   writeFrameToFile(const Datagram& dgOut);
+  
+  void  discardExcessFrames(uns32 uNumBufferAvailable);
+  void  setupROI(rgn_type& region);
+  void  checkTemperature();  
   
   /*
    * Initial settings
@@ -69,23 +73,41 @@ private:
   int                 _iEventCaptureEnd;      // 0 -> normal, 1 -> capture end event triggered
   bool                _bForceCameraReset;     
   DetInfo             _detInfo;
+  int                 _iTemperatureStatus;    // 0 -> normal, 1 -> too high
+  Datagram            _dgEvent;
   
   /*
    * private static consts
    */  
-  static const int    _iMaxCoolingTime        = 10000;  // in miliseconds
-  static const int    _iCircBufFrameCount     = 5;
-  static const int    _iMaxExposureTime       = 30000;  // Limit exposure time to prevent CCD from burning
-  static const int    _iMaxReadoutTime        = 3000;   // Max readout time          
-  
+  static const int      _iMaxCoolingTime        = 10000;  // in miliseconds
+  static const int      _iTemperatureTolerance  = 100;    // 1 degree Fahrenheit
+  static const int      _iCircBufFrameCount     = 5;
+  static const int      _iMaxExposureTime       = 30000;  // Limit exposure time to prevent CCD from burning
+  static const int      _iMaxReadoutTime        = 3000;   // Max readout time          
+  static const timespec _tmLockTimeout;                   // timeout for acquiring the lock
+    
+  /*
+   * private static functions
+   */
   static void* threadEntryMonitor(void * pServer);
   static void* threadEntryCapture(void * pServer);
+
+  inline static void lockPlFunc()
+  {
+    if ( !pthread_mutex_timedlock(&_mutexPlFuncs, &_tmLockTimeout) )
+      printf( "PrincetonServer::lockPlFunc(): pthread_mutex_timedlock() failed\n" );
+  }
+  inline static void releaseLockPlFunc()
+  {
+    pthread_mutex_unlock(&_mutexPlFuncs);
+  }
   
   /*
    * private static data
    */
   static pthread_mutex_t _mutexPlFuncs;
 };
+
 
 class PrincetonServerException : public std::runtime_error
 {
