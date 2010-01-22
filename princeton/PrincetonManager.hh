@@ -22,32 +22,32 @@ class PrincetonServer;
 class PrincetonManager 
 {
 public:
-    PrincetonManager(CfgClientNfs& cfg, bool bMakeUpEvent, const std::string& sFnOutput, int iDebugLevel);
-    ~PrincetonManager();
+  PrincetonManager(CfgClientNfs& cfg, bool bMakeUpEvent, const std::string& sFnOutput, int iDebugLevel);
+  ~PrincetonManager();
 
-    Appliance&    appliance() { return *_pFsm; }
-    
-    // Camera control: Gateway functions for accessing PrincetonServer class
-    int configCamera(Princeton::ConfigV1& config);
-    int unconfigCamera();
-    int captureStart(int iShotIdStart);
-    int captureEnd(int iShotIdEnd, InDatagram* in, InDatagram*& out);
-    int getMakeUpData(InDatagram* in, InDatagram*& out);
-    
+  Appliance&    appliance() { return *_pFsm; }
+  
+  // Camera control: Gateway functions for accessing PrincetonServer class
+  int configCamera(Princeton::ConfigV1& config);
+  int unconfigCamera();
+  int captureStart(int iShotIdStart);
+  int captureEnd(int iShotIdEnd, InDatagram* in, InDatagram*& out);
+  int getMakeUpData(InDatagram* in, InDatagram*& out);
+  
 private:          
-    const bool          _bMakeUpEvent;
-    const bool          _bStreamMode;    
-    const int           _iDebugLevel;
-    
-    Fsm*                _pFsm;
-    Action*             _pActionConfig;
-    Action*             _pActionUnconfig;
-    Action*             _pActionMap;
-    Action*             _pActionL1Accept;
-    Action*             _pActionDisable;        
-    
-    PrincetonServer*    _pServer;
-    GenericPool*        _pPool;    
+  const bool          _bMakeUpEvent;
+  const bool          _bStreamMode;    
+  const int           _iDebugLevel;
+  
+  Fsm*                _pFsm;
+  Action*             _pActionConfig;
+  Action*             _pActionUnconfig;
+  Action*             _pActionMap;
+  Action*             _pActionL1Accept;
+  Action*             _pActionDisable;        
+  
+  PrincetonServer*    _pServer;
+  GenericPool*        _pPool;    
 };
 
 class PrincetonManagerException : public std::runtime_error
