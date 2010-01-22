@@ -27,6 +27,7 @@ public:
   int   unconfigCamera();
   int   captureStart(int iShotIdStart);
   int   captureEnd(int iShotIdEnd, InDatagram* in, InDatagram*& out);
+  int   getMakeUpData(InDatagram* in, InDatagram*& out);
   
 private:
 
@@ -72,9 +73,9 @@ private:
   int                 _iCameraAbortAndReset;  // 0 -> normal, 1 -> aborting
   int                 _iEventCaptureEnd;      // 0 -> normal, 1 -> capture end event triggered
   bool                _bForceCameraReset;     
-  DetInfo             _detInfo;
   int                 _iTemperatureStatus;    // 0 -> normal, 1 -> too high
   Datagram            _dgEvent;
+  InDatagram*         _pDgOut;
   
   /*
    * private static consts

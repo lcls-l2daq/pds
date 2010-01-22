@@ -22,7 +22,7 @@ class PrincetonServer;
 class PrincetonManager 
 {
 public:
-    PrincetonManager(CfgClientNfs& cfg, const std::string& sFnOutput, int iDebugLevel);
+    PrincetonManager(CfgClientNfs& cfg, bool bMakeUpEvent, const std::string& sFnOutput, int iDebugLevel);
     ~PrincetonManager();
 
     Appliance&    appliance() { return *_pFsm; }
@@ -32,9 +32,12 @@ public:
     int unconfigCamera();
     int captureStart(int iShotIdStart);
     int captureEnd(int iShotIdEnd, InDatagram* in, InDatagram*& out);
+    int getMakeUpData(InDatagram* in, InDatagram*& out);
     
 private:          
-    int                 _iDebugLevel;
+    const bool          _bMakeUpEvent;
+    const bool          _bStreamMode;    
+    const int           _iDebugLevel;
     
     Fsm*                _pFsm;
     Action*             _pActionConfig;
@@ -45,7 +48,6 @@ private:
     
     PrincetonServer*    _pServer;
     GenericPool*        _pPool;    
-    bool                _bStreamMode;    
 };
 
 class PrincetonManagerException : public std::runtime_error

@@ -18,7 +18,8 @@ using namespace Princeton;
 PrincetonServer::PrincetonServer(bool bUseCaptureThread, bool bStreamMode, std::string sFnOutput, const Src& src, int iDebugLevel) :
  _bUseCaptureThread(bUseCaptureThread), _bStreamMode(bStreamMode), _sFnOutput(sFnOutput), _src(src), _iDebugLevel(iDebugLevel),
  _hCam(-1), _iCurShotIdStart(-1), _iCurShotIdEnd(-1), _fReadoutTime(0), _configCamera(), _pCircBufferWithHeader(NULL), 
- _iCameraAbortAndReset(0), _iEventCaptureEnd(0), _bForceCameraReset(false), _iTemperatureStatus(0), _dgEvent(TypeId(), Src())
+ _iCameraAbortAndReset(0), _iEventCaptureEnd(0), _bForceCameraReset(false), _iTemperatureStatus(0), 
+ _dgEvent(TypeId(), Src()), _pDgOut(NULL)
 {       
   if ( checkInitSettings() != 0 )    
     throw PrincetonServerException( "PrincetonServer::PrincetonServer(): Invalid initial settings" );
@@ -372,13 +373,14 @@ int PrincetonServer::runCaptureThread()
     
     if ( _iCameraAbortAndReset )
     {
-      _iCurShotIdEnd = -1;    
+      _iCurShotIdEnd = -1;  
+      _pDgOut = NULL;      
       _iEventCaptureEnd = 0;
       continue;
     }    
     
     // if shot Ids have not been correctly updated
-    if ( _iCurShotIdStart<0 || _iCurShotIdEnd<0 )
+    if ( _iCurShotIdStart < 0 || _iCurShotIdEnd < 0 )
     {      
       _iEventCaptureEnd = 0;
       continue;
@@ -401,10 +403,13 @@ int PrincetonServer::runCaptureThread()
     /*
      * Set the damage bit if temperature status is not good
      */
-    if ( iFail !=0 || _iTemperatureStatus != 0 )
+    if ( iFail != 0 || _iTemperatureStatus != 0 )
       out->datagram().xtc.damage.increase(Pds::Damage::UserDefined);      
     
-    writeFrameToFile( out->datagram() );
+    if ( _bStreamMode )
+      _pDgOut = out;
+    else
+      writeFrameToFile( out->datagram() );
     
     /* 
      * Reset the shot-by-shot data
@@ -426,12 +431,12 @@ int PrincetonServer::captureStart(int iShotIdStart)
     return 1;   
   }
     
-  if ( _iEventCaptureEnd == 1 )
+  if ( _iEventCaptureEnd == 1 || _pDgOut != NULL )
   {
     printf( "PrincetonServer::captureStart(): Last frame has not been processed completely, possibly"
      "because the events are coming too fast, or the capture thread has problems.\n" );     
     // Don't reset the shot id, because the capture thread should be processing the data
-    return 3;
+    return 2;
   }
   
   if ( _iCurShotIdStart >= 0 || _iCurShotIdEnd >= 0 )
@@ -442,7 +447,7 @@ int PrincetonServer::captureStart(int iShotIdStart)
     // Don't reset the shot id, if the capture thread might be processing the data; otherwise always reset the shot ids     
     if (!_bUseCaptureThread)
       _iCurShotIdStart = _iCurShotIdEnd = -1;    
-    return 2;
+    return 3;
   }    
     
   _iCurShotIdStart = iShotIdStart;  
@@ -468,11 +473,11 @@ int PrincetonServer::captureEnd(int iShotIdEnd, InDatagram* in, InDatagram*& out
     return 2;
   }  
 
-  if ( _iEventCaptureEnd == 1 )
+  if ( _iEventCaptureEnd == 1 || _pDgOut != NULL )
   {
     printf( "PrincetonServer::captureEnd(): Last frame has not been processed completely, possibly"
      "because the events are coming too fast, or the capture thread has problems.\n" );     
-    // Don't reset the shot id, because the capture thread should be processing the data
+    // Don't reset the shot id, because the capture thread should be processing the data, or the data is waiting to be read out
     return 3;
   }
   
@@ -486,13 +491,12 @@ int PrincetonServer::captureEnd(int iShotIdEnd, InDatagram* in, InDatagram*& out
       _iCurShotIdStart = _iCurShotIdEnd = -1;
     return 4;
   }
-  
-  if ( !_bStreamMode )  
+    
+  if ( _bUseCaptureThread )
   {
     /*
-     * file mode -> _bUseCaptureThread = true
-     */
-
+     * _bUseCaptureThread = true -> Use asynchronous capture thread to get the image data and return later
+     */    
     _iCurShotIdEnd    = iShotIdEnd;    
     _dgEvent          = in->datagram();
     _iEventCaptureEnd = 1;  // Use event trigger "_iEventCaptureEnd" to notify the thread
@@ -500,7 +504,7 @@ int PrincetonServer::captureEnd(int iShotIdEnd, InDatagram* in, InDatagram*& out
   }
     
   /*
-   * stream mode -> _bUseCaptureThread = false 
+   * _bUseCaptureThread = false -> Use blocking functions to get the image data and return
    */
    
   if ( waitForNewFrameAvailable() != 0 )
@@ -527,10 +531,50 @@ int PrincetonServer::captureEnd(int iShotIdEnd, InDatagram* in, InDatagram*& out
   return 0;
 }
 
+int PrincetonServer::getMakeUpData(InDatagram* in, InDatagram*& out)
+{
+  out = in; // default: return empty stream
+
+  /*
+   * This function is only useful when _bUseCaptureThread = true and bStreamMode = true
+   */
+  if ( !_bUseCaptureThread || !_bStreamMode ) 
+    return 1;  
+  
+  if ( _iCameraAbortAndReset != 0 || _iCurShotIdStart == -2 )
+    return 1;
+  
+  if ( _pDgOut == NULL )
+    return 0;
+    
+  Datagram& dgIn    = in->datagram();
+  Datagram& dgOut   = _pDgOut->datagram();
+  Xtc       xtcOrg  = dgOut.xtc;
+  
+  /*
+   * Compose the datagram
+   *
+   *   1. Use the header from dgIn 
+   *   2. Use the xtc (data header) from dgOut
+   *   3. Use the data from dgOut (the data was located after the xtc)
+   */
+  dgOut = dgIn;   
+  dgOut.xtc = xtcOrg;
+  
+  out = _pDgOut;
+  
+  // After sending out the data, set the _pDgOut pointer to NULL, so that the same data will never be sent out twice
+  _pDgOut = NULL;
+  
+  return 0;
+}
+
 void PrincetonServer::abortAndResetCamera()
 {    
   _iCameraAbortAndReset = 1;
   _iCurShotIdStart = -2; // invalidate the shot id
+  
+  printf( "PrincetonServer::abortAndResetCamera(): Camera reset begins.\n" );
   
   int iFail;
   iFail = unconfigCamera();
@@ -555,6 +599,8 @@ void PrincetonServer::abortAndResetCamera()
   if ( iFail != 0 )
     abort();
     
+  printf( "PrincetonServer::abortAndResetCamera(): Camera reset ends.\n" );
+  
   _iCameraAbortAndReset = 0;
 }
 
@@ -757,24 +803,25 @@ int PrincetonServer::processFrame(InDatagram* in, InDatagram*& out)
 
 int PrincetonServer::writeFrameToFile(const Datagram& dgOut)
 {
+  // File mode is not supported yet
   return 0;
 }
 
 int PrincetonServer::checkInitSettings()
 {
   /* Check the input settings */
+  if ( !_bStreamMode )
+  {
+    printf( "PrincetonServer::captureEnd(): File mode is not supported.\n" );
+    return 1;
+  }
+  
   if ( !_bStreamMode && !_bUseCaptureThread )  
   {
     printf( "PrincetonServer::captureEnd(): Unsupported mode: File mode without capture thread.\n" );
-    return 1;
-  }
-    
-  if ( _bStreamMode && !_bUseCaptureThread )  
-  {
-    printf( "PrincetonServer::captureEnd(): Unsupported mode: Stream mode with capture thread.\n" );  
     return 2;
   }
-  
+      
   return 0;
 }
 

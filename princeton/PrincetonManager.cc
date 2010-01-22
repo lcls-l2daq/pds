@@ -120,8 +120,8 @@ private:
 class PrincetonL1AcceptAction : public Action 
 {
 public:
-    PrincetonL1AcceptAction(PrincetonManager& manager, int iDebugLevel) :
-        _manager(manager), _iDebugLevel(iDebugLevel)
+    PrincetonL1AcceptAction(PrincetonManager& manager, bool bMakeUpEvent, int iDebugLevel) :
+        _manager(manager), _bMakeUpEvent(bMakeUpEvent), _iDebugLevel(iDebugLevel)
     {
     }
     
@@ -134,7 +134,16 @@ public:
         
         int   iShotId       = 1;      // !! Obtain shot ID 
         bool  bCaptureStart = false;  // !! Check if this event is for starting capture
-        bool  bCaptureEnd   = false;  // !! Check if this event is for stoping capture
+        bool  bCaptureEnd   = false;  // !! Check if this event is for stoping capture        
+        
+        if ( _bMakeUpEvent )
+        {
+          InDatagram* out = in;
+          int iFail = _manager.getMakeUpData( in, out );
+
+          if ( iFail != 0 )
+            out->datagram().xtc.damage.increase(Pds::Damage::UserDefined); // set damage bit            
+        }
         
         if ( bCaptureStart )
         {
@@ -174,6 +183,7 @@ public:
   
 private:        
     PrincetonManager&   _manager;
+    bool                _bMakeUpEvent;
     int                 _iDebugLevel;
 };
 
@@ -192,26 +202,23 @@ private:
     int               _iDebugLevel;
 };
 
-PrincetonManager::PrincetonManager(CfgClientNfs& cfg, const string& sFnOutput, int iDebugLevel) :
+PrincetonManager::PrincetonManager(CfgClientNfs& cfg, bool bMakeUpEvent, const string& sFnOutput, int iDebugLevel) :
+  _bMakeUpEvent(bMakeUpEvent), _bStreamMode(sFnOutput.empty()), // If no output filename is specified, then use stream mode
   _iDebugLevel(iDebugLevel)
 {
     _pActionMap      = new PrincetonAllocAction(*this, cfg);
     _pActionConfig   = new PrincetonConfigAction(*this, cfg, _iDebugLevel);
     _pActionUnconfig = new PrincetonUnconfigAction(*this, _iDebugLevel);  
     _pActionDisable  = new PrincetonDisableAction(*this, _iDebugLevel);
-    _pActionL1Accept = new PrincetonL1AcceptAction(*this, _iDebugLevel);
-    
-
-    // Determine the output mode: either stream mode or file mode
-    _bStreamMode = sFnOutput.empty();
-               
+    _pActionL1Accept = new PrincetonL1AcceptAction(*this, _bMakeUpEvent, _iDebugLevel);
+                   
     /*
      * Determine the polling scheme
      *
-     * 1. In stream mode, use L1 Accept event handler to do the polling -> bUseCaptureThread = false
-     * 2. In file mode, use camera thread to do the polling             -> bUseCaptureThread = true
+     * 1. In normal mode, use L1 Accept event handler to do the polling -> bUseCaptureThread = false
+     * 2. In make-up mode, use camera thread to do the polling          -> bUseCaptureThread = true
      */  
-    bool bUseCaptureThread = !_bStreamMode; 
+    bool bUseCaptureThread = _bMakeUpEvent; 
 
     try
     {
@@ -262,6 +269,11 @@ int PrincetonManager::captureStart(int iShotIdStart)
 int PrincetonManager::captureEnd(int iShotIdEnd, InDatagram* in, InDatagram*& out)
 {
   return _pServer->captureEnd(iShotIdEnd, in, out);
+}
+
+int PrincetonManager::getMakeUpData(InDatagram* in, InDatagram*& out)
+{
+  return _pServer->getMakeUpData(in, out);
 }
 
 } //namespace Pds 
