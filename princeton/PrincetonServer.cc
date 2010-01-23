@@ -24,8 +24,8 @@ PrincetonServer::PrincetonServer(bool bUseCaptureThread, bool bStreamMode, std::
   if ( checkInitSettings() != 0 )    
     throw PrincetonServerException( "PrincetonServer::PrincetonServer(): Invalid initial settings" );
       
-  //if ( initCamera() != 0 )
-  //  throw PrincetonServerException( "PrincetonServer::PrincetonServer(): initPrincetonCamera() failed" );    
+  if ( initCamera() != 0 )
+    throw PrincetonServerException( "PrincetonServer::PrincetonServer(): initPrincetonCamera() failed" );    
   
   if ( initControlThreads() != 0 )
     throw PrincetonServerException( "PrincetonServer::PrincetonServer(): initControlThreads() failed" );
