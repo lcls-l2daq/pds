@@ -21,14 +21,14 @@ PrincetonServer::PrincetonServer(bool bUseCaptureThread, bool bStreamMode, std::
  _iCameraAbortAndReset(0), _iEventCaptureEnd(0), _bForceCameraReset(false), _iTemperatureStatus(0), 
  _dgEvent(TypeId(), Src()), _pDgOut(NULL)
 {       
-  if ( checkInitSettings() != 0 )    
-    throw PrincetonServerException( "PrincetonServer::PrincetonServer(): Invalid initial settings" );
+  //if ( checkInitSettings() != 0 )    
+    //throw PrincetonServerException( "PrincetonServer::PrincetonServer(): Invalid initial settings" );
       
-  if ( initCamera() != 0 )
-    throw PrincetonServerException( "PrincetonServer::PrincetonServer(): initPrincetonCamera() failed" );    
+  //if ( initCamera() != 0 )
+  //  throw PrincetonServerException( "PrincetonServer::PrincetonServer(): initPrincetonCamera() failed" );    
   
-  if ( initControlThreads() != 0 )
-    throw PrincetonServerException( "PrincetonServer::PrincetonServer(): initControlThreads() failed" );
+  //if ( initControlThreads() != 0 )
+    //throw PrincetonServerException( "PrincetonServer::PrincetonServer(): initControlThreads() failed" );
 }
 
 PrincetonServer::~PrincetonServer()
@@ -423,41 +423,33 @@ int PrincetonServer::runCaptureThread()
 
 int PrincetonServer::captureStart(int iShotIdStart)
 {
-  /*
-   * Check out-of-order events
-   *
-   * - Maintain the correct values of _iCurShotIdStart, _iCurShotIdEnd, and _iEventCaptureEnd
-   */   
+  _iCurShotIdStart = _iCurShotIdEnd = -1;
+
   if ( _iCameraAbortAndReset )
   {
-    _iCurShotIdStart = _iCurShotIdEnd = -1;
+    _iCurShotIdEnd = -1;    
     return 1;   
   }
     
-  if (_bUseCaptureThread)
+  if ( _iEventCaptureEnd == 1 || _pDgOut != NULL )
   {
-    if ( 
-      _iEventCaptureEnd == 1  ||       
-      _pDgOut != NULL )
-    {
-      printf( "PrincetonServer::captureStart(): Last frame has not been processed completely, possibly"
-       "because the events are coming too fast, or the capture thread has problems.\n" );     
-      // Don't reset the shot id, because the capture thread should be processing the data
-      return 2;
-    }    
+    printf( "PrincetonServer::captureStart(): Last frame has not been processed completely, possibly"
+     "because the events are coming too fast, or the capture thread has problems.\n" );     
+    // Don't reset the shot id, because the capture thread should be processing the data
+    return 2;
   }
   
   if ( _iCurShotIdStart >= 0 || _iCurShotIdEnd >= 0 )
   {
     printf( "PrincetonServer::captureStart(): Shot Id (Start or End) has not been reset since the last shot, possibly"
      "because the events are coming too fast, or the capture thread has problems.\n" );    
-    // Reset (discard) the shot-end id, and let program continue to set the shot-start id
-    _iCurShotIdEnd = -1;
-  }
 
-  /*
-   * Set the Shot-start Id
-   */  
+    // Don't reset the shot id, if the capture thread might be processing the data; otherwise always reset the shot ids     
+    if (!_bUseCaptureThread)
+      _iCurShotIdStart = _iCurShotIdEnd = -1;    
+    return 3;
+  }    
+    
   _iCurShotIdStart = iShotIdStart;  
     
   return 0;
@@ -467,16 +459,9 @@ int PrincetonServer::captureEnd(int iShotIdEnd, InDatagram* in, InDatagram*& out
 {
   out = in; // default: return empty stream
   
-  /*
-   * Check out-of-order events
-   *
-   * - Maintain the correct values of _iCurShotIdStart, _iCurShotIdEnd, and _iEventCaptureEnd
-   */     
   if ( _iCameraAbortAndReset != 0 || _iCurShotIdStart == -2 )
   {
-    printf( "PrincetonServer::captureEnd(): Camera resetting. No data is outputted\n" );
-    
-    // Do not set _iCurShotIdStart = -1, since _iCurShotIdStart = -2 is a special value for the resetting condition
+    printf( "PrincetonServer::captureEnd(): Camera resetting. No data is outputted\n" );   
     _iCurShotIdEnd = -1;
     return 1;
   }
@@ -488,40 +473,40 @@ int PrincetonServer::captureEnd(int iShotIdEnd, InDatagram* in, InDatagram*& out
     return 2;
   }  
 
-  if (_bUseCaptureThread)
+  if ( _iEventCaptureEnd == 1 || _pDgOut != NULL )
   {
-    if ( 
-      _iEventCaptureEnd == 1  || 
-      _pDgOut != NULL )
-    {
-      printf( "PrincetonServer::captureStart(): Last frame has not been processed completely, possibly"
-       "because the events are coming too fast, or the capture thread has problems.\n" );     
-      // Don't reset the shot id, because the capture thread should be processing the data
-      return 3;
-    }    
+    printf( "PrincetonServer::captureEnd(): Last frame has not been processed completely, possibly"
+     "because the events are coming too fast, or the capture thread has problems.\n" );     
+    // Don't reset the shot id, because the capture thread should be processing the data, or the data is waiting to be read out
+    return 3;
   }
   
   if ( _iCurShotIdEnd >= 0 )
   {
-    printf( "PrincetonServer::captureStart(): Shot Id (Start or End) has not been reset since the last shot, possibly"
+    printf( "PrincetonServer::captureEnd(): Shot Id (End) has not been reset since the last shot, possibly"
      "because the events are coming too fast, or the capture thread has problems.\n" );    
-    // Reset (discard) the shot-end id, and return.
-    _iCurShotIdStart = _iCurShotIdEnd = -1;
+     
+    // Don't reset the shot id, if the capture thread might be processing the data; otherwise always reset the shot ids
+    if (!_bUseCaptureThread)
+      _iCurShotIdStart = _iCurShotIdEnd = -1;
     return 4;
-  }           
-
-  /*
-   * _bUseCaptureThread = true  -> Use asynchronous capture thread to get the image data and return later
-   * _bUseCaptureThread = false -> Use blocking functions to get the image data and return
-   */      
+  }
+    
   if ( _bUseCaptureThread )
   {
+    /*
+     * _bUseCaptureThread = true -> Use asynchronous capture thread to get the image data and return later
+     */    
     _iCurShotIdEnd    = iShotIdEnd;    
     _dgEvent          = in->datagram();
     _iEventCaptureEnd = 1;  // Use event trigger "_iEventCaptureEnd" to notify the thread
     return 0;
   }
-       
+    
+  /*
+   * _bUseCaptureThread = false -> Use blocking functions to get the image data and return
+   */
+   
   if ( waitForNewFrameAvailable() != 0 )
   {
     _iCurShotIdStart = _iCurShotIdEnd = -1;
@@ -557,7 +542,7 @@ int PrincetonServer::getMakeUpData(InDatagram* in, InDatagram*& out)
     return 1;  
   
   if ( _iCameraAbortAndReset != 0 || _iCurShotIdStart == -2 )
-    return 2;
+    return 1;
   
   if ( _pDgOut == NULL )
     return 0;
@@ -569,8 +554,8 @@ int PrincetonServer::getMakeUpData(InDatagram* in, InDatagram*& out)
   /*
    * Compose the datagram
    *
-   *   1. Use the header of dgIn 
-   *   2. Use the xtc (data header) of dgOut
+   *   1. Use the header from dgIn 
+   *   2. Use the xtc (data header) from dgOut
    *   3. Use the data from dgOut (the data was located after the xtc)
    */
   dgOut = dgIn;   
