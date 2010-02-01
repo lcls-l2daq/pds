@@ -55,9 +55,15 @@ public:
     // all CPUs configure in parallel.
     virtual Transition* fire(Transition* tr) 
     {
-      _cfg.fetch(*tr, _typePrincetonConfig, &_configCamera, sizeof(_configCamera));
-      return tr; // !! for debugging only
-      
+      int iConfigSize = _cfg.fetch(*tr, _typePrincetonConfig, &_configCamera, sizeof(_configCamera));
+      if ( iConfigSize == 0 ) // No config data found in the database
+      {
+        // !! do nothing and uses the default settings
+        
+        //_iConfigCameraFail = 1;
+        //return tr;
+      }
+            
       _iConfigCameraFail = _manager.configCamera(_configCamera);
       
       return tr;
@@ -74,7 +80,7 @@ public:
         _cfgtc.alloc( sizeof(_configCamera) );
         in->insert(_cfgtc, &_configCamera);
         
-        if ( _iConfigCameraFail  != 0 )
+        if ( _iConfigCameraFail != 0 )
           in->datagram().xtc.damage.increase(Pds::Damage::UserDefined);
                   
         if (_iDebugLevel>=1) printf( "\nOutput payload size = %d\n", in->datagram().xtc.sizeofPayload());
@@ -134,9 +140,11 @@ public:
         
         int   iShotId       = 1;      // !! Obtain shot ID 
         bool  bCaptureStart = false;  // !! Check if this event is for starting capture
-        bool  bCaptureEnd   = false;  // !! Check if this event is for stoping capture        
+        //bool  bCaptureEnd   = false;  // !! Check if this event is for stoping capture        
         
-        return in; // !! for debugging only
+        bool  bCaptureEnd             = true;  // !! Check if this event is for stoping capture        
+        bool  bCaptureEndWithStartId  = true;  // !! For end-event only mode (no capture start event)
+        
         if ( _bMakeUpEvent )
         {
           InDatagram* out = in;
@@ -148,7 +156,7 @@ public:
         
         if ( bCaptureStart )
         {
-          int iFail = _manager.captureStart( iShotId );
+          int iFail = _manager.onEventShotIdStart( iShotId );
 
           if ( iFail != 0 )
             in->datagram().xtc.damage.increase(Pds::Damage::UserDefined); // set damage bit
@@ -158,7 +166,15 @@ public:
           return in; // Return empty data        
         
         InDatagram* out = in;
-        int iFail = _manager.captureEnd( iShotId, in, out );
+        int iFail = 0; 
+        
+        if ( bCaptureEndWithStartId )
+        {
+          int iShotIdStart = iShotId - 1;
+          _manager.onEventShotIdUpdate( iShotIdStart, iShotId, in, out );
+        }
+        else
+          _manager.onEventShotIdEnd( iShotId, in, out );
         
         /*
          * Possible failure modes for _manager.writeMonitoredConfigContent()
@@ -177,7 +193,14 @@ public:
           out->datagram().xtc.damage.increase(Pds::Damage::UserDefined);
         }                
                   
-        if (_iDebugLevel >= 1) printf( "\nOutput payload size = %d\n", out->datagram().xtc.sizeofPayload());
+        if (_iDebugLevel >= 1) 
+        {
+          Xtc& xtcData = out->datagram().xtc;
+          printf( "\nOutput payload size = %d\n", xtcData.sizeofPayload());
+          FrameV1& frameData = *(FrameV1*) xtcData.payload();
+          printf( "Frame Id Start %d End %d ReadoutTime %f\n", frameData.shotIdStart(), 
+           frameData.shotIdEnd(), frameData.readoutTime() );
+        }
         
         return out;
     }
@@ -262,14 +285,19 @@ int PrincetonManager::unconfigCamera()
   return _pServer->unconfigCamera();
 }
 
-int PrincetonManager::captureStart(int iShotIdStart)
+int PrincetonManager::onEventShotIdStart(int iShotIdStart)
 {
-  return _pServer->captureStart(iShotIdStart);
+  return _pServer->onEventShotIdStart(iShotIdStart);
 }
 
-int PrincetonManager::captureEnd(int iShotIdEnd, InDatagram* in, InDatagram*& out)
+int PrincetonManager::onEventShotIdEnd(int iShotIdEnd, InDatagram* in, InDatagram*& out)
 {
-  return _pServer->captureEnd(iShotIdEnd, in, out);
+  return _pServer->onEventShotIdEnd(iShotIdEnd, in, out);
+}
+
+int PrincetonManager::onEventShotIdUpdate(int iShotIdStart, int iShotIdEnd, InDatagram* in, InDatagram*& out)
+{
+  return _pServer->onEventShotIdUpdate(iShotIdStart, iShotIdEnd, in, out);  
 }
 
 int PrincetonManager::getMakeUpData(InDatagram* in, InDatagram*& out)

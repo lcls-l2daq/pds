@@ -30,8 +30,9 @@ public:
   // Camera control: Gateway functions for accessing PrincetonServer class
   int configCamera(Princeton::ConfigV1& config);
   int unconfigCamera();
-  int captureStart(int iShotIdStart);
-  int captureEnd(int iShotIdEnd, InDatagram* in, InDatagram*& out);
+  int onEventShotIdStart(int iShotIdStart);
+  int onEventShotIdEnd(int iShotIdEnd, InDatagram* in, InDatagram*& out);
+  int onEventShotIdUpdate(int iShotIdStart, int iShotIdEnd, InDatagram* in, InDatagram*& out);
   int getMakeUpData(InDatagram* in, InDatagram*& out);
   
 private:          
