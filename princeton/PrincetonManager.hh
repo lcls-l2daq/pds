@@ -48,7 +48,6 @@ private:
   Action*             _pActionDisable;        
   
   PrincetonServer*    _pServer;
-  GenericPool*        _pPool;    
 };
 
 class PrincetonManagerException : public std::runtime_error

@@ -13,7 +13,6 @@
 #include "pds/service/GenericPool.hh"
 #include "pds/service/Task.hh"
 #include "pds/service/Routine.hh"
-#include "pds/service/GenericPool.hh"
 #include "pds/xtc/CDatagram.hh"
 #include "pds/client/Action.hh"
 #include "pds/config/CfgClientNfs.hh"
@@ -64,7 +63,8 @@ public:
         //return tr;
       }
             
-      _iConfigCameraFail = _manager.configCamera(_configCamera);
+      // !! for debug only
+      //_iConfigCameraFail = _manager.configCamera(_configCamera);
       
       return tr;
     }
@@ -115,7 +115,8 @@ public:
         
     virtual Transition* fire(Transition* in) 
     {
-      _manager.unconfigCamera();
+      // !! for debug only      
+      //_manager.unconfigCamera();
       return in;
     }
 private:
@@ -135,7 +136,25 @@ public:
     {}
     
     virtual InDatagram* fire(InDatagram* in)     
-    {            
+    { 
+        /*
+         * !! debug test sending large packet
+         */
+        static int          iTestDataSize = 1*1024 + 512;
+        static GenericPool  pool( iTestDataSize + sizeof(Princeton::FrameV1) + sizeof(Xtc) + sizeof(CDatagram), 1 );
+        CDatagram*          out1          = new (&pool) CDatagram(in->datagram());
+        
+        TypeId typePrincetonFrame(TypeId::Id_PrincetonFrame, FrameV1::Version);        
+        Xtc* pXtcFrame = 
+         new ((char*) out1->datagram().xtc.payload() ) Xtc(typePrincetonFrame, Src() );
+        pXtcFrame->alloc( iTestDataSize + sizeof(Princeton::FrameV1) );
+        
+        out1->datagram().xtc.alloc( iTestDataSize + sizeof(Princeton::FrameV1) + sizeof(Xtc) );
+        
+        printf("PrincetonL1AcceptAction:fire(): test sending datasize %d\n", iTestDataSize);
+        return out1;
+      
+      
         if (_iDebugLevel >= 1) printf( "\n\n===== Writing L1 Data (Stream Mode) =====\n" );
         
         int   iShotId       = 1;      // !! Obtain shot ID 
@@ -247,7 +266,9 @@ PrincetonManager::PrincetonManager(CfgClientNfs& cfg, bool bMakeUpEvent, const s
     try
     {
       
-    _pServer = new PrincetonServer(bUseCaptureThread, _bStreamMode, sFnOutput, cfg.src(), _iDebugLevel);
+    // !! for debug only
+    //_pServer = new PrincetonServer(bUseCaptureThread, _bStreamMode, sFnOutput, cfg.src(), _iDebugLevel);
+    _pServer = NULL;
     
     }
     catch ( PrincetonServerException& eServer )
@@ -260,7 +281,7 @@ PrincetonManager::PrincetonManager(CfgClientNfs& cfg, bool bMakeUpEvent, const s
     _pFsm->callback(TransitionId::Configure,    _pActionConfig);
     _pFsm->callback(TransitionId::Unconfigure,  _pActionUnconfig);
     _pFsm->callback(TransitionId::L1Accept,     _pActionL1Accept);
-    _pFsm->callback(TransitionId::Disable,      _pActionDisable);        
+    _pFsm->callback(TransitionId::Disable,      _pActionDisable);            
 }
 
 PrincetonManager::~PrincetonManager()
