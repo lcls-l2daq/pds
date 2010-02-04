@@ -19,7 +19,7 @@ using namespace Princeton;
 PrincetonServer::PrincetonServer(bool bUseCaptureThread, bool bStreamMode, std::string sFnOutput, const Src& src, int iDebugLevel) :
  _bUseCaptureThread(bUseCaptureThread), _bStreamMode(bStreamMode), _sFnOutput(sFnOutput), _src(src), _iDebugLevel(iDebugLevel),
  _hCam(-1), _bCaptureInited(false),
- _iCameraAbortAndReset(0), _bForceCameraReset(false), _iTemperatureStatus(0), 
+ _tsPrevIdle(), _iCameraAbortAndReset(0), _bForceCameraReset(false), _iTemperatureStatus(0), 
  _configCamera(), 
  _iCurShotIdStart(-1), _iCurShotIdEnd(-1), _fReadoutTime(0),  
  _uFrameSize(0), _iCurPoolIndex(-1), _iNextPoolIndex(-1),
@@ -348,7 +348,6 @@ int PrincetonServer::initControlThreads()
 int PrincetonServer::runMonitorThread()
 {
   const static timeval timeSleepMicroOrg = {0, 100000}; // 100 milliseconds
-  timespec tsPrevIdle;  
   
   while (1)
   { 
@@ -378,24 +377,20 @@ int PrincetonServer::runMonitorThread()
      * If system is idle, proceed to next iteration
      */
     if ( isExposureInProgress() == 0 )
-    {
-      clock_gettime( CLOCK_REALTIME, &tsPrevIdle );
       continue;
-    }
-     
+    
     /*
      * Check if the exposure time exceeds the limit
      */    
     timespec tsCurrent;
     clock_gettime( CLOCK_REALTIME, &tsCurrent );
     
-    int iCaptureTime = (tsCurrent.tv_nsec - tsPrevIdle.tv_nsec) / 1000000 + 
-     ( tsCurrent.tv_sec - tsPrevIdle.tv_sec ) * 1000; // in ms
+    int iCaptureTime = (tsCurrent.tv_nsec - _tsPrevIdle.tv_nsec) / 1000000 + 
+     ( tsCurrent.tv_sec - _tsPrevIdle.tv_sec ) * 1000; // in ms
     if ( iCaptureTime >= _iMaxExposureTime )
     {
       printf( "PrincetonServer::runMonitorThread(): Exposure time is too long. Capture is stopped\n" );          
       abortAndResetCamera();
-      clock_gettime( CLOCK_REALTIME, &tsPrevIdle );
     }
   }
   return 0;
@@ -732,7 +727,8 @@ void PrincetonServer::abortAndResetCamera()
     
   printf( "PrincetonServer::abortAndResetCamera(): Camera reset ends.\n" );
   
-  _iCameraAbortAndReset = 2; // The event thread ( onEventShotIdStart() ) will reset this value back to 0
+  _iCameraAbortAndReset = 2; // The event thread ( onEventShotIdStart() ) will reset this value back to 0  
+  updateCameraIdleTime();
 }
 
 int PrincetonServer::isExposureInProgress()
@@ -755,17 +751,16 @@ int PrincetonServer::isExposureInProgress()
     return 0;
   }
         
-  /*
-   * READOUT_COMPLETE=FRAME_AVAILABLE, according to PVCAM 2.7 library manual
-   */
-  if (iStatus == READOUT_COMPLETE) 
+  if (
+   iStatus == READOUT_COMPLETE    ||  // READOUT_COMPLETE=FRAME_AVAILABLE, according to PVCAM 2.7 library manual
+   iStatus == READOUT_NOT_ACTIVE  ||  // system in idle state
+   iStatus == READOUT_IN_PROGRESS     // system is reading out the data, but not doing the exposure
+   )
+  {
+    updateCameraIdleTime();
     return 0;
+  }
     
-  if (iStatus == READOUT_NOT_ACTIVE) // system in idle state
-    return 0;
-
-  if (iStatus == READOUT_IN_PROGRESS) // system is reading out the data, but not doing the exposure
-    return 0;
     
   /*
    * Reutrn 1 for the remaining cases:
@@ -829,17 +824,22 @@ int PrincetonServer::waitForNewFrameAvailable()
      * READOUT_COMPLETE=FRAME_AVAILABLE, according to PVCAM 2.7 library manual
      */
     if (iStatus == READOUT_COMPLETE) // New frame available
+    {
+      updateCameraIdleTime();
       break;
+    }
 
     if (iStatus == READOUT_FAILED)
     {
       printf("PrincetonServer::waitForNewFrameAvailable(): pl_exp_check_status() return status=READOUT_FAILED\n");      
+      updateCameraIdleTime();      
       return 4;
     }
 
     if (iStatus == READOUT_NOT_ACTIVE) // idle state: camera controller won't transfer any data
     {
       printf("PrincetonServer::waitForNewFrameAvailable(): pl_exp_check_status() return status=READOUT_NOT_ACTIVE\n");      
+      updateCameraIdleTime();      
       return 5;
     }
     
@@ -893,17 +893,19 @@ int PrincetonServer::processFrame(InDatagram* in, InDatagram*& out)
   /*
    * Set frame object
    */    
-  unsigned char* pXtcHeader   = _lpDatagramBuffer[ _iCurPoolIndex ] + sizeof(CDatagram);
-  unsigned char* pFrameHeader = pXtcHeader + sizeof(Xtc);  
+  unsigned char*  pXtcHeader    = _lpDatagramBuffer[ _iCurPoolIndex ] + sizeof(CDatagram);
+  unsigned char*  pFrameHeader  = pXtcHeader + sizeof(Xtc);  
+  //int             iFrameSize    = sizeof(FrameV1); // !! for debug only
+  int             iFrameSize    = FrameV1::size();
 
   out = 
    new ( _lpCircPool[_iCurPoolIndex] ) CDatagram( in->datagram() ); 
-  out->datagram().xtc.alloc( sizeof(Xtc) + FrameV1::size() );
+  out->datagram().xtc.alloc( sizeof(Xtc) + iFrameSize );
   
   TypeId typePrincetonFrame(TypeId::Id_PrincetonFrame, FrameV1::Version);
   Xtc* pXtcFrame = 
    new ((char*)pXtcHeader) Xtc(typePrincetonFrame, _src);
-  pXtcFrame->alloc( FrameV1::size() );
+  pXtcFrame->alloc( iFrameSize );
 
   new (pFrameHeader) FrameV1(_iCurShotIdStart, _iCurShotIdEnd, _fReadoutTime);
       
@@ -975,6 +977,11 @@ void PrincetonServer::checkTemperature()
   }
   else
     _iTemperatureStatus = 0;  
+}
+
+void PrincetonServer::updateCameraIdleTime()
+{
+  clock_gettime( CLOCK_REALTIME, &_tsPrevIdle );  
 }
 
 /*

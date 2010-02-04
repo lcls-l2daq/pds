@@ -64,7 +64,7 @@ public:
       }
             
       // !! for debug only
-      //_iConfigCameraFail = _manager.configCamera(_configCamera);
+      _iConfigCameraFail = _manager.configCamera(_configCamera);
       
       return tr;
     }
@@ -116,7 +116,7 @@ public:
     virtual Transition* fire(Transition* in) 
     {
       // !! for debug only      
-      //_manager.unconfigCamera();
+      _manager.unconfigCamera();
       return in;
     }
 private:
@@ -137,27 +137,26 @@ public:
     
     virtual InDatagram* fire(InDatagram* in)     
     { 
-        /*
-         * !! debug test sending large packet
-         */
-        static int          iTestDataSize = 1*1024 + 512;
-        static GenericPool  pool( iTestDataSize + sizeof(Princeton::FrameV1) + sizeof(Xtc) + sizeof(CDatagram), 1 );
-        CDatagram*          out1          = new (&pool) CDatagram(in->datagram());
+        ///*
+        // * !! debug test sending large packet
+        // */
+        //static int          iTestDataSize = 8*1024*1024;
+        //static GenericPool  pool( iTestDataSize + sizeof(Princeton::FrameV1) + sizeof(Xtc) + sizeof(CDatagram), 1 );
+        //CDatagram*          out1          = new (&pool) CDatagram(in->datagram());
         
-        TypeId typePrincetonFrame(TypeId::Id_PrincetonFrame, FrameV1::Version);        
-        Xtc* pXtcFrame = 
-         new ((char*) out1->datagram().xtc.payload() ) Xtc(typePrincetonFrame, Src() );
-        pXtcFrame->alloc( iTestDataSize + sizeof(Princeton::FrameV1) );
+        //TypeId typePrincetonFrame(TypeId::Id_PrincetonFrame, FrameV1::Version);        
+        //Xtc* pXtcFrame = 
+        // new ((char*) out1->datagram().xtc.payload() ) Xtc(typePrincetonFrame, Src() );
+        //pXtcFrame->alloc( iTestDataSize + sizeof(Princeton::FrameV1) );
         
-        out1->datagram().xtc.alloc( iTestDataSize + sizeof(Princeton::FrameV1) + sizeof(Xtc) );
+        //out1->datagram().xtc.alloc( iTestDataSize + sizeof(Princeton::FrameV1) + sizeof(Xtc) );
         
-        printf("PrincetonL1AcceptAction:fire(): test sending datasize %d\n", iTestDataSize);
-        return out1;
-      
+        //printf("PrincetonL1AcceptAction:fire(): test sending datasize %d\n", iTestDataSize);
+        //return out1;      
       
         if (_iDebugLevel >= 1) printf( "\n\n===== Writing L1 Data (Stream Mode) =====\n" );
         
-        int   iShotId       = 1;      // !! Obtain shot ID 
+        int   iShotId       = 12;      // !! Obtain shot ID 
         bool  bCaptureStart = false;  // !! Check if this event is for starting capture
         //bool  bCaptureEnd   = false;  // !! Check if this event is for stoping capture        
         
@@ -185,15 +184,15 @@ public:
           return in; // Return empty data        
         
         InDatagram* out = in;
-        int iFail = 0; 
+        int iFail = 0;         
         
         if ( bCaptureEndWithStartId )
         {
-          int iShotIdStart = iShotId - 1;
-          _manager.onEventShotIdUpdate( iShotIdStart, iShotId, in, out );
+          int iShotIdStart = iShotId - 4; // !! for debug only
+          iFail = _manager.onEventShotIdUpdate( iShotIdStart, iShotId, in, out );
         }
         else
-          _manager.onEventShotIdEnd( iShotId, in, out );
+          iFail = _manager.onEventShotIdEnd( iShotId, in, out );
         
         /*
          * Possible failure modes for _manager.writeMonitoredConfigContent()
@@ -215,10 +214,16 @@ public:
         if (_iDebugLevel >= 1) 
         {
           Xtc& xtcData = out->datagram().xtc;
-          printf( "\nOutput payload size = %d\n", xtcData.sizeofPayload());
-          FrameV1& frameData = *(FrameV1*) xtcData.payload();
-          printf( "Frame Id Start %d End %d ReadoutTime %f\n", frameData.shotIdStart(), 
-           frameData.shotIdEnd(), frameData.readoutTime() );
+          printf( "\nOutput payload size = %d  fail = %d\n", xtcData.sizeofPayload(), iFail);
+          Xtc& xtcFrame = *(Xtc*) xtcData.payload();
+          
+          if ( iFail == 0 ) 
+          {
+            printf( "Frame payload size = %d\n", xtcFrame.sizeofPayload());
+            FrameV1& frameData = *(FrameV1*) xtcFrame.payload();
+            printf( "Frame Id Start %d End %d ReadoutTime %f\n", frameData.shotIdStart(), 
+             frameData.shotIdEnd(), frameData.readoutTime() );
+          }
         }
         
         return out;
@@ -247,7 +252,7 @@ private:
 
 PrincetonManager::PrincetonManager(CfgClientNfs& cfg, bool bMakeUpEvent, const string& sFnOutput, int iDebugLevel) :
   _bMakeUpEvent(bMakeUpEvent), _bStreamMode(sFnOutput.empty()), // If no output filename is specified, then use stream mode
-  _iDebugLevel(iDebugLevel)
+  _iDebugLevel(iDebugLevel), _pServer(NULL)
 {
     _pActionMap      = new PrincetonAllocAction(*this, cfg);
     _pActionConfig   = new PrincetonConfigAction(*this, cfg, _iDebugLevel);
@@ -267,8 +272,7 @@ PrincetonManager::PrincetonManager(CfgClientNfs& cfg, bool bMakeUpEvent, const s
     {
       
     // !! for debug only
-    //_pServer = new PrincetonServer(bUseCaptureThread, _bStreamMode, sFnOutput, cfg.src(), _iDebugLevel);
-    _pServer = NULL;
+    _pServer = new PrincetonServer(bUseCaptureThread, _bStreamMode, sFnOutput, cfg.src(), _iDebugLevel);
     
     }
     catch ( PrincetonServerException& eServer )

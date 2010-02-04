@@ -68,6 +68,7 @@ private:
   int   writeFrameToFile(const Datagram& dgOut);  
   void  setupROI(rgn_type& region);
   void  checkTemperature();  
+  void  updateCameraIdleTime();
   
   /*
    * Initial settings
@@ -87,6 +88,7 @@ private:
   /*
    * Camera Reset and Monitor Thread control variables
    */
+  timespec            _tsPrevIdle;            // timestamp for the previous camera idle time
   int                 _iCameraAbortAndReset;  // 0 -> normal, 1 -> resetting in progress, 2 -> reset complete
   bool                _bForceCameraReset;     
   int                 _iTemperatureStatus;    // 0 -> normal, 1 -> too high  
