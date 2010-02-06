@@ -18,8 +18,8 @@ using namespace Princeton;
 
 PrincetonServer::PrincetonServer(bool bUseCaptureThread, bool bStreamMode, std::string sFnOutput, const Src& src, int iDebugLevel) :
  _bUseCaptureThread(bUseCaptureThread), _bStreamMode(bStreamMode), _sFnOutput(sFnOutput), _src(src), _iDebugLevel(iDebugLevel),
- _hCam(-1), _bCaptureInited(false),
- _tsPrevIdle(), _iCameraAbortAndReset(0), _bForceCameraReset(false), _iTemperatureStatus(0), 
+ _hCam(-1), _bCameraInited(false), _bCaptureInited(false), _bThreadInited(false),
+ _tsPrevIdle(), _iCameraAbortAndReset(0), _bForceCameraReset(false), _iTemperatureStatus(0), _bImageDataReady(false),
  _configCamera(), 
  _iCurShotIdStart(-1), _iCurShotIdEnd(-1), _fReadoutTime(0),  
  _uFrameSize(0), _iCurPoolIndex(-1), _iNextPoolIndex(-1),
@@ -30,9 +30,13 @@ PrincetonServer::PrincetonServer(bool bUseCaptureThread, bool bStreamMode, std::
       
   if ( initCamera() != 0 )
     throw PrincetonServerException( "PrincetonServer::PrincetonServer(): initPrincetonCamera() failed" );    
-  
-  if ( initControlThreads() != 0 )
-    throw PrincetonServerException( "PrincetonServer::PrincetonServer(): initControlThreads() failed" );
+
+  /*
+   * Known issue:
+   *
+   * If initControlThreads() is put here, occasionally we will miss some FRAME_COMPLETE event when we do the polling
+   * Possible reason is that this function (constructor) is called by a different thread other than the polling thread.
+   */
     
   for ( int iPool = 0; iPool < _iCircPoolCount; iPool++ )
   {
@@ -50,8 +54,8 @@ PrincetonServer::~PrincetonServer()
   for ( int iPool = 0; iPool < _iCircPoolCount; iPool++ )
   {
     delete _lpCircPool[iPool];
-    _lpCircPool     [iPool] = NULL;    
-    _lpDatagramBuffer[iPool] = NULL;
+    _lpCircPool       [iPool] = NULL;    
+    _lpDatagramBuffer [iPool] = NULL;
   }
   
   deinitCamera();
@@ -59,6 +63,9 @@ PrincetonServer::~PrincetonServer()
 
 int PrincetonServer::initCamera()
 {
+  if ( _bCameraInited )
+    return 0;
+    
   /* Initialize the PVCam Library */
   if (!pl_pvcam_init())
   {
@@ -80,7 +87,10 @@ int PrincetonServer::initCamera()
     printPvError("PrincetonServer::initCamera(): pl_cam_open() failed");
     return 3;
   }
-    
+  
+  printf( "Princeton Camera %s has been initialized\n", strCamera );
+  
+  _bCameraInited = true;    
   return 0;
 }
 
@@ -99,6 +109,8 @@ int PrincetonServer::deinitCamera()
     return 2;
   }
   
+  printf( "Princeton Camera has been deinitialized\n" );
+  
   return 0;
 }
 
@@ -107,19 +119,29 @@ int PrincetonServer::configCamera(Princeton::ConfigV1& config)
   // If the camera has been init-ed before, and not deinit-ed yet  
   if ( _bCaptureInited )
     deinitCapture(); // deinit the camera explicitly    
-  
-  int iFail;
-  iFail= initCameraSettings(config);  
-  if ( iFail != 0 ) return 1;
+
+  //if ( initCamera() != 0 ) 
+  //  return 1;
+    
+  if ( initCameraSettings(config) != 0 ) 
+    return 2;
   
   _configCamera = config;
   FrameV1::initStatic( _configCamera ); // associate frame objects with this camera config
     
-  iFail = setupCooling();  
-  if ( iFail != 0 ) return 2;  
+  if ( setupCooling() != 0 )
+    return 3;  
   
-  iFail = initCapture();
-  if ( iFail != 0 ) return 3; 
+  if ( initCapture() != 0 )
+    return 4; 
+    
+  /*
+   * Known issue:
+   *
+   * initControlThreads() need to be put here. See the comment in the constructor function.
+   */    
+  if ( initControlThreads() != 0 )
+    return 5;
   
   return 0;
 }
@@ -142,9 +164,7 @@ int PrincetonServer::initCapture()
   {
     printPvError("PrincetonServer::initCapture(): pl_exp_init_seq() failed!\n");
     return 1; 
-  }
-  
-  _bCaptureInited = true;
+  }  
  
   const int16 iExposureMode = _configCamera.exposureMode();
   
@@ -176,7 +196,12 @@ int PrincetonServer::initCapture()
   int iFail = 
    startCapture(0);
   if ( iFail != 0 ) return 4;  
-     
+   
+  _bCaptureInited = true;
+  
+  printf( "Capture initialized, exposure mode = %d, time = %lu\n",
+    iExposureMode, iExposureTime );
+  
   return 0;
 }
 
@@ -184,7 +209,9 @@ int PrincetonServer::deinitCapture()
 {
   if ( !_bCaptureInited )
     return 0;
-    
+  
+  _bCaptureInited = false;
+  
   /* Stop the acquisition */
   if (!pl_exp_abort(_hCam, CCS_HALT))
   {
@@ -199,12 +226,34 @@ int PrincetonServer::deinitCapture()
     return 2;
   }
   
-  _bCaptureInited = false;
+  /*
+   * Update Capture Thread Control and I/O variables
+   */
+  _iEventCaptureEnd = 0;
+  delete _pDgOut; _pDgOut = NULL;   
+  
+  
+  /*
+   * Update buffer control variables
+   */
+  _iCurPoolIndex = -1;
+  
+  /* 
+   *  Update Camera Reset and Monitor Thread control variables
+   */
+  _iCameraAbortAndReset = 0;
+  _bForceCameraReset    = false;
+  _bImageDataReady      = false;
+  
+  printf( "Capture deinitialized\n" );
+  
   return 0;
 }
 
 int PrincetonServer::startCapture(int iPoolIndex)
-{    
+{
+  updateCameraIdleTime();
+  
   unsigned char* pFrameBuffer = _lpDatagramBuffer[ iPoolIndex ] + _iFrameHeaderSize;
   
   /* Start the acquisition */
@@ -313,6 +362,9 @@ int PrincetonServer::setupCooling()
 
 int PrincetonServer::initControlThreads()
 {
+  if ( _bThreadInited )
+    return 0;
+    
   pthread_attr_t threadAttr;
   pthread_attr_init(&threadAttr);
   pthread_attr_setdetachstate(&threadAttr, PTHREAD_CREATE_DETACHED);
@@ -331,7 +383,10 @@ int PrincetonServer::initControlThreads()
   }
 
   if ( ! _bUseCaptureThread )
+  {
+    _bThreadInited = true;
     return 0;
+  }
     
   iFail = 
    pthread_create(&threadControl, &threadAttr, &threadEntryCapture, this);   
@@ -340,14 +395,16 @@ int PrincetonServer::initControlThreads()
     printf("PrincetonServer::initControlThreads(): pthread_create(threadEntryCapture) failed, error code %d - %s\n",
        errno, strerror(errno));
     return 1;
-  }
+  }  
   
+  _bThreadInited = true;
   return 0;
 }
 
 int PrincetonServer::runMonitorThread()
 {
-  const static timeval timeSleepMicroOrg = {0, 100000}; // 100 milliseconds
+  //const static timeval timeSleepMicroOrg = {0, 100000}; // 100 milliseconds
+  const static timeval timeSleepMicroOrg = {0, 1000}; // 1 milliseconds // !! for debug only
   
   while (1)
   { 
@@ -372,7 +429,13 @@ int PrincetonServer::runMonitorThread()
      * Check temperature
      */
     checkTemperature();   
-
+    
+    if ( !_bCaptureInited )
+    {
+      updateCameraIdleTime();
+      continue;
+    }
+    
     /*
      * If system is idle, proceed to next iteration
      */
@@ -398,13 +461,13 @@ int PrincetonServer::runMonitorThread()
 
 int PrincetonServer::runCaptureThread()
 {
-  const static timeval timeSleepMicroOrg = {0, 1000}; // 1 milliseconds
-  CDatagram cdgEvent(_dgEvent);
+  const static timeval timeSleepMicroOrg = {0, 1000}; // 1 milliseconds  
+  static GenericPool poolDatagram( sizeof(CDatagram), 1 );  
   
   while (1)
   { 
     // !! use condition variable
-    if ( !_iEventCaptureEnd )
+    if ( _iEventCaptureEnd == 0 )
     {
       // This data will be modified by select(), so need to be reset
       timeval timeSleepMicro = timeSleepMicroOrg; 
@@ -413,11 +476,32 @@ int PrincetonServer::runCaptureThread()
       continue;      
     }
     
+    if ( _pDgOut != NULL )
+    {
+      printf( "PrincetonServer::runCaptureThread(): Last data has not been sent out, while current capture is end\n" );
+      
+      /*
+       * Delete the current datagram to prepare for the new image data
+       *
+       * Note that getMakeUpData() makes sure _pDgOut is set to NULL as soon as its data is being sent out,
+       * so we don't worry if _pDgOut is being used by other thread.
+       */
+      delete _pDgOut;
+      _pDgOut = NULL;
+    }    
+    
+    if ( !_bCaptureInited )
+    {
+      _iEventCaptureEnd = 0;
+      continue;
+    }
+    
     if ( _iCameraAbortAndReset != 0 )
     {
       _iCurShotIdEnd    = -1;  
-      _pDgOut           = NULL;      
       _iEventCaptureEnd = 0;
+      delete _pDgOut;
+      _pDgOut           = NULL;            
       continue;
     }    
     
@@ -428,9 +512,9 @@ int PrincetonServer::runCaptureThread()
       continue;
     }
         
-    new (&cdgEvent) CDatagram(_dgEvent);
-    InDatagram* in  = &cdgEvent;
-    InDatagram* out = in;
+    CDatagram*  pCdgEvent = new (&poolDatagram) CDatagram(_dgEvent);
+    InDatagram* in        = pCdgEvent;
+    InDatagram* out       = in;
     
     int iFail;
     iFail =
@@ -438,10 +522,13 @@ int PrincetonServer::runCaptureThread()
      
     if ( iFail == 0 )
     {
-      iFail = 
-       processFrame(in, out);       
-    }
+        iFail = 
+         processFrame(in, out);       
+    }    
           
+    if ( out != in )
+      delete in; // release the space of input datagram for next use
+    
     /*
      * Set the damage bit if temperature status is not good
      */
@@ -459,7 +546,8 @@ int PrincetonServer::runCaptureThread()
     _iCurShotIdStart = _iCurShotIdEnd = -1;      
     
     _iEventCaptureEnd = 0;
-  }
+  } //   while (1)  
+  
   return 0;
 }
 
@@ -481,7 +569,7 @@ int PrincetonServer::onEventShotIdStart(int iShotIdStart)
     
   if ( _iEventCaptureEnd == 1 || _pDgOut != NULL )
   {
-    printf( "PrincetonServer::onEventShotIdStart(): Last frame has not been processed completely, possibly"
+    printf( "PrincetonServer::onEventShotIdStart(): Last frame has not been processed completely, possibly "
      "because the events are coming too fast, or the capture thread has problems.\n" );     
     // Don't reset the shot id, because the capture thread should be processing the data
     return 2;
@@ -489,7 +577,7 @@ int PrincetonServer::onEventShotIdStart(int iShotIdStart)
   
   if ( _iCurShotIdStart >= 0 || _iCurShotIdEnd >= 0 )
   {
-    printf( "PrincetonServer::onEventShotIdStart(): Shot Id (Start or End) has not been reset since the last shot, possibly"
+    printf( "PrincetonServer::onEventShotIdStart(): Shot Id (Start or End) has not been reset since the last shot, possibly "
      "because the events are coming too fast, or the capture thread has problems.\n" );    
 
     // Don't reset the shot id, if the capture thread might be processing the data; otherwise always reset the shot ids     
@@ -523,7 +611,7 @@ int PrincetonServer::onEventShotIdEnd(int iShotIdEnd, InDatagram* in, InDatagram
 
   if ( _iEventCaptureEnd == 1 || _pDgOut != NULL )
   {
-    printf( "PrincetonServer::onEventShotIdEnd(): Last frame has not been processed completely, possibly"
+    printf( "PrincetonServer::onEventShotIdEnd(): Last frame has not been processed completely, possibly "
      "because the events are coming too fast, or the capture thread has problems.\n" );     
     // Don't reset the shot id, because the capture thread should be processing the data, or the data is waiting to be read out
     return 3;
@@ -531,7 +619,7 @@ int PrincetonServer::onEventShotIdEnd(int iShotIdEnd, InDatagram* in, InDatagram
   
   if ( _iCurShotIdEnd >= 0 )
   {
-    printf( "PrincetonServer::onEventShotIdEnd(): Shot Id (End) has not been reset since the last shot, possibly"
+    printf( "PrincetonServer::onEventShotIdEnd(): Shot Id (End) has not been reset since the last shot, possibly "
      "because the events are coming too fast, or the capture thread has problems.\n" );    
      
     // Don't reset the shot id, if the capture thread might be processing the data; otherwise always reset the shot ids
@@ -600,7 +688,7 @@ int PrincetonServer::onEventShotIdUpdate(int iShotIdStart, int iShotIdEnd, InDat
 
   if ( _iEventCaptureEnd == 1 || _pDgOut != NULL )
   {
-    printf( "PrincetonServer::onEventShotIdUpdate(): Last frame has not been processed completely, possibly"
+    printf( "PrincetonServer::onEventShotIdUpdate(): Last frame has not been processed completely, possibly "
      "because the events are coming too fast, or the capture thread has problems.\n" );     
     // Don't reset the shot id, because the capture thread should be processing the data, or the data is waiting to be read out
     return 3;
@@ -608,7 +696,7 @@ int PrincetonServer::onEventShotIdUpdate(int iShotIdStart, int iShotIdEnd, InDat
   
   if ( _iCurShotIdEnd >= 0 )
   {
-    printf( "PrincetonServer::onEventShotIdUpdate(): Shot Id (End) has not been reset since the last shot, possibly"
+    printf( "PrincetonServer::onEventShotIdUpdate(): Shot Id (End) has not been reset since the last shot, possibly "
      "because the events are coming too fast, or the capture thread has problems.\n" );    
      
     // Don't reset the shot id, if the capture thread might be processing the data; otherwise always reset the shot ids
@@ -676,20 +764,28 @@ int PrincetonServer::getMakeUpData(InDatagram* in, InDatagram*& out)
     
   Datagram& dgIn    = in->datagram();
   Datagram& dgOut   = _pDgOut->datagram();
-  Xtc       xtcOrg  = dgOut.xtc;
   
+  /*
+   * Backup the orignal Xtc data
+   *
+   * Note that it is not correct to use  Xtc xtc1 = xtc2, which means using the Xtc constructor,
+   * instead of the copy operator to do the copy.
+   */
+  Xtc xtcOrg; 
+  xtcOrg = dgOut.xtc;
+
   /*
    * Compose the datagram
    *
    *   1. Use the header from dgIn 
    *   2. Use the xtc (data header) from dgOut
-   *   3. Use the data from dgOut (the data was located after the xtc)
+   *   3. Use the data from dgOut (the data was located right after the xtc)
    */
   dgOut = dgIn;   
   dgOut.xtc = xtcOrg;
-  
+      
   out = _pDgOut;
-  
+    
   // After sending out the data, set the _pDgOut pointer to NULL, so that the same data will never be sent out twice
   _pDgOut = NULL;
   
@@ -728,7 +824,6 @@ void PrincetonServer::abortAndResetCamera()
   printf( "PrincetonServer::abortAndResetCamera(): Camera reset ends.\n" );
   
   _iCameraAbortAndReset = 2; // The event thread ( onEventShotIdStart() ) will reset this value back to 0  
-  updateCameraIdleTime();
 }
 
 int PrincetonServer::isExposureInProgress()
@@ -737,10 +832,10 @@ int PrincetonServer::isExposureInProgress()
   uns32 uNumBytesTransfered;  
   rs_bool bCheckOk;
   
-  lockPlFunc();
+  lockPlFunc("PrincetonServer::isExposureInProgress():pl_exp_check_status()");
   bCheckOk = 
    pl_exp_check_status(_hCam, &iStatus, &uNumBytesTransfered);
-  releaseLockPlFunc();  
+  releaseLockPlFunc();    
   
   if (!bCheckOk)   
   {
@@ -756,7 +851,10 @@ int PrincetonServer::isExposureInProgress()
    iStatus == READOUT_NOT_ACTIVE  ||  // system in idle state
    iStatus == READOUT_IN_PROGRESS     // system is reading out the data, but not doing the exposure
    )
-  {
+  {    
+    if ( iStatus == READOUT_COMPLETE )
+      _bImageDataReady = true;
+   
     updateCameraIdleTime();
     return 0;
   }
@@ -802,11 +900,18 @@ int PrincetonServer::waitForNewFrameAvailable()
   
   while (1)
   {
+    if ( _bImageDataReady )
+    {
+      _bImageDataReady = false;
+      updateCameraIdleTime();
+      break;
+    }
+    
     int16 iStatus = 0;
     uns32 uNumBytesTransfered;
     rs_bool bCheckOk;
     
-    lockPlFunc();  
+    lockPlFunc("PrincetonServer::waitForNewFrameAvailable():PrincetonServer::pl_exp_check_status()");  
     bCheckOk = 
      pl_exp_check_status(_hCam, &iStatus, &uNumBytesTransfered);
     releaseLockPlFunc();  
@@ -895,11 +1000,17 @@ int PrincetonServer::processFrame(InDatagram* in, InDatagram*& out)
    */    
   unsigned char*  pXtcHeader    = _lpDatagramBuffer[ _iCurPoolIndex ] + sizeof(CDatagram);
   unsigned char*  pFrameHeader  = pXtcHeader + sizeof(Xtc);  
-  //int             iFrameSize    = sizeof(FrameV1); // !! for debug only
   int             iFrameSize    = FrameV1::size();
 
+  GenericPool* pPool = _lpCircPool[_iCurPoolIndex];
+  if ( pPool->empty() == NULL)
+  {
+    printf( "PrincetonServer::processFrame(): No space for processing frame data\n" );
+    return 2;
+  }
+  
   out = 
-   new ( _lpCircPool[_iCurPoolIndex] ) CDatagram( in->datagram() ); 
+   new ( pPool ) CDatagram( in->datagram() ); 
   out->datagram().xtc.alloc( sizeof(Xtc) + iFrameSize );
   
   TypeId typePrincetonFrame(TypeId::Id_PrincetonFrame, FrameV1::Version);
@@ -913,16 +1024,7 @@ int PrincetonServer::processFrame(InDatagram* in, InDatagram*& out)
    * Update current buffer index
    */
   _iCurPoolIndex = _iNextPoolIndex;       
-  
-  /*
-   * !! Debug the memory 
-   */
-  printf( "PrincetonServer::processFrame(): Memory debug\n" );
-  printf( "  Datagram     %p , from datagram: %p\n", (void*) out, _lpDatagramBuffer[ _iCurPoolIndex ] );
-  printf( "  XtcHeader    %p , from datagram: %p\n", pXtcFrame, out->datagram().xtc.payload() );
-  printf( "  FrameHeader  %p\n", pFrameHeader );  
-  printf( "  Frame        %p\n", _lpDatagramBuffer[ _iCurPoolIndex ] + _iFrameHeaderSize );  
-    
+      
   return 0;
 }
 
@@ -965,7 +1067,7 @@ void PrincetonServer::checkTemperature()
   const int16 iCoolingTemp = _configCamera.coolingTemp();
   int16 iTemperatureCurrent = -1;  
   
-  lockPlFunc();
+  lockPlFunc("PrincetonServer::checkTemperature():PICAM::getAnyParam()");
   PICAM::getAnyParam(_hCam, PARAM_TEMP, &iTemperatureCurrent );
   releaseLockPlFunc();
     
@@ -993,7 +1095,6 @@ const int       PrincetonServer::_iFrameHeaderSize      = sizeof(CDatagram) + si
 const int       PrincetonServer::_iMaxFrameDataSize     = 2048*2048*2 + _iFrameHeaderSize;
 const int       PrincetonServer::_iCircPoolCount;
 const int       PrincetonServer::_iMaxReadoutTime;
-const timespec  PrincetonServer::_tmLockTimeout = { 0, 5000000 }; // 5 milliseconds 
 
 void* PrincetonServer::threadEntryMonitor(void * pServer)
 {

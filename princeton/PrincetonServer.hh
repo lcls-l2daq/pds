@@ -42,8 +42,7 @@ private:
   static const int      _iMaxFrameDataSize;                     // Buffer for 4 Mega (image pixels) x 2 (bytes per pixel) + header size
   static const int      _iCircPoolCount         = 2;
   static const int      _iMaxExposureTime       = 10000;        // Limit exposure time to prevent CCD from burning
-  static const int      _iMaxReadoutTime        = 3000;         // Max readout time          
-  static const timespec _tmLockTimeout;                         // Timeout for acquiring the lock
+  static const int      _iMaxReadoutTime        = 3000;         // Max readout time // !! debug - set to 3s for testing
 
   /*
    * private functions
@@ -83,7 +82,9 @@ private:
    * Camera basic status control
    */
   short               _hCam;  
+  bool                _bCameraInited;
   bool                _bCaptureInited;
+  bool                _bThreadInited;
 
   /*
    * Camera Reset and Monitor Thread control variables
@@ -92,6 +93,7 @@ private:
   int                 _iCameraAbortAndReset;  // 0 -> normal, 1 -> resetting in progress, 2 -> reset complete
   bool                _bForceCameraReset;     
   int                 _iTemperatureStatus;    // 0 -> normal, 1 -> too high  
+  bool                _bImageDataReady;
   
   /*
    * Config data
@@ -132,10 +134,10 @@ private:
    */
   //static void lockPlFunc();
   //static void releaseLockPlFunc();  
-  inline static void lockPlFunc()
+  inline static void lockPlFunc(char* sDescription)
   {
-    if ( pthread_mutex_timedlock(&_mutexPlFuncs, &_tmLockTimeout) )
-      printf( "PrincetonServer::lockPlFunc(): pthread_mutex_timedlock() failed\n" );
+    if ( pthread_mutex_lock(&_mutexPlFuncs) )
+      printf( "PrincetonServer::lockPlFunc(): pthread_mutex_timedlock() failed for %s\n", sDescription );
   }
   inline static void releaseLockPlFunc()
   {
