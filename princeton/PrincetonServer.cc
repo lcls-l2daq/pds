@@ -18,11 +18,11 @@ using namespace Princeton;
 
 PrincetonServer::PrincetonServer(bool bUseCaptureThread, bool bStreamMode, std::string sFnOutput, const Src& src, int iDebugLevel) :
  _bUseCaptureThread(bUseCaptureThread), _bStreamMode(bStreamMode), _sFnOutput(sFnOutput), _src(src), _iDebugLevel(iDebugLevel),
- _hCam(-1), _bCameraInited(false), _bCaptureInited(false), _bThreadInited(false),
+ _hCam(-1), _bCameraInited(false), _bCaptureInited(false), _iThreadStatus(0),
  _tsPrevIdle(), _iCameraAbortAndReset(0), _bForceCameraReset(false), _iTemperatureStatus(0), _bImageDataReady(false),
  _configCamera(), 
  _iCurShotIdStart(-1), _iCurShotIdEnd(-1), _fReadoutTime(0),  
- _uFrameSize(0), _iCurPoolIndex(-1), _iNextPoolIndex(-1),
+ _uFrameSize(0), _iCurPoolIndex(-1), _iNextPoolIndex(-1), _poolDatagram( sizeof(CDatagram), 1 ),
  _iEventCaptureEnd(0), _dgEvent(TypeId(), Src()), _pDgOut(NULL)
 {  
   if ( checkInitSettings() != 0 )    
@@ -51,6 +51,8 @@ PrincetonServer::PrincetonServer(bool bUseCaptureThread, bool bStreamMode, std::
 
 PrincetonServer::~PrincetonServer()
 {
+  _iThreadStatus = 2; // notify monitor and capture threads to terminate
+    
   for ( int iPool = 0; iPool < _iCircPoolCount; iPool++ )
   {
     delete _lpCircPool[iPool];
@@ -58,7 +60,7 @@ PrincetonServer::~PrincetonServer()
     _lpDatagramBuffer [iPool] = NULL;
   }
   
-  deinitCamera();
+  deinitCamera();  
 }
 
 int PrincetonServer::initCamera()
@@ -227,11 +229,20 @@ int PrincetonServer::deinitCapture()
   }
   
   /*
+   * Reset per-frame data
+   */
+  _iCurShotIdStart  = -1;
+  _iCurShotIdEnd    = -1;
+  _fReadoutTime     = 0;
+    
+  /*
    * Update Capture Thread Control and I/O variables
    */
   _iEventCaptureEnd = 0;
-  delete _pDgOut; _pDgOut = NULL;   
   
+  lockPlFunc( "PrincetonServer::deinitCapture(): Check DgOut" );
+  delete _pDgOut; _pDgOut = NULL;   
+  releaseLockPlFunc();  
   
   /*
    * Update buffer control variables
@@ -362,7 +373,7 @@ int PrincetonServer::setupCooling()
 
 int PrincetonServer::initControlThreads()
 {
-  if ( _bThreadInited )
+  if ( _iThreadStatus == 1 )
     return 0;
     
   pthread_attr_t threadAttr;
@@ -384,7 +395,7 @@ int PrincetonServer::initControlThreads()
 
   if ( ! _bUseCaptureThread )
   {
-    _bThreadInited = true;
+    _iThreadStatus = 1;
     return 0;
   }
     
@@ -397,7 +408,7 @@ int PrincetonServer::initControlThreads()
     return 1;
   }  
   
-  _bThreadInited = true;
+  _iThreadStatus = 1;
   return 0;
 }
 
@@ -406,7 +417,7 @@ int PrincetonServer::runMonitorThread()
   //const static timeval timeSleepMicroOrg = {0, 100000}; // 100 milliseconds
   const static timeval timeSleepMicroOrg = {0, 1000}; // 1 milliseconds // !! for debug only
   
-  while (1)
+  while ( _iThreadStatus == 1 ) // if _iThreadStatus is set to non-1 value by other thread, this thread will terminate
   { 
     /*
      * Sleep for 100ms
@@ -416,6 +427,9 @@ int PrincetonServer::runMonitorThread()
     // use select() to simulate nanosleep(), because experimentally select() controls the sleeping time more precisely
     select( 0, NULL, NULL, NULL, &timeSleepMicro); 
 
+    if ( !_bCameraInited )
+      continue;
+    
     /*
      * Check the rest request
      */    
@@ -423,7 +437,7 @@ int PrincetonServer::runMonitorThread()
     {
       abortAndResetCamera();      
       _bForceCameraReset = false;      
-    }    
+    }     
     
     /*
      * Check temperature
@@ -455,16 +469,17 @@ int PrincetonServer::runMonitorThread()
       printf( "PrincetonServer::runMonitorThread(): Exposure time is too long. Capture is stopped\n" );          
       abortAndResetCamera();
     }
-  }
+  } // while ( _iThreadStatus == 1 ) 
+  
+  printf( "Terminating monitor thread\n" );  
   return 0;
 }
 
 int PrincetonServer::runCaptureThread()
 {
   const static timeval timeSleepMicroOrg = {0, 1000}; // 1 milliseconds  
-  static GenericPool poolDatagram( sizeof(CDatagram), 1 );  
   
-  while (1)
+  while ( _iThreadStatus == 1 ) // if _iThreadStatus is set to non-1 value by other thread, this thread will be terminate
   { 
     // !! use condition variable
     if ( _iEventCaptureEnd == 0 )
@@ -475,6 +490,9 @@ int PrincetonServer::runCaptureThread()
       select( 0, NULL, NULL, NULL, &timeSleepMicro);      
       continue;      
     }
+        
+    if ( !_bCameraInited )
+      continue;    
     
     if ( _pDgOut != NULL )
     {
@@ -486,9 +504,11 @@ int PrincetonServer::runCaptureThread()
        * Note that getMakeUpData() makes sure _pDgOut is set to NULL as soon as its data is being sent out,
        * so we don't worry if _pDgOut is being used by other thread.
        */
+      lockPlFunc( "PrincetonServer::runCaptureThread(): Check DgOut" );
       delete _pDgOut;
       _pDgOut = NULL;
-    }    
+      releaseLockPlFunc();
+    }
     
     if ( !_bCaptureInited )
     {
@@ -497,13 +517,7 @@ int PrincetonServer::runCaptureThread()
     }
     
     if ( _iCameraAbortAndReset != 0 )
-    {
-      _iCurShotIdEnd    = -1;  
-      _iEventCaptureEnd = 0;
-      delete _pDgOut;
-      _pDgOut           = NULL;            
       continue;
-    }    
     
     // if shot Ids have not been correctly updated
     if ( _iCurShotIdStart < 0 || _iCurShotIdEnd < 0 )
@@ -512,7 +526,7 @@ int PrincetonServer::runCaptureThread()
       continue;
     }
         
-    CDatagram*  pCdgEvent = new (&poolDatagram) CDatagram(_dgEvent);
+    CDatagram*  pCdgEvent = new (&_poolDatagram) CDatagram(_dgEvent);
     InDatagram* in        = pCdgEvent;
     InDatagram* out       = in;
     
@@ -546,8 +560,9 @@ int PrincetonServer::runCaptureThread()
     _iCurShotIdStart = _iCurShotIdEnd = -1;      
     
     _iEventCaptureEnd = 0;
-  } //   while (1)  
+  } //   while ( _iThreadStatus == 1 )   
   
+  printf( "Terminating capture thread\n" );
   return 0;
 }
 
@@ -557,7 +572,6 @@ int PrincetonServer::onEventShotIdStart(int iShotIdStart)
   if ( _iCameraAbortAndReset == 1 )
   {
     printf( "PrincetonServer::onEventShotIdStart(): Camera resetting. No data is outputted\n" );       
-    _iCurShotIdStart = _iCurShotIdEnd = -1;
     return 1;   
   }
   
@@ -598,7 +612,6 @@ int PrincetonServer::onEventShotIdEnd(int iShotIdEnd, InDatagram* in, InDatagram
   if ( _iCameraAbortAndReset != 0 )
   {
     printf( "PrincetonServer::onEventShotIdEnd(): Camera resetting. No data is outputted\n" );   
-    _iCurShotIdStart = _iCurShotIdEnd = -1;
     return 1;
   }
     
@@ -674,7 +687,6 @@ int PrincetonServer::onEventShotIdUpdate(int iShotIdStart, int iShotIdEnd, InDat
   if ( _iCameraAbortAndReset == 1 )
   {
     printf( "PrincetonServer::onEventShotIdUpdate(): Camera resetting. No data is outputted\n" );   
-    _iCurShotIdStart = _iCurShotIdEnd = -1;
     return 1;
   }
   
@@ -757,7 +769,7 @@ int PrincetonServer::getMakeUpData(InDatagram* in, InDatagram*& out)
     return 1;  
   
   if ( _iCameraAbortAndReset != 0 )
-    return 1;
+    return 2;
   
   if ( _pDgOut == NULL )
     return 0;
@@ -1107,19 +1119,6 @@ void* PrincetonServer::threadEntryCapture(void * pServer)
   ((PrincetonServer*) pServer)->runCaptureThread();
   return NULL;
 }
-
-///*
-// * !!For debug only
-// */
-//void PrincetonServer::lockPlFunc()
-//{
-//  if ( pthread_mutex_timedlock(&_mutexPlFuncs, &_tmLockTimeout) )
-//    printf( "PrincetonServer::lockPlFunc(): pthread_mutex_timedlock() failed\n" );    
-//}
-//void PrincetonServer::releaseLockPlFunc()
-//{
-//  pthread_mutex_unlock(&_mutexPlFuncs);
-//}
 
 /*
  * Definition of private static data

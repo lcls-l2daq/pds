@@ -76,8 +76,14 @@ public:
     {
         if (_iDebugLevel>=1) printf( "\n\n===== Writing Configs =====\n" );
 
-        // insert assumes we have enough space in the memory pool for in datagram
-        _cfgtc.alloc( sizeof(_configCamera) );
+        static bool bConfigAllocated = false;        
+        if ( !bConfigAllocated )
+        {
+          // insert assumes we have enough space in the memory pool for in datagram
+          _cfgtc.alloc( sizeof(_configCamera) );
+          bConfigAllocated = true;
+        }
+        
         in->insert(_cfgtc, &_configCamera);
         
         if ( _iConfigCameraFail != 0 )
@@ -163,9 +169,9 @@ public:
         bool  bCaptureEnd             = true;  // !! Check if this event is for stoping capture        
         bool  bCaptureEndWithStartId  = true;  // !! For end-event only mode (no capture start event)
         
+        InDatagram* out = in;        
         if ( _bMakeUpEvent )
         {
-          InDatagram* out = in;
           int iFail = _manager.getMakeUpData( in, out );
 
           if ( iFail != 0 )
@@ -177,15 +183,14 @@ public:
           int iFail = _manager.onEventShotIdStart( iShotId );
 
           if ( iFail != 0 )
-            in->datagram().xtc.damage.increase(Pds::Damage::UserDefined); // set damage bit
+            out->datagram().xtc.damage.increase(Pds::Damage::UserDefined); // set damage bit
         }
         
         if ( !bCaptureEnd )
-          return in; // Return empty data        
+          return out; // Return empty data        
         
-        InDatagram* out = in;
-        int iFail = 0;         
-        
+        in = out; // Use the output from the above commands as the input datagram for further processing
+        int iFail = 0;                 
         if ( bCaptureEndWithStartId )
         {
           int iShotIdStart = iShotId - 4; // !! for debug only

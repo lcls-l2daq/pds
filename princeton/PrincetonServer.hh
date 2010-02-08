@@ -84,7 +84,7 @@ private:
   short               _hCam;  
   bool                _bCameraInited;
   bool                _bCaptureInited;
-  bool                _bThreadInited;
+  int                 _iThreadStatus;   // 0: No thread generated yet, 1: Thread has been created, 2: Thread is notified to terminte
 
   /*
    * Camera Reset and Monitor Thread control variables
@@ -115,6 +115,7 @@ private:
   uns32               _uFrameSize;
   int                 _iCurPoolIndex;         // Used to locate the current pool inside the circular pool buffer
   int                 _iNextPoolIndex;        // The next pool index 
+  GenericPool         _poolDatagram;
     
   /*
    * Capture Thread Control and I/O variables
@@ -132,8 +133,6 @@ private:
   /*
    * Thread syncronization (lock/unlock) functions
    */
-  //static void lockPlFunc();
-  //static void releaseLockPlFunc();  
   inline static void lockPlFunc(char* sDescription)
   {
     if ( pthread_mutex_lock(&_mutexPlFuncs) )
