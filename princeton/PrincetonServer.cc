@@ -44,8 +44,8 @@ PrincetonServer::PrincetonServer(bool bUseCaptureThread, bool bStreamMode, std::
     unsigned char*  pDatagramBuffer = (unsigned char*) ( pPool->alloc(0) );
     Pool::free( pDatagramBuffer );        
     
-    _lpCircPool     [iPool] = pPool;    
-    _lpDatagramBuffer[iPool] = pDatagramBuffer;
+    _lpCircPool       [iPool] = pPool;    
+    _lpDatagramBuffer [iPool] = pDatagramBuffer;
   }
 }
 
@@ -142,15 +142,44 @@ int PrincetonServer::configCamera(Princeton::ConfigV1& config)
    *
    * initControlThreads() need to be put here. See the comment in the constructor function.
    */    
-  if ( initControlThreads() != 0 )
-    return 5;
+  //if ( initControlThreads() != 0 )
+  //  return 5;
   
   return 0;
 }
 
+int PrincetonServer::mapCamera()
+{  
+  /*
+   * Known issue:
+   *
+   * initControlThreads() need to be put here. See the comment in the constructor function.
+   */    
+  return initControlThreads();
+}
+
 int PrincetonServer::unconfigCamera()
 {
+  /*
+   * Theoretically, this function need not call deinitCapture(),
+   * because endRunCamera() will be called before this function is called.
+   *
+   * However, here we call the deinitCapture() again to make sure camera 
+   * capture is stopped in case of some DAQ system event drops.
+   */
   return deinitCapture();
+}
+
+int PrincetonServer::beginRunCamera()
+{
+  //return initCapture();
+  return 0;
+}
+
+int PrincetonServer::endRunCamera()
+{
+  //return deinitCapture();
+  return 0;
 }
 
 int PrincetonServer::initCapture()

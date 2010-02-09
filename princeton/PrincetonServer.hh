@@ -25,8 +25,11 @@ public:
   PrincetonServer(bool bUseCaptureThread, bool bStreamMode, std::string sFnOutput, const Src& src, int iDebugLevel);
   ~PrincetonServer();
   
+  int   mapCamera();  
   int   configCamera(Princeton::ConfigV1& config);
   int   unconfigCamera();
+  int   beginRunCamera();
+  int   endRunCamera();  
   int   onEventShotIdStart(int iShotIdStart);
   int   onEventShotIdEnd(int iShotIdEnd, InDatagram* in, InDatagram*& out);
   int   onEventShotIdUpdate(int iShotIdStart, int iShotIdEnd, InDatagram* in, InDatagram*& out);
@@ -115,7 +118,7 @@ private:
   uns32               _uFrameSize;
   int                 _iCurPoolIndex;         // Used to locate the current pool inside the circular pool buffer
   int                 _iNextPoolIndex;        // The next pool index 
-  GenericPool         _poolDatagram;
+  GenericPool         _poolDatagram;          // For storing a temporary datagram (for capture thread)
     
   /*
    * Capture Thread Control and I/O variables

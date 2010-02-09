@@ -28,12 +28,15 @@ public:
   Appliance&    appliance() { return *_pFsm; }
   
   // Camera control: Gateway functions for accessing PrincetonServer class
-  int configCamera(Princeton::ConfigV1& config);
-  int unconfigCamera();
-  int onEventShotIdStart(int iShotIdStart);
-  int onEventShotIdEnd(int iShotIdEnd, InDatagram* in, InDatagram*& out);
-  int onEventShotIdUpdate(int iShotIdStart, int iShotIdEnd, InDatagram* in, InDatagram*& out);
-  int getMakeUpData(InDatagram* in, InDatagram*& out);
+  int   mapCamera();
+  int   configCamera(Princeton::ConfigV1& config);
+  int   unconfigCamera();
+  int   beginRunCamera();
+  int   endRunCamera();
+  int   onEventShotIdStart(int iShotIdStart);
+  int   onEventShotIdEnd(int iShotIdEnd, InDatagram* in, InDatagram*& out);
+  int   onEventShotIdUpdate(int iShotIdStart, int iShotIdEnd, InDatagram* in, InDatagram*& out);
+  int   getMakeUpData(InDatagram* in, InDatagram*& out);
   
 private:          
   const bool          _bMakeUpEvent;
@@ -41,11 +44,14 @@ private:
   const int           _iDebugLevel;
   
   Fsm*                _pFsm;
+  Action*             _pActionMap;
   Action*             _pActionConfig;
   Action*             _pActionUnconfig;
-  Action*             _pActionMap;
+  Action*             _pActionBeginRun;
+  Action*             _pActionEndRun;
+  Action*             _pActionDisable;  
   Action*             _pActionL1Accept;
-  Action*             _pActionDisable;        
+
   
   PrincetonServer*    _pServer;
 };

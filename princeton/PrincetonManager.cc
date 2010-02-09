@@ -25,21 +25,30 @@ namespace Pds
   
 using namespace Princeton;
 
-class PrincetonAllocAction : public Action 
+class PrincetonMapAction : public Action 
 {
 public:
-    PrincetonAllocAction(PrincetonManager& manager, CfgClientNfs& cfg) : _manager(manager), _cfg(cfg) {}
+    PrincetonMapAction(PrincetonManager& manager, CfgClientNfs& cfg) : _manager(manager), _cfg(cfg), _iMapCameraFail(0) {}
     
     virtual Transition* fire(Transition* tr)     
     {
         const Allocate& alloc = reinterpret_cast<const Allocate&>(*tr);
         _cfg.initialize(alloc.allocation());  
         
+        _iMapCameraFail = _manager.mapCamera();
         return tr;                
+    }
+    
+    virtual InDatagram* fire(InDatagram* in) 
+    {
+      if ( _iMapCameraFail != 0 )
+        in->datagram().xtc.damage.increase(Pds::Damage::UserDefined);      
+      return in;
     }
 private:
     PrincetonManager& _manager;
-    CfgClientNfs& _cfg;
+    CfgClientNfs&     _cfg;
+    int               _iMapCameraFail;    
 };
 
 class PrincetonConfigAction : public Action 
@@ -116,18 +125,76 @@ const TypeId PrincetonConfigAction::_typePrincetonConfig = TypeId(TypeId::Id_Pri
 class PrincetonUnconfigAction : public Action 
 {
 public:
-    PrincetonUnconfigAction(PrincetonManager& manager, int iDebugLevel) : _manager(manager), _iDebugLevel(iDebugLevel)
+    PrincetonUnconfigAction(PrincetonManager& manager, int iDebugLevel) : _manager(manager), _iDebugLevel(iDebugLevel), 
+     _iUnConfigCameraFail(0)
     {}
         
     virtual Transition* fire(Transition* in) 
     {
-      // !! for debug only      
-      _manager.unconfigCamera();
+      _iUnConfigCameraFail = _manager.unconfigCamera();
       return in;
     }
+    
+    virtual InDatagram* fire(InDatagram* in) 
+    {
+      if ( _iUnConfigCameraFail != 0 )
+        in->datagram().xtc.damage.increase(Pds::Damage::UserDefined);      
+      return in;
+    }    
 private:
     PrincetonManager& _manager;
     int               _iDebugLevel;
+    int               _iUnConfigCameraFail;
+};
+
+class PrincetonBeginRunAction : public Action 
+{
+public:
+    PrincetonBeginRunAction(PrincetonManager& manager, int iDebugLevel) : _manager(manager), _iDebugLevel(iDebugLevel),
+     _iBeginRunCameraFail(0)
+    {}
+        
+    virtual Transition* fire(Transition* in) 
+    {
+      _iBeginRunCameraFail = _manager.beginRunCamera();
+      return in;
+    }
+
+    virtual InDatagram* fire(InDatagram* in) 
+    {
+      if ( _iBeginRunCameraFail != 0 )
+        in->datagram().xtc.damage.increase(Pds::Damage::UserDefined);      
+      return in;
+    }    
+private:
+    PrincetonManager& _manager;
+    int               _iDebugLevel;
+    int               _iBeginRunCameraFail;
+};
+
+class PrincetonEndRunAction : public Action 
+{
+public:
+    PrincetonEndRunAction(PrincetonManager& manager, int iDebugLevel) : _manager(manager), _iDebugLevel(iDebugLevel),
+     _iEndRunCameraFail(0)
+    {}
+        
+    virtual Transition* fire(Transition* in) 
+    {
+      _iEndRunCameraFail = _manager.endRunCamera();
+      return in;
+    }
+    
+    virtual InDatagram* fire(InDatagram* in) 
+    {
+      if ( _iEndRunCameraFail != 0 )
+        in->datagram().xtc.damage.increase(Pds::Damage::UserDefined);
+      return in;
+    }        
+private:
+    PrincetonManager& _manager;
+    int               _iDebugLevel;
+    int               _iEndRunCameraFail;
 };
 
 class PrincetonL1AcceptAction : public Action 
@@ -140,7 +207,7 @@ public:
     
     ~PrincetonL1AcceptAction()
     {}
-    
+        
     virtual InDatagram* fire(InDatagram* in)     
     { 
         ///*
@@ -259,11 +326,13 @@ PrincetonManager::PrincetonManager(CfgClientNfs& cfg, bool bMakeUpEvent, const s
   _bMakeUpEvent(bMakeUpEvent), _bStreamMode(sFnOutput.empty()), // If no output filename is specified, then use stream mode
   _iDebugLevel(iDebugLevel), _pServer(NULL)
 {
-    _pActionMap      = new PrincetonAllocAction(*this, cfg);
-    _pActionConfig   = new PrincetonConfigAction(*this, cfg, _iDebugLevel);
-    _pActionUnconfig = new PrincetonUnconfigAction(*this, _iDebugLevel);  
-    _pActionDisable  = new PrincetonDisableAction(*this, _iDebugLevel);
-    _pActionL1Accept = new PrincetonL1AcceptAction(*this, _bMakeUpEvent, _iDebugLevel);
+    _pActionMap       = new PrincetonMapAction      (*this, cfg);
+    _pActionConfig    = new PrincetonConfigAction   (*this, cfg, _iDebugLevel);
+    _pActionUnconfig  = new PrincetonUnconfigAction (*this, _iDebugLevel);  
+    _pActionBeginRun  = new PrincetonBeginRunAction (*this, _iDebugLevel);
+    _pActionEndRun    = new PrincetonEndRunAction   (*this, _iDebugLevel);  
+    _pActionDisable   = new PrincetonDisableAction  (*this, _iDebugLevel);
+    _pActionL1Accept  = new PrincetonL1AcceptAction (*this, _bMakeUpEvent, _iDebugLevel);
                    
     /*
      * Determine the polling scheme
@@ -289,6 +358,8 @@ PrincetonManager::PrincetonManager(CfgClientNfs& cfg, bool bMakeUpEvent, const s
     _pFsm->callback(TransitionId::Map,          _pActionMap);
     _pFsm->callback(TransitionId::Configure,    _pActionConfig);
     _pFsm->callback(TransitionId::Unconfigure,  _pActionUnconfig);
+    _pFsm->callback(TransitionId::BeginRun,     _pActionBeginRun);
+    _pFsm->callback(TransitionId::EndRun,       _pActionEndRun);
     _pFsm->callback(TransitionId::L1Accept,     _pActionL1Accept);
     _pFsm->callback(TransitionId::Disable,      _pActionDisable);            
 }
@@ -305,6 +376,11 @@ PrincetonManager::~PrincetonManager()
     delete _pActionMap; 
 }
 
+int PrincetonManager::mapCamera()
+{
+  return _pServer->mapCamera();
+}
+
 int PrincetonManager::configCamera(Princeton::ConfigV1& config)
 {
   return _pServer->configCamera(config);
@@ -313,6 +389,16 @@ int PrincetonManager::configCamera(Princeton::ConfigV1& config)
 int PrincetonManager::unconfigCamera()
 {
   return _pServer->unconfigCamera();
+}
+
+int PrincetonManager::beginRunCamera()
+{
+  return _pServer->beginRunCamera();
+}
+
+int PrincetonManager::endRunCamera()
+{
+  return _pServer->endRunCamera();
 }
 
 int PrincetonManager::onEventShotIdStart(int iShotIdStart)
