@@ -52,15 +52,15 @@ PrincetonServer::PrincetonServer(bool bUseCaptureThread, bool bStreamMode, std::
 PrincetonServer::~PrincetonServer()
 {
   _iThreadStatus = 2; // notify monitor and capture threads to terminate
+  
+  deinitCamera();  
     
   for ( int iPool = 0; iPool < _iCircPoolCount; iPool++ )
   {
     delete _lpCircPool[iPool];
     _lpCircPool       [iPool] = NULL;    
     _lpDatagramBuffer [iPool] = NULL;
-  }
-  
-  deinitCamera();  
+  }  
 }
 
 int PrincetonServer::initCamera()
@@ -552,7 +552,7 @@ int PrincetonServer::runCaptureThread()
     if ( _bStreamMode )
       _pDgOut = out;
     else
-      writeFrameToFile( out->datagram() );
+      writeFrameToFile( out->datagram() );      
     
     /* 
      * Reset the shot-by-shot data
@@ -796,10 +796,10 @@ int PrincetonServer::getMakeUpData(InDatagram* in, InDatagram*& out)
   dgOut = dgIn;   
   dgOut.xtc = xtcOrg;
       
-  out = _pDgOut;
-    
+  out = _pDgOut;    
+  
   // After sending out the data, set the _pDgOut pointer to NULL, so that the same data will never be sent out twice
-  _pDgOut = NULL;
+  _pDgOut = NULL;  
   
   return 0;
 }
