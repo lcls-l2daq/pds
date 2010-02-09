@@ -68,6 +68,7 @@ private:
   int   waitForNewFrameAvailable();
   int   processFrame(InDatagram* in, InDatagram*& out);
   int   writeFrameToFile(const Datagram& dgOut);  
+  int   resetFrameData();
   void  setupROI(rgn_type& region);
   void  checkTemperature();  
   void  updateCameraIdleTime();

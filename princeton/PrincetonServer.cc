@@ -103,8 +103,9 @@ int PrincetonServer::deinitCamera()
     deinitCapture(); // deinit the camera explicitly    
     
   if (!pl_cam_close(_hCam))
-    printPvError("PrincetonServer::deinitCamera(): pl_cam_close() failed"); // Don't return here; continue to uninit the library
-
+    printPvError("PrincetonServer::deinitCamera(): pl_cam_close() failed"); // Don't return here; continue to uninit the library   
+  _hCam = -1;
+  
   if (!pl_pvcam_uninit())
   {
     printPvError("PrincetonServer::deinitCamera(): pl_pvcam_uninit() failed");
@@ -122,6 +123,10 @@ int PrincetonServer::configCamera(Princeton::ConfigV1& config)
   if ( _bCaptureInited )
     deinitCapture(); // deinit the camera explicitly    
 
+  /*
+   * initCamera() can be either called here or in the constructor
+   *   We choose to call initCamera() in the constructor to make this function more light-weight
+   */
   //if ( initCamera() != 0 ) 
   //  return 1;
     
@@ -138,9 +143,8 @@ int PrincetonServer::configCamera(Princeton::ConfigV1& config)
     return 4; 
     
   /*
-   * Known issue:
-   *
-   * initControlThreads() need to be put here. See the comment in the constructor function.
+   * initControlThreads() can be either called here or in mapCamera()
+   *   We choose to call initControlThreads() in mapCamera() to make this function more light-weight
    */    
   //if ( initControlThreads() != 0 )
   //  return 5;
@@ -151,35 +155,33 @@ int PrincetonServer::configCamera(Princeton::ConfigV1& config)
 int PrincetonServer::mapCamera()
 {  
   /*
-   * Known issue:
+   * Thread Issue:
    *
    * initControlThreads() need to be put here. See the comment in the constructor function.
    */    
   return initControlThreads();
+  //return 0;
 }
 
 int PrincetonServer::unconfigCamera()
 {
-  /*
-   * Theoretically, this function need not call deinitCapture(),
-   * because endRunCamera() will be called before this function is called.
-   *
-   * However, here we call the deinitCapture() again to make sure camera 
-   * capture is stopped in case of some DAQ system event drops.
-   */
   return deinitCapture();
 }
 
 int PrincetonServer::beginRunCamera()
 {
-  //return initCapture();
+  /*
+   * Camera control & DAQ issue:
+   *
+   * if we call initCapture() here, sometimes the camera will not be ready for the first few events
+   * Hence we call initCapture() in configCamera() instead
+   */    
   return 0;
 }
 
 int PrincetonServer::endRunCamera()
 {
-  //return deinitCapture();
-  return 0;
+  return resetFrameData();
 }
 
 int PrincetonServer::initCapture()
@@ -242,6 +244,8 @@ int PrincetonServer::deinitCapture()
     return 0;
   
   _bCaptureInited = false;
+ 
+  resetFrameData();
   
   /* Stop the acquisition */
   if (!pl_exp_abort(_hCam, CCS_HALT))
@@ -256,35 +260,7 @@ int PrincetonServer::deinitCapture()
     printPvError("PrincetonServer::deinitCapture():pl_exp_uninit_seq() failed");
     return 2;
   }
-  
-  /*
-   * Reset per-frame data
-   */
-  _iCurShotIdStart  = -1;
-  _iCurShotIdEnd    = -1;
-  _fReadoutTime     = 0;
     
-  /*
-   * Update Capture Thread Control and I/O variables
-   */
-  _iEventCaptureEnd = 0;
-  
-  lockPlFunc( "PrincetonServer::deinitCapture(): Check DgOut" );
-  delete _pDgOut; _pDgOut = NULL;   
-  releaseLockPlFunc();  
-  
-  /*
-   * Update buffer control variables
-   */
-  _iCurPoolIndex = -1;
-  
-  /* 
-   *  Update Camera Reset and Monitor Thread control variables
-   */
-  _iCameraAbortAndReset = 0;
-  _bForceCameraReset    = false;
-  _bImageDataReady      = false;
-  
   printf( "Capture deinitialized\n" );
   
   return 0;
@@ -470,7 +446,7 @@ int PrincetonServer::runMonitorThread()
     
     /*
      * Check temperature
-     */
+     */     
     checkTemperature();   
     
     if ( !_bCaptureInited )
@@ -554,6 +530,8 @@ int PrincetonServer::runCaptureThread()
       _iEventCaptureEnd = 0;
       continue;
     }
+    
+    printf( "PrincetonServer::runCaptureThread(): Start processing event\n" ); // !! debug
         
     CDatagram*  pCdgEvent = new (&_poolDatagram) CDatagram(_dgEvent);
     InDatagram* in        = pCdgEvent;
@@ -589,6 +567,8 @@ int PrincetonServer::runCaptureThread()
     _iCurShotIdStart = _iCurShotIdEnd = -1;      
     
     _iEventCaptureEnd = 0;
+    
+    printf( "PrincetonServer::runCaptureThread(): end processing event\n" ); // !! debug
   } //   while ( _iThreadStatus == 1 )   
   
   printf( "Terminating capture thread\n" );
@@ -1075,6 +1055,39 @@ int PrincetonServer::writeFrameToFile(const Datagram& dgOut)
   return 0;
 }
 
+int PrincetonServer::resetFrameData()
+{
+  /*
+   * Reset per-frame data
+   */
+  _iCurShotIdStart  = -1;
+  _iCurShotIdEnd    = -1;
+  _fReadoutTime     = 0;
+    
+  /*
+   * Update Capture Thread Control and I/O variables
+   */
+  _iEventCaptureEnd = 0;
+  
+  lockPlFunc( "PrincetonServer::deinitCapture(): Check DgOut" );
+  delete _pDgOut; _pDgOut = NULL;   
+  releaseLockPlFunc();  
+  
+  /*
+   * Update buffer control variables
+   */
+  _iCurPoolIndex = -1;
+  
+  /* 
+   *  Update Camera Reset and Monitor Thread control variables
+   */
+  _iCameraAbortAndReset = 0;
+  _bForceCameraReset    = false;
+  _bImageDataReady      = false;  
+  
+  return 0;
+}
+
 int PrincetonServer::checkInitSettings()
 {
   /* Check the input settings */
@@ -1107,6 +1120,8 @@ void PrincetonServer::checkTemperature()
 {
   const int16 iCoolingTemp = _configCamera.coolingTemp();
   int16 iTemperatureCurrent = -1;  
+  
+  if ( _hCam == -1 ) return; // check for race condition, in case the other thread is deinit-ing the camera
   
   lockPlFunc("PrincetonServer::checkTemperature():PICAM::getAnyParam()");
   PICAM::getAnyParam(_hCam, PARAM_TEMP, &iTemperatureCurrent );
