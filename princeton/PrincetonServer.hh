@@ -36,16 +36,17 @@ public:
   int   getMakeUpData(InDatagram* in, InDatagram*& out);
 
 private:
-  /*
+  /*  
    * private static consts
    */  
-  static const int      _iMaxCoolingTime        = 10000;        // in miliseconds
+  static const int      _iMaxCoolingTime        = 1000;        // in miliseconds
   static const int      _iTemperatureTolerance  = 100;          // 1 degree Fahrenheit
   static const int      _iFrameHeaderSize;                      // Buffer header used to store the CDatagram, Xtc and FrameV1 object
   static const int      _iMaxFrameDataSize;                     // Buffer for 4 Mega (image pixels) x 2 (bytes per pixel) + header size
   static const int      _iCircPoolCount         = 2;
   static const int      _iMaxExposureTime       = 10000;        // Limit exposure time to prevent CCD from burning
   static const int      _iMaxReadoutTime        = 3000;         // Max readout time // !! debug - set to 3s for testing
+  static const int      _iMaxThreadEndTime      = 2000000;      // Max thread terminating time (in ms)
 
   /*
    * private functions
@@ -88,7 +89,8 @@ private:
   short               _hCam;  
   bool                _bCameraInited;
   bool                _bCaptureInited;
-  int                 _iThreadStatus;   // 0: No thread generated yet, 1: Thread has been created, 2: Thread is notified to terminte
+  int                 _iThreadStatus;   // 0: No thread generated yet, 1: One thread has been created, 2: Two thread has been created
+  int                 _iThreadCommand;  // 0: Nothing, 1: End Thread
 
   /*
    * Camera Reset and Monitor Thread control variables
@@ -137,12 +139,12 @@ private:
   /*
    * Thread syncronization (lock/unlock) functions
    */
-  inline static void lockPlFunc(char* sDescription)
+  inline static void lockCameraData(char* sDescription)
   {
     if ( pthread_mutex_lock(&_mutexPlFuncs) )
-      printf( "PrincetonServer::lockPlFunc(): pthread_mutex_timedlock() failed for %s\n", sDescription );
+      printf( "PrincetonServer::lockCameraData(): pthread_mutex_timedlock() failed for %s\n", sDescription );
   }
-  inline static void releaseLockPlFunc()
+  inline static void releaseLockCameraData()
   {
     pthread_mutex_unlock(&_mutexPlFuncs);
   }
