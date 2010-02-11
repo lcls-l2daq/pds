@@ -22,7 +22,7 @@ PrincetonServer::PrincetonServer(bool bUseCaptureThread, bool bStreamMode, std::
  _tsPrevIdle(), _iCameraAbortAndReset(0), _bForceCameraReset(false), _iTemperatureStatus(0), _bImageDataReady(false),
  _configCamera(), 
  _iCurShotIdStart(-1), _iCurShotIdEnd(-1), _fReadoutTime(0),  
- _uFrameSize(0), _iCurPoolIndex(-1), _iNextPoolIndex(-1), _poolDatagram( sizeof(CDatagram), 1 ),
+ _uFrameSize(0), _iCurPoolIndex(-1), _iNextPoolIndex(-1), _poolDatagram( sizeof(CDatagram), 1 ), _poolFrameData(_iMaxFrameDataSize, _iPoolDataCount),
  _iEventCaptureEnd(0), _dgEvent(TypeId(), Src()), _pDgOut(NULL)
 {  
   if ( checkInitSettings() != 0 )    
@@ -38,11 +38,11 @@ PrincetonServer::PrincetonServer(bool bUseCaptureThread, bool bStreamMode, std::
    * Possible reason is that this function (constructor) is called by a different thread other than the polling thread.
    */
     
-  for ( int iPool = 0; iPool < _iCircPoolCount; iPool++ )
+  for ( int iPool = 0; iPool < _iPoolDataCount; iPool++ )
   {
     GenericPool*    pPool           = new GenericPool(_iMaxFrameDataSize, 1);
-    unsigned char*  pDatagramBuffer = (unsigned char*) ( pPool->alloc(0) );
-    Pool::free( pDatagramBuffer );        
+    unsigned char*  pDatagramBuffer = (unsigned char*) ( pPool->alloc(0) );    
+    Pool::free( pDatagramBuffer );            
     
     _lpCircPool       [iPool] = pPool;    
     _lpDatagramBuffer [iPool] = pDatagramBuffer;
@@ -75,7 +75,7 @@ PrincetonServer::~PrincetonServer()
     
   deinitCamera();  
     
-  for ( int iPool = 0; iPool < _iCircPoolCount; iPool++ )
+  for ( int iPool = 0; iPool < _iPoolDataCount; iPool++ )
   {
     delete _lpCircPool[iPool];
     _lpCircPool       [iPool] = NULL;    
@@ -885,6 +885,80 @@ int PrincetonServer::getMakeUpData(InDatagram* in, InDatagram*& out)
   return 0;
 }
 
+int PrincetonServer::getLastMakeUpData(InDatagram* in, InDatagram*& out)
+{
+  out = in; // default: return empty stream
+
+  /*
+   * This function is only useful when _bUseCaptureThread = true and bStreamMode = true
+   */
+  if ( !_bUseCaptureThread || !_bStreamMode ) 
+    return 1;  
+  
+  if ( _iCameraAbortAndReset != 0 )
+    return 2;
+  
+  if ( _pDgOut == NULL && _iEventCaptureEnd == 0 )
+    return 0;
+  
+  static timespec tsWaitStart;
+  clock_gettime( CLOCK_REALTIME, &tsWaitStart );
+  
+  const static timeval timeSleepMicroOrg = {0, 1000}; // 1 milliseconds
+  
+  while (_pDgOut == NULL)
+  {
+    // This data will be modified by select(), so need to be reset
+    timeval timeSleepMicro = timeSleepMicroOrg; 
+    // use select() to simulate nanosleep(), because experimentally select() controls the sleeping time more precisely
+    select( 0, NULL, NULL, NULL, &timeSleepMicro); 
+        
+          
+    timespec tsCurrent;
+    clock_gettime( CLOCK_REALTIME, &tsCurrent );
+    
+    int iWaitTime = (tsCurrent.tv_nsec - tsWaitStart.tv_nsec) / 1000000 + 
+     ( tsCurrent.tv_sec - tsWaitStart.tv_sec ) * 1000; // in milliseconds
+    if ( iWaitTime >= _iMaxLastEventTime )
+      break;
+  } // while (1)
+    
+  if ( _pDgOut == NULL )
+  {
+    printf( "PrincetonServer::getLastMakeUpData(): Waiting time is too long. Skip the final data\n" );          
+    return 3;
+  }     
+  
+  Datagram& dgIn    = in->datagram();
+  Datagram& dgOut   = _pDgOut->datagram();
+  
+  /*
+   * Backup the orignal Xtc data
+   *
+   * Note that it is not correct to use  Xtc xtc1 = xtc2, which means using the Xtc constructor,
+   * instead of the copy operator to do the copy.
+   */
+  Xtc xtcOrg; 
+  xtcOrg = dgOut.xtc;
+
+  /*
+   * Compose the datagram
+   *
+   *   1. Use the header from dgIn 
+   *   2. Use the xtc (data header) from dgOut
+   *   3. Use the data from dgOut (the data was located right after the xtc)
+   */
+  dgOut = dgIn;   
+  dgOut.xtc = xtcOrg;
+      
+  out = _pDgOut;    
+  
+  // After sending out the data, set the _pDgOut pointer to NULL, so that the same data will never be sent out twice
+  _pDgOut = NULL;  
+  
+  return 0;
+}
+
 void PrincetonServer::abortAndResetCamera()
 {    
   _iCameraAbortAndReset = 1;
@@ -1071,7 +1145,7 @@ int PrincetonServer::waitForNewFrameAvailable()
   
   _fReadoutTime = (tsWaitEnd.tv_nsec - tsWaitStart.tv_nsec) / 1.0e9 + ( tsWaitEnd.tv_sec - tsWaitStart.tv_sec ); // in seconds
     
-  int iNextPoolCheckIndex = ( _iCurPoolIndex + 1 ) % _iCircPoolCount;
+  int iNextPoolCheckIndex = ( _iCurPoolIndex + 1 ) % _iPoolDataCount;
   startCapture( iNextPoolCheckIndex );
   
   return 0;
@@ -1228,9 +1302,10 @@ const int       PrincetonServer::_iMaxCoolingTime;
 const int       PrincetonServer::_iTemperatureTolerance;
 const int       PrincetonServer::_iFrameHeaderSize      = sizeof(CDatagram) + sizeof(Xtc) + sizeof(Princeton::FrameV1);
 const int       PrincetonServer::_iMaxFrameDataSize     = 2048*2048*2 + _iFrameHeaderSize;
-const int       PrincetonServer::_iCircPoolCount;
+const int       PrincetonServer::_iPoolDataCount;
 const int       PrincetonServer::_iMaxReadoutTime;
 const int       PrincetonServer::_iMaxThreadEndTime;
+const int       PrincetonServer::_iMaxLastEventTime;
 
 void* PrincetonServer::threadEntryMonitor(void * pServer)
 {

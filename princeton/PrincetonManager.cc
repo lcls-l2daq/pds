@@ -310,15 +310,31 @@ private:
 class PrincetonDisableAction : public Action 
 {
 public:
-    PrincetonDisableAction(PrincetonManager& manager, int iDebugLevel) : _manager(manager), _iDebugLevel(iDebugLevel)
+    PrincetonDisableAction(PrincetonManager& manager, bool bMakeUpEvent, int iDebugLevel) : 
+     _manager(manager), _bMakeUpEvent(bMakeUpEvent), _iDebugLevel(iDebugLevel)
     {}
         
     virtual Transition* fire(Transition* in) 
     {
         return in;
     }
+    
+    virtual InDatagram* fire(InDatagram* in)     
+    {
+      InDatagram* out = in;
+      if ( _bMakeUpEvent )
+      {
+        int iFail = _manager.getLastMakeUpData( in, out );
+
+        if ( iFail != 0 )
+          out->datagram().xtc.damage.increase(Pds::Damage::UserDefined); // set damage bit            
+      }      
+      return out;
+    }
+    
 private:
     PrincetonManager& _manager;
+    bool              _bMakeUpEvent;
     int               _iDebugLevel;
 };
 
@@ -331,7 +347,7 @@ PrincetonManager::PrincetonManager(CfgClientNfs& cfg, bool bMakeUpEvent, const s
     _pActionUnconfig  = new PrincetonUnconfigAction (*this, _iDebugLevel);  
     _pActionBeginRun  = new PrincetonBeginRunAction (*this, _iDebugLevel);
     _pActionEndRun    = new PrincetonEndRunAction   (*this, _iDebugLevel);  
-    _pActionDisable   = new PrincetonDisableAction  (*this, _iDebugLevel);
+    _pActionDisable   = new PrincetonDisableAction  (*this, _bMakeUpEvent, _iDebugLevel);
     _pActionL1Accept  = new PrincetonL1AcceptAction (*this, _bMakeUpEvent, _iDebugLevel);
                    
     /*
@@ -419,6 +435,11 @@ int PrincetonManager::onEventShotIdUpdate(int iShotIdStart, int iShotIdEnd, InDa
 int PrincetonManager::getMakeUpData(InDatagram* in, InDatagram*& out)
 {
   return _pServer->getMakeUpData(in, out);
+}
+
+int PrincetonManager::getLastMakeUpData(InDatagram* in, InDatagram*& out)
+{
+  return _pServer->getLastMakeUpData(in, out);
 }
 
 } //namespace Pds 

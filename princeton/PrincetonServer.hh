@@ -34,6 +34,7 @@ public:
   int   onEventShotIdEnd(int iShotIdEnd, InDatagram* in, InDatagram*& out);
   int   onEventShotIdUpdate(int iShotIdStart, int iShotIdEnd, InDatagram* in, InDatagram*& out);
   int   getMakeUpData(InDatagram* in, InDatagram*& out);
+  int   getLastMakeUpData(InDatagram* in, InDatagram*& out);
 
 private:
   /*  
@@ -43,10 +44,11 @@ private:
   static const int      _iTemperatureTolerance  = 100;          // 1 degree Fahrenheit
   static const int      _iFrameHeaderSize;                      // Buffer header used to store the CDatagram, Xtc and FrameV1 object
   static const int      _iMaxFrameDataSize;                     // Buffer for 4 Mega (image pixels) x 2 (bytes per pixel) + header size
-  static const int      _iCircPoolCount         = 2;
+  static const int      _iPoolDataCount         = 2;
   static const int      _iMaxExposureTime       = 10000;        // Limit exposure time to prevent CCD from burning
   static const int      _iMaxReadoutTime        = 3000;         // Max readout time // !! debug - set to 3s for testing
   static const int      _iMaxThreadEndTime      = 2000000;      // Max thread terminating time (in ms)
+  static const int      _iMaxLastEventTime      = 1000;      // Max thread terminating time (in ms)
 
   /*
    * private functions
@@ -116,12 +118,13 @@ private:
   /*
    * Buffer control
    */
-  GenericPool*        _lpCircPool       [_iCircPoolCount];
-  unsigned char*      _lpDatagramBuffer [_iCircPoolCount];
+  GenericPool*        _lpCircPool       [_iPoolDataCount];
+  unsigned char*      _lpDatagramBuffer [_iPoolDataCount];
   uns32               _uFrameSize;
   int                 _iCurPoolIndex;         // Used to locate the current pool inside the circular pool buffer
   int                 _iNextPoolIndex;        // The next pool index 
   GenericPool         _poolDatagram;          // For storing a temporary datagram (for capture thread)
+  GenericPool         _poolFrameData;
     
   /*
    * Capture Thread Control and I/O variables

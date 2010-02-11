@@ -37,6 +37,7 @@ public:
   int   onEventShotIdEnd(int iShotIdEnd, InDatagram* in, InDatagram*& out);
   int   onEventShotIdUpdate(int iShotIdStart, int iShotIdEnd, InDatagram* in, InDatagram*& out);
   int   getMakeUpData(InDatagram* in, InDatagram*& out);
+  int   getLastMakeUpData(InDatagram* in, InDatagram*& out);
   
 private:          
   const bool          _bMakeUpEvent;
