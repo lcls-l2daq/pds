@@ -35,6 +35,10 @@ public:
   enum {NumEvtCodes=33};
   void load() {
     _nfid++; _nfid&=((1<<Pds::TimeStamp::NumFiducialBits)-1);
+    //to simulate real evgr => nfid variation from 0 to (0x1ffff-32)
+    if(_nfid>0x1ffdf) {		
+      _nfid=0;
+    }
     int numEvtCode=0;
     int ram=0;
     //we send down MSB first
