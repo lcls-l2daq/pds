@@ -200,8 +200,8 @@ private:
 class PrincetonL1AcceptAction : public Action 
 {
 public:
-    PrincetonL1AcceptAction(PrincetonManager& manager, bool bMakeUpEvent, int iDebugLevel) :
-        _manager(manager), _bMakeUpEvent(bMakeUpEvent), _iDebugLevel(iDebugLevel)
+    PrincetonL1AcceptAction(PrincetonManager& manager, bool bDelayMode, int iDebugLevel) :
+        _manager(manager), _bDelayMode(bDelayMode), _iDebugLevel(iDebugLevel)
     {
     }
     
@@ -209,62 +209,33 @@ public:
     {}
         
     virtual InDatagram* fire(InDatagram* in)     
-    { 
-        ///*
-        // * !! debug test sending large packet
-        // */
-        //static int          iTestDataSize = 8*1024*1024;
-        //static GenericPool  pool( iTestDataSize + sizeof(Princeton::FrameV1) + sizeof(Xtc) + sizeof(CDatagram), 1 );
-        //CDatagram*          out1          = new (&pool) CDatagram(in->datagram());
-        
-        //TypeId typePrincetonFrame(TypeId::Id_PrincetonFrame, FrameV1::Version);        
-        //Xtc* pXtcFrame = 
-        // new ((char*) out1->datagram().xtc.payload() ) Xtc(typePrincetonFrame, Src() );
-        //pXtcFrame->alloc( iTestDataSize + sizeof(Princeton::FrameV1) );
-        
-        //out1->datagram().xtc.alloc( iTestDataSize + sizeof(Princeton::FrameV1) + sizeof(Xtc) );
-        
-        //printf("PrincetonL1AcceptAction:fire(): test sending datasize %d\n", iTestDataSize);
-        //return out1;      
-      
+    {       
         if (_iDebugLevel >= 1) printf( "\n\n===== Writing L1 Data (Stream Mode) =====\n" );
         
         int   iShotId       = 12;      // !! Obtain shot ID 
-        bool  bCaptureStart = false;  // !! Check if this event is for starting capture
-        //bool  bCaptureEnd   = false;  // !! Check if this event is for stoping capture        
-        
-        bool  bCaptureEnd             = true;  // !! Check if this event is for stoping capture        
-        bool  bCaptureEndWithStartId  = true;  // !! For end-event only mode (no capture start event)
+        bool  bReadoutEvent  = true;  // !! For end-event only mode (no capture start event)
         
         InDatagram* out = in;        
-        if ( _bMakeUpEvent )
+        if ( _bDelayMode )
         {
-          int iFail = _manager.getMakeUpData( in, out );
+          int iFail = _manager.getDelayData( in, out );
 
           if ( iFail != 0 )
             out->datagram().xtc.damage.increase(Pds::Damage::UserDefined); // set damage bit            
         }
-        
-        if ( bCaptureStart )
-        {
-          int iFail = _manager.onEventShotIdStart( iShotId );
-
-          if ( iFail != 0 )
-            out->datagram().xtc.damage.increase(Pds::Damage::UserDefined); // set damage bit
-        }
-        
-        if ( !bCaptureEnd )
+                
+        if ( !bReadoutEvent )
           return out; // Return empty data        
         
         in = out; // Use the output from the above commands as the input datagram for further processing
         int iFail = 0;                 
-        if ( bCaptureEndWithStartId )
+        if ( bReadoutEvent )
         {
-          int iShotIdStart = iShotId - 4; // !! for debug only
-          iFail = _manager.onEventShotIdUpdate( iShotIdStart, iShotId, in, out );
+          if ( _bDelayMode )
+            iFail = _manager.onEventReadoutPrompt( iShotId, in, out );
+          else
+            iFail = _manager.onEventReadoutDelay( iShotId );
         }
-        else
-          iFail = _manager.onEventShotIdEnd( iShotId, in, out );
         
         /*
          * Possible failure modes for _manager.writeMonitoredConfigContent()
@@ -272,10 +243,6 @@ public:
          * 
          * Error Code     Reason
          * 
-         * 2              Memory pool size is not enough for storing PV data
-         * 3              All PV write failed. No PV value is outputted
-         * 4              Some PV values have been outputted, but some has write error
-         * 5              Some PV values have been outputted, but some has not been connected
          */
         if ( iFail != 0 )
         {
@@ -303,15 +270,15 @@ public:
   
 private:        
     PrincetonManager&   _manager;
-    bool                _bMakeUpEvent;
+    bool                _bDelayMode;
     int                 _iDebugLevel;
 };
 
 class PrincetonDisableAction : public Action 
 {
 public:
-    PrincetonDisableAction(PrincetonManager& manager, bool bMakeUpEvent, int iDebugLevel) : 
-     _manager(manager), _bMakeUpEvent(bMakeUpEvent), _iDebugLevel(iDebugLevel)
+    PrincetonDisableAction(PrincetonManager& manager, bool bDelayMode, int iDebugLevel) : 
+     _manager(manager), _bDelayMode(bDelayMode), _iDebugLevel(iDebugLevel)
     {}
         
     virtual Transition* fire(Transition* in) 
@@ -322,9 +289,9 @@ public:
     virtual InDatagram* fire(InDatagram* in)     
     {
       InDatagram* out = in;
-      if ( _bMakeUpEvent )
+      if ( _bDelayMode )
       {
-        int iFail = _manager.getLastMakeUpData( in, out );
+        int iFail = _manager.getLastDelayData( in, out );
 
         if ( iFail != 0 )
           out->datagram().xtc.damage.increase(Pds::Damage::UserDefined); // set damage bit            
@@ -334,12 +301,12 @@ public:
     
 private:
     PrincetonManager& _manager;
-    bool              _bMakeUpEvent;
+    bool              _bDelayMode;
     int               _iDebugLevel;
 };
 
-PrincetonManager::PrincetonManager(CfgClientNfs& cfg, bool bMakeUpEvent, const string& sFnOutput, int iDebugLevel) :
-  _bMakeUpEvent(bMakeUpEvent), _bStreamMode(sFnOutput.empty()), // If no output filename is specified, then use stream mode
+PrincetonManager::PrincetonManager(CfgClientNfs& cfg, bool bDelayMode, const string& sFnOutput, int iDebugLevel) :
+  _bDelayMode(bDelayMode), _bStreamMode(sFnOutput.empty()), // If no output filename is specified, then use stream mode
   _iDebugLevel(iDebugLevel), _pServer(NULL)
 {
     _pActionMap       = new PrincetonMapAction      (*this, cfg);
@@ -347,8 +314,8 @@ PrincetonManager::PrincetonManager(CfgClientNfs& cfg, bool bMakeUpEvent, const s
     _pActionUnconfig  = new PrincetonUnconfigAction (*this, _iDebugLevel);  
     _pActionBeginRun  = new PrincetonBeginRunAction (*this, _iDebugLevel);
     _pActionEndRun    = new PrincetonEndRunAction   (*this, _iDebugLevel);  
-    _pActionDisable   = new PrincetonDisableAction  (*this, _bMakeUpEvent, _iDebugLevel);
-    _pActionL1Accept  = new PrincetonL1AcceptAction (*this, _bMakeUpEvent, _iDebugLevel);
+    _pActionDisable   = new PrincetonDisableAction  (*this, _bDelayMode, _iDebugLevel);
+    _pActionL1Accept  = new PrincetonL1AcceptAction (*this, _bDelayMode, _iDebugLevel);
                    
     /*
      * Determine the polling scheme
@@ -356,7 +323,7 @@ PrincetonManager::PrincetonManager(CfgClientNfs& cfg, bool bMakeUpEvent, const s
      * 1. In normal mode, use L1 Accept event handler to do the polling -> bUseCaptureThread = false
      * 2. In make-up mode, use camera thread to do the polling          -> bUseCaptureThread = true
      */  
-    bool bUseCaptureThread = _bMakeUpEvent; 
+    bool bUseCaptureThread = _bDelayMode; 
 
     try
     {
@@ -417,29 +384,24 @@ int PrincetonManager::endRunCamera()
   return _pServer->endRunCamera();
 }
 
-int PrincetonManager::onEventShotIdStart(int iShotIdStart)
+int PrincetonManager::onEventReadoutPrompt(int iShotId, InDatagram* in, InDatagram*& out)
 {
-  return _pServer->onEventShotIdStart(iShotIdStart);
+  return _pServer->onEventReadoutPrompt(iShotId, in, out);  
 }
 
-int PrincetonManager::onEventShotIdEnd(int iShotIdEnd, InDatagram* in, InDatagram*& out)
+int PrincetonManager::onEventReadoutDelay(int iShotId)
 {
-  return _pServer->onEventShotIdEnd(iShotIdEnd, in, out);
+  return _pServer->onEventReadoutDelay(iShotId);  
 }
 
-int PrincetonManager::onEventShotIdUpdate(int iShotIdStart, int iShotIdEnd, InDatagram* in, InDatagram*& out)
+int PrincetonManager::getDelayData(InDatagram* in, InDatagram*& out)
 {
-  return _pServer->onEventShotIdUpdate(iShotIdStart, iShotIdEnd, in, out);  
+  return _pServer->getDelayData(in, out);
 }
 
-int PrincetonManager::getMakeUpData(InDatagram* in, InDatagram*& out)
+int PrincetonManager::getLastDelayData(InDatagram* in, InDatagram*& out)
 {
-  return _pServer->getMakeUpData(in, out);
-}
-
-int PrincetonManager::getLastMakeUpData(InDatagram* in, InDatagram*& out)
-{
-  return _pServer->getLastMakeUpData(in, out);
+  return _pServer->getLastDelayData(in, out);
 }
 
 } //namespace Pds 

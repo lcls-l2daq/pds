@@ -22,7 +22,7 @@ class PrincetonServer;
 class PrincetonManager 
 {
 public:
-  PrincetonManager(CfgClientNfs& cfg, bool bMakeUpEvent, const std::string& sFnOutput, int iDebugLevel);
+  PrincetonManager(CfgClientNfs& cfg, bool bDelayMode, const std::string& sFnOutput, int iDebugLevel);
   ~PrincetonManager();
 
   Appliance&    appliance() { return *_pFsm; }
@@ -33,14 +33,13 @@ public:
   int   unconfigCamera();
   int   beginRunCamera();
   int   endRunCamera();
-  int   onEventShotIdStart(int iShotIdStart);
-  int   onEventShotIdEnd(int iShotIdEnd, InDatagram* in, InDatagram*& out);
-  int   onEventShotIdUpdate(int iShotIdStart, int iShotIdEnd, InDatagram* in, InDatagram*& out);
-  int   getMakeUpData(InDatagram* in, InDatagram*& out);
-  int   getLastMakeUpData(InDatagram* in, InDatagram*& out);
+  int   onEventReadoutPrompt(int iShotId, InDatagram* in, InDatagram*& out);
+  int   onEventReadoutDelay(int iShotId);
+  int   getDelayData(InDatagram* in, InDatagram*& out);
+  int   getLastDelayData(InDatagram* in, InDatagram*& out);
   
 private:          
-  const bool          _bMakeUpEvent;
+  const bool          _bDelayMode;
   const bool          _bStreamMode;    
   const int           _iDebugLevel;
   

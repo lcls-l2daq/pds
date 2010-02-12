@@ -30,11 +30,10 @@ public:
   int   unconfigCamera();
   int   beginRunCamera();
   int   endRunCamera();  
-  int   onEventShotIdStart(int iShotIdStart);
-  int   onEventShotIdEnd(int iShotIdEnd, InDatagram* in, InDatagram*& out);
-  int   onEventShotIdUpdate(int iShotIdStart, int iShotIdEnd, InDatagram* in, InDatagram*& out);
-  int   getMakeUpData(InDatagram* in, InDatagram*& out);
-  int   getLastMakeUpData(InDatagram* in, InDatagram*& out);
+  int   onEventReadoutPrompt(int iShotId, InDatagram* in, InDatagram*& out);
+  int   onEventReadoutDelay(int iShotId);  
+  int   getDelayData(InDatagram* in, InDatagram*& out);
+  int   getLastDelayData(InDatagram* in, InDatagram*& out);
 
 private:
   /*  
@@ -47,34 +46,30 @@ private:
   static const int      _iPoolDataCount         = 2;
   static const int      _iMaxExposureTime       = 10000;        // Limit exposure time to prevent CCD from burning
   static const int      _iMaxReadoutTime        = 3000;         // Max readout time // !! debug - set to 3s for testing
-  static const int      _iMaxThreadEndTime      = 2000000;      // Max thread terminating time (in ms)
-  static const int      _iMaxLastEventTime      = 1000;      // Max thread terminating time (in ms)
+  static const int      _iMaxThreadEndTime      = 2000;      // Max thread terminating time (in ms)
+  static const int      _iMaxLastEventTime      = 1000;         // Max thread terminating time (in ms)
   
   /*
    * private functions
    */
   int   initCamera();
   int   deinitCamera();  
-  void  abortAndResetCamera();
   int   initCapture();
   int   startCapture();
   int   deinitCapture();  
 
   int   initControlThreads();
-  int   runMonitorThread();
   int   runCaptureThread();
 
   int   checkInitSettings();    
   int   initCameraSettings(Princeton::ConfigV1& config);
   int   setupCooling();    
-  int   isExposureInProgress();
   int   waitForNewFrameAvailable();
   int   processFrame(InDatagram* in, InDatagram*& out);
   int   writeFrameToFile(const Datagram& dgOut);  
   int   resetFrameData();
+  int   checkTemperature();  
   void  setupROI(rgn_type& region);
-  void  checkTemperature();  
-  void  updateCameraIdleTime();
   
   /*
    * Initial settings
@@ -93,15 +88,6 @@ private:
   bool                _bCaptureInited;
   int                 _iThreadStatus;   // 0: No thread generated yet, 1: One thread has been created, 2: Two thread has been created
   int                 _iThreadCommand;  // 0: Nothing, 1: End Thread
-
-  /*
-   * Camera Reset and Monitor Thread control variables
-   */
-  timespec            _tsPrevIdle;            // timestamp for the previous camera idle time
-  int                 _iCameraAbortAndReset;  // 0 -> normal, 1 -> resetting in progress, 2 -> reset complete
-  bool                _bForceCameraReset;     
-  int                 _iTemperatureStatus;    // 0 -> normal, 1 -> too high  
-  bool                _bImageDataReady;
   
   /*
    * Config data
@@ -111,8 +97,7 @@ private:
   /*
    * Per-frame data
    */
-  int                 _iCurShotIdStart;
-  int                 _iCurShotIdEnd;
+  int                 _iCurShotId;
   float               _fReadoutTime;          // in seconds
       
   /*
@@ -126,13 +111,11 @@ private:
    * Capture Thread Control and I/O variables
    */
   int                 _iEventCaptureEnd;      // 0 -> normal, 1 -> capture end event triggered
-  Datagram            _dgEvent;               // Event header from Princeton Manager
   InDatagram*         _pDgOut;                // Datagram for outtputing to the Princeton Manager
       
   /*
    * private static functions
    */
-  static void* threadEntryMonitor(void * pServer);
   static void* threadEntryCapture(void * pServer);
 
   /*
