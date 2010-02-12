@@ -167,11 +167,6 @@ int PrincetonServer::configCamera(Princeton::ConfigV1& config)
   if ( initCapture() != 0 )
     return 4; 
     
-  /*
-   * Known issue:
-   *
-   * initControlThreads() need to be put here. See the comment in the constructor function.
-   */    
   //if ( initControlThreads() != 0 )
   //  return 5;
   
@@ -209,13 +204,6 @@ int PrincetonServer::initCapture()
   rgn_type region;  
   setupROI(region);
   PICAM::printROI(1, &region);
-
-  //if (!pl_exp_init_seq())
-  //{
-  //  printPvError("PrincetonServer::initCapture(): pl_exp_init_seq() failed!\n");
-  //  releaseLockCameraData();
-  //  return 1; 
-  //}  
  
   const int16 iExposureMode = _configCamera.exposureMode();
   
@@ -283,18 +271,7 @@ int PrincetonServer::deinitCapture()
     printPvError("PrincetonServer::deinitCapture():pl_exp_abort() failed");
     releaseLockCameraData();  
     return 1;
-  }
-  
-  
-  ///* Uninit the sequence */  
-  //bStatus = 
-  // pl_exp_uninit_seq();
-  //if (!bStatus ) 
-  //{
-  //  printPvError("PrincetonServer::deinitCapture():pl_exp_uninit_seq() failed");
-  //  releaseLockCameraData();
-  //  return 2;
-  //}
+  }    
     
   printf( "Capture deinitialized\n" );
   

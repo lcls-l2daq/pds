@@ -57,7 +57,6 @@ private:
   int   deinitCamera();  
   void  abortAndResetCamera();
   int   initCapture();
-  //int   startCapture(int iBufferIndex);
   int   startCapture();
   int   deinitCapture();  
 
