@@ -58,7 +58,7 @@ private:
   int   startCapture();
   int   deinitCapture();  
 
-  int   initControlThreads();
+  int   initCaptureThread();
   int   runCaptureThread();
 
   int   checkInitSettings();    

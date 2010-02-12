@@ -33,7 +33,7 @@ PrincetonServer::PrincetonServer(bool bUseCaptureThread, bool bStreamMode, std::
   /*
    * Known issue:
    *
-   * If initControlThreads() is put here, occasionally we will miss some FRAME_COMPLETE event when we do the polling
+   * If initCaptureThread() is put here, occasionally we will miss some FRAME_COMPLETE event when we do the polling
    * Possible reason is that this function (constructor) is called by a different thread other than the polling thread.
    */    
 }
@@ -137,9 +137,9 @@ int PrincetonServer::mapCamera()
   /*
    * Thread Issue:
    *
-   * initControlThreads() need to be put here. See the comment in the constructor function.
+   * initCaptureThread() need to be put here. See the comment in the constructor function.
    */      
-  if ( initControlThreads() != 0 ) // !! debug
+  if ( initCaptureThread() != 0 ) // !! debug
     return 1;
   
   return 0;
@@ -166,7 +166,7 @@ int PrincetonServer::configCamera(Princeton::ConfigV1& config)
   if ( initCapture() != 0 )
     return 4; 
     
-  //if ( initControlThreads() != 0 )
+  //if ( initCaptureThread() != 0 )
   //  return 5;
   
   return 0;
@@ -380,7 +380,7 @@ int PrincetonServer::setupCooling()
   return 0;
 }
 
-int PrincetonServer::initControlThreads()
+int PrincetonServer::initCaptureThread()
 {
   if ( _iThreadStatus > 0 )
     return 0;
@@ -401,7 +401,7 @@ int PrincetonServer::initControlThreads()
    pthread_create(&threadControl, &threadAttr, &threadEntryCapture, this);   
   if (iFail != 0)
   {
-    printf("PrincetonServer::initControlThreads(): pthread_create(threadEntryCapture) failed, error code %d - %s\n",
+    printf("PrincetonServer::initCaptureThread(): pthread_create(threadEntryCapture) failed, error code %d - %s\n",
        errno, strerror(errno));
     return 1;
   }  
@@ -738,9 +738,7 @@ int PrincetonServer::waitForNewFrameAvailable()
      * READOUT_COMPLETE=FRAME_AVAILABLE, according to PVCAM 2.7 library manual
      */
     if (iStatus == READOUT_COMPLETE) // New frame available
-    {
       break;
-    }
 
     if (iStatus == READOUT_FAILED)
     {
