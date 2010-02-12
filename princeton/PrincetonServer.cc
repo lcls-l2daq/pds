@@ -22,7 +22,7 @@ PrincetonServer::PrincetonServer(bool bUseCaptureThread, bool bStreamMode, std::
  _tsPrevIdle(), _iCameraAbortAndReset(0), _bForceCameraReset(false), _iTemperatureStatus(0), _bImageDataReady(false),
  _configCamera(), 
  _iCurShotIdStart(-1), _iCurShotIdEnd(-1), _fReadoutTime(0),  
- _uFrameSize(0), _iCurPoolIndex(-1), _iNextPoolIndex(-1), _poolDatagram( sizeof(CDatagram), 1 ), _poolFrameData(_iMaxFrameDataSize, _iPoolDataCount),
+  _poolEmptyData( sizeof(CDatagram), 1 ), _poolFrameData(_iMaxFrameDataSize, _iPoolDataCount), _pCurDatagram(0),
  _iEventCaptureEnd(0), _dgEvent(TypeId(), Src()), _pDgOut(NULL)
 {  
   if ( checkInitSettings() != 0 )    
@@ -36,17 +36,7 @@ PrincetonServer::PrincetonServer(bool bUseCaptureThread, bool bStreamMode, std::
    *
    * If initControlThreads() is put here, occasionally we will miss some FRAME_COMPLETE event when we do the polling
    * Possible reason is that this function (constructor) is called by a different thread other than the polling thread.
-   */
-    
-  for ( int iPool = 0; iPool < _iPoolDataCount; iPool++ )
-  {
-    GenericPool*    pPool           = new GenericPool(_iMaxFrameDataSize, 1);
-    unsigned char*  pDatagramBuffer = (unsigned char*) ( pPool->alloc(0) );    
-    Pool::free( pDatagramBuffer );            
-    
-    _lpCircPool       [iPool] = pPool;    
-    _lpDatagramBuffer [iPool] = pDatagramBuffer;
-  }
+   */    
 }
 
 PrincetonServer::~PrincetonServer()
@@ -74,13 +64,6 @@ PrincetonServer::~PrincetonServer()
   }
     
   deinitCamera();  
-    
-  for ( int iPool = 0; iPool < _iPoolDataCount; iPool++ )
-  {
-    delete _lpCircPool[iPool];
-    _lpCircPool       [iPool] = NULL;    
-    _lpDatagramBuffer [iPool] = NULL;
-  }  
 }
 
 int PrincetonServer::initCamera()
@@ -243,28 +226,29 @@ int PrincetonServer::initCapture()
    * Note: this value will be ignored by pl_exp_setup(), if exposure mode = BULB_MODE
    */
   const uns32 iExposureTime = (int) ( _configCamera.exposureTime() * 1000 ); 
-  
+
+  uns32 uFrameSize;
   rs_bool bStatus = 
-   pl_exp_setup_seq(_hCam, 1, 1, &region, iExposureMode, iExposureTime, &_uFrameSize);
+   pl_exp_setup_seq(_hCam, 1, 1, &region, iExposureMode, iExposureTime, &uFrameSize);
   if (!bStatus)
   {
     printPvError("PrincetonServer::initCapture(): pl_exp_setup_seq() failed!\n");
     releaseLockCameraData();
     return 2;
   }
-  printf( "Frame size for image capture = %lu\n", _uFrameSize );  
+  printf( "Frame size for image capture = %lu\n", uFrameSize );  
     
-  if ( (int)_uFrameSize + _iFrameHeaderSize > _iMaxFrameDataSize )
+  if ( (int)uFrameSize + _iFrameHeaderSize > _iMaxFrameDataSize )
   {
     printf( "PrincetonServer::initCapture():Frame size (%lu) + Frame header size (%d) "
      "is larger than internal data frame buffer size (%d)\n",
-     _uFrameSize, _iFrameHeaderSize, _iMaxFrameDataSize );
+     uFrameSize, _iFrameHeaderSize, _iMaxFrameDataSize );
     releaseLockCameraData();
     return 3;    
   }
   
   int iFail = 
-   startCapture(0);
+   startCapture();
   if ( iFail != 0 ) 
   {
     releaseLockCameraData();
@@ -318,28 +302,28 @@ int PrincetonServer::deinitCapture()
   return 0;
 }
 
-int PrincetonServer::startCapture(int iPoolIndex)
+int PrincetonServer::startCapture()
 {
-  updateCameraIdleTime();
+  updateCameraIdleTime();  
+
+  if ( _poolFrameData.numberOfFreeObjects() <= 0 )
+  {
+    printf( "PrincetonServer::startCapture(): Pool is full, and cannot provide buffer for new image data\n" );
+    return 1;
+  }
   
-  unsigned char* pFrameBuffer = _lpDatagramBuffer[ iPoolIndex ] + _iFrameHeaderSize;
+  _pCurDatagram = (unsigned char*) ( _poolFrameData.alloc(0) );
+  Pool::free( _pCurDatagram );
   
   /* Start the acquisition */
   rs_bool bStatus = 
-   pl_exp_start_seq(_hCam, pFrameBuffer);
+   pl_exp_start_seq(_hCam, _pCurDatagram );
   if (!bStatus)
   {
-    printPvError("PrincetonServer::startCapture():pl_exp_start_seq() failed");
-    
-    /*
-     * Set _iNextPoolIndex = -1, and it will be propageted to _iCurPoolIndex
-     * Next time when waitForNewFrameAvailable() is called, it will handle the error situation
-     */
-    _iNextPoolIndex = -1; 
+    printPvError("PrincetonServer::startCapture():pl_exp_start_seq() failed");    
+    _pCurDatagram = NULL;
     return 1;        
   }  
-  
-  _iNextPoolIndex = iPoolIndex;
   
   return 0;
 }
@@ -588,7 +572,7 @@ int PrincetonServer::runCaptureThread()
       continue;
     }
         
-    CDatagram*  pCdgEvent = new (&_poolDatagram) CDatagram(_dgEvent);
+    CDatagram*  pCdgEvent = new (&_poolEmptyData) CDatagram(_dgEvent);
     InDatagram* in        = pCdgEvent;
     InDatagram* out       = in;
     
@@ -784,7 +768,7 @@ int PrincetonServer::onEventShotIdUpdate(int iShotIdStart, int iShotIdEnd, InDat
     printf( "PrincetonServer::onEventShotIdUpdate(): Last frame has not been processed completely, possibly "
      "because the events are coming too fast, or the capture thread has problems.\n" );     
     // Don't reset the shot id, because the capture thread should be processing the data, or the data is waiting to be read out
-    return 3;
+    return 0;
   }
   
   if ( _iCurShotIdEnd >= 0 )
@@ -795,7 +779,7 @@ int PrincetonServer::onEventShotIdUpdate(int iShotIdStart, int iShotIdEnd, InDat
     // Don't reset the shot id, if the capture thread might be processing the data; otherwise always reset the shot ids
     if (!_bUseCaptureThread)
       _iCurShotIdStart = _iCurShotIdEnd = -1;
-    return 4;
+    return 0;
   }
     
   if ( _bUseCaptureThread )
@@ -817,7 +801,7 @@ int PrincetonServer::onEventShotIdUpdate(int iShotIdStart, int iShotIdEnd, InDat
   if ( waitForNewFrameAvailable() != 0 )
   {
     _iCurShotIdStart = _iCurShotIdEnd = -1;
-    return 5;
+    return 3;
   }
       
   _iCurShotIdStart  = iShotIdStart;  
@@ -825,7 +809,7 @@ int PrincetonServer::onEventShotIdUpdate(int iShotIdStart, int iShotIdEnd, InDat
   if ( processFrame( in, out ) != 0 )
   {
     _iCurShotIdStart = _iCurShotIdEnd = -1;
-    return 6;
+    return 4;
   }
 
   /* 
@@ -834,7 +818,7 @@ int PrincetonServer::onEventShotIdUpdate(int iShotIdStart, int iShotIdEnd, InDat
   _iCurShotIdStart = _iCurShotIdEnd = -1;
     
   if ( _iTemperatureStatus != 0 )  
-    return 7;    
+    return 5;    
       
   return 0;
 }
@@ -1037,27 +1021,11 @@ int PrincetonServer::isExposureInProgress()
 
 int PrincetonServer::waitForNewFrameAvailable()
 { 
-  /*
-   * Special cases:
-   * 
-   *   1. Initial condition: Originally _iCurPoolIndex was set to -1
-   *   2. Error situation:   startCapture() failed last time, so after processing the frame in processFrame(),
-   *                           _iCurPoolIndex was set to -1
-   *
-   * Action:
-   *   1. If startCapture() didn't fail, just set the _iCurPoolIndex to the correct pool index
-   *   2. If not, start a new capture. If it succeed, it will set the _iNextPoolIndex to be 0.
-   */
-  if ( _iCurPoolIndex == -1 )
+  if ( _pCurDatagram == NULL )
   {
-    if ( _iNextPoolIndex >= 0 )
-      _iCurPoolIndex = _iNextPoolIndex;
-    else
-    {
-      printf( "PrincetonServer::waitForNewFrameAvailable(): No new frame avaialable. Starting new capture...\n" );
-      startCapture( 0 );
-      return 1;
-    }
+    printf( "PrincetonServer::waitForNewFrameAvailable(): No new frame avaialable. Starting new capture...\n" );
+    startCapture();
+    return 1;    
   }
   
   static timespec tsWaitStart;
@@ -1145,8 +1113,7 @@ int PrincetonServer::waitForNewFrameAvailable()
   
   _fReadoutTime = (tsWaitEnd.tv_nsec - tsWaitStart.tv_nsec) / 1.0e9 + ( tsWaitEnd.tv_sec - tsWaitStart.tv_sec ); // in seconds
     
-  int iNextPoolCheckIndex = ( _iCurPoolIndex + 1 ) % _iPoolDataCount;
-  startCapture( iNextPoolCheckIndex );
+  startCapture();
   
   return 0;
 }
@@ -1158,34 +1125,28 @@ int PrincetonServer::processFrame(InDatagram* in, InDatagram*& out)
   // default to return the empty (original) datagram without data
   out = in; 
   
-  if ( _iCurPoolIndex < 0 ) // check if current pool index is valid
-  {
-    if ( _iEventCaptureEnd != 0 ) // If it is not caused by resetFramData(), print out the warning
-      printf("PrincetonServer::processFrame(): Invalid frame buffer (index %d)\n", _iCurPoolIndex );
-    
-    releaseLockCameraData();
-    return 1;
-  }
-
   /*
    * Set frame object
    */    
-  unsigned char*  pXtcHeader    = _lpDatagramBuffer[ _iCurPoolIndex ] + sizeof(CDatagram);
+  unsigned char*  pXtcHeader    = _pCurDatagram + sizeof(CDatagram);
   unsigned char*  pFrameHeader  = pXtcHeader + sizeof(Xtc);  
   int             iFrameSize    = FrameV1::size();
 
-  GenericPool* pPool = _lpCircPool[_iCurPoolIndex];
-  
-  if ( pPool->empty() == NULL)
+  if ( _poolFrameData.numberOfFreeObjects() <= 0 )
   {
-    printf( "PrincetonServer::processFrame(): No space for processing frame data\n" );
-    releaseLockCameraData();  
+    printf( "PrincetonServer::processFrame(): Pool is full, and cannot provide buffer for new datagram\n" );
+    return 1;
+  }
+ 
+  out = 
+   new ( &_poolFrameData ) CDatagram( in->datagram() ); 
+  out->datagram().xtc.alloc( sizeof(Xtc) + iFrameSize );
+  
+  if ( (unsigned char*) out != _pCurDatagram )
+  {
+    printf( "PrincetonServer::processFrame(): Pool buffer inconsistency. The acquired image data isn't located in the correct buffer\n" );
     return 2;
   }
-  
-  out = 
-   new ( pPool ) CDatagram( in->datagram() ); 
-  out->datagram().xtc.alloc( sizeof(Xtc) + iFrameSize );
   
   TypeId typePrincetonFrame(TypeId::Id_PrincetonFrame, FrameV1::Version);
   Xtc* pXtcFrame = 
@@ -1194,11 +1155,6 @@ int PrincetonServer::processFrame(InDatagram* in, InDatagram*& out)
 
   new (pFrameHeader) FrameV1(_iCurShotIdStart, _iCurShotIdEnd, _fReadoutTime);
       
-  /*
-   * Update current buffer index
-   */
-  _iCurPoolIndex = _iNextPoolIndex;       
-
   releaseLockCameraData();    
   return 0;
 }
@@ -1228,9 +1184,12 @@ int PrincetonServer::resetFrameData()
   delete _pDgOut; _pDgOut = NULL;   
   
   /*
-   * Update buffer control variables
+   * Check buffer control buffer status
    */
-  _iCurPoolIndex = -1;
+  if ( _poolEmptyData.numberOfAllocatedObjects() > 0 )
+    printf( "PrincetonServer::resetFrameData(): Memory usage issue. Empty Data Pool is not totally free.\n" );
+  if ( _poolFrameData.numberOfAllocatedObjects() > 0 )
+    printf( "PrincetonServer::resetFrameData(): Memory usage issue. Empty Data Pool is not totally free.\n" );
   
   /* 
    *  Update Camera Reset and Monitor Thread control variables

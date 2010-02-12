@@ -1,7 +1,7 @@
 /*
 ** ++
 **  Package:
-**	Service
+**  Service
 **
 **  Abstract:
 **
@@ -9,10 +9,10 @@
 **      Michael Huffer, SLAC, (415) 926-4269
 **
 **  Creation Date:
-**	000 - December 20 1,1997
+**  000 - December 20 1,1997
 **
 **  Revision History:
-**	None.
+**  None.
 **
 ** --
 */
@@ -37,10 +37,12 @@ class Pool
     Pool(size_t sizeofObject, int numberofOfObjects, unsigned alignBoundary);
     void*         alloc(size_t size);
     static void   free(void* buffer);
-    size_t        sizeofObject()    const;
-    int           numberofObjects() const;
-    int           numberofAllocs()  const;
-    int           numberofFrees()   const;
+    size_t        sizeofObject()              const;
+    int           numberofObjects()           const;
+    int           numberofAllocs()            const;
+    int           numberofFrees()             const;
+    int           numberOfAllocatedObjects()  const;
+    int           numberOfFreeObjects()       const;
   protected:
     size_t        sizeofAllocate()  const;
     virtual void* deque()                  = 0;
@@ -153,5 +155,15 @@ inline int Pds::Pool::numberofFrees() const
   {
   return _numberofFrees;
   }
+
+inline int Pds::Pool::numberOfAllocatedObjects() const
+{
+   return _numberofAllocs - _numberofFrees;
+}
+
+inline int Pds::Pool::numberOfFreeObjects() const
+{
+   return _numberofObjects - numberOfAllocatedObjects();
+}
 
 #endif

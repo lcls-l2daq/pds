@@ -49,7 +49,7 @@ private:
   static const int      _iMaxReadoutTime        = 3000;         // Max readout time // !! debug - set to 3s for testing
   static const int      _iMaxThreadEndTime      = 2000000;      // Max thread terminating time (in ms)
   static const int      _iMaxLastEventTime      = 1000;      // Max thread terminating time (in ms)
-
+  
   /*
    * private functions
    */
@@ -57,7 +57,8 @@ private:
   int   deinitCamera();  
   void  abortAndResetCamera();
   int   initCapture();
-  int   startCapture(int iBufferIndex);
+  //int   startCapture(int iBufferIndex);
+  int   startCapture();
   int   deinitCapture();  
 
   int   initControlThreads();
@@ -118,13 +119,9 @@ private:
   /*
    * Buffer control
    */
-  GenericPool*        _lpCircPool       [_iPoolDataCount];
-  unsigned char*      _lpDatagramBuffer [_iPoolDataCount];
-  uns32               _uFrameSize;
-  int                 _iCurPoolIndex;         // Used to locate the current pool inside the circular pool buffer
-  int                 _iNextPoolIndex;        // The next pool index 
-  GenericPool         _poolDatagram;          // For storing a temporary datagram (for capture thread)
+  GenericPool         _poolEmptyData;          // For storing a temporary datagram (for capture thread)
   GenericPool         _poolFrameData;
+  unsigned char*      _pCurDatagram;
     
   /*
    * Capture Thread Control and I/O variables
