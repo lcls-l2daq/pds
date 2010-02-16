@@ -232,9 +232,9 @@ public:
         if ( bReadoutEvent )
         {
           if ( _bDelayMode )
-            iFail = _manager.onEventReadoutPrompt( iShotId, in, out );
+            iFail = _manager.onEventReadoutDelay( iShotId, in );
           else
-            iFail = _manager.onEventReadoutDelay( iShotId );
+            iFail = _manager.onEventReadoutPrompt( iShotId, in, out );
         }
         
         /*
@@ -258,7 +258,7 @@ public:
           
           if ( iFail == 0 ) 
           {
-            printf( "Frame payload size = %d\n", xtcFrame.sizeofPayload());
+            printf( "Frame  payload size = %d\n", xtcFrame.sizeofPayload());
             FrameV1& frameData = *(FrameV1*) xtcFrame.payload();
             printf( "Frame Id Start %d End %d ReadoutTime %f\n", frameData.shotIdStart(), 
              frameData.shotIdEnd(), frameData.readoutTime() );
@@ -389,9 +389,9 @@ int PrincetonManager::onEventReadoutPrompt(int iShotId, InDatagram* in, InDatagr
   return _pServer->onEventReadoutPrompt(iShotId, in, out);  
 }
 
-int PrincetonManager::onEventReadoutDelay(int iShotId)
+int PrincetonManager::onEventReadoutDelay(int iShotId, InDatagram* in)
 {
-  return _pServer->onEventReadoutDelay(iShotId);  
+  return _pServer->onEventReadoutDelay(iShotId, in);  
 }
 
 int PrincetonManager::getDelayData(InDatagram* in, InDatagram*& out)

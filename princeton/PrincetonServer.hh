@@ -31,11 +31,21 @@ public:
   int   beginRunCamera();
   int   endRunCamera();  
   int   onEventReadoutPrompt(int iShotId, InDatagram* in, InDatagram*& out);
-  int   onEventReadoutDelay(int iShotId);  
+  int   onEventReadoutDelay(int iShotId, InDatagram* in);  
   int   getDelayData(InDatagram* in, InDatagram*& out);
   int   getLastDelayData(InDatagram* in, InDatagram*& out);
 
 private:
+  /*  
+   * private enum
+   */  
+  enum CaptureStateEnum
+  {
+    CAPTURE_STATE_IDLE        = 0,
+    CAPTURE_STATE_PROCESSING  = 1,
+    CAPTURE_STATE_DATA_READY  = 2,
+  };
+
   /*  
    * private static consts
    */  
@@ -65,9 +75,10 @@ private:
   int   initCameraSettings(Princeton::ConfigV1& config);
   int   setupCooling();    
   int   waitForNewFrameAvailable();
-  int   processFrame(InDatagram* in, InDatagram*& out);
+  int   processFrame();
+  int   setupFrame(InDatagram* in, InDatagram*& out);  
   int   writeFrameToFile(const Datagram& dgOut);  
-  int   resetFrameData();
+  int   resetFrameData(bool bDelOutDg);
   int   checkTemperature();  
   void  setupROI(rgn_type& region);
   
@@ -105,13 +116,12 @@ private:
    */
   GenericPool         _poolEmptyData;          // For storing a temporary datagram (for capture thread)
   GenericPool         _poolFrameData;
-  unsigned char*      _pCurDatagram;
+  InDatagram*         _pDgOut;                // Datagram for outtputing to the Princeton Manager
     
   /*
    * Capture Thread Control and I/O variables
    */
-  int                 _iEventCaptureEnd;      // 0 -> normal, 1 -> capture end event triggered
-  InDatagram*         _pDgOut;                // Datagram for outtputing to the Princeton Manager
+  CaptureStateEnum    _CaptureState;      // 0 -> idle, 1 -> start data polling/processing, 2 -> data ready
       
   /*
    * private static functions
@@ -130,6 +140,20 @@ private:
   {
     pthread_mutex_unlock(&_mutexPlFuncs);
   }
+  
+  class LockCameraData
+  {
+  public:
+    LockCameraData(char* sDescription) 
+    {
+      lockCameraData(sDescription);
+    }
+    
+    ~LockCameraData() 
+    { 
+      releaseLockCameraData(); 
+    }
+  };
   
   /*
    * private static data

@@ -34,7 +34,7 @@ public:
   int   beginRunCamera();
   int   endRunCamera();
   int   onEventReadoutPrompt(int iShotId, InDatagram* in, InDatagram*& out);
-  int   onEventReadoutDelay(int iShotId);
+  int   onEventReadoutDelay(int iShotId, InDatagram* in);
   int   getDelayData(InDatagram* in, InDatagram*& out);
   int   getLastDelayData(InDatagram* in, InDatagram*& out);
   
