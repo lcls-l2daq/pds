@@ -237,13 +237,6 @@ public:
             iFail = _manager.onEventReadoutPrompt( iShotId, in, out );
         }
         
-        /*
-         * Possible failure modes for _manager.writeMonitoredConfigContent()
-         *   cf. ......
-         * 
-         * Error Code     Reason
-         * 
-         */
         if ( iFail != 0 )
         {
           // set damage bit
@@ -305,8 +298,8 @@ private:
     int               _iDebugLevel;
 };
 
-PrincetonManager::PrincetonManager(CfgClientNfs& cfg, bool bDelayMode, const string& sFnOutput, int iDebugLevel) :
-  _bDelayMode(bDelayMode), _bStreamMode(sFnOutput.empty()), // If no output filename is specified, then use stream mode
+PrincetonManager::PrincetonManager(CfgClientNfs& cfg, bool bDelayMode, int iDebugLevel) :
+  _bDelayMode(bDelayMode),
   _iDebugLevel(iDebugLevel), _pServer(NULL)
 {
     _pActionMap       = new PrincetonMapAction      (*this, cfg);
@@ -317,19 +310,11 @@ PrincetonManager::PrincetonManager(CfgClientNfs& cfg, bool bDelayMode, const str
     _pActionDisable   = new PrincetonDisableAction  (*this, _bDelayMode, _iDebugLevel);
     _pActionL1Accept  = new PrincetonL1AcceptAction (*this, _bDelayMode, _iDebugLevel);
                    
-    /*
-     * Determine the polling scheme
-     *
-     * 1. In normal mode, use L1 Accept event handler to do the polling -> bUseCaptureThread = false
-     * 2. In make-up mode, use camera thread to do the polling          -> bUseCaptureThread = true
-     */  
-    bool bUseCaptureThread = _bDelayMode; 
-
     try
     {
       
     // !! for debug only
-    _pServer = new PrincetonServer(bUseCaptureThread, _bStreamMode, sFnOutput, cfg.src(), _iDebugLevel);
+    _pServer = new PrincetonServer(_bDelayMode, cfg.src(), _iDebugLevel);
     
     }
     catch ( PrincetonServerException& eServer )

@@ -22,7 +22,7 @@ class PrincetonServer;
 class PrincetonManager 
 {
 public:
-  PrincetonManager(CfgClientNfs& cfg, bool bDelayMode, const std::string& sFnOutput, int iDebugLevel);
+  PrincetonManager(CfgClientNfs& cfg, bool bDelayMode, int iDebugLevel);
   ~PrincetonManager();
 
   Appliance&    appliance() { return *_pFsm; }
@@ -40,7 +40,6 @@ public:
   
 private:          
   const bool          _bDelayMode;
-  const bool          _bStreamMode;    
   const int           _iDebugLevel;
   
   Fsm*                _pFsm;

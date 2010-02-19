@@ -22,7 +22,7 @@ namespace Pds
 class PrincetonServer
 {
 public:
-  PrincetonServer(bool bUseCaptureThread, bool bStreamMode, std::string sFnOutput, const Src& src, int iDebugLevel);
+  PrincetonServer(bool bUseCaptureTask, const Src& src, int iDebugLevel);
   ~PrincetonServer();
   
   int   mapCamera();  
@@ -35,6 +35,19 @@ public:
   int   getDelayData(InDatagram* in, InDatagram*& out);
   int   getLastDelayData(InDatagram* in, InDatagram*& out);
 
+  enum  ErrorCodeEnum
+  {
+    ERROR_INVALID_ARGUMENTS = 1,
+    ERROR_FUNCTION_FAILURE  = 2,
+    ERROR_INCORRECT_USAGE   = 3,
+    ERROR_LOGICAL_FAILURE   = 4,
+    ERROR_PVCAM_FUNC_FAIL   = 5,
+    ERROR_SERVER_INIT_FAIL  = 6,
+    ERROR_INVALID_CONFIG    = 7,
+    ERROR_COOLING_FAILURE   = 8,
+    ERROR_TEMPERATURE_HIGH  = 9,
+  };
+  
 private:
   /*  
    * private enum
@@ -42,7 +55,7 @@ private:
   enum CaptureStateEnum
   {
     CAPTURE_STATE_IDLE        = 0,
-    CAPTURE_STATE_PROCESSING  = 1,
+    CAPTURE_STATE_RUN_TASK    = 1,
     CAPTURE_STATE_DATA_READY  = 2,
   };
 
@@ -64,30 +77,32 @@ private:
    */
   int   initCamera();
   int   deinitCamera();  
+  
   int   initCapture();
   int   startCapture();
   int   deinitCapture();  
 
-  int   initCaptureThread();
-  int   runCaptureThread();
-
-  int   checkInitSettings();    
+  int   initCaptureTask();
+  int   runCaptureTask();
+  
   int   initCameraSettings(Princeton::ConfigV1& config);
-  int   setupCooling();    
+
+  /*
+   * Frame handling functions
+   */
+  int   setupFrame(InDatagram* in, InDatagram*& out);  
   int   waitForNewFrameAvailable();
   int   processFrame();
-  int   setupFrame(InDatagram* in, InDatagram*& out);  
-  int   writeFrameToFile(const Datagram& dgOut);  
   int   resetFrameData(bool bDelOutDg);
+
+  int   setupCooling();    
   int   checkTemperature();  
   void  setupROI(rgn_type& region);
   
   /*
    * Initial settings
    */
-  const bool          _bUseCaptureThread;
-  const bool          _bStreamMode;
-  const std::string   _sFnOutput;
+  const bool          _bDelayMode;
   const Src           _src;
   const int           _iDebugLevel;
   
@@ -109,19 +124,18 @@ private:
    * Per-frame data
    */
   int                 _iCurShotId;
-  float               _fReadoutTime;          // in seconds
+  float               _fReadoutTime;    // in seconds
       
   /*
    * Buffer control
    */
-  GenericPool         _poolEmptyData;          // For storing a temporary datagram (for capture thread)
   GenericPool         _poolFrameData;
-  InDatagram*         _pDgOut;                // Datagram for outtputing to the Princeton Manager
+  InDatagram*         _pDgOut;          // Datagram for outtputing to the Princeton Manager
     
   /*
    * Capture Thread Control and I/O variables
    */
-  CaptureStateEnum    _CaptureState;      // 0 -> idle, 1 -> start data polling/processing, 2 -> data ready
+  CaptureStateEnum    _CaptureState;    // 0 -> idle, 1 -> start data polling/processing, 2 -> data ready
       
   /*
    * private static functions
@@ -154,13 +168,12 @@ private:
       releaseLockCameraData(); 
     }
   };
-  
+    
   /*
    * private static data
    */
   static pthread_mutex_t _mutexPlFuncs;
 };
-
 
 class PrincetonServerException : public std::runtime_error
 {
