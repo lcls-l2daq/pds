@@ -213,30 +213,22 @@ public:
         if (_iDebugLevel >= 1) printf( "\n\n===== Writing L1 Data (Stream Mode) =====\n" );
         
         int   iShotId       = 12;      // !! Obtain shot ID 
-        bool  bReadoutEvent  = true;  // !! For end-event only mode (no capture start event)
+        bool  bReadoutEvent = true;  // !! For end-event only mode (no capture start event)
         
-        InDatagram* out = in;        
+        int         iFail = 0;
+        InDatagram* out   = in;
         if ( _bDelayMode )
         {
-          int iFail = _manager.getDelayData( in, out );
-
-          if ( iFail != 0 )
-            out->datagram().xtc.damage.increase(Pds::Damage::UserDefined); // set damage bit            
+          iFail = _manager.getDelayData( in, out );
+          
+          if ( bReadoutEvent )
+            iFail |= _manager.onEventReadoutDelay( iShotId, in );
         }
-                
-        if ( !bReadoutEvent )
-          return out; // Return empty data        
-        
-        in = out; // Use the output from the above commands as the input datagram for further processing
-        int iFail = 0;                 
-        if ( bReadoutEvent )
-        {
-          if ( _bDelayMode )
-            iFail = _manager.onEventReadoutDelay( iShotId, in );
-          else
-            iFail = _manager.onEventReadoutPrompt( iShotId, in, out );
+        else
+        { // prompt mode
+          iFail = _manager.onEventReadoutPrompt( iShotId, in, out );
         }
-        
+                        
         if ( iFail != 0 )
         {
           // set damage bit

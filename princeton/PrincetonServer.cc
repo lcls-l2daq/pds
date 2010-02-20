@@ -157,7 +157,6 @@ int PrincetonServer::configCamera(Princeton::ConfigV1& config)
     return ERROR_SERVER_INIT_FAIL;
   
   _configCamera = config;
-  FrameV1::initStatic( _configCamera ); // associate frame objects with this camera config
     
   if ( setupCooling() != 0 )
     return ERROR_SERVER_INIT_FAIL;  
@@ -444,11 +443,16 @@ int PrincetonServer::runCaptureTask()
       resetFrameData(true);
       continue;      
     }
-             
-    int iFail = waitForNewFrameAvailable();     
     
-    if ( iFail == 0 )
-        iFail = processFrame();       
+    int iFail = 0;
+    do 
+    {    
+      iFail = waitForNewFrameAvailable();          
+      if ( iFail != 0 ) break;
+      
+      iFail = processFrame();       
+    }
+    while (false);
     
     if ( iFail != 0 )
     {
@@ -501,17 +505,13 @@ int PrincetonServer::onEventReadoutPrompt(int iShotId, InDatagram* in, InDatagra
     return ERROR_INCORRECT_USAGE;        
      
   _iCurShotId  = iShotId;  
-  if ( setupFrame( in, out ) != 0 )
-  {
-    // When setupFrame() failed, no new out datagtam is allocated
-    out = in;    
-    resetFrameData(true);
-    return ERROR_FUNCTION_FAILURE;
-  }  
 
   int iFail = 0;
   do 
   {
+    iFail = setupFrame( in, out );
+    if ( iFail != 0 ) break;
+    
     iFail = startCapture();
     if ( iFail != 0 ) break;
         
@@ -519,7 +519,6 @@ int PrincetonServer::onEventReadoutPrompt(int iShotId, InDatagram* in, InDatagra
     if ( iFail != 0 ) break;        
 
     iFail = processFrame();
-    if ( iFail != 0 ) break;            
   }
   while (false);
 
@@ -597,20 +596,24 @@ int PrincetonServer::onEventReadoutDelay(int iShotId, InDatagram* in)
   
   _iCurShotId  = iShotId;  
   InDatagram* out = NULL;
-  if ( setupFrame( in, out ) != 0 )
-  {
-    resetFrameData(true);
-    return ERROR_FUNCTION_FAILURE;
-  }  
-
   
-  if ( startCapture() != 0 )
+  int iFail = 0;
+  do 
+  {
+    iFail = setupFrame( in, out );
+    if ( iFail != 0 ) break;
+
+    iFail = startCapture();
+  }
+  while (false);
+    
+  if ( iFail != 0 )
   {
     resetFrameData(true);
     return ERROR_FUNCTION_FAILURE;
-  }
+  }    
     
-  _iCurShotId   = iShotId;
+  _iCurShotId   = iShotId;//!!
   _CaptureState = CAPTURE_STATE_RUN_TASK;  // Notify the capture thread to start data polling/processing
   return 0;
 }
@@ -820,7 +823,7 @@ int PrincetonServer::setupFrame(InDatagram* in, InDatagram*& out)
     return ERROR_LOGICAL_FAILURE;
   }
 
-  const int iFrameSize = FrameV1::size();
+  const int iFrameSize =_configCamera.frameSize();
   
   out = 
    new ( &_poolFrameData ) CDatagram( in->datagram() ); 
