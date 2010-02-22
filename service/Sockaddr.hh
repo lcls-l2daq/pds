@@ -23,6 +23,11 @@ public:
     _sockaddr.sin_port        = htons(ins.portId());     
   }
 
+  Ins get() const {
+    return Ins(ntohl(_sockaddr.sin_addr.s_addr),
+	       ntohs(_sockaddr.sin_port));
+  }
+
   sockaddr* name() const {return (sockaddr*)&_sockaddr;}
   inline int sizeofName() const {return sizeof(_sockaddr);}
 
