@@ -15,10 +15,14 @@
 #include "pds/xtc/Datagram.hh"
 #include "pds/xtc/CDatagram.hh"
 #include "pds/service/GenericPool.hh"
+#include "pds/service/Routine.hh"
 
 namespace Pds 
 {
-  
+
+class Task;
+class PrincetonServer;
+
 class PrincetonServer
 {
 public:
@@ -62,15 +66,27 @@ private:
   /*  
    * private static consts
    */  
-  static const int      _iMaxCoolingTime        = 1000;        // in miliseconds
+  static const int      _iMaxCoolingTime        = 1000;         // in miliseconds
   static const int      _iTemperatureTolerance  = 100;          // 1 degree Fahrenheit
   static const int      _iFrameHeaderSize;                      // Buffer header used to store the CDatagram, Xtc and FrameV1 object
   static const int      _iMaxFrameDataSize;                     // Buffer for 4 Mega (image pixels) x 2 (bytes per pixel) + header size
   static const int      _iPoolDataCount         = 2;
   static const int      _iMaxExposureTime       = 10000;        // Limit exposure time to prevent CCD from burning
   static const int      _iMaxReadoutTime        = 3000;         // Max readout time // !! debug - set to 3s for testing
-  static const int      _iMaxThreadEndTime      = 2000;      // Max thread terminating time (in ms)
+  static const int      _iMaxThreadEndTime      = 2000;         // Max thread terminating time (in ms)
   static const int      _iMaxLastEventTime      = 1000;         // Max thread terminating time (in ms)
+
+  /*
+   * private classes
+   */
+  class CaptureRoutine : public Routine 
+  {
+  public:
+    CaptureRoutine(PrincetonServer& server);
+    void routine(void);
+  private:
+    PrincetonServer& _server;
+  };  
   
   /*
    * private functions
@@ -93,7 +109,7 @@ private:
   int   setupFrame(InDatagram* in, InDatagram*& out);  
   int   waitForNewFrameAvailable();
   int   processFrame();
-  int   resetFrameData(bool bDelOutDg);
+  int   resetFrameData(bool bDelOutDatagram);
 
   int   setupCooling();    
   int   checkTemperature();  
@@ -112,8 +128,6 @@ private:
   short               _hCam;  
   bool                _bCameraInited;
   bool                _bCaptureInited;
-  int                 _iThreadStatus;   // 0: No thread generated yet, 1: One thread has been created, 2: Two thread has been created
-  int                 _iThreadCommand;  // 0: Nothing, 1: End Thread
   
   /*
    * Config data
@@ -135,13 +149,10 @@ private:
   /*
    * Capture Thread Control and I/O variables
    */
-  CaptureStateEnum    _CaptureState;    // 0 -> idle, 1 -> start data polling/processing, 2 -> data ready
+  CaptureStateEnum    _CaptureState;    // 0 -> idle, 1 -> start data polling/processing, 2 -> data ready  
+  Task*               _pTaskCapture;
+  CaptureRoutine      _routineCapture;
       
-  /*
-   * private static functions
-   */
-  static void* threadEntryCapture(void * pServer);
-
   /*
    * Thread syncronization (lock/unlock) functions
    */
