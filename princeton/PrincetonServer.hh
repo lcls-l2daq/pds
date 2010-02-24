@@ -50,6 +50,7 @@ public:
     ERROR_INVALID_CONFIG    = 7,
     ERROR_COOLING_FAILURE   = 8,
     ERROR_TEMPERATURE_HIGH  = 9,
+    ERROR_SEQUENCE_ERROR    = 10,
   };
   
 private:
@@ -75,6 +76,7 @@ private:
   static const int      _iMaxReadoutTime        = 3000;         // Max readout time // !! debug - set to 3s for testing
   static const int      _iMaxThreadEndTime      = 2000;         // Max thread terminating time (in ms)
   static const int      _iMaxLastEventTime      = 1000;         // Max thread terminating time (in ms)
+  static const float    _fEventDeltaTimeFactor;                 // Event delta time factor, for detecting sequence error
 
   /*
    * private classes
@@ -113,6 +115,7 @@ private:
 
   int   setupCooling();    
   int   checkTemperature();  
+  int   checkSequence( const Datagram& datagram );
   void  setupROI(rgn_type& region);
   
   /*
@@ -128,6 +131,13 @@ private:
   short               _hCam;  
   bool                _bCameraInited;
   bool                _bCaptureInited;
+  
+  /*
+   * Event sequence/traffic control
+   */
+  float               _fPrevReadoutTime;// in seconds. Used to filter out events that are coming too fast
+  bool                _bSequenceError;  
+  ClockTime           _clockPrevDatagram;
   
   /*
    * Config data
@@ -147,7 +157,7 @@ private:
   InDatagram*         _pDgOut;          // Datagram for outtputing to the Princeton Manager
     
   /*
-   * Capture Thread Control and I/O variables
+   * Capture Task Control
    */
   CaptureStateEnum    _CaptureState;    // 0 -> idle, 1 -> start data polling/processing, 2 -> data ready  
   Task*               _pTaskCapture;

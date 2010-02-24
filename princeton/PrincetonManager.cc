@@ -226,7 +226,7 @@ public:
         }
         else
         { // prompt mode
-          iFail = _manager.onEventReadoutPrompt( iShotId, in, out );
+          iFail = _manager.onEventReadoutPrompt( iShotId, in, out );          
         }
                         
         if ( iFail != 0 )
@@ -245,8 +245,8 @@ public:
           {
             printf( "Frame  payload size = %d\n", xtcFrame.sizeofPayload());
             FrameV1& frameData = *(FrameV1*) xtcFrame.payload();
-            printf( "Frame Id Start %d End %d ReadoutTime %f\n", frameData.shotIdStart(), 
-             frameData.shotIdEnd(), frameData.readoutTime() );
+            printf( "Frame Id Start %d ReadoutTime %f\n", frameData.shotIdStart(), 
+             frameData.readoutTime() );
           }
         }
         

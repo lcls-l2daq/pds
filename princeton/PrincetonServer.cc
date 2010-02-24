@@ -21,6 +21,7 @@ using namespace Princeton;
 PrincetonServer::PrincetonServer(bool bDelayMode, const Src& src, int iDebugLevel) :
  _bDelayMode(bDelayMode), _src(src), _iDebugLevel(iDebugLevel),
  _hCam(-1), _bCameraInited(false), _bCaptureInited(false),
+ _fPrevReadoutTime(0), _bSequenceError(false), _clockPrevDatagram(0,0),
  _configCamera(), 
  _iCurShotId(-1), _fReadoutTime(0),  
  _poolFrameData(_iMaxFrameDataSize, _iPoolDataCount), _pDgOut(NULL),
@@ -267,7 +268,13 @@ int PrincetonServer::deinitCapture()
     printPvError("PrincetonServer::deinitCapture():pl_exp_abort() failed");
     return ERROR_PVCAM_FUNC_FAIL;
   }    
-    
+  
+  /*
+   * Reset the readout time reference, and the sequence error flag
+   */
+  _fPrevReadoutTime = 0;
+  _bSequenceError   = false;
+  
   printf( "Capture deinitialized\n" );
   
   return 0;
@@ -409,7 +416,7 @@ int PrincetonServer::runCaptureTask()
   if ( !_bCaptureInited )
   {      
     resetFrameData(true);
-    return ERROR_FUNCTION_FAILURE;
+    return 0;
   }
   
   /*
@@ -440,9 +447,11 @@ int PrincetonServer::runCaptureTask()
     resetFrameData(true);
     return ERROR_FUNCTION_FAILURE;
   }
-    
+  
   /*
-   * Set the damage bit if temperature status is not good
+   * Set the damage bit if 
+   *   1. temperature status is not good
+   *   2. sequence error happened in the current run
    */
   if ( checkTemperature() != 0 )
     _pDgOut->datagram().xtc.damage.increase(Pds::Damage::UserDefined);      
@@ -458,7 +467,12 @@ int PrincetonServer::runCaptureTask()
 }
 
 int PrincetonServer::onEventReadoutPrompt(int iShotId, InDatagram* in, InDatagram*& out)
-{
+{  
+  /*
+   * Default to return empty datagram
+   */
+  out = in;
+  
   /*
    * Chkec input arguments
    */
@@ -472,8 +486,15 @@ int PrincetonServer::onEventReadoutPrompt(int iShotId, InDatagram* in, InDatagra
    * This function is only useful when _bDelayMode = false
    */
   if ( _bDelayMode ) 
-    return ERROR_INCORRECT_USAGE;        
-     
+    return ERROR_INCORRECT_USAGE;
+    
+  /*
+   * Check for sequence error
+   */
+  if ( checkSequence( in->datagram() ) != 0 )
+    return ERROR_SEQUENCE_ERROR;
+         
+  // Set frame data
   _iCurShotId  = iShotId;  
 
   int iFail = 0;
@@ -493,12 +514,16 @@ int PrincetonServer::onEventReadoutPrompt(int iShotId, InDatagram* in, InDatagra
   while (false);
 
   if ( iFail != 0 )
-  {
-    out = in;
+  {    
     resetFrameData(true);
     return ERROR_FUNCTION_FAILURE;  
   }
   
+  /*
+   * Update the readout time reference
+   */  
+  _fPrevReadoutTime = _fReadoutTime;  
+      
   /* 
    * Reset the frame data, without releasing the output data
    *
@@ -510,7 +535,13 @@ int PrincetonServer::onEventReadoutPrompt(int iShotId, InDatagram* in, InDatagra
    * Check temperature
    */  
   if ( checkTemperature() != 0 )  
-    return ERROR_TEMPERATURE_HIGH; // Will cause the caller function to set the damage of the out datagram
+    return ERROR_TEMPERATURE_HIGH; // Will cause the caller function to set the damage of the out datagram     
+    
+  /*
+   * Check if sequence error happened and has not been reset
+   */  
+  if ( _bSequenceError )
+    return ERROR_SEQUENCE_ERROR;
       
   return 0;
 }
@@ -531,7 +562,7 @@ int PrincetonServer::onEventReadoutDelay(int iShotId, InDatagram* in)
    */
   if ( !_bDelayMode ) 
     return ERROR_INCORRECT_USAGE;      
-  
+      
   /*
    * Chkec if we are allowed to add a new catpure task
    */
@@ -556,14 +587,19 @@ int PrincetonServer::onEventReadoutDelay(int iShotId, InDatagram* in)
      * Remaning case:  _CaptureState == CAPTURE_STATE_RUN_TASK
      * capture thread is still busy polling or processing the previous image data
      *
-     * Note: This is a normal case for adaptive mode, where the L1Accept event are raised no 
-     * matter whether the polling thread is busy or not. In this case, we ignore the current
-     * L1Accept request.
+     * Note: Originally, this is a possible case for software adaptive mode, where the 
+     * L1Accept event are raised no matter whether the polling thread is busy or not. 
+     *
+     * However, since current EVR implementation doesn't support software adaptive mode, 
+     * this case is NOT a normal case.
      */    
     
-    if ( _iDebugLevel >= 2 )
-      printf( "PrincetonServer::onEventReadoutDelay(): No frame data is ready\n" );
-    return 0; // No error for adaptive mode
+    printf( "PrincetonServer::onEventReadoutDelay(): Capture task is running. It is not possible to start a new capture.\n" );
+    
+    /*
+     * Here we don't reset the frame data, because the capture task is running and will use the data later
+     */
+    return ERROR_INCORRECT_USAGE; // No error for adaptive mode
   }
   
   _iCurShotId  = iShotId;  
@@ -585,7 +621,7 @@ int PrincetonServer::onEventReadoutDelay(int iShotId, InDatagram* in)
     return ERROR_FUNCTION_FAILURE;
   }    
     
-  _iCurShotId   = iShotId;//!!
+  _iCurShotId   = iShotId;
   _CaptureState = CAPTURE_STATE_RUN_TASK;  // Notify the capture thread to start data polling/processing
   _pTaskCapture->call( &_routineCapture );
   return 0;
@@ -783,7 +819,7 @@ int PrincetonServer::processFrame()
    * Set frame object
    */
   unsigned char*  pFrameHeader  = (unsigned char*) _pDgOut + sizeof(CDatagram) + sizeof(Xtc);  
-  new (pFrameHeader) FrameV1(_iCurShotId, _iCurShotId, _fReadoutTime);
+  new (pFrameHeader) FrameV1(_iCurShotId, _fReadoutTime);
       
   return 0;
 }
@@ -878,6 +914,33 @@ int PrincetonServer::checkTemperature()
   return 0;
 }
 
+int PrincetonServer::checkSequence( const Datagram& datagram )
+{
+  /*
+   * Check for sequence error
+   */
+  const ClockTime clockCurDatagram  = datagram.seq.clock();
+  float           fDeltaTime        = ( clockCurDatagram.seconds() - _clockPrevDatagram.seconds() ) +
+   ( clockCurDatagram.nanoseconds() - _clockPrevDatagram.nanoseconds() ) * 1.e-9;
+   
+  if ( fDeltaTime < _fPrevReadoutTime * _fEventDeltaTimeFactor )
+  {
+    printf( "PrincetonServer::checkSequence(): Sequence error. Event delta time (%fs) < Prev Readout Time (%fs) * Factor (%f)\n",
+      fDeltaTime, _fPrevReadoutTime, _fEventDeltaTimeFactor );
+    _bSequenceError = true;
+    return ERROR_SEQUENCE_ERROR;
+  }
+  
+  if ( _iDebugLevel >= 2 )
+  {
+    printf( "PrincetonServer::checkSequence(): Event delta time (%fs), Prev Readout Time (%fs), Factor (%f)\n",
+      fDeltaTime, _fPrevReadoutTime, _fEventDeltaTimeFactor );
+  }
+  _clockPrevDatagram = clockCurDatagram;
+  
+  return 0;
+}
+
 /*
  * Definition of private static consts
  */
@@ -889,7 +952,7 @@ const int       PrincetonServer::_iPoolDataCount;
 const int       PrincetonServer::_iMaxReadoutTime;
 const int       PrincetonServer::_iMaxThreadEndTime;
 const int       PrincetonServer::_iMaxLastEventTime;
-
+const float     PrincetonServer::_fEventDeltaTimeFactor = 1.1f;
 /*
  * Definition of private static data
  */
