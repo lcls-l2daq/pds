@@ -21,7 +21,7 @@ using namespace Princeton;
 PrincetonServer::PrincetonServer(bool bDelayMode, const Src& src, int iDebugLevel) :
  _bDelayMode(bDelayMode), _src(src), _iDebugLevel(iDebugLevel),
  _hCam(-1), _bCameraInited(false), _bCaptureInited(false),
- _fPrevReadoutTime(0), _bSequenceError(false), _clockPrevDatagram(0,0),
+ _fPrevReadoutTime(0), _bSequenceError(false), _clockPrevDatagram(0,0), _iNumL1Event(0),
  _configCamera(), 
  _iCurShotId(-1), _fReadoutTime(0),  
  _poolFrameData(_iMaxFrameDataSize, _iPoolDataCount), _pDgOut(NULL),
@@ -230,7 +230,6 @@ int PrincetonServer::initCapture()
     printPvError("PrincetonServer::initCapture(): pl_exp_setup_seq() failed!\n");
     return ERROR_PVCAM_FUNC_FAIL;
   }
-  printf( "Frame size for image capture = %lu\n", uFrameSize );  
     
   if ( (int)uFrameSize + _iFrameHeaderSize > _iMaxFrameDataSize )
   {
@@ -242,8 +241,11 @@ int PrincetonServer::initCapture()
      
   _bCaptureInited = true;
   
-  printf( "Capture initialized, exposure mode = %d, time = %lu\n",
-    iExposureMode, iExposureTime );
+  printf( "Capture initialized\n" );
+
+  if ( _iDebugLevel >= 2 )
+    printf( "Frame size for image capture = %lu, exposure mode = %d, time = %lu\n",
+     uFrameSize, iExposureMode, iExposureTime);  
   
   return 0;
 }
@@ -267,13 +269,14 @@ int PrincetonServer::deinitCapture()
   {
     printPvError("PrincetonServer::deinitCapture():pl_exp_abort() failed");
     return ERROR_PVCAM_FUNC_FAIL;
-  }    
-  
+  } 
+    
   /*
-   * Reset the readout time reference, and the sequence error flag
+   * Reset the per-run data
    */
   _fPrevReadoutTime = 0;
   _bSequenceError   = false;
+  _iNumL1Event    = 0;
   
   printf( "Capture deinitialized\n" );
   
@@ -314,6 +317,9 @@ int PrincetonServer::initCameraSettings(Princeton::ConfigV1& config)
   uns32 uTriggerEdge = EDGE_TRIG_POS;
   PICAM::setAnyParam(_hCam, PARAM_EDGE_TRIGGER, &uTriggerEdge );  
   
+  int16 iSpeedTableIndex = config.readoutSpeedIndex();
+  PICAM::setAnyParam(_hCam, PARAM_SPDTAB_INDEX, &iSpeedTableIndex );  
+  
   using PICAM::displayParamIdInfo;
   displayParamIdInfo(_hCam, PARAM_EXPOSURE_MODE,    "Exposure Mode");
   displayParamIdInfo(_hCam, PARAM_CLEAR_MODE,       "Clear Mode");
@@ -325,6 +331,7 @@ int PrincetonServer::initCameraSettings(Princeton::ConfigV1& config)
   displayParamIdInfo(_hCam, PARAM_EXP_RES_INDEX,    "Exposure Resolution Index");
   
   displayParamIdInfo(_hCam, PARAM_EDGE_TRIGGER,     "Edge Trigger" );
+  displayParamIdInfo(_hCam, PARAM_SPDTAB_INDEX,     "Speed Table Index" );
   
   return 0;
 }
@@ -333,8 +340,9 @@ int PrincetonServer::setupCooling()
 {
   using namespace PICAM;
 
-  // Display cooling settings  
-  displayParamIdInfo(_hCam, PARAM_COOLING_MODE, "Cooling Mode");
+  if ( _iDebugLevel >= 2 )
+    // Display cooling settings  
+    displayParamIdInfo(_hCam, PARAM_COOLING_MODE, "Cooling Mode");
 
   //displayParamIdInfo(_hCam, PARAM_TEMP_SETPOINT, "Set Cooling Temperature *Org*");  
   const int16 iCoolingTemp = _configCamera.coolingTemp();
@@ -472,6 +480,8 @@ int PrincetonServer::onEventReadoutPrompt(int iShotId, InDatagram* in, InDatagra
    * Default to return empty datagram
    */
   out = in;
+    
+  ++_iNumL1Event; // update event counter
   
   /*
    * Chkec input arguments
@@ -548,6 +558,8 @@ int PrincetonServer::onEventReadoutPrompt(int iShotId, InDatagram* in, InDatagra
 
 int PrincetonServer::onEventReadoutDelay(int iShotId, InDatagram* in)
 {
+  ++_iNumL1Event; // update event counter
+  
   /*
    * Chkec input arguments
    */
@@ -925,13 +937,16 @@ int PrincetonServer::checkSequence( const Datagram& datagram )
    
   if ( fDeltaTime < _fPrevReadoutTime * _fEventDeltaTimeFactor )
   {
-    printf( "PrincetonServer::checkSequence(): Sequence error. Event delta time (%fs) < Prev Readout Time (%fs) * Factor (%f)\n",
-      fDeltaTime, _fPrevReadoutTime, _fEventDeltaTimeFactor );
+    // Report the error for the first few L1 events
+    if ( _iNumL1Event <= _iMaxEventErrorReport )
+      printf( "PrincetonServer::checkSequence(): Sequence error. Event delta time (%fs) < Prev Readout Time (%fs) * Factor (%f)\n",
+        fDeltaTime, _fPrevReadoutTime, _fEventDeltaTimeFactor );
+        
     _bSequenceError = true;
     return ERROR_SEQUENCE_ERROR;
   }
   
-  if ( _iDebugLevel >= 2 )
+  if ( _iDebugLevel >= 3 )
   {
     printf( "PrincetonServer::checkSequence(): Event delta time (%fs), Prev Readout Time (%fs), Factor (%f)\n",
       fDeltaTime, _fPrevReadoutTime, _fEventDeltaTimeFactor );
@@ -952,6 +967,7 @@ const int       PrincetonServer::_iPoolDataCount;
 const int       PrincetonServer::_iMaxReadoutTime;
 const int       PrincetonServer::_iMaxThreadEndTime;
 const int       PrincetonServer::_iMaxLastEventTime;
+const int       PrincetonServer::_iMaxEventErrorReport;
 const float     PrincetonServer::_fEventDeltaTimeFactor = 1.1f;
 /*
  * Definition of private static data

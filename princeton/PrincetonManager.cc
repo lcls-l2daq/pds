@@ -73,6 +73,8 @@ public:
       }
             
       // !! for debug only
+      _configCamera.setWidth( 32 );
+      _configCamera.setHeight( 32 );
       _iConfigCameraFail = _manager.configCamera(_configCamera);
       
       return tr;
@@ -211,9 +213,14 @@ public:
     virtual InDatagram* fire(InDatagram* in)     
     {       
         if (_iDebugLevel >= 1) printf( "\n\n===== Writing L1 Data (Stream Mode) =====\n" );
-        
-        int   iShotId       = 12;      // !! Obtain shot ID 
-        bool  bReadoutEvent = true;  // !! For end-event only mode (no capture start event)
+        if (_iDebugLevel >= 3) 
+        {
+          Xtc& xtcData = in->datagram().xtc;
+          printf( "\nInput payload size = %d\n", xtcData.sizeofPayload() );
+        }
+      
+        int   iShotId       = 12;   // !! Obtain shot ID 
+        bool  bReadoutEvent = true; // !! For end-event only mode (no capture start event)
         
         int         iFail = 0;
         InDatagram* out   = in;
@@ -226,7 +233,8 @@ public:
         }
         else
         { // prompt mode
-          iFail = _manager.onEventReadoutPrompt( iShotId, in, out );          
+          if ( bReadoutEvent )
+            iFail = _manager.onEventReadoutPrompt( iShotId, in, out );          
         }
                         
         if ( iFail != 0 )
@@ -241,7 +249,7 @@ public:
           printf( "\nOutput payload size = %d  fail = %d\n", xtcData.sizeofPayload(), iFail);
           Xtc& xtcFrame = *(Xtc*) xtcData.payload();
           
-          if ( iFail == 0 ) 
+          if ( xtcData.sizeofPayload() != 0 ) 
           {
             printf( "Frame  payload size = %d\n", xtcFrame.sizeofPayload());
             FrameV1& frameData = *(FrameV1*) xtcFrame.payload();
@@ -320,8 +328,8 @@ PrincetonManager::PrincetonManager(CfgClientNfs& cfg, bool bDelayMode, int iDebu
     _pFsm->callback(TransitionId::Unconfigure,  _pActionUnconfig);
     _pFsm->callback(TransitionId::BeginRun,     _pActionBeginRun);
     _pFsm->callback(TransitionId::EndRun,       _pActionEndRun);
-    _pFsm->callback(TransitionId::L1Accept,     _pActionL1Accept);
     _pFsm->callback(TransitionId::Disable,      _pActionDisable);            
+    _pFsm->callback(TransitionId::L1Accept,     _pActionL1Accept);
 }
 
 PrincetonManager::~PrincetonManager()
@@ -330,8 +338,11 @@ PrincetonManager::~PrincetonManager()
     
     delete _pServer;
     
-    delete _pActionDisable;
     delete _pActionL1Accept;
+    delete _pActionDisable;
+    delete _pActionEndRun;
+    delete _pActionBeginRun;
+    delete _pActionUnconfig;    
     delete _pActionConfig;
     delete _pActionMap; 
 }

@@ -76,7 +76,8 @@ private:
   static const int      _iMaxReadoutTime        = 3000;         // Max readout time // !! debug - set to 3s for testing
   static const int      _iMaxThreadEndTime      = 2000;         // Max thread terminating time (in ms)
   static const int      _iMaxLastEventTime      = 1000;         // Max thread terminating time (in ms)
-  static const float    _fEventDeltaTimeFactor;                 // Event delta time factor, for detecting sequence error
+  static const int      _iMaxEventErrorReport   = 20;           // Only report non-critical errors in the first few L1 events
+  static const float    _fEventDeltaTimeFactor;                 // Event delta time factor, for detecting sequence error  
 
   /*
    * private classes
@@ -138,6 +139,7 @@ private:
   float               _fPrevReadoutTime;// in seconds. Used to filter out events that are coming too fast
   bool                _bSequenceError;  
   ClockTime           _clockPrevDatagram;
+  int                 _iNumL1Event;
   
   /*
    * Config data
