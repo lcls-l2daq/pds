@@ -23,8 +23,6 @@ using std::string;
 namespace Pds 
 {
   
-using namespace Princeton;
-
 class PrincetonMapAction : public Action 
 {
 public:
@@ -64,12 +62,22 @@ public:
     virtual Transition* fire(Transition* tr) 
     {
       int iConfigSize = _cfg.fetch(*tr, _typePrincetonConfig, &_configCamera, sizeof(_configCamera));
-      if ( iConfigSize == 0 ) // No config data found in the database
+      
+      /*
+       * Note if the return value iConfigSize == 0,
+       * it means no config data is found in the database.
+       *
+       * In this case, we simply use the default settings to config the camera,
+       * and won't return damaged datagram
+       */
+       
+      if ( iConfigSize != 0 && iConfigSize != sizeof(_configCamera) )
       {
-        // !! do nothing and uses the default settings
-        
-        //_iConfigCameraFail = 1;
-        //return tr;
+        printf( "PrincetonConfigAction::PrincetonConfigAction(): Config data has incorrect size (%d B). Should be %d B.\n",
+          iConfigSize, sizeof(_configCamera) );
+          
+        _configCamera       = Princeton::ConfigV1();
+        _iConfigCameraFail  = 1;
       }
             
       // !! for debug only
@@ -252,7 +260,7 @@ public:
           if ( xtcData.sizeofPayload() != 0 ) 
           {
             printf( "Frame  payload size = %d\n", xtcFrame.sizeofPayload());
-            FrameV1& frameData = *(FrameV1*) xtcFrame.payload();
+            Princeton::FrameV1& frameData = *(Princeton::FrameV1*) xtcFrame.payload();
             printf( "Frame Id Start %d ReadoutTime %f\n", frameData.shotIdStart(), 
              frameData.readoutTime() );
           }
@@ -311,11 +319,8 @@ PrincetonManager::PrincetonManager(CfgClientNfs& cfg, bool bDelayMode, int iDebu
     _pActionL1Accept  = new PrincetonL1AcceptAction (*this, _bDelayMode, _iDebugLevel);
                    
     try
-    {
-      
-    // !! for debug only
-    _pServer = new PrincetonServer(_bDelayMode, cfg.src(), _iDebugLevel);
-    
+    {     
+    _pServer = new PrincetonServer(_bDelayMode, cfg.src(), _iDebugLevel);    
     }
     catch ( PrincetonServerException& eServer )
     {

@@ -16,8 +16,6 @@ using PICAM::printPvError;
 namespace Pds 
 {
 
-using namespace Princeton;
-
 PrincetonServer::PrincetonServer(bool bDelayMode, const Src& src, int iDebugLevel) :
  _bDelayMode(bDelayMode), _src(src), _iDebugLevel(iDebugLevel),
  _hCam(-1), _bCameraInited(false), _bCaptureInited(false),
@@ -831,7 +829,7 @@ int PrincetonServer::processFrame()
    * Set frame object
    */
   unsigned char*  pFrameHeader  = (unsigned char*) _pDgOut + sizeof(CDatagram) + sizeof(Xtc);  
-  new (pFrameHeader) FrameV1(_iCurShotId, _fReadoutTime);
+  new (pFrameHeader) Princeton::FrameV1(_iCurShotId, _fReadoutTime);
       
   return 0;
 }
@@ -869,7 +867,7 @@ int PrincetonServer::setupFrame(InDatagram* in, InDatagram*& out)
    */    
   unsigned char* pXtcHeader = (unsigned char*) _pDgOut + sizeof(CDatagram);
      
-  TypeId typePrincetonFrame(TypeId::Id_PrincetonFrame, FrameV1::Version);
+  TypeId typePrincetonFrame(TypeId::Id_PrincetonFrame, Princeton::FrameV1::Version);
   Xtc* pXtcFrame = 
    new ((char*)pXtcHeader) Xtc(typePrincetonFrame, _src);
   pXtcFrame->alloc( iFrameSize );
@@ -932,8 +930,8 @@ int PrincetonServer::checkSequence( const Datagram& datagram )
    * Check for sequence error
    */
   const ClockTime clockCurDatagram  = datagram.seq.clock();
-  float           fDeltaTime        = ( clockCurDatagram.seconds() - _clockPrevDatagram.seconds() ) +
-   ( clockCurDatagram.nanoseconds() - _clockPrevDatagram.nanoseconds() ) * 1.e-9;
+  const float     fDeltaTime        = ( clockCurDatagram.seconds() - _clockPrevDatagram.seconds() ) +
+   ( clockCurDatagram.nanoseconds() - _clockPrevDatagram.nanoseconds() ) * 1.e-9f;
    
   if ( fDeltaTime < _fPrevReadoutTime * _fEventDeltaTimeFactor )
   {
