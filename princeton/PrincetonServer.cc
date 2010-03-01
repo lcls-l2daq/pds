@@ -166,6 +166,13 @@ int PrincetonServer::configCamera(Princeton::ConfigV1& config)
   if ( initCapture() != 0 )
     return ERROR_SERVER_INIT_FAIL; 
     
+  /*
+   * Record the delay mode parameter in the config data
+   *
+   * Note: The delay mode was selected from the command line
+   */
+  config.setDelayMode( _bDelayMode?1:0 );
+    
   //if ( initCaptureTask() != 0 )
   //  return ERROR_SERVER_INIT_FAIL;
   
