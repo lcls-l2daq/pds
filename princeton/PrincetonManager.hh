@@ -48,6 +48,7 @@ private:
   Action*             _pActionUnconfig;
   Action*             _pActionBeginRun;
   Action*             _pActionEndRun;
+  Action*             _pActionEnable;  
   Action*             _pActionDisable;  
   Action*             _pActionL1Accept;
 

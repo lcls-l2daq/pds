@@ -147,11 +147,7 @@ int PrincetonServer::mapCamera()
 }
 
 int PrincetonServer::configCamera(Princeton::ConfigV1& config)
-{
-  // If the camera has been init-ed before, and not deinit-ed yet  
-  if ( _bCaptureInited )
-    deinitCapture(); // deinit the camera explicitly    
-
+{  
   //if ( initCamera() != 0 ) 
   //  return ERROR_SERVER_INIT_FAIL;
     
@@ -163,8 +159,9 @@ int PrincetonServer::configCamera(Princeton::ConfigV1& config)
   if ( setupCooling() != 0 )
     return ERROR_SERVER_INIT_FAIL;  
   
-  if ( initCapture() != 0 )
-    return ERROR_SERVER_INIT_FAIL; 
+  // Note: initCapture() has been moved to beginRun event
+  //if ( initCapture() != 0 )
+  //  return ERROR_SERVER_INIT_FAIL; 
     
   /*
    * Record the delay mode parameter in the config data
@@ -173,6 +170,7 @@ int PrincetonServer::configCamera(Princeton::ConfigV1& config)
    */
   config.setDelayMode( _bDelayMode?1:0 );
     
+  // Note: initCapture() has been moved to map event
   //if ( initCaptureTask() != 0 )
   //  return ERROR_SERVER_INIT_FAIL;
   
@@ -181,18 +179,12 @@ int PrincetonServer::configCamera(Princeton::ConfigV1& config)
 
 int PrincetonServer::unconfigCamera()
 {
-  return deinitCapture();
+  return 0;
 }
 
 int PrincetonServer::beginRunCamera()
 {
-  /*
-   * Camera control & DAQ issue:
-   *
-   * if we call initCapture() here, sometimes the camera will not be ready for the first few events
-   * Hence we call initCapture() in configCamera() instead
-   */    
-  return 0;
+  return initCapture();
 }
 
 int PrincetonServer::endRunCamera()
@@ -202,10 +194,8 @@ int PrincetonServer::endRunCamera()
    */  
   if ( _poolFrameData.numberOfAllocatedObjects() > 0 )
     printf( "PrincetonServer::endRunCamera(): Memory usage issue. Empty Data Pool is not totally free.\n" );
-    
-  LockCameraData lockEndRun("PrincetonServer::endRunCamera()");        
-  
-  return resetFrameData(true);
+
+  return deinitCapture();
 }
 
 int PrincetonServer::initCapture()
@@ -281,7 +271,7 @@ int PrincetonServer::deinitCapture()
    */
   _fPrevReadoutTime = 0;
   _bSequenceError   = false;
-  _iNumL1Event    = 0;
+  _iNumL1Event      = 0;
   
   printf( "Capture deinitialized\n" );
   
@@ -611,7 +601,7 @@ int PrincetonServer::onEventReadoutDelay(int iShotId, InDatagram* in)
      * this case is NOT a normal case.
      */    
     
-    printf( "PrincetonServer::onEventReadoutDelay(): Capture task is running. It is not possible to start a new capture.\n" );
+    printf( "PrincetonServer::onEventReadoutDelay(): Capture task is running. It is impossible to start a new capture.\n" );
     
     /*
      * Here we don't reset the frame data, because the capture task is running and will use the data later
@@ -619,7 +609,7 @@ int PrincetonServer::onEventReadoutDelay(int iShotId, InDatagram* in)
     return ERROR_INCORRECT_USAGE; // No error for adaptive mode
   }
   
-  _iCurShotId  = iShotId;  
+  _iCurShotId     = iShotId;  
   InDatagram* out = NULL;
   
   int iFail = 0;
@@ -863,7 +853,7 @@ int PrincetonServer::setupFrame(InDatagram* in, InDatagram*& out)
    */
   _pDgOut = out;
   
-  if ( _iDebugLevel >= 2 )
+  if ( _iDebugLevel >= 3 )
   {
     printf( "PrincetonServer::setupFrame(): pool free objects#: %d , data gram: %p\n", 
      _poolFrameData.numberOfFreeObjects(), _pDgOut  );
@@ -937,8 +927,15 @@ int PrincetonServer::checkSequence( const Datagram& datagram )
    * Check for sequence error
    */
   const ClockTime clockCurDatagram  = datagram.seq.clock();
-  const float     fDeltaTime        = ( clockCurDatagram.seconds() - _clockPrevDatagram.seconds() ) +
-   ( clockCurDatagram.nanoseconds() - _clockPrevDatagram.nanoseconds() ) * 1.e-9f;
+  
+  /*
+   * Note: ClockTime.seconds() and ClockTime.nanoseconds() are unsigned values, and
+   *   the difference of two unsigned values will be also interpreted as an unsigned value.
+   *   We need to convert the computed differences to signed values by using (int) operator.
+   *   Otherwise, negative values will be interpreted as large positive values.
+   */
+  const float     fDeltaTime        = (int) ( clockCurDatagram.seconds() - _clockPrevDatagram.seconds() ) +
+   (int) ( clockCurDatagram.nanoseconds() - _clockPrevDatagram.nanoseconds() ) * 1.0e-9f;
    
   if ( fDeltaTime < _fPrevReadoutTime * _fEventDeltaTimeFactor )
   {

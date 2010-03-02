@@ -219,60 +219,86 @@ public:
     {}
         
     virtual InDatagram* fire(InDatagram* in)     
-    {       
-        if (_iDebugLevel >= 1) printf( "\n\n===== Writing L1 Data (Stream Mode) =====\n" );
-        if (_iDebugLevel >= 3) 
-        {
-          Xtc& xtcData = in->datagram().xtc;
-          printf( "\nInput payload size = %d\n", xtcData.sizeofPayload() );
-        }
+    {           
+      if (_iDebugLevel >= 3) 
+      {
+        Xtc& xtcData = in->datagram().xtc;
+        printf( "\nInput payload size = %d\n", xtcData.sizeofPayload() );
+      }
+    
+      int   iShotId       = 12;   // !! Obtain shot ID 
+      bool  bReadoutEvent = true; // !! For end-event only mode (no capture start event)
       
-        int   iShotId       = 12;   // !! Obtain shot ID 
-        bool  bReadoutEvent = true; // !! For end-event only mode (no capture start event)
+      int         iFail = 0;
+      InDatagram* out   = in;
+      if ( _bDelayMode )
+      {
+        iFail = _manager.getDelayData( in, out );
         
-        int         iFail = 0;
-        InDatagram* out   = in;
-        if ( _bDelayMode )
-        {
-          iFail = _manager.getDelayData( in, out );
-          
-          if ( bReadoutEvent )
-            iFail |= _manager.onEventReadoutDelay( iShotId, in );
-        }
-        else
-        { // prompt mode
-          if ( bReadoutEvent )
-            iFail = _manager.onEventReadoutPrompt( iShotId, in, out );          
-        }
-                        
-        if ( iFail != 0 )
-        {
-          // set damage bit
-          out->datagram().xtc.damage.increase(Pds::Damage::UserDefined);
-        }                
-                  
-        if (_iDebugLevel >= 1) 
-        {
-          Xtc& xtcData = out->datagram().xtc;
-          printf( "\nOutput payload size = %d  fail = %d\n", xtcData.sizeofPayload(), iFail);
-          Xtc& xtcFrame = *(Xtc*) xtcData.payload();
-          
-          if ( xtcData.sizeofPayload() != 0 ) 
-          {
-            printf( "Frame  payload size = %d\n", xtcFrame.sizeofPayload());
-            Princeton::FrameV1& frameData = *(Princeton::FrameV1*) xtcFrame.payload();
-            printf( "Frame Id Start %d ReadoutTime %f\n", frameData.shotIdStart(), 
-             frameData.readoutTime() );
-          }
-        }
+        if ( bReadoutEvent )
+          iFail |= _manager.onEventReadoutDelay( iShotId, in );
+      }
+      else
+      { // prompt mode
+        if ( bReadoutEvent )
+          iFail = _manager.onEventReadoutPrompt( iShotId, in, out );          
+      }
+                      
+      if ( iFail != 0 )
+      {
+        // set damage bit
+        out->datagram().xtc.damage.increase(Pds::Damage::UserDefined);
+      }                
+                
+      if (_iDebugLevel >= 1) 
+      {
+        printf( "\n\n===== Writing L1Accept Data =========\n" );          
+        Xtc& xtcData = out->datagram().xtc;
+        printf( "\nOutput payload size = %d  fail = %d\n", xtcData.sizeofPayload(), iFail);
+        Xtc& xtcFrame = *(Xtc*) xtcData.payload();
         
-        return out;
+        if ( xtcData.sizeofPayload() != 0 ) 
+        {
+          printf( "Frame  payload size = %d\n", xtcFrame.sizeofPayload());
+          Princeton::FrameV1& frameData = *(Princeton::FrameV1*) xtcFrame.payload();
+          printf( "Frame Id Start %d ReadoutTime %f\n", frameData.shotIdStart(), 
+           frameData.readoutTime() );
+        }
+      }
+      
+      return out;
     }
   
 private:        
     PrincetonManager&   _manager;
     bool                _bDelayMode;
     int                 _iDebugLevel;
+};
+
+
+class PrincetonEnableAction : public Action 
+{
+public:
+    PrincetonEnableAction(PrincetonManager& manager, bool bDelayMode, int iDebugLevel) : 
+     _manager(manager), _bDelayMode(bDelayMode), _iDebugLevel(iDebugLevel)
+    {}
+        
+    virtual Transition* fire(Transition* in) 
+    {
+      return in;
+    }
+    
+    virtual InDatagram* fire(InDatagram* in)     
+    {
+      if (_iDebugLevel >= 1) 
+        printf( "\n\n===== Writing Enable Data =========\n" );
+      return in;
+    }
+    
+private:
+    PrincetonManager& _manager;
+    bool              _bDelayMode;
+    int               _iDebugLevel;
 };
 
 class PrincetonDisableAction : public Action 
@@ -289,6 +315,9 @@ public:
     
     virtual InDatagram* fire(InDatagram* in)     
     {
+      if (_iDebugLevel >= 1) 
+        printf( "\n\n===== Writing Disable Data =========\n" );          
+        
       InDatagram* out = in;
       if ( _bDelayMode )
       {
@@ -296,6 +325,21 @@ public:
 
         if ( iFail != 0 )
           out->datagram().xtc.damage.increase(Pds::Damage::UserDefined); // set damage bit            
+          
+        if (_iDebugLevel >= 1) 
+        {
+          Xtc& xtcData = out->datagram().xtc;
+          printf( "\nOutput payload size = %d  fail = %d\n", xtcData.sizeofPayload(), iFail);
+          Xtc& xtcFrame = *(Xtc*) xtcData.payload();
+          
+          if ( xtcData.sizeofPayload() != 0 ) 
+          {
+            printf( "Frame  payload size = %d\n", xtcFrame.sizeofPayload());
+            Princeton::FrameV1& frameData = *(Princeton::FrameV1*) xtcFrame.payload();
+            printf( "Frame Id Start %d ReadoutTime %f\n", frameData.shotIdStart(), 
+             frameData.readoutTime() );
+          }
+        }          
       }      
       return out;
     }
@@ -315,6 +359,7 @@ PrincetonManager::PrincetonManager(CfgClientNfs& cfg, bool bDelayMode, int iDebu
     _pActionUnconfig  = new PrincetonUnconfigAction (*this, _iDebugLevel);  
     _pActionBeginRun  = new PrincetonBeginRunAction (*this, _iDebugLevel);
     _pActionEndRun    = new PrincetonEndRunAction   (*this, _iDebugLevel);  
+    _pActionEnable    = new PrincetonEnableAction   (*this, _bDelayMode, _iDebugLevel);
     _pActionDisable   = new PrincetonDisableAction  (*this, _bDelayMode, _iDebugLevel);
     _pActionL1Accept  = new PrincetonL1AcceptAction (*this, _bDelayMode, _iDebugLevel);
                    
@@ -333,6 +378,7 @@ PrincetonManager::PrincetonManager(CfgClientNfs& cfg, bool bDelayMode, int iDebu
     _pFsm->callback(TransitionId::Unconfigure,  _pActionUnconfig);
     _pFsm->callback(TransitionId::BeginRun,     _pActionBeginRun);
     _pFsm->callback(TransitionId::EndRun,       _pActionEndRun);
+    _pFsm->callback(TransitionId::Enable,       _pActionEnable);            
     _pFsm->callback(TransitionId::Disable,      _pActionDisable);            
     _pFsm->callback(TransitionId::L1Accept,     _pActionL1Accept);
 }
@@ -345,6 +391,7 @@ PrincetonManager::~PrincetonManager()
     
     delete _pActionL1Accept;
     delete _pActionDisable;
+    delete _pActionEnable;
     delete _pActionEndRun;
     delete _pActionBeginRun;
     delete _pActionUnconfig;    

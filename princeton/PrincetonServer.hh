@@ -72,7 +72,6 @@ private:
   static const int      _iFrameHeaderSize;                      // Buffer header used to store the CDatagram, Xtc and FrameV1 object
   static const int      _iMaxFrameDataSize;                     // Buffer for 4 Mega (image pixels) x 2 (bytes per pixel) + header size
   static const int      _iPoolDataCount         = 2;
-  //static const int      _iMaxExposureTime       = 10000;        // Limit exposure time to prevent CCD from burning
   static const int      _iMaxReadoutTime        = 5000;         // Max readout time
   static const int      _iMaxThreadEndTime      = 2000;         // Max thread terminating time (in ms)
   static const int      _iMaxLastEventTime      = 1000;         // Max thread terminating time (in ms)
