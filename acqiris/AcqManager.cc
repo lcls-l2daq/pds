@@ -11,7 +11,7 @@
 // an EVR signal (which is enabled on the Enable transition).  Both
 // the wait-for-acquisition-completion (AcqReader) and wait-for-dma-completion
 // (AcqDma) run in the same thread.
-
+ 
 // Now we discuss how the actual trigger/readout mechanism works...
 // After the acquisition is completed,  the AcqReader calls
 // AcqServer::headerComplete.  This writes to a pipe that unblocks
@@ -24,7 +24,7 @@
 // fetch and completes the event.  AcqDma then puts AcqReader back in
 // the queue of the thread in order to get ready for the next event.
 // - cpo, Feb. 4, 2009.
-
+ 
 #include <sys/mman.h>
 #include <fcntl.h>
 #include <stdio.h>
@@ -50,9 +50,13 @@
 #include "pds/config/CfgClientNfs.hh"
 #include "acqiris/aqdrv4/AcqirisImport.h"
 
+#define ACQ_TIMEOUT_MILISEC 5000
+
 using namespace Pds;
 
-static unsigned cpol1=0;
+static unsigned cpol1=0; 
+static unsigned nprint =0;
+
 
 class AcqReader : public Routine {
 public:
@@ -69,15 +73,15 @@ public:
   virtual ~AcqReader() {}
   void routine() {
     ViStatus status;
-    status = AcqrsD1_acquire(_instrumentId);
-    do {
-      status = AcqrsD1_waitForEndOfAcquisition(_instrumentId,_nbrSamples);
+    status = AcqrsD1_acquire(_instrumentId);		
+    do {      
+      status = AcqrsD1_waitForEndOfAcquisition(_instrumentId,ACQ_TIMEOUT_MILISEC);
       if (status != (int)ACQIRIS_ERROR_ACQ_TIMEOUT && status != VI_SUCCESS) {
         char message[256];
         AcqrsD1_errorMessage(_instrumentId,status,message);
         printf("%s\n",message);
       }
-    } while (status);
+    } while (status);	
     _server.headerComplete(_totalSize,_count++);
   }
 private:
@@ -126,11 +130,12 @@ public:
       // note that analysis software will depend on the vertical configurations
       // being stored in the same order as the channel waveform data
       if (!(channelMask&(1<<i))) continue;
-      unsigned channel = i+1;
+      unsigned channel = i+1;      
       status = AcqrsD1_readData(_instrumentId, channel, &readParams,
                                 data->waveform(hconfig),
-                                (AqDataDescriptor*)data,
+                                (AqDataDescriptor*)data, 
                                 &(data->timestamp(0)));
+       
       // for SAR mode
       //       AcqrsD1_freeBank(_instrumentId,0);
 
@@ -148,9 +153,8 @@ public:
                data->nbrSegments(),nbrSegments);
       }
       data = data->nextChannel(hconfig);
-    }
-
-    _server.payloadComplete();
+    }    
+    _server.payloadComplete();  	
     _task->call(&_reader);
   }
 private:
@@ -184,65 +188,88 @@ class AcqL1Action : public AcqDC282Action {
 public:
   AcqL1Action(ViSession instrumentId, AcqManager* mgr) :
     AcqDC282Action(instrumentId),
-    _lastAcqTS(0),_lastEvrFid(0),
-    _nprint(0),_checkTimestamp(0),_mgr(mgr),_outoforder(0) {}
+    _lastAcqTS(0),_lastEvrFid(0),_lastEvrClockNSec(0),_initFlag(0),_evrAbsDiffNSec(0),
+    _mgr(mgr),_outoforder(0) {}
   InDatagram* fire(InDatagram* in) {
     Datagram& dg = in->datagram();
     if (!dg.xtc.damage.value()) validate(in);
     cpol1++;
     return in;
   }
-  void notRunning() {_checkTimestamp=0;}
+  void notRunning() { } 
+  
   unsigned validate(InDatagram* in) {
     Datagram& dg = in->datagram();
     Acqiris::DataDescV1& data = *(Acqiris::DataDescV1*)(dg.xtc.payload()+sizeof(Xtc));
-    long long acqts = data.timestamp(0).value();
+    unsigned long long acqts = data.timestamp(0).value();
     unsigned evrfid = dg.seq.stamp().fiducials();
-    unsigned long long psPerFiducial = 2777777777ULL;
-    long long evrdiff = ((evrfid > _lastEvrFid) ? (evrfid-_lastEvrFid) : (evrfid-_lastEvrFid+Pds::TimeStamp::MaxFiducials))*psPerFiducial;
-    long long acqdiff = acqts-_lastAcqTS;
-    long long diff = abs(evrdiff - acqdiff);
-    // empirical number for "fuzzy" equality comparison.
-    if (_checkTimestamp && (diff>1000000000)) {  // changed from 16us to 1ms by jackp
-      if (_nprint++<10) {
-        printf("*** OutOfOrder: fiducials since last evt: %f (Evr) %f (Acq)\n",
-               ((float)(evrdiff))/psPerFiducial,
-               ((float)(acqdiff))/psPerFiducial);
-        printf("*** Timestamps (current/previous) %d/%d (Evr(fiducials)) %lld/%lld (Acq(ps))\n",
-               evrfid,_lastEvrFid,acqts,_lastAcqTS);
+    unsigned long long nsPerFiducial = 2777777ULL;
+    unsigned long long evrdiff = ((evrfid > _lastEvrFid) ? (evrfid-_lastEvrFid) : (evrfid-_lastEvrFid+Pds::TimeStamp::MaxFiducials))*nsPerFiducial;    
+    unsigned long long acqdiff = (long long)( (double)(acqts-_lastAcqTS)/1000.0);
+    //unsigned long long diff = abs(evrdiff - acqdiff);
+    
+	unsigned long long evrClockSeconds = dg.seq.clock().seconds();
+    unsigned long long evrClockNSec = dg.seq.clock().nanoseconds(); 
+	evrClockNSec = (evrClockSeconds*1000000000) + evrClockNSec;
+	unsigned long long evrClkDiffNSec = (evrClockNSec - _lastEvrClockNSec);
+	
+	//Stabilize EVR system Clock Diff time to remove high jitter present 	
+	unsigned long long acqTempInt1= evrClkDiffNSec/nsPerFiducial;
+    if ( (((double)evrClkDiffNSec/(double)nsPerFiducial) - (double)acqTempInt1) >= 0.5)
+	  acqTempInt1++;
+	evrClkDiffNSec = acqTempInt1 * nsPerFiducial; 
+	
+	_evrAbsDiffNSec = evrdiff;
+	//if time diff > 300 Sec then, use EVR Sys CLK otherwise stable fiducial count 
+	if (evrClkDiffNSec > (unsigned long long)300e9)	
+      _evrAbsDiffNSec = evrClkDiffNSec;
+    
+	unsigned long long evrAcqDiff =  abs(_evrAbsDiffNSec - acqdiff);
+	
+    // Time adaptive offset comparison to detect ant dropped trigger --> Adaptive Time Offset @ 6.5 uSec/Sec rate	
+    if (_initFlag && ((double)evrAcqDiff> ((double)_evrAbsDiffNSec*6.5e-3))) {  
+      if (nprint++<10) {
+        printf("\n*** OutOfOrder: fiducials since last evt: Evr= %f  Acq= %f EvrClk= %f\n",
+               ((float)(evrdiff))/(float)nsPerFiducial,((float)(acqdiff))/(float)nsPerFiducial,((float)(evrClkDiffNSec))/(float)nsPerFiducial);
+        printf("*** Timestamps (current/previous) EvrFid= %d/%d AcqTimePS= %llu/%llu EvrSysClkNS= %llu/%llu \n",
+               evrfid,_lastEvrFid,acqts,_lastAcqTS,evrClockNSec,_lastEvrClockNSec);		    
       }
-      _outoforder=1;
+      _outoforder=1;	  
     }
-    //
-    //  Removed for one-shot mode, where shots may be separated by minutes
-    //
-    //    if (_outoforder) dg.xtc.damage.increase(Pds::Damage::OutOfOrder);
-    //
-    //  OutOfOrder calculation is not robust against long periods between events
-    //    because of differing clock rates in the acqiris and master timing system
-    //
-    _outoforder=0;
+	
+ 
+    
+    // Handleing the drop
+	if (_outoforder) 
+	  dg.xtc.damage.increase(Pds::Damage::OutOfOrder);
+	else {
+      _lastAcqTS  = acqts;
+      _lastEvrFid = evrfid;
+	  _lastEvrClockNSec = evrClockNSec;
+    }
 
-    _lastAcqTS  = acqts;
-    _lastEvrFid = evrfid;
-    _checkTimestamp = 1;
+	_outoforder=0; 
+	_initFlag = 1;
     return 0;
   }
 private:
   unsigned long long _lastAcqTS;
   unsigned _lastEvrFid;
-  unsigned _nprint;
-  unsigned _checkTimestamp;
+  long long _lastEvrClockNSec;
+  unsigned _initFlag;
+  unsigned long long _evrAbsDiffNSec;  
   AcqManager* _mgr;
   unsigned _outoforder;
+  
 };
 
 class AcqDisableAction : public AcqDC282Action {
 public:
   AcqDisableAction(ViSession instrumentId, AcqL1Action& acql1) : AcqDC282Action(instrumentId),_acql1(acql1) {}
-  Transition* fire(Transition* in) {
-    printf("AcqManager received %d l1accepts\n",cpol1);
-    _acql1.notRunning();
+  Transition* fire(Transition* in) {	
+	printf("AcqManager received %d l1accepts\n",cpol1);
+	nprint=0;
+	//_acql1.notRunning(); 
     return in;
   }
 private:
@@ -525,14 +552,14 @@ const char* AcqManager::calibPath() {
 
 AcqManager::AcqManager(ViSession InstrumentID, AcqServer& server, CfgClientNfs& cfg) :
   _instrumentId(InstrumentID),_fsm(*new Fsm) {
-  Task* task = new Task(TaskObject("AcqReadout"));
+  Task* task = new Task(TaskObject("AcqReadout",35)); //default priority=127 (lowest), changed to 35 => (127-35) by Wilfred
   AcqReader& reader = *new AcqReader(_instrumentId,server,task);
   AcqDma& dma = *new AcqDma(_instrumentId,reader,server,task);
   server.setDma(&dma);
   Action* caction = new AcqConfigAction(_instrumentId,reader,dma,server.client(),cfg);
   _fsm.callback(TransitionId::Configure,caction);
   AcqL1Action& acql1 = *new AcqL1Action(_instrumentId,this);
-  _fsm.callback(TransitionId::Map, new AcqAllocAction(cfg));
+  _fsm.callback(TransitionId::Map, new AcqAllocAction(cfg)); 
   _fsm.callback(TransitionId::L1Accept,&acql1);
   _fsm.callback(TransitionId::Disable,new AcqDisableAction(_instrumentId,acql1));
 
@@ -544,5 +571,12 @@ AcqManager::AcqManager(ViSession InstrumentID, AcqServer& server, CfgClientNfs& 
   } else {
     printf("Loaded acqiris calibration file.\n");
   }
-
+  /*unsigned addrLoc = 0x0212;
+  unsigned* addrReg = (unsigned*) addrLoc; 
+  //printf("reg = %u \n", *((unsigned*)0x0212)); 
+  printf("reg = %u \n", *addrReg);
+  */
 }
+
+
+
