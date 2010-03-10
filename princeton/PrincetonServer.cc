@@ -300,9 +300,9 @@ int PrincetonServer::startCapture()
 
 int PrincetonServer::initCameraSettings(Princeton::ConfigV1& config)
 {
-  if ( config.orgX() + config.width() > Princeton::ConfigV1::uPI_MTE_2048_Width 
+  if ( config.orgX() + config.width()  > Princeton::ConfigV1::uPI_MTE_2048_Width 
     || config.orgY() + config.height() > Princeton::ConfigV1::uPI_MTE_2048_Height
-    || config.binX() >= Princeton::ConfigV1::uPI_MTE_2048_Width / 32 
+    || config.binX() >= Princeton::ConfigV1::uPI_MTE_2048_Width  / 32 
     || config.binY() >= Princeton::ConfigV1::uPI_MTE_2048_Height / 32 )
   {
     printf( "PrincetonServer::validateCameraSettings(): Config parameters are invalid\n" );
