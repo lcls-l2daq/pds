@@ -22,16 +22,23 @@ libincs_camera := leutron/include
 #tgtnames += camsend
 tgtnames :=
 
-ifneq ($(findstring -opt,$(tgt_arch)),)
+ifneq ($(findstring x86_64,$(tgt_arch)),)
+tgtnames := camsend serialcmd
+else
 tgtnames := camsend camreceiver serialcmd
 endif
-tgtnames := camsend camreceiver serialcmd
 
-#ifeq ($(shell uname -m | egrep -c '(x86_|amd)64$$'),1)
-#ARCHCODE=64
-#else
+# ifeq ($(shell uname -m | egrep -c '(x86_|amd)64$$'),1)
+# ARCHCODE=64
+# else
+# ARCHCODE=32
+# endif
+
+ifneq ($(findstring i386,$(tgt_arch)),)
 ARCHCODE=32
-#endif
+else
+ARCHCODE=64
+endif
 
 leutron_libs := leutron/lvsds.34.${ARCHCODE}
 leutron_libs += leutron/LvCamDat.34.${ARCHCODE}
