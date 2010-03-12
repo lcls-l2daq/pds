@@ -113,7 +113,7 @@ using namespace Pds;
 
 CameraManager::CameraManager(const Src& src,
 			     CfgCache*  camConfig) :
-  _splice  (new DmaSplice),
+  _splice  (0),
   _server  (new FexFrameServer(src,*_splice)),
   _fsm     (new Fsm),
   _camConfig    (camConfig),
@@ -195,9 +195,11 @@ Transition* CameraManager::doConfigure(Transition* tr)
       printf("Camera::Init: %s.\n", strerror(-ret));
     
     else {
-      _splice->initialize( camera().frameBufferBaseAddress(),
-			   camera().frameBufferEndAddress ()- 
-			   camera().frameBufferBaseAddress());
+       if( _splice ) {
+          _splice->initialize( camera().frameBufferBaseAddress(),
+                               camera().frameBufferEndAddress ()- 
+                               camera().frameBufferBaseAddress());
+       }
       
       //
       //  The feature extraction needs to know 
