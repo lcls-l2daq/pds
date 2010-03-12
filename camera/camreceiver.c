@@ -10,6 +10,8 @@
 #include <stdlib.h>
 #include <string.h>
 #include <sys/socket.h>
+#include <netinet/in.h>
+#include <arpa/inet.h>
 #include <netdb.h>
 #include <errno.h>
 #include <sys/time.h>
@@ -63,6 +65,7 @@ int help(char *name)
 		"\tof frames to display (1=all (default), 0.5=every other etc ...).\n"
 		"--sockbuf <bufsize>: set the size of the socket receive buffer.\n"
 	        "--first: expand first line of image\n"
+                "--ip: bind to specified IP address\n"
 		"--help: display this message.\n"
 		"\n", name, name);
 	return 0;
@@ -138,7 +141,7 @@ void *writing_main(void *arg)
 		if (enable_display && ((frames_count%(int)(disprate)) == 0)) {
 			start_display_time = gettime();
 			display_image(
-					images.ring[images.next_ready]->data,
+                                      (char*) &(images.ring[images.next_ready]->data_off) + images.ring[images.next_ready]->data_off,
 					images.ring[images.next_ready]->size,
 					images.ring[images.next_ready]->width,
 					images.ring[images.next_ready]->height
@@ -173,6 +176,51 @@ int main (int argc, char *argv[])
 	char *buffer;
 	int sockbufsz = SOCKET_BUFFER_SIZE, sockbufsz_real;
 	socklen_t sockbufsz_real_len = sizeof(sockbufsz_real);
+        char ip[32];
+
+        memset( ip, 0, 32 );
+
+  struct camstream_image_t xxx;
+  unsigned long camstream_image_t_len = sizeof(struct camstream_image_t);
+  
+  printf( "camreceiver: sizeof(camstream_image_t) = %lu.\n",
+          camstream_image_t_len );
+  printf( "camreceiver: sizeof(camstream_img_t.camstream_basic_t) = %lu.\n",
+          sizeof(xxx.base) );
+  printf( "camreceiver: sizeof(camstream_img_t.camstream_basic_t.hdr) = %lu.\n",
+          sizeof(xxx.base.hdr) );
+  printf( "camreceiver: sizeof(camstream_img_t.camstream_basic_t.pktsize) = %lu.\n",
+          sizeof(xxx.base.pktsize) );
+  printf( "camreceiver: sizeof(camstream_img_t.format) = %lu.\n",
+          sizeof(xxx.format) );
+  printf( "camreceiver: sizeof(camstream_img_t.size) = %lu.\n",
+          sizeof(xxx.size) );
+  printf( "camreceiver: sizeof(camstream_img_t.width) = %lu.\n",
+          sizeof(xxx.width) );
+  printf( "camreceiver: sizeof(camstream_img_t.height) = %lu.\n",
+          sizeof(xxx.height) );
+  printf( "camreceiver: sizeof(camstream_img_t.data_off) = %lu.\n",
+          sizeof(xxx.data_off) );
+
+  xxx.base.hdr = 0x12345678;
+  xxx.base.pktsize = 0x87654321;
+  xxx.format = 0xA5;
+  xxx.size = 0x87654321;
+  xxx.width = 0x1234;
+  xxx.height = 0x4321;
+  xxx.data_off = 0x13243546;
+
+  unsigned char* xxxptr = (unsigned char*) &xxx;
+  unsigned row, col;
+  for( row = 0; row < (camstream_image_t_len / 16 + 1); ++row )
+  {
+     printf( "%04d: ", row * 16 );
+     for( col = 0; col < 16; ++col )
+     {
+        printf( " %02x", xxxptr[row*16 + col] );
+     }
+     printf( "\n" );
+  }
 
 	/* Parse the command line and check arguments */
 	for (i = 1; i < argc; i++) {
@@ -198,6 +246,8 @@ int main (int argc, char *argv[])
 			ufirst = 1;
 		} else if (strcmp("--sequence", argv[i]) == 0) {
 			usequence = 1;
+                } else if (strcmp("--ip", argv[i]) == 0) {
+                        strncpy( ip, argv[++i], 32 );
 		} else {
 			fprintf(stderr, "ERROR: invalid argument %s, "
 					"try --help.\n", argv[i]);
@@ -245,7 +295,12 @@ int main (int argc, char *argv[])
 	/* Open the socket and connection */
 	printf("Initializing connection ... ");
 	listen_addr.sin_family = AF_INET;
-	listen_addr.sin_addr.s_addr = htonl(INADDR_ANY);
+        if( *ip ) {
+           inet_aton( ip,
+                      (struct in_addr*) &listen_addr.sin_addr.s_addr );
+        } else {
+           listen_addr.sin_addr.s_addr = htonl(INADDR_ANY);
+        }
 	listen_addr.sin_port = htons(port);
 #ifdef USE_TCP
 	sockfd = socket(AF_INET, SOCK_STREAM, 0);
@@ -363,6 +418,13 @@ int main (int argc, char *argv[])
 			total += pktsize;
 			if (p->base.hdr != CAMSTREAM_IMAGE_HDR) {
 				if(sync) {
+                                   printf( "\np->base.hdr = %lu.\n", p->base.hdr );
+                                   printf( "p->base.pktsize = %lu.\n", ntohl(p->base.pktsize) );
+                                   printf( "p->format = %d.\n", p->format );
+                                   printf( "p->size = %lu.\n", p->size );
+                                   printf( "p->width = %hu.\n", p->width );
+                                   printf( "p->height = %hu.\n", p->height );
+                                   printf( "p->data_off = %lu.\n", p->data_off );
 					printf("invalid header, skipping.\nWaiting for image %lu ...   ", i);			
 					sync = 0;
 				}
@@ -434,12 +496,13 @@ int main (int argc, char *argv[])
 		image->size = imgsize;
 		image->width = imgwidth;
 		image->height = imgheight;
-		image->data = (char *)((unsigned long)(&image->data) + ntohl((unsigned long)p->data));
+		image->data_off = ntohl(p->data_off);
+                char* data = (char *)((unsigned long)(&image->data_off) + ntohl((unsigned long)p->data_off));
 		/* special transformation */
 		if (ufirst) {
 		  int k;
 		  for(k = 1; k < image->height; k++)
-		    memcpy( image->data + k*image->width, image->data, image->width );
+		    memcpy( data + k*image->width, data, image->width );
 		}
 
 		/* Notify writing thread that an image is available */
