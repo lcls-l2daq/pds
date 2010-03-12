@@ -100,6 +100,7 @@ int main(int argc, char *argv[])
   LvCamera::Status Status;
   char *dest_host=NULL;
   char *strport;
+  char* grabber;
   int dest_port = CAMSTREAM_DEFAULT_PORT;
   struct sockaddr_in dest_addr;
   struct hostent *dest_info;
@@ -117,6 +118,48 @@ int main(int argc, char *argv[])
     return ret;
   }
 
+  struct camstream_image_t xxx;
+  unsigned long camstream_image_t_len = sizeof(struct camstream_image_t);
+  
+  printf( "camreceiver: sizeof(camstream_image_t) = %lu.\n",
+          camstream_image_t_len );
+  printf( "camreceiver: sizeof(camstream_img_t.camstream_basic_t) = %lu.\n",
+          sizeof(xxx.base) );
+  printf( "camreceiver: sizeof(camstream_img_t.camstream_basic_t.hdr) = %lu.\n",
+          sizeof(xxx.base.hdr) );
+  printf( "camreceiver: sizeof(camstream_img_t.camstream_basic_t.pktsize) = %lu.\n",
+          sizeof(xxx.base.pktsize) );
+  printf( "camreceiver: sizeof(camstream_img_t.format) = %lu.\n",
+          sizeof(xxx.format) );
+  printf( "camreceiver: sizeof(camstream_img_t.size) = %lu.\n",
+          sizeof(xxx.size) );
+  printf( "camreceiver: sizeof(camstream_img_t.width) = %lu.\n",
+          sizeof(xxx.width) );
+  printf( "camreceiver: sizeof(camstream_img_t.height) = %lu.\n",
+          sizeof(xxx.height) );
+  printf( "camreceiver: sizeof(camstream_img_t.data_off) = %lu.\n",
+          sizeof(xxx.data_off) );
+
+  xxx.base.hdr = 0x12345678;
+  xxx.base.pktsize = 0x87654321;
+  xxx.format = 0xA5;
+  xxx.size = 0x87654321;
+  xxx.width = 0x1234;
+  xxx.height = 0x4321;
+  xxx.data_off = 0x13243546;
+
+  unsigned char* xxxptr = (unsigned char*) &xxx;
+  unsigned row, col;
+  for( row = 0; row < (camstream_image_t_len / 16 + 1); ++row )
+  {
+     printf( "%04d: ", row * 16 );
+     for( col = 0; col < 16; ++col )
+     {
+        printf( " %02x", xxxptr[row*16 + col] );
+     }
+     printf( "\n" );
+  }
+
   /* Parse the command line */
   for (i = 1; i < argc; i++) {
     if (strcmp("--help",argv[i]) == 0) {
@@ -126,6 +169,8 @@ int main(int argc, char *argv[])
       camera_choice = atoi(argv[++i]);
     } else if (strcmp("--shutter",argv[i]) == 0) {
       extshutter = 1;
+    } else if( strcmp("--grabber", argv[i]) == 0 ) {
+       grabber = argv[i];
     } else if (strcmp("--splice",argv[i]) == 0) {
 #if ( __GNUC__ > 3 )
       usplice = dma_splice_open();
@@ -161,7 +206,7 @@ int main(int argc, char *argv[])
   switch(camera_choice) {
   case 0:
     {
-      Opal1kCamera* oCamera = new Opal1kCamera();
+      Opal1kCamera* oCamera = new Opal1kCamera( "OpalId0" );
       Opal1kConfigType* Config = new Opal1kConfigType( 32, 100, 
 						       bitsperpixel==8 ? Opal1kConfigType::Eight_bit : 
 						       bitsperpixel==10 ? Opal1kConfigType::Ten_bit :
@@ -240,7 +285,9 @@ int main(int argc, char *argv[])
     unsigned _gain=3000;
     SetParameter ("Operating Mode","MO",_mode);
     SetParameter ("Frame Period","FP",_fps);
+    // SetParameter ("Frame Period","FP",813);
     SetParameter ("Integration Time","IT", _it);
+    // SetParameter ("Integration Time","IT", 810);
     SetParameter ("Digital Gain","GA", _gain);
   }
 
@@ -345,14 +392,16 @@ int main(int argc, char *argv[])
     struct camstream_image_t sndimg;
     int tosend;
     FrameHandle *pFrame;
-    //    printf("\rCapturing frame %d ... ",i);
+    printf("\rCapturing frame %d ... ",i);
     fflush(stdout);
     FD_ZERO(&notify_set);
     FD_SET(fdpipe[0], &notify_set);
     struct timeval tv;
     tv.tv_usec = 0;
     tv.tv_sec = 2;
+
     ret = select(fdpipe[0]+1, &notify_set, NULL, NULL, &tv);
+
     if (ret < 0) {
       printf("failed.\n");
       perror("select()");
@@ -365,6 +414,7 @@ int main(int argc, char *argv[])
       i--;
       continue;
     }
+
     ret = read(fdpipe[0], &signal, sizeof(signal));
     if (ret != sizeof(signal)) {
       printf("failed.\n");
@@ -378,10 +428,15 @@ int main(int argc, char *argv[])
       i--;
       continue;
     }
+
     pFrame = pCamera->GetFrameHandle();
+    printf( "\npFrame = 0x%p.\n", pFrame );
+    printf( "dest_host = 0x%p.\n", dest_host );
 
     if (!dest_host) {
+       printf( "a\n" );
       if (pFrame == NULL) {
+         printf( "b\n" );
 	nSkipped++;
 	if ((nSkipped%ifps)==0) {
 	  printf("skipped %d frames\n",nSkipped);
@@ -407,23 +462,25 @@ int main(int argc, char *argv[])
 // 	  printf("unexpected frameId %x -> %x\n",frameId,thisId);
 // 	  frameId = thisId;
 // 	}
+        printf("frameId= %x\n",thisId);
+        printf("frame @ %p (%p)\n",pFrame->data, pFrame);
 
 	nFrames++;
-	if ((nFrames%ifps)==0) {
-	  timespec _tp;
-	  clock_gettime(CLOCK_REALTIME, &_tp);
-	  printf("%d/%d/%p : %g sec\n",
-		 nFrames,nSkipped,
-		 pFrame->data,
-		 (_tp.tv_sec-tp.tv_sec)+1.e-9*(_tp.tv_nsec-tp.tv_nsec));
-	  tp = _tp;
-	}
+	// if ((nFrames%ifps)==0) {
+	//   timespec _tp;
+	//   clock_gettime(CLOCK_REALTIME, &_tp);
+	//   printf("%d/%d/%p : %g sec\n",
+	// 	 nFrames,nSkipped,
+	// 	 pFrame->data,
+	// 	 (_tp.tv_sec-tp.tv_sec)+1.e-9*(_tp.tv_nsec-tp.tv_nsec));
+	//   tp = _tp;
+	// }
 	delete pFrame;
       }
       continue;
     }
 
-    //    printf("frame @ %p (%p)\n",pFrame->data, pFrame);
+    printf("frame @ %p (%p)\n",pFrame->data, pFrame);
     if (pFrame == NULL) {
       printf("skipped.\nGetFrameHandle returned NULL.\n");
       continue;
@@ -435,7 +492,7 @@ int main(int argc, char *argv[])
     sndimg.size = htonl(pFrame->width*pFrame->height*pFrame->elsize);
     sndimg.width = htons(pFrame->width);
     sndimg.height = htons(pFrame->height);
-    sndimg.data = (void *)htonl(4);	/* Delta between ptr address and data */
+    sndimg.data_off = htonl(4);	/* Delta between ptr address and data */
 
     if (usplice > 0)
       dma_splice_queue(usplice, 
@@ -443,6 +500,13 @@ int main(int argc, char *argv[])
 		       pFrame->width*pFrame->height*pFrame->elsize, 
 		       (unsigned long)pFrame);
 
+    printf( "sndimg.base.hdr = %lu.\n", sndimg.base.hdr );
+    printf( "sndimg.base.pktsize = %lu.\n", ntohl(sndimg.base.pktsize) );
+    printf( "sndimg.format = %d.\n", sndimg.format );
+    printf( "sndimg.size = %lu.\n", sndimg.size );
+    printf( "sndimg.width = %hu.\n", sndimg.width );
+    printf( "sndimg.height = %hu.\n", sndimg.height );
+    printf( "sndimg.data_off = %lu.\n", sndimg.data_off );
     ret = send(sockfd, (char *)&sndimg, sizeof(sndimg), 0);
     if (ret < 0) {
       printf("failed.\n");
@@ -488,6 +552,11 @@ int main(int argc, char *argv[])
     {
 #endif
       char* p;
+      printf( "pFrame->Data: [0]=0x%08x, [1]=0x%08x, [2]=0x%08x, [3]=0x%08x\n",
+              ((unsigned int*)pFrame->data)[0], 
+              ((unsigned int*)pFrame->data)[1], 
+              ((unsigned int*)pFrame->data)[2], 
+              ((unsigned int*)pFrame->data)[3] );
       for(tosend = pFrame->width*pFrame->height*pFrame->elsize, 
 	    p=(char *)pFrame->data; 
 	  tosend > 0; tosend -= ret, p += ret) {
