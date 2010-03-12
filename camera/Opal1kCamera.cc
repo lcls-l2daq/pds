@@ -89,11 +89,13 @@ unsigned Opal1kCamera::trigger_duration_us() const { return 0; }
 
 #define SetParameter(title,cmd,val1) { \
   unsigned val = val1; \
+  unsigned rval; \
+  GetParameter(cmd,rval); \
+  printf("Read %s = d%u\n", title, rval); \
   printf("Setting %s = d%u\n",title,val); \
   snprintf(szCommand, SZCOMMAND_MAXLEN, "%s%u", cmd, val); \
   ret = SendCommand(szCommand, NULL, 0); \
   if (ret<0) return ret; \
-  unsigned rval; \
   GetParameter(cmd,rval); \
   printf("Read %s = d%u\n", title, rval); \
   if (rval != val) return -EINVAL; \
@@ -119,18 +121,49 @@ unsigned Opal1kCamera::trigger_duration_us() const { return 0; }
 }
 
 int Opal1kCamera::PicPortCameraInit() {
-  #define SZCOMMAND_MAXLEN  20
+  #define SZCOMMAND_MAXLEN  32
   char szCommand [SZCOMMAND_MAXLEN];
   char szResponse[SZCOMMAND_MAXLEN];
+  int val1, val2;
   int ret;
 
   Opal1kConfigType* outputConfig = new (_outputBuffer) Opal1kConfigType(*_inputConfig);
+
+  GetParameters("BIT", val1, val2);
+  printf( ">> Built-In Self Test (BIT): '%d;%d' %s \n", val1, val2,
+          ( val1 == 0 && val2 == 0 ) ? "[OK]" : "[FAIL]" );
+  
+  GetParameters("TM", val1, val2 );
+  printf( ">> Camera temperature (TM): '%d' C, '%d' F\n", val1, val2 );
+
+  GetParameters( "ET", val1, val2 );
+  printf( ">> Total on time: '%d' * 65536 + '%d' = %d hours\n", val1, val2,
+          val1 * 65536 + val2 );
+
+  GetParameter( "UFDT", val1 );
+  printf( ">> Microcontroller firmware release: '%s'\n", szResponse );
+
+  GetParameter( "BS", val1 );
+  printf( ">> Build versions: '%s'\n", szResponse );
+
+  GetParameter( "ID", val1 );
+  printf( ">> Camera ID: '%s'\n", szResponse );
+  
+  GetParameter( "MID", val1 );
+  printf( ">> Camera Model ID: '%s'\n", szResponse );
+  
+  GetParameter( "SN", val1 );
+  printf( ">> Camera Serial #: '%s'\n", szResponse );
+
   SetParameter("Black Level" ,"BL",_inputConfig->black_level());
   SetParameter("Digital Gain","GA",_inputConfig->gain_percent());
   SetParameter("Vertical Binning","VBIN",_inputConfig->vertical_binning());
   SetParameter("Output Mirroring","MI",_inputConfig->output_mirroring());
   SetParameter("Vertical Remap"  ,"VR",_inputConfig->vertical_remapping());
   SetParameter("Output Resolution","OR",_inputConfig->output_resolution_bits());
+
+  SetParameter( "Test Pattern", "TP", 0 );
+
   if (_inputConfig->output_lookup_table_enabled()) {
     SetCommand("Output LUT Begin","OLUTBGN");
     const unsigned short* lut = _inputConfig->output_lookup_table();
@@ -145,6 +178,7 @@ int Opal1kCamera::PicPortCameraInit() {
   }
   else
     SetParameter("Output LUT Enabled","OLUTE",0);
+
   if (_inputConfig->defect_pixel_correction_enabled()) {
     //  read defect pixels into output config
     unsigned n,col,row;
