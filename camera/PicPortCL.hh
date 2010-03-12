@@ -17,13 +17,19 @@
 
 #include "pds/camera/LvCamera.hh"
 
-#define PICPORTCL_NAME    "PicPortX CL Mono"
+//#define PICPORTCL_NAME    "PicPortX CL Mono"
+//#define PICPORTCL_NAME    "PicPortExpress CL Mono"
+//#define PICPORTCL_NAME    "PicPortExpress CL Stereo"
+//#define PICPORTCL_NAME    "PicPortX CL Mono PMC"
 
 namespace Pds {
   class MonEntryTH1F;
 };
 
 namespace PdsLeutron {
+
+  extern const int num_supported_grabbers;
+  extern char* supported_grabbers[];
 
   class FrameHandle;
   class MyQueue;

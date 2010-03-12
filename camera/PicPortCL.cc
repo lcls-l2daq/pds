@@ -24,6 +24,16 @@ extern "C" int __libc_allocate_rtsig (int high);
 static void _dumpConfig(const DaSeq32Cfg& cfg) __attribute__((unused));
 
 namespace PdsLeutron {
+
+  const int num_supported_grabbers = 4;
+  char* supported_grabbers[] =
+  {
+     "PicPortExpress CL Mono",
+     "PicPortExpress CL Stereo",
+     "PicPortX CL Mono",
+     "PicPortX CL Mono PMC"
+  };
+
   //  Only one thread calls "push", and one other calls "pop"
   class MyQueue {
   public:
@@ -175,7 +185,28 @@ int PicPortCL::Init() {
   // Set the framegrabber part of the config
   U16BIT CameraId = DsyGetCameraId(const_cast<char*>(Name()));
   _seqDralConfig.Size = sizeof(DaSeq32Cfg);
-  _seqDralConfig.hGrabber = DsyGetGrabberHandleByName(PICPORTCL_NAME, _grabberId);
+
+  _seqDralConfig.hGrabber = HANDLE_INVALID;
+
+  for( int i = 0; i < num_supported_grabbers; ++i )
+  {
+     printf( "Probing for grabber: '%s'... ", supported_grabbers[i] );
+     _seqDralConfig.hGrabber =
+        DsyGetGrabberHandleByName(supported_grabbers[i], _grabberId);
+     if( _seqDralConfig.hGrabber != HANDLE_INVALID )
+     {
+        printf( "FOUND.\n" );
+        break;
+     }
+     printf( "not present.  Try again.\n" );
+  }
+
+  if( _seqDralConfig.hGrabber == HANDLE_INVALID )
+  {
+     printf( "ERROR: Unable to find supported frame grabber.\n" );
+     return -ENOTSUP;
+  }
+
   _seqDralConfig.Flags = SqFlg_AutoAdjustBuffer;
   _seqDralConfig.NrImages = 16;
   //  _seqDralConfig.NrImages = 2;
@@ -456,7 +487,6 @@ int PicPortCL::SendCommand(char *szCommand, char *pszResponse, int iResponseBuff
 				iResponseBufferSize, timeout_ms(), 
 				iResponseBufferSize <= 1 ? eotWrite() : eotRead(), 
 				&ulReceivedLength);
-
   // Done: if any data was read we return them
   if ((lvret != I_NoError) && (ulReceivedLength == 0))
     return -DsyToErrno(lvret);
