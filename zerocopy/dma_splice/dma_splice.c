@@ -173,6 +173,8 @@ static int dma_splice_dev_open     (struct inode *inode, struct file *filp);
 static int dma_splice_dev_release  (struct inode *inode, struct file *filp);
 static int dma_splice_dev_ioctl    (struct inode *inode, struct file *filp, 
 				    unsigned int cmd, unsigned long arg);
+static int dma_splice_dev_compat_ioctl( struct file *filp, 
+				    unsigned int cmd, unsigned long arg);
 static ssize_t dma_splice_dev_read (struct file *filp, loff_t *ppos,
 				    struct pipe_inode_info *pipe, size_t len, 
 				    unsigned int flags);
@@ -182,6 +184,7 @@ static struct file_operations dma_splice_fops = {
 	.open         = dma_splice_dev_open,
 	.release      = dma_splice_dev_release,
 	.ioctl        = dma_splice_dev_ioctl,
+	.compat_ioctl = dma_splice_dev_compat_ioctl,
 	.splice_read  = dma_splice_dev_read,
 };
 
@@ -246,6 +249,8 @@ static const struct pipe_buf_operations dma_splice_pbuf_ops = {
 static int dma_splice_dev_open(struct inode *inode, struct file *filp)
 {
 	struct dma_splice_info *pdata;
+
+        printk( KERN_INFO "dma_splice_dev_open() called.\n" );
 
 	/* Allocate and initialize open handle data structure */
 	pdata = kmalloc(sizeof(struct dma_splice_info), GFP_KERNEL);
@@ -327,10 +332,27 @@ static int dma_splice_dev_release(struct inode *inode, struct file *filp)
 	return 0;
 }
 
+static int dma_splice_dev_compat_ioctl( struct file *filp, 
+                                        unsigned int cmd,
+                                        unsigned long arg)
+{
+   struct inode* inode = filp->f_dentry->d_inode;
+
+   printk( KERN_INFO "dma_splice_dev_compat_ioctl() called:\n" );
+   printk( KERN_INFO "\tfilp = 0x%016x (struct file*)\n", filp );
+   printk( KERN_INFO "\tcmd  = %u (unsigned int)\n", cmd );
+   printk( KERN_INFO "\targ  = %lu (unsigned long)\n", filp );
+
+   return 0;
+}
+
+
 static int dma_splice_dev_ioctl(struct inode *inode, struct file *filp, 
 				unsigned int cmd, unsigned long arg)
 {
 	struct dma_splice_info *pdata = filp->private_data;
+
+        printk( KERN_INFO "dma_splic_dev_ioctl() called.\n" );
 	if (cmd==DMA_SPLICE_IOCTL_INIT) {
 	        int i,n,len;
 		struct dma_splice_ioctl_desc desc;
@@ -388,13 +410,20 @@ static int dma_splice_dev_ioctl(struct inode *inode, struct file *filp,
 		}
 	}
 	else if (cmd==DMA_SPLICE_IOCTL_NOTIFY) {
+           printk( KERN_INFO "Notify ioctl called.\n" );
 	        unsigned long i = pdata->notify.drain;
 		while( pdata->notify.fill == i )
 		       if (down_interruptible(&pdata->notify_mutex))
+                       {
+                          printk( KERN_INFO "down_interruptible() != 0\n" );
 			        return -EINTR;
+                       }
 		pdata->notify.drain = (i+1)%NNOTIFY_DESCRIPTORS;
 		if (copy_to_user( (void __user*)arg, &pdata->notify.arg[i], sizeof(unsigned long) )) 
+                {
+                   printk( KERN_INFO "copy_to_user() != 0\n" );
 		       return -EINVAL;
+                }
 	}
 	return 0;
 }
