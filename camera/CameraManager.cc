@@ -105,7 +105,6 @@ CameraManager::CameraManager(const Src& src,
 			     CfgCache*  camConfig) :
   //  _splice  (new DmaSplice),
   _splice  (0),
-  _server  (new FexFrameServer(src,*_splice)),
   _fsm     (new Fsm),
   _camConfig  (camConfig),
   _configured (false)
