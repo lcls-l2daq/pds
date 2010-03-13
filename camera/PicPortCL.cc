@@ -83,6 +83,7 @@ PicPortCL::PicPortCL(int grabberid) :
   _queue(0)
 {
   DsyInit();
+
   _notifyMode   = NOTIFYTYPE_NONE;
   _notifySignal = 0;
   _grabberId = grabberid;

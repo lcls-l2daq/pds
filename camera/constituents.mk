@@ -7,13 +7,13 @@ libsrcs_camera := DmaSplice.cc \
 		  PicPortCL.cc \
 		  TwoDMoments.cc \
 		  TwoDGaussian.cc \
+	          FrameServer.cc \
 	          FexFrameServer.cc \
 		  Opal1kCamera.cc \
 	          TM6740Camera.cc \
 		  CameraManager.cc \
 		  Opal1kManager.cc \
 	          TM6740Manager.cc
-#	          FrameServer.cc \
 
 libsinc_camera := /usr/include/lvsds
 libincs_camera := leutron/include

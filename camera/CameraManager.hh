@@ -1,9 +1,7 @@
 #ifndef Pds_CameraManager_hh
 #define Pds_CameraManager_hh
 
-#include "pds/camera/FexFrameServer.hh"
 #include "pdsdata/xtc/Xtc.hh"
-#include "pds/config/CfgCache.hh"
 
 namespace PdsLeutron {
   class PicPortCL;
@@ -12,13 +10,13 @@ namespace PdsLeutron {
 namespace Pds {
 
   class Appliance;
-  class Server;
 
   class CfgCache;
   class Fsm;
   class DmaSplice;
   class Transition;
   class InDatagram;
+  class FrameServer;
 
   class CameraManager {
   public:
@@ -27,19 +25,19 @@ namespace Pds {
     virtual ~CameraManager();
 
     Appliance&      appliance();
-    FexFrameServer& server();
+
+    virtual FrameServer& server() = 0;
 
     // Unix signal handler
     static void sigintHandler(int);
     
   public:
-    Transition* allocate      (Transition* tr);
-    Transition* fetchConfigure(Transition* tr);
-    Transition* doConfigure   (Transition* tr);
-    Transition* nextConfigure (Transition* tr);
-    Transition* unconfigure   (Transition* tr);
+    virtual void allocate      (Transition* tr);
+    virtual void doConfigure   (Transition* tr);
+    virtual void nextConfigure (Transition* tr);
+    virtual void unconfigure   (Transition* tr);
 
-    InDatagram* recordConfigure  (InDatagram* in);
+    virtual InDatagram* recordConfigure  (InDatagram* in);
 
   public:
     void handle();
@@ -53,16 +51,19 @@ namespace Pds {
     virtual Pds::Damage _handle() { return 0; }
     virtual void _register  () {}
     virtual void _unregister() {}
+
+  public:
+    virtual void attach_camera() = 0;
+    virtual void detach_camera() = 0;
   private:
     virtual PdsLeutron::PicPortCL& camera() = 0;
 
-  private:
+  protected:
     DmaSplice*      _splice;
-    FexFrameServer* _server;
+  private:
     Fsm*            _fsm;
     int             _sig;
     CfgCache*       _camConfig;
-    CfgCache*       _fexConfig;
     bool            _configured;
   protected:
     unsigned        _nposts;

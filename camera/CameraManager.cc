@@ -10,11 +10,11 @@
 
 #include "pds/camera/DmaSplice.hh"
 #include "pds/camera/PicPortCL.hh"
-#include "pds/config/CfgClientNfs.hh"
-#include "pds/camera/FexFrameServer.hh"
+#include "pds/camera/FrameServer.hh"
 #include "pds/camera/FrameServerMsg.hh"
 
-#include "pds/config/FrameFexConfigType.hh"
+#include "pds/config/CfgCache.hh"
+#include "pds/config/CfgClientNfs.hh"
 
 #include <signal.h>
 #include <stdlib.h>
@@ -46,14 +46,6 @@ static void cameraSignalHandler(int arg)
 
 namespace Pds {
 
-  class FexConfig : public CfgCache {
-  public:
-    FexConfig(const Src& src) :
-      CfgCache(src,_frameFexConfigType,sizeof(FrameFexConfigType)) {}
-  private:
-    int _size(void* tc) const { return reinterpret_cast<FrameFexConfigType*>(tc)->size(); }
-  };
-
   class CameraMapAction : public Action {
   public:
     CameraMapAction(CameraManager& mgr) : _mgr(mgr) {}
@@ -62,7 +54,8 @@ namespace Pds {
       _dst = StreamPorts::event(reinterpret_cast<Allocate*>(tr)->allocation().partitionid(),
 				Level::Segment);
 #endif
-      return _mgr.allocate(tr); 
+      _mgr.allocate(tr); 
+      return tr;
     }
     InDatagram* fire(InDatagram* dg) { return dg; }
   private:
@@ -72,10 +65,7 @@ namespace Pds {
   class CameraConfigAction : public Action {
   public:
     CameraConfigAction(CameraManager& mgr) : _mgr(mgr) {}
-    Transition* fire(Transition* tr) { 
-      tr = _mgr.fetchConfigure(tr);
-      tr = _mgr.doConfigure   (tr);
-      return tr; }
+    Transition* fire(Transition* tr) { _mgr.doConfigure(tr); return tr; }
     InDatagram* fire(InDatagram* dg) { return _mgr.recordConfigure(dg); }
   private:
     CameraManager& _mgr;
@@ -84,7 +74,7 @@ namespace Pds {
   class CameraUnconfigAction : public Action {
   public:
     CameraUnconfigAction(CameraManager& mgr) : _mgr(mgr) {}
-    Transition* fire(Transition* tr) { return _mgr.unconfigure(tr); }
+    Transition* fire(Transition* tr) { _mgr.unconfigure(tr); return tr; }
   private:
     CameraManager& _mgr;
   };
@@ -92,8 +82,8 @@ namespace Pds {
   class CameraBeginCalibAction : public Action {
   public:
     CameraBeginCalibAction(CameraManager& mgr) : _mgr(mgr) {}
-    Transition* fire(Transition* tr) { return _mgr.doConfigure    (tr); }
-    InDatagram* fire(InDatagram* tr) { return _mgr.recordConfigure(tr); }
+    Transition* fire(Transition* tr) { _mgr.doConfigure    (tr); return tr; }
+    InDatagram* fire(InDatagram* tr) { _mgr.recordConfigure(tr); return tr; }
   private:
     CameraManager& _mgr;
   };
@@ -101,7 +91,7 @@ namespace Pds {
   class CameraEndCalibAction : public Action {
   public:
     CameraEndCalibAction(CameraManager& mgr) : _mgr(mgr) {}
-    Transition* fire(Transition* tr) { return _mgr.nextConfigure(tr); }
+    Transition* fire(Transition* tr) { _mgr.nextConfigure(tr); return tr; }
     InDatagram* fire(InDatagram* tr) { return tr; }
   private:
     CameraManager& _mgr;
@@ -113,16 +103,12 @@ using namespace Pds;
 
 CameraManager::CameraManager(const Src& src,
 			     CfgCache*  camConfig) :
+  //  _splice  (new DmaSplice),
   _splice  (0),
   _server  (new FexFrameServer(src,*_splice)),
   _fsm     (new Fsm),
-  _camConfig    (camConfig),
-  _fexConfig    (new FexConfig(src)),
+  _camConfig  (camConfig),
   _configured (false)
-//   _configBuffer (new char[MaxConfigSize+sizeof(FrameFexConfigType)]),
-//   _configService(new CfgClientNfs(src)),
-//   _fextc        (_frameFexConfigType, src),
-//   _fexConfig    (0)
 {
   _fsm->callback(TransitionId::Map            , new CameraMapAction       (*this));
   _fsm->callback(TransitionId::Configure      , new CameraConfigAction    (*this));
@@ -142,112 +128,84 @@ CameraManager::CameraManager(const Src& src,
   if (sigaction(SIGINT, &int_action, 0) > 0) {
     printf("Couldn't set up SIGINT handler\n");
   }
-
 }
 
 CameraManager::~CameraManager()
 {
   delete   _fsm;
-  delete   _server;
   if (_splice) {
     delete   _splice;
     _splice = 0;
   }
-  delete   _fexConfig;
   delete   _camConfig;
 }
 
-Transition* CameraManager::allocate (Transition* tr)
+void CameraManager::allocate (Transition* tr)
 {
   const Allocate& alloc = reinterpret_cast<const Allocate&>(*tr);
   _camConfig->init(alloc.allocation());
-  _fexConfig->init(alloc.allocation());
-  return tr;
 }
 
-Transition* CameraManager::fetchConfigure(Transition* tr)
+void CameraManager::doConfigure(Transition* tr)
 {
   //
   //  retrieve the configuration
   //
-  if (_camConfig->fetch(tr) <= 0)
-    printf("Config::configure failed to retrieve camera configuration\n");
+  if (_camConfig->fetch(tr) > 0) {
 
-  if (_fexConfig->fetch(tr) <= 0)
-    printf("Config::configure failed to retrieve FrameFex configuration\n");
- 
-  return tr;
-}
+    _configure(_camConfig->current());
 
-Transition* CameraManager::doConfigure(Transition* tr)
-{
-  _configure(_camConfig->current());
-
-  int ret;
-  int sig;
-  if ((sig = camera().SetNotification(PdsLeutron::LvCamera::NOTIFYTYPE_SIGNAL)) < 0) 
-    printf("Camera::SetNotification: %s.\n", strerror(-sig));
+    int ret;
+    int sig;
+    if ((sig = camera().SetNotification(PdsLeutron::LvCamera::NOTIFYTYPE_SIGNAL)) < 0) 
+      printf("Camera::SetNotification: %s.\n", strerror(-sig));
   
-  else {
-    register_(sig);
-
-    if ((ret = camera().Init()) < 0)
-      printf("Camera::Init: %s.\n", strerror(-ret));
-    
     else {
-       if( _splice ) {
-          _splice->initialize( camera().frameBufferBaseAddress(),
-                               camera().frameBufferEndAddress ()- 
-                               camera().frameBufferBaseAddress());
-       }
-      
-      //
-      //  The feature extraction needs to know 
-      //  something about the camera output:
-      //     offset, defective pixels, ...
-      //
-      _server->setFexConfig(*reinterpret_cast<const FrameFexConfigType*>(_fexConfig->current()));
+      register_(sig);
 
-      if ((ret = camera().Start()) < 0)
-	printf("Camera::Start: %s.\n", strerror(-ret));
+      if ((ret = camera().Init()) < 0)
+	printf("Camera::Init: %s.\n", strerror(-ret));
+    
       else {
-        _configured = true;
-        return tr;
+	if (_splice)
+	  _splice->initialize( camera().frameBufferBaseAddress(),
+			       camera().frameBufferEndAddress ()- 
+			       camera().frameBufferBaseAddress());
+      
+	if ((ret = camera().Start()) < 0)
+	  printf("Camera::Start: %s.\n", strerror(-ret));
+	else {
+	  _configured = true;
+	  return;
+	}
       }
     }
   }
+  else
+    printf("Config::configure failed to retrieve camera configuration\n");
 
   _camConfig->damage().increase(Damage::UserDefined);
-  _fexConfig->damage().increase(Damage::UserDefined);
-
-  return tr;
 }
 
-Transition* CameraManager::unconfigure(Transition* tr)
+void CameraManager::unconfigure(Transition* tr)
 {
   if (true == _configured) {
     _configured = false;
     camera().Stop();
     unregister();
   }
-  return tr;
 }
 
-Transition* CameraManager::nextConfigure    (Transition* tr)
+void CameraManager::nextConfigure    (Transition* tr)
 {
   _camConfig->next();
-  _fexConfig->next();
-  return tr;
 }
 
 InDatagram* CameraManager::recordConfigure  (InDatagram* in) 
 {
   _camConfig->record(in);
-  _fexConfig->record(in);
   return in;
 }
-
-FexFrameServer& CameraManager::server() { return *_server; }
 
 Appliance& CameraManager::appliance() { return *_fsm; }
 
@@ -271,7 +229,7 @@ void CameraManager::handle()
 
   msg->damage.increase(_handle().value());
 
-  _server->post(msg);
+  server().post(msg);
   _nposts++;
 }
 

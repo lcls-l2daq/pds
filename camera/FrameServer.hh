@@ -14,16 +14,14 @@
 
 namespace Pds {
 
-  class Frame;
-  class Opal1000;
+  class FrameServerMsg;
   
   class FrameServer : public EbServer, public EbCountSrv {
   public:
-    FrameServer (const Src&,
-		 Opal1000&);
+    FrameServer (const Src&);
     ~FrameServer();
   public:
-    void        post();
+    void        post(FrameServerMsg*);
   public:
     //  Eb interface
     void        dump    (int detail)   const;
@@ -40,19 +38,17 @@ namespace Pds {
   public:
     //  Server interface
     int      pend        (int flag = 0);
-    int      fetch       (char* payload, int flags);
-    int      fetch       (ZcpFragment& , int flags);
+    //    int      fetch       (char* payload, int flags);  // subclasses implement this
+    //    int      fetch       (ZcpFragment& , int flags);  // subclasses implement this
   public:
     unsigned count() const;
-  private:
-    Opal1000& _camera;
-    bool     _more;
-    unsigned _offset;
-    unsigned _next;
-    unsigned _length;
-    int      _fd[2];
-    Xtc      _xtc;
-    unsigned _count;
+  protected:
+    bool       _more;
+    unsigned   _offset;
+    int        _fd[2];
+    Xtc        _xtc;
+    unsigned   _count;
+    LinkedList<FrameServerMsg> _msg_queue;
   };
 }
 

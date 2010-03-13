@@ -1,3 +1,4 @@
+2010-Mar-12 weaver	Refactor pds/camera classes for FCCD implementation.
 2009-Dec-03 tomytsai    Update epicsArch classes to skip missing PVs and report damage, and also limit on the number of 
       no-connection errors reported to the console (or log file)
 2009-Dec-03 weaver  Tag V01-08-01.  Enabled select mask in the event builder.  Fixed data

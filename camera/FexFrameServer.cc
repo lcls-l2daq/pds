@@ -3,11 +3,11 @@
 #include "pds/camera/DmaSplice.hh"
 #include "pds/camera/Frame.hh"
 #include "pds/camera/FrameHandle.hh"
-#include "pds/camera/FrameServerMsg.hh"
 #include "pds/camera/TwoDGaussian.hh"
 
 #include "pds/service/ZcpFragment.hh"
 #include "pds/xtc/XtcType.hh"
+#include "pds/camera/FrameServerMsg.hh"
 #include "pds/camera/FrameType.hh"
 #include "pds/camera/TwoDGaussianType.hh"
 
@@ -22,23 +22,14 @@ using namespace Pds;
 
 typedef unsigned short pixel_type;
 
-FexFrameServer::FexFrameServer(const Src& src,
-			       DmaSplice& splice) :
-  _splice(splice),
-  _more  (false),
-  _xtc   (_xtcType, src),
-  _config(0)
+FexFrameServer::FexFrameServer(const Src& src, DmaSplice& splice) :
+  FrameServer(src),
+  _splice(splice)
 {
-  int err = ::pipe(_fd);
-  if (err)
-    printf("Error opening FexFrameServer pipe: %s\n",strerror(errno));
-  fd(_fd[0]);
 }
 
 FexFrameServer::~FexFrameServer()
 {
-  ::close(_fd[0]);
-  ::close(_fd[1]);
 }
 
 void FexFrameServer::setFexConfig(const FrameFexConfigType& cfg)
@@ -50,54 +41,6 @@ void FexFrameServer::setFexConfig(const FrameFexConfigType& cfg)
 void FexFrameServer::setCameraOffset(unsigned camera_offset)
 {
   _camera_offset = camera_offset;
-}
-
-void FexFrameServer::post(FrameServerMsg* msg)
-{
-  msg->connect(_msg_queue.reverse());
-  ::write(_fd[1],&msg,sizeof(msg));
-}
-
-void FexFrameServer::dump(int detail) const
-{
-}
-
-bool FexFrameServer::isValued() const
-{
-  return true;
-}
-
-const Src& FexFrameServer::client() const
-{
-  return _xtc.src;
-}
-
-const Xtc& FexFrameServer::xtc() const
-{
-  return _xtc;
-}
-
-//
-//  Fragment information
-//
-bool FexFrameServer::more() const
-{
-  return _more;
-}
-
-unsigned FexFrameServer::length() const
-{
-  return _xtc.extent;
-}
-
-unsigned FexFrameServer::offset() const
-{
-  return _offset;
-}
-
-int FexFrameServer::pend(int flag)
-{
-  return 0;
 }
 
 //
@@ -248,11 +191,6 @@ int FexFrameServer::fetch(ZcpFragment& zfo, int flags)
     }
   }
   return length;
-}
-
-unsigned FexFrameServer::count() const
-{
-  return _count;
 }
 
 unsigned FexFrameServer::_post_fex(void* xtc, const FrameServerMsg* fmsg) const
