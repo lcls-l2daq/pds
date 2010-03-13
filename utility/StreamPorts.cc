@@ -38,10 +38,10 @@ Ins StreamPorts::bcast(unsigned    partition,
   switch(level) {
   case Level::Event:
     return Ins(EventMcastAddr    + partition*MaxPartitionL2s + MaxPartitionL2s-1, 
-	       EventPortBase     + srcid);
+	       EventPortBase     + partition*MaxPartitionL1s + srcid);
   case Level::Control:
     return Ins(ControlMcastAddr  + partition, 
-	       ControlPortBase   + srcid);
+	       ControlPortBase   + partition*MaxPartitionL2s + srcid);
   default:
     break;
   }
@@ -56,13 +56,13 @@ Ins StreamPorts::event(unsigned    partition,
   switch(level) {
   case Level::Segment:
     return Ins(SegmentMcastAddr + partition,
-	       SegmentPortBase);
+	       SegmentPortBase  + partition);
   case Level::Event:
     return Ins(EventMcastAddr + partition*MaxPartitionL2s + dstid,
-	       EventPortBase + srcid);
+	       EventPortBase  + partition*MaxPartitionL1s + srcid);
   case Level::Control:
     return Ins(ControlMcastAddr + partition,
-	       ControlPortBase + srcid);
+	       ControlPortBase  + partition*MaxPartitionL2s + srcid);
   default:
     break;
   }
