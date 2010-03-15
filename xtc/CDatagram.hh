@@ -34,7 +34,8 @@ namespace Pds {
     int  send(ToEb&);
     int  send(ToNetEb&, const Ins&);
     int  unblock(OobServer&, char*);
-    
+
+    TrafficDst* traffic(const Ins&);
   private:
     Datagram  _datagram;
   };

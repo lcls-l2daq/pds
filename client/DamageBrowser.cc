@@ -26,8 +26,16 @@ namespace Pds {
 	MyIterator iter(xtc,it,_list);
 	advance += iter.iterate();
 	unsigned damage = xtc.damage.value() & ~iter.damage();
-	if (damage)
-	  _list.push_back(Xtc(xtc.contains,xtc.src,damage));
+	if (damage) {
+	  bool lFound=false;
+	  for(std::list<Xtc>::iterator it=_list.begin(); it!=_list.end(); it++)
+	    if (it->src == xtc.src) {
+	      lFound = true;
+	      break;
+	    }
+	  if (!lFound)
+	    _list.push_back(Xtc(xtc.contains,xtc.src,damage));
+	}
       }
       _damage |= xtc.damage.value();
       return advance;

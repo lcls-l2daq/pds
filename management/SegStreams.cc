@@ -2,7 +2,7 @@
 #include "EventBuilder.hh"
 #include "pds/management/PartitionMember.hh"
 #include "pds/management/VmonServerAppliance.hh"
-#include "pds/utility/ToEventWire.hh"
+#include "pds/utility/ToEventWireScheduler.hh"
 #include "pds/utility/SegWireSettings.hh"
 #include "pds/utility/InletWire.hh"
 #include "pds/service/VmonSourceId.hh"
@@ -22,11 +22,12 @@ SegStreams::SegStreams(PartitionMember& cmgr) :
   const Src& src = node.procInfo();
   for (int s = 0; s < StreamParams::NumberOfStreams; s++) {
 
-    _outlets[s] = new ToEventWire(*stream(s)->outlet(), 
-				  cmgr, 
-				  ipaddress, 
-				  MaxSize*ebdepth,
-				  cmgr.occurrences());
+    _outlets[s] = new ToEventWireScheduler(*stream(s)->outlet(), 
+					   cmgr, 
+					   ipaddress, 
+					   MaxSize*ebdepth,
+					   cmgr.occurrences(),
+					   4);
 
     _inlet_wires[s] = new L1EventBuilder(src,
 					 _xtcType,

@@ -34,6 +34,8 @@ namespace Pds {
     int send(ToNetEb&, const Ins&);
     int unblock(OobServer&, char*);
 
+    TrafficDst* traffic(const Ins&);
+
     int dump() const;
   public:
     //    int _insert(char*       ,int);
@@ -44,6 +46,7 @@ namespace Pds {
     // Friends who can break up the datagram during transmission/iteration
     friend class ToEb;
     friend class ToNetEb;
+    friend class ZcpTraffic;
     friend class ZcpDatagramIterator;
 
   private:

@@ -13,6 +13,7 @@ namespace Pds {
   class ToEb;
   class Ins;
   class OobServer;
+  class TrafficDst;
 
   class InDatagram {
   public:
@@ -27,6 +28,8 @@ namespace Pds {
 
     virtual int  send   (ToNetEb&, const Ins&) = 0;
     virtual int  send   (ToEb&) = 0;
+
+    virtual TrafficDst* traffic(const Ins&) = 0;
     //    virtual int  unblock(OobServer&, char*) = 0;
   };
 

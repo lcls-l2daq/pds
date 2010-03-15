@@ -4,6 +4,7 @@
 #include "Datagram.hh"
 #include "pds/utility/ToEb.hh"
 #include "pds/utility/ToNetEb.hh"
+#include "pds/utility/TrafficDst.hh"
 #include "pds/service/OobServer.hh"
 
 using namespace Pds;
@@ -68,3 +69,7 @@ int ZcpDatagram::unblock(OobServer& srv, char* msg)
   return 0;
 }
 
+TrafficDst* ZcpDatagram::traffic(const Ins& ins)
+{
+  return new ZcpTraffic(this, ins);
+}

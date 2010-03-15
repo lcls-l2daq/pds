@@ -1,6 +1,7 @@
 #include "CDatagram.hh"
 #include "CDatagramIterator.hh"
 
+#include "pds/utility/TrafficDst.hh"
 #include "pds/utility/ToNetEb.hh"
 #include "pds/utility/ToEb.hh"
 #include "pds/service/OobServer.hh"
@@ -58,3 +59,7 @@ InDatagramIterator* CDatagram::iterator(Pool* pool) const
   return new (pool) CDatagramIterator(_datagram);
 }
 
+TrafficDst* CDatagram::traffic(const Ins& dst)
+{
+  return new CTraffic(this, dst);
+}

@@ -150,6 +150,10 @@ class RceProxyDisableAction : public Action
 
     virtual Transition* fire(Transition* in) 
     {
+      //  The RCE should flush all of its L1Accept data before Disable can complete.
+      //  Kludge this with a timeout
+      timespec ts; ts.tv_nsec = 0; ts.tv_sec = 1;
+      nanosleep(&ts,0);
       return in;
     }
   private:
