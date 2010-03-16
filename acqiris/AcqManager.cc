@@ -137,7 +137,7 @@ public:
                                 &(data->timestamp(0)));
        
       // for SAR mode
-      //       AcqrsD1_freeBank(_instrumentId,0);
+      // AcqrsD1_freeBank(_instrumentId,0);
 
       if(status != VI_SUCCESS) {
         char message[256];
@@ -208,24 +208,22 @@ public:
     unsigned long long acqdiff = (long long)( (double)(acqts-_lastAcqTS)/1000.0);
     //unsigned long long diff = abs(evrdiff - acqdiff);
     
-	unsigned long long evrClockSeconds = dg.seq.clock().seconds();
+    unsigned long long evrClockSeconds = dg.seq.clock().seconds();
     unsigned long long evrClockNSec = dg.seq.clock().nanoseconds(); 
-	evrClockNSec = (evrClockSeconds*1000000000) + evrClockNSec;
-	unsigned long long evrClkDiffNSec = (evrClockNSec - _lastEvrClockNSec);
-	
-	//Stabilize EVR system Clock Diff time to remove high jitter present 	
-	unsigned long long acqTempInt1= evrClkDiffNSec/nsPerFiducial;
-    if ( (((double)evrClkDiffNSec/(double)nsPerFiducial) - (double)acqTempInt1) >= 0.5)
-	  acqTempInt1++;
-	evrClkDiffNSec = acqTempInt1 * nsPerFiducial; 
-	
-	_evrAbsDiffNSec = evrdiff;
-	//if time diff > 300 Sec then, use EVR Sys CLK otherwise stable fiducial count 
-	if (evrClkDiffNSec > (unsigned long long)300e9)	
+    evrClockNSec = (evrClockSeconds*1000000000) + evrClockNSec;
+    unsigned long long evrClkDiffNSec = (evrClockNSec - _lastEvrClockNSec);
+
+    //Stabilize EVR system Clock Diff time to remove high jitter present 	
+    unsigned long long acqTempInt1= evrClkDiffNSec/nsPerFiducial;
+    if ( (((double)evrClkDiffNSec/(double)nsPerFiducial) - (double)acqTempInt1) >= 0.5) 
+      acqTempInt1++;    
+    evrClkDiffNSec = acqTempInt1 * nsPerFiducial; 
+    _evrAbsDiffNSec = evrdiff;
+    //if time diff > 300 Sec then, use EVR Sys CLK otherwise stable fiducial count 
+    if (evrClkDiffNSec > (unsigned long long)300e9)	
       _evrAbsDiffNSec = evrClkDiffNSec;
     
-	unsigned long long evrAcqDiff =  abs(_evrAbsDiffNSec - acqdiff);
-	
+    unsigned long long evrAcqDiff =  abs(_evrAbsDiffNSec - acqdiff);
     // Time adaptive offset comparison to detect ant dropped trigger --> Adaptive Time Offset @ 6.5 uSec/Sec rate	
     if (_initFlag && ((double)evrAcqDiff> ((double)_evrAbsDiffNSec*6.5e-3))) {  
       if (nprint++<10) {
@@ -237,19 +235,18 @@ public:
       _outoforder=1;	  
     }
 	
- 
-    
+
     // Handleing the drop
-	if (_outoforder) 
-	  dg.xtc.damage.increase(Pds::Damage::OutOfOrder);
-	else {
+    if (_outoforder) 
+      dg.xtc.damage.increase(Pds::Damage::OutOfOrder);
+    else {
       _lastAcqTS  = acqts;
       _lastEvrFid = evrfid;
-	  _lastEvrClockNSec = evrClockNSec;
+      _lastEvrClockNSec = evrClockNSec;
     }
 
-	_outoforder=0; 
-	_initFlag = 1;
+    _outoforder=0; 
+    _initFlag = 1;
     return 0;
   }
 private:
@@ -267,9 +264,9 @@ class AcqDisableAction : public AcqDC282Action {
 public:
   AcqDisableAction(ViSession instrumentId, AcqL1Action& acql1) : AcqDC282Action(instrumentId),_acql1(acql1) {}
   Transition* fire(Transition* in) {	
-	printf("AcqManager received %d l1accepts\n",cpol1);
-	nprint=0;
-	//_acql1.notRunning(); 
+    printf("AcqManager received %d l1accepts\n",cpol1);
+    nprint=0;
+    //_acql1.notRunning(); 
     return in;
   }
 private:
