@@ -129,7 +129,6 @@ void ToEventWireScheduler::routine()
       }
     }
     else {  // timeout
-      printf("scheduler timeout\n");
       _flush();
     }
   }
