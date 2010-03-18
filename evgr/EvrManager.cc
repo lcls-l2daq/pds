@@ -81,7 +81,9 @@ public:
     EvrDatagram datagram(seq, _evtCounter++);
 
     if (_evtCounter%NEVENTPRINT == 0) {
-      float period=(fe.TimestampHigh-_lastfid)/(float)(NEVENTPRINT)/360.0;
+      float dfid = fe.TimestampHigh-_lastfid;
+      if (fe.TimestampHigh<_lastfid) dfid += float(Pds::TimeStamp::MaxFiducials);
+      float period=dfid/(float)(NEVENTPRINT)/360.0;
       float rate=0.0;
       if (period>1.e-8) rate=1./period;
       printf("Evr event %d, high/low 0x%x/0x%x, rate(Hz): %7.2f\n",
@@ -99,6 +101,7 @@ public:
 
     if (_evtCounter==_evtStop)
       _done.expired();
+
   }
   void reset    () { _evtCounter = 0; }
   void enable   (bool e) { _enabled=e; }
@@ -135,7 +138,7 @@ public:
   EvrEnableAction(Evr& er, DoneTimer& done) :
     EvrAction(er),
     _done    (done) {}
-  Transition* fire(Transition* tr) {
+  InDatagram* fire(InDatagram* tr) {
 
     if (l1xmitGlobal->enable()) {
       const EnableEnv& env = static_cast<const EnableEnv&>(tr->env());
@@ -159,8 +162,9 @@ public:
   EvrDisableAction(Evr& er, DoneTimer& done) : 
     EvrAction(er), _done(done) {}
   Transition* fire(Transition* tr) {
-    unsigned ram=0;
-    _er.MapRamEnable(ram,0);
+    // switch to the "dummy" map ram so we can still get eventcodes 0x70,0x71,0x7d for timestamps
+    unsigned dummyram=1;
+    _er.MapRamEnable(dummyram,1);
 
     _done.cancel();
     return tr;
@@ -229,7 +233,9 @@ public:
     
     // setup map ram
     int ram=0; int enable=l1xmitGlobal->enable();
-    _er.MapRamEnable(ram,0);
+    // switch to the "dummy" map ram so we can still get eventcodes 0x70,0x71,0x7d for timestamps
+    unsigned dummyram=1;
+    _er.MapRamEnable(dummyram,1);
     _er.SetFIFOEvent(ram, cfg.opcode(), enable);
 
     for(unsigned k=0; k<cfg.npulses(); k++) {
@@ -369,8 +375,9 @@ void EvrManager::sigintHandler(int)
   if (erInfoGlobal && erInfoGlobal->mapped()) {
     Evr& er = erInfoGlobal->board();
     printf("Stopping triggers and multicast... ");
-    unsigned ram=0;
-    er.MapRamEnable(ram,0);
+    // switch to the "dummy" map ram so we can still get eventcodes 0x70,0x71,0x7d for timestamps
+    unsigned dummyram=1;
+    er.MapRamEnable(dummyram,1);
     printf("stopped\n");
   }
   else {
