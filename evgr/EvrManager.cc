@@ -62,6 +62,9 @@ static EvgrBoardInfo<Evr> *erInfoGlobal;  // yuck
 
 #define NEVENTPRINT 100
 
+static unsigned           nl1 = 0;
+static Sequence           evrseq_fifo[4];
+
 class L1Xmitter {
 public:
   L1Xmitter(Evr& er, DoneTimer& done) :
@@ -102,6 +105,22 @@ public:
     if (_evtCounter==_evtStop)
       _done.expired();
 
+    if (evrseq_fifo[nl1&3].stamp().fiducials()==seq.stamp().fiducials()) {
+      unsigned i=nl1-3;
+      do {
+	const Sequence& s = evrseq_fifo[i&3];
+	printf("=== fid %x: clk %x/%x\n",
+	       s.stamp().fiducials(),
+	       s.clock().seconds(),
+	       s.clock().nanoseconds());
+      } while( i++!=nl1 );
+      printf("*** fid %x: clk %x/%x: evtcode %x\n",
+	     seq.stamp().fiducials(),
+	     seq.clock().seconds(),
+	     seq.clock().nanoseconds(),
+	     fe.EventCode);
+    }
+    evrseq_fifo[++nl1&3] = seq;
   }
   void reset    () { _evtCounter = 0; }
   void enable   (bool e) { _enabled=e; }
@@ -139,12 +158,11 @@ public:
     EvrAction(er),
     _done    (done) {}
   InDatagram* fire(InDatagram* tr) {
-
     if (l1xmitGlobal->enable()) {
-      const EnableEnv& env = static_cast<const EnableEnv&>(tr->env());
+      const EnableEnv& env = static_cast<const EnableEnv&>(tr->datagram().env);
       l1xmitGlobal->stopAfter(env.events());
       if (env.timer()) {
-	_done.set_duration_ms  (env.duration());
+	_done.set_duration_ms(env.duration());
 	_done.start();
       }
     }
