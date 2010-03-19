@@ -24,9 +24,7 @@ namespace Pds {
 			 CollectionManager&,
 			 int interface,
 			 int maxbuf,
-			 const Ins& occurrences,
-			 int maxscheduled = 4,    // traffic shaping width
-			 int idol_timeout = 250); // idol time [ms] which forces flush of queued events
+			 const Ins& occurrences);
     ~ToEventWireScheduler();
   public:  
     // ToEventWire interface
@@ -38,6 +36,8 @@ namespace Pds {
     virtual void unbind(unsigned id);
     // Routine interface
     void routine();
+  public:
+    static void setMaximum(unsigned);
   private:
     void _flush(InDatagram*);
     void _flush();
@@ -47,10 +47,8 @@ namespace Pds {
     Client             _client;
     Ins                _bcast;
     const Ins&         _occurrences;
-    int                    _maxscheduled;
-    int                    _nscheduled;
+    unsigned               _nscheduled;
     unsigned               _scheduled;
-    int                    _idol_timeout;
     LinkedList<TrafficDst> _list;
     TrafficScheduler*      _schedule;
     Task*                  _task;

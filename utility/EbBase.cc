@@ -579,11 +579,11 @@ void EbBase::dump(int detail)
 }
 
 
-bool EbBase::_is_complete( EbEventBase* event,
-			   const EbBitMask& serverId )
+EbBase::IsComplete EbBase::_is_complete( EbEventBase* event,
+					 const EbBitMask& serverId )
 {
   EbBitMask remaining = event->remaining(serverId);
-  return remaining.isZero();
+  return remaining.isZero() ? Complete : Incomplete;
 }
 
 void EbBase::printFixups(int n) { nEbPrints=n; }

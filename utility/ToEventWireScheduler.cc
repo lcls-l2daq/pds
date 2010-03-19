@@ -17,21 +17,22 @@
 
 using namespace Pds;
 
+static unsigned _maxscheduled = 4;
+static int      _idol_timeout = 250; // idol time [ms] which forces flush of queued events
+
+void ToEventWireScheduler::setMaximum(unsigned m) { _maxscheduled = m; }
+
 ToEventWireScheduler::ToEventWireScheduler(Outlet& outlet,
 					   CollectionManager& collection,
 					   int interface,
 					   int maxbuf,
-					   const Ins& occurrences,
-					   int maxscheduled,
-					   int idol_timeout) :
+					   const Ins& occurrences) :
   OutletWire   (outlet),
   _collection  (collection),
   _client      (sizeof(OutletWireHeader), Mtu::Size, Ins(interface),
 		1 + maxbuf / Mtu::Size),
   _occurrences (occurrences),
-  _maxscheduled(maxscheduled),
   _scheduled   (0),
-  _idol_timeout(idol_timeout),
   _task        (new Task(TaskObject("TxScheduler")))
 {
   if (::pipe(_schedfd) < 0)

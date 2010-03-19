@@ -45,18 +45,19 @@ namespace Pds {
   protected:
     //  Helper functions for the complete implementation
     EbBitMask    _postEvent(EbEventBase*);  // complete this event and all older than
+    void         _post     (EbEventBase*);  // complete this event
     EbEventBase* _seek     (EbServer*);
     EbBitMask    _armMask  ();
     EbEventBase* _event    (EbServer* server);
     void         _iterate_dump();
   private:
-    void         _post     (EbEventBase*);  // complete this event
     void         _remove   (EbServer*);
   protected:
     virtual unsigned     _fixup      ( EbEventBase*, const Src&, const EbBitMask& ) = 0;
     virtual EbEventBase* _new_event  ( const EbBitMask& ) = 0;
     virtual EbEventBase* _new_event  ( const EbBitMask&, char*, unsigned ) = 0;
-    virtual bool         _is_complete( EbEventBase*, const EbBitMask& );
+    enum IsComplete { Complete, NoBuild, Incomplete };
+    virtual IsComplete   _is_complete( EbEventBase*, const EbBitMask& );
     virtual void         _dump       ( int detail ) = 0;
   protected:
     LinkedList<EbEventBase> _pending;      // Under construction/completion queue

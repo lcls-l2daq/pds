@@ -145,9 +145,16 @@ int Eb::processIo(Server* serverGeneric)
 
   _hits++;
 
-  if (_is_complete(event, serverId)) {
-    _postEvent(event);
-    //    return 1;
+  switch (_is_complete(event, serverId)) {
+  case Complete: 
+    _postEvent(event); 
+    break;
+  case NoBuild : 
+    event->remaining(event->remaining(serverId));
+    _post(event); 
+    return 1;
+  default: 
+    break;
   }
 
   return 0;

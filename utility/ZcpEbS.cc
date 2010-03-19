@@ -50,14 +50,12 @@ EbEventBase* ZcpEbS::_new_event(const EbBitMask& serverId)
   return new(&_events) ZcpEbEvent(serverId, _clients, datagram, key);
 }
 
-bool ZcpEbS::_is_complete( EbEventBase* event,
-			   const EbBitMask& serverId)
+EbBase::IsComplete ZcpEbS::_is_complete( EbEventBase* event,
+					 const EbBitMask& serverId)
 {
   const Sequence& seq = event->key().sequence();
-  if (_no_builds[seq.type()] & (1<<seq.service())) {
-    event->remaining(event->remaining(serverId));
-    return true;
-  }
+  if (_no_builds[seq.type()] & (1<<seq.service()))
+    return NoBuild;
   return EbBase::_is_complete(event, serverId);
 }
 

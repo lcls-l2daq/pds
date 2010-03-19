@@ -17,6 +17,8 @@
 #include "pds/service/Routine.hh"
 #include "pds/service/GenericPool.hh"
 
+#include "pdsdata/xtc/Sequence.hh"
+
 #include <time.h> // Required for timespec struct and nanosleep()
 #include <stdlib.h> // Required for timespec struct and nanosleep()
 #include <string.h>
@@ -53,17 +55,22 @@ namespace Pds {
   public:
     Transition* transitions(Transition* i) {
       if (i->phase() == Transition::Execute) {
-        if (i->id()==TransitionId::Disable ||
-	    i->id()==TransitionId::Map) {
+        if (i->id()==TransitionId::Disable) {
+	  //
+          //  The disable transition often splits the last L1Accept.
+          //  There is no way to know when the last L1A has passed through
+          //  all levels, so wait some reasonable time.
+          //
+          timespec tv;
+          tv.tv_sec = 0; tv.tv_nsec = 50000000;
+	  nanosleep(&tv, 0);
+	}
+	else if (i->id()==TransitionId::Map) {
           //
 	  //  The map transition instructs the event-builder streams 
 	  //  to register for multicasts.  Without some ping/reply
 	  //  protocol, we can't verify the registration is complete;
 	  //  so wait some reasonable time.
-	  //
-          //  The disable transition often splits the last L1Accept.
-          //  There is no way to know when the last L1A has passed through
-          //  all levels, so wait some reasonable time.
           //
           timespec tv;
           tv.tv_sec = 0; tv.tv_nsec = 50000000;
@@ -337,7 +344,17 @@ void PartitionControl::_queue(TransitionId::Value id)
 {
   //  timestamp and pulseId should come from master EVR
   //  fake it for now
-  Transition tr(id, _transition_env[id]);
+
+  timespec tp;
+  clock_gettime(CLOCK_REALTIME, &tp);
+  ClockTime clocktime(tp.tv_sec, tp.tv_nsec);
+
+  if (++_pulse_id >= TimeStamp::MaxFiducials)
+    _pulse_id = 0;
+  TimeStamp timestamp(0, _pulse_id, 0);
+  Sequence now(Sequence::Event, id, clocktime, timestamp);
+  
+  Transition tr(id, Transition::Execute, now, _transition_env[id]);
   _queue(tr);
 }
 

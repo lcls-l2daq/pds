@@ -84,13 +84,11 @@ unsigned EbS::_fixup( EbEventBase* event, const Src& client, const EbBitMask& id
   return fixup;
 }
 
-bool EbS::_is_complete( EbEventBase* event,
-			const EbBitMask& serverId)
+EbBase::IsComplete EbS::_is_complete( EbEventBase* event,
+				      const EbBitMask& serverId)
 {
   const Sequence& seq = event->key().sequence();
-  if (_no_builds[seq.type()] & (1<<seq.service())) {
-    event->remaining(event->remaining(serverId));
-    return true;
-  }
+  if (_no_builds[seq.type()] & (1<<seq.service()))
+    return NoBuild;
   return EbBase::_is_complete(event, serverId);
 }
