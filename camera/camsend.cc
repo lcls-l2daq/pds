@@ -111,6 +111,7 @@ int main(int argc, char *argv[])
   struct sigaction sa_notification;
   fd_set notify_set;
   int bitsperpixel = 8;
+  bool test_pattern;
 
   int pipeFd[2];
   if ((ret=::pipe(pipeFd)) < 0) {
@@ -160,6 +161,8 @@ int main(int argc, char *argv[])
      printf( "\n" );
   }
 
+  test_pattern = false;
+
   /* Parse the command line */
   for (i = 1; i < argc; i++) {
     if (strcmp("--help",argv[i]) == 0) {
@@ -171,6 +174,9 @@ int main(int argc, char *argv[])
       extshutter = 1;
     } else if( strcmp("--grabber", argv[i]) == 0 ) {
        grabber = argv[i];
+    } else if( strcmp("--testpat", argv[i]) == 0 ) {
+       // Currently only valid for the Opal1K camera!
+       test_pattern = true;
     } else if (strcmp("--splice",argv[i]) == 0) {
 #if ( __GNUC__ > 3 )
       usplice = dma_splice_open();
@@ -201,8 +207,11 @@ int main(int argc, char *argv[])
     return -1;
   }
 
+  printf( "Preparing camera...\n" );
+
   /* Open the camera */
   PicPortCL* pCamera(0);
+
   switch(camera_choice) {
   case 0:
     {
@@ -258,6 +267,10 @@ int main(int argc, char *argv[])
     fprintf(stderr, "Camera::Init: %s.\n", strerror(-ret));
     delete pCamera;
     return -1;
+  }
+
+  if( camera_choice == 0 ) {
+     ((Opal1kCamera*) pCamera)->setTestPattern( test_pattern );
   }
 
   // Continuous Mode
