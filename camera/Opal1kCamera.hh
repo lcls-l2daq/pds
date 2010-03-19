@@ -27,6 +27,7 @@ namespace PdsLeutron {
     virtual ~Opal1kCamera();
 
     void                    Config(const Opal1kConfigType&);
+    int                     setTestPattern( bool on );
     const Opal1kConfigType& Config() const;
 
   private:
