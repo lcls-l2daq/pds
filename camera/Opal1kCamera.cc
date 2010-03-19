@@ -162,7 +162,7 @@ int Opal1kCamera::PicPortCameraInit() {
   SetParameter("Vertical Remap"  ,"VR",_inputConfig->vertical_remapping());
   SetParameter("Output Resolution","OR",_inputConfig->output_resolution_bits());
 
-  SetParameter( "Test Pattern", "TP", 0 );
+  setTestPattern( false );
 
   if (_inputConfig->output_lookup_table_enabled()) {
     SetCommand("Output LUT Begin","OLUTBGN");
@@ -214,6 +214,17 @@ int Opal1kCamera::PicPortCameraInit() {
 
   return 0;
 }
+
+int 
+Opal1kCamera::setTestPattern( bool on ) {
+   char szCommand [SZCOMMAND_MAXLEN];
+   char szResponse[SZCOMMAND_MAXLEN];
+   int ret;
+   SetParameter( "Test Pattern", "TP", on ? 1 : 0 );
+
+   return 0;
+}
+
 
 // We redefine this API to be able to detect dropped/repeated frames
 // because the frame grabber is not very good at that. To do that we 
