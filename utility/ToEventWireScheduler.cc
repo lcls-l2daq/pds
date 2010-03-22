@@ -108,11 +108,11 @@ void ToEventWireScheduler::routine()
 	//    [missing a timeout?]
 	const Sequence& seq = dg->datagram().seq;
 	if (seq.isEvent() && !_nodes.isempty()) {
-	  unsigned i = seq.stamp().vector();
-	  unsigned m = 1<<i;
+	  OutletWireIns* dst = _nodes.lookup(seq.stamp().vector());
+	  unsigned m = 1<<dst->id();
 	  if (m & _scheduled)
 	    _flush();
-	  TrafficDst* t = dg->traffic(_nodes.lookup(i)->ins());
+	  TrafficDst* t = dg->traffic(dst->ins());
 	  _list.insert(t);
 	  _scheduled |= m;
 	  if (++_nscheduled >= _maxscheduled)

@@ -108,8 +108,9 @@ int Eb::processIo(Server* serverGeneric)
   //  (1) it is the first contribution, and the event's key(s) are not yet set; or
   //  (2) the contribution came from a later event than expected.
 
-  if(event == event->forward())    // case (1)
+  if(event == event->forward()) {   // case (1)
     _pending.insert(event);
+  }
   else if(!server->coincides(event->key())) {
     // case (2):  Remove the contribution from this event.  Now that we have the contribution's
     //            header, we can definitely search for the correct event-under-construction
@@ -135,6 +136,9 @@ int Eb::processIo(Server* serverGeneric)
       event->recopy(payload, sizeofPayload, serverId);
     }
   }
+  else
+    ;
+
   server->assign(event->key());
 
   //  Allow the event-under-construction to account for the added contribution

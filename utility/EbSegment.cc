@@ -110,11 +110,13 @@ void EbSegment::consume(int sizeofFragment, int expected)
       unsigned* in       = (unsigned*)(base + sizeofFragment + offset);
       unsigned* out      = (unsigned*)(base + sizeofFragment + expected);
       unsigned remaining = (unsigned)sizeofFragment >> 2;
-      offset             = expected;
       if(remaining) do *(--out) = *(--in); while(--remaining);
+      if (expected > offset)
+	_offset          = sizeofFragment + expected;
     }
+  else
+    _offset     = sizeofFragment + offset;
 
-  _offset     = sizeofFragment + offset;
   _remaining -= sizeofFragment;
 }
 
@@ -125,7 +127,7 @@ void EbSegment::deallocate(char* payload, int sizeofFragment)
   //  If the fragment has overwritten the end of the allocated space,
   //  record damage and give up.
   //
-  if (sizeofFragment + _offset >= _header.extent) {
+  if (sizeofFragment + _offset > _header.extent) {
     _header.damage.increase(Damage::IncompleteContribution);
     if (nEbPrints)
       printf("EbSegment overwrote next %x %x\n",_offset,_header.extent);
