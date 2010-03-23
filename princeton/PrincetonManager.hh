@@ -28,7 +28,7 @@ public:
   Appliance&    appliance() { return *_pFsm; }
   
   // Camera control: Gateway functions for accessing PrincetonServer class
-  int   mapCamera();
+  int   mapCamera(const Allocation& alloc);
   int   configCamera(Princeton::ConfigV1& config);
   int   unconfigCamera();
   int   beginRunCamera();

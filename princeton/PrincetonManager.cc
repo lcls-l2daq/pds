@@ -1,14 +1,15 @@
 #include "PrincetonManager.hh"
 
-#include <sys/mman.h>
 #include <fcntl.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <unistd.h>
 #include <stdint.h>
-#include <new>
 #include <errno.h>
 #include <math.h>
+#include <sys/mman.h>
+#include <new>
+#include <vector>
 
 #include "pds/service/GenericPool.hh"
 #include "pds/service/Task.hh"
@@ -16,7 +17,9 @@
 #include "pds/xtc/CDatagram.hh"
 #include "pds/client/Action.hh"
 #include "pds/config/CfgClientNfs.hh"
-#include "pds/princeton/PrincetonServer.hh"
+#include "pds/utility/StreamPorts.hh"
+
+#include "PrincetonServer.hh"
 
 using std::string;
 
@@ -33,7 +36,7 @@ public:
         const Allocate& alloc = reinterpret_cast<const Allocate&>(*tr);
         _cfg.initialize(alloc.allocation());  
         
-        _iMapCameraFail = _manager.mapCamera();
+        _iMapCameraFail = _manager.mapCamera(alloc.allocation());
         return tr;                
     }
     
@@ -231,18 +234,18 @@ public:
       
       int         iFail = 0;
       InDatagram* out   = in;
-      if ( _bDelayMode )
-      {
-        iFail = _manager.getDelayData( in, out );
-        
-        if ( bReadoutEvent )
-          iFail |= _manager.onEventReadoutDelay( iShotId, in );
-      }
-      else
-      { // prompt mode
-        if ( bReadoutEvent )
-          iFail = _manager.onEventReadoutPrompt( iShotId, in, out );          
-      }
+      //if ( _bDelayMode )
+      //{
+      //  iFail = _manager.getDelayData( in, out );
+      //  
+      //  if ( bReadoutEvent )
+      //    iFail |= _manager.onEventReadoutDelay( iShotId, in );
+      //}
+      //else
+      //{ // prompt mode
+      //  if ( bReadoutEvent )
+      //    iFail = _manager.onEventReadoutPrompt( iShotId, in, out );          
+      //}
                       
       if ( iFail != 0 )
       {
@@ -399,7 +402,7 @@ PrincetonManager::~PrincetonManager()
     delete _pActionMap; 
 }
 
-int PrincetonManager::mapCamera()
+int PrincetonManager::mapCamera(const Allocation& alloc)
 {
   return _pServer->mapCamera();
 }
