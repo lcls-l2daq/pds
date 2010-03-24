@@ -39,7 +39,7 @@ EventStreams::EventStreams(PartitionMember& cmgr,
 				       s,
 				       ipaddress,
 				       max_size, eb_depth,
-				       new VmonEb(src,32,eb_depth,(1<<23),(1<<22)));
+				       new VmonEb(src,32,eb_depth,(1<<23),max_size));
 				       
     (new VmonServerAppliance(src))->connect(stream(s)->inlet());
   }
