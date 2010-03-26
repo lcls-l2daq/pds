@@ -209,7 +209,7 @@ int PrincetonServer::initCapture()
   setupROI(region);
   PICAM::printROI(1, &region);
  
-  const int16 iExposureMode = _configCamera.exposureMode();
+  const int16 iExposureMode = 0; // set exposure mode to TIMED_MODE, avoid using external TTL trigger
   
   /*
    * _configCamera.exposureTime() time is measured in seconds,
