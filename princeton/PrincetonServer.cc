@@ -843,7 +843,7 @@ int PrincetonServer::setupFrame(InDatagram* in, InDatagram*& out)
   
   out = 
    new ( &_poolFrameData ) CDatagram( in->datagram() ); 
-  out->datagram().xtc.alloc( sizeof(Xtc) + iFrameSize );
+  out->datagram().xtc.alloc( sizeof(Xtc) + iFrameSize ); // !! debug
 
   /*
    * Set the output datagram pointer

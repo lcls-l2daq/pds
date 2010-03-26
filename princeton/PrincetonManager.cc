@@ -213,8 +213,9 @@ private:
 class PrincetonL1AcceptAction : public Action 
 {
 public:
-    PrincetonL1AcceptAction(PrincetonManager& manager, bool bDelayMode, int iDebugLevel) :
-        _manager(manager), _bDelayMode(bDelayMode), _iDebugLevel(iDebugLevel)
+    PrincetonL1AcceptAction(PrincetonManager& manager, CfgClientNfs& cfg, bool bDelayMode, int iDebugLevel) :
+        _manager(manager), _cfg(cfg), _bDelayMode(bDelayMode), _iDebugLevel(iDebugLevel),
+        _poolFrameData(1024*1024*8 + 1024, 16)
     {
     }
     
@@ -223,10 +224,14 @@ public:
         
     virtual InDatagram* fire(InDatagram* in)     
     {           
-      if (_iDebugLevel >= 3) 
+      if (_iDebugLevel >= 1) 
       {
-        Xtc& xtcData = in->datagram().xtc;
-        printf( "\nInput payload size = %d\n", xtcData.sizeofPayload() );
+        printf( "\n\n===== Writing L1Accept Data =========\n" );          
+        if (_iDebugLevel >= 3) 
+        {
+          Xtc& xtcData = in->datagram().xtc;
+          printf( "\nInput payload size = %d\n", xtcData.sizeofPayload() );
+        }
       }
     
       int   iShotId       = 12;   // !! Obtain shot ID 
@@ -246,16 +251,29 @@ public:
       //  if ( bReadoutEvent )
       //    iFail = _manager.onEventReadoutPrompt( iShotId, in, out );          
       //}
-                      
-      if ( iFail != 0 )
-      {
-        // set damage bit
-        out->datagram().xtc.damage.increase(Pds::Damage::UserDefined);
-      }                
+      //                
+      //if ( iFail != 0 )
+      //{
+      //  // set damage bit
+      //  out->datagram().xtc.damage.increase(Pds::Damage::UserDefined);
+      //}              
+      
+      // !! for debugging L1 data size
+      //int iDataSize = sizeof(Princeton::FrameV1) + 1024*1 + 512;            
+      int iDataSize = 1024*1024*1;            
+
+      out = 
+       new ( &_poolFrameData ) CDatagram( in->datagram() ); 
+      out->datagram().xtc.alloc( sizeof(Xtc) + iDataSize );        
+      unsigned char* pXtcHeader = (unsigned char*) out + sizeof(CDatagram);
+         
+      TypeId typePrincetonFrame(TypeId::Id_PrincetonFrame, Princeton::FrameV1::Version);
+      Xtc* pXtcFrame = 
+       new ((char*)pXtcHeader) Xtc(typePrincetonFrame, _cfg.src() );
+      pXtcFrame->alloc( iDataSize );      
                 
       if (_iDebugLevel >= 1) 
       {
-        printf( "\n\n===== Writing L1Accept Data =========\n" );          
         Xtc& xtcData = out->datagram().xtc;
         printf( "\nOutput payload size = %d  fail = %d\n", xtcData.sizeofPayload(), iFail);
         Xtc& xtcFrame = *(Xtc*) xtcData.payload();
@@ -274,8 +292,10 @@ public:
   
 private:        
     PrincetonManager&   _manager;
+    CfgClientNfs&       _cfg;
     bool                _bDelayMode;
     int                 _iDebugLevel;
+    GenericPool         _poolFrameData;
 };
 
 
@@ -364,7 +384,7 @@ PrincetonManager::PrincetonManager(CfgClientNfs& cfg, bool bDelayMode, int iDebu
     _pActionEndRun    = new PrincetonEndRunAction   (*this, _iDebugLevel);  
     _pActionEnable    = new PrincetonEnableAction   (*this, _bDelayMode, _iDebugLevel);
     _pActionDisable   = new PrincetonDisableAction  (*this, _bDelayMode, _iDebugLevel);
-    _pActionL1Accept  = new PrincetonL1AcceptAction (*this, _bDelayMode, _iDebugLevel);
+    _pActionL1Accept  = new PrincetonL1AcceptAction (*this, cfg, _bDelayMode, _iDebugLevel);
                    
     try
     {     
