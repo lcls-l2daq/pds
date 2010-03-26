@@ -2,5 +2,5 @@
 packages := service collection xtc 
 packages += config mon vmon
 packages += utility management client offlineclient
-packages += camera acqiris evgr epicsArch rceProxy princeton
+packages += ipimb camera acqiris evgr epicsArch rceProxy princeton
 
