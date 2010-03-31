@@ -36,7 +36,7 @@ public:
   void load() {
     _nfid++; _nfid&=((1<<Pds::TimeStamp::NumFiducialBits)-1);
     //to simulate real evgr => nfid variation from 0 to (0x1ffff-32)
-    if(_nfid>0x1ffdf) {		
+    if(_nfid>0x1ffdf) {   
       _nfid=0;
     }
     int numEvtCode=0;
@@ -65,7 +65,27 @@ private:
   unsigned _nfid;
 };
 
-#define OPCODEC(rate) EvrConfigType::opcode(EvrConfigType::Off,EvrConfigType::rate)
+enum RateCode { r120Hz, r60Hz, r30Hz, r10Hz, r5Hz, r1Hz, r0_5Hz, Single, NumberOfRates };
+enum BeamCode { Off, On };
+
+static unsigned int opcodeFromBeamRate(BeamCode bc, RateCode rc) 
+{
+  static const unsigned beamOn     = 100;
+  static const unsigned baseRate   = 40;
+  static const unsigned singleShot = 150;
+  
+  unsigned v;
+  if (rc==Single) {
+    v = singleShot;
+  }
+  else {
+    v = baseRate+unsigned(rc);
+    if (bc==On) v += beamOn;
+  }
+  return v; 
+}
+
+#define OPCODEC(rate) opcodeFromBeamRate(Off,rate)
 
 class OpcodeLoader {
 public:

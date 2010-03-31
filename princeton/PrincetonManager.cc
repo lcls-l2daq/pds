@@ -55,45 +55,47 @@ private:
 class PrincetonConfigAction : public Action 
 {
 public:
-    PrincetonConfigAction(PrincetonManager& manager, CfgClientNfs& cfg, int iDebugLevel) :
-        _manager(manager), _cfg(cfg), _iDebugLevel(iDebugLevel),
+    PrincetonConfigAction(PrincetonManager& manager, CfgClientNfs& cfg, bool bDelayMode, int iDebugLevel) :
+        _manager(manager), _cfg(cfg), _bDelayMode(bDelayMode), _iDebugLevel(iDebugLevel),
         _cfgtc(_typePrincetonConfig, cfg.src()), _configCamera(), _iConfigCameraFail(0)
     {}
     
-    // this is the first "phase" of a transition where
-    // all CPUs configure in parallel.
     virtual Transition* fire(Transition* tr) 
     {
       int iConfigSize = _cfg.fetch(*tr, _typePrincetonConfig, &_configCamera, sizeof(_configCamera));
       
-      /*
-       * Note if the return value iConfigSize == 0,
-       * it means no config data is found in the database.
-       *
-       * In this case, we simply use the default settings to config the camera,
-       * and won't return damaged datagram
-       */
-       
+      if ( iConfigSize == 0 ) // no config data is found in the database.       
+      {
+        printf( "PrincetonConfigAction::fire(): No  config data is loaded. Will use default values for configuring the camera.\n" );
+        _configCamera = Princeton::ConfigV1(
+          32, // Width
+          32, // Height
+          0,  // OrgX
+          0,  // OrgX
+          1,  // BinX
+          1,  // BinX
+          0.005,  // Exposure time
+          -10.0f, // Cooling temperature
+          5,  // Readout speed index
+          0   // Redout event code
+        );
+      }
+              
       if ( iConfigSize != 0 && iConfigSize != sizeof(_configCamera) )
       {
-        printf( "PrincetonConfigAction::PrincetonConfigAction(): Config data has incorrect size (%d B). Should be %d B.\n",
+        printf( "PrincetonConfigAction::fire(): Config data has incorrect size (%d B). Should be %d B.\n",
           iConfigSize, sizeof(_configCamera) );
           
         _configCamera       = Princeton::ConfigV1();
         _iConfigCameraFail  = 1;
       }
-            
-      // !! for debug only
-      _configCamera.setWidth( 32 );
-      _configCamera.setHeight( 32 );
+                  
+      _configCamera.setDelayMode( _bDelayMode? 1: 0 );
       _iConfigCameraFail = _manager.configCamera(_configCamera);
       
       return tr;
     }
 
-    // this is the second "phase" of a transition where everybody
-    // records the results of configure (which will typically be
-    // archived in the xtc file).
     virtual InDatagram* fire(InDatagram* in) 
     {
         if (_iDebugLevel>=1) printf( "\n\n===== Writing Configs =====\n" );
@@ -111,14 +113,25 @@ public:
         if ( _iConfigCameraFail != 0 )
           in->datagram().xtc.damage.increase(Pds::Damage::UserDefined);
                   
+        if (_iDebugLevel>=2) printf( "Princeton Config data:\n"
+          "  Width %d Height %d  Org X %d Y %d  Bin X %d Y %d\n"
+          "  Exposure time %gs  Coolg Temperature %.1f C  Readout Speed %d\n"
+          "  Readout Event %d  Delay Mode %d\n",
+          _configCamera.width(), _configCamera.height(),
+          _configCamera.orgX(), _configCamera.orgY(),
+          _configCamera.binX(), _configCamera.binY(),
+          _configCamera.exposureTime(), _configCamera.coolingTemp(), _configCamera.readoutSpeedIndex(), 
+          _configCamera.readoutEventCode(), ( _configCamera.delayMode() ? 1: 0 )
+          );
         if (_iDebugLevel>=1) printf( "\nOutput payload size = %d\n", in->datagram().xtc.sizeofPayload());
         
         return in;
     }
 
 private:
-    PrincetonManager&   _manager;
+    PrincetonManager&   _manager;    
     CfgClientNfs&       _cfg;
+    bool                _bDelayMode;
     const int           _iDebugLevel;
     Xtc                 _cfgtc;
     Princeton::ConfigV1 _configCamera;    
@@ -236,41 +249,55 @@ public:
     
       int   iShotId       = 12;   // !! Obtain shot ID 
       bool  bReadoutEvent = true; // !! For end-event only mode (no capture start event)
-      
+                  
       int         iFail = 0;
       InDatagram* out   = in;
-      //if ( _bDelayMode )
-      //{
-      //  iFail = _manager.getDelayData( in, out );
-      //  
-      //  if ( bReadoutEvent )
-      //    iFail |= _manager.onEventReadoutDelay( iShotId, in );
-      //}
-      //else
-      //{ // prompt mode
-      //  if ( bReadoutEvent )
-      //    iFail = _manager.onEventReadoutPrompt( iShotId, in, out );          
-      //}
-      //                
-      //if ( iFail != 0 )
-      //{
-      //  // set damage bit
-      //  out->datagram().xtc.damage.increase(Pds::Damage::UserDefined);
-      //}              
       
-      // !! for debugging L1 data size
-      //int iDataSize = sizeof(Princeton::FrameV1) + 1024*1 + 512;            
-      int iDataSize = 1024*1024*1;            
-
-      out = 
-       new ( &_poolFrameData ) CDatagram( in->datagram() ); 
-      out->datagram().xtc.alloc( sizeof(Xtc) + iDataSize );        
-      unsigned char* pXtcHeader = (unsigned char*) out + sizeof(CDatagram);
-         
-      TypeId typePrincetonFrame(TypeId::Id_PrincetonFrame, Princeton::FrameV1::Version);
-      Xtc* pXtcFrame = 
-       new ((char*)pXtcHeader) Xtc(typePrincetonFrame, _cfg.src() );
-      pXtcFrame->alloc( iDataSize );      
+      iFail = _manager.checkReadoutEventCode(in);
+      
+      // Discard the evr data, for appending the detector data later
+      in->datagram().xtc.extent = sizeof(Xtc);            
+      
+      if ( iFail != 0 )
+      {
+        if (_iDebugLevel >= 1) 
+          printf( "No readout event code\n" );
+          
+        return in;
+      }      
+      
+      if ( _bDelayMode )
+      {
+        iFail = _manager.getDelayData( in, out );
+        
+        if ( bReadoutEvent )
+          iFail |= _manager.onEventReadoutDelay( iShotId, in );
+      }
+      else
+      { // prompt mode
+        if ( bReadoutEvent )
+          iFail = _manager.onEventReadoutPrompt( iShotId, in, out );          
+      }
+                      
+      if ( iFail != 0 )
+      {
+        // set damage bit
+        out->datagram().xtc.damage.increase(Pds::Damage::UserDefined);
+      }              
+      
+      /*
+       * The folloing code is used for debugging variable L1 data size
+       */
+      //int iDataSize = 1024*1024*8 + sizeof(Princeton::FrameV1);            
+      //out = 
+      // new ( &_poolFrameData ) CDatagram( in->datagram() ); 
+      //out->datagram().xtc.alloc( sizeof(Xtc) + iDataSize );        
+      //unsigned char* pXtcHeader = (unsigned char*) out + sizeof(CDatagram);
+      //   
+      //TypeId typePrincetonFrame(TypeId::Id_PrincetonFrame, Princeton::FrameV1::Version);
+      //Xtc* pXtcFrame = 
+      // new ((char*)pXtcHeader) Xtc(typePrincetonFrame, _cfg.src() );
+      //pXtcFrame->alloc( iDataSize );      
                 
       if (_iDebugLevel >= 1) 
       {
@@ -378,7 +405,7 @@ PrincetonManager::PrincetonManager(CfgClientNfs& cfg, bool bDelayMode, int iDebu
   _iDebugLevel(iDebugLevel), _pServer(NULL)
 {
     _pActionMap       = new PrincetonMapAction      (*this, cfg);
-    _pActionConfig    = new PrincetonConfigAction   (*this, cfg, _iDebugLevel);
+    _pActionConfig    = new PrincetonConfigAction   (*this, cfg, _bDelayMode, _iDebugLevel);
     _pActionUnconfig  = new PrincetonUnconfigAction (*this, _iDebugLevel);  
     _pActionBeginRun  = new PrincetonBeginRunAction (*this, _iDebugLevel);
     _pActionEndRun    = new PrincetonEndRunAction   (*this, _iDebugLevel);  
@@ -465,6 +492,11 @@ int PrincetonManager::getDelayData(InDatagram* in, InDatagram*& out)
 int PrincetonManager::getLastDelayData(InDatagram* in, InDatagram*& out)
 {
   return _pServer->getLastDelayData(in, out);
+}
+
+int PrincetonManager::checkReadoutEventCode(InDatagram* in)
+{
+  return _pServer->checkReadoutEventCode(in);
 }
 
 } //namespace Pds 

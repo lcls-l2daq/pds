@@ -37,6 +37,7 @@ public:
   int   onEventReadoutDelay(int iShotId, InDatagram* in);
   int   getDelayData(InDatagram* in, InDatagram*& out);
   int   getLastDelayData(InDatagram* in, InDatagram*& out);
+  int   checkReadoutEventCode(InDatagram* in);
   
 private:          
   const bool          _bDelayMode;

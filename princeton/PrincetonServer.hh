@@ -38,7 +38,8 @@ public:
   int   onEventReadoutDelay(int iShotId, InDatagram* in);  
   int   getDelayData(InDatagram* in, InDatagram*& out);
   int   getLastDelayData(InDatagram* in, InDatagram*& out);
-
+  int   checkReadoutEventCode(InDatagram* in);
+  
   enum  ErrorCodeEnum
   {
     ERROR_INVALID_ARGUMENTS = 1,

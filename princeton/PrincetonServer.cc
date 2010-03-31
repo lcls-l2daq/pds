@@ -5,6 +5,7 @@
 #include "pds/xtc/CDatagram.hh"
 #include "pds/service/Task.hh"
 #include "pds/service/Routine.hh"
+#include "pds/config/EvrConfigType.hh"
 
 #include <errno.h>
 #include <pthread.h> 
@@ -299,16 +300,7 @@ int PrincetonServer::startCapture()
 }
 
 int PrincetonServer::initCameraSettings(Princeton::ConfigV1& config)
-{
-  if ( config.orgX() + config.width()  > Princeton::ConfigV1::uPI_MTE_2048_Width 
-    || config.orgY() + config.height() > Princeton::ConfigV1::uPI_MTE_2048_Height
-    || config.binX() >= Princeton::ConfigV1::uPI_MTE_2048_Width  / 32 
-    || config.binY() >= Princeton::ConfigV1::uPI_MTE_2048_Height / 32 )
-  {
-    printf( "PrincetonServer::validateCameraSettings(): Config parameters are invalid\n" );
-    return ERROR_INVALID_CONFIG;
-  }
-  
+{  
   uns32 uTriggerEdge = EDGE_TRIG_POS;
   PICAM::setAnyParam(_hCam, PARAM_EDGE_TRIGGER, &uTriggerEdge );  
   
@@ -340,7 +332,7 @@ int PrincetonServer::setupCooling()
     displayParamIdInfo(_hCam, PARAM_COOLING_MODE, "Cooling Mode");
 
   //displayParamIdInfo(_hCam, PARAM_TEMP_SETPOINT, "Set Cooling Temperature *Org*");  
-  const int16 iCoolingTemp = _configCamera.coolingTemp();
+  const int16 iCoolingTemp = (int)( _configCamera.coolingTemp() * 100 );
   setAnyParam(_hCam, PARAM_TEMP_SETPOINT, &iCoolingTemp );
   displayParamIdInfo(_hCam, PARAM_TEMP_SETPOINT, "Set Cooling Temperature" );   
 
@@ -738,6 +730,40 @@ int PrincetonServer::getLastDelayData(InDatagram* in, InDatagram*& out)
   return getDelayData(in, out);      
 }
 
+int PrincetonServer::checkReadoutEventCode(InDatagram* in)
+{
+  const Xtc& xtcEvrData = in->datagram().xtc;  
+  if ( xtcEvrData.sizeofPayload() == 0 )
+    return ERROR_FUNCTION_FAILURE;
+    
+  /*
+   * The evrData comes from NetDgServer, and so it has two extra levels of Xtc for wrapping the EVR data
+   */
+  const EvrDataType& evrData = *(const EvrDataType*) (xtcEvrData.payload() + sizeof(Xtc) * 2);
+  
+  if ( _iDebugLevel >= 3 )
+    printf( "# of fifo events: %d\n", evrData.numFifoEvents() );
+  
+  bool bReadoutEventFound = false;
+  for ( unsigned int iEventIndex=0; iEventIndex< evrData.numFifoEvents(); iEventIndex++ )
+  {
+    const EvrDataType::FIFOEvent& event = evrData.fifoEvent(iEventIndex);
+    if ( event.EventCode == _configCamera.readoutEventCode() )
+    {
+      if ( _iDebugLevel < 3 )
+        return 0;
+        
+      bReadoutEventFound = true;        
+    }
+
+    if ( _iDebugLevel >= 3 )    
+      printf( "[%02u] Event Code %u  TimeStampHigh 0x%x  TimeStampLow 0x%x\n",
+        iEventIndex, event.EventCode, event.TimestampHigh, event.TimestampLow );
+  }
+  
+  return (bReadoutEventFound? 0: ERROR_FUNCTION_FAILURE);
+}
+
 int PrincetonServer::waitForNewFrameAvailable()
 {   
   static timespec tsWaitStart;
@@ -906,7 +932,7 @@ void PrincetonServer::setupROI(rgn_type& region)
 
 int PrincetonServer::checkTemperature()
 {
-  const int16 iCoolingTemp = _configCamera.coolingTemp();
+  const int16 iCoolingTemp = (int)( _configCamera.coolingTemp() * 100 );
   int16 iTemperatureCurrent = -1;  
   
   PICAM::getAnyParam(_hCam, PARAM_TEMP, &iTemperatureCurrent );
