@@ -76,7 +76,7 @@ private:
   static const int      _iMaxReadoutTime        = 5000;         // Max readout time
   static const int      _iMaxThreadEndTime      = 3000;         // Max thread terminating time (in ms)
   static const int      _iMaxLastEventTime      = 3000;         // Max thread terminating time (in ms)
-  static const int      _iMaxEventErrorReport   = 20;           // Only report non-critical errors in the first few L1 events
+  static const int      _iMaxEventReport        = 20;           // Only report some statistics and non-critical errors in the first few L1 events
   static const float    _fEventDeltaTimeFactor;                 // Event delta time factor, for detecting sequence error  
 
   /*

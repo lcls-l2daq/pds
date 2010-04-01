@@ -308,14 +308,14 @@ int PrincetonServer::initCameraSettings(Princeton::ConfigV1& config)
   PICAM::setAnyParam(_hCam, PARAM_SPDTAB_INDEX, &iSpeedTableIndex );  
   
   using PICAM::displayParamIdInfo;
-  displayParamIdInfo(_hCam, PARAM_EXPOSURE_MODE,    "Exposure Mode");
-  displayParamIdInfo(_hCam, PARAM_CLEAR_MODE,       "Clear Mode");
-  displayParamIdInfo(_hCam, PARAM_SHTR_OPEN_MODE,   "Shutter Open Mode");
-  displayParamIdInfo(_hCam, PARAM_SHTR_OPEN_DELAY,  "Shutter Open Delay");
-  displayParamIdInfo(_hCam, PARAM_SHTR_CLOSE_DELAY, "Shutter Close Delay");
-    
-  displayParamIdInfo(_hCam, PARAM_EXP_RES,          "Exposure Resolution");
-  displayParamIdInfo(_hCam, PARAM_EXP_RES_INDEX,    "Exposure Resolution Index");
+  //displayParamIdInfo(_hCam, PARAM_EXPOSURE_MODE,    "Exposure Mode");
+  //displayParamIdInfo(_hCam, PARAM_CLEAR_MODE,       "Clear Mode");
+  //displayParamIdInfo(_hCam, PARAM_SHTR_OPEN_MODE,   "Shutter Open Mode");
+  //displayParamIdInfo(_hCam, PARAM_SHTR_OPEN_DELAY,  "Shutter Open Delay");
+  //displayParamIdInfo(_hCam, PARAM_SHTR_CLOSE_DELAY, "Shutter Close Delay");
+  //  
+  //displayParamIdInfo(_hCam, PARAM_EXP_RES,          "Exposure Resolution");
+  //displayParamIdInfo(_hCam, PARAM_EXP_RES_INDEX,    "Exposure Resolution Index");
   
   displayParamIdInfo(_hCam, PARAM_EDGE_TRIGGER,     "Edge Trigger" );
   displayParamIdInfo(_hCam, PARAM_SPDTAB_INDEX,     "Speed Table Index" );
@@ -836,6 +836,9 @@ int PrincetonServer::waitForNewFrameAvailable()
   clock_gettime( CLOCK_REALTIME, &tsWaitEnd );
   
   _fReadoutTime = (tsWaitEnd.tv_nsec - tsWaitStart.tv_nsec) / 1.0e9 + ( tsWaitEnd.tv_sec - tsWaitStart.tv_sec ); // in seconds
+  
+  if ( _iNumL1Event < _iMaxEventReport )
+    printf( "Readout time report [%d]: %f s\n", _iNumL1Event, _fReadoutTime );
     
   return 0;
 }
@@ -939,7 +942,7 @@ int PrincetonServer::checkTemperature()
     
   if ( iTemperatureCurrent >= iCoolingTemp + _iTemperatureTolerance ) 
   {
-    printf( "PrincetonServer::checkTemperature(): Chip temperature (%lf) is higher than the settings (%lf)\n", 
+    printf( "** PrincetonServer::checkTemperature(): Chip temperature (%lf) is higher than the settings (%lf)\n", 
      iTemperatureCurrent/100.0, iCoolingTemp/100.0 );
     return ERROR_TEMPERATURE_HIGH;
   }
@@ -966,8 +969,8 @@ int PrincetonServer::checkSequence( const Datagram& datagram )
   if ( fDeltaTime < _fPrevReadoutTime * _fEventDeltaTimeFactor )
   {
     // Report the error for the first few L1 events
-    if ( _iNumL1Event <= _iMaxEventErrorReport )
-      printf( "PrincetonServer::checkSequence(): Sequence error. Event delta time (%fs) < Prev Readout Time (%fs) * Factor (%f)\n",
+    if ( _iNumL1Event <= _iMaxEventReport )
+      printf( "** PrincetonServer::checkSequence(): Sequence error. Event delta time (%fs) < Prev Readout Time (%fs) * Factor (%f)\n",
         fDeltaTime, _fPrevReadoutTime, _fEventDeltaTimeFactor );
         
     _bSequenceError = true;
@@ -995,7 +998,7 @@ const int       PrincetonServer::_iPoolDataCount;
 const int       PrincetonServer::_iMaxReadoutTime;
 const int       PrincetonServer::_iMaxThreadEndTime;
 const int       PrincetonServer::_iMaxLastEventTime;
-const int       PrincetonServer::_iMaxEventErrorReport;
+const int       PrincetonServer::_iMaxEventReport;
 const float     PrincetonServer::_fEventDeltaTimeFactor = 1.1f;
 /*
  * Definition of private static data
