@@ -1,0 +1,39 @@
+#!/bin/bash
+module="pci3e"
+device="pci3e"
+mode="664"
+
+# Group: since distributions do it differently, look for wheel or use staff
+if grep '^staff:' /etc/group > /dev/null; then
+    group="staff"
+else
+    group="wheel"
+fi
+
+# invoke insmod with all arguments we got
+# and use a pathname, as newer modutils don't look in . by default
+/sbin/insmod -f ./$module.ko $* || exit 1
+
+
+major=`cat /proc/devices | awk "\\$2==\"$module\" {print \\$1}"`
+
+# Remove stale nodes and replace them, then give gid and perms
+# Usually the script is shorter, it's scull that has several devices in it.
+
+rm -f /dev/${device}[0-3]
+rm -f /dev/${device}[0-3][abcdefim]
+
+for n in 0 1 2 3; do
+	minor=$((16 * $n))
+	mknod /dev/${device}$n c $major $minor
+	for m in a b c d e f i m; do
+		minor=$((1 + $minor))
+		mknod /dev/${device}${n}$m c $major $minor
+	done
+done
+
+chgrp $group /dev/${device}[0-3] 
+chmod $mode  /dev/${device}[0-3]
+chgrp $group /dev/${device}[0-3][abcdefim]
+chmod $mode  /dev/${device}[0-3][abcdefim]
+
