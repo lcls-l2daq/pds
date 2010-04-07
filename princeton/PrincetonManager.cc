@@ -247,12 +247,12 @@ public:
         }
       }
     
-      int   iShotId       = 12;   // !! Obtain shot ID 
-      bool  bReadoutEvent = true; // !! For end-event only mode (no capture start event)
-                  
       int         iFail = 0;
       InDatagram* out   = in;
       
+      int   iShotId       = 12;   // !! Obtain shot ID 
+      bool  bReadoutEvent = true; // !! For end-event only mode (no capture start event)
+                        
       iFail = _manager.checkReadoutEventCode(in);
       
       // Discard the evr data, for appending the detector data later

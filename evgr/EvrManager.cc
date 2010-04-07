@@ -88,11 +88,6 @@ class L1Xmitter;
 static L1Xmitter *l1xmitGlobal;
 static EvgrBoardInfo < Evr > *erInfoGlobal; // yuck
 
-#define NEVENTPRINT 100
-
-static unsigned           nl1 = 0;
-static Sequence           evrseq_fifo[4];
-
 class L1Xmitter {
 public:
   L1Xmitter(Evr & er, DoneTimer & done):
@@ -122,23 +117,6 @@ public:
   {
     FIFOEvent fe;
     _er.GetFIFOEvent(&fe);
-    timespec ts;
-    clock_gettime(CLOCK_REALTIME, &ts);
-    ClockTime ctime(ts.tv_sec, ts.tv_nsec);
-    TimeStamp stamp(fe.TimestampLow, fe.TimestampHigh, _evtCounter);
-    Sequence seq(Sequence::Event, TransitionId::L1Accept, ctime, stamp);
-    EvrDatagram datagram(seq, _evtCounter++);
-
-    if (_evtCounter%NEVENTPRINT == 0) {
-      float dfid = fe.TimestampHigh-_lastfid;
-      if (fe.TimestampHigh<_lastfid) dfid += float(Pds::TimeStamp::MaxFiducials);
-      float period=dfid/(float)(NEVENTPRINT)/360.0;
-      float rate=0.0;
-      if (period>1.e-8) rate=1./period;
-      printf("Evr event %d, high/low 0x%x/0x%x, rate(Hz): %7.2f\n",
-        _evtCounter, fe.TimestampHigh, fe.TimestampLow, rate);
-      _lastfid = fe.TimestampHigh;
-    }
 
     // for testing
     if ((fe.TimestampHigh & dropPulseMask) == dropPulseMask)
@@ -180,7 +158,14 @@ public:
     }
 
     if ( bStartL1Accept )
-    {
+    {      
+      timespec ts;
+      clock_gettime(CLOCK_REALTIME, &ts);
+      ClockTime ctime(ts.tv_sec, ts.tv_nsec);
+      TimeStamp stamp(fe.TimestampLow, fe.TimestampHigh, _evtCounter);
+      Sequence seq(Sequence::Event, TransitionId::L1Accept, ctime, stamp);
+      EvrDatagram datagram(seq, _evtCounter++);
+      
       _outlet.send((char *) &datagram, 0, 0, _dst);
       
       if ( _L1DataFinal.numFifoEvents() == 0 )
@@ -191,27 +176,42 @@ public:
       }
 
       _L1DataUpdated.clearFifoEvents();      
-    }
+      
+      static const int NEVENTPRINT = 100;      
+      if (_evtCounter%NEVENTPRINT == 0) 
+      {
+        float dfid = fe.TimestampHigh-_lastfid;
+        if (fe.TimestampHigh<_lastfid) dfid += float(Pds::TimeStamp::MaxFiducials);
+        float period=dfid/(float)(NEVENTPRINT)/360.0;
+        float rate=0.0;
+        if (period>1.e-8) rate=1./period;
+        printf("Evr event %d, high/low 0x%x/0x%x, rate(Hz): %7.2f\n",
+          _evtCounter, fe.TimestampHigh, fe.TimestampLow, rate);
+        _lastfid = fe.TimestampHigh;
+      }
 
-    if (_evtCounter == _evtStop)
-      _done.expired();
-
-    if (evrseq_fifo[nl1&3].stamp().fiducials()==seq.stamp().fiducials()) {
-      unsigned i=nl1-3;
-      do {
-  const Sequence& s = evrseq_fifo[i&3];
-  printf("=== fid %x: clk %x/%x\n",
-         s.stamp().fiducials(),
-         s.clock().seconds(),
-         s.clock().nanoseconds());
-      } while( i++!=nl1 );
-      printf("*** fid %x: clk %x/%x: evtcode %x\n",
-       seq.stamp().fiducials(),
-       seq.clock().seconds(),
-       seq.clock().nanoseconds(),
-       fe.EventCode);
+      //static unsigned   nl1 = 0;
+      //static Sequence   evrseq_fifo[4];      
+      //  if (evrseq_fifo[nl1&3].stamp().fiducials()==seq.stamp().fiducials()) {
+      //    unsigned i=nl1-3;
+      //    do {
+      //const Sequence& s = evrseq_fifo[i&3];
+      //printf("=== fid %x: clk %x/%x\n",
+      //       s.stamp().fiducials(),
+      //       s.clock().seconds(),
+      //       s.clock().nanoseconds());
+      //    } while( i++!=nl1 );
+      //    printf("*** fid %x: clk %x/%x: evtcode %x\n",
+      //     seq.stamp().fiducials(),
+      //     seq.clock().seconds(),
+      //     seq.clock().nanoseconds(),
+      //     fe.EventCode);
+      //  }
+      //  evrseq_fifo[++nl1&3] = seq;
+      
+      if (_evtCounter == _evtStop)
+        _done.expired();                     
     }
-    evrseq_fifo[++nl1&3] = seq;
   }
   
   void reset()  { _evtCounter = 0; }
@@ -290,9 +290,9 @@ public:
       char*  pcEvrData = (char*) (pXtc + 1);  
       new (pcEvrData) EvrDataUtil(evrData);
       
-      printf( "EvrL1Action::fire() data dump start (size = %u bytes)\n", evrData.size() );
-      evrData.printFifoEvents();
-      printf( "EvrL1Action::fire() data dump end\n\n" );
+      //printf( "EvrL1Action::fire() data dump start (size = %u bytes)\n", evrData.size() );
+      //evrData.printFifoEvents();
+      //printf( "EvrL1Action::fire() data dump end\n\n" );
       
       evrData.clearFifoEvents();
     }
@@ -469,7 +469,7 @@ public:
     for (unsigned int uEventIndex = 0; uEventIndex < cfg.neventcodes(); uEventIndex++ )
     {
       const EvrConfigType::EventCodeType& eventCode = cfg.eventcode(uEventIndex);
-      
+              
       _er.SetFIFOEvent(ram, eventCode.code(), enable);
       
       unsigned int  uPulseBit     = 0x0001;
@@ -483,7 +483,7 @@ public:
           ((eventCode.maskTrigger() & uPulseBit) != 0 ? iPulseIndex : -1 ),
           ((eventCode.maskSet()     & uPulseBit) != 0 ? iPulseIndex : -1 ),
           ((eventCode.maskClear()   & uPulseBit) != 0 ? iPulseIndex : -1 )
-          );
+          );          
       }
     }
     
