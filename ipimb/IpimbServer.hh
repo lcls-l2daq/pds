@@ -41,7 +41,7 @@ namespace Pds {
 
   public:
     void setFakeCount(unsigned);
-    unsigned configure(const IpimbConfigType& config);
+    unsigned configure(IpimbConfigType& config);
     unsigned GetTriggerCounter1();
 
   private:

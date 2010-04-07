@@ -17,6 +17,7 @@ namespace Pds {
     Fsm& _fsm;
     static const char* _calibPath;
     unsigned _nServers;
+    IpimbServer* _server[];
   };
 }
 #endif

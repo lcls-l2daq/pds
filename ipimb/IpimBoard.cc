@@ -1,7 +1,7 @@
 #include "IpimBoard.hh"
 #include "unistd.h" //for sleep
 #include <iostream>
-//#include "assert.h"
+#include "assert.h"
 #include "memory.h"
 // for non-blocking attempt
 #include <fcntl.h>
@@ -13,43 +13,31 @@
 using namespace std;
 using namespace Pds;
 
-const float CHARGEAMP_REF_MAX = 2.5;
+const float CHARGEAMP_REF_MAX = 12.0;
 const unsigned CHARGEAMP_REF_STEPS = 65536;
 
-const float CALIBRATION_V_MAX = 5;
+const float CALIBRATION_V_MAX = 12.0;
 const unsigned CALIBRATION_V_STEPS = 65536;
 
-const float INPUT_BIAS_MAX = 100;
+const float INPUT_BIAS_MAX = 200;
 const unsigned INPUT_BIAS_STEPS = 65536;
 
 const int CLOCK_PERIOD = 8;
 const float ADC_RANGE = 3.3;
 const unsigned ADC_STEPS = 65536;
 
-const int MAX_COMMANDS_AND_DATA = 100;
-//const int MAX_DATA = 100;
-
 const bool DEBUG = false;//true;
 
 namespace Pds {
 
-  void list2Array(UnsignedList lst, unsigned* s) {
-    UnsignedList::iterator p = lst.begin();
-    int i = 0;
-    while (p != lst.end()) {
-      //      printf("%d 0x%x ", i, *p);
-      s[i++] = *p;
-      //    cout << "in l2A: " << *p << endl;
-      p++;
-    }
-    //    printf("\n");
-  }
-
-  unsigned CRC(UnsignedList lst) {
+  unsigned CRC(unsigned* lst, int length) {
     unsigned crc = 0xffff;
-    UnsignedList::iterator p = lst.begin();
-    while (p != lst.end()) {
-      unsigned word = *p++;
+    for (int l=0; l<length; l++) {
+      unsigned word = *lst;
+      if (DEBUG) {
+	printf("In CRC, have word 0x%x\n", word);
+      }
+      lst++;
       // Calculate CRC 0x0421 (x16 + x12 + x5 + 1) for protocol calculation
       unsigned C[16] = {0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0};
       unsigned CI[16] = {0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0};
@@ -119,6 +107,14 @@ IpimBoard::IpimBoard(char* serialDevice){
   //  printf("iflag %d, oflag %d, cflag %d, lflag %d, ispeed %d, ospeed %d\n", newtio.c_iflag, newtio.c_oflag, newtio.c_cflag, newtio.c_lflag, newtio.c_ispeed, newtio.c_ospeed);
   tcflush(_fd, TCIFLUSH);
   tcsetattr(_fd,TCSANOW,&newtio);
+  
+  memset(_dataList, 0, 12);//*sizeof(_dataList[0]));
+  _commandIndex = 0;
+  _dataIndex = 0;
+  _startWaitingForData = false;
+  _w0 = 0;
+  _w1 = 0;
+  _w2 = 0;
 }
 
 IpimBoard::~IpimBoard() {
@@ -138,6 +134,22 @@ void IpimBoard::SetTriggerCounter(unsigned start0, unsigned start1) {
 
 unsigned IpimBoard::GetTriggerCounter1() {
   return ReadRegister(timestamp1);
+}
+
+uint64_t IpimBoard::GetSerialID() {  
+  uint32_t id0 = ReadRegister(serid0);
+  uint32_t id1 = ReadRegister(serid1);
+  uint64_t id = ((uint64_t)id0<<32) + id1;
+  //  printf("id0: 0x%lx, id1: 0x%lx, id: 0x%llx\n", id0, id1, id);
+  return id;
+}
+
+uint16_t IpimBoard::GetErrors() {
+  return ReadRegister(errors);
+}
+
+uint16_t IpimBoard::GetStatus() {
+  return ReadRegister(status)>>16;
 }
 
 void IpimBoard::SetCalibrationMode(bool* channels) {
@@ -265,7 +277,7 @@ void IpimBoard::SetChannelAcquisitionWindow(uint32_t acqLength, uint16_t acqDela
   WriteRegister(reset, (length<<12) | (delay & 0xfff));
 }
 
-void IpimBoard::SetTriggerDelay(unsigned triggerDelay) {
+void IpimBoard::SetTriggerDelay(uint32_t triggerDelay) {
   unsigned delay = (triggerDelay+CLOCK_PERIOD-1)/CLOCK_PERIOD;
   if (delay > 0xffff) {
     printf("IpimBoard warning: trigger delay cannot be more than %dns\n", 0xffff*CLOCK_PERIOD);
@@ -288,12 +300,16 @@ void IpimBoard::CalibrationStart(unsigned calStrobeLength) { //=0xff):
 unsigned IpimBoard::ReadRegister(unsigned regAddr) {
   IpimBoardCommand cmd = IpimBoardCommand(false, regAddr, 0);
   WriteCommand(cmd.getAll());
+  _commandIndex = 0;
+  int tmpCount = 0;
   while (inWaiting(true) < 4) {
+    tmpCount++;
+    //    assert(tmpCount<10);
     ;//timeout here?
   }
-  IpimBoardResponse resp = IpimBoardResponse(Read(true, 4));
+  IpimBoardResponse resp = IpimBoardResponse(_commandList);
   if (!resp.CheckCRC()) {
-    printf("IpimBoard warning: data CRC check failed\n");
+    printf("IpimBoard warning: response CRC check failed\n");
     _commandResponseDamage = true;
   }
   return resp.getData();
@@ -304,38 +320,39 @@ void IpimBoard::WriteRegister(unsigned regAddr, unsigned regValue) {
   WriteCommand(cmd.getAll());
 }
 
-IpimBoardData IpimBoard::WaitData(int timeout_us, bool& success) {
+IpimBoardData IpimBoard::WaitData() {
+  _dataIndex = 0;
   _dataDamage = false;
-  timespec t0, t1;
-  clock_gettime(CLOCK_REALTIME, &t0);
+  int nChunks = 0;
+  _startWaitingForData = true;
+  _w0 = 0;
+  _w1 = 0;
+  _w2 = 0;
   
   while (inWaiting(false) < 12) {
-    clock_gettime(CLOCK_REALTIME, &t1);
-    timespec deltaT = diff(t0, t1);
-    if (deltaT.tv_sec > (float(timeout_us)/1000000)) {
-      printf("IpimBoard warning: have timed out for now after %f s\n", double(deltaT.tv_sec));
-      _dataDamage = true;
-      return IpimBoardData();
+    if (nChunks++ > 24) {
+      //      return IpimBoardData();
       // or
       int n = inWaiting(false);
       unsigned fakeData = 0xdead;
       if (n < 12) {
+	_dataDamage = true;
 	for (int i=n; i< 12; i++) {
-	  _lstData.push_back(fakeData);
+	  _dataList[i] = fakeData;
 	}
+	printf("IpimBoard warning: have failed to find expected event in %d 3-byte transmissions, attempting to continue\n", nChunks);
+	printf("First chunk if any was 0x%x, 0x%x, 0x%x\n", _w0, _w1, _w2);
+	break;
       }
     }
   }
 
-  IpimBoardData data = IpimBoardData(Read(false, 12));
+  IpimBoardData data = IpimBoardData(_dataList);
   int c = data.CheckCRC();
   if (!c) {
     printf("IpimBoard warning: data CRC check failed\n");
     _dataDamage = true;
     //    _damage |= 1<<crc_damage;
-  }
-  else {
-    success = true;
   }
   return data;
 }
@@ -348,52 +365,21 @@ bool IpimBoard::commandResponseDamaged() {
   return _commandResponseDamage;
 }
 
-UnsignedList IpimBoard::Read(bool command, unsigned nBytes) {
-  //unsigned lst[MAX_COMMANDS_AND_DATA];
-  UnsignedList lst;
-  if (command) {
-    while (_lstCommands.size() < nBytes)
-      inWaiting(command);
-    for (unsigned i=0; i<nBytes; i++) {
-      //      lst.append(self.lstCommands.pop(0))
-      unsigned com = _lstCommands.front();
-      _lstCommands.pop_front();
-      lst.push_back(com);
-    }
-  }
-  else {    
-    while (_lstData.size() < nBytes)
-      inWaiting(command);
-    for (unsigned i=0; i<nBytes; i++) {
-      //      lst.append(self.lstCommands.pop(0))
-      unsigned data = _lstData.front();
-      _lstData.pop_front();
-      lst.push_back(data);
-    }
-  }
-  return lst;//list2Array(lst);
-}
-
-void IpimBoard::WriteCommand(UnsignedList bytes) {
+void IpimBoard::WriteCommand(unsigned* cList) {
   unsigned count = 0;
-  //  string str = "";
-  UnsignedList::iterator p = bytes.begin();
-  while (p != bytes.end()) {
-    unsigned data = *p++;
+  for (int i=0; i<4; i++) {
+    unsigned data = *cList++;
     unsigned w0 = 0x90 | (data & 0xf);
     unsigned w1 = (data>>4) & 0x3f;
     unsigned w2 = 0x40 | ((data>>10) & 0x3f);
     if (count == 0)
       w0 |= 0x40;
-    if (count == bytes.size()-1) {
+    if (count == 3) {//bytes.size()-1) {
       w0 |= 0x20;
     }
     count++;
     //    char* bS = (char)((int)w0) + (char)((int)w1) + (char)((int)w2);
     char bufferSend[3];
-    //    cout << "words to send:" << (char)((int)w0) << " " << (char)((int)w1) << " "<< (char)((int)w2) << endl; 
-    //    cout << "words to send:" << w0 << " " << w1 << " "<< w2 <<endl; 
-    //    cout << "words to send:" << w0 << " " << w1 << " "<< w2 <<endl; 
     if (DEBUG)
       printf("Ser W: 0x%x 0x%x 0x%x\n", w0, w1, w2);
     bufferSend[0] = (char)((int)w0);
@@ -402,6 +388,7 @@ void IpimBoard::WriteCommand(UnsignedList bytes) {
     int res = write(_fd, bufferSend, 3);
     if (res != 3) {
       printf( "write failed: %d bytes of %s written\n", res, bufferSend);
+      _commandResponseDamage = true;
       //    } else {
       //      printf( "write passed: %d bytes of buff written\n", res);
     }
@@ -410,9 +397,34 @@ void IpimBoard::WriteCommand(UnsignedList bytes) {
 
 int IpimBoard::inWaiting(bool command) {
   char bufferReceive[12];
-  int res = read(_fd, bufferReceive, 3);
-  bufferReceive[res]=0; // for printf
-  int n = res;
+  //  int res = read(_fd, bufferReceive, 3);
+  int nBytes = 0;
+  while (nBytes<3) {
+    int nRead = read(_fd, &(bufferReceive[nBytes]), 3-nBytes);
+    if (nRead<0) {
+      printf("IpimBoard error:failed read from _fd %d\n",_fd);
+      perror("read error: ");
+      //      assert(0);
+    }
+    nBytes += nRead;
+    if (nBytes!=3) {
+      if (!command) {
+	printf("IpimBoard warning: have read %d (%d) (total) bytes of data from _fd %d, need 3, will retry\n", nRead, nBytes,_fd);
+      }
+      struct timespec req = {0, 2000000}; // 2 ms
+      nanosleep(&req, NULL);
+    }
+  }
+  if (nBytes != 3) {
+    printf("nBytes is %d\n", nBytes);
+    assert(0);
+  }
+  int n = nBytes;
+  if (n==0 and !command and _dataIndex <12) {
+    printf("read was empty, sleep briefly\n");
+    struct timespec req = {0, 2000000}; // 1 ms
+    nanosleep(&req, NULL);
+  }
   //  if (n>0) {
     //    if (DEBUG)
     //      printf("buffer:n is: %s:%d\n", bufferReceive, res);
@@ -430,20 +442,40 @@ int IpimBoard::inWaiting(bool command) {
     if ((w0 & 0x80) == 0) {// Out of sync: bit 8 must be set
       n--;
       printf("IpimBoard warning: Ser R: %x, out of sync\n", w0);
+      //      _dataDamage = true;
       continue;
     }
     w1 = bufferReceive[index] & 0xff;
     w2 = bufferReceive[index+1] & 0xff;
+    if (_startWaitingForData) {
+      _w0 = w0;
+      _w1 = w1;
+      _w2 = w2;
+      _startWaitingForData = false;
+    }
     index += 2;
     unsigned data = (w0 & 0xf) | ((w1 & 0x3f)<<4) | ((w2 & 0x3f)<<10);
     if ((w0 & 0x10) != 0) {
-      _lstCommands.push_back(data);
+      if (_commandIndex>3) {
+	printf("*** cmdindex\n");
+	assert(0);
+      }
+      _commandList[_commandIndex++] = data;
+      if (DEBUG) {
+	printf("have incremented command list length: %d\n", _commandIndex);
+	printf("command list 0x%x, 0x%x, 0x%x, 0x%x\n", _commandList[0], _commandList[1], _commandList[2], _commandList[3]);
+      }
     }
     else {
-      _lstData.push_back(data);
+      if (_dataIndex>11) {
+	printf("*** dataindex %d\n", _dataIndex);
+	assert(0);
+      }
+      _dataList[_dataIndex++] = data;
+      //      printf("have incremented data list length: %d\n", _dataIndex);
       //      printf("Data read : %x %x %x\n", w0, w1, w2);
     }
-    if (DEBUG) {
+    if (DEBUG || _dataDamage) {
       printf("Ser R: %x %x %x\n", w0, w1, w2);
     }
     n = n-3;
@@ -458,21 +490,32 @@ int IpimBoard::inWaiting(bool command) {
       printf("IpimBoard warning: extra bytes found parsing port while looking for command\n");
       _commandResponseDamage = true;
     } else {
-      printf("IpimBoard warning: extra bytes found parsing port while looking for data\n");
+      printf("IpimBoard warning: %d unparsable bytes found on port while looking for data\n", n);
       _dataDamage = true;
+      w1 = bufferReceive[index] & 0xff;
+      printf("w1: 0x%x", w1);
+      if (n==2) {
+	w2 = bufferReceive[index+1] & 0xff;
+	printf(" w2: 0x%x", w2);
+      }
+      printf("\n");
     }      
     //    _damage |= 1<<n0_damage;
   }
   //  assert(n==0);  // or buffer anything extra for next pass
   if (command) {
-    if (DEBUG) 
-      printf("returning command size %d\n", _lstCommands.size());
-    return _lstCommands.size();
+    if (DEBUG) {
+      if(_commandIndex) {
+	printf("returning command size %d\n", _commandIndex);
+      }
+    }
+    return _commandIndex;
   }
   else {
-    if (DEBUG)
-      printf("returning data size %d\n", _lstData.size());
-    return _lstData.size();
+    if (DEBUG) {
+      printf("returning data size %d\n", _dataIndex);
+    }
+    return _dataIndex;
   }
 }
 
@@ -484,8 +527,10 @@ void IpimBoard::flush() {
   tcflush(_fd, TCIFLUSH);
 }
 
-int IpimBoard::configure(const Ipimb::ConfigV1& config) {
-  int errors = 0;
+bool IpimBoard::configure(Ipimb::ConfigV1& config) {
+  _commandResponseDamage = false;
+  WriteRegister(errors, 0xffff);
+
   // hope to never want to calibrate in the daq environment
   bool lstCalibrateChannels[4] = {false, false, false, false};
   SetCalibrationMode(lstCalibrateChannels);
@@ -494,7 +539,7 @@ int IpimBoard::configure(const Ipimb::ConfigV1& config) {
   unsigned start0 = (unsigned) (0xFFFFFFFF&config.triggerCounter());
   unsigned start1 = (unsigned) (0xFFFFFFFF00000000ULL&config.triggerCounter()>>32);
   SetTriggerCounter(start0, start1);
-  //errors += 
+
   SetChargeAmplifierRef(config.chargeAmpRefVoltage());
   // only allow one charge amp capacitance setting
   unsigned multiplier = (unsigned) config.chargeAmpRange();
@@ -506,44 +551,42 @@ int IpimBoard::configure(const Ipimb::ConfigV1& config) {
   SetTriggerDelay((unsigned) config.trigDelay());
   //  CalibrationStart((unsigned) config.calStrobeLength());
 
+  config.setSerialID(GetSerialID());
+  config.setErrors(GetErrors());
+  config.setStatus((ReadRegister(status) & 0xffff0000)>>16);
+  
+  printf("After configuration:\n");
+  config.dump();
+
   tcflush(_fd, TCIFLUSH);
   printf("have flushed fd after IpimBoard configure\n");
 
-  return errors;
+  return !_commandResponseDamage;
 }
 
 IpimBoardCommand::IpimBoardCommand(bool write, unsigned address, unsigned data) {
-  _lst.push_back(address & 0xFF);
-  _lst.push_back(data & 0xFFFF);
-  _lst.push_back((data >> 16) & 0xFFFF);
-  _lst.push_back(0);
+  _commandList[0] = address & 0xFF;
+  _commandList[1] = data & 0xFFFF;
+  _commandList[2] = (data >> 16) & 0xFFFF;
   if (write) {
-    unsigned tmp = _lst.front();
-    _lst.pop_front();
-    _lst.push_front(tmp | 1<<8);
+    _commandList[0] |= 1<<8;
   }
-  _lst.pop_back();
-  _lst.push_back(CRC(_lst));
-  unsigned s[_lst.size()];
-  list2Array(_lst, s);
+  _commandList[3] = CRC(_commandList, 3);
   if (DEBUG)
-    printf("command list: 0x%x, 0x%x, 0x%x 0x%x\n", s[0], s[1], s[2], s[3]);
+    printf("data: 0x%x, address 0x%x, write %d, command list: 0x%x, 0x%x, 0x%x 0x%x\n", 
+	   data, address, write, _commandList[0], _commandList[1], _commandList[2], _commandList[3]);
 }
 
 IpimBoardCommand::~IpimBoardCommand() {
   //  delete[] _lst;
 }
 
-UnsignedList IpimBoardCommand::getAll() {
-  return _lst;
+unsigned* IpimBoardCommand::getAll() {
+  return _commandList;
 }
 
 
-//IpimBoardResponse::IpimBoardResponse(unsigned* packet) {
-IpimBoardResponse::IpimBoardResponse(UnsignedList packet) {
-  //                if len(lstPacket) != 4:
-  //                      raise RuntimeError, "Invalid response packet size %d" % (len(lstPacket))
-  // do above elsewehere
+IpimBoardResponse::IpimBoardResponse(unsigned* packet) {
   _addr = 0;
   _data = 0;
   _checksum = 0;
@@ -554,10 +597,7 @@ IpimBoardResponse::~IpimBoardResponse() {
   //   printf("IPBMR::dtor, this = %p\n", this);
 }
 
-//void IpimBoardResponse::setAll(int i, int j, unsigned* s) { // slice
-void IpimBoardResponse::setAll(int i, int j, UnsignedList packet) { // slice
-  unsigned s[packet.size()];
-  list2Array(packet, s);
+void IpimBoardResponse::setAll(int i, int j, unsigned* s) { // slice
   for (int count=i; count<j; count++) {
     if (count==0) {
       _addr = s[count-i] & 0xFF;
@@ -578,23 +618,22 @@ void IpimBoardResponse::setAll(int i, int j, UnsignedList packet) { // slice
   }
 }
 
-UnsignedList IpimBoardResponse::getAll(int i, int j) { // slice
-  UnsignedList lst;
+unsigned* IpimBoardResponse::getAll(int i, int j) { // slice
   for (int count=i; count<j; count++) {
     if (count==0) {
-      lst.push_back(_addr & 0xFF);
+      _respList[0] = _addr & 0xFF;
     }
     else if (count==1) {
-      lst.push_back(_data & 0xFFFF);
+      _respList[1] = _data & 0xFFFF;
     }
     else if (count==2) {
-      lst.push_back(_data>>16);
+      _respList[2] = _data>>16;
     }
     else if (count==3) {
-      lst.push_back(_checksum);
+      _respList[3] = _checksum;
     }
   }
-  return lst;
+  return _respList;
 }
 
 unsigned IpimBoardResponse::getData() { // slice
@@ -602,18 +641,14 @@ unsigned IpimBoardResponse::getData() { // slice
 }
 
 bool IpimBoardResponse::CheckCRC() {
-  if (CRC(getAll(0, 3)) == _checksum){
+  if (CRC(getAll(0, 3), 3) == _checksum){
     return true;
   }
   return false;
 }
 
 
-//IpimBoardData::IpimBoardData(unsigned* packet) {
-IpimBoardData::IpimBoardData(UnsignedList packet) {
-  //                if len(lstPacket) != 12:
-  //                      raise RuntimeError, "Invalid data packet size %d" % (len(lstPacket))
-  // do above implicitly or explicitly elsewehere
+IpimBoardData::IpimBoardData(unsigned* packet) {
   _triggerCounter = 0;
   _config0 = 0;
   _config1 = 0;
@@ -652,10 +687,7 @@ void IpimBoardData::dumpRaw() {
   printf("checksum: 0x%02x\n", _checksum);
 }
 
-//void IpimBoardData::setAll(int i, int j, unsigned* s) { // slice
-void IpimBoardData::setAll(int i, int j, UnsignedList packet) { // slice
-  unsigned s[packet.size()];
-  list2Array(packet, s);
+void IpimBoardData::setAll(int i, int j, unsigned* s) { // slice
   for (int count=i; count<j; count++) {
     if (count==0) {
       _triggerCounter = (_triggerCounter & 0x0000FFFFFFFFFFFFLLU) | ((long long)(s[count-i])<<48);
@@ -701,55 +733,55 @@ void IpimBoardData::setAll(int i, int j, UnsignedList packet) { // slice
   //  dumpRaw();
 }
 
-UnsignedList IpimBoardData::getAll(int i, int j) { // slice
-  UnsignedList lst;
+void IpimBoardData::setList(int i, int j, unsigned* lst) { // slice - already _dataList?
   for (int count=i; count<j; count++) {
     if (count==0) {
-      lst.push_back(_triggerCounter>>48);
+      lst[count] = _triggerCounter>>48;
     }
     else if (count==1) {
-      lst.push_back((_triggerCounter>>32) & 0xFFFF);
+      lst[count] = (_triggerCounter>>32) & 0xFFFF;
     }
     else if (count==2) {
-      lst.push_back((_triggerCounter>>16) & 0xFFFF);
+      lst[count] = (_triggerCounter>>16) & 0xFFFF;
     }
     else if (count==3) {
-      lst.push_back(_triggerCounter & 0xFFFF);
+      lst[count] = _triggerCounter & 0xFFFF;
     }
     else if (count==4) {
-      lst.push_back(_config0);
+      lst[count] = _config0;
     }
     else if (count==5) {
-      lst.push_back(_config1);
+      lst[count] = _config1;
     }
     else if (count==6) {
-      lst.push_back(_config2);
+      lst[count] = _config2;
     }
     else if (count==7) {
-      lst.push_back(_ch0);
+      lst[count] = _ch0;
     }
     else if (count==8) {
-      lst.push_back(_ch1);
+      lst[count] = _ch1;
     }
     else if (count==9) {
-      lst.push_back(_ch2);
+      lst[count] = _ch2;
     }
     else if (count==10) {
-      lst.push_back(_ch3);
+      lst[count] = _ch3;
     }
     else if (count==11) {
-      lst.push_back(_checksum);
+      lst[count] = _checksum;
     }
     else {
       printf("IpimBoard error: data list retrieval broken\n");
       //      _dataDamage = true;
     }
   }
-  return lst;
 }
 
 bool IpimBoardData::CheckCRC() {
-  unsigned crc = CRC(getAll(0, 11));
+  unsigned lst[12];
+  setList(0, 11, lst);
+  unsigned crc = CRC(lst, 11);
   if (crc == _checksum){
     return true;
   }
@@ -783,43 +815,3 @@ unsigned IpimBoardData::GetConfig1() {
 unsigned IpimBoardData::GetConfig2() {
   return _config2;
 }
-
-
-// int main() {
-//   cout << "make ipmb, or try\n"; 
-//   IpimBoard ipmb = IpimBoard(2105, "192.168.0.91");
-
-//   cout << "made ipmb, try to get status \n"; 
-//   unsigned status = ipmb.ReadRegister(ipmb.status);
-//   cout << "status: "<< status <<endl;
-//   bool calibrateChannel[4] = {true, false, false, false};
-//   ipmb.SetCalibrationMode(calibrateChannel);
-//   unsigned calRange[4] = {1, 1, 1, 1};
-//   ipmb.SetCalibrationDivider(calRange);
-//   bool calibratePolarity[4] = {false, false, false, false};
-//   ipmb.SetCalibrationPolarity(calibratePolarity);
-//   float calV = 1.5;
-//   ipmb.SetCalibrationVoltage(calV);
-//   float chargeAmpRef = 2.0;
-//   ipmb.SetChargeAmplifierRef(chargeAmpRef);
-//   unsigned inputAmplifier[4] = {100, 100, 100, 100};
-//   ipmb.SetChargeAmplifierMultiplier(inputAmplifier);
-//   float biasData = 10.;
-//   ipmb.SetInputBias(biasData);
-//   for (int i=0; i<1000; i++) {
-//     ipmb.SetCalibrationVoltage(calV);
-//     ipmb.SetInputBias(biasData);
-//     unsigned acqLength = 1000000;
-//     unsigned acqDelay = 4095;
-//     ipmb.SetChannelAcquisitionWindow(acqLength, acqDelay);
-//     unsigned sampleDelay = 100000;
-//     ipmb.SetTriggerDelay(sampleDelay);
-//     usleep(100);
-//     ipmb.SetCalibrationVoltage(calV);
-//     usleep(10000);
-//     unsigned strobeLength = 400000;
-//     ipmb.CalibrationStart(strobeLength);
-//     IpimBoardData data = ipmb.WaitData();
-//     cout << "data: " << data.GetTimestamp_ticks()<< " " <<  data.GetConfig0()<< " " <<  data.GetConfig1()<< " " <<  data.GetTriggerDelay_ns()<< " " <<  data.GetCh0_V()<< " " <<  data.GetCh1_V()<< " " <<  data.GetCh2_V()<< " " <<  data.GetCh3_V() << endl;;
-//   }
-// }

@@ -54,18 +54,15 @@ unsigned IpimbServer::length() const {
 
 int IpimbServer::fetch(char* payload, int flags)
 {
-  bool success = false;
-  int timeout_us = 10000; // 10 ms - ???
-  //  printf("wait for data in IS:fetch, fd %d, payload pointer %p this call\n", fd(), payload);
-  IpimBoardData data = _ipimBoard->WaitData(timeout_us, success);
-  if (!success) {
-    printf("IpimBoard error: fetch data had problems, presumably timed out\n");
-    // register damage?
+  IpimBoardData data = _ipimBoard->WaitData();
+  if (_ipimBoard->dataDamaged()) {
+    printf("IpimBoard error: IpimbServer::fetch had problems getting data, fd %d\n", fd());
+    data.dumpRaw();
+    // register damage in manager
   }
   //  double ch0 = data.GetCh0_V();
   unsigned long long ts = data.GetTriggerCounter();//_data->GetTimestamp_ticks();
   //  printf("data from fd %d has e.g. ch0=%fV, ts=%llu\n", fd(), ch0, ts);
-  //  data.dumpRaw();
 
   int payloadSize = sizeof(IpimbDataType);
   memcpy(payload, &_xtc, sizeof(Xtc));
@@ -81,8 +78,10 @@ int IpimbServer::fetch(ZcpFragment& zf, int flags)
 
 unsigned IpimbServer::count() const
 {
-  if (_count%1000 == 0) {
-    printf("in IpimbServer::count, fd %d: returning %d\n", fd(), _count-1);
+  if (_count%10000 == 0) { // revisit to remove
+    //    unsigned tC = _ipimBoard->GetTriggerCounter1();
+    //    printf("in IpimbServer::count, fd %d: returning %d based on offset %d, trig count 0x%x\n", fd(), _count-1, _fakeCount);//, tC);
+    printf("in IpimbServer::count, fd %d: returning %d based on offset %d\n", fd(), _count-1, _fakeCount);//, tC);
   }
   return _count - 1;
 }
@@ -96,7 +95,7 @@ void IpimbServer::setFakeCount(unsigned fakeCount) {
   _fakeCount = fakeCount;
 }
 
-unsigned IpimbServer::configure(const IpimbConfigType& config) {
+unsigned IpimbServer::configure(IpimbConfigType& config) {
   return _ipimBoard->configure(config);
 }
 

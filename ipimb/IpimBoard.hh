@@ -1,9 +1,6 @@
 #ifndef PDS_IPIMBOARD
 #define PDS_IPIMBOARD
 
-#include <list>
-//using namespace std;
-typedef std::list< unsigned int> UnsignedList;
 #include <arpa/inet.h>
 
 #include <termios.h>
@@ -60,35 +57,37 @@ namespace Pds {
     void SetChargeAmplifierMultiplier(unsigned*);
     void SetInputBias(float biasVoltage);
     void SetChannelAcquisitionWindow(uint32_t acqLength, uint16_t acqDelay);
-    void SetTriggerDelay(unsigned triggerDelay);
+    void SetTriggerDelay(uint32_t triggerDelay);
     void CalibrationStart(unsigned calStrobeLength);
     unsigned ReadRegister(unsigned regAddr);
     void WriteRegister(unsigned regAddr, unsigned regValue);
-    IpimBoardData WaitData(int timeout, bool& success);
+    IpimBoardData WaitData();
     //  unsigned* read(bool command, int nBytes);
-    UnsignedList Read(bool command, unsigned nBytes);
-    //  unsigned* list2Array(UnsignedList);
-    void WriteCommand(UnsignedList);
+    void WriteCommand(unsigned*);
     int inWaiting(bool command);
     
-    int configure(const Ipimb::ConfigV1& config);
+    bool configure(Ipimb::ConfigV1& config);
     //    int configure(Ipimb::ConfigV1 config);
     int get_fd();
     void flush();
     bool dataDamaged();
     bool commandResponseDamaged();
+    uint64_t GetSerialID();
+    uint16_t GetStatus();
+    uint16_t GetErrors();
+    
     //  void signal_handler_IO (int status);   /* definition of signal handler */
 
   private:
-    UnsignedList _lstCommands;
-    UnsignedList _lstData;
-    //  list<unsigned> _lstCommands;
-    //  list<unsigned> _lstData;
-    //  Socket _ser;
-    //  unsigned _array[];
+    unsigned _commandList[4];
+    unsigned _dataList[12];
+    int _commandIndex;
+    int _dataIndex;
     int _fd;//, _res, _maxfd;
     //    fd_set _readfs;
     bool _dataDamage, _commandResponseDamage;
+    bool _startWaitingForData;
+    int _w0, _w1, _w2;
   };
   
   
@@ -98,43 +97,40 @@ namespace Pds {
     ~IpimBoardCommand();// {printf("IPBMC::dtor, this = %p\n", this);}
     
     //  list<unsigned> getData();
-    UnsignedList getAll();
+    unsigned* getAll();
     
   private:
     //  list<unsigned> _lst;
-    UnsignedList _lst;
+    unsigned _commandList[4];
   };
 
 
   class IpimBoardResponse {
   public:
-    //  IpimBoardResponse(unsigned* packet);
-    IpimBoardResponse(UnsignedList packet);
+    IpimBoardResponse(unsigned* packet);
     ~IpimBoardResponse();// {printf("IPBMR::dtor, this = %p\n", this);}
     
     bool CheckCRC();
-    //  void setAll(int, int, unsigned*);
-    void setAll(int, int, UnsignedList);
-    UnsignedList getAll(int, int);
+    void setAll(int, int, unsigned*);
+    unsigned* getAll(int, int);
     unsigned getData();
     
   private:
     unsigned _addr;
     unsigned _data;
     unsigned _checksum;
+    unsigned _respList[4];
   };
   
   class IpimBoardData {
   public:
-    //  IpimBoardData(unsigned* packet);
-    IpimBoardData(UnsignedList packet);
+    IpimBoardData(unsigned* packet);
     IpimBoardData();
     ~IpimBoardData() {};//printf("IPBMD::dtor, this = %p\n", this);}
     
     bool CheckCRC();
-    //  void setAll(int, int, unsigned*);
-    void setAll(int, int, UnsignedList);
-    UnsignedList getAll(int, int);
+    void setAll(int, int, unsigned*);
+    void setList(int, int, unsigned*);
     uint64_t GetTriggerCounter();
     unsigned GetTriggerDelay_ns();
     float GetCh0_V();
@@ -158,8 +154,7 @@ namespace Pds {
     uint16_t _checksum;
   };
   
-  unsigned CRC(UnsignedList);
-  void list2Array(UnsignedList, unsigned*);
+  unsigned CRC(unsigned*, int);
   timespec diff(timespec start, timespec end);
 }
 #endif
