@@ -43,7 +43,7 @@ static const unsigned MaxPayload = Mtu::Size;
 EvrServer::EvrServer(const Ins& ins,
 		     const Src& src,
 		     unsigned   nbufs) :
-  _server(-1UL,
+  _server((unsigned)-1,
 	  Port::VectoredServerPort,  // REUSE_ADDR
 	  ins,
 	  DatagramSize,

@@ -171,10 +171,10 @@ int EpicsArchMonitor::_setupPvList(const TPvList& vsPvList, TEpicsMonitorPvList&
 
 int EpicsArchMonitor::_splitPvList( const string& sPvList, TPvList& vsPvList )
 {       
-    unsigned int uOffsetStart = sPvList.find_first_not_of( EpicsArchMonitor::sPvListSeparators, 0 );
+    size_t uOffsetStart = sPvList.find_first_not_of( EpicsArchMonitor::sPvListSeparators, 0 );
     while ( uOffsetStart != string::npos )      
     {        
-        unsigned uOffsetEnd = sPvList.find_first_of( EpicsArchMonitor::sPvListSeparators, uOffsetStart+1 );
+        size_t uOffsetEnd = sPvList.find_first_of( EpicsArchMonitor::sPvListSeparators, uOffsetStart+1 );
         
         if ( uOffsetEnd == string::npos )        
         {

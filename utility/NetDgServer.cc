@@ -42,7 +42,7 @@ static const unsigned MaxPayload = Mtu::Size;
 NetDgServer::NetDgServer(const Ins& ins,
 			 const Src& src,
 			 unsigned   maxbuf) :
-  _server(-1UL,
+  _server((unsigned)-1,
 	  ins,
 	  DatagramSize,
 	  MaxPayload,

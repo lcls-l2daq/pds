@@ -39,10 +39,12 @@ bool CTraffic::send_next(Client& client)
   else {
     const Datagram& datagram = _dg->datagram();
     unsigned size = datagram.xtc.extent;
-    int error = client.send((char*)&datagram,
-			    (char*)&datagram.xtc,
-			    size,
-			    _dst);
+    int error;
+    if ((error = client.send((char*)&datagram,
+			     (char*)&datagram.xtc,
+			     size,
+			     _dst)))
+      ;
     return false;
   }
 }

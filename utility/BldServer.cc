@@ -42,7 +42,7 @@ static const unsigned MaxPayload = Mtu::Size;
 BldServer::BldServer(const Ins& ins,
 			 const Src& src,
 			 unsigned   maxbuf) :
-  _server(-1UL,
+  _server((unsigned)-1,
 	  ins,
 	  DatagramSize,
 	  MaxPayload,

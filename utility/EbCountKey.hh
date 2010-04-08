@@ -12,7 +12,7 @@
 namespace Pds {
   class EbCountKey : public EbEventKey {
   public:
-    EbCountKey(Sequence& s) : key(-1UL), seq(s) 
+    EbCountKey(Sequence& s) : key((unsigned)-1), seq(s) 
     {
       //  Initialize the sequence to a default
       s = Sequence(Sequence::Event, 

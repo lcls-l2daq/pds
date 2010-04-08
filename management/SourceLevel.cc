@@ -200,7 +200,7 @@ void SourceLevel::dump() const
     if (!(n==UnassignedNode)) {
       char* ts = ctime(&_control[k].time());
       printf("%*s%s     %03d      %02d/%7s", 
-	     21-strlen(ts)," ",ts, n.platform(), a.partitionid(), a.partition());
+	     int(21-strlen(ts))," ",ts, n.platform(), a.partitionid(), a.partition());
       if (!a.nnodes())
 	printf("\n");
       else
