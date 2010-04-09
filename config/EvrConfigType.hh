@@ -9,6 +9,6 @@ typedef Pds::EvrData::ConfigV3  EvrConfigType;
 typedef Pds::EvrData::DataV3    EvrDataType;
 
 static Pds::TypeId _evrConfigType(Pds::TypeId::Id_EvrConfig,
-          EvrConfigType::Version);
+				  EvrConfigType::Version);
 
 #endif

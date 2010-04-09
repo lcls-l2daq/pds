@@ -12,7 +12,7 @@ namespace Pds {
     long numInstruments() {return _numInstruments;}
   private:
     ViSession _instrumentId[10];
-    long _numInstruments;
+    ViInt32   _numInstruments;
   };
 
 }
