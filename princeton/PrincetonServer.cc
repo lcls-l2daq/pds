@@ -732,14 +732,27 @@ int PrincetonServer::getLastDelayData(InDatagram* in, InDatagram*& out)
 
 int PrincetonServer::checkReadoutEventCode(InDatagram* in)
 {
-  const Xtc& xtcEvrData = in->datagram().xtc;  
-  if ( xtcEvrData.sizeofPayload() == 0 )
-    return ERROR_FUNCTION_FAILURE;
-    
   /*
    * The evrData comes from NetDgServer, and so it has two extra levels of Xtc for wrapping the EVR data
    */
-  const EvrDataType& evrData = *(const EvrDataType*) (xtcEvrData.payload() + sizeof(Xtc) * 2);
+  const Xtc& xtcEvrData = in->datagram().xtc;  
+  if ( xtcEvrData.sizeofPayload() == 0 )
+    return ERROR_FUNCTION_FAILURE;
+
+  /*
+   * Only support EvrData Version 3
+   */
+  const Xtc&          xtcData     = *(const Xtc*) (xtcEvrData.payload() + sizeof(Xtc));
+  const TypeId&       typeIdData  = xtcData.contains;
+  if ( typeIdData.id()      != TypeId::Id_EvrData && 
+       typeIdData.version() != 3)
+  {
+    printf( "PrincetonServer::checkReadoutEventCode(): Evr data contains invalid type id %s, version %d\n", 
+      TypeId::name(typeIdData.id()), typeIdData.version() );
+    return ERROR_FUNCTION_FAILURE;
+  }
+  
+  const EvrDataType&  evrData = *(const EvrDataType*) (xtcData.payload());
   
   if ( _iDebugLevel >= 3 )
     printf( "# of fifo events: %d\n", evrData.numFifoEvents() );

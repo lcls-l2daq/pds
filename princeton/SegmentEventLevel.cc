@@ -1,5 +1,8 @@
 #include "SegmentEventLevel.hh"
 
+#include <string>
+#include <sstream>
+
 #include "pds/management/EventStreams.hh"
 #include "pds/utility/InletWire.hh"
 #include "pds/utility/OutletWire.hh"
@@ -24,6 +27,20 @@ SegmentEventLevel::~SegmentEventLevel()
 {
 }
 
+static std::string addressToStr( unsigned int uAddr )
+{
+    unsigned int uNetworkAddr = htonl(uAddr);
+    const unsigned char* pcAddr = (const unsigned char*) &uNetworkAddr;
+    std::stringstream sstream;
+    sstream << 
+      (int) pcAddr[0] << "." <<
+      (int) pcAddr[1] << "." <<
+      (int) pcAddr[2] << "." <<
+      (int) pcAddr[3];
+      
+     return sstream.str();
+}
+
 void SegmentEventLevel::allocated(const Allocation & alloc, unsigned index)
 {
   unsigned partition = alloc.partitionid();
@@ -34,6 +51,16 @@ void SegmentEventLevel::allocated(const Allocation & alloc, unsigned index)
   // Look for EVR segment node, and record its index
   unsigned int  nnodes            = alloc.nnodes();
   const int     iEvrNodeIndex     = 0; // Control_gui will always set evr as the first node
+  
+  for (unsigned n = 0; n < nnodes; n++)
+  {
+    const Node & node = *alloc.node(n);
+    if (node.level() == Level::Segment)
+    {
+      printf( "Found Evr IP = %s\n", addressToStr(node.ip()).c_str() );
+      break;
+    }
+  }  
   
   unsigned vectorid = 0;
   _pEventServer = 0;
