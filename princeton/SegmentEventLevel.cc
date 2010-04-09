@@ -10,7 +10,6 @@ namespace Pds
 {
 
 SegmentEventLevel::  SegmentEventLevel(
-  const char*       strEvrIp,
   unsigned          platform,
   SegWireSettings&  settings,
   EventCallback&    callback,
@@ -19,7 +18,6 @@ SegmentEventLevel::  SegmentEventLevel(
   SegmentLevel  (platform, settings, callback, arp),      
   _pEventServer (NULL)
 {
-  _iEvrIp = ntohl( inet_addr( strEvrIp ) );
 }
 
 SegmentEventLevel::~SegmentEventLevel()
@@ -35,29 +33,7 @@ void SegmentEventLevel::allocated(const Allocation & alloc, unsigned index)
 
   // Look for EVR segment node, and record its index
   unsigned int  nnodes            = alloc.nnodes();
-  unsigned int  iNumSegmentNodes  = 0;
-  int           iEvrNodeIndex     = -1;
-  for (unsigned n = 0; n < nnodes; n++)
-  {
-    const Node & node = *alloc.node(n);
-    if (node.level() == Level::Segment)
-    {
-      if (node.ip() == _iEvrIp)
-      {
-        iEvrNodeIndex = iNumSegmentNodes;
-        break;
-      }
-      iNumSegmentNodes++;
-    }
-  }
-  
-  if ( iEvrNodeIndex < 0 )
-  {
-    printf( "SegmentEventLevel::allocated(): Unable to locate EVR node (IP: %x) in the current allocation\n", _iEvrIp );
-    return;
-  }
-
-  printf( "mcast, no bcast\n" );
+  const int     iEvrNodeIndex     = 0; // Control_gui will always set evr as the first node
   
   unsigned vectorid = 0;
   _pEventServer = 0;

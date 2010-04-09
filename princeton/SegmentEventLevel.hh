@@ -11,7 +11,6 @@ class SegmentEventLevel: public SegmentLevel
 {
 public:
   SegmentEventLevel(
-    const char*       strEvrIp,
     unsigned          platform,
     SegWireSettings&  settings,
     EventCallback&    callback,
@@ -24,7 +23,6 @@ private:
   virtual void    allocated (const Allocation&, unsigned);
   virtual void    dissolved ();
 
-  int             _iEvrIp;
   NetDgServer*    _pEventServer;  // Server for listening to the event level datagram
 };
 
