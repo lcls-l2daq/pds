@@ -14,6 +14,7 @@ namespace Pds {
   public:
     enum MultiModuleNumber {Module0,Module1,Module2,Module3,Module4};
     AcqManager(ViSession instrumentId, AcqServer& server, CfgClientNfs& cfg);
+    ~AcqManager();
     Appliance& appliance();
     unsigned temperature(MultiModuleNumber module);
     static const char* calibPath();

@@ -1,4 +1,3 @@
-
 // This is how the acqiris readout software is structured.  It is
 // not completely straight-forward, because it attempts to make the
 // acqiris driver play well with our event-builder, with no extra
@@ -49,6 +48,8 @@
 #include "pdsdata/acqiris/DataDescV1.hh"
 #include "pds/config/CfgClientNfs.hh"
 #include "acqiris/aqdrv4/AcqirisImport.h"
+#include "pds/utility/Occurrence.hh"
+#include "pds/utility/OccurrenceId.hh"
 
 #define ACQ_TIMEOUT_MILISEC 5000
 
@@ -189,7 +190,11 @@ public:
   AcqL1Action(ViSession instrumentId, AcqManager* mgr) :
     AcqDC282Action(instrumentId),
     _lastAcqTS(0),_lastEvrFid(0),_lastEvrClockNSec(0),_initFlag(0),_evrAbsDiffNSec(0),
-    _mgr(mgr),_outoforder(0) {}
+    _mgr(mgr),
+    _occPool   (new GenericPool(sizeof(Occurrence),1)), 
+    _outoforder(0) {}
+  ~AcqL1Action() { delete _occPool; }
+
   InDatagram* fire(InDatagram* in) {
     Datagram& dg = in->datagram();
     if (!dg.xtc.damage.value()) validate(in);
@@ -197,7 +202,8 @@ public:
     return in;
   }
   void notRunning() { } 
-  
+  void reset() { _outoforder = 0; _initFlag = 0; }
+
   unsigned validate(InDatagram* in) {
     Datagram& dg = in->datagram();
     Acqiris::DataDescV1& data = *(Acqiris::DataDescV1*)(dg.xtc.payload()+sizeof(Xtc));
@@ -233,6 +239,10 @@ public:
                evrfid,_lastEvrFid,acqts,_lastAcqTS,evrClockNSec,_lastEvrClockNSec);		    
       }
       _outoforder=1;	  
+
+      Pds::Occurrence* occ = new (_occPool)
+	Pds::Occurrence(Pds::OccurrenceId::ClearReadout);
+      _mgr->appliance().post(occ);
     }
 	
 
@@ -245,7 +255,7 @@ public:
       _lastEvrClockNSec = evrClockNSec;
     }
 
-    _outoforder=0; 
+    //    _outoforder=0; 
     _initFlag = 1;
     return 0;
   }
@@ -256,8 +266,8 @@ private:
   unsigned _initFlag;
   unsigned long long _evrAbsDiffNSec;  
   AcqManager* _mgr;
+  GenericPool* _occPool;
   unsigned _outoforder;
-  
 };
 
 class AcqDisableAction : public AcqDC282Action {
@@ -273,6 +283,17 @@ private:
   AcqL1Action& _acql1;
 };
 
+class AcqEnableAction : public Action {
+public:
+  AcqEnableAction(AcqL1Action& acql1) : _acql1(acql1) {}
+  Transition* fire(Transition* in) {	
+    _acql1.reset(); 
+    return in;
+  }
+private:
+  AcqL1Action& _acql1;
+};
+
 class AcqConfigAction : public AcqDC282Action {
   enum {MaxConfigSize=0x100000};
 public:
@@ -280,7 +301,7 @@ public:
 		  CfgClientNfs& cfg) :
     AcqDC282Action(instrumentId),_reader(reader),_dma(dma), 
     _cfgtc(_acqConfigType,src),
-    _cfg(cfg),_firstTime(1) {}
+    _cfg(cfg), _firstTime(1) {}
   ~AcqConfigAction() {}
   InDatagram* fire(InDatagram* dg) {
     // insert assumes we have enough space in the input datagram
@@ -554,10 +575,11 @@ AcqManager::AcqManager(ViSession InstrumentID, AcqServer& server, CfgClientNfs& 
   AcqDma& dma = *new AcqDma(_instrumentId,reader,server,task);
   server.setDma(&dma);
   Action* caction = new AcqConfigAction(_instrumentId,reader,dma,server.client(),cfg);
-  _fsm.callback(TransitionId::Configure,caction);
   AcqL1Action& acql1 = *new AcqL1Action(_instrumentId,this);
+  _fsm.callback(TransitionId::Configure,caction);
   _fsm.callback(TransitionId::Map, new AcqAllocAction(cfg)); 
   _fsm.callback(TransitionId::L1Accept,&acql1);
+  _fsm.callback(TransitionId::Enable ,new AcqEnableAction(acql1));
   _fsm.callback(TransitionId::Disable,new AcqDisableAction(_instrumentId,acql1));
 
   ViStatus status = Acqrs_calLoad(_instrumentId,AcqManager::calibPath(),1);
@@ -575,5 +597,7 @@ AcqManager::AcqManager(ViSession InstrumentID, AcqServer& server, CfgClientNfs& 
   */
 }
 
-
+AcqManager::~AcqManager()
+{
+}
 

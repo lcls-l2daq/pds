@@ -130,7 +130,8 @@ void EbSegment::deallocate(char* payload, int sizeofFragment)
   if (sizeofFragment + _offset > _header.extent) {
     _header.damage.increase(Damage::IncompleteContribution);
     if (nEbPrints)
-      printf("EbSegment overwrote next %x %x\n",_offset,_header.extent);
+      printf("EbSegment overwrote next %x + %x > %x\n",
+	     _offset,sizeofFragment,_header.extent);
   }
 }
 
