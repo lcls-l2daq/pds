@@ -37,6 +37,7 @@
 #include <linux/sched.h>
 #include <asm/system.h>
 #include <asm/uaccess.h>
+#include <linux/proc_fs.h>
 #include "pci3e.h"
 
 #if LINUX_VERSION_CODE < KERNEL_VERSION(2,5,0)
@@ -74,8 +75,13 @@ MODULE_LICENSE("GPL");
 
 #define REG_TO_ADDR(reg) (pci3e->ioaddr + REG_TO_OFFSET(reg))
 
+#ifdef __LP64__
+#define FILE_SET_DEV_NUM(file, num) (file->private_data = (void*) (uint64_t) num)
+#define FILE_GET_DEV_NUM(file)      ((uint64_t) file->private_data)
+#else
 #define FILE_SET_DEV_NUM(file, num) (file->private_data = (void*) num)
 #define FILE_GET_DEV_NUM(file)      ((int) file->private_data)
+#endif
 
 ////////////////////////////////////////////////////////////////////////
 // Function declarations.  All are internal to this file.
@@ -101,6 +107,17 @@ static unsigned int pci3e_poll( struct file* file,
 static int  __init pci3e_pci_probe(  struct pci_dev *pci_dev, 
                                      const struct pci_device_id *pci_id );
 static void __exit pci3e_pci_remove( struct pci_dev *pci_dev );
+
+static int pci3e_read_debug_procfs(  char* page,
+                                     char** start,
+                                     off_t offset,
+                                     int count,
+                                     int* eof,
+                                     void* data );
+static int pci3e_write_debug_procfs( struct file* f,
+                                     const char* buffer,
+                                     unsigned long count,
+                                     void* data );
 
 static int  __init pci3e_init( void );
 static void __exit pci3e_exit( void );
@@ -227,7 +244,7 @@ int pci3e_ioctl( struct inode *inode,
    struct pci3e_struct *pci3e = NULL;
    uint32_t fifo_entry[FIFO_ENTRY_LEN];
    int i;
-   unsigned int addr;
+   void* addr;
 
    if(devnum >= PCI3E_NUM_DEVS || !pci3e_devices[devnum])
       return -ENODEV;
@@ -267,11 +284,11 @@ int pci3e_ioctl( struct inode *inode,
 
       case IOCREADFIFO:
          PCI3E_DBG( "ioctl IOCREADFIFO.\n" );
-         addr = (uint32_t) ( pci3e->ioaddr + REG_TO_OFFSET(REG_FIFO_READ) );
+         addr = pci3e->ioaddr + REG_TO_OFFSET(REG_FIFO_READ);
          for( i = 0; i < FIFO_ENTRY_LEN; ++i )
          {
-            writel( JUNK, (void*) addr );
-            fifo_entry[i] = readl( (void*) addr );
+            writel( JUNK, addr );
+            fifo_entry[i] = readl( addr );
          }
 
          if( copy_to_user( (int*) arg,
@@ -416,13 +433,18 @@ unsigned int pci3e_poll( struct file* file,
 
    poll_wait( file, &pci3e_wait, wait );
 
-   // If FIFO enabled, we are readable only if the FIFO isn't empty.
+   // If FIFO enabled, we are readable only if:
+   // 1. The FIFO isn't empty, and
+   // 2. The FIFO isn't held in the init state.
+   // 
    // Else, we're readable after an interrupt latches an encoder.
    fifo_stat = readl( REG_TO_ADDR( REG_FIFO_ENABLE ) );
    if( fifo_stat )
    {
-      fifo_stat = readl( REG_TO_ADDR( REG_FIFO_STAT_CTRL ) );
-      if( ! ( fifo_stat & mask(FIFO_STAT_EMPTY) ) )
+      union REG_FIFO_STAT_CTRL_t stat;
+
+      stat.whole = readl( REG_TO_ADDR( REG_FIFO_STAT_CTRL ) );
+      if( ! ( stat.init || stat.is_empty ) )
       {
          poll_mask |= ( POLLIN | POLLRDNORM );
       }
@@ -629,12 +651,66 @@ void pci3e_pci_remove( struct pci_dev *pci_dev )
 }
 
 // ---------------------------------------------------------------------
+// procfs implementation
+// ---------------------------------------------------------------------
+
+int pci3e_read_debug_procfs( char* page,
+                             char** start,
+                             off_t offset,
+                             int count,
+                             int* eof,
+                             void* data )
+{
+   int num_written;
+
+   // A single read always gets our entire value.
+   *eof = 1;
+
+   // We always write our data at the beginning of the page.  note
+   // that this is the default value.
+   *start = NULL;
+
+   // Write the current value of the 'debug' variable into the buffer.
+   num_written = sprintf( page, "%i", debug );
+
+   // Always return the number of bytes written, including terminator.
+   return num_written + 1;
+}
+
+int pci3e_write_debug_procfs( struct file* f,
+                              const char* buffer,
+                              unsigned long count,
+                              void* data )
+{
+   char debug_buf[sizeof(debug)];
+   long raw_debug;
+   char* end;
+   int max_size;
+
+   max_size = sizeof(debug);
+
+   if( copy_from_user( debug_buf,
+                       buffer,
+                       count > max_size ? max_size : count ) )
+   {
+      return -EFAULT;
+   }
+
+   raw_debug = simple_strtol( debug_buf, &end, 10 );
+
+   debug = raw_debug ? 1 : 0;
+
+   return count;
+}
+
+// ---------------------------------------------------------------------
 // Linux loadable module interface.
 // ---------------------------------------------------------------------
 
 int pci3e_init(void)
 {
    int err;
+   struct proc_dir_entry* proc;
 
    printk(KERN_INFO PCI3E_MODULE_NAME ": " "US DIGITAL CORP. \n");
 
@@ -663,6 +739,13 @@ int pci3e_init(void)
    PCI3E_DBG( "%s: Assigned major number '%d'.\n",
               PCI3E_MODULE_NAME, MAJOR(dev) );
 
+   proc = create_proc_entry( "driver/pci3e-debug",
+                             0666, // Allow read/write.
+                             NULL );
+   proc->owner = THIS_MODULE;
+   proc->read_proc  = pci3e_read_debug_procfs;
+   proc->write_proc = pci3e_write_debug_procfs;
+
    return 0;
 }
 
@@ -671,6 +754,8 @@ void pci3e_exit( void )
    int d;
 
    printk( KERN_INFO "pci3e: exit...\n" );
+
+   remove_proc_entry( "driver/pci3e-debug", NULL );
 
    // If we have a device number, release it to the system.
    if( dev != PCI3E_NO_DEV )
