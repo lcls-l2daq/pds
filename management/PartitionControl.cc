@@ -267,7 +267,10 @@ void PartitionControl::message(const Node& hdr, const Message& msg)
       const Occurrence& occ = reinterpret_cast<const Occurrence&>(msg);
       switch(occ.id()) {
       case OccurrenceId::ClearReadout:
-	_queue(TransitionId::Disable);
+	printf("Received ClearReadout occurrence from %x/%d\nReconfiguring\n",
+	       hdr.procInfo().ipAddr(),
+	       hdr.procInfo().processId());
+	reconfigure();
 	break;
       default:
 	break;
