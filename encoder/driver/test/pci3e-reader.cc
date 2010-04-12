@@ -51,6 +51,14 @@ int main( int argc, char** argv )
 
    ret = pci3e.reg_write( REG_TRIG_CTRL, trig_ctrl.whole );
 
+   REG_FIFO_STAT_CTRL_t fifo_ctrl;
+   printf( "Ensure that FIFO is enabled...\n" );
+   ret = pci3e.reg_read( REG_FIFO_STAT_CTRL, &fifo_ctrl.whole );
+   printf( "\tREG_FIFO_STAT_CTRL = 0x%08x.\n", fifo_ctrl.whole );
+   fifo_ctrl.init = 0;
+   ret = pci3e.reg_write( REG_FIFO_STAT_CTRL, fifo_ctrl.whole );
+   printf( "\tREG_FIFO_STAT_CTRL = 0x%08x.\n", fifo_ctrl.whole );
+   
    printf( "Clearing any previous trigger on input 0...\n" );
    ret = pci3e.clear_input_trigger( 0 );
 
