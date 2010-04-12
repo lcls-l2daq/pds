@@ -136,7 +136,8 @@ public:
      */
     if ( _pEvrConfig != NULL )
     {
-      for ( unsigned int uEventIndex = 0; uEventIndex < _pEvrConfig->neventcodes(); uEventIndex++ )
+      unsigned int uEventIndex = 0;
+      for ( ; uEventIndex < _pEvrConfig->neventcodes(); uEventIndex++ )
       {
         const EvrConfigType::EventCodeType& eventCode = _pEvrConfig->eventcode( uEventIndex );
         if ( eventCode.code() != uEventCode )
@@ -155,7 +156,19 @@ public:
         
         break; // skip all the remaining event codes
       }
-    }
+      
+      /*
+       * Even if beam code (140) is not included in the config class, we still include
+       * it in the data, since the beam code is a useful information for indicating
+       * if beam is present of not.
+       */
+      if ( uEventIndex == _pEvrConfig->neventcodes() &&      
+        uEventCode == EvrManager::BEAM_EVENT_CODE )
+      {
+        _L1DataUpdated.addFifoEvent( *(const EvrData::DataV3::FIFOEvent*) &fe );
+      }      
+    } // if ( _pEvrConfig != NULL )
+    
 
     if ( bStartL1Accept )
     {      
@@ -212,7 +225,7 @@ public:
       if (_evtCounter == _evtStop)
         _done.expired();                     
     }
-  }
+  } // if ( bStartL1Accept )
   
   void reset()  { _evtCounter = 0; }
   
@@ -394,12 +407,13 @@ static unsigned int evrConfigSize(unsigned maxNumEventCodes, unsigned maxNumPuls
 class EvrConfigAction:public EvrAction
 {
 public:
-  EvrConfigAction(Evr & er,
-      CfgClientNfs & cfg):EvrAction(er),
+  EvrConfigAction(Evr & er, CfgClientNfs & cfg, bool bTurnOffBeamCode):
+    EvrAction(er),
     _cfg(cfg),
     _cfgtc(_evrConfigType, cfg.src()),
     _configBuffer(
-      new char[ evrConfigSize( giMaxEventCodes, giMaxPulses, giMaxOutputMaps ) ] )
+      new char[ evrConfigSize( giMaxEventCodes, giMaxPulses, giMaxOutputMaps ) ] ),
+    _bTurnOffBeamCode(_bTurnOffBeamCode)
   {
   }
 
@@ -487,6 +501,9 @@ public:
       }
     }
     
+    if (!_bTurnOffBeamCode)
+      _er.SetFIFOEvent(ram, EvrManager::BEAM_EVENT_CODE, enable);
+    
     _er.MapRamEnable(ram, 0);
     
     l1xmitGlobal->reset();
@@ -497,9 +514,10 @@ public:
   }
 
 private:
-  CfgClientNfs & _cfg;
-  Xtc _cfgtc;
-  char *_configBuffer;
+  CfgClientNfs &  _cfg;
+  Xtc             _cfgtc;
+  char *          _configBuffer;
+  bool            _bTurnOffBeamCode;
 };
 
 class EvrAllocAction:public Action
@@ -566,14 +584,14 @@ Appliance & EvrManager::appliance()
   return _fsm;
 }
 
-EvrManager::EvrManager(EvgrBoardInfo < Evr > &erInfo, CfgClientNfs & cfg):
-_er(erInfo.board()), _fsm(*new Fsm), _done(new DoneTimer(_fsm))
+EvrManager::EvrManager(EvgrBoardInfo < Evr > &erInfo, CfgClientNfs & cfg, bool bTurnOffBeamCode):
+_er(erInfo.board()), _fsm(*new Fsm), _done(new DoneTimer(_fsm)), _bTurnOffBeamCode(bTurnOffBeamCode)
 {
 
   l1xmitGlobal = new L1Xmitter(_er, *_done);
 
   _fsm.callback(TransitionId::Map, new EvrAllocAction(cfg));
-  _fsm.callback(TransitionId::Configure, new EvrConfigAction(_er, cfg));
+  _fsm.callback(TransitionId::Configure, new EvrConfigAction(_er, cfg, bTurnOffBeamCode));
   _fsm.callback(TransitionId::BeginRun, new EvrBeginRunAction(_er));
   _fsm.callback(TransitionId::EndRun, new EvrEndRunAction(_er));
   _fsm.callback(TransitionId::Enable, new EvrEnableAction(_er, *_done));
@@ -626,3 +644,5 @@ void EvrManager::sigintHandler(int)
   }
   exit(0);
 }
+
+const int EvrManager::BEAM_EVENT_CODE; // value is defined in the header file

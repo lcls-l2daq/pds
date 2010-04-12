@@ -13,22 +13,25 @@ namespace Pds {
   template <class T> class EvgrBoardInfo;
 
   class EvrManager {
-  public:
-    EvrManager(EvgrBoardInfo<Evr>& erInfo, 
-	       CfgClientNfs& cfg);
+  public:  
+    EvrManager(EvgrBoardInfo<Evr>& erInfo, CfgClientNfs& cfg, bool bTurnOffBeamCode);
     ~EvrManager();
 
     // SIGINT handler
     static void sigintHandler(int);
-  public:
+    
     Appliance& appliance();
-  public:
+
     // for testing
     static void drop_pulses(unsigned mask);
   private:
-    Evr& _er;
-    Fsm& _fsm;
-    DoneTimer* _done;
+    Evr&        _er;
+    Fsm&        _fsm;
+    DoneTimer*  _done;
+    bool        _bTurnOffBeamCode;
+    
+  public:
+    static const int BEAM_EVENT_CODE = 140;
   };
 }
 
