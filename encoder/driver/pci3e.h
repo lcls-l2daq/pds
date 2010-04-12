@@ -435,7 +435,7 @@ union REG_FIFO_STAT_CTRL_t
       unsigned reserved1 : 6;
       unsigned is_full : 1;
       unsigned is_empty : 1;
-      unsigned num_items : 10;
+      unsigned num_items : 11;
       unsigned reserved2 : 11;
    };
 };
