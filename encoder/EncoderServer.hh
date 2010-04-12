@@ -47,8 +47,7 @@ class Pds::EncoderServer
 
    void setFakeCount( unsigned fakeCount )
       { _fakeCount = fakeCount; }
-   unsigned configure(const EncoderConfigType& config)
-      { return _encoder->configure(config); }
+   unsigned configure(const EncoderConfigType& config);
 
  private:
    Xtc _xtc;

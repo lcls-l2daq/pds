@@ -17,17 +17,25 @@ Pds::EncoderServer::EncoderServer( const Src& client )
    _xtc.extent = sizeof(EncoderDataType) + sizeof(Xtc);
 }
 
+unsigned Pds::EncoderServer::configure(const EncoderConfigType& config)
+{
+   _count = 0;
+   return _encoder->configure(config);
+}
+
 int Pds::EncoderServer::fetch( char* payload, int flags )
 {
    Pds::Encoder::DataV1 data;
    int ret;
+
+   // Verify that there is indeed data to read.
 
    ret = _encoder->get_data( data );
    if( ret )
    {
       printf( "PCI3E_dev error: fetch data had problems...\n" );
       // register damage?
-      return -1;
+      return 0;
    }
 
    // FIXME: What *is* this funky calculation??
