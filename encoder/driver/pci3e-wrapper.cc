@@ -230,10 +230,27 @@ int PCI3E::dev::enable_fifo( void )
 
 int PCI3E::dev::clear_fifo( void )
 {
+   int ret;
    REG_FIFO_STAT_CTRL_t reg;
 
    reg.whole = 0;
+
+   printf( "PCI3E::dev::clear_fifo().\n" );
+
+   ret = reg_read( REG_FIFO_STAT_CTRL, &reg.whole );
+   if( !ret )
+   {
+      return ret;
+   }
+
    reg.init = 1;
+   ret = reg_write( REG_FIFO_STAT_CTRL, reg.whole );
+   if( !ret )
+   {
+      return ret;
+   }
+
+   reg.init = 0;
    return reg_write( REG_FIFO_STAT_CTRL, reg.whole );
 }
 
