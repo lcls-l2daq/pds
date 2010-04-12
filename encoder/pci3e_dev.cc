@@ -11,6 +11,16 @@
    if( ret ) return ret;     \
 }
 
+int Pds::PCI3E_dev::open( void )
+{
+   int ret;
+
+   BAIL_ON_FAIL( _pci3e.open() );
+   ignore_old_data();
+
+   return 0;
+}
+
 int Pds::PCI3E_dev::configure( const Pds::Encoder::ConfigV1& config )
 {
    int ret;
@@ -72,4 +82,28 @@ int Pds::PCI3E_dev::get_data( Pds::Encoder::DataV1& data )
    data._encoder_count = entry.count;
 
    return 0;
+}
+
+int Pds::PCI3E_dev::ignore_old_data( void )
+{
+   int ret;
+   REG_FIFO_STAT_CTRL_t reg;
+
+   // Initialize the FIFO (clearing out old entries) if necessary.
+   // Leaves FIFO in same state we found it.
+
+   printf( "PCI3E_dev:;ignore_old_data().\n" );
+
+   BAIL_ON_FAIL( _pci3e.reg_read( REG_FIFO_STAT_CTRL, &reg.whole ) );
+
+   if( ! reg.init )
+   {
+      reg.init = 1;
+      BAIL_ON_FAIL( _pci3e.reg_write( REG_FIFO_STAT_CTRL, reg.whole ) );
+
+      reg.init = 0;
+      BAIL_ON_FAIL( _pci3e.reg_write( REG_FIFO_STAT_CTRL, reg.whole ) );
+   }
+
+   return ret;
 }

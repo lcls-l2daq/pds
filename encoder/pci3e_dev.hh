@@ -19,10 +19,10 @@ class Pds::PCI3E_dev
       : _pci3e( pci3e_dev_node ) {}
    ~PCI3E_dev() {}
     
-   int open( void )
-      { return _pci3e.open(); }
+   int open( void );
    int configure( const Pds::Encoder::ConfigV1& config );
    int get_data( Pds::Encoder::DataV1& data );
+   int ignore_old_data( void );
    int get_fd()
       { return _pci3e.get_fd(); }
 
