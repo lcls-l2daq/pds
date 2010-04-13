@@ -16,7 +16,8 @@ namespace Pds {
 
   class Opal1kManager : public CameraManager {
   public:
-    Opal1kManager(const Src& src);
+    Opal1kManager(const Src& src,
+		  unsigned   grabberId=0);
     ~Opal1kManager();
 
   public:
@@ -50,6 +51,7 @@ namespace Pds {
     //  buffer management
     bool            _outOfOrder;
     GenericPool*    _occPool;
+    unsigned        _grabberId;
   };
 };
 

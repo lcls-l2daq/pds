@@ -45,7 +45,7 @@ Frame::Frame(unsigned startCol, unsigned endCol,
   unsigned char* dst = data();
   const unsigned char* src = reinterpret_cast<const unsigned char*>(input);
   src += (startRow * fwidth + startCol) * dbytes;
-  while(startRow < endRow) {
+  while(startRow++ < endRow) {
     memcpy(dst, src, w);
     dst +=  w;
     src += fw;

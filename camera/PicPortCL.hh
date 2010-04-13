@@ -36,7 +36,7 @@ namespace PdsLeutron {
 
   class PicPortCL: public LvCamera {
   public:
-    PicPortCL(int _grabberid = 0);
+    PicPortCL(int grabberid = 0);
     virtual ~PicPortCL();
   public:
     int SetNotification(enum NotifyType mode);

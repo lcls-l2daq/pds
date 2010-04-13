@@ -44,12 +44,14 @@ namespace Pds {
   };
 };
 
-Opal1kManager::Opal1kManager(const Src& src) :
+Opal1kManager::Opal1kManager(const Src& src,
+			     unsigned   grabberId) :
   CameraManager(src, new Opal1kConfig(src)),
   _fexConfig   (new FexConfig(src)),
   _server      (new FexFrameServer(src,*_splice)),
-  _camera    (0),
-  _occPool   (new GenericPool(sizeof(Occurrence),1))
+  _camera      (0),
+  _occPool     (new GenericPool(sizeof(Occurrence),1)),
+  _grabberId   (grabberId)
 {
 }
 
@@ -62,7 +64,7 @@ Opal1kManager::~Opal1kManager()
 
 FrameServer& Opal1kManager::server() { return *_server; }
 
-void Opal1kManager::attach_camera() { _camera = new PdsLeutron::Opal1kCamera; }
+void Opal1kManager::attach_camera() { _camera = new PdsLeutron::Opal1kCamera(NULL,_grabberId); }
 void Opal1kManager::detach_camera() { delete _camera; }
 
 void Opal1kManager::allocate (Transition* tr)
