@@ -27,9 +27,6 @@
 // The fiducial clock runs at 360Hz.
 #define FIDUCIAL_PER_SEC (360ULL)
 
-// The encoder clock runs at 33MHz.  Came from lab measurements.
-#define ENCODER_TICK_PER_SEC (33211432ULL)
-
 #define NUM_ENCODER_TICKS (1ULL << 32)
 
 // The encoder's timestamp clock runs at 33Mhz.
@@ -87,6 +84,7 @@ class EncoderL1Action : public Action
 
    InDatagram* fire(InDatagram* in);
    void validate( InDatagram* in );
+   void reconfigure( void );
 
    bool     _reset_on_next;
    uint32_t _last_fiducial;
@@ -95,11 +93,17 @@ class EncoderL1Action : public Action
 };
 
 EncoderL1Action::EncoderL1Action()
-   : _reset_on_next( true ),
-     _last_fiducial( 0 ),
-     _last_enc_timestamp( 0 ),
-     _last_evr_timestamp_ns( 0 )
-{}
+{
+   reconfigure();
+}
+
+void EncoderL1Action::reconfigure( void )
+{
+   _reset_on_next = true;
+   _last_fiducial = 0;
+   _last_enc_timestamp = 0;
+   _last_evr_timestamp_ns = 0;
+}
 
 InDatagram* EncoderL1Action::fire(InDatagram* in)
 {
@@ -247,13 +251,17 @@ class EncoderConfigAction : public EncoderAction
 
  public:
    EncoderConfigAction( const Src& src0,
-                      CfgClientNfs** cfg,
-                      EncoderServer* server[],
-                      int nServers )
+                        CfgClientNfs** cfg,
+                        EncoderServer* server[],
+                        int nServers,
+                        EncoderL1Action& L1 )
       : _cfgtc( _encoderConfigType, src0 ),
         _cfg( cfg ),
         _server( server ),
-        _nServers( nServers ) {}
+        _nServers( nServers ),
+        _L1( L1 )
+   {}
+
    ~EncoderConfigAction() {}
 
    InDatagram* fire(InDatagram* dg)
@@ -271,33 +279,27 @@ class EncoderConfigAction : public EncoderAction
 
    Transition* fire(Transition* tr)
    {
-      // todo: get configuration from database.
-      // program/validate register settings
-      //    int len = _cfg.fetch(*tr,_ipimbConfigType, &_config, sizeof(_config));
-      int len = 1;
-
-      if (len <= 0)
-      {
-         printf("EncoderConfigAction: failed to retrieve configuration "
-                ": (%d)%s.  Applying default.\n",
-                errno,
-                strerror(errno) );
-      }
-
-      // FIXME - Remove after config db is working.
-      new (&_config) Encoder::ConfigV1( 0, // channel 0
-                                        COUNT_MODE_WRAP_FULL,
-                                        QUAD_MODE_X1,
-                                        0, // Input 0
-                                        1, // trigger on rising edge
-                                        33211600 );
-      _config.dump();
-
       _nerror = 0;
       for (unsigned i = 0; i < _nServers; i++)
       {
-         // int len = *_cfg[i].fetch(*tr,_ipimbConfigType, &_config, sizeof(_config));
-         _nerror += _server[i]->configure( _config );
+         int len = (*_cfg[i]).fetch( *tr,
+                                     _encoderConfigType,
+                                     &_config,
+                                     sizeof(_config) );
+         if (len <= 0)
+         {
+            printf("EncoderConfigAction: failed to retrieve configuration "
+                   ": (%d) %s.  Applying default.\n",
+                   errno,
+                   strerror(errno) );
+            _nerror += 1;
+         }
+         else
+         {
+            _config.dump();
+            _nerror += _server[i]->configure( _config );
+            _L1.reconfigure();
+         }
       }
       curr_enc_tick_per_sec = _config._ticks_per_sec;
 
@@ -312,6 +314,7 @@ class EncoderConfigAction : public EncoderAction
    EncoderServer** _server;
    unsigned _nerror;
    unsigned _nServers;
+   EncoderL1Action& _L1;
 };
 
 
@@ -335,14 +338,16 @@ EncoderManager::EncoderManager( EncoderServer* server[],
       server[i]->setEncoder( encoder );
    }
 
+   EncoderL1Action& encoderl1 = * new EncoderL1Action();
+
    const Src& src0 = server[_nServers-1]->client();
    Action* caction = new EncoderConfigAction( src0,
                                               cfg,
                                               server,
-                                              _nServers);
+                                              _nServers,
+                                              encoderl1 );
    _fsm.callback( TransitionId::Configure, caction );
 
-   EncoderL1Action& encoderl1 = * new EncoderL1Action();
 
    for( unsigned i = 0; i < _nServers; i++ )
    {
