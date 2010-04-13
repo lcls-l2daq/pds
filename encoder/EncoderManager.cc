@@ -33,9 +33,9 @@
 #define NUM_ENCODER_TICKS (1ULL << 32)
 
 // The encoder's timestamp clock runs at 33Mhz.
-#define NS_PER_ENC_TICK (NS_PER_SEC / ENCODER_TICK_PER_SEC)
+#define NS_PER_ENC_TICK ((double) NS_PER_SEC / curr_enc_tick_per_sec)
 
-#define NS_PER_FIDUCIAL (NS_PER_SEC / FIDUCIAL_PER_SEC)
+#define NS_PER_FIDUCIAL ((double) NS_PER_SEC / FIDUCIAL_PER_SEC)
 
 #define ENCODER_TICK_OVERFLOW_NS (NUM_ENCODER_TICKS * NS_PER_ENC_TICK)
 
@@ -179,8 +179,8 @@ void EncoderL1Action::validate( InDatagram* in )
       _last_fiducial = curr_fiducial;
       _last_enc_timestamp = curr_enc_timestamp;
       _last_evr_timestamp_ns = curr_evr_timestamp_ns;
-      printf( "L1Action::validate(): First event - OK.\n" );
-      printf( "Enc Timestamp: %lu.\n", _last_enc_timestamp );
+      // printf( "L1Action::validate(): First event - OK.\n" );
+      // printf( "Enc Timestamp: %u.\n", _last_enc_timestamp );
       return;
    }
 
@@ -195,7 +195,7 @@ void EncoderL1Action::validate( InDatagram* in )
       diff_enc_timestamp =  NUM_ENCODER_TICKS
                           + curr_enc_timestamp - _last_enc_timestamp;
    }
-   diff_enc_timestamp_ns = diff_enc_timestamp * curr_enc_tick_per_sec;
+   diff_enc_timestamp_ns = (uint64_t) ( diff_enc_timestamp * NS_PER_ENC_TICK );
 
    // Account for fiducial wrap.
    if( curr_fiducial > _last_fiducial ) {
@@ -204,11 +204,15 @@ void EncoderL1Action::validate( InDatagram* in )
       diff_fiducial =  Pds::TimeStamp::MaxFiducials
                      + curr_fiducial - _last_fiducial;
    }
-   diff_fiducial_ns = diff_fiducial * NS_PER_FIDUCIAL;
+   diff_fiducial_ns = (uint64_t) ( diff_fiducial * NS_PER_FIDUCIAL );
 
-   diff_evr_vs_enc_ns = llabs( diff_enc_timestamp_ns - diff_fiducial_ns );
+   if( diff_enc_timestamp_ns > diff_fiducial_ns ) {
+      diff_evr_vs_enc_ns = diff_enc_timestamp_ns - diff_fiducial_ns;
+   } else {
+      diff_evr_vs_enc_ns = diff_fiducial_ns - diff_enc_timestamp_ns;
+   }
 
-   printf( "diff_evr_vs_enc_ns = %llu.\n", diff_evr_vs_enc_ns );
+   // printf( "diff_evr_vs_enc_ns = %llu.\n", diff_evr_vs_enc_ns );
 
    if( diff_evr_vs_enc_ns > (uint64_t) EVR_ENC_MAX_DIFF_NS )
    {  // Failed - we must have missed an event.  In this case, we have
@@ -217,23 +221,23 @@ void EncoderL1Action::validate( InDatagram* in )
       // point.  Oops!  Just start over.
       _reset_on_next = true;
       dg.xtc.damage.increase( Pds::Damage::OutOfOrder );
-      printf( "L1Action::validate(): Fail: diff=%llu.\n",
+      printf( "L1Action::validate(): Fail: diff=%llu, .\n",
               diff_evr_vs_enc_ns );
-      printf( "\tcurr_fid=%lu, curr_enc=%lu, curr_evr=%llu.\n",
+      printf( "\tcurr_fid=%u, curr_enc=%u, curr_evr=%llu.\n",
               curr_fiducial, curr_enc_timestamp, curr_evr_timestamp_ns );
-      printf( "\tlast_fid=%lu, last_enc=%lu, last_evr=%llu.\n",
+      printf( "\tlast_fid=%u, last_enc=%u, last_evr=%llu.\n",
               _last_fiducial, _last_enc_timestamp, _last_evr_timestamp_ns );
-      printf( "\tdiff_fid=%lu, diff_enc=%lu, diff_evr=%llu.\n",
-              diff_fiducial, diff_enc_timestamp, diff_evr_timestamp_ns );
-      printf( "\tdiff_evr_vs_enc_ns=%llu.\n",
-              diff_evr_vs_enc_ns );
+      printf( "\tdiff_fid=%u, diff_enc=%u, diff_enc_ns=%llu.\n",
+              diff_fiducial, diff_enc_timestamp, diff_enc_timestamp_ns );
+      printf( "\tdiff_fid_ns=%llu, diff_evr_vs_enc_ns=%llu.\n",
+              diff_fiducial_ns, diff_evr_vs_enc_ns );
    }
    else
    {
       _last_fiducial = curr_fiducial;
       _last_enc_timestamp = curr_enc_timestamp;
       _last_evr_timestamp_ns = curr_evr_timestamp_ns;
-      printf( "Enc Timestamp: %lu.\n", _last_enc_timestamp );
+      // printf( "Enc Timestamp: %u.\n", _last_enc_timestamp );
    }
 }
 
@@ -286,7 +290,7 @@ class EncoderConfigAction : public EncoderAction
                                         QUAD_MODE_X1,
                                         0, // Input 0
                                         1, // trigger on rising edge
-                                        33211432 );
+                                        33211600 );
       _config.dump();
 
       _nerror = 0;
