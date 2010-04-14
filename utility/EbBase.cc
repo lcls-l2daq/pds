@@ -259,8 +259,11 @@ void EbBase::_post(EbEventBase* event)
       for(unsigned i=0; !r.isZero(); i++, id <<= 1) {
 	if ( !(r & id).isZero() ) {
 	  EbServer* srv = (EbServer*)server(i);
-	  snprintf(buff+strlen(buff),buffsize-strlen(buff)," [%x/%x]",
-		   srv->client().log(),srv->client().phy());
+	  if (srv)
+	    snprintf(buff+strlen(buff),buffsize-strlen(buff)," [%x/%x]",
+		     srv->client().log(),srv->client().phy());
+	  else
+	    snprintf(buff+strlen(buff),buffsize-strlen(buff)," [?/?]");
 	  r &= ~id;
 	}
       }
@@ -275,8 +278,15 @@ void EbBase::_post(EbEventBase* event)
       if ( !(remaining & id).isZero() ) {
 	if (_vmoneb) _vmoneb->fixup(i);
 	EbServer* srv = (EbServer*)server(i);
-	srv->fixup();
-	dmg |= _fixup(event, srv->client(), id);
+	if (srv) {
+	  srv->fixup();
+	  dmg |= _fixup(event, srv->client(), id);
+	}
+	else {
+	  printf("EbBase::_post fixup NULL server : clients %x  remaining %x\n",
+		 _clients.value(), remaining.value());
+	  dmg |= _fixup(event, _id, id);
+	}
 	remaining &= ~id;
       }
     }

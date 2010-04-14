@@ -1,3 +1,5 @@
+2010-Apr-14 weaver	Changed InDatagram/Datagram relationship to inheritance rather than contains.
+			Protected EbBase from crashing on late L1Accepts (after Unmap).
 2010-Mar-15 weaver	Tag V01-09-00.  Added traffic shaping to segment levels.
 2010-Mar-12 weaver	Refactor pds/camera classes for FCCD implementation.
 2009-Dec-03 tomytsai    Update epicsArch classes to skip missing PVs and report damage, and also limit on the number of 

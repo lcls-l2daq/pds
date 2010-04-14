@@ -1,11 +1,12 @@
 #ifndef Pds_InDatagram_hh
 #define Pds_InDatagram_hh
 
+#include "pds/xtc/Datagram.hh"
+
 #include <sys/socket.h>
 
 namespace Pds {
 
-  class Datagram;
   class Xtc;
   class InDatagramIterator;
   class Pool;
@@ -15,12 +16,14 @@ namespace Pds {
   class OobServer;
   class TrafficDst;
 
-  class InDatagram {
+  class InDatagram : public Datagram {
   public:
+    InDatagram(const InDatagram& dg);
+    InDatagram(const Datagram& dg);
     virtual ~InDatagram() {}
 
-    virtual const Datagram& datagram() const = 0;
-    virtual Datagram& datagram() = 0;
+    const Datagram& datagram() const { return *this; }
+    Datagram& datagram() { return *this; }
 
     virtual bool insert(const Xtc& tc, const void* payload) = 0;
 
@@ -33,6 +36,16 @@ namespace Pds {
     //    virtual int  unblock(OobServer&, char*) = 0;
   };
 
+}
+
+inline Pds::InDatagram::InDatagram(const Pds::InDatagram& dg) :
+  Pds::Datagram(dg)
+{
+}
+
+inline Pds::InDatagram::InDatagram(const Pds::Datagram& dg) :
+  Pds::Datagram(dg)
+{
 }
 
 #endif

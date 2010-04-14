@@ -2,7 +2,6 @@
 #define Pds_ZcpDatagram_hh
 
 #include "InDatagram.hh"
-#include "Datagram.hh"
 #include "pds/service/RingPool.hh"
 #include "pds/service/Pool.hh"
 #include "pds/service/ZcpFragment.hh"
@@ -23,9 +22,6 @@ namespace Pds {
     void* operator new(size_t, Pool*);
     void  operator delete(void* buffer);
 
-    const Datagram& datagram() const;
-    Datagram& datagram();
-
     bool insert(const Xtc& tc, const void* payload);
 
     InDatagramIterator* iterator(Pool*) const;
@@ -42,7 +38,7 @@ namespace Pds {
     int _insert(ZcpFragment&,int);
     int _insert(ZcpStream&  ,int,ZcpFragment&);
   private:
-    ZcpDatagram(const ZcpDatagram& dg) : _datagram(dg._datagram) {}
+    ZcpDatagram(const ZcpDatagram& dg);
     // Friends who can break up the datagram during transmission/iteration
     friend class ToEb;
     friend class ToNetEb;
@@ -50,27 +46,32 @@ namespace Pds {
     friend class ZcpDatagramIterator;
 
   private:
-    Datagram    _datagram; // the header
     ZcpStream   _stream;   // the payload
   };
 
 }
 
-inline Pds::ZcpDatagram::ZcpDatagram(const Datagram& dg) :
-  _datagram(dg)
+inline Pds::ZcpDatagram::ZcpDatagram(const Pds::Datagram& dg) :
+  Pds::InDatagram(dg)
 {
 }
 
-inline Pds::ZcpDatagram::ZcpDatagram(const Datagram& dg,
-				     ZcpFragment& fragment) :
-  _datagram(dg)
+inline Pds::ZcpDatagram::ZcpDatagram(const Pds::Datagram& dg,
+				     Pds::ZcpFragment& fragment) :
+  Pds::InDatagram(dg)
 {
-  _datagram.xtc.alloc(fragment.size());
+  xtc.alloc(fragment.size());
   _stream.insert(fragment,fragment.size());
 }
 
-inline Pds::ZcpDatagram::ZcpDatagram(const TypeId& type, const Src& src) :
-  _datagram(type,src)
+inline Pds::ZcpDatagram::ZcpDatagram(const Pds::TypeId& type, 
+				     const Pds::Src& src) :
+  Pds::InDatagram(Pds::Datagram(type,src))
+{
+}
+
+inline Pds::ZcpDatagram::ZcpDatagram(const Pds::ZcpDatagram& dg) : 
+  Pds::InDatagram(dg) 
 {
 }
 
@@ -87,14 +88,14 @@ inline void Pds::ZcpDatagram::operator delete(void* buffer)
 inline int Pds::ZcpDatagram::_insert(char* p, int size)
 {
   int len = _stream.insert(p,size);
-  _datagram.xtc.alloc(len);
+  xtc.alloc(len);
   return len;
 }
 */
 inline int Pds::ZcpDatagram::_insert(ZcpFragment& zf, int size)
 {
   int len = _stream.insert(zf,size);
-  _datagram.xtc.alloc(len);
+  xtc.alloc(len);
   return len;
 }
 
@@ -106,7 +107,7 @@ inline int Pds::ZcpDatagram::_insert(ZcpStream& s, int size, ZcpFragment& f)
     _stream.insert(f,len);
     remaining -= len;
   }
-  _datagram.xtc.alloc(size);
+  xtc.alloc(size);
   return size;
 }
 

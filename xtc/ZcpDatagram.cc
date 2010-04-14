@@ -14,16 +14,6 @@ ZcpDatagram::~ZcpDatagram()
 {
 }
 
-const Datagram& ZcpDatagram::datagram() const
-{
-  return _datagram;
-}
-
-Datagram& ZcpDatagram::datagram()
-{
-  return _datagram;
-}
-
 bool ZcpDatagram::insert(const Xtc& tc, const void* payload)
 {
   ZcpFragment frag;
@@ -40,7 +30,7 @@ bool ZcpDatagram::insert(const Xtc& tc, const void* payload)
     p         += len;
     remaining -= len;
   }
-  _datagram.xtc.extent += tc.extent;
+  xtc.extent += tc.extent;
   return true;
 }
 

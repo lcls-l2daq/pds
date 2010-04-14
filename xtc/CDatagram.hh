@@ -2,7 +2,6 @@
 #define Pds_CDatagram_hh
 
 #include "InDatagram.hh"
-#include "Datagram.hh"
 #include "pds/service/Pool.hh"
 #include "pds/service/RingPool.hh"
 
@@ -23,8 +22,6 @@ namespace Pds {
     //void* operator new(size_t, void*);
     void  operator delete(void* buffer);
 
-    const Datagram& datagram() const;
-    Datagram& datagram();
     Datagram& dg();
 
     bool insert(const Xtc& tc, const void* payload);
@@ -36,33 +33,32 @@ namespace Pds {
     int  unblock(OobServer&, char*);
 
     TrafficDst* traffic(const Ins&);
-  private:
-    Datagram  _datagram;
   };
 }
 
 
 inline Pds::CDatagram::CDatagram(const Datagram& dg) :
-  _datagram(dg,dg.xtc.contains,dg.xtc.src)
+  InDatagram(dg)
 {
+  xtc.damage = 0;
 }
 
 inline Pds::CDatagram::CDatagram(const Datagram& dg,
-         const Xtc& xtc) :
-  _datagram(dg)
+				 const Xtc& tc) :
+  InDatagram(dg)
 {
   int size = xtc.sizeofPayload();
-  memcpy(_datagram.xtc.alloc(size),xtc.payload(),size);
+  memcpy(xtc.alloc(size),tc.payload(),size);
 }
 
 inline Pds::CDatagram::CDatagram(const TypeId& type, const Src& src) :
-  _datagram(type,src)
+  InDatagram(Datagram(type,src))
 {
 }
 
 inline Pds::CDatagram::CDatagram(const Datagram& dg, const TypeId& ctn,
                                  const Src& src) :
-  _datagram(dg,ctn,src)
+  InDatagram(Datagram(dg,ctn,src))
 {
 }
 
@@ -85,6 +81,8 @@ inline void Pds::CDatagram::operator delete(void* buffer)
 {
   Pds::RingPool::free(buffer);
 }
+
+inline Pds::Datagram& Pds::CDatagram::dg() { return *this; }
 
 
 #endif
