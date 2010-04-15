@@ -14,14 +14,10 @@
 #include "pdsdata/ipimb/ConfigV1.hh"
 
 #define BAUDRATE B115200
-#define MODEMDEVICE "/dev/ttyS1"
-#define _POSIX_SOURCE 1 /* POSIX compliant source */
-#define FALSE 0
-#define TRUE 1
 
 namespace Pds {
   class IpimBoardData;
-  //  class Ipimb::ConfigV1;
+  class IpimBoardPacketParser;
 
   class IpimBoard {
   public:
@@ -64,7 +60,7 @@ namespace Pds {
     IpimBoardData WaitData();
     //  unsigned* read(bool command, int nBytes);
     void WriteCommand(unsigned*);
-    int inWaiting(bool command);
+    int inWaiting(IpimBoardPacketParser&);
     
     bool configure(Ipimb::ConfigV1& config);
     //    int configure(Ipimb::ConfigV1 config);
@@ -76,8 +72,6 @@ namespace Pds {
     uint16_t GetStatus();
     uint16_t GetErrors();
     
-    //  void signal_handler_IO (int status);   /* definition of signal handler */
-
   private:
     unsigned _commandList[4];
     unsigned _dataList[12];
@@ -86,8 +80,6 @@ namespace Pds {
     int _fd;//, _res, _maxfd;
     //    fd_set _readfs;
     bool _dataDamage, _commandResponseDamage;
-    bool _startWaitingForData;
-    int _w0, _w1, _w2;
   };
   
   
@@ -96,11 +88,9 @@ namespace Pds {
     IpimBoardCommand(bool write, unsigned address, unsigned data);
     ~IpimBoardCommand();// {printf("IPBMC::dtor, this = %p\n", this);}
     
-    //  list<unsigned> getData();
     unsigned* getAll();
     
   private:
-    //  list<unsigned> _lst;
     unsigned _commandList[4];
   };
 
@@ -154,6 +144,25 @@ namespace Pds {
     uint16_t _checksum;
   };
   
+  class IpimBoardPacketParser {
+  public:
+    IpimBoardPacketParser(bool command, bool* damage, unsigned* lst);
+    ~IpimBoardPacketParser() {};
+    
+    void update(char*);
+    bool packetIncomplete();
+    void readTimedOut(int, int);
+    int packetsRead();
+
+  private:
+    bool _command;
+    bool* _damage;
+    bool _lastDamaged;
+    unsigned* _lst;
+    int _nPackets;
+    int _allowedPackets, _leadHeaderNibble, _bodyHeaderNibble, _tailHeaderNibble;
+  };
+
   unsigned CRC(unsigned*, int);
   timespec diff(timespec start, timespec end);
 }

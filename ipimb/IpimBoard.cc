@@ -111,10 +111,6 @@ IpimBoard::IpimBoard(char* serialDevice){
   memset(_dataList, 0, 12);//*sizeof(_dataList[0]));
   _commandIndex = 0;
   _dataIndex = 0;
-  _startWaitingForData = false;
-  _w0 = 0;
-  _w1 = 0;
-  _w2 = 0;
 }
 
 IpimBoard::~IpimBoard() {
@@ -301,10 +297,13 @@ unsigned IpimBoard::ReadRegister(unsigned regAddr) {
   IpimBoardCommand cmd = IpimBoardCommand(false, regAddr, 0);
   WriteCommand(cmd.getAll());
   _commandIndex = 0;
-  int tmpCount = 0;
-  while (inWaiting(true) < 4) {
-    tmpCount++;
-    //    assert(tmpCount<10);
+  IpimBoardPacketParser packetParser = IpimBoardPacketParser(true, &_commandResponseDamage, _commandList);
+  struct timespec req = {0, 4000000}; // 4 ms - board takes a while to respond
+  nanosleep(&req, NULL);
+  while (inWaiting(packetParser)) {
+    if (!packetParser.packetIncomplete()) {
+      break;
+    }
     ;//timeout here?
   }
   IpimBoardResponse resp = IpimBoardResponse(_commandList);
@@ -321,27 +320,18 @@ void IpimBoard::WriteRegister(unsigned regAddr, unsigned regValue) {
 }
 
 IpimBoardData IpimBoard::WaitData() {
-  _dataIndex = 0;
-  _dataDamage = false;
-  int nChunks = 0;
-  _startWaitingForData = true;
-  _w0 = 0;
-  _w1 = 0;
-  _w2 = 0;
-  
-  while (inWaiting(false) < 12) {
-    if (nChunks++ > 24) {
-      //      return IpimBoardData();
-      // or
-      int n = inWaiting(false);
+  IpimBoardPacketParser packetParser = IpimBoardPacketParser(false, &_dataDamage, _dataList);
+  bool timedOut = false;
+  while (inWaiting(packetParser)) {
+    if (timedOut) {
       unsigned fakeData = 0xdead;
-      if (n < 12) {
+      int packetsRead = packetParser.packetsRead();
+      if (packetParser.packetIncomplete()) {
 	_dataDamage = true;
-	for (int i=n; i< 12; i++) {
+	for (int i=packetsRead; i< 12; i++) {
 	  _dataList[i] = fakeData;
 	}
-	printf("IpimBoard warning: have failed to find expected event in %d 3-byte transmissions, attempting to continue\n", nChunks);
-	printf("First chunk if any was 0x%x, 0x%x, 0x%x\n", _w0, _w1, _w2);
+	printf("IpimBoard warning: have failed to find expected event in %d s, attempting to continue\n", 1);
 	break;
       }
     }
@@ -352,7 +342,6 @@ IpimBoardData IpimBoard::WaitData() {
   if (!c) {
     printf("IpimBoard warning: data CRC check failed\n");
     _dataDamage = true;
-    //    _damage |= 1<<crc_damage;
   }
   return data;
 }
@@ -395,11 +384,12 @@ void IpimBoard::WriteCommand(unsigned* cList) {
   }
 }
 
-int IpimBoard::inWaiting(bool command) {
-  char bufferReceive[12];
+int IpimBoard::inWaiting(IpimBoardPacketParser& packetParser) {
+  char bufferReceive[3];
   //  int res = read(_fd, bufferReceive, 3);
   int nBytes = 0;
-  while (nBytes<3) {
+  int nTries = 0;
+   while (nBytes<3) {
     int nRead = read(_fd, &(bufferReceive[nBytes]), 3-nBytes);
     if (nRead<0) {
       printf("IpimBoard error:failed read from _fd %d\n",_fd);
@@ -408,115 +398,17 @@ int IpimBoard::inWaiting(bool command) {
     }
     nBytes += nRead;
     if (nBytes!=3) {
-      if (!command) {
-	printf("IpimBoard warning: have read %d (%d) (total) bytes of data from _fd %d, need 3, will retry\n", nRead, nBytes,_fd);
-      }
+      if (nTries++ == 3) {
+	packetParser.readTimedOut(nBytes, _fd);
+	return packetParser.packetIncomplete();
+      }      
+      printf("IpimBoard warning: have read %d (%d) (total) bytes of data from _fd %d, need 3, will retry\n", nRead, nBytes,_fd);
       struct timespec req = {0, 2000000}; // 2 ms
       nanosleep(&req, NULL);
     }
   }
-  if (nBytes != 3) {
-    printf("nBytes is %d\n", nBytes);
-    assert(0);
-  }
-  int n = nBytes;
-  if (n==0 and !command and _dataIndex <12) {
-    printf("read was empty, sleep briefly\n");
-    struct timespec req = {0, 2000000}; // 1 ms
-    nanosleep(&req, NULL);
-  }
-  //  if (n>0) {
-    //    if (DEBUG)
-    //      printf("buffer:n is: %s:%d\n", bufferReceive, res);
-    //    if (DEBUG)
-    //      printf("Received Message: %s\n", bufferReceive);
-  //  }
-  //  printf("have n = %d in inWaiting, ought to be multiple of 3\n", n);
-  int w0, w1, w2;
-  int index = 0;
-  //  cout << "in inWaiting, n=" << n << endl;
-  while (n >= 3) {
-    w0 = bufferReceive[index] & 0xff;
-    //    printf("n, index, w0: %d, %d, %x\n", n, index, w0);
-    index += 1;
-    if ((w0 & 0x80) == 0) {// Out of sync: bit 8 must be set
-      n--;
-      printf("IpimBoard warning: Ser R: %x, out of sync\n", w0);
-      //      _dataDamage = true;
-      continue;
-    }
-    w1 = bufferReceive[index] & 0xff;
-    w2 = bufferReceive[index+1] & 0xff;
-    if (_startWaitingForData) {
-      _w0 = w0;
-      _w1 = w1;
-      _w2 = w2;
-      _startWaitingForData = false;
-    }
-    index += 2;
-    unsigned data = (w0 & 0xf) | ((w1 & 0x3f)<<4) | ((w2 & 0x3f)<<10);
-    if ((w0 & 0x10) != 0) {
-      if (_commandIndex>3) {
-	printf("*** cmdindex\n");
-	assert(0);
-      }
-      _commandList[_commandIndex++] = data;
-      if (DEBUG) {
-	printf("have incremented command list length: %d\n", _commandIndex);
-	printf("command list 0x%x, 0x%x, 0x%x, 0x%x\n", _commandList[0], _commandList[1], _commandList[2], _commandList[3]);
-      }
-    }
-    else {
-      if (_dataIndex>11) {
-	printf("*** dataindex %d\n", _dataIndex);
-	assert(0);
-      }
-      _dataList[_dataIndex++] = data;
-      //      printf("have incremented data list length: %d\n", _dataIndex);
-      //      printf("Data read : %x %x %x\n", w0, w1, w2);
-    }
-    if (DEBUG || _dataDamage) {
-      printf("Ser R: %x %x %x\n", w0, w1, w2);
-    }
-    n = n-3;
-  }
-  if (n!=0) {
-    printf("IpimBoard warning: have n = %d after inWaiting, ought to be 0\n", n);
-    //    int wNext = bufferReceive[index] & 0xff;
-    //    printf("next R: %x\n", wNext);
-    //    printf("try to exit\n");
-    //    exit(-1);
-    if (command) {
-      printf("IpimBoard warning: extra bytes found parsing port while looking for command\n");
-      _commandResponseDamage = true;
-    } else {
-      printf("IpimBoard warning: %d unparsable bytes found on port while looking for data\n", n);
-      _dataDamage = true;
-      w1 = bufferReceive[index] & 0xff;
-      printf("w1: 0x%x", w1);
-      if (n==2) {
-	w2 = bufferReceive[index+1] & 0xff;
-	printf(" w2: 0x%x", w2);
-      }
-      printf("\n");
-    }      
-    //    _damage |= 1<<n0_damage;
-  }
-  //  assert(n==0);  // or buffer anything extra for next pass
-  if (command) {
-    if (DEBUG) {
-      if(_commandIndex) {
-	printf("returning command size %d\n", _commandIndex);
-      }
-    }
-    return _commandIndex;
-  }
-  else {
-    if (DEBUG) {
-      printf("returning data size %d\n", _dataIndex);
-    }
-    return _dataIndex;
-  }
+  packetParser.update(bufferReceive);
+  return packetParser.packetIncomplete();
 }
 
 int IpimBoard::get_fd() {
@@ -814,4 +706,70 @@ unsigned IpimBoardData::GetConfig1() {
 }
 unsigned IpimBoardData::GetConfig2() {
   return _config2;
+}
+
+IpimBoardPacketParser::IpimBoardPacketParser(bool command, bool* damage, unsigned* lst):
+  _command(command), _damage(damage), _lst(lst),
+  _nPackets(0), _allowedPackets(0), _leadHeaderNibble(0), _bodyHeaderNibble(0), _tailHeaderNibble(0) {
+  _lastDamaged = *_damage;
+  *_damage = false;
+  if (!command) {
+    _allowedPackets = 12;
+    _leadHeaderNibble = 0xc;
+    _bodyHeaderNibble = 0x8;
+    _tailHeaderNibble = 0xa;
+  } else {
+    _allowedPackets = 4;
+    _leadHeaderNibble = 0xd;
+    _bodyHeaderNibble = 0x9;
+    _tailHeaderNibble = 0xb;
+  }    
+}
+
+void IpimBoardPacketParser::update(char* buff) {
+  int w0, w1, w2;
+  w0 = buff[0] & 0xff;
+  w1 = buff[1] & 0xff;
+  w2 = buff[2] & 0xff;
+  if (_nPackets == 0) {
+    if ((w0>>4) != _leadHeaderNibble) {
+      if (!_lastDamaged) {
+	*_damage = true;
+	printf("IpimBoard warning: read initial packet with bad header, expected 0x%xnnnnn, got 0x%x%x%x\n", _leadHeaderNibble, w0, w1, w2);
+      } else {
+	printf("IpimBoard warning: previous message damaged, demand correct header; expected 0x%xnnnnn, got 0x%x%x%x; dropping packet to reframe\n", _leadHeaderNibble, w0, w1, w2);
+	return;
+      }
+    }
+  } else if (_nPackets < _allowedPackets -1) {
+    if ((w0>>4) != _bodyHeaderNibble) {
+      *_damage = true;
+      printf("IpimBoard warning: read packet with bad header, expected 0x%xnnnnn, got 0x%x%x%x\n", _bodyHeaderNibble, w0, w1, w2);
+	}
+  } else if (_nPackets == _allowedPackets -1) {
+    if ((w0>>4) != _tailHeaderNibble) {
+      *_damage = true;
+      printf("IpimBoard warning: read trailing packet with bad header, expected 0x%xnnnnn, got 0x%x%x%x\n", _tailHeaderNibble, w0, w1, w2);
+    }
+  }
+  if (_nPackets < _allowedPackets) {
+    _lst[_nPackets++] = (w0 & 0xf) | ((w1 & 0x3f)<<4) | ((w2 & 0x3f)<<10); // strip header bits
+  } else {
+    *_damage = true;
+    printf("IpimBoard error parsing type %d packet, have found %d packets, %d allowed\n", _command, _nPackets, _allowedPackets);
+  }
+}
+
+bool IpimBoardPacketParser::packetIncomplete() {
+  //  printf("have seen %d packets of %d\n", _nPackets, _allowedPackets);
+  return _nPackets != _allowedPackets;
+}
+
+void IpimBoardPacketParser::readTimedOut(int nBytes, int fd) {
+  *_damage = true;
+  printf("IpimBoard error: read only %d bytes of required 3 from port %d, timed out after %d packets of %d, should probably flush\n", nBytes, fd, _nPackets, _allowedPackets);
+}
+
+int IpimBoardPacketParser::packetsRead() {
+  return _nPackets;
 }
