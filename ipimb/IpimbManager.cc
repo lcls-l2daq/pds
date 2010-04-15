@@ -51,10 +51,6 @@ public:
     //dg->datagram().xtc.damage.increase(Pds::Damage::UserDefined);
     if (int d = dg.xtc.damage.value()) {
       printf("Ipimb damage 0x%x\n",d);
-      //      unint64_t 
-      //      unsigned long long c0 = _server[0]->GetTriggerCounter1();
-      //      unsigned long long c1 = _server[1]->GetTriggerCounter1();
-      //      printf("trig count 0: 0x%llx, trig count 1: 0x%llx\n", c0, c1);
     }
     //    printf("L1 called back with payload ptr %p\n", dg.xtc.payload());
     //    unsigned* data = (unsigned*)(dg.xtc.payload());
@@ -87,26 +83,21 @@ public:
     return dg;
   }
   Transition* fire(Transition* tr) {
-    // todo: get configuration from database.
-    // program/validate register settings
-    //    int len = _cfg.fetch(*tr,_ipimbConfigType, &_config, sizeof(_config));
-    int len = 1;
-    if (len <= 0) {
-      printf("IpimbConfigAction: failed to retrieve configuration : (%d)%s.  Applying default.\n",errno,strerror(errno));
-    }
     //    new (&_config) Ipimb::ConfigV1(0, 1, 2, 3, 4.1, 0.5, 6, 7, 0, 8, 9);
     IpimbConfigType _config[_nServers];
     _nDamagedConfigures = 0;
     for (unsigned i=0; i<_nServers; i++) {
       int len = (*_cfg[i]).fetch(*tr,_ipimbConfigType, &_config[i], sizeof(_config[i]));
-      printf("config length returned: %d\n", len);
-      //_config[i] = *new Ipimb::ConfigV1(2, 3, 4, 5, 4.1, 0., 0.5, 8, 9*i);
+      if (len <= 0) {
+	printf("IpimbConfigAction: failed to retrieve configuration : (%d)%s.  Refusing to configure.\n",errno,strerror(errno));
+	_nDamagedConfigures += 1;
+	continue;
+      }
       _config[i].dump();
       if (!_server[i]->configure(_config[i])) {
 	printf("Ipimb server %d configuration was damaged\n", i);
 	_nDamagedConfigures += 1;
       }
-      _server[i]->setFakeCount(_server[i]->GetTriggerCounter1());
     }
     //    printf("fake success back from ipim board class: %d\n", _nerror);
     return tr;
@@ -114,8 +105,6 @@ public:
 
 private:
   CfgClientNfs** _cfg;
-  //  IpimBoard* _ipimBoard;
-  //  IpimbServer& _server;
   IpimbServer** _server;
   unsigned _nServers;
   unsigned _nDamagedConfigures;
@@ -124,7 +113,6 @@ private:
 
 Appliance& IpimbManager::appliance() {return _fsm;}
 
-//IpimbManager::IpimbManager(IpimbServer& server, unsigned nServer, CfgClientNfs& cfg): // had
 IpimbManager::IpimbManager(IpimbServer* server[], unsigned nServers, CfgClientNfs** cfg) :
   _fsm(*new Fsm), _nServers(nServers) {
   //  printf("Manager for ipimbs initialized with %d servers\n", _nServers);
@@ -136,7 +124,7 @@ IpimbManager::IpimbManager(IpimbServer* server[], unsigned nServers, CfgClientNf
     //    printf("New IpimBoard fd is %d\n", ipimBoard->get_fd());
     server[i]->setIpimb(ipimBoard); // this is obviously wrong
   }
-  Action* caction = new IpimbConfigAction(cfg, server, _nServers); // action needs server to free fd during configure
+  Action* caction = new IpimbConfigAction(cfg, server, _nServers);
   _fsm.callback(TransitionId::Configure,caction);
   IpimbL1Action& ipimbl1 = *new IpimbL1Action();
   _fsm.callback(TransitionId::Map, new IpimbAllocAction(cfg, _nServers));

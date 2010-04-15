@@ -67,7 +67,7 @@ int IpimbServer::fetch(char* payload, int flags)
   int payloadSize = sizeof(IpimbDataType);
   memcpy(payload, &_xtc, sizeof(Xtc));
   memcpy(payload+sizeof(Xtc), &data, payloadSize);
-  _count = (unsigned) (0xFFFFFFFF&ts) - _fakeCount;
+  _count = (unsigned) (0xFFFFFFFF&ts);
   return payloadSize+sizeof(Xtc);
 }
 
@@ -78,12 +78,7 @@ int IpimbServer::fetch(ZcpFragment& zf, int flags)
 
 unsigned IpimbServer::count() const
 {
-  if (_count%100000 == 0) { // revisit to remove
-    //    unsigned tC = _ipimBoard->GetTriggerCounter1();
-    //    printf("in IpimbServer::count, fd %d: returning %d based on offset %d, trig count 0x%x\n", fd(), _count-1, _fakeCount);//, tC);
-    printf("in IpimbServer::count, fd %d: returning %d based on offset %d\n", fd(), _count-1, _fakeCount);//, tC);
-  }
-  return _count - 1;
+  return _count - 1; // "counting from" hack
 }
 
 void IpimbServer::setIpimb(IpimBoard* ipimb) {
@@ -91,14 +86,6 @@ void IpimbServer::setIpimb(IpimBoard* ipimb) {
   fd(_ipimBoard->get_fd());
 }
 
-void IpimbServer::setFakeCount(unsigned fakeCount) {
-  _fakeCount = fakeCount;
-}
-
 unsigned IpimbServer::configure(IpimbConfigType& config) {
   return _ipimBoard->configure(config);
-}
-
-unsigned IpimbServer::GetTriggerCounter1() {
-  return _ipimBoard->GetTriggerCounter1();
 }

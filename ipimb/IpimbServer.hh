@@ -36,18 +36,13 @@ namespace Pds {
   public:
     unsigned count() const;
     void setIpimb(IpimBoard* ipimb); // temp???
-    void withdraw();
-    void reconnect();
 
   public:
-    void setFakeCount(unsigned);
     unsigned configure(IpimbConfigType& config);
-    unsigned GetTriggerCounter1();
 
   private:
     Xtc _xtc;
     unsigned _count;
-    unsigned _fakeCount;
     IpimBoard* _ipimBoard;
   };
 }
