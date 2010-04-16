@@ -7,6 +7,7 @@
 #include "pds/utility/InletWire.hh"
 #include "pds/utility/OutletWire.hh"
 #include "pds/utility/WiredStreams.hh"
+#include "pds/utility/InletWireIns.hh"
 #include "pds/utility/InletWireServer.hh"
 
 namespace Pds
@@ -44,51 +45,45 @@ static std::string addressToStr( unsigned int uAddr )
 void SegmentEventLevel::allocated(const Allocation & alloc, unsigned index)
 {
   unsigned partition = alloc.partitionid();
+  unsigned int nnodes = alloc.nnodes();
   printf( "SegmentEventLevel::allocated(): partition id = %d  src inedx = %d\n", partition, index ); // !! for debug only
 
   InletWire & inlet = *_streams->wire(StreamParams::FrameWork);
 
-  // Look for EVR segment node, and record its index
-  unsigned int  nnodes            = alloc.nnodes();
-  const int     iEvrNodeIndex     = 0; // Control_gui will always set evr as the first node
-  
   for (unsigned n = 0; n < nnodes; n++)
   {
     const Node & node = *alloc.node(n);
-    if (node.level() == Level::Segment)
-    {
-      printf( "Found Evr IP = %s\n", addressToStr(node.ip()).c_str() );
+    if (node.level() == Level::Segment) {
+      Ins ins = StreamPorts::event(partition, Level::Observer, 0, 0);
+      _pEventServer = new NetDgServer(ins,
+				      header().procInfo(),
+				      EventStreams::netbufdepth *
+				      EventStreams::MaxSize);
+
+      Ins mcastIns(ins.address());
+      _pEventServer->server().join(mcastIns, Ins(header().ip()));
+      
+      inlet.add_input(_pEventServer);
       break;
     }
-  }  
-  
+  }
+
   unsigned vectorid = 0;
-  _pEventServer = 0;
+
   for (unsigned n = 0; n < nnodes; n++)
   {
     const Node & node = *alloc.node(n);
     if (node.level() == Level::Event)
     {
+      // Add vectored output clients on inlet
       Ins ins = StreamPorts::event(partition,
-                 Level::Event,
-                 vectorid,
-                 iEvrNodeIndex);
-                 
-      if (vectorid == 0)
-      {
-        Ins srvIns(ins.portId());
-        _pEventServer =
-          new NetDgServer(srvIns,
-              node.procInfo(),
-              EventStreams::netbufdepth *
-              EventStreams::MaxSize);
-        inlet.add_input(_pEventServer);
-      }
-
-      Ins mcastIns(ins.address());
-      _pEventServer->server().join(mcastIns, Ins(header().ip()));
-      
-      printf( "SegmentEventLevel::allocated(): dst id %d  mcastIns addr %x port %d\n", vectorid, mcastIns.address(), ins.portId() ); // !! for debug only
+				   Level::Event,
+				   vectorid,
+				   index);
+      InletWireIns wireIns(vectorid, ins);
+      inlet.add_output(wireIns);
+      printf("SegmentLevel::allocated adding output %d to %x/%d\n",
+	     vectorid, ins.address(), ins.portId());
       
       vectorid++;
     }
@@ -101,10 +96,6 @@ void SegmentEventLevel::allocated(const Allocation & alloc, unsigned index)
    *
    *   Hence, it is required to run the princeton program and the event program on separate machines.
    */
-  //Ins bcastIns = StreamPorts::bcast(partition, Level::Event, iEvrNodeIndex);
-  //_pEventServer->server().join(bcastIns, Ins(header().ip()));
-  
-  //printf( "SegmentEventLevel::allocated(): bcastIns addr %x port %d\n", bcastIns.address(), bcastIns.portId() ); // !! for debug only
 
   OutletWire *owire =
     _streams->stream(StreamParams::FrameWork)->outlet()->wire();

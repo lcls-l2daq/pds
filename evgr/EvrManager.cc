@@ -28,8 +28,10 @@
 #include "pds/service/Task.hh"
 #include "pds/service/TaskObject.hh"
 #include "pds/service/GenericPool.hh"
+#include "pds/utility/Mtu.hh"
 #include "pds/utility/Occurrence.hh"
 #include "pds/utility/OccurrenceId.hh"
+#include "pds/utility/ToNetEb.hh"
 #include "pds/xtc/EnableEnv.hh"
 #include "pds/xtc/CDatagram.hh"
 
@@ -267,12 +269,16 @@ protected:
 class EvrL1Action:public EvrAction
 {
 public:
-  EvrL1Action(Evr & er, const Src& src) : EvrAction(er),
+  EvrL1Action(Evr &      er, 
+	      const Src& src) :
+    EvrAction(er),
     _iMaxEvrDataSize(sizeof(Xtc) + EvrDataUtil::size( giMaxNumFifoEvent )),
     _src            (src),
-    _poolEvrData    (_iMaxEvrDataSize, 16)
-  {
-  }
+    _swtrig_out     (Route::interface(), Mtu::Size, 16),
+    _poolEvrData    (_iMaxEvrDataSize, 16) {}
+
+  void set_dst(const Ins& dst) { _swtrig_dst = dst; }
+
   InDatagram *fire(InDatagram * in)
   {
     InDatagram* out = in;
@@ -310,12 +316,21 @@ public:
       evrData.clearFifoEvents();
     }
     
+    //
+    //  Special software trigger service to L1 nodes
+    //
+    {
+      out->send(_swtrig_out, _swtrig_dst);
+    }
+
     return out;
   }
   
 private:
   const int   _iMaxEvrDataSize;
   Src         _src;
+  ToNetEb     _swtrig_out;
+  Ins         _swtrig_dst;
   GenericPool _poolEvrData;
 };
 
@@ -523,7 +538,7 @@ private:
 class EvrAllocAction:public Action
 {
 public:
-  EvrAllocAction(CfgClientNfs & cfg):_cfg(cfg)
+  EvrAllocAction(CfgClientNfs & cfg, EvrL1Action& l1A):_cfg(cfg),_l1action(l1A)
   {
   }
   Transition *fire(Transition * tr)
@@ -556,11 +571,14 @@ public:
     l1xmitGlobal->enable(true);
 #endif
     l1xmitGlobal->dst(StreamPorts::event(alloc.allocation().partitionid(),
-      Level::Segment));
+					 Level::Segment));
+    _l1action.set_dst(StreamPorts::event(alloc.allocation().partitionid(),
+					 Level::Observer));
     return tr;
   }
 private:
-  CfgClientNfs & _cfg;
+  CfgClientNfs& _cfg;
+  EvrL1Action&  _l1action;
 };
 
 extern "C"
@@ -585,18 +603,18 @@ Appliance & EvrManager::appliance()
 }
 
 EvrManager::EvrManager(EvgrBoardInfo < Evr > &erInfo, CfgClientNfs & cfg, bool bTurnOffBeamCode):
-_er(erInfo.board()), _fsm(*new Fsm), _done(new DoneTimer(_fsm)), _bTurnOffBeamCode(bTurnOffBeamCode)
+  _er(erInfo.board()), _fsm(*new Fsm), _done(new DoneTimer(_fsm)), _bTurnOffBeamCode(bTurnOffBeamCode)
 {
-
   l1xmitGlobal = new L1Xmitter(_er, *_done);
-
-  _fsm.callback(TransitionId::Map, new EvrAllocAction(cfg));
+  
+  EvrL1Action* l1A = new EvrL1Action(_er, cfg.src());
+  _fsm.callback(TransitionId::Map, new EvrAllocAction(cfg,*l1A));
   _fsm.callback(TransitionId::Configure, new EvrConfigAction(_er, cfg, bTurnOffBeamCode));
   _fsm.callback(TransitionId::BeginRun, new EvrBeginRunAction(_er));
   _fsm.callback(TransitionId::EndRun, new EvrEndRunAction(_er));
   _fsm.callback(TransitionId::Enable, new EvrEnableAction(_er, *_done));
   _fsm.callback(TransitionId::Disable, new EvrDisableAction(_er, *_done));
-  _fsm.callback(TransitionId::L1Accept, new EvrL1Action(_er, cfg.src()));
+  _fsm.callback(TransitionId::L1Accept, l1A);
 
   _er.IrqAssignHandler(erInfo.filedes(), &evrmgr_sig_handler);
   erInfoGlobal = &erInfo;

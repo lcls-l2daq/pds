@@ -18,8 +18,10 @@ static const int SegmentMcastAddr  = BaseMcastAddr;
 static const int EventMcastAddr    = SegmentMcastAddr +StreamPorts::MaxPartitions;
 // L2  -> L0 : 0xefff1510
 static const int ControlMcastAddr  = EventMcastAddr   +StreamPorts::MaxPartitions*MaxPartitionL2s;
+// EVR -> L1(soft triggers) 0xefff1520
+static const int ObserverMcastAddr = ControlMcastAddr +StreamPorts::MaxPartitions;
 // VMON server<->client // 0xeffff1520
-static const int VmonMcastAddr     = ControlMcastAddr +StreamPorts::MaxPartitions;
+static const int VmonMcastAddr     = ObserverMcastAddr+StreamPorts::MaxPartitions;
 // BLD -> L1,L2 : 0xefff1800
 static const int BLDMcastAddr      = 0xefff1800;  // FIXED value for external code
 
@@ -27,7 +29,8 @@ static const unsigned PortBase         = 10150;
 static const unsigned SegmentPortBase  = PortBase;                                                    // 10150
 static const unsigned EventPortBase    = SegmentPortBase +StreamPorts::MaxPartitions;                 // 10166
 static const unsigned ControlPortBase  = EventPortBase   +StreamPorts::MaxPartitions*MaxPartitionL1s; // 10678
-static const unsigned VmonPortBase     = ControlPortBase +StreamPorts::MaxPartitions*MaxPartitionL2s; // 11702
+static const unsigned ObserverPortBase = ControlPortBase +StreamPorts::MaxPartitions*MaxPartitionL2s; // 11702
+static const unsigned VmonPortBase     = ObserverPortBase+StreamPorts::MaxPartitions;                 // 11718
 static const unsigned BLDPortBase      = 10148;   // FIXED value for external code
 
 
@@ -63,6 +66,9 @@ Ins StreamPorts::event(unsigned    partition,
   case Level::Control:
     return Ins(ControlMcastAddr + partition,
 	       ControlPortBase  + partition*MaxPartitionL2s + srcid);
+  case Level::Observer:   // special service from the EVR (software triggers)
+    return Ins(ObserverMcastAddr + partition,
+	       ObserverPortBase  + partition);
   default:
     break;
   }
