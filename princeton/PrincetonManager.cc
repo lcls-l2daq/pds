@@ -75,7 +75,7 @@ public:
           1,  // BinX
           1,  // BinX
           0.005,  // Exposure time
-          -10.0f, // Cooling temperature
+          25.0f, // Cooling temperature
           5,  // Readout speed index
           0   // Redout event code
         );
