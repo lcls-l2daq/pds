@@ -80,21 +80,17 @@ namespace Pds
 
 using namespace Pds;
 
-static unsigned   dropPulseMask     = 0xffffffff;
-static const int  giMaxNumFifoEvent = 360;
-static const int  giMaxEventCodes   = 32;
-static const int  giMaxPulses       = 10;
-static const int  giMaxOutputMaps   = 16;
+static unsigned dropPulseMask     = 0xffffffff;
+static int      giMaxNumFifoEvent = 360;
+static int      giMaxEventCodes   = 32;
+static int      giMaxPulses       = 10;
+static int      giMaxOutputMaps   = 16;
 
 class L1Xmitter;
 static L1Xmitter *l1xmitGlobal;
 static EvgrBoardInfo < Evr > *erInfoGlobal; // yuck
 
 class L1Xmitter {
-private:
-  static const int  _iEvrDataQueueLen;    
-  static const int  _iEvrDataSize;
-  
 public:
   L1Xmitter(Evr & er, DoneTimer & done):
     _er           (er),
@@ -106,26 +102,17 @@ public:
     _lastfid      (0),
     _bReadout     (false),
     _pEvrConfig   (NULL),
-    _L1DataUpdated( *(EvrDataUtil*) new char[ _iEvrDataSize ]  ),
-    //_L1DataFinal  ( *(EvrDataUtil*) new char[ _iEvrDataSize ]  ),
-    _bufEvrData   ( new char[ _iEvrDataQueueLen * _iEvrDataSize ]  ),
-    _iBufBase     (0),
-    _iBufTop      (0)    
+    _L1DataUpdated( *(EvrDataUtil*) new char[ EvrDataUtil::size( giMaxNumFifoEvent ) ]  ),
+    _L1DataFinal  ( *(EvrDataUtil*) new char[ EvrDataUtil::size( giMaxNumFifoEvent ) ]  )    
   {
     new (&_L1DataUpdated) EvrDataUtil( 0, NULL );
-    //new (&_L1DataFinal)   EvrDataUtil( 0, NULL );
-    
-    char* pData = _bufEvrData;
-    for ( int iDataIndex = 0; iDataIndex < _iEvrDataQueueLen; 
-      iDataIndex++, pData += _iEvrDataSize )
-      new (pData)   EvrDataUtil( 0, NULL );
+    new (&_L1DataFinal)   EvrDataUtil( 0, NULL );
   }
   
   ~L1Xmitter()
   {
     delete (char*) &_L1DataUpdated;
-    //delete (char*) &_L1DataFinal;
-    delete _bufEvrData;
+    delete (char*) &_L1DataFinal;
   }
   
   void xmit()
@@ -151,7 +138,7 @@ public:
      */
     if ( _pEvrConfig != NULL )
     {
-      unsigned int uEventIndex = 0;
+      unsigned int uEventIndex = 0; 
       for ( ; uEventIndex < _pEvrConfig->neventcodes(); uEventIndex++ )
       {
         const EvrConfigType::EventCodeType& eventCode = _pEvrConfig->eventcode( uEventIndex );
@@ -196,23 +183,12 @@ public:
       
       _outlet.send((char *) &datagram, 0, 0, _dst);
       
-      if ( ((_iBufTop+1) % _iEvrDataQueueLen) == _iBufBase )      
-      {
-        printf( "L1Xmitter::xmit(): Evr Data Queue is full. Current data will be skipped.\n" );
-      }
+      if ( _L1DataFinal.numFifoEvents() == 0 )
+        new (&_L1DataFinal) EvrData::DataV3( _L1DataUpdated );
       else
       {
-        char* pEvrData = _bufEvrData + _iBufTop * _iEvrDataSize;
-        new (pEvrData) EvrData::DataV3( _L1DataUpdated );
-        _iBufTop = ((_iBufTop+1) % _iEvrDataQueueLen);
+        printf( "L1Xmitter::xmit(): Previous Evr Data has not been transferred out. Current data will be skipped.\n" );
       }
-      
-      //if ( _L1DataFinal.numFifoEvents() == 0 )
-      //  new (&_L1DataFinal) EvrData::DataV3( _L1DataUpdated );
-      //else
-      //{
-      //  printf( "L1Xmitter::xmit(): Previous Evr Data has not been transferred out. Current data will be skipped.\n" );
-      //}
 
       _L1DataUpdated.clearFifoEvents();      
       
@@ -264,27 +240,7 @@ public:
   
   void setEvrConfig(const EvrConfigType* pEvrConfig) { _pEvrConfig = pEvrConfig; }
   
-  //EvrDataUtil& getL1Data() { return _L1DataFinal; }
-  EvrDataUtil* getOldestEvrData() 
-  { 
-    if ( _iBufBase == _iBufTop )      
-    {
-      printf( "L1Xmitter::xmit(): Evr Data Queue is empty. No data is available.\n" );
-      return NULL;
-    }
-    
-    char* pEvrData = _bufEvrData + _iBufBase * _iEvrDataSize;
-    
-    return (EvrDataUtil*) pEvrData;
-  }
-  
-  void releaseOldestEvrData() 
-  { 
-    // check if the Evr Data Queue is not empty
-    if ( _iBufBase != _iBufTop )      
-      _iBufBase = ((_iBufBase+1) % _iEvrDataQueueLen);
-  }
-
+  EvrDataUtil& getL1Data() { return _L1DataFinal; }
   
 private:
   Evr &                 _er;
@@ -298,18 +254,8 @@ private:
   bool                  _bReadout;
   const EvrConfigType*  _pEvrConfig;
   EvrDataUtil&          _L1DataUpdated;
-  //EvrDataUtil&          _L1DataFinal;
-  
-  /*
-   * Evr data circular buffer
-   */
-  char*                 _bufEvrData;
-  int                   _iBufBase;
-  int                   _iBufTop;
+  EvrDataUtil&          _L1DataFinal;
 };
-
-const int L1Xmitter::_iEvrDataQueueLen  = 10;    
-const int L1Xmitter::_iEvrDataSize      = EvrDataUtil::size( giMaxNumFifoEvent );
 
 class EvrAction:public Action
 {
@@ -336,26 +282,17 @@ public:
   InDatagram *fire(InDatagram * in)
   {
     InDatagram* out = in;
-    
-    do
-    {
-      if (!l1xmitGlobal->enable())
-        break;
         
-      //EvrDataUtil& evrData = l1xmitGlobal->getL1Data();
-      EvrDataUtil* pEvrData = l1xmitGlobal->getOldestEvrData();
-      if ( pEvrData == NULL )
-        break;
-
-      EvrDataUtil& evrData = *pEvrData;
+    if (l1xmitGlobal->enable())
+    {
+      EvrDataUtil& evrData = l1xmitGlobal->getL1Data();
       
       if ( _poolEvrData.numberOfFreeObjects() <= 0 )
       {
         printf( "EvrL1Action::fire(): Pool is full, so cannot provide buffer for new datagram\n" );
-        l1xmitGlobal->releaseOldestEvrData();
-        break;
+        return NULL;
       }      
-
+      
       out = 
        new ( &_poolEvrData ) CDatagram( in->datagram() ); 
       out->datagram().xtc.alloc( sizeof(Xtc) + evrData.size() );
@@ -376,10 +313,8 @@ public:
       //evrData.printFifoEvents();
       //printf( "EvrL1Action::fire() data dump end\n\n" );
       
-      //evrData.clearFifoEvents();
-      l1xmitGlobal->releaseOldestEvrData();
+      evrData.clearFifoEvents();
     }
-    while (false);
     
     //
     //  Special software trigger service to L1 nodes
