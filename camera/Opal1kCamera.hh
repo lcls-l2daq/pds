@@ -23,7 +23,7 @@ namespace PdsLeutron {
 
   class Opal1kCamera : public PicPortCL {
   public:
-    Opal1kCamera(char* id, unsigned grabberId=0);
+    Opal1kCamera(char* id, unsigned grabberId=0, const char *grabberName = "Mono");
     virtual ~Opal1kCamera();
 
     void                    Config(const Opal1kConfigType&);

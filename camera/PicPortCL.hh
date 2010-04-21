@@ -22,6 +22,9 @@
 //#define PICPORTCL_NAME    "PicPortExpress CL Stereo"
 //#define PICPORTCL_NAME    "PicPortX CL Mono PMC"
 
+#define PICPORTCL_BASE_CONNECTOR    "CamLink Base Port 0 (HVPSync In 0)"
+#define PICPORTCL_MEDIUM_CONNECTOR  "CamLink Medium Port 0"
+
 namespace Pds {
   class MonEntryTH1F;
 };
@@ -36,7 +39,7 @@ namespace PdsLeutron {
 
   class PicPortCL: public LvCamera {
   public:
-    PicPortCL(int grabberid = 0);
+    PicPortCL(int grabberid = 0, const char *grabberName = (const char *)NULL);
     virtual ~PicPortCL();
   public:
     int SetNotification(enum NotifyType mode);
@@ -45,6 +48,7 @@ namespace PdsLeutron {
     int Stop();
     FrameHandle *GetFrameHandle();
     int SendCommand(char *szCommand, char *pszResponse, int iResponseBufferSize);
+    int SendBinary(char *szBinary, int iBinarySize, char *pszResponse, int iResponseBufferSize);
     unsigned char* frameBufferBaseAddress() const;
     unsigned char* frameBufferEndAddress () const;
 
@@ -78,6 +82,8 @@ namespace PdsLeutron {
     DaSeq32Cfg             _seqDralConfig;
     LvROI                  _roi;
     int                    _grabberId;
+    const char *           _grabberName;
+    const char *           GetConnectorName();
     //    DsyApp_Seq_AsyncReset* _pSeqDral;
     DsyApp_Seq32*          _pSeqDral;
     MyQueue*               _queue;

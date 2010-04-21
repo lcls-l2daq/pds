@@ -20,8 +20,8 @@
 
 using namespace PdsLeutron;
 
-Opal1kCamera::Opal1kCamera(char* id, unsigned grabberId) :
-  PicPortCL(grabberId),
+Opal1kCamera::Opal1kCamera(char* id, unsigned grabberId, const char *grabberName) :
+  PicPortCL(grabberId, grabberName),
   _inputConfig(0)
 {
   if (id == NULL)

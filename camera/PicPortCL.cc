@@ -17,8 +17,6 @@
 #include <errno.h>
 #include <signal.h>
 
-#define PICPORTCL_CONNECTOR        "CamLink Base Port 0 (HVPSync In 0)"
-
 // high = 1 means you want the highest priority signal avaliable, lowest otherwise
 extern "C" int __libc_allocate_rtsig (int high);
 static void _dumpConfig(const DaSeq32Cfg& cfg) __attribute__((unused));
@@ -78,7 +76,7 @@ static U16BIT FindConnIndex(HGRABBER hGrabber, U16BIT CameraId, const char* conn
 
 using namespace PdsLeutron;
 
-PicPortCL::PicPortCL(int grabberid) :
+PicPortCL::PicPortCL(int grabberid, const char *grabberName) :
   _pSeqDral(NULL),
   _queue(0)
 {
@@ -87,6 +85,7 @@ PicPortCL::PicPortCL(int grabberid) :
   _notifyMode   = NOTIFYTYPE_NONE;
   _notifySignal = 0;
   _grabberId = grabberid;
+  _grabberName = grabberName;
 
   Pds::MonGroup* group = new Pds::MonGroup("Cam");
   Pds::VmonServerManager::instance()->cds().add(group);
@@ -191,16 +190,25 @@ int PicPortCL::Init() {
 
   for( int i = 0; i < num_supported_grabbers; ++i )
   {
+     // _grabberName could be a full name or just a substring to match like "Mono"
+     if (_grabberName && !strstr(supported_grabbers[i], _grabberName)) {
+       printf("Skipping grabber: '%s' (does not match '%s')\n", supported_grabbers[i],
+              _grabberName);
+       continue;
+     }
      printf( "Probing for grabber: '%s'... ", supported_grabbers[i] );
      _seqDralConfig.hGrabber =
         DsyGetGrabberHandleByName(supported_grabbers[i], _grabberId);
      if( _seqDralConfig.hGrabber != HANDLE_INVALID )
      {
         printf( "FOUND.\n" );
+        _grabberName = supported_grabbers[i];
         break;
      }
      printf( "not present.  Try again.\n" );
   }
+
+  printf("Connector: %s\n", GetConnectorName());
 
   if( _seqDralConfig.hGrabber == HANDLE_INVALID )
   {
@@ -216,7 +224,7 @@ int PicPortCL::Init() {
   _seqDralConfig.ConnectCamera.NrCamera = 1;
   _seqDralConfig.ConnectCamera.Camera[0].hGrabber = _seqDralConfig.hGrabber;
   _seqDralConfig.ConnectCamera.Camera[0].ConnIndex = 
-    FindConnIndex(_seqDralConfig.hGrabber, CameraId, PICPORTCL_CONNECTOR);
+    FindConnIndex(_seqDralConfig.hGrabber, CameraId, GetConnectorName());
   //  The Image Queue is not implemented for Linux!
   //  _seqDralConfig.Flags |= SqFlg_AutoLockFrame;
   //  _seqDralConfig.Flags |= SqFlg_UseImageQueue;
@@ -251,6 +259,7 @@ int PicPortCL::Init() {
   case  8: LocalRoi.SetColorFormat(ColF_Mono_8 ); break;
   case 10: LocalRoi.SetColorFormat(ColF_Mono_10); break;
   case 12: LocalRoi.SetColorFormat(ColF_Mono_12); break;
+  case 16: LocalRoi.SetColorFormat(ColF_Mono_16); break;
   default: return -ENOTSUP;
   }
   _seqDralConfig.ConnectCamera.Roi = LocalRoi;
@@ -339,6 +348,7 @@ int PicPortCL::Init() {
   case  8: _frameFormat = FrameHandle::FORMAT_GRAYSCALE_8 ; break;
   case 10: _frameFormat = FrameHandle::FORMAT_GRAYSCALE_10; break;
   case 12: _frameFormat = FrameHandle::FORMAT_GRAYSCALE_12; break;
+  case 16: _frameFormat = FrameHandle::FORMAT_GRAYSCALE_16; break;
   }
 
   // We are now ready to acquire frames
@@ -494,6 +504,42 @@ int PicPortCL::SendCommand(char *szCommand, char *pszResponse, int iResponseBuff
   return ulReceivedLength;
 }
 
+// For PicPortCL framegrabbers, calling this API will send szBinary on
+// the camera link control serial line.  Unlike SendCommand(), no SOF or EOF
+// characters are added to the data, and the data may include zeros.
+int PicPortCL::SendBinary(char *szBinary, int iBinarySize, char *pszResponse, int iResponseBufferSize) {
+  LVSTATUS lvret;
+  LvCameraNode *pCameraNode;
+  U32BIT ulReceivedLength;
+  char ack;
+
+  // Check if Init has been properly called
+  if (!_pSeqDral->IsCompiled())
+    return -ENOTCONN;
+  if ((pszResponse == NULL) || (iResponseBufferSize == 0)) {
+    pszResponse = &ack;
+    iResponseBufferSize = 1;
+  }
+
+  // Get the camera handler
+  LvGrabberNode *pGrabber=DsyGetGrabberPtrFromHandle(_seqDralConfig.hGrabber);
+  if (pGrabber == NULL)
+    return -EIO;
+  pCameraNode = pGrabber->GetCameraPtr(_seqDralConfig.hCamera);
+  if (pCameraNode == NULL)
+    return -EIO;
+  
+  // Send the command and receive data
+  lvret = pCameraNode->CommSend(szBinary, iBinarySize, pszResponse, 
+				iResponseBufferSize, timeout_ms(), 
+				iResponseBufferSize <= 1 ? eotWrite() : eotRead(), 
+				&ulReceivedLength);
+  // Done: if any data was read we return them
+  if ((lvret != I_NoError) && (ulReceivedLength == 0))
+    return -DsyToErrno(lvret);
+  return ulReceivedLength;
+}
+
 void PicPortCL::ReleaseFrame(void *obj, FrameHandle *pFrame, void *arg) {
   PicPortCL *pThis = (PicPortCL *)obj;
   // Release last image locked (assume image was processed)
@@ -505,6 +551,16 @@ FrameHandle *PicPortCL::PicPortFrameProcess(FrameHandle *pFrame) {
   return pFrame;
 }
 
+// ========================================================
+// GetConnectorName
+// ========================================================
+const char *PicPortCL::GetConnectorName(void) {
+  if ((!_grabberName) || (!strstr(_grabberName, "Stereo"))) {
+    return (PICPORTCL_BASE_CONNECTOR);
+  } else {
+    return (PICPORTCL_MEDIUM_CONNECTOR);
+  }
+}
 
 //===============================
 //  Static functions
