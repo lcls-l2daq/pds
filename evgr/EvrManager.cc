@@ -107,13 +107,13 @@ public:
     _bReadout     (false),
     _pEvrConfig   (NULL),
     _L1DataUpdated( *(EvrDataUtil*) new char[ _iEvrDataSize ]  ),
-    _L1DataFinal  ( *(EvrDataUtil*) new char[ _iEvrDataSize ]  ),
+    //_L1DataFinal  ( *(EvrDataUtil*) new char[ _iEvrDataSize ]  ),
     _bufEvrData   ( new char[ _iEvrDataQueueLen * _iEvrDataSize ]  ),
     _iBufBase     (0),
     _iBufTop      (0)    
   {
     new (&_L1DataUpdated) EvrDataUtil( 0, NULL );
-    new (&_L1DataFinal)   EvrDataUtil( 0, NULL );
+    //new (&_L1DataFinal)   EvrDataUtil( 0, NULL );
     
     char* pData = _bufEvrData;
     for ( int iDataIndex = 0; iDataIndex < _iEvrDataQueueLen; 
@@ -124,7 +124,7 @@ public:
   ~L1Xmitter()
   {
     delete (char*) &_L1DataUpdated;
-    delete (char*) &_L1DataFinal;
+    //delete (char*) &_L1DataFinal;
     delete _bufEvrData;
   }
   
@@ -264,7 +264,7 @@ public:
   
   void setEvrConfig(const EvrConfigType* pEvrConfig) { _pEvrConfig = pEvrConfig; }
   
-  EvrDataUtil& getL1Data() { return _L1DataFinal; }
+  //EvrDataUtil& getL1Data() { return _L1DataFinal; }
   EvrDataUtil* getOldestEvrData() 
   { 
     if ( _iBufBase == _iBufTop )      
@@ -298,7 +298,7 @@ private:
   bool                  _bReadout;
   const EvrConfigType*  _pEvrConfig;
   EvrDataUtil&          _L1DataUpdated;
-  EvrDataUtil&          _L1DataFinal;
+  //EvrDataUtil&          _L1DataFinal;
   
   /*
    * Evr data circular buffer
