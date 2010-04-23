@@ -26,6 +26,7 @@
 
 #include "pds/camera/Opal1kCamera.hh"
 #include "pds/camera/TM6740Camera.hh"
+#include "pds/camera/FccdCamera.hh"
 
 #define USE_TCP
 
@@ -51,12 +52,14 @@ static void pipe_notify(int signo)
 static void help(const char *progname)
 {
   printf("%s: stream data from a Camera object to the network.\n"
-    "Syntax: %s <dest> [ --count <nimages> ] \\\n"
-    "\t--help\n"
+    "Syntax: %s <dest> [ OPTIONS ] | --help\n"
     "<dest>: stream processed frames to the specified\n"
     "\taddress with format <host>[:<port>].\n"
     "--count <nimages>: number of images to acquire.\n"
     "--splice: use splice.\n"
+    "--fps <nframes>: frames per second.\n"
+    "--shutter: use external shutter.\n"
+    "--camera {0|1|2}: choose Opal (0) or Pulnix (1) or FCCD (2).\n"
     "--help: display this message.\n"
     "\n", progname, progname);
   return;
@@ -228,6 +231,16 @@ int main(int argc, char *argv[])
       pCamera = oCamera;
       break;
     }
+  case 2:
+    {
+      FccdCamera* fCamera = new FccdCamera();
+      FccdConfigType* Config = new FccdConfigType();
+
+      fCamera->Config(*Config);
+      pCamera = fCamera;
+      break;
+    }
+  case 1:
   default:
     {
       TM6740Camera* tCamera = new TM6740Camera();

@@ -45,6 +45,7 @@ namespace PdsLeutron {
     virtual unsigned    pixel_rows         () const;
     virtual unsigned    pixel_columns      () const;
   private:
+    int SendFccdCommand(const char *cmd);
     unsigned long LastCount;
   public:
     unsigned long CurrentCount;

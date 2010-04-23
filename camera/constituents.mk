@@ -9,10 +9,13 @@ libsrcs_camera := DmaSplice.cc \
 		  TwoDGaussian.cc \
 	          FrameServer.cc \
 	          FexFrameServer.cc \
+	          FccdFrameServer.cc \
 		  Opal1kCamera.cc \
+		  FccdCamera.cc \
 	          TM6740Camera.cc \
 		  CameraManager.cc \
 		  Opal1kManager.cc \
+		  FccdManager.cc \
 	          TM6740Manager.cc
 
 libsinc_camera := /usr/include/lvsds
@@ -47,7 +50,7 @@ leutron_libs += leutron/LvSerialCommunication.34.${ARCHCODE}
 tgtsrcs_camsend := camsend.cc
 tgtlibs_camsend := pds/service pds/collection pds/utility pds/config pds/camera pds/client pds/xtc
 tgtlibs_camsend += pds/vmon pds/mon
-tgtlibs_camsend += pdsdata/xtcdata pdsdata/camdata pdsdata/opal1kdata pdsdata/pulnixdata
+tgtlibs_camsend += pdsdata/xtcdata pdsdata/camdata pdsdata/opal1kdata pdsdata/pulnixdata pdsdata/fccddata
 tgtincs_camsend := pds/zerocopy/kmemory pds/camera
 tgtlibs_camsend += $(leutron_libs)
 tgtincs_camsend += leutron/include

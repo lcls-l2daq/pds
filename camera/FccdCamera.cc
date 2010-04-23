@@ -77,12 +77,38 @@ static void rstrip(char *buf, int len, char drop1, char drop2)
   }
 }
 
-int FccdCamera::PicPortCameraInit() {
-  #define SZRESPONSE_MAXLEN  64
+#define SZRESPONSE_MAXLEN  64
+#define SENDBUF_MAXLEN     10
+
+int FccdCamera::SendFccdCommand(const char *cmd)
+{
+  unsigned int ubuf;
+  int sendLen, ii, ret;
   char szResponse[SZRESPONSE_MAXLEN];
-  #define SENDBUF_MAXLEN     10
+  char sendBuf[SENDBUF_MAXLEN];
+
+  // format of command string is aa:bb:cc ...
+  sendLen = (strlen(cmd)+1) / 3;
+  for (int ii = 0; (ii < sendLen) && (ii < SENDBUF_MAXLEN); ii++) {
+    if (sscanf(cmd+(ii*3), "%2x", &ubuf) == 1) {
+      sendBuf[ii] = (char)ubuf;
+    } else {
+      printf(">> %s: Error reading cmd \"%s\"\n", __FUNCTION__, cmd);
+      return (-EINVAL);
+    }
+  }
+  ret = SendBinary(sendBuf, sendLen, szResponse, SZRESPONSE_MAXLEN);
+  rstrip(szResponse, ret, eotRead(), 'z');
+  printf(">> %s: cmd: \"%s\" reply: \"%s\"\n", __FUNCTION__, cmd,
+          (ret > 0) ? szResponse : "(null)");
+
+  return (ret);
+}
+
+int FccdCamera::PicPortCameraInit() {
   char sendBuf[SENDBUF_MAXLEN];
   char pingCmd = 0xff;
+  int ret, trace;
   char *initCmd[] = {
     // --
     // -- SET CLOCKS
@@ -176,47 +202,31 @@ int FccdCamera::PicPortCameraInit() {
     "13:00",
     // -- Make sure the Exposure Delay is set to zero (Should be default condition)
     "0f:00:00:00",
-    // -- Set output to Test Pattern 4
-    "03:04",
-    // -- END OF CONFIG FILE --
     // empty string marks end of list
     ""
   };
     
   //
-  // read the FCCD version via CameraLink serial command
-  //
-  int ret = SendBinary(&pingCmd, 1, szResponse, SZRESPONSE_MAXLEN);
-  printf(">> FCCD version: ");
-  if (ret > 0) {
-    rstrip(szResponse, ret, eotRead(), 'z');
-    printf("%s\n", szResponse);
-  } else {
-    printf("Error (%d)\n", ret);
-  }
-
-  //
   // initialize FCCD via CameraLink serial commands
   //
-  for (int trace = 0; *initCmd[trace]; trace++) {
-    unsigned int ubuf;
-    // format of command string is aa:bb:cc ...
-    int sendLen = (strlen(initCmd[trace])+1) / 3;
-    for (int ii = 0; (ii < sendLen) && (ii < SENDBUF_MAXLEN); ii++) {
-      if (sscanf(initCmd[trace]+(ii*3), "%2x", &ubuf) == 1) {
-        sendBuf[ii] = (char)ubuf;
-      } else {
-        printf(">> %s: Error reading cmd %d element %d\n", __FUNCTION__, trace, ii);
-        return (-EINVAL);
-      }
+
+  printf(">> Read FCCD version...\n");
+  (void) SendFccdCommand("ff");
+
+  printf(">> Set fixed portion of FCCD configuration...\n");
+  for (trace = 0; *initCmd[trace]; trace++) {
+    if ((ret = SendFccdCommand(initCmd[trace])) < 0) {
+      break;
     }
-    ret = SendBinary(sendBuf, sendLen, szResponse, SZRESPONSE_MAXLEN);
-    rstrip(szResponse, ret, eotRead(), 'z');
-    printf(">> %s: cmd: \"%s\" reply: \"%s\"\n", __FUNCTION__, initCmd[trace],
-            (ret > 0) ? szResponse : "(null)");
   }
 
-  return 0;
+  if (ret >= 0) {
+    printf(">> Set variable portion of FCCD configuration...\n");
+    sprintf(sendBuf, "03:%02d", _inputConfig->outputMode());
+    ret = SendFccdCommand(sendBuf);
+  }
+
+  return (ret);
 }
 
 FrameHandle* 
