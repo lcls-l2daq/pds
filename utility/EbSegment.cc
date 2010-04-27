@@ -148,7 +148,8 @@ void EbSegment::deallocate(char* payload, int sizeofFragment)
 
 unsigned EbSegment::fixup(){
   Damage dmg(_header.damage.value());  // propagate recorded damage up
-  printf("EbSegment::fixup offset/remaining/size %d/%d/%d  %x\n",_offset,_remaining,_header.extent,_client.value());
+  if (nEbPrints)
+    printf("EbSegment::fixup offset/remaining/size %d/%d/%d  %x\n",_offset,_remaining,_header.extent,_client.value());
   Xtc* xtc = new(_base) Xtc(_header.contains, _header.src, 
 			    Damage(dmg.value() | (1 << Damage::IncompleteContribution)));
   xtc->alloc(_header.sizeofPayload());
