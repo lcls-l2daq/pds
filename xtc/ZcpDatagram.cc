@@ -31,6 +31,7 @@ bool ZcpDatagram::insert(const Xtc& tc, const void* payload)
     remaining -= len;
   }
   xtc.extent += tc.extent;
+  xtc.damage.increase(tc.damage.value());
   return true;
 }
 

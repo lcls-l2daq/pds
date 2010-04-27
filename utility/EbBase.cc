@@ -51,6 +51,10 @@ using namespace Pds;
 ** --
 */
 
+#ifdef VERBOSE
+static timespec prev_ts;
+#endif
+
 static const int TaskPriority = 60;
 static const char* TaskLevelName[Level::NumberOfLevels+1] = {
   "oEbCtr", "oEbSrc", "oEbSeg", "oEbEvt", "oEbRec", "oEbObs"
@@ -379,13 +383,18 @@ int EbBase::processTmo()
       ServerManager::arm(_armMask());
     } else {
 #ifdef VERBOSE
+      timespec ts;
+      clock_gettime(CLOCK_REALTIME, &ts);
+      double dts = (ts.tv_sec - prev_ts.tv_sec) + 1.e-9*(ts.tv_nsec - prev_ts.tv_nsec);
+      prev_ts = ts;
+
       InDatagram* indatagram   = event->finalize();
       const Datagram* datagram = &indatagram->datagram();
       EbBitMask value(event->allocated().remaining() & _valued_clients);
       if (!value.isZero())
-	printf("EbBase::processTmo seq %x/%x  remaining %08x\n",
+	printf("EbBase::processTmo seq %x/%x  remaining %08x : %g\n",
 	       datagram->seq.service(), datagram->seq.stamp().fiducials(),
-	       event->remaining().value());
+	       event->remaining().value(), dts);
 #endif
       _postEvent(event);
       ServerManager::arm(_armMask());
@@ -433,6 +442,15 @@ int EbBase::poll()
 
 EbEventBase* EbBase::_event(EbServer* server)
   {
+#ifdef VERBOSE
+  timespec ts;
+  clock_gettime(CLOCK_REALTIME, &ts);
+  double dts = (ts.tv_sec - prev_ts.tv_sec) + 1.e-9*(ts.tv_nsec - prev_ts.tv_nsec);
+  const Src& src = server->client();
+  printf("EbBase::_event srv %08x/%08x : %g [s]\n",src.phy(),src.log(),dts);
+  prev_ts = ts;
+#endif
+
   EbBitMask serverId;
   serverId.setBit(server->id());
   EbEventBase* event = _pending.forward();

@@ -19,6 +19,7 @@ bool CDatagram::insert(const Xtc& tc, const void* payload)
   int payloadsiz = tc.extent - sizeof(Xtc);
   memcpy(xtc.alloc(sizeof(Xtc)), &tc, sizeof(Xtc));
   memcpy(xtc.alloc(payloadsiz), payload, payloadsiz);
+  xtc.damage.increase(tc.damage.value());
   return true;
 }
 

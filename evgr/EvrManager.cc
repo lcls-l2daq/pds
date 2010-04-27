@@ -81,11 +81,11 @@ namespace Pds
 using namespace Pds;
 
 static unsigned dropPulseMask     = 0xffffffff;
-static int      giMaxNumFifoEvent = 360;
-static int      giMaxEventCodes   = 32;
-static int      giMaxPulses       = 10;
-static int      giMaxOutputMaps   = 16;
-
+static const int      giMaxNumFifoEvent = 360;
+static const int      giMaxEventCodes   = 32;
+static const int      giMaxPulses       = 10;
+static const int      giMaxOutputMaps   = 16;
+static const int      giMaxCalibCycles  = 500;
 class L1Xmitter;
 static L1Xmitter *l1xmitGlobal;
 static EvgrBoardInfo < Evr > *erInfoGlobal; // yuck
@@ -381,36 +381,6 @@ private:
   DoneTimer & _done;
 };
 
-class EvrBeginRunAction:public EvrAction
-{
-public:
-  EvrBeginRunAction(Evr & er):EvrAction(er)
-  {
-  }
-  Transition *fire(Transition * tr)
-  {
-    _er.IrqEnable(EVR_IRQ_MASTER_ENABLE | EVR_IRQFLAG_EVENT);
-    _er.EnableFIFO(1);
-    _er.Enable(1);
-    return tr;
-  }
-};
-
-class EvrEndRunAction:public EvrAction
-{
-public:
-  EvrEndRunAction(Evr & er):EvrAction(er)
-  {
-  }
-  Transition *fire(Transition * tr)
-  {
-    _er.IrqEnable(0);
-    _er.Enable(0);
-    _er.EnableFIFO(0);
-    return tr;
-  }
-};
-
 static unsigned int evrConfigSize(unsigned maxNumEventCodes, unsigned maxNumPulses, unsigned maxNumOutputMaps)
 {
   return (sizeof(EvrConfigType) + 
@@ -419,41 +389,37 @@ static unsigned int evrConfigSize(unsigned maxNumEventCodes, unsigned maxNumPuls
     maxNumOutputMaps * sizeof(EvrConfigType::OutputMapType));
 }
 
-class EvrConfigAction:public EvrAction
+class EvrConfigManager
 {
 public:
-  EvrConfigAction(Evr & er, CfgClientNfs & cfg, bool bTurnOffBeamCode):
-    EvrAction(er),
+  EvrConfigManager(Evr & er, CfgClientNfs & cfg, bool bTurnOffBeamCode):
+    _er (er),
     _cfg(cfg),
     _cfgtc(_evrConfigType, cfg.src()),
     _configBuffer(
-      new char[ evrConfigSize( giMaxEventCodes, giMaxPulses, giMaxOutputMaps ) ] ),
+      new char[ giMaxCalibCycles* evrConfigSize( giMaxEventCodes, giMaxPulses, giMaxOutputMaps ) ] ),
+    _cur_config(0),
+    _end_config(0),
     _bTurnOffBeamCode(_bTurnOffBeamCode)
   {
   }
 
-   ~EvrConfigAction()
+   ~EvrConfigManager()
   {
     delete[] _configBuffer;
   }
 
-  InDatagram *fire(InDatagram * dg)
+  void insert(InDatagram * dg)
   {
-    dg->insert(_cfgtc, _configBuffer);
-    return dg;
+    dg->insert(_cfgtc, _cur_config);
   }
 
-  Transition *fire(Transition * tr)
+  void configure()
   {
-    _cfgtc.damage.increase(Damage::UserDefined);
-    int len = _cfg.fetch(*tr, _evrConfigType, _configBuffer);
-    if (len < 0)
-    {
-      printf("Config::configure failed to retrieve Evr configuration\n");
-      return tr;
-    }
-    const EvrConfigType & cfg = * (EvrConfigType*) _configBuffer;
-    _cfgtc.extent = sizeof(Xtc) + cfg.size();
+    if (!_cur_config)
+      return;
+
+    const EvrConfigType& cfg = *_cur_config;
 
     printf("Configuring evr\n");
 
@@ -521,19 +487,105 @@ public:
     
     _er.MapRamEnable(ram, 0);
     
-    l1xmitGlobal->reset();
     l1xmitGlobal->setEvrConfig( &cfg );
+  }
 
+  bool fetch(Transition* tr)
+  {
     _cfgtc.damage = 0;
-    return tr;
+
+    int len = _cfg.fetch(*tr, _evrConfigType, _configBuffer);
+    if (len < 0)
+    {
+      _cur_config = 0;
+      _cfgtc.extent = sizeof(Xtc);
+      _cfgtc.damage.increase(Damage::UserDefined);
+      printf("Config::configure failed to retrieve Evr configuration\n");
+      return false;
+    }
+
+    _cur_config = reinterpret_cast<const EvrConfigType*>(_configBuffer);
+    _end_config = _configBuffer+len;
+    _cfgtc.extent = sizeof(Xtc) + _cur_config->size();
+
+    printf("fetch: curr %p  end %p\n", _cur_config, _end_config);
+
+    return true;
+  }
+
+  void advance()
+  {
+    int len = _cur_config->size();
+    const char* nxt_config = reinterpret_cast<const char*>(_cur_config)+len;
+    if (nxt_config < _end_config)
+      _cur_config = reinterpret_cast<const EvrConfigType*>(nxt_config);
+    else
+      _cur_config = reinterpret_cast<const EvrConfigType*>(_configBuffer);
+    _cfgtc.extent = sizeof(Xtc) + _cur_config->size();
+
+    printf("advance: curr %p  end %p\n", _cur_config, _end_config);
+  }
+
+  void enable()
+  {
+    _er.IrqEnable(EVR_IRQ_MASTER_ENABLE | EVR_IRQFLAG_EVENT);
+    _er.EnableFIFO(1);
+    _er.Enable(1);
+  }
+
+  void disable()
+  {
+    _er.IrqEnable(0);
+    _er.Enable(0);
+    _er.EnableFIFO(0);
   }
 
 private:
-  CfgClientNfs &  _cfg;
+  Evr&            _er;
+  CfgClientNfs&   _cfg;
   Xtc             _cfgtc;
   char *          _configBuffer;
-  bool            _bTurnOffBeamCode;
+  const EvrConfigType* _cur_config;
+  const char*          _end_config;
+  bool                 _bTurnOffBeamCode;
 };
+
+class EvrConfigAction: public Action {
+public:
+  EvrConfigAction(EvrConfigManager& cfg) : _cfg(cfg) {}
+public:
+  Transition* fire(Transition* tr) 
+  { 
+    _cfg.fetch(tr);
+    l1xmitGlobal->reset();
+    return tr;
+  }
+  InDatagram* fire(InDatagram* dg) { _cfg.insert(dg); return dg; }
+private:
+  EvrConfigManager& _cfg;
+};
+
+class EvrBeginCalibAction: public Action {
+public:
+  EvrBeginCalibAction(EvrConfigManager& cfg) : _cfg(cfg) {}
+public:
+  Transition* fire(Transition* tr) { _cfg.configure(); _cfg.enable(); return tr; }
+  InDatagram* fire(InDatagram* dg) { _cfg.insert(dg); return dg; }
+private:
+  EvrConfigManager& _cfg;
+};
+
+class EvrEndCalibAction: public Action
+{
+public:
+  EvrEndCalibAction(EvrConfigManager& cfg): _cfg(cfg) {}
+public:
+  Transition *fire(Transition * tr) { _cfg.disable(); return tr; }
+  InDatagram *fire(InDatagram * dg) { _cfg.advance(); return dg; }
+private:
+  EvrConfigManager& _cfg;
+};
+
 
 class EvrAllocAction:public Action
 {
@@ -608,13 +660,15 @@ EvrManager::EvrManager(EvgrBoardInfo < Evr > &erInfo, CfgClientNfs & cfg, bool b
   l1xmitGlobal = new L1Xmitter(_er, *_done);
   
   EvrL1Action* l1A = new EvrL1Action(_er, cfg.src());
-  _fsm.callback(TransitionId::Map, new EvrAllocAction(cfg,*l1A));
-  _fsm.callback(TransitionId::Configure, new EvrConfigAction(_er, cfg, bTurnOffBeamCode));
-  _fsm.callback(TransitionId::BeginRun, new EvrBeginRunAction(_er));
-  _fsm.callback(TransitionId::EndRun, new EvrEndRunAction(_er));
-  _fsm.callback(TransitionId::Enable, new EvrEnableAction(_er, *_done));
-  _fsm.callback(TransitionId::Disable, new EvrDisableAction(_er, *_done));
-  _fsm.callback(TransitionId::L1Accept, l1A);
+  EvrConfigManager* cmgr = new EvrConfigManager(_er, cfg, bTurnOffBeamCode);
+
+  _fsm.callback(TransitionId::Map            , new EvrAllocAction     (cfg,*l1A));
+  _fsm.callback(TransitionId::Configure      , new EvrConfigAction    (*cmgr));
+  _fsm.callback(TransitionId::BeginCalibCycle, new EvrBeginCalibAction(*cmgr));
+  _fsm.callback(TransitionId::EndCalibCycle  , new EvrEndCalibAction  (*cmgr));
+  _fsm.callback(TransitionId::Enable         , new EvrEnableAction    (_er, *_done));
+  _fsm.callback(TransitionId::Disable        , new EvrDisableAction   (_er, *_done));
+  _fsm.callback(TransitionId::L1Accept       , l1A);
 
   _er.IrqAssignHandler(erInfo.filedes(), &evrmgr_sig_handler);
   erInfoGlobal = &erInfo;

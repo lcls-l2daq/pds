@@ -231,7 +231,8 @@ public:
     
     unsigned long long evrAcqDiff =  abs(_evrAbsDiffNSec - acqdiff);
     // Time adaptive offset comparison to detect ant dropped trigger --> Adaptive Time Offset @ 6.5 uSec/Sec rate	
-    if (_initFlag && ((double)evrAcqDiff> ((double)_evrAbsDiffNSec*6.5e-3))) {  
+    if (_initFlag && ((double)evrAcqDiff> ((double)_evrAbsDiffNSec*6.5e-3)) &&
+	!_outoforder) {  
       if (nprint++<10) {
         printf("\n*** OutOfOrder: fiducials since last evt: Evr= %f  Acq= %f EvrClk= %f\n",
                ((float)(evrdiff))/(float)nsPerFiducial,((float)(acqdiff))/(float)nsPerFiducial,((float)(evrClkDiffNSec))/(float)nsPerFiducial);
@@ -241,7 +242,7 @@ public:
       _outoforder=1;	  
 
       Pds::Occurrence* occ = new (_occPool)
-	Pds::Occurrence(Pds::OccurrenceId::ClearReadout);
+ 	Pds::Occurrence(Pds::OccurrenceId::ClearReadout);
       _mgr->appliance().post(occ);
     }
 	
