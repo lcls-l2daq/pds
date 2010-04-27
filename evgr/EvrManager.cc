@@ -93,17 +93,17 @@ static EvgrBoardInfo < Evr > *erInfoGlobal; // yuck
 class L1Xmitter {
 public:
   L1Xmitter(Evr & er, DoneTimer & done):
-    _er           (er),
-    _done         (done),
-    _outlet       (sizeof(EvrDatagram), 0, Ins   (Route::interface())),
-    _evtCounter   (0), 
-    _evtStop      (0), 
-    _enabled      (false), 
-    _lastfid      (0),
-    _bReadout     (false),
-    _pEvrConfig   (NULL),
-    _L1DataUpdated( *(EvrDataUtil*) new char[ EvrDataUtil::size( giMaxNumFifoEvent ) ]  ),
-    _L1DataFinal  ( *(EvrDataUtil*) new char[ EvrDataUtil::size( giMaxNumFifoEvent ) ]  )    
+    _er             (er),
+    _done           (done),
+    _outlet         (sizeof(EvrDatagram), 0, Ins   (Route::interface())),
+    _evtCounter     (0), 
+    _evtStop        (0), 
+    _enabled        (false), 
+    _lastfid        (0),
+    _bReadout       (false),
+    _pEvrConfig     (NULL),
+    _L1DataUpdated  ( *(EvrDataUtil*) new char[ EvrDataUtil::size( giMaxNumFifoEvent ) ]  ),
+    _L1DataFinal    ( *(EvrDataUtil*) new char[ EvrDataUtil::size( giMaxNumFifoEvent ) ]  )
   {
     new (&_L1DataUpdated) EvrDataUtil( 0, NULL );
     new (&_L1DataFinal)   EvrDataUtil( 0, NULL );
@@ -116,10 +116,10 @@ public:
   }
   
   void xmit()
-  {
+  {      
     FIFOEvent fe;
     _er.GetFIFOEvent(&fe);
-
+        
     // for testing
     if ((fe.TimestampHigh & dropPulseMask) == dropPulseMask)
     {
@@ -180,9 +180,7 @@ public:
       TimeStamp stamp(fe.TimestampLow, fe.TimestampHigh, _evtCounter);
       Sequence seq(Sequence::Event, TransitionId::L1Accept, ctime, stamp);
       EvrDatagram datagram(seq, _evtCounter++);
-      
-      _outlet.send((char *) &datagram, 0, 0, _dst);
-      
+            
       if ( _L1DataFinal.numFifoEvents() == 0 )
         new (&_L1DataFinal) EvrData::DataV3( _L1DataUpdated );
       else
@@ -191,8 +189,8 @@ public:
       }
 
       _L1DataUpdated.clearFifoEvents();      
-      
-      static const int NEVENTPRINT = 100;      
+            
+      static const int NEVENTPRINT = 1000;      
       if (_evtCounter%NEVENTPRINT == 0) 
       {
         float dfid = fe.TimestampHigh-_lastfid;
@@ -226,12 +224,19 @@ public:
       
       if (_evtCounter == _evtStop)
         _done.expired();                     
-    }
-  } // if ( bStartL1Accept )
-  
-  void reset()  { _evtCounter = 0; }
-  
-  void enable(bool e) { _enabled = e; }
+        
+      /*
+       * Send out the L1 "trigger" to make all L1 node start processing.
+       *
+       * Note: As soon as the send() function is called, the other polling thread may
+       *   race with this thread to get the evr data and send it out immediately.
+       */
+      _outlet.send((char *) &datagram, 0, 0, _dst);      
+    } // if ( bStartL1Accept )       
+  } 
+
+  void reset()        { _evtCounter = 0; }
+  void enable(bool e) { _enabled    = e; }
   bool enable() const { return _enabled; }
   
   void dst(const Ins & ins)  { _dst = ins; }
@@ -240,8 +245,9 @@ public:
   
   void setEvrConfig(const EvrConfigType* pEvrConfig) { _pEvrConfig = pEvrConfig; }
   
-  EvrDataUtil& getL1Data() { return _L1DataFinal; }
-  
+  const EvrDataUtil&  getL1Data     () { return _L1DataFinal; }
+  void                releaseL1Data () { _L1DataFinal.clearFifoEvents(); }
+    
 private:
   Evr &                 _er;
   DoneTimer &           _done;
@@ -283,15 +289,18 @@ public:
   {
     InDatagram* out = in;
         
-    if (l1xmitGlobal->enable())
+    do
     {
-      EvrDataUtil& evrData = l1xmitGlobal->getL1Data();
+      if (!l1xmitGlobal->enable())
+        break;
       
       if ( _poolEvrData.numberOfFreeObjects() <= 0 )
       {
         printf( "EvrL1Action::fire(): Pool is full, so cannot provide buffer for new datagram\n" );
-        return NULL;
+        break;
       }      
+
+      const EvrDataUtil& evrData = l1xmitGlobal->getL1Data();
       
       out = 
        new ( &_poolEvrData ) CDatagram( in->datagram() ); 
@@ -313,8 +322,9 @@ public:
       //evrData.printFifoEvents();
       //printf( "EvrL1Action::fire() data dump end\n\n" );
       
-      evrData.clearFifoEvents();
-    }
+      l1xmitGlobal->releaseL1Data();      
+    } 
+    while (false);
     
     //
     //  Special software trigger service to L1 nodes
@@ -373,7 +383,7 @@ public:
     // switch to the "dummy" map ram so we can still get eventcodes 0x70,0x71,0x7d for timestamps
     unsigned dummyram=1;
     _er.MapRamEnable(dummyram,1);
-
+    
     _done.cancel();
     return tr;
   }
@@ -638,12 +648,14 @@ extern "C"
   void evrmgr_sig_handler(int parm)
   {
     Evr & er = erInfoGlobal->board();
-    int flags = er.GetIrqFlags();
+    int flags = er.GetIrqFlags();   
+    
     if (flags & EVR_IRQFLAG_EVENT)
     {
       er.ClearIrqFlags(EVR_IRQFLAG_EVENT);
       l1xmitGlobal->xmit();
     }
+        
     int fdEr = erInfoGlobal->filedes();
     er.IrqHandled(fdEr);
   }
@@ -684,7 +696,7 @@ EvrManager::EvrManager(EvgrBoardInfo < Evr > &erInfo, CfgClientNfs & cfg, bool b
   if (sigaction(SIGINT, &int_action, 0) > 0)
   {
     printf("Couldn't set up SIGINT handler\n");
-  }
+  }  
 }
 
 EvrManager::~EvrManager()
