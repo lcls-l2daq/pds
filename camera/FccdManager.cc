@@ -65,10 +65,12 @@ void FccdManager::nextConfigure    (Transition* tr)
   CameraManager::nextConfigure(tr);
 }
 
+#if 0
 InDatagram* FccdManager::recordConfigure  (InDatagram* in)
 {
-  return in;
+  return in; // FIXME
 }
+#endif
 
 void FccdManager::_configure(const void* buff)
 {
