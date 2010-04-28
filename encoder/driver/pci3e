@@ -1,0 +1,100 @@
+#!/bin/bash
+
+module=pci3e
+device=pci3e
+minor=0
+node=/dev/$device$minor
+mode=666
+procfs_name=driver/pci3e-debug
+
+function is_loaded() {
+   /sbin/lsmod | grep -q $module
+}
+
+function status() {
+   { /sbin/lsmod | grep -q $module; } || {
+      echo "$module isn't loaded."
+      return 1
+   }
+
+   { cat /proc/devices | grep -q $device; } || {
+      echo Module loaded, but device '$device' not registered.
+      return 1
+   }
+
+   [ -f /proc/$procfs_name ] || {
+      echo Module loaded but did not initialize - procfs entry is missing...
+      echo Check contents of /proc/driver/ ...
+      return 1
+   }
+}
+
+function stop() {
+   [ -f $node ] || sudo rm -f $node
+
+   is_loaded || {
+      echo $module not currently loaded.
+      return 0
+   }
+
+   sudo /sbin/rmmod $module || {
+      echo Error: Unable to unload module.
+      return 1
+   }
+}
+
+function start() {
+   [ -f ./$module.ko ] || {
+      echo Failed: $module.ko not found in current directory.
+      return 1
+   }
+
+   sudo /sbin/insmod ./$module.ko debug=1 || { 
+      echo Failed to load kernel module.  Check dmesg? ...
+      exit 1
+   }
+
+   status || {
+      echo Driver did not initialize properly.
+      return 1
+   }
+
+   # Lower driver verbosity.
+   echo 0 > /proc/$procfs_name
+
+   # Determine our device's major number.
+   major=`cat /proc/devices | awk "\\$2==\"$module\" {print \\$1}"`
+
+   [ -c $node ] || sudo rm -f $node
+
+   sudo mknod $node c $major $minor || {
+      echo Error: Unable to create device node.
+      return 1
+   }
+
+   sudo chmod $mode $node
+}      
+
+function restart() {
+   stop && start
+}
+
+####################
+
+[ $# -ge 1 ] || {
+   echo Error: must call with at least one argument.
+   exit 1
+}
+
+case $1 in
+   start) 
+      start && echo "$module started successfully." ;;
+   stop)
+      stop && echo "$module stopped successfully." ;;
+   restart)
+      restart && echo "$module restarted successfully." ;;
+   status)
+      status && echo "$module is loaded and initialized successfully." ;;
+   *)
+      echo "Unknown argument '$1'" ;;
+esac
