@@ -121,7 +121,7 @@ void EbSegment::consume(int sizeofFragment, int expected)
 }
 
 
-void EbSegment::deallocate(char* payload, int sizeofFragment)
+bool EbSegment::deallocate(char* payload, int sizeofFragment)
 {
   //
   //  If the fragment has overwritten the end of the allocated space,
@@ -132,7 +132,9 @@ void EbSegment::deallocate(char* payload, int sizeofFragment)
     if (nEbPrints)
       printf("EbSegment overwrote next %x + %x > %x\n",
 	     _offset,sizeofFragment,_header.extent);
+    return false;  // could not cleanly deallocate
   }
+  return true;
 }
 
 /*

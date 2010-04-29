@@ -175,7 +175,8 @@ EbBitMask EbEvent::deallocate(EbBitMask client, char* payload, int sizeofPayload
 {
   EbSegment* segment = hasSegment(client);
   if (segment)
-    segment->deallocate(payload,sizeofPayload);
+    if (!segment->deallocate(payload,sizeofPayload))
+      datagram()->xtc.damage.increase(Damage::IncompleteContribution);
   return EbEventBase::deallocate(client);
 }
 
