@@ -27,8 +27,10 @@ ObserverLevel::ObserverLevel(unsigned platform,
 
 ObserverLevel::~ObserverLevel() 
 {
-  for (int s = 0; s < StreamParams::NumberOfStreams; s++)
-    delete _outlets[s];
+  if (_streams) {
+    for (int s = 0; s < StreamParams::NumberOfStreams; s++)
+      delete _outlets[s];
+  }
 }
 
 bool ObserverLevel::attach()
