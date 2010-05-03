@@ -135,7 +135,7 @@ int EpicsArchMonitor::_readConfigFile( const std::string& sFnConfig, TPvList& vs
     {
         string sLine;
         std::getline( ifsConfig, sLine );    
-        if ( sLine[0] == '#' ) continue; // skip comment lines, whcih begin with '#'
+        if ( sLine[0] == '#' ) continue; // skip comment lines that begin with '#'
         
         _splitPvList( sLine, vsPvNameList );
     }
