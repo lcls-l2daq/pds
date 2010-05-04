@@ -1,5 +1,7 @@
 #include "GenericPoolW.hh"
 
+#include <stdio.h>
+
 using namespace Pds;
 
 GenericPoolW::GenericPoolW(size_t sizeofObject, int numberofObjects) :
@@ -18,7 +20,13 @@ GenericPoolW::~GenericPoolW()
 void* GenericPoolW::deque()
 {
   _sem.take();
-  return GenericPool::deque();
+  void* p = GenericPool::deque();
+  while( p == NULL ) {  // this should never happen
+    printf("GenericPoolW::deque returned NULL with depth %d.  Depleting semaphore.\n", depth());
+    _sem.take();
+    p = GenericPool::deque();
+  }
+  return p;
 }
 
 void GenericPoolW::enque(PoolEntry* entry)
