@@ -39,7 +39,7 @@ namespace Pds {
     virtual void nextConfigure (Transition* tr);
     //    virtual void unconfigure   (Transition* tr);
 
-    virtual InDatagram* recordConfigure  (InDatagram* in);
+    // virtual InDatagram* recordConfigure  (InDatagram* in);
   private:
     void _configure(const void*);
 
