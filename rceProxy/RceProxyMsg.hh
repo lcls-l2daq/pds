@@ -44,10 +44,15 @@ namespace RceFBld {
   class ProxyReplyMsg {
 
     public:
-      ProxyReplyMsg() : damage(Pds::Damage(0)) {};
+    public:
+      ProxyReplyMsg() : type(Done), damage(Pds::Damage(0)) {};
       ~ProxyReplyMsg() {};
 
+      enum replyType {Done, SendConfig};
+      void setType(replyType t) {type = t;}
+
     public:
+      replyType     type;
       Pds::Damage   damage;
   };
 

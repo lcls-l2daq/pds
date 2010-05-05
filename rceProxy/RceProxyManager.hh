@@ -24,7 +24,7 @@ namespace Pds
   class RceProxyManager
   {
     public:
-      RceProxyManager(CfgClientNfs& cfg, const std::string& sRceIp, int iNumLinks, int iPayloadSizePerLink,
+      RceProxyManager(CfgClientNfs& cfg, const std::string& sRceIp, const std::string& sConfigFile, int iNumLinks, int iPayloadSizePerLink,
           TypeId typeidData, int iTsWidth, int iPhase, const Node& selfNode, int iDebugLevel);
       ~RceProxyManager();
 
@@ -39,6 +39,7 @@ namespace Pds
       int sendMessageToRce(const RceFBld::ProxyMsg& msg, RceFBld::ProxyReplyMsg& msgReply);    
 
       std::string           _sRceIp;
+      std::string           _sConfigFile;
       int                   _iNumLinks;
       int                   _iPayloadSizePerLink;
       TypeId                _typeidData;

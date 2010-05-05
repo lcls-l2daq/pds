@@ -74,14 +74,14 @@ class RceProxyUnmapAction : public Action
 class RceProxyConfigAction : public Action 
 {
   public:
-    RceProxyConfigAction(RceProxyManager& manager, CfgClientNfs& cfg, int iDebugLevel, unsigned iNumLinks, unsigned iPayloadSizePerLink) :
+    RceProxyConfigAction(RceProxyManager& manager, CfgClientNfs& cfg, int iDebugLevel, string& sConfigFile, unsigned iNumLinks, unsigned iPayloadSizePerLink) :
       _manager(manager), _cfg(cfg), _iDebugLevel(iDebugLevel),
-      _cfgtc(_pnCCDConfigType,cfg.src()),
+      _cfgtc(_pnCCDConfigType,cfg.src()), _sConfigFile(sConfigFile),
       _iNumLinks(iNumLinks),_iPayloadSizePerLink(iPayloadSizePerLink), _damageFromRce(0)
       {}
 
     // this is the first "phase" of a transition where
-    // all CPUs configure in parallel.
+    // all CPUs configure in parallel.RceProxyConfigAction
     virtual Transition* fire(Transition* tr) 
     {
       // in the long term, we should get this from database - cpo
@@ -97,7 +97,7 @@ class RceProxyConfigAction : public Action
     // archived in the xtc file).
     virtual InDatagram* fire(InDatagram* in) 
     {
-      pnCCDConfigType config(_iNumLinks,_iPayloadSizePerLink);
+      pnCCDConfigType config(_iNumLinks,_iPayloadSizePerLink, _sConfigFile);
       _cfgtc.extent = sizeof(Xtc)+sizeof(pnCCDConfigType);
       in->insert(_cfgtc, &config);
       
@@ -113,6 +113,7 @@ class RceProxyConfigAction : public Action
     CfgClientNfs&       _cfg;
     int                 _iDebugLevel;
     Xtc                 _cfgtc;
+    string              _sConfigFile;
     unsigned            _iNumLinks;
     unsigned            _iPayloadSizePerLink;
     Damage              _damageFromRce;
@@ -162,16 +163,17 @@ class RceProxyDisableAction : public Action
 
 RceFBld::ProxyMsg RceProxyManager::_msg;
 
-RceProxyManager::RceProxyManager(CfgClientNfs& cfg, const string& sRceIp, int iNumLinks, int iPayloadSizePerLink, 
+RceProxyManager::RceProxyManager(CfgClientNfs& cfg, const string& sRceIp, const string& sConfigFile,
+    int iNumLinks, int iPayloadSizePerLink,
     TypeId typeidData, int iTsWidth, int iPhase, const Node& selfNode, int iDebugLevel) :
-    _sRceIp(sRceIp), _iNumLinks(iNumLinks), _iPayloadSizePerLink(iPayloadSizePerLink), 
-    _typeidData(typeidData), _iTsWidth(iTsWidth), _iPhase(iPhase), 
-    _selfNode(selfNode), _iDebugLevel(iDebugLevel), _cfg(cfg)
+    _sRceIp(sRceIp), _sConfigFile(sConfigFile), _iNumLinks(iNumLinks),
+    _iPayloadSizePerLink(iPayloadSizePerLink),  _typeidData(typeidData), _iTsWidth(iTsWidth),
+    _iPhase(iPhase),  _selfNode(selfNode), _iDebugLevel(iDebugLevel), _cfg(cfg)
 {
   _pFsm            = new Fsm();
   _pActionMap      = new RceProxyAllocAction(*this, cfg);
   _pActionUnmap    = new RceProxyUnmapAction(*this);
-  _pActionConfig   = new RceProxyConfigAction(*this, cfg, _iDebugLevel,_iNumLinks,_iPayloadSizePerLink);
+  _pActionConfig   = new RceProxyConfigAction(*this, cfg, _iDebugLevel,_sConfigFile,_iNumLinks,_iPayloadSizePerLink);
   // this should go away when we get the configuration from the database - cpo
   _pActionL1Accept = new RceProxyL1AcceptAction(*this, _iDebugLevel);
   _pActionDisable  = new RceProxyDisableAction(*this);
