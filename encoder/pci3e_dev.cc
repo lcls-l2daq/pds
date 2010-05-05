@@ -6,9 +6,13 @@
 #include "driver/pci3e-wrapper.hh"
 #include "driver/pci3e.h"
 
-#define BAIL_ON_FAIL(what) { \
-   ret = what;               \
-   if( ret ) return ret;     \
+#define BAIL_ON_FAIL(what) {     \
+   ret = what;                   \
+   if( ret ) {                   \
+      printf( "Fail: %s = %d\n", \
+              #what, ret );      \
+      return ret;                \
+   }                             \
 }
 
 int Pds::PCI3E_dev::open( void )
@@ -16,9 +20,7 @@ int Pds::PCI3E_dev::open( void )
    int ret;
 
    BAIL_ON_FAIL( _pci3e.open() );
-   ignore_old_data();
-
-   return 0;
+   return ignore_old_data();
 }
 
 int Pds::PCI3E_dev::configure( const Pds::Encoder::ConfigV1& config )
