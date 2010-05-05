@@ -218,25 +218,25 @@ void EncoderL1Action::validate( InDatagram* in )
 
    // printf( "diff_evr_vs_enc_ns = %llu.\n", diff_evr_vs_enc_ns );
 
-   if( diff_evr_vs_enc_ns > (uint64_t) EVR_ENC_MAX_DIFF_NS )
-   {  // Failed - we must have missed an event.  In this case, we have
-      // to assume that the next event is OK, or we'll *never* catch
-      // up.  We have to assume that *everything* is bad at this
-      // point.  Oops!  Just start over.
-      _reset_on_next = true;
-      dg.xtc.damage.increase( Pds::Damage::OutOfOrder );
-      printf( "L1Action::validate(): Fail: diff=%llu, .\n",
-              diff_evr_vs_enc_ns );
-      printf( "\tcurr_fid=%u, curr_enc=%u, curr_evr=%llu.\n",
-              curr_fiducial, curr_enc_timestamp, curr_evr_timestamp_ns );
-      printf( "\tlast_fid=%u, last_enc=%u, last_evr=%llu.\n",
-              _last_fiducial, _last_enc_timestamp, _last_evr_timestamp_ns );
-      printf( "\tdiff_fid=%u, diff_enc=%u, diff_enc_ns=%llu.\n",
-              diff_fiducial, diff_enc_timestamp, diff_enc_timestamp_ns );
-      printf( "\tdiff_fid_ns=%llu, diff_evr_vs_enc_ns=%llu.\n",
-              diff_fiducial_ns, diff_evr_vs_enc_ns );
-   }
-   else
+   // if( diff_evr_vs_enc_ns > (uint64_t) EVR_ENC_MAX_DIFF_NS )
+   // {  // Failed - we must have missed an event.  In this case, we have
+   //    // to assume that the next event is OK, or we'll *never* catch
+   //    // up.  We have to assume that *everything* is bad at this
+   //    // point.  Oops!  Just start over.
+   //    _reset_on_next = true;
+   //    dg.xtc.damage.increase( Pds::Damage::OutOfOrder );
+   //    printf( "L1Action::validate(): Fail: diff=%llu, .\n",
+   //            diff_evr_vs_enc_ns );
+   //    printf( "\tcurr_fid=%u, curr_enc=%u, curr_evr=%llu.\n",
+   //            curr_fiducial, curr_enc_timestamp, curr_evr_timestamp_ns );
+   //    printf( "\tlast_fid=%u, last_enc=%u, last_evr=%llu.\n",
+   //            _last_fiducial, _last_enc_timestamp, _last_evr_timestamp_ns );
+   //    printf( "\tdiff_fid=%u, diff_enc=%u, diff_enc_ns=%llu.\n",
+   //            diff_fiducial, diff_enc_timestamp, diff_enc_timestamp_ns );
+   //    printf( "\tdiff_fid_ns=%llu, diff_evr_vs_enc_ns=%llu.\n",
+   //            diff_fiducial_ns, diff_evr_vs_enc_ns );
+   // }
+   // else
    {
       _last_fiducial = curr_fiducial;
       _last_enc_timestamp = curr_enc_timestamp;
