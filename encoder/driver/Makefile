@@ -3,7 +3,7 @@
 UNAME := $(shell uname -r)
 KERNEL26 := 2.6
 KERNELVERSION := $(findstring $(KERNEL26),$(UNAME))
-MODULES_DIR := /lib/modules/$(UNAME)
+MODULES_DIR ?= /lib/modules/$(UNAME)
 INSTALL_DIR := $(MODULES_DIR)/kernel/drivers/pci3e
 
 ifeq ($(KERNELVERSION),2.6)
