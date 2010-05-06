@@ -696,9 +696,75 @@ int pci3e_write_debug_procfs( struct file* f,
       return -EFAULT;
    }
 
-   raw_debug = simple_strtol( debug_buf, &end, 10 );
+   raw_debug = simple_strtoul( debug_buf, &end, 10 /* radix */ );
 
    debug = raw_debug ? 1 : 0;
+
+   return count;
+}
+
+int pci3e_read_enc_procfs( char* page,
+                           char** start,
+                           off_t offset,
+                           int count,
+                           int* eof,
+                           void* data )
+{
+   int num_written;
+   uint32_t enc_val;
+   void __iomem* latch_reg;
+   struct pci3e_struct* pci3e;
+   int devnum;
+
+   devnum = (int) data;
+   pci3e = pci3e_devices[devnum];
+
+   *eof = 1;
+   *start = NULL;
+
+   // Read the current encoder value for encoder 0.  First write to
+   // register to update latch and then read back new value.
+   latch_reg = REG_TO_ADDR( GET_CHAN_REG( 0, REG_LATCH_OUTPUT ) );
+   writel( JUNK, latch_reg );
+   enc_val = readl( latch_reg );
+   num_written = sprintf( page, "%u", enc_val );
+
+
+   return num_written + 1; // + 1 = terminator
+}
+
+int pci3e_write_enc_procfs( struct file* f,
+                            const char* buffer,
+                            unsigned long count,
+                            void* data )
+{
+   char enc_buf[8];
+   long enc_val;
+   char* end;
+   int max_size;
+   struct pci3e_struct* pci3e;
+   int devnum;
+
+   max_size = 8;
+
+   devnum = (int) data;
+   pci3e = pci3e_devices[devnum];
+
+   if( copy_from_user( enc_buf,
+                       buffer,
+                       count > max_size ? max_size : count ) )
+   {
+      return -EFAULT;
+   }
+
+   enc_val = simple_strtol( enc_buf, &end, 10 );
+
+   // Overwriting the counter is a two-step process:
+   // 1.  Write desired value to PRESET.
+   // 2.  Write to TRANSFER_PRESET to overwrite the counter with the
+   //     value of PRESET.
+   writel( enc_val, REG_TO_ADDR( GET_CHAN_REG( 0, REG_PRESET ) ) );
+   writel( JUNK, REG_TO_ADDR( GET_CHAN_REG( 0, REG_TRANSFER_PRESET ) ) );
 
    return count;
 }
@@ -741,10 +807,17 @@ int pci3e_init(void)
 
    proc = create_proc_entry( "driver/pci3e-debug",
                              0666, // Allow read/write.
-                             NULL );
+                             (void*) 0 ); // Assume we'll use devnum 0.
    proc->owner = THIS_MODULE;
    proc->read_proc  = pci3e_read_debug_procfs;
    proc->write_proc = pci3e_write_debug_procfs;
+
+   proc = create_proc_entry( "driver/pci3e-enc",
+                             0666, // Allow read/write.
+                             (void*) 0 );
+   proc->owner = THIS_MODULE;
+   proc->read_proc  = pci3e_read_enc_procfs;
+   proc->write_proc = pci3e_write_enc_procfs;
 
    return 0;
 }
@@ -756,6 +829,7 @@ void pci3e_exit( void )
    printk( KERN_INFO "pci3e: exit...\n" );
 
    remove_proc_entry( "driver/pci3e-debug", NULL );
+   remove_proc_entry( "driver/pci3e-enc", NULL );
 
    // If we have a device number, release it to the system.
    if( dev != PCI3E_NO_DEV )
