@@ -10,10 +10,15 @@ public:
   EvrDataUtil(uint32_t u32NumFifoEvents, const FIFOEvent* lFifoEvent);
   EvrDataUtil(const EvrDataType& dataCopy);
 
-  void          printFifoEvents () const;
-  unsigned int  addFifoEvent    ( const FIFOEvent& fifoEvent ); // return the number of total fifo events, including the new one
-  void          clearFifoEvents ();
+  unsigned int  addFifoEvent      ( const FIFOEvent& fifoEvent ); // return the number of total fifo events, including the new one  
+  unsigned int  updateFifoEvent   ( const FIFOEvent& fifoEvent ); // return the index to the updated fifo event
+  void          markEventAsDeleted( unsigned int iEventIndex );
+  unsigned int  PurgeDeletedEvents(); // return the new total number of events after the purge
   
+
+  void          clearFifoEvents ();
+  void          printFifoEvents () const;
+
   using EvrDataType::size; // unhide the size() member function
   
   /*

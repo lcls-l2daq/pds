@@ -82,13 +82,29 @@ using namespace Pds;
 
 static unsigned dropPulseMask     = 0xffffffff;
 static const int      giMaxNumFifoEvent = 360;
-static const int      giMaxEventCodes   = 32;
-static const int      giMaxPulses       = 10;
-static const int      giMaxOutputMaps   = 16;
+static const int      giMaxEventCodes   = 32; // max number of event code configurations
+static const int      giMaxPulses       = 10; 
+static const int      giMaxOutputMaps   = 16; 
 static const int      giMaxCalibCycles  = 500;
 class L1Xmitter;
 static L1Xmitter *l1xmitGlobal;
 static EvgrBoardInfo < Evr > *erInfoGlobal; // yuck
+
+/* 
+ * Total Number of event code types is 256 ( Range: 0 - 255 )
+ * 
+ * Note: Used to initialize the Report Counter list
+ */
+static const unsigned int guNumTypeEventCode = 256; 
+struct EventCodeState
+{
+  bool bReadout;
+  bool bTerminator;
+  int  iDefReportDelay;
+  int  iDefReportWidth;  
+  int  iReportDelay;
+  int  iReportWidth;
+};
 
 class L1Xmitter {
 public:
@@ -103,16 +119,21 @@ public:
     _bReadout       (false),
     _pEvrConfig     (NULL),
     _L1DataUpdated  ( *(EvrDataUtil*) new char[ EvrDataUtil::size( giMaxNumFifoEvent ) ]  ),
-    _L1DataFinal    ( *(EvrDataUtil*) new char[ EvrDataUtil::size( giMaxNumFifoEvent ) ]  )
+    _L1DataFinal    ( *(EvrDataUtil*) new char[ EvrDataUtil::size( giMaxNumFifoEvent ) ]  ),
+    _L1DataLatch    ( *(EvrDataUtil*) new char[ EvrDataUtil::size( giMaxNumFifoEvent ) ]  )      
   {
     new (&_L1DataUpdated) EvrDataUtil( 0, NULL );
     new (&_L1DataFinal)   EvrDataUtil( 0, NULL );
+    new (&_L1DataLatch)   EvrDataUtil( 0, NULL );    
+    
+    memset( _lEventCodeState, 0, sizeof(_lEventCodeState) );
   }
   
   ~L1Xmitter()
   {
     delete (char*) &_L1DataUpdated;
     delete (char*) &_L1DataFinal;
+    delete (char*) &_L1DataLatch;    
   }
   
   void xmit()
@@ -127,6 +148,10 @@ public:
       return;
     }
     
+    // If Fifo is empty, an invalid event code will be returned
+    if ( fe.EventCode >= guNumTypeEventCode )
+      return;
+    
     uint8_t uEventCode      = fe.EventCode;
     bool    bStartL1Accept  = false;
     
@@ -136,41 +161,41 @@ public:
      * Rule: If we got an readout event before, and get the terminator event now,
      *    then we will start L1Accept 
      */
-    if ( _pEvrConfig != NULL )
-    {
-      unsigned int uEventIndex = 0; 
-      for ( ; uEventIndex < _pEvrConfig->neventcodes(); uEventIndex++ )
-      {
-        const EvrConfigType::EventCodeType& eventCode = _pEvrConfig->eventcode( uEventIndex );
-        if ( eventCode.code() != uEventCode )
-          continue;
-          
-        if ( eventCode.isReadout() )
-          _bReadout = true;
-        
-        if ( eventCode.isTerminator() && _bReadout )
-        {
-          _bReadout       = false; // clear the readout flag
-          bStartL1Accept  = true;
-        }        
-        
-        _L1DataUpdated.addFifoEvent( *(const EvrData::DataV3::FIFOEvent*) &fe );
-        
-        break; // skip all the remaining event codes
-      }
-      
-      /*
-       * Even if beam code (140) is not included in the config class, we still include
-       * it in the data, since the beam code is a useful information for indicating
-       * if beam is present of not.
-       */
-      if ( uEventIndex == _pEvrConfig->neventcodes() &&      
-        uEventCode == EvrManager::BEAM_EVENT_CODE )
-      {
-        _L1DataUpdated.addFifoEvent( *(const EvrData::DataV3::FIFOEvent*) &fe );
-      }      
-    } // if ( _pEvrConfig != NULL )
+
+    EventCodeState& codeState = _lEventCodeState[uEventCode];
     
+    if ( codeState.iDefReportWidth == 0 )// not an interesting event
+    {
+      if ( uEventCode == EvrManager::EVENT_CODE_BEAM  || // special event: Beam present -> always included in the report
+           uEventCode == EvrManager::EVENT_CODE_BYKIK    // special event: Dark frame   -> always included in the report
+         )
+        _L1DataUpdated.addFifoEvent(*(const EvrDataType::FIFOEvent*) &fe);
+      else      
+        return;
+    }
+
+    
+    if ( codeState.iDefReportDelay == 0 )
+      _L1DataUpdated.addFifoEvent(*(const EvrDataType::FIFOEvent*) &fe);
+      
+    if ( codeState.iDefReportDelay != 0 || codeState.iDefReportWidth > 1 )
+    {
+      _L1DataLatch.updateFifoEvent( *(const EvrDataType::FIFOEvent*) &fe );
+      codeState.iReportDelay = codeState.iDefReportDelay;
+      codeState.iReportWidth = codeState.iDefReportWidth;
+    }
+             
+    if ( codeState.iDefReportDelay == 0 )
+    {
+      if ( codeState.bReadout )
+        _bReadout = true;
+      
+      if ( codeState.bTerminator && _bReadout )
+      {
+        _bReadout       = false; // clear the readout flag
+        bStartL1Accept  = true;
+      }              
+    }
 
     if ( bStartL1Accept )
     {      
@@ -181,15 +206,78 @@ public:
       Sequence seq(Sequence::Event, TransitionId::L1Accept, ctime, stamp);
       EvrDatagram datagram(seq, _evtCounter++);
             
-      if ( _L1DataFinal.numFifoEvents() == 0 )
-        new (&_L1DataFinal) EvrData::DataV3( _L1DataUpdated );
+      if ( _L1DataFinal.numFifoEvents() != 0 )
+      {
+        printf( "L1Xmitter::xmit(): Previous Evr Data has not been transferred out. Current data will be reported in next round.\n" );
+      }
       else
       {
-        printf( "L1Xmitter::xmit(): Previous Evr Data has not been transferred out. Current data will be skipped.\n" );
-      }
+        new (&_L1DataFinal) EvrDataType( 0, NULL );
 
-      _L1DataUpdated.clearFifoEvents();      
+        //// !! debug output
+        //printf( "Latch data before processing:\n" );
+        //_L1DataLatch.printFifoEvents();          
+        
+        /* 
+         * Process delayed & enlongated events
+         */
+        bool bAnyLactchedEventDeleted = false;
+        for (unsigned int uEventIndex = 0; uEventIndex < _L1DataLatch.numFifoEvents(); uEventIndex++ )
+        {
+          const EvrDataType::FIFOEvent& fifoEvent = _L1DataLatch.fifoEvent( uEventIndex );
+          EventCodeState&               codeState = _lEventCodeState[fifoEvent.EventCode];
+                                           
+          //// !! debug output
+          //printf( "Latch event code %u  report delay %u width %u\n", 
+          //  fifoEvent.EventCode, codeState.iReportDelay, codeState.iReportWidth );
             
+          if ( codeState.iReportDelay > 0 )
+          {
+            --codeState.iReportDelay;
+            continue;
+          }
+          
+          /*
+           * Add the lacted events to final buffer, if this event has not been added before,
+           * based on the following criterion:
+           *   - If the report delay is 0, and 
+           *   - this is the first report (i.e. report width == default report width)
+           *       - then this event must have been added
+           */
+          if ( codeState.iDefReportDelay != 0 || codeState.iReportWidth != codeState.iDefReportWidth)
+            _L1DataFinal.addFifoEvent( fifoEvent );
+          --codeState.iReportWidth;
+            
+          if ( codeState.iReportWidth <= 0 )
+          {
+            _L1DataLatch.markEventAsDeleted( uEventIndex );
+            bAnyLactchedEventDeleted = true;
+          }
+        }
+        
+        if ( bAnyLactchedEventDeleted )
+          _L1DataLatch.PurgeDeletedEvents();          
+
+        //// !! debug output
+        //printf( "\nLatch data after processing:\n" );
+        //_L1DataLatch.printFifoEvents();
+        //printf( "\nFinal data after processing:\n" );
+        //_L1DataFinal.printFifoEvents();
+
+        for (unsigned int uEventIndex = 0; uEventIndex < _L1DataUpdated.numFifoEvents(); uEventIndex++ )
+        {
+          const EvrDataType::FIFOEvent& fifoEvent =  _L1DataUpdated.fifoEvent( uEventIndex );
+          _L1DataFinal.addFifoEvent( fifoEvent );
+        }
+        
+        _L1DataUpdated.clearFifoEvents();
+        
+        //// !! debug output
+        //printf( "\nFinal data after appending all data:\n" );
+        //_L1DataFinal.printFifoEvents();        
+        //printf( "\n" );
+      } // if ( _L1DataFinal.numFifoEvents() == 0 )
+      
       static const int NEVENTPRINT = 1000;      
       if (_evtCounter%NEVENTPRINT == 0) 
       {
@@ -235,7 +323,13 @@ public:
     } // if ( bStartL1Accept )       
   } 
 
-  void reset()        { _evtCounter = 0; }
+  void reset()        
+  { 
+    _evtCounter = 0; 
+    _L1DataUpdated.clearFifoEvents();
+    _L1DataFinal  .clearFifoEvents();
+    _L1DataLatch  .clearFifoEvents();
+  }
   void enable(bool e) { _enabled    = e; }
   bool enable() const { return _enabled; }
   
@@ -243,7 +337,27 @@ public:
   
   void stopAfter(unsigned n)  { _evtStop = _evtCounter + n; }
   
-  void setEvrConfig(const EvrConfigType* pEvrConfig) { _pEvrConfig = pEvrConfig; }
+  void setEvrConfig(const EvrConfigType* pEvrConfig) 
+  { 
+    _pEvrConfig = pEvrConfig; 
+    
+    unsigned int uEventIndex = 0; 
+    for ( ; uEventIndex < _pEvrConfig->neventcodes(); uEventIndex++ )
+    {
+      const EvrConfigType::EventCodeType& eventCode = _pEvrConfig->eventcode( uEventIndex );
+      if ( eventCode.code() >= guNumTypeEventCode )
+      {
+        printf( "L1Xmitter::setEvrConfig(): event code out of range: %d\n", eventCode.code() );
+        continue;
+      }
+      
+      EventCodeState& codeState = _lEventCodeState[eventCode.code()];
+      codeState.bReadout        = eventCode.isReadout   ();
+      codeState.bTerminator     = eventCode.isTerminator();
+      codeState.iDefReportDelay = eventCode.reportDelay ();
+      codeState.iDefReportWidth = eventCode.reportWidth ();             
+    }    
+  }
   
   const EvrDataUtil&  getL1Data     () { return _L1DataFinal; }
   void                releaseL1Data () { _L1DataFinal.clearFifoEvents(); }
@@ -261,6 +375,8 @@ private:
   const EvrConfigType*  _pEvrConfig;
   EvrDataUtil&          _L1DataUpdated;
   EvrDataUtil&          _L1DataFinal;
+  EvrDataUtil&          _L1DataLatch;
+  EventCodeState         _lEventCodeState[guNumTypeEventCode];
 };
 
 class EvrAction:public Action
@@ -317,10 +433,15 @@ public:
 
       char*  pcEvrData = (char*) (pXtc + 1);  
       new (pcEvrData) EvrDataUtil(evrData);
-      
-      //printf( "EvrL1Action::fire() data dump start (size = %u bytes)\n", evrData.size() );
-      //evrData.printFifoEvents();
-      //printf( "EvrL1Action::fire() data dump end\n\n" );
+
+      //// !! debug print
+      //if (  evrData.numFifoEvents() > 1 )
+      //{
+      //  printf( "Shot id = 0x%x\n", in->datagram().seq.stamp().fiducials() );
+      //  printf( "EvrL1Action::fire() data dump start (size = %u bytes)\n", evrData.size() );
+      //  evrData.printFifoEvents();
+      //  printf( "EvrL1Action::fire() data dump end\n\n" );
+      //}
       
       l1xmitGlobal->releaseL1Data();      
     } 
@@ -402,7 +523,7 @@ static unsigned int evrConfigSize(unsigned maxNumEventCodes, unsigned maxNumPuls
 class EvrConfigManager
 {
 public:
-  EvrConfigManager(Evr & er, CfgClientNfs & cfg, bool bTurnOffBeamCode):
+  EvrConfigManager(Evr & er, CfgClientNfs & cfg, bool bTurnOffBeamCodes):
     _er (er),
     _cfg(cfg),
     _cfgtc(_evrConfigType, cfg.src()),
@@ -410,7 +531,7 @@ public:
       new char[ giMaxCalibCycles* evrConfigSize( giMaxEventCodes, giMaxPulses, giMaxOutputMaps ) ] ),
     _cur_config(0),
     _end_config(0),
-    _bTurnOffBeamCode(_bTurnOffBeamCode)
+    _bTurnOffBeamCodes(_bTurnOffBeamCodes)
   {
   }
 
@@ -492,8 +613,11 @@ public:
       }
     }
     
-    if (!_bTurnOffBeamCode)
-      _er.SetFIFOEvent(ram, EvrManager::BEAM_EVENT_CODE, enable);
+    if (!_bTurnOffBeamCodes)
+    {
+      _er.SetFIFOEvent(ram, EvrManager::EVENT_CODE_BEAM,  enable);
+      _er.SetFIFOEvent(ram, EvrManager::EVENT_CODE_BYKIK, enable);
+    }
     
     _er.MapRamEnable(ram, 0);
     
@@ -557,7 +681,7 @@ private:
   char *          _configBuffer;
   const EvrConfigType* _cur_config;
   const char*          _end_config;
-  bool                 _bTurnOffBeamCode;
+  bool                 _bTurnOffBeamCodes;
 };
 
 class EvrConfigAction: public Action {
@@ -666,13 +790,13 @@ Appliance & EvrManager::appliance()
   return _fsm;
 }
 
-EvrManager::EvrManager(EvgrBoardInfo < Evr > &erInfo, CfgClientNfs & cfg, bool bTurnOffBeamCode):
-  _er(erInfo.board()), _fsm(*new Fsm), _done(new DoneTimer(_fsm)), _bTurnOffBeamCode(bTurnOffBeamCode)
+EvrManager::EvrManager(EvgrBoardInfo < Evr > &erInfo, CfgClientNfs & cfg, bool bTurnOffBeamCodes):
+  _er(erInfo.board()), _fsm(*new Fsm), _done(new DoneTimer(_fsm)), _bTurnOffBeamCodes(bTurnOffBeamCodes)
 {
   l1xmitGlobal = new L1Xmitter(_er, *_done);
   
   EvrL1Action* l1A = new EvrL1Action(_er, cfg.src());
-  EvrConfigManager* cmgr = new EvrConfigManager(_er, cfg, bTurnOffBeamCode);
+  EvrConfigManager* cmgr = new EvrConfigManager(_er, cfg, bTurnOffBeamCodes);
 
   _fsm.callback(TransitionId::Map            , new EvrAllocAction     (cfg,*l1A));
   _fsm.callback(TransitionId::Configure      , new EvrConfigAction    (*cmgr));
@@ -729,4 +853,4 @@ void EvrManager::sigintHandler(int)
   exit(0);
 }
 
-const int EvrManager::BEAM_EVENT_CODE; // value is defined in the header file
+const int EvrManager::EVENT_CODE_BEAM; // value is defined in the header file

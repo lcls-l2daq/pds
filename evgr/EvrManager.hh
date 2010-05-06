@@ -14,7 +14,7 @@ namespace Pds {
 
   class EvrManager {
   public:  
-    EvrManager(EvgrBoardInfo<Evr>& erInfo, CfgClientNfs& cfg, bool bTurnOffBeamCode);
+    EvrManager(EvgrBoardInfo<Evr>& erInfo, CfgClientNfs& cfg, bool bTurnOffBeamCodes);
     ~EvrManager();
 
     // SIGINT handler
@@ -28,10 +28,11 @@ namespace Pds {
     Evr&        _er;
     Fsm&        _fsm;
     DoneTimer*  _done;
-    bool        _bTurnOffBeamCode;
+    bool        _bTurnOffBeamCodes;
     
   public:
-    static const int BEAM_EVENT_CODE = 140;
+    static const int EVENT_CODE_BEAM  = 140;
+    static const int EVENT_CODE_BYKIK = 162;
   };
 }
 
