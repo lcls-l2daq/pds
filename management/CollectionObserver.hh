@@ -4,7 +4,7 @@
 #include "pds/collection/CollectionManager.hh"
 
 #include "pds/collection/Node.hh"
-#include "pds/service/GenericPool.hh"
+#include "pds/service/GenericPoolW.hh"
 
 namespace Pds {
 
@@ -26,10 +26,10 @@ namespace Pds {
   private:
     void message(const Node& hdr, const Message& msg);
   private:
-    const char* _partition;
-    GenericPool _pool;
-    bool        _isallocated;
-    Node        _allocator;
+    const char*  _partition;
+    GenericPoolW _pool;
+    bool         _isallocated;
+    Node         _allocator;
   };
 
 };

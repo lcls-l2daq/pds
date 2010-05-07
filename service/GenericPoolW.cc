@@ -8,9 +8,12 @@ GenericPoolW::GenericPoolW(size_t sizeofObject, int numberofObjects) :
   GenericPool(sizeofObject, numberofObjects),
   _sem(Semaphore::EMPTY)
 {
-  //  Pool::populate() is done by GenericPool::ctor
-  int depth=0;
-  do { _sem.give(); } while(++depth < numberofObjects);
+  //
+  //  Note that the base class GenericPool populates the pool by
+  //  calling enque() before we have overridden that function.
+  //
+  for(unsigned i=0; i<numberofObjects; i++)
+    _sem.give();
 }
 
 GenericPoolW::~GenericPoolW()

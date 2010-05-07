@@ -120,7 +120,7 @@ public:
     _pEvrConfig     (NULL),
     _L1DataUpdated  ( *(EvrDataUtil*) new char[ EvrDataUtil::size( giMaxNumFifoEvent ) ]  ),
     _L1DataFinal    ( *(EvrDataUtil*) new char[ EvrDataUtil::size( giMaxNumFifoEvent ) ]  ),
-    _L1DataLatch    ( *(EvrDataUtil*) new char[ EvrDataUtil::size( giMaxNumFifoEvent ) ]  )      
+    _L1DataLatch    ( *(EvrDataUtil*) new char[ EvrDataUtil::size( giMaxNumFifoEvent ) ]  )
   {
     new (&_L1DataUpdated) EvrDataUtil( 0, NULL );
     new (&_L1DataFinal)   EvrDataUtil( 0, NULL );
@@ -147,7 +147,7 @@ public:
       printf("Dropping %x\n", fe.TimestampHigh);
       return;
     }
-    
+
     // If Fifo is empty, an invalid event code will be returned
     if ( fe.EventCode >= guNumTypeEventCode )
       return;
@@ -170,8 +170,7 @@ public:
            uEventCode == EvrManager::EVENT_CODE_BYKIK    // special event: Dark frame   -> always included in the report
          )
         _L1DataUpdated.addFifoEvent(*(const EvrDataType::FIFOEvent*) &fe);
-      else      
-        return;
+      return;
     }
 
     
@@ -208,7 +207,7 @@ public:
             
       if ( _L1DataFinal.numFifoEvents() != 0 )
       {
-        printf( "L1Xmitter::xmit(): Previous Evr Data has not been transferred out. Current data will be reported in next round.\n" );
+	printf( "L1Xmitter::xmit(): Previous Evr Data has not been transferred out. Current data will be reported in next round.\n" );
       }
       else
       {
@@ -259,10 +258,10 @@ public:
           _L1DataLatch.PurgeDeletedEvents();          
 
         //// !! debug output
-        //printf( "\nLatch data after processing:\n" );
-        //_L1DataLatch.printFifoEvents();
-        //printf( "\nFinal data after processing:\n" );
-        //_L1DataFinal.printFifoEvents();
+	//printf( "\nLatch data after processing:\n" );
+	//_L1DataLatch.printFifoEvents();
+	//printf( "\nFinal data after processing:\n" );
+	//_L1DataFinal.printFifoEvents();
 
         for (unsigned int uEventIndex = 0; uEventIndex < _L1DataUpdated.numFifoEvents(); uEventIndex++ )
         {
@@ -271,11 +270,11 @@ public:
         }
         
         _L1DataUpdated.clearFifoEvents();
-        
+
         //// !! debug output
-        //printf( "\nFinal data after appending all data:\n" );
-        //_L1DataFinal.printFifoEvents();        
-        //printf( "\n" );
+	//printf( "\nFinal data after appending all data:\n" );
+	//_L1DataFinal.printFifoEvents();        
+	//printf( "\n" );
       } // if ( _L1DataFinal.numFifoEvents() == 0 )
       
       static const int NEVENTPRINT = 1000;      
@@ -291,25 +290,6 @@ public:
         _lastfid = fe.TimestampHigh;
       }
 
-      //static unsigned   nl1 = 0;
-      //static Sequence   evrseq_fifo[4];      
-      //  if (evrseq_fifo[nl1&3].stamp().fiducials()==seq.stamp().fiducials()) {
-      //    unsigned i=nl1-3;
-      //    do {
-      //const Sequence& s = evrseq_fifo[i&3];
-      //printf("=== fid %x: clk %x/%x\n",
-      //       s.stamp().fiducials(),
-      //       s.clock().seconds(),
-      //       s.clock().nanoseconds());
-      //    } while( i++!=nl1 );
-      //    printf("*** fid %x: clk %x/%x: evtcode %x\n",
-      //     seq.stamp().fiducials(),
-      //     seq.clock().seconds(),
-      //     seq.clock().nanoseconds(),
-      //     fe.EventCode);
-      //  }
-      //  evrseq_fifo[++nl1&3] = seq;
-      
       if (_evtCounter == _evtStop)
         _done.expired();                     
         
@@ -341,6 +321,8 @@ public:
   { 
     _pEvrConfig = pEvrConfig; 
     
+    memset( _lEventCodeState, 0, sizeof(_lEventCodeState) );
+
     unsigned int uEventIndex = 0; 
     for ( ; uEventIndex < _pEvrConfig->neventcodes(); uEventIndex++ )
     {
@@ -376,7 +358,7 @@ private:
   EvrDataUtil&          _L1DataUpdated;
   EvrDataUtil&          _L1DataFinal;
   EvrDataUtil&          _L1DataLatch;
-  EventCodeState         _lEventCodeState[guNumTypeEventCode];
+  EventCodeState        _lEventCodeState[guNumTypeEventCode];
 };
 
 class EvrAction:public Action
@@ -404,7 +386,7 @@ public:
   InDatagram *fire(InDatagram * in)
   {
     InDatagram* out = in;
-        
+
     do
     {
       if (!l1xmitGlobal->enable())
