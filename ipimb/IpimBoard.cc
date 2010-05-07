@@ -322,8 +322,10 @@ void IpimBoard::WriteRegister(unsigned regAddr, unsigned regValue) {
 IpimBoardData IpimBoard::WaitData() {
   IpimBoardPacketParser packetParser = IpimBoardPacketParser(false, &_dataDamage, _dataList);
   bool timedOut = false;
+  int nTries = 0;
   while (inWaiting(packetParser)) {
-    if (timedOut) {
+    nTries++;
+    if (nTries==100) {//timedOut) {
       unsigned fakeData = 0xdead;
       int packetsRead = packetParser.packetsRead();
       if (packetParser.packetIncomplete()) {
@@ -331,7 +333,7 @@ IpimBoardData IpimBoard::WaitData() {
 	for (int i=packetsRead; i< 12; i++) {
 	  _dataList[i] = fakeData;
 	}
-	printf("IpimBoard warning: have failed to find expected event in %d s, attempting to continue\n", 1);
+	printf("IpimBoard warning: have failed to find expected event in %d * 6 ms, attempting to continue\n", nTries);
 	break;
       }
     }
@@ -402,7 +404,7 @@ int IpimBoard::inWaiting(IpimBoardPacketParser& packetParser) {
 	packetParser.readTimedOut(nBytes, _fd);
 	return packetParser.packetIncomplete();
       }      
-      printf("IpimBoard warning: have read %d (%d) (total) bytes of data from _fd %d, need 3, will retry\n", nRead, nBytes,_fd);
+      //      printf("IpimBoard warning: have read %d (%d) (total) bytes of data from _fd %d, need 3, will retry\n", nRead, nBytes,_fd);
       struct timespec req = {0, 2000000}; // 2 ms
       nanosleep(&req, NULL);
     }
@@ -447,7 +449,6 @@ bool IpimBoard::configure(Ipimb::ConfigV1& config) {
   config.setErrors(GetErrors());
   config.setStatus((ReadRegister(status) & 0xffff0000)>>16);
   
-  printf("After configuration:\n");
   config.dump();
 
   tcflush(_fd, TCIFLUSH);
