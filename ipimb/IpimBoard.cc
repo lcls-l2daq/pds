@@ -96,7 +96,7 @@ IpimBoard::IpimBoard(char* serialDevice){
   }
   
   //  bzero(&newtio, sizeof(newtio));
-  newtio.c_cflag = BAUDRATE | CS8 | CLOCAL | CREAD;
+  newtio.c_cflag = BAUDRATE | CS8 | CLOCAL;// | CREAD;
   //  newtio.c_iflag = IGNPAR;
   newtio.c_oflag = 0;
   newtio.c_lflag = 0;//ICANON;
@@ -421,6 +421,7 @@ void IpimBoard::flush() {
 }
 
 bool IpimBoard::configure(Ipimb::ConfigV1& config) {
+  flush();
   setReadable(true);
   printf("have set fd to readable in IpimBoard configure\n");
 
