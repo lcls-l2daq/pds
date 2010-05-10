@@ -93,7 +93,7 @@ static EvgrBoardInfo < Evr > *erInfoGlobal; // yuck
 /* 
  * Total Number of event code types is 256 ( Range: 0 - 255 )
  * 
- * Note: Used to initialize the Report Counter list
+ * Note: Used to initialize the EventCodeState list
  */
 static const unsigned int guNumTypeEventCode = 256; 
 struct EventCodeState
@@ -170,6 +170,7 @@ public:
            uEventCode == EvrManager::EVENT_CODE_BYKIK    // special event: Dark frame   -> always included in the report
          )
         _L1DataUpdated.addFifoEvent(*(const EvrDataType::FIFOEvent*) &fe);
+        
       return;
     }
 
@@ -207,7 +208,7 @@ public:
             
       if ( _L1DataFinal.numFifoEvents() != 0 )
       {
-	printf( "L1Xmitter::xmit(): Previous Evr Data has not been transferred out. Current data will be reported in next round.\n" );
+        printf( "L1Xmitter::xmit(): Previous Evr Data has not been transferred out. Current data will be reported in next round.\n" );
       }
       else
       {
@@ -258,10 +259,10 @@ public:
           _L1DataLatch.PurgeDeletedEvents();          
 
         //// !! debug output
-	//printf( "\nLatch data after processing:\n" );
-	//_L1DataLatch.printFifoEvents();
-	//printf( "\nFinal data after processing:\n" );
-	//_L1DataFinal.printFifoEvents();
+        //printf( "\nLatch data after processing:\n" );
+        //_L1DataLatch.printFifoEvents();
+        //printf( "\nFinal data after processing:\n" );
+        //_L1DataFinal.printFifoEvents();
 
         for (unsigned int uEventIndex = 0; uEventIndex < _L1DataUpdated.numFifoEvents(); uEventIndex++ )
         {
@@ -272,9 +273,9 @@ public:
         _L1DataUpdated.clearFifoEvents();
 
         //// !! debug output
-	//printf( "\nFinal data after appending all data:\n" );
-	//_L1DataFinal.printFifoEvents();        
-	//printf( "\n" );
+        //printf( "\nFinal data after appending all data:\n" );
+        //_L1DataFinal.printFifoEvents();        
+        //printf( "\n" );
       } // if ( _L1DataFinal.numFifoEvents() == 0 )
       
       static const int NEVENTPRINT = 1000;      
