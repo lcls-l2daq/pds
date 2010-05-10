@@ -89,3 +89,7 @@ void IpimbServer::setIpimb(IpimBoard* ipimb) {
 unsigned IpimbServer::configure(IpimbConfigType& config) {
   return _ipimBoard->configure(config);
 }
+
+unsigned IpimbServer::unconfigure() {
+  return _ipimBoard->unconfigure();
+}

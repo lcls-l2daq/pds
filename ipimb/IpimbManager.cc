@@ -63,7 +63,6 @@ public:
 };
 
 class IpimbConfigAction : public IpimbAction {
-  enum {MaxConfigSize=0x100000};
 public:
   IpimbConfigAction(CfgClientNfs** cfg, IpimbServer* server[], int nServers) :
     _cfg(cfg), _server(server), _nServers(nServers), _nDamagedConfigures(0) {}
@@ -83,7 +82,6 @@ public:
     return dg;
   }
   Transition* fire(Transition* tr) {
-    //    new (&_config) Ipimb::ConfigV1(0, 1, 2, 3, 4.1, 0.5, 6, 7, 0, 8, 9);
     IpimbConfigType _config[_nServers];
     _nDamagedConfigures = 0;
     for (unsigned i=0; i<_nServers; i++) {
@@ -111,21 +109,39 @@ private:
   IpimbConfigType* _config;
 };
 
+class IpimbUnconfigAction : public IpimbAction {
+public:
+  IpimbUnconfigAction(IpimbServer* server[], int nServers) :
+    _server(server), _nServers(nServers) {}
+  ~IpimbUnconfigAction() {}
+  Transition* fire(Transition* tr) {
+    for (unsigned i=0; i<_nServers; i++) {
+      if (!_server[i]->unconfigure()) {
+	printf("Ipimb server %d unconfiguration complained\n", i);
+      }
+    }
+    return tr;
+  }
+
+private:
+  IpimbServer** _server;
+  unsigned _nServers;
+};
+
 Appliance& IpimbManager::appliance() {return _fsm;}
 
 IpimbManager::IpimbManager(IpimbServer* server[], unsigned nServers, CfgClientNfs** cfg) :
   _fsm(*new Fsm), _nServers(nServers) {
-  //  printf("Manager for ipimbs initialized with %d servers\n", _nServers);
   char portName[12];
   for (unsigned i=0; i<_nServers; i++) {
     sprintf(portName, "/dev/ttyPS%d", i);//*6+1);
-    //    printf("will make new ipimb at port %s\n", portName);
     IpimBoard* ipimBoard = new IpimBoard(portName);
-    //    printf("New IpimBoard fd is %d\n", ipimBoard->get_fd());
     server[i]->setIpimb(ipimBoard); // this is obviously wrong
   }
   Action* caction = new IpimbConfigAction(cfg, server, _nServers);
-  _fsm.callback(TransitionId::Configure,caction);
+  _fsm.callback(TransitionId::Configure, caction);
+  Action* uncaction = new IpimbUnconfigAction(server, _nServers);
+  _fsm.callback(TransitionId::Unconfigure, uncaction);
   IpimbL1Action& ipimbl1 = *new IpimbL1Action();
   _fsm.callback(TransitionId::Map, new IpimbAllocAction(cfg, _nServers));
   _fsm.callback(TransitionId::L1Accept,&ipimbl1);

@@ -105,7 +105,7 @@ IpimBoard::IpimBoard(char* serialDevice){
   newtio.c_iflag = 0;
   //  printf("cflag 0x%x, iflag %d, oflag %d\n", newtio.c_cflag, newtio.c_iflag, newtio.c_oflag);
   //  printf("iflag %d, oflag %d, cflag %d, lflag %d, ispeed %d, ospeed %d\n", newtio.c_iflag, newtio.c_oflag, newtio.c_cflag, newtio.c_lflag, newtio.c_ispeed, newtio.c_ospeed);
-  tcflush(_fd, TCIFLUSH);
+  flush();
   tcsetattr(_fd,TCSANOW,&newtio);
   
   memset(_dataList, 0, 12);//*sizeof(_dataList[0]));
@@ -321,11 +321,10 @@ void IpimBoard::WriteRegister(unsigned regAddr, unsigned regValue) {
 
 IpimBoardData IpimBoard::WaitData() {
   IpimBoardPacketParser packetParser = IpimBoardPacketParser(false, &_dataDamage, _dataList);
-  bool timedOut = false;
   int nTries = 0;
   while (inWaiting(packetParser)) {
     nTries++;
-    if (nTries==100) {//timedOut) {
+    if (nTries==00) {
       unsigned fakeData = 0xdead;
       int packetsRead = packetParser.packetsRead();
       if (packetParser.packetIncomplete()) {
@@ -418,10 +417,13 @@ int IpimBoard::get_fd() {
 }
 
 void IpimBoard::flush() {
-  tcflush(_fd, TCIFLUSH);
+  tcflush(_fd, TCIOFLUSH);
 }
 
 bool IpimBoard::configure(Ipimb::ConfigV1& config) {
+  setReadable(true);
+  printf("have set fd to readable in IpimBoard configure\n");
+
   _commandResponseDamage = false;
   WriteRegister(errors, 0xffff);
 
@@ -451,10 +453,31 @@ bool IpimBoard::configure(Ipimb::ConfigV1& config) {
   
   config.dump();
 
-  tcflush(_fd, TCIFLUSH);
+  flush();
   printf("have flushed fd after IpimBoard configure\n");
+  //  setReadable(false); // test hack
+  //  flush();
 
   return !_commandResponseDamage;
+}
+
+bool IpimBoard::unconfigure() {
+  bool state = setReadable(false);
+  flush();
+  return state;
+}
+
+bool IpimBoard::setReadable(bool flag) {
+  struct termios oldtio;
+  tcgetattr(_fd,&oldtio);
+  //  printf("found c_flag 0x%x, will set bit to %d\n", oldtio.c_cflag, int(flag));
+  oldtio.c_cflag |= CREAD;
+  if (!flag) {
+    oldtio.c_cflag ^= CREAD;
+    //    printf("set c_flag 0x%x\n", oldtio.c_cflag);
+  }
+  tcsetattr(_fd,TCSANOW,&oldtio);
+  return true; // do something smarter here if possible
 }
 
 IpimBoardCommand::IpimBoardCommand(bool write, unsigned address, unsigned data) {

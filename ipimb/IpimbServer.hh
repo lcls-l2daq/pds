@@ -39,6 +39,7 @@ namespace Pds {
 
   public:
     unsigned configure(IpimbConfigType& config);
+    unsigned unconfigure();
 
   private:
     Xtc _xtc;

@@ -63,7 +63,8 @@ namespace Pds {
     int inWaiting(IpimBoardPacketParser&);
     
     bool configure(Ipimb::ConfigV1& config);
-    //    int configure(Ipimb::ConfigV1 config);
+    bool unconfigure();
+    bool setReadable(bool);
     int get_fd();
     void flush();
     bool dataDamaged();
