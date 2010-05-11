@@ -17,9 +17,10 @@ public:
     int writeToXtc( Datagram& dg, bool bCtrlValue );
     
     static const int            iXtcVersion = EpicsXtcSettings::iXtcVersion;    
+    static const int            iMaxNumPv   = EpicsXtcSettings::iMaxNumPv;
     static const int            iMaxXtcSize = EpicsXtcSettings::iMaxXtcSize;
     static const TypeId::Type   typeXtc     = EpicsXtcSettings::typeXtc;
-    static const DetInfo&        detInfoEpics;
+    static const DetInfo&       detInfoEpics;
     
 private:        
 
@@ -29,9 +30,9 @@ private:
     
     typedef std::vector<std::string> TPvList;
     
-    static int _readConfigFile( const std::string& sFnConfig, TPvList& vsPvNameList );
-    static int _setupPvList( const TPvList& vsPvList, TEpicsMonitorPvList& lpvPvList);
-    static int _splitPvList( const std::string& sPvList, TPvList& vsPv );
+    static int _readConfigFile( const std::string& sFnConfig, TPvList&             vsPvNameList );
+    static int _setupPvList   ( const TPvList&     vsPvList , TEpicsMonitorPvList& lpvPvList);
+    static int _splitPvList   ( const std::string& sPvList  , TPvList&             vsPv );
     
     static const char sPvListSeparators[];
     

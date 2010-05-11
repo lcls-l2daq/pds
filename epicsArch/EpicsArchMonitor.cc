@@ -131,11 +131,37 @@ int EpicsArchMonitor::_readConfigFile( const std::string& sFnConfig, TPvList& vs
     std::ifstream ifsConfig( sFnConfig.c_str() );    
     if ( !ifsConfig ) return 1; // Cannot open file
     
+    std::string sFnPath;
+    size_t uOffsetPathEnd = sFnConfig.find_last_of( '/' );
+    if ( uOffsetPathEnd != string::npos )      
+      sFnPath.assign( sFnConfig, 0, uOffsetPathEnd+1 );
+      
+    int iLineNumber = 0;
+    
     while ( !ifsConfig.eof() )
     {
-        string sLine;
+        ++iLineNumber;
+        string sLine;        
         std::getline( ifsConfig, sLine );    
-        if ( sLine[0] == '#' ) continue; // skip comment lines that begin with '#'
+        if ( sLine[0] == '#' ) continue; // skip comment lines that begin with '#'        
+        if ( sLine[0] == '<' ) 
+        {
+          sLine[0] = ' ';
+          TPvList vsPvFileLst;
+          _splitPvList( sLine, vsPvFileLst );
+          
+          for ( int iPvFile = 0; iPvFile < (int) vsPvFileLst.size(); iPvFile++ )
+          {
+            string sFnRef = sFnPath + vsPvFileLst[iPvFile];
+            int iFail = _readConfigFile( sFnRef, vsPvNameList );
+            if ( iFail != 0 )
+            {
+              printf( "EpicsArchMonitor::_readConfigFile(): Invalid file reference \"%s\", in file \"%s\":line %d\n",
+                sFnRef.c_str(), sFnConfig.c_str(), iLineNumber );                
+            }
+          }
+          continue;
+        }
         
         _splitPvList( sLine, vsPvNameList );
     }
@@ -146,7 +172,12 @@ int EpicsArchMonitor::_readConfigFile( const std::string& sFnConfig, TPvList& vs
 int EpicsArchMonitor::_setupPvList(const TPvList& vsPvList, TEpicsMonitorPvList& lpvPvList)
 {   
     if ( vsPvList.size() == 0 ) 
-        return 0;
+      return 0;
+    if ( (int) vsPvList.size() >= iMaxNumPv )
+      printf( "EpicsArchMonitor::_setupPvList(): Number of PVs (%d) has reached the system capacity (%d), "
+        "some PVs in the list may have been skipped.\n",
+        vsPvList.size(), iMaxNumPv );
+        
         
     lpvPvList.resize(vsPvList.size());
     for ( int iPvName = 0; iPvName < (int) vsPvList.size(); iPvName++ )
@@ -178,11 +209,17 @@ int EpicsArchMonitor::_splitPvList( const string& sPvList, TPvList& vsPvList )
         
         if ( uOffsetEnd == string::npos )        
         {
-            vsPvList.push_back( sPvList.substr( uOffsetStart, string::npos ) );
+            if ( (int) vsPvList.size() < iMaxNumPv )
+              vsPvList.push_back( sPvList.substr( uOffsetStart, string::npos ) );
+              
             break;
         }
         
-        vsPvList.push_back( sPvList.substr( uOffsetStart, uOffsetEnd - uOffsetStart ) );
+        if ( (int) vsPvList.size() < iMaxNumPv )
+          vsPvList.push_back( sPvList.substr( uOffsetStart, uOffsetEnd - uOffsetStart ) );
+        else
+          break;
+          
         if ( sPvList[uOffsetEnd] == '#' ) break; // skip the remaining characters
         
         uOffsetStart = sPvList.find_first_not_of( sPvListSeparators, uOffsetEnd+1 );        
