@@ -14,7 +14,7 @@ namespace Pds
 using std::string;
 
 const DetInfo& EpicsArchMonitor::detInfoEpics = EpicsXtcSettings::detInfo;
-const char EpicsArchMonitor::sPvListSeparators[] = " ,;\t\r\n#";
+const char EpicsArchMonitor::sPvListSeparators[] = " ,;\t\r\n";
 
 EpicsArchMonitor::EpicsArchMonitor( const std::string& sFnConfig, int iDebugLevel ) :
   _sFnConfig(sFnConfig), _iDebugLevel(iDebugLevel)
@@ -153,7 +153,7 @@ int EpicsArchMonitor::_readConfigFile( const std::string& sFnConfig, TPvList& vs
           for ( int iPvFile = 0; iPvFile < (int) vsPvFileLst.size(); iPvFile++ )
           {
             string sFnRef = sFnPath + vsPvFileLst[iPvFile];
-            int iFail = _readConfigFile( sFnRef, vsPvNameList );
+            int iFail     = _readConfigFile( sFnRef, vsPvNameList );
             if ( iFail != 0 )
             {
               printf( "EpicsArchMonitor::_readConfigFile(): Invalid file reference \"%s\", in file \"%s\":line %d\n",
@@ -204,7 +204,9 @@ int EpicsArchMonitor::_splitPvList( const string& sPvList, TPvList& vsPvList )
 {       
     size_t uOffsetStart = sPvList.find_first_not_of( EpicsArchMonitor::sPvListSeparators, 0 );
     while ( uOffsetStart != string::npos )      
-    {        
+    {     
+        if ( sPvList[uOffsetStart] == '#' ) break; // skip the remaining characters
+      
         size_t uOffsetEnd = sPvList.find_first_of( EpicsArchMonitor::sPvListSeparators, uOffsetStart+1 );
         
         if ( uOffsetEnd == string::npos )        
@@ -219,9 +221,7 @@ int EpicsArchMonitor::_splitPvList( const string& sPvList, TPvList& vsPvList )
           vsPvList.push_back( sPvList.substr( uOffsetStart, uOffsetEnd - uOffsetStart ) );
         else
           break;
-          
-        if ( sPvList[uOffsetEnd] == '#' ) break; // skip the remaining characters
-        
+                  
         uOffsetStart = sPvList.find_first_not_of( sPvListSeparators, uOffsetEnd+1 );        
     }
     return 0;
