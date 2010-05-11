@@ -152,7 +152,9 @@ int EpicsArchMonitor::_readConfigFile( const std::string& sFnConfig, TPvList& vs
           
           for ( int iPvFile = 0; iPvFile < (int) vsPvFileLst.size(); iPvFile++ )
           {
-            string sFnRef = sFnPath + vsPvFileLst[iPvFile];
+            string sFnRef = vsPvFileLst[iPvFile];
+            if ( sFnRef[0] != '/' )
+              sFnRef = sFnPath + sFnRef;
             int iFail     = _readConfigFile( sFnRef, vsPvNameList );
             if ( iFail != 0 )
             {
