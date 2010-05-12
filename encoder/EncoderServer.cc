@@ -23,6 +23,12 @@ unsigned Pds::EncoderServer::configure(const EncoderConfigType& config)
    return _encoder->configure(config);
 }
 
+unsigned Pds::EncoderServer::unconfigure(void)
+{
+   _count = 0;
+   return _encoder->unconfigure();
+}
+
 int Pds::EncoderServer::fetch( char* payload, int flags )
 {
    Pds::Encoder::DataV1 data;
@@ -62,4 +68,5 @@ void EncoderServer::setEncoder( PCI3E_dev* pci3e )
 {
    _encoder = pci3e;
    fd( _encoder->get_fd() );
+   _encoder->unconfigure();
 }
