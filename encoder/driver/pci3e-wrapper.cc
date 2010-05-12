@@ -132,7 +132,7 @@ int PCI3E::dev::open( void )
 
 int PCI3E::dev::close( void )
 {
-   int ret;
+   int ret = 0;
    
    if( _fd > 0 )
    {
@@ -306,6 +306,14 @@ int PCI3E::dev::enable_interrupt_on_trigger( void )
 
    ctrl.whole   = 0;
    ctrl.on_trig = 1;
+   return reg_write( REG_INT_CTRL, ctrl.whole );
+}
+
+int PCI3E::dev::disable_interrupt_on_trigger( void )
+{
+   REG_INT_CTRL_t ctrl;
+
+   ctrl.whole   = 0;
    return reg_write( REG_INT_CTRL, ctrl.whole );
 }
 
