@@ -12,15 +12,13 @@ namespace Pds {
 
 class Pds::EncoderManager {
  public:
-   EncoderManager( EncoderServer* server[],
-                   unsigned nServers,
-                   CfgClientNfs** cfg );
+   EncoderManager( EncoderServer* server,
+                   CfgClientNfs* cfg );
    Appliance& appliance( void ) { return _fsm; }
 
  private:
    Fsm& _fsm;
    static const char* _calibPath;
-   unsigned _nServers;
 };
 
 #endif
