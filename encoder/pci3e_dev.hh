@@ -20,7 +20,11 @@ class Pds::PCI3E_dev
    ~PCI3E_dev() {}
     
    int open( void );
+   // Clears the FIFO and leaves interrupts disabled.
    int configure( const Pds::Encoder::ConfigV1& config );
+
+   // Clears FIFO and disables interrupts.
+   int unconfigure();
    int get_data( Pds::Encoder::DataV1& data );
    int ignore_old_data( void );
    int get_fd()
