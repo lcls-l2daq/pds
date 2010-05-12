@@ -251,14 +251,12 @@ class EncoderConfigAction : public EncoderAction
 
  public:
    EncoderConfigAction( const Src& src0,
-                        CfgClientNfs** cfg,
-                        EncoderServer* server[],
-                        int nServers,
+                        CfgClientNfs* cfg,
+                        EncoderServer* server,
                         EncoderL1Action& L1 )
       : _cfgtc( _encoderConfigType, src0 ),
         _cfg( cfg ),
         _server( server ),
-        _nServers( nServers ),
         _L1( L1 )
    {}
 
@@ -280,27 +278,25 @@ class EncoderConfigAction : public EncoderAction
    Transition* fire(Transition* tr)
    {
       _nerror = 0;
-      for (unsigned i = 0; i < _nServers; i++)
+      int len = (*_cfg).fetch( *tr,
+                               _encoderConfigType,
+                               &_config,
+                               sizeof(_config) );
+      if (len <= 0)
       {
-         int len = (*_cfg[i]).fetch( *tr,
-                                     _encoderConfigType,
-                                     &_config,
-                                     sizeof(_config) );
-         if (len <= 0)
-         {
-            printf("EncoderConfigAction: failed to retrieve configuration "
-                   ": (%d) %s.  Applying default.\n",
-                   errno,
-                   strerror(errno) );
-            _nerror += 1;
-         }
-         else
-         {
-            _config.dump();
-            _nerror += _server[i]->configure( _config );
-            _L1.reconfigure();
-         }
+         printf("EncoderConfigAction: failed to retrieve configuration "
+                ": (%d) %s.  Applying default.\n",
+                errno,
+                strerror(errno) );
+         _nerror += 1;
       }
+      else
+      {
+         _config.dump();
+         _nerror += _server->configure( _config );
+         _L1.reconfigure();
+      }
+
       curr_enc_tick_per_sec = _config._ticks_per_sec;
 
       return tr;
@@ -310,49 +306,64 @@ class EncoderConfigAction : public EncoderAction
    EncoderConfigType _config;
    Xtc _cfgtc;
    Src _src;
-   CfgClientNfs** _cfg;
-   EncoderServer** _server;
+   CfgClientNfs* _cfg;
+   EncoderServer* _server;
    unsigned _nerror;
-   unsigned _nServers;
    EncoderL1Action& _L1;
 };
 
 
-EncoderManager::EncoderManager( EncoderServer* server[],
-                                unsigned nServers,
-                                CfgClientNfs** cfg )
-   : _fsm(*new Fsm),
-     _nServers(nServers)
+class EncoderUnconfigAction : public EncoderAction {
+ public:
+   EncoderUnconfigAction( EncoderServer* server ) : _server( server ) {}
+   ~EncoderUnconfigAction() {}
+
+   InDatagram* fire(InDatagram* dg) {
+      if( _nerror ) {
+         printf( "*** Found %d encoder Unconfig errors\n", _nerror );
+         dg->datagram().xtc.damage.increase(Pds::Damage::UserDefined);
+      }
+      return dg;
+   }
+
+   Transition* fire(Transition* tr) {
+      _nerror = 0;
+      _nerror += _server->unconfigure();
+      return tr;
+   }
+
+ private:
+   EncoderServer* _server;
+   unsigned _nerror;
+};
+
+
+EncoderManager::EncoderManager( EncoderServer* server,
+                                CfgClientNfs* cfg )
+   : _fsm(*new Fsm)
 {
-   char portName[12];
    int ret;
 
-   printf("initialized with %d servers\n", _nServers);
+   printf("EncoderManager being initialized...\n" );
 
-   for (unsigned i = 0; i < _nServers; i++)
-   {
-      sprintf( portName, "/dev/pci3e%d", i );
-      PCI3E_dev* encoder = new PCI3E_dev( portName );
-      ret = encoder->open();
-      // What to do if the open fails?
-      server[i]->setEncoder( encoder );
-   }
+   PCI3E_dev* encoder = new PCI3E_dev( "/dev/pci3e0" );
+   ret = encoder->open();
+   // What to do if the open fails?
+   server->setEncoder( encoder );
 
    EncoderL1Action& encoderl1 = * new EncoderL1Action();
 
-   const Src& src0 = server[_nServers-1]->client();
-   Action* caction = new EncoderConfigAction( src0,
-                                              cfg,
-                                              server,
-                                              _nServers,
-                                              encoderl1 );
-   _fsm.callback( TransitionId::Configure, caction );
+   const Src& src0 = server->client();
 
-
-   for( unsigned i = 0; i < _nServers; i++ )
-   {
-      _fsm.callback( TransitionId::Map,
-                     new EncoderAllocAction( *cfg[i] ) );
-   }
+   _fsm.callback( TransitionId::Configure,
+                  new EncoderConfigAction( src0, cfg, server, encoderl1 ) );
+   _fsm.callback( TransitionId::Unconfigure,
+                  new EncoderUnconfigAction( server ) );
+   // _fsm.callback( TransitionId::BeginRun,
+   //                new EncoderBeginRunAction( server ) );
+   // _fsm.callback( TransitionId::EndRun,
+   //                new EncoderEndRunAction( server ) );
+   _fsm.callback( TransitionId::Map,
+                  new EncoderAllocAction( *cfg ) );
    _fsm.callback( TransitionId::L1Accept, &encoderl1 );
 }
