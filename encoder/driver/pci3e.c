@@ -428,8 +428,8 @@ unsigned int pci3e_poll( struct file* file,
 
    pci3e = pci3e_devices[FILE_GET_DEV_NUM(file)];
 
-   PCI3E_DBG( "pci3e_poll() called, waitingForInterrupt=%d.\n",
-              pci3e->waitingForInterrupt );
+   // PCI3E_DBG( "pci3e_poll() called, waitingForInterrupt=%d.\n",
+   //            pci3e->waitingForInterrupt );
 
    poll_wait( file, &pci3e_wait, wait );
 
