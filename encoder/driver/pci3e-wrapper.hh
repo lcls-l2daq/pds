@@ -103,6 +103,7 @@ class PCI3E::dev
    int read_input_port( uint8_t* inp );
 
    int enable_interrupt_on_trigger( void );
+   int disable_interrupt_on_trigger( void );
    int clear_input_trigger( int input_num );
 
    // These functions perform the same operation across all channels
