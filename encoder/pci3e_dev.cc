@@ -45,6 +45,7 @@ int Pds::PCI3E_dev::configure( const Pds::Encoder::ConfigV1& config )
 
    BAIL_ON_FAIL( _pci3e.reg_write( REG_INT_STAT, STAT_RESET_FLAGS ) );
 
+   // Make an edge on the specified external input cause a trigger.
    // The logic is inverted because the PCI-3E uses active low inputs.
    regval  = TRIG_CTRL_ENABLE << config._input_num;
    regval |= ( config._input_rising ? TRIG_CTRL_FALLING : TRIG_CTRL_RISING )
@@ -67,8 +68,13 @@ int Pds::PCI3E_dev::configure( const Pds::Encoder::ConfigV1& config )
 int Pds::PCI3E_dev::unconfigure( void )
 {
    int ret;
+
+   // Disable all external input triggers.
+   BAIL_ON_FAIL( _pci3e.reg_write( REG_TRIG_CTRL, 0 ) );
+
    BAIL_ON_FAIL( _pci3e.disable_interrupt_on_trigger() );
    BAIL_ON_FAIL( _pci3e.clear_fifo() );
+
    return 0;
 }
 
