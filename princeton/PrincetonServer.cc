@@ -317,14 +317,14 @@ int PrincetonServer::startCapture()
 }
 
 int PrincetonServer::initCameraSettings(Princeton::ConfigV1& config)
-{  
-  //uns32 uTriggerEdge = EDGE_TRIG_POS;
-  //PICAM::setAnyParam(_hCam, PARAM_EDGE_TRIGGER, &uTriggerEdge );  
+{ 
+  using PICAM::setAnyParam;
+  using PICAM::displayParamIdInfo;
   
   int16 iSpeedTableIndex = config.readoutSpeedIndex();
-  PICAM::setAnyParam(_hCam, PARAM_SPDTAB_INDEX, &iSpeedTableIndex );  
+  setAnyParam(_hCam, PARAM_SPDTAB_INDEX, &iSpeedTableIndex );     
+  displayParamIdInfo(_hCam, PARAM_SPDTAB_INDEX, "Speed Table Index" );
   
-  using PICAM::displayParamIdInfo;
   //displayParamIdInfo(_hCam, PARAM_EXPOSURE_MODE,    "Exposure Mode");
   //displayParamIdInfo(_hCam, PARAM_CLEAR_MODE,       "Clear Mode");
   //displayParamIdInfo(_hCam, PARAM_SHTR_OPEN_MODE,   "Shutter Open Mode");
@@ -334,8 +334,9 @@ int PrincetonServer::initCameraSettings(Princeton::ConfigV1& config)
   //displayParamIdInfo(_hCam, PARAM_EXP_RES,          "Exposure Resolution");
   //displayParamIdInfo(_hCam, PARAM_EXP_RES_INDEX,    "Exposure Resolution Index");
   
+  //uns32 uTriggerEdge = EDGE_TRIG_POS;
+  //PICAM::setAnyParam(_hCam, PARAM_EDGE_TRIGGER, &uTriggerEdge );    
   //displayParamIdInfo(_hCam, PARAM_EDGE_TRIGGER,     "Edge Trigger" );
-  displayParamIdInfo(_hCam, PARAM_SPDTAB_INDEX,     "Speed Table Index" );
   
   return 0;
 }
