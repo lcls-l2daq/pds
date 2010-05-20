@@ -22,7 +22,7 @@ class PrincetonServer;
 class PrincetonManager 
 {
 public:
-  PrincetonManager(CfgClientNfs& cfg, bool bDelayMode, int iDebugLevel);
+  PrincetonManager(CfgClientNfs& cfg, int iCamera, bool bDelayMode, bool bInitTest, int iDebugLevel);
   ~PrincetonManager();
 
   Appliance&    appliance() { return *_pFsm; }
@@ -40,7 +40,9 @@ public:
   int   checkReadoutEventCode(InDatagram* in);
   
 private:          
+  const int           _iCamera;
   const bool          _bDelayMode;
+  const bool          _bInitTest;
   const int           _iDebugLevel;
   
   Fsm*                _pFsm;

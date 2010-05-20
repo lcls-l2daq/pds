@@ -26,7 +26,7 @@ class PrincetonServer;
 class PrincetonServer
 {
 public:
-  PrincetonServer(bool bUseCaptureTask, const Src& src, int iDebugLevel);
+  PrincetonServer(int iCamera, bool bUseCaptureTask, bool bInitTest, const Src& src, int iDebugLevel);
   ~PrincetonServer();
   
   int   mapCamera();  
@@ -106,6 +106,7 @@ private:
   
   int   initCameraSettings(Princeton::ConfigV1& config);
 
+  int   initTest();
   /*
    * Frame handling functions
    */
@@ -122,7 +123,9 @@ private:
   /*
    * Initial settings
    */
+  const int           _iCamera;
   const bool          _bDelayMode;
+  const bool          _bInitTest;
   const Src           _src;
   const int           _iDebugLevel;
   

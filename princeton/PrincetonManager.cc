@@ -66,7 +66,7 @@ public:
       
       if ( iConfigSize == 0 ) // no config data is found in the database.       
       {
-        printf( "PrincetonConfigAction::fire(): No  config data is loaded. Will use default values for configuring the camera.\n" );
+        printf( "PrincetonConfigAction::fire(): No config data is loaded. Will use default values for configuring the camera.\n" );
         _configCamera = Princeton::ConfigV1(
           32, // Width
           32, // Height
@@ -400,8 +400,8 @@ private:
     int               _iDebugLevel;
 };
 
-PrincetonManager::PrincetonManager(CfgClientNfs& cfg, bool bDelayMode, int iDebugLevel) :
-  _bDelayMode(bDelayMode),
+PrincetonManager::PrincetonManager(CfgClientNfs& cfg, int iCamera, bool bDelayMode, bool bInitTest, int iDebugLevel) :
+  _iCamera(iCamera), _bDelayMode(bDelayMode), _bInitTest(bInitTest),
   _iDebugLevel(iDebugLevel), _pServer(NULL)
 {
     _pActionMap       = new PrincetonMapAction      (*this, cfg);
@@ -415,7 +415,7 @@ PrincetonManager::PrincetonManager(CfgClientNfs& cfg, bool bDelayMode, int iDebu
                    
     try
     {     
-    _pServer = new PrincetonServer(_bDelayMode, cfg.src(), _iDebugLevel);    
+    _pServer = new PrincetonServer(_iCamera, _bDelayMode, _bInitTest, cfg.src(), _iDebugLevel);    
     }
     catch ( PrincetonServerException& eServer )
     {

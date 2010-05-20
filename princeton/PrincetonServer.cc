@@ -17,8 +17,8 @@ using PICAM::printPvError;
 namespace Pds 
 {
 
-PrincetonServer::PrincetonServer(bool bDelayMode, const Src& src, int iDebugLevel) :
- _bDelayMode(bDelayMode), _src(src), _iDebugLevel(iDebugLevel),
+PrincetonServer::PrincetonServer(int iCamera, bool bDelayMode, bool bInitTest, const Src& src, int iDebugLevel) :
+ _iCamera(iCamera), _bDelayMode(bDelayMode), _bInitTest(bInitTest), _src(src), _iDebugLevel(iDebugLevel),
  _hCam(-1), _bCameraInited(false), _bCaptureInited(false),
  _fPrevReadoutTime(0), _bSequenceError(false), _clockPrevDatagram(0,0), _iNumL1Event(0),
  _configCamera(), 
@@ -69,6 +69,9 @@ int PrincetonServer::initCamera()
 {
   if ( _bCameraInited )
     return 0;
+
+  timespec timeVal0;
+  clock_gettime( CLOCK_REALTIME, &timeVal0 );
     
   /* Initialize the PVCam Library */
   if (!pl_pvcam_init())
@@ -80,26 +83,40 @@ int PrincetonServer::initCamera()
   char strCamera[CAM_NAME_LEN];  /* camera name                    */
   
   /* Assume each machine only control one camera */
-  if (!pl_cam_get_name(0, strCamera))
+  if (!pl_cam_get_name(_iCamera, strCamera))
   {
-    printPvError("PrincetonServer::initCamera(): pl_cam_get_name(0) failed");
+    printPvError("PrincetonServer::initCamera(): pl_cam_get_name() failed");
     return ERROR_PVCAM_FUNC_FAIL;
   }
+  
+  printf( "Opening camera [%d] name %s...\n", _iCamera, strCamera );
   
   if (!pl_cam_open(strCamera, &_hCam, OPEN_EXCLUSIVE))
   {
     printPvError("PrincetonServer::initCamera(): pl_cam_open() failed");
     return ERROR_PVCAM_FUNC_FAIL;
   }
+    
+  timespec timeVal1;  
+  clock_gettime( CLOCK_REALTIME, &timeVal1 );
   
+  double fOpenTime = (timeVal1.tv_nsec - timeVal0.tv_nsec) * 1.e-6 + ( timeVal1.tv_sec - timeVal0.tv_sec ) * 1.e3;    
+  printf("Camera Open Time = %6.3lf ms\n", fOpenTime);    
+    
+  if (_bInitTest)
+  {
+    if (initTest() != 0)
+      return ERROR_PVCAM_FUNC_FAIL;
+  }
+
   /* Initialize capture related functions */    
   if (!pl_exp_init_seq())
   {
     printPvError("PrincetonServer::initCamera(): pl_exp_init_seq() failed!\n");
     return ERROR_PVCAM_FUNC_FAIL; 
-  }  
+  }    
   
-  printf( "Princeton Camera %s has been initialized\n", strCamera );
+  printf( "Princeton Camera [%d] %s has been initialized\n", _iCamera, strCamera );
   
   _bCameraInited = true;    
   return 0;
@@ -129,7 +146,7 @@ int PrincetonServer::deinitCamera()
     return ERROR_PVCAM_FUNC_FAIL;
   }
     
-  printf( "Princeton Camera has been deinitialized\n" );
+  printf( "Princeton Camera [%d] has been deinitialized\n", _iCamera );
   
   return 0;
 }
@@ -301,8 +318,8 @@ int PrincetonServer::startCapture()
 
 int PrincetonServer::initCameraSettings(Princeton::ConfigV1& config)
 {  
-  uns32 uTriggerEdge = EDGE_TRIG_POS;
-  PICAM::setAnyParam(_hCam, PARAM_EDGE_TRIGGER, &uTriggerEdge );  
+  //uns32 uTriggerEdge = EDGE_TRIG_POS;
+  //PICAM::setAnyParam(_hCam, PARAM_EDGE_TRIGGER, &uTriggerEdge );  
   
   int16 iSpeedTableIndex = config.readoutSpeedIndex();
   PICAM::setAnyParam(_hCam, PARAM_SPDTAB_INDEX, &iSpeedTableIndex );  
@@ -317,9 +334,79 @@ int PrincetonServer::initCameraSettings(Princeton::ConfigV1& config)
   //displayParamIdInfo(_hCam, PARAM_EXP_RES,          "Exposure Resolution");
   //displayParamIdInfo(_hCam, PARAM_EXP_RES_INDEX,    "Exposure Resolution Index");
   
-  displayParamIdInfo(_hCam, PARAM_EDGE_TRIGGER,     "Edge Trigger" );
+  //displayParamIdInfo(_hCam, PARAM_EDGE_TRIGGER,     "Edge Trigger" );
   displayParamIdInfo(_hCam, PARAM_SPDTAB_INDEX,     "Speed Table Index" );
   
+  return 0;
+}
+
+int PrincetonServer::initTest()
+{
+  printf( "Running init test...\n" );
+  
+  rgn_type region;
+  region.s1   = 0;
+  region.s2   = 127;
+  region.sbin = 1;
+  region.p1   = 0;
+  region.p2   = 127;
+  region.pbin = 1;
+  
+  /* Init a sequence set the region, exposure mode and exposure time */
+  pl_exp_init_seq();
+  
+  uns32 uFrameSize = 0;
+  pl_exp_setup_seq(_hCam, 1, 1, &region, TIMED_MODE, 1, &uFrameSize);
+  uns16* pFrameBuffer = (uns16 *) malloc(uFrameSize);
+
+  timeval timeSleepMicroOrg = {0, 1000 }; // 1 milliseconds  
+        
+  timespec timeVal1;
+  clock_gettime( CLOCK_REALTIME, &timeVal1 );    
+  
+  pl_exp_start_seq(_hCam, pFrameBuffer);
+
+  timespec timeVal2;
+  clock_gettime( CLOCK_REALTIME, &timeVal2 );
+  
+  uns32 uNumBytesTransfered;
+  int iNumLoop = 0;
+  int16 status = 0;
+
+  /* wait for data or error */
+  while (pl_exp_check_status(_hCam, &status, &uNumBytesTransfered) &&
+         (status != READOUT_COMPLETE && status != READOUT_FAILED))
+  {
+    // This data will be modified by select(), so need to be reset
+    timeval timeSleepMicro = timeSleepMicroOrg; 
+    // use select() to simulate nanosleep(), because experimentally select() controls the sleeping time more precisely
+    select( 0, NULL, NULL, NULL, &timeSleepMicro);       
+    iNumLoop++;      
+  }
+  
+  /* Check Error Codes */
+  if (status == READOUT_FAILED)
+    printPvError("PrincetonServer::initTest():pl_exp_check_status() failed");    
+
+  timespec timeVal3;
+  clock_gettime( CLOCK_REALTIME, &timeVal3 );
+
+  double fReadoutTime = -1;
+  PICAM::getAnyParam(_hCam, PARAM_READOUT_TIME, &fReadoutTime);
+  
+  double fStartupTime = (timeVal2.tv_nsec - timeVal1.tv_nsec) * 1.e-6 + ( timeVal2.tv_sec - timeVal1.tv_sec ) * 1.e3;    
+  double fPollingTime = (timeVal3.tv_nsec - timeVal2.tv_nsec) * 1.e-6 + ( timeVal3.tv_sec - timeVal2.tv_sec ) * 1.e3;    
+  double fSingleFrameTime = fStartupTime + fPollingTime;
+  printf("  Capture Setup Time = %6.1lfms Total Time = %6.1lfms\n", 
+    fStartupTime, fSingleFrameTime );        
+    
+  // pl_exp_finish_seq(_hCam, pFrameBuffer, 0); // No need to call this function, unless we have multiple ROIs
+
+  free(pFrameBuffer);  
+  
+  /*Uninit the sequence */
+  pl_exp_uninit_seq();
+   
   return 0;
 }
 
