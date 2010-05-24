@@ -51,9 +51,9 @@ using namespace Pds;
 ** --
 */
 
-#ifdef VERBOSE
+//#ifdef VERBOSE
 static timespec prev_ts;
-#endif
+//#endif
 
 static const int TaskPriority = 60;
 static const char* TaskLevelName[Level::NumberOfLevels+1] = {
@@ -127,6 +127,8 @@ Server* EbBase::accept(Server* srv)
   EbServer* accepted = (EbServer*)srv;
   if (accepted->isValued())
     _valued_clients.setBit(id);
+  if (accepted->isRequired())
+    _required_clients.setBit(id);
 
   manage(accepted);
   ServerManager::arm(accepted);
@@ -164,6 +166,8 @@ void EbBase::remove(unsigned id)
   EbServer* srv = (EbServer*)server(id);
   if (srv->isValued())
     _valued_clients.clearBit(id);
+  if (srv->isRequired())
+    _required_clients.clearBit(id);
   _remove(srv);
   _clients = managed();
 }
@@ -221,12 +225,15 @@ void EbBase::_post(EbEventBase* event)
   EbBitMask value((event->allocated().remaining() |
 		   event->segments()) &
 		  _valued_clients);
+  EbBitMask required((event->allocated().remaining() | 
+		      event->segments()) &
+		     _required_clients);
 #ifdef VERBOSE
   printf("(%p) %08x/%08x remaining %08x value %08x payload %d\n",
     	 this, datagram->seq.service(),datagram->seq.stamp().fiducials(),
   	 remaining.value(0),value.value(0),datagram->xtc.sizeofPayload());
 #endif
-  if (value.isZero()) {  // sink
+  if (value.isZero() || required!=_required_clients) {  // sink
 
     // statistics
     if (_vmoneb) {
@@ -382,11 +389,17 @@ int EbBase::processTmo()
       //  mw- Recalculate enable mask - could be done faster (not redone)
       ServerManager::arm(_armMask());
     } else {
-#ifdef VERBOSE
+      //#ifdef VERBOSE
       timespec ts;
       clock_gettime(CLOCK_REALTIME, &ts);
       double dts = (ts.tv_sec - prev_ts.tv_sec) + 1.e-9*(ts.tv_nsec - prev_ts.tv_nsec);
       prev_ts = ts;
+
+      int nfds = numFds();
+      const unsigned* iolist = reinterpret_cast<const unsigned*>(ioList());
+      for(unsigned ifd=0; ifd<nfds; ifd+=32, iolist++) 
+	printf(":%08x",*iolist);
+      printf("\n");
 
       InDatagram* indatagram   = event->finalize();
       const Datagram* datagram = &indatagram->datagram();
@@ -395,7 +408,7 @@ int EbBase::processTmo()
 	printf("EbBase::processTmo seq %x/%x  remaining %08x : %g\n",
 	       datagram->seq.service(), datagram->seq.stamp().fiducials(),
 	       event->remaining().value(), dts);
-#endif
+      //#endif
       _postEvent(event);
       ServerManager::arm(_armMask());
     }

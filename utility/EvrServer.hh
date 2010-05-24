@@ -19,6 +19,7 @@ namespace Pds {
     //  Eb interface
     void        dump    (int detail)   const;
     bool        isValued()             const;
+    bool        isRequired()           const;
     const Src&  client  ()             const;
     //  EbSegment interface
     const Xtc&   xtc   () const;

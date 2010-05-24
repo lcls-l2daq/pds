@@ -63,7 +63,8 @@ namespace Pds {
     LinkedList<EbEventBase> _pending;      // Under construction/completion queue
   protected:
     EbBitMask   _clients;      // Database of clients
-    EbBitMask   _valued_clients; // Database of clients worthy of receiving
+    EbBitMask   _valued_clients;   // Database of clients valued
+    EbBitMask   _required_clients; // Database of clients required
     EbTimeouts  _ebtimeouts;
     Appliance&  _output;       // Destination for datagrams
     Src         _id;           // Our OWN ID

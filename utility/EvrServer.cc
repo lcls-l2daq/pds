@@ -95,6 +95,11 @@ bool EvrServer::isValued() const
   return true;
 }
 
+bool EvrServer::isRequired() const
+{
+  return true;
+}
+
 const Xtc&   EvrServer::xtc   () const
 {
   return ((Datagram*)_server.datagram())->xtc;

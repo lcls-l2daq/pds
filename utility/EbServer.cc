@@ -131,3 +131,5 @@ bool EbServer::more() const { return false; }
 unsigned EbServer::length() const { return 0; }
 
 unsigned EbServer::offset() const { return 0; }
+
+bool EbServer::isRequired() const { return false; }

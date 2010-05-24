@@ -33,7 +33,13 @@ class EbServer : public Server
     virtual int      fetch       (ZcpFragment& , int flags) = 0;
 
     virtual void        dump    (int detail)   const = 0;
+    //
+    //  A datagram missing a "valued" contribution will be marked damaged
+    //  A datagram missing a "required" contribution will be discarded
+    //
     virtual bool        isValued()             const = 0;
+    virtual bool        isRequired()           const;
+
     virtual const Src&  client  ()             const = 0;
     //  EbSegment interface
     virtual const Xtc&   xtc   () const = 0;
