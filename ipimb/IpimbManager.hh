@@ -11,7 +11,7 @@ namespace Pds {
 
   class IpimbManager {
   public:
-    IpimbManager(IpimbServer* server[], unsigned nServers, CfgClientNfs** cfg);
+    IpimbManager(IpimbServer* server[], unsigned nServers, CfgClientNfs** cfg, int* portInfo);
     Appliance& appliance();
   private:
     Fsm& _fsm;
