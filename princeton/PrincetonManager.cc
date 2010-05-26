@@ -253,7 +253,7 @@ public:
       int   iShotId     = in->datagram().seq.stamp().fiducials();   // shot ID 
                         
       iFail = _manager.checkReadoutEventCode(in);
-      iFail = 0; // !! debug
+      //iFail = 0; // !! debug
       
       // Discard the evr data, for appending the detector data later
       in->datagram().xtc.extent = sizeof(Xtc);            
