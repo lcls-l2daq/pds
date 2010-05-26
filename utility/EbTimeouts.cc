@@ -5,7 +5,7 @@
 
 using namespace Pds;
 
-static const int framework_tmo = 250;  //250 ms
+static const int framework_tmo = 500;  //250 ms
 static const int occurence_tmo = 200; // 200 ms
 
 EbTimeouts::EbTimeouts(const EbTimeouts& ebtimeouts) 
@@ -23,7 +23,13 @@ EbTimeouts::EbTimeouts(int stream,
     _duration = occurence_tmo;
   }
   
-  _tmos = 2;
+  switch(level) {
+  case Level::Source : _tmos = 1; break;
+  case Level::Segment: _tmos = 2; break;
+  case Level::Event  : _tmos = 3; break;
+  case Level::Control: _tmos = 4; break;
+  default            : _tmos = 4; break;
+  }
 }
 
 unsigned EbTimeouts::duration() const {
@@ -35,8 +41,8 @@ unsigned EbTimeouts::duration(int s) {
 }
 
 int EbTimeouts::timeouts(const Sequence* sequence) const {
-  //  return _tmos[sequence->type()*TransitionId::NumberOf+
-  //  	       sequence->service()];
+  if (sequence && sequence->service()==TransitionId::L1Accept)
+    return 1;
   return _tmos;
 }
 

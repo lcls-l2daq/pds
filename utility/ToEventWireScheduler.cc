@@ -18,7 +18,8 @@
 using namespace Pds;
 
 static unsigned _maxscheduled = 4;
-static int      _idol_timeout = 250; // idol time [ms] which forces flush of queued events
+static int      _idol_timeout  = 250; // idol time [ms] which forces flush of queued events
+static int      _disable_buffer = 10; // time [ms] inserted between flushed L1 and Disable transition
 
 void ToEventWireScheduler::setMaximum(unsigned m) { _maxscheduled = m; }
 
@@ -119,7 +120,15 @@ void ToEventWireScheduler::routine()
 	    _flush();
 	}
 	else {
-	  _flush();
+	  if (_nscheduled) {
+	    _flush();
+	    //
+	    //  Add some spacing to insure that the L1's and Transitions are not "coalesced"
+	    //
+	    timespec ts;
+	    ts.tv_sec = 0; ts.tv_nsec = _disable_buffer*1000000;
+	    nanosleep(&ts,0);
+	  }
 	  _flush(dg);
 	}
       }

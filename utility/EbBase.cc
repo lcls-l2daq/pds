@@ -381,25 +381,21 @@ EbBitMask EbBase::_postEvent(EbEventBase* complete)
 */
 
 int EbBase::processTmo()
-  {
+{
   EbEventBase* event = _pending.forward();
   EbEventBase* empty = _pending.empty();
   if (event != empty) {
+
+    timespec ts;
+    clock_gettime(CLOCK_REALTIME, &ts);
+    double dts = (ts.tv_sec - prev_ts.tv_sec) + 1.e-9*(ts.tv_nsec - prev_ts.tv_nsec);
+    prev_ts = ts;
+
     if (event->timeouts(_ebtimeouts) > 0) {
       //  mw- Recalculate enable mask - could be done faster (not redone)
       ServerManager::arm(_armMask());
     } else {
       //#ifdef VERBOSE
-      timespec ts;
-      clock_gettime(CLOCK_REALTIME, &ts);
-      double dts = (ts.tv_sec - prev_ts.tv_sec) + 1.e-9*(ts.tv_nsec - prev_ts.tv_nsec);
-      prev_ts = ts;
-
-      int nfds = numFds();
-      const unsigned* iolist = reinterpret_cast<const unsigned*>(ioList());
-      for(unsigned ifd=0; ifd<nfds; ifd+=32, iolist++) 
-	printf(":%08x",*iolist);
-      printf("\n");
 
       InDatagram* indatagram   = event->finalize();
       const Datagram* datagram = &indatagram->datagram();
@@ -411,7 +407,9 @@ int EbBase::processTmo()
       //#endif
       _postEvent(event);
       ServerManager::arm(_armMask());
+
     }
+
   } else {
     ServerManager::arm(managed());
   }
@@ -590,12 +588,15 @@ void EbBase::_iterate_dump()
 void EbBase::dump(int detail)
 {
   time_t timeNow = time(NULL);
+  timespec ts;
+  clock_gettime(CLOCK_REALTIME, &ts);
   printf("Dump of Event Builder %04X/%04X (log/phy)...\n",
          _id.log(), _id.phy());
   printf("--------------------------------------------\n");
 
   printf(" Time of dump: ");
   printf(ctime(&timeNow));
+  printf("%08x/%08x\n", ts.tv_sec, ts.tv_nsec);
   printf(" Event Timeout is %u [ms]\n", timeout());
   printf(" Has posted %u datagrams\n", _output.datagrams());
   printf(" %u Contributions, %u Chunks, %u Cache misses, %u Discards\n",

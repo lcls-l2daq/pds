@@ -79,7 +79,7 @@ EbEventBase::EbEventBase() :
 
 int EbEventBase::timeouts(const EbTimeouts& ebtmo) {
   if (_timeouts == MaxTimeouts) {
-    int tmo = ebtmo.timeouts((Sequence*)0);
+    int tmo = ebtmo.timeouts(_datagram ? &_datagram->seq : 0);
     _timeouts = tmo < MaxTimeouts ? tmo : MaxTimeouts;
   }
   return --_timeouts;

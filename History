@@ -1,3 +1,7 @@
+2010-May-25 weaver	Changed PartitionControl delay for Disable to 0.2s (greater than camera shutter width).
+			Changed EbTimeouts to be hierarchical to clarify where the timeout occurs.
+			Added 10ms delay in ToEventWireScheduler between flush of L1A and Disable to
+			alleviate coalescing of the two.
 2010-Apr-27 weaver	evgr/EvrManager now reconfigures on BeginCalibCycle.  Changed acqiris/AcqManager
 			to generate ClearReadout occurrence only once until cleared.
 2010-Apr-14 weaver	Changed InDatagram/Datagram relationship to inheritance rather than contains.

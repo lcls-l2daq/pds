@@ -274,7 +274,7 @@ private:
 class AcqDisableAction : public AcqDC282Action {
 public:
   AcqDisableAction(ViSession instrumentId, AcqL1Action& acql1) : AcqDC282Action(instrumentId),_acql1(acql1) {}
-  Transition* fire(Transition* in) {	
+  InDatagram* fire(InDatagram* in) {	
     printf("AcqManager received %d l1accepts\n",cpol1);
     nprint=0;
     //_acql1.notRunning(); 
