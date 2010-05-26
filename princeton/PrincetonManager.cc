@@ -74,10 +74,10 @@ public:
           0,  // OrgX
           1,  // BinX
           1,  // BinX
-          0.005,  // Exposure time
-          25.0f, // Cooling temperature
-          5,  // Readout speed index
-          0   // Redout event code
+          0.001,  // Exposure time
+          30.0f, // Cooling temperature
+          1,  // Readout speed index
+          1   // Redout event code
         );
       }
               
