@@ -75,7 +75,7 @@ public:
           1,  // BinX
           1,  // BinX
           0.001,  // Exposure time
-          30.0f, // Cooling temperature
+          25.0f, // Cooling temperature
           1,  // Readout speed index
           1   // Redout event code
         );
@@ -250,10 +250,10 @@ public:
       int         iFail = 0;
       InDatagram* out   = in;
       
-      int   iShotId       = 12;   // !! Obtain shot ID 
-      bool  bReadoutEvent = true; // !! For end-event only mode (no capture start event)
+      int   iShotId     = in->datagram().seq.stamp().fiducials();   // shot ID 
                         
       iFail = _manager.checkReadoutEventCode(in);
+      iFail = 0; // !! debug
       
       // Discard the evr data, for appending the detector data later
       in->datagram().xtc.extent = sizeof(Xtc);            
@@ -268,15 +268,12 @@ public:
       
       if ( _bDelayMode )
       {
-        iFail = _manager.getDelayData( in, out );
-        
-        if ( bReadoutEvent )
-          iFail |= _manager.onEventReadoutDelay( iShotId, in );
+        iFail =  _manager.getDelayData( in, out );        
+        iFail |= _manager.onEventReadoutDelay( iShotId, in );
       }
       else
       { // prompt mode
-        if ( bReadoutEvent )
-          iFail = _manager.onEventReadoutPrompt( iShotId, in, out );          
+        iFail = _manager.onEventReadoutPrompt( iShotId, in, out );          
       }
                       
       if ( iFail != 0 )
