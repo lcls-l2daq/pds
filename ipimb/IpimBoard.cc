@@ -13,10 +13,10 @@
 using namespace std;
 using namespace Pds;
 
-const float CHARGEAMP_REF_MAX = 12.0;
+const float CHARGEAMP_REF_MAX = 10.0;
 const unsigned CHARGEAMP_REF_STEPS = 65536;
 
-const float CALIBRATION_V_MAX = 12.0;
+const float CALIBRATION_V_MAX = 10.0;
 const unsigned CALIBRATION_V_STEPS = 65536;
 
 const float INPUT_BIAS_MAX = 200;
