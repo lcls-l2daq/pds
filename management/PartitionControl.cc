@@ -270,7 +270,7 @@ void PartitionControl::message(const Node& hdr, const Message& msg)
 	printf("Received ClearReadout occurrence from %x/%d\nReconfiguring\n",
 	       hdr.procInfo().ipAddr(),
 	       hdr.procInfo().processId());
-	reconfigure();
+	//	reconfigure();
 	break;
       default:
 	break;
