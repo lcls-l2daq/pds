@@ -65,7 +65,7 @@ private:
   unsigned _nfid;
 };
 
-enum RateCode { r120Hz, r60Hz, r30Hz, r10Hz, r5Hz, r1Hz, r0_5Hz, Single, NumberOfRates };
+enum RateCode { r120Hz, r60Hz, r30Hz, r10Hz, r5Hz, r1Hz, r0_5Hz, r0_25Hz, r0_125Hz, Single, NumberOfRates };
 enum BeamCode { Off, On };
 
 static unsigned int opcodeFromBeamRate(BeamCode bc, RateCode rc) 
@@ -93,7 +93,7 @@ public:
   void set() {
     int ram=0;
     int pos=TimeLoader::NumEvtCodes;
-    _count++; _count%=360;
+    _count++; _count%=(360*8);
 
     _eg.SetSeqRamEvent(ram, pos, pos+WaitForTimestamp, 9); pos++;
     if (_count%2  ==0) {_eg.SetSeqRamEvent(ram, pos, pos+WaitForTimestamp, 180); pos++;}
@@ -103,7 +103,9 @@ public:
     if (_count%36 ==0) {_eg.SetSeqRamEvent(ram, pos, pos+WaitForTimestamp, OPCODEC(r10Hz)); pos++;}
     if (_count%72 ==0) {_eg.SetSeqRamEvent(ram, pos, pos+WaitForTimestamp, OPCODEC(r5Hz)); pos++;}
     if (_count%360==0) {_eg.SetSeqRamEvent(ram, pos, pos+WaitForTimestamp, OPCODEC(r1Hz)); pos++;}
-    if (_count%720==0) {_eg.SetSeqRamEvent(ram, pos, pos+WaitForTimestamp, OPCODEC(r0_5Hz)); pos++;}
+    if (_count%(360*2)==0) {_eg.SetSeqRamEvent(ram, pos, pos+WaitForTimestamp, OPCODEC(r0_5Hz)); pos++;}
+    if (_count%(360*4)==0) {_eg.SetSeqRamEvent(ram, pos, pos+WaitForTimestamp, OPCODEC(r0_25Hz)); pos++;}
+    if (_count%(360*8)==0) {_eg.SetSeqRamEvent(ram, pos, pos+WaitForTimestamp, OPCODEC(r0_125Hz)); pos++;}
     _eg.SetSeqRamEvent(ram, pos, pos+WaitForTimestamp, EvgrOpcode::EndOfSequence);
   }
 private:

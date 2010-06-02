@@ -68,8 +68,8 @@ public:
       {
         printf( "PrincetonConfigAction::fire(): No config data is loaded. Will use default values for configuring the camera.\n" );
         _configCamera = Princeton::ConfigV1(
-          32, // Width
-          32, // Height
+          16, // Width
+          16, // Height
           0,  // OrgX
           0,  // OrgX
           1,  // BinX
