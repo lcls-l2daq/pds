@@ -97,10 +97,12 @@ unsigned SourceLevel::MaxPartitions()
 
 bool SourceLevel::connect(int i)
 {
-  bool v = CollectionSource::connect(i);
-  SourcePing sp(1);
-  mcast(sp);
-  return v;
+  if (CollectionSource::connect(i)) {
+    SourcePing sp(1);
+    mcast(sp);
+    return true;
+  }
+  return false;
 }
 
 void SourceLevel::_verify_partition(const Node& hdr, const Allocation& alloc)
