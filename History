@@ -1,3 +1,6 @@
+2010-Jun-06 weaver	Tag V02-02-02.  Changed pds/encoder/pci3e_dev to clear_fifo on unconfigure to cleanup
+			after a messy shutdown.  Added ENABLE bit to pci3e_dev configure to enable capture of
+			encoder values.
 2010-May-25 weaver	Changed PartitionControl delay for Disable to 0.2s (greater than camera shutter width).
 			Changed EbTimeouts to be hierarchical to clarify where the timeout occurs.
 			Added 10ms delay in ToEventWireScheduler between flush of L1A and Disable to

@@ -232,26 +232,32 @@ int PCI3E::dev::clear_fifo( void )
 {
    int ret;
    REG_FIFO_STAT_CTRL_t reg;
+   unsigned was_read;
 
    reg.whole = 0;
 
    printf( "PCI3E::dev::clear_fifo().\n" );
 
-   ret = reg_read( REG_FIFO_STAT_CTRL, &reg.whole );
-   if( !ret )
-   {
-      return ret;
-   }
+   unsigned num_fifo_items;
+   ret = get_num_fifo_items( &num_fifo_items );
+   unsigned num_fifo_entries = PCI3E::fifo_num_items_to_entries( num_fifo_items );
+   
+   PCI3E::fifo_entry fifo_entry;
+   for( unsigned i=0; i < num_fifo_entries; ++i )
+     ret = read_fifo( &fifo_entry );
 
-   reg.init = 1;
-   ret = reg_write( REG_FIFO_STAT_CTRL, reg.whole );
-   if( !ret )
-   {
-      return ret;
-   }
+   unsigned extra_items = num_fifo_items % FIFO_ENTRY_LEN;
+   if( extra_items ) 
+     for( unsigned i = 0; i < extra_items; ++i )
+       {
+	 reg_write( REG_FIFO_READ,
+		    was_read );
+	 
+	 reg_read( REG_FIFO_READ,
+		   &was_read );
+       }
 
-   reg.init = 0;
-   return reg_write( REG_FIFO_STAT_CTRL, reg.whole );
+   return ret;
 }
 
 int PCI3E::dev::read_fifo( struct PCI3E::fifo_entry* entry )

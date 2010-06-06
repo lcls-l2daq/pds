@@ -35,6 +35,7 @@ int Pds::PCI3E_dev::configure( const Pds::Encoder::ConfigV1& config )
 
    regval  = config._count_mode << CTRL_COUNT_MODE;
    regval |= config._quadrature_mode << CTRL_QUAD_MODE;
+   regval |= mask( CTRL_ENABLE );
    regval |= mask( CTRL_ENABLE_CAP );
    BAIL_ON_FAIL( _channel.reg_write( REG_CTRL, regval ) );
 
@@ -62,6 +63,8 @@ int Pds::PCI3E_dev::configure( const Pds::Encoder::ConfigV1& config )
    BAIL_ON_FAIL( _pci3e.enable_fifo() );
    BAIL_ON_FAIL( _pci3e.enable_interrupt_on_trigger() );
 
+   _pci3e.dump_regs();
+
    return 0;
 }
 
@@ -73,7 +76,10 @@ int Pds::PCI3E_dev::unconfigure( void )
    BAIL_ON_FAIL( _pci3e.reg_write( REG_TRIG_CTRL, 0 ) );
 
    BAIL_ON_FAIL( _pci3e.disable_interrupt_on_trigger() );
+   BAIL_ON_FAIL( _pci3e.disable_fifo() );
    BAIL_ON_FAIL( _pci3e.clear_fifo() );
+
+   ret = _pci3e.enable_fifo();
 
    return 0;
 }
