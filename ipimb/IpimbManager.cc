@@ -65,7 +65,8 @@ public:
 class IpimbConfigAction : public IpimbAction {
 public:
   IpimbConfigAction(CfgClientNfs** cfg, IpimbServer* server[], int nServers) :
-    _cfg(cfg), _server(server), _nServers(nServers), _nDamagedConfigures(0) {}
+    _cfg(cfg), _server(server), _nServers(nServers), _nDamagedConfigures(0),
+    _config(new IpimbConfigType[_nServers]) {}
   ~IpimbConfigAction() {}
   InDatagram* fire(InDatagram* dg) {
     //    printf("in ipimb config indatagram transition\n");
@@ -83,7 +84,6 @@ public:
     return dg;
   }
   Transition* fire(Transition* tr) {
-    IpimbConfigType _config[_nServers];
     _nDamagedConfigures = 0;
     for (unsigned i=0; i<_nServers; i++) {
       int len = (*_cfg[i]).fetch(*tr,_ipimbConfigType, &_config[i], sizeof(_config[i]));
