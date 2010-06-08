@@ -73,6 +73,7 @@ public:
     // insert assumes we have enough space in the input datagram
     for (unsigned i=0; i<_nServers; i++) {
       Xtc _cfgtc = Xtc(_ipimbConfigType, _server[i]->client());
+      _cfgtc.extent += sizeof(IpimbConfigType);
       dg->insert(_cfgtc, &_config[i]);
     }
     if (_nDamagedConfigures) {
