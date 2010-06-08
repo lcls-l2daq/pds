@@ -97,7 +97,7 @@ void TM6740Manager::_configure(const void* buff)
 {
   const TM6740ConfigType& c = *reinterpret_cast<const TM6740ConfigType*>(buff);
   _camera->Config(c);
-  _server->setCameraOffset(c.vref_a())
+  _server->setCameraOffset(c.vref_a());
 }  
 
 PdsLeutron::PicPortCL& TM6740Manager::camera() { return *_camera; }
