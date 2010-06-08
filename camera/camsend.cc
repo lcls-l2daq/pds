@@ -244,10 +244,10 @@ int main(int argc, char *argv[])
   default:
     {
       TM6740Camera* tCamera = new TM6740Camera();
-      TM6740ConfigType* Config = new TM6740ConfigType( 0x28,  // black-level
+      TM6740ConfigType* Config = new TM6740ConfigType( 0x28,  // black-level-a
+						       0x28,  // black-level-b
 						       0xde,  // gain-tap-a
 						       0xe9,  // gain-tap-b
-						       unsigned(1.e6/fps),  // shutter-width-us
 						       false, // gain-balance
 						       TM6740ConfigType::Eight_bit,
 						       TM6740ConfigType::x1,

@@ -1,3 +1,4 @@
+2010-Jun-08 weaver	Added separate a/b tap reference voltages for TM6740 camera.  Fixed payload size of Ipimb config.
 2010-Jun-06 weaver	Tag V02-02-02.  Changed pds/encoder/pci3e_dev to clear_fifo on unconfigure to cleanup
 			after a messy shutdown.  Added ENABLE bit to pci3e_dev configure to enable capture of
 			encoder values.

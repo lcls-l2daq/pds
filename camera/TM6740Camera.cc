@@ -41,10 +41,10 @@ unsigned TM6740Camera::output_resolution() const
 { return _inputConfig->output_resolution_bits(); }
 
 unsigned    TM6740Camera::pixel_rows         () const
-{ return Pds::Pulnix::TM6740ConfigV1::Row_Pixels >> unsigned(_inputConfig->vertical_binning()); }
+{ return TM6740ConfigType::Row_Pixels >> unsigned(_inputConfig->vertical_binning()); }
 
 unsigned    TM6740Camera::pixel_columns      () const
-{ return Pds::Pulnix::TM6740ConfigV1::Column_Pixels >> unsigned(_inputConfig->horizontal_binning()); }
+{ return TM6740ConfigType::Column_Pixels >> unsigned(_inputConfig->horizontal_binning()); }
 
 const TM6740ConfigType& TM6740Camera::Config() const
 { return *reinterpret_cast<const TM6740ConfigType*>(_outputBuffer); }
@@ -61,7 +61,7 @@ const char* TM6740Camera::Name() const
 //bool TM6740Camera::trigger_CC1() const { return true; }
 bool TM6740Camera::trigger_CC1() const { return false; }
 
-unsigned TM6740Camera::trigger_duration_us() const { return _inputConfig->shutter_width(); }
+unsigned TM6740Camera::trigger_duration_us() const { return 100000; }
 
 #define SetParameter(title,sfmt,val1) { \
   snprintf(szCommand, SZCOMMAND_MAXLEN, sfmt, val1);	\
@@ -88,12 +88,12 @@ int TM6740Camera::PicPortCameraInit() {
   int ret;
 
   *new (_outputBuffer) TM6740ConfigType(*_inputConfig);
-  SetParameter("VREF_A"  ,":VRA=%03X", _inputConfig->vref());
-  GetParameter("VREF_A"  ,":VRA?", ":oVA%03X", _inputConfig->vref());
+  SetParameter("VREF_A"  ,":VRA=%03X", _inputConfig->vref_a());
+  GetParameter("VREF_A"  ,":VRA?", ":oVA%03X", _inputConfig->vref_a());
   SetParameter("GAIN_A"  ,":MGA=%03X", _inputConfig->gain_a());
   GetParameter("GAIN_A"  ,":MGA?", ":oGA%03X", _inputConfig->gain_a());
-  SetParameter("VREF_B"  ,":VRB=%03X", _inputConfig->vref());
-  GetParameter("VREF_B"  ,":VRB?", ":oVB%03X", _inputConfig->vref());
+  SetParameter("VREF_B"  ,":VRB=%03X", _inputConfig->vref_b());
+  GetParameter("VREF_B"  ,":VRB?", ":oVB%03X", _inputConfig->vref_b());
   SetParameter("GAIN_B"  ,":MGB=%03X", _inputConfig->gain_b());
   GetParameter("GAIN_B"  ,":MGB?", ":oGB%03X", _inputConfig->gain_b());
   SetParameter("GAIN_BAL",":%s"      , _inputConfig->gain_balance() ? "EABL" : "DABL");
