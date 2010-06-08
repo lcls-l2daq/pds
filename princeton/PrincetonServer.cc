@@ -102,6 +102,11 @@ int PrincetonServer::initCamera()
   
   double fOpenTime = (timeVal1.tv_nsec - timeVal0.tv_nsec) * 1.e-6 + ( timeVal1.tv_sec - timeVal0.tv_sec ) * 1.e3;    
   printf("Camera Open Time = %6.3lf ms\n", fOpenTime);    
+
+  int iCcdWidth = 0, iCcdHeight = 0;
+  PICAM::getAnyParam(_hCam, PARAM_SER_SIZE, &iCcdWidth );
+  PICAM::getAnyParam(_hCam, PARAM_PAR_SIZE, &iCcdHeight );
+  printf( "CCD Width %d Height %d\n", iCcdWidth, iCcdHeight );
     
   if (_bInitTest)
   {
