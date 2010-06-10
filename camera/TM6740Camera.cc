@@ -17,7 +17,8 @@
 
 using namespace PdsLeutron;
 
-TM6740Camera::TM6740Camera(char *id) :
+TM6740Camera::TM6740Camera(char* id, unsigned grabberId, const char *grabberName) :
+  PicPortCL(grabberId, grabberName),
   _inputConfig(0)
 {
   if (id == NULL)
@@ -46,8 +47,8 @@ unsigned    TM6740Camera::pixel_rows         () const
 unsigned    TM6740Camera::pixel_columns      () const
 { return TM6740ConfigType::Column_Pixels >> unsigned(_inputConfig->horizontal_binning()); }
 
-const TM6740ConfigType& TM6740Camera::Config() const
-{ return *reinterpret_cast<const TM6740ConfigType*>(_outputBuffer); }
+//const TM6740ConfigType& TM6740Camera::Config() const
+//{ return *reinterpret_cast<const TM6740ConfigType*>(_outputBuffer); }
 
 const char* TM6740Camera::Name() const
 {
@@ -87,7 +88,6 @@ int TM6740Camera::PicPortCameraInit() {
   char szResponse[SZCOMMAND_MAXLEN];
   int ret;
 
-  *new (_outputBuffer) TM6740ConfigType(*_inputConfig);
   SetParameter("VREF_A"  ,":VRA=%03X", _inputConfig->vref_a());
   GetParameter("VREF_A"  ,":VRA?", ":oVA%03X", _inputConfig->vref_a());
   SetParameter("GAIN_A"  ,":MGA=%03X", _inputConfig->gain_a());
@@ -114,5 +114,3 @@ int TM6740Camera::PicPortCameraInit() {
 
   return 0;
 }
-
-

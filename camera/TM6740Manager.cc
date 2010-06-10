@@ -36,11 +36,12 @@ namespace Pds {
 using namespace Pds;
 
 
-TM6740Manager::TM6740Manager(const Src& src) :
+TM6740Manager::TM6740Manager(const Src& src, unsigned grabberId) :
   CameraManager(src, new TM6740Config(src)),
   _fexConfig   (new FexConfig(src)),
   _server      (new FexFrameServer(src,*_splice)),
-  _camera    (0)
+  _camera      (0),
+  _grabberId   (grabberId)
 {
 }
 
@@ -52,7 +53,7 @@ TM6740Manager::~TM6740Manager()
 
 FrameServer& TM6740Manager::server() { return *_server; }
 
-void TM6740Manager::attach_camera() { _camera = new PdsLeutron::TM6740Camera; }
+void TM6740Manager::attach_camera() { _camera = new PdsLeutron::TM6740Camera(NULL,_grabberId); }
 void TM6740Manager::detach_camera() { delete _camera; }
 
 void TM6740Manager::allocate (Transition* tr)
@@ -99,5 +100,10 @@ void TM6740Manager::_configure(const void* buff)
   _camera->Config(c);
   _server->setCameraOffset(c.vref_a());
 }  
+
+void TM6740Manager::unconfigure(Transition* tr)
+{
+  CameraManager::unconfigure(tr);
+}
 
 PdsLeutron::PicPortCL& TM6740Manager::camera() { return *_camera; }

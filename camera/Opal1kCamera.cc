@@ -51,9 +51,6 @@ unsigned    Opal1kCamera::pixel_rows         () const
 unsigned    Opal1kCamera::pixel_columns      () const
 { return Pds::Opal1k::ConfigV1::Column_Pixels; }
 
-const Opal1kConfigType& Opal1kCamera::Config() const
-{ return *reinterpret_cast<const Opal1kConfigType*>(_outputBuffer); }
-
 const char* Opal1kCamera::Name() const
 {
   if (!_inputConfig) {
@@ -128,7 +125,7 @@ int Opal1kCamera::PicPortCameraInit() {
   int val1, val2;
   int ret;
 
-  Opal1kConfigType* outputConfig = new (_outputBuffer) Opal1kConfigType(*_inputConfig);
+  Opal1kConfigType* outputConfig = const_cast<Opal1kConfigType*>(_inputConfig);
 
   GetParameters("BIT", val1, val2);
   printf( ">> Built-In Self Test (BIT): '%d;%d' %s \n", val1, val2,

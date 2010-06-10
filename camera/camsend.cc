@@ -243,7 +243,7 @@ int main(int argc, char *argv[])
   case 1:
   default:
     {
-      TM6740Camera* tCamera = new TM6740Camera();
+      TM6740Camera* tCamera = new TM6740Camera( "PulnixId0" );
       TM6740ConfigType* Config = new TM6740ConfigType( 0x28,  // black-level-a
 						       0x28,  // black-level-b
 						       0xde,  // gain-tap-a

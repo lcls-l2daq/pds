@@ -28,7 +28,7 @@ namespace PdsLeutron {
 
     void                    Config(const Opal1kConfigType&);
     int                     setTestPattern( bool on );
-    const Opal1kConfigType& Config() const;
+    //    const Opal1kConfigType& Config() const;
 
   private:
     //  Serial command interface
@@ -56,7 +56,6 @@ namespace PdsLeutron {
     unsigned long CurrentCount;
   private:
     const Opal1kConfigType* _inputConfig;
-    char* _outputBuffer;
   };
 
 }

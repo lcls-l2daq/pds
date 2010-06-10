@@ -22,12 +22,11 @@ namespace PdsLeutron {
 
   class TM6740Camera : public PicPortCL {
   public:
-    TM6740Camera(char *id = NULL);
+    TM6740Camera(char* id, unsigned grabberId=0, const char *grabberName = "Mono");
     virtual ~TM6740Camera();
 
     void                    Config(const TM6740ConfigType&);
-    const TM6740ConfigType& Config() const;
-
+    //    const TM6740ConfigType& Config() const;
   private:
     //  Serial command interface
     virtual int           baudRate() const { return 9600; }
@@ -49,7 +48,6 @@ namespace PdsLeutron {
     virtual unsigned    pixel_columns      () const;
   private:
     const TM6740ConfigType* _inputConfig;
-    char* _outputBuffer;
   };
 
 }

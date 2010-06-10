@@ -15,7 +15,7 @@ namespace Pds {
 
   class TM6740Manager : public CameraManager {
   public:
-    TM6740Manager(const Src& src);
+    TM6740Manager(const Src& src, unsigned grabberId=0);
     ~TM6740Manager();
 
   public:
@@ -29,7 +29,7 @@ namespace Pds {
     virtual void allocate      (Transition* tr);
     virtual void doConfigure   (Transition* tr);
     virtual void nextConfigure (Transition* tr);
-    //    virtual void unconfigure   (Transition* tr);
+    virtual void unconfigure   (Transition* tr);
 
     virtual InDatagram* recordConfigure  (InDatagram* in);
   private:
@@ -41,6 +41,7 @@ namespace Pds {
     CfgCache*                  _fexConfig;
     FexFrameServer*            _server;
     PdsLeutron::TM6740Camera*  _camera;
+    unsigned                   _grabberId;
   };
 };
 
