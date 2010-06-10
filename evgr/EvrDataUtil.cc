@@ -96,6 +96,15 @@ unsigned int EvrDataUtil::PurgeDeletedEvents()
   return _u32NumFifoEvents;
 }
 
+// return the number of total fifo events, after update
+unsigned int EvrDataUtil::removeTailEvent() 
+{
+  if ( _u32NumFifoEvents > 0 )
+    --_u32NumFifoEvents;
+    
+  return _u32NumFifoEvents;
+}
+
 void EvrDataUtil::clearFifoEvents()
 {
   _u32NumFifoEvents = 0;  

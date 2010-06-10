@@ -81,8 +81,8 @@ namespace Pds
 using namespace Pds;
 
 static unsigned dropPulseMask     = 0xffffffff;
-static const int      giMaxNumFifoEvent = 360;
-static const int      giMaxEventCodes   = 32; // max number of event code configurations
+static const int      giMaxNumFifoEvent = 32;
+static const int      giMaxEventCodes   = 64; // max number of event code configurations
 static const int      giMaxPulses       = 10; 
 static const int      giMaxOutputMaps   = 16; 
 static const int      giMaxCalibCycles  = 500;
@@ -109,18 +109,20 @@ struct EventCodeState
 class L1Xmitter {
 public:
   L1Xmitter(Evr & er, DoneTimer & done):
-    _er             (er),
-    _done           (done),
-    _outlet         (sizeof(EvrDatagram), 0, Ins   (Route::interface())),
-    _evtCounter     (0), 
-    _evtStop        (0), 
-    _enabled        (false), 
-    _lastfid        (0),
-    _bReadout       (false),
-    _pEvrConfig     (NULL),
-    _L1DataUpdated  ( *(EvrDataUtil*) new char[ EvrDataUtil::size( giMaxNumFifoEvent ) ]  ),
-    _L1DataFinal    ( *(EvrDataUtil*) new char[ EvrDataUtil::size( giMaxNumFifoEvent ) ]  ),
-    _L1DataLatch    ( *(EvrDataUtil*) new char[ EvrDataUtil::size( giMaxNumFifoEvent ) ]  )
+    _er                 (er),
+    _done               (done),
+    _outlet             (sizeof(EvrDatagram), 0, Ins   (Route::interface())),
+    _evtCounter         (0), 
+    _evtStop            (0), 
+    _enabled            (false), 
+    _lastfid            (0),
+    _bReadout           (false),
+    _pEvrConfig         (NULL),
+    _L1DataUpdated      ( *(EvrDataUtil*) new char[ EvrDataUtil::size( giMaxNumFifoEvent ) ]  ),
+    _L1DataFinal        ( *(EvrDataUtil*) new char[ EvrDataUtil::size( giMaxNumFifoEvent ) ]  ),
+    _L1DataLatch        ( *(EvrDataUtil*) new char[ EvrDataUtil::size( giMaxNumFifoEvent ) ]  ),
+    _bEvrDataFullUpdated(false),
+    _bEvrDataFullFinal  (false)
   {
     new (&_L1DataUpdated) EvrDataUtil( 0, NULL );
     new (&_L1DataFinal)   EvrDataUtil( 0, NULL );
@@ -152,13 +154,13 @@ public:
     if ( fe.EventCode >= guNumTypeEventCode )
       return;
     
-    uint8_t uEventCode      = fe.EventCode;
-    bool    bStartL1Accept  = false;
+    uint32_t uEventCode      = fe.EventCode;
+    bool     bStartL1Accept  = false;
     
     /*
      * Determine if we need to start L1Accept
      *
-     * Rule: If we got an readout event before, and get the terminator event now,
+     * Rule: If we have got an readout event before, and get the terminator event now,
      *    then we will start L1Accept 
      */
 
@@ -166,17 +168,17 @@ public:
     
     if ( codeState.iDefReportWidth == 0 )// not an interesting event
     {
-      if ( uEventCode == EvrManager::EVENT_CODE_BEAM  || // special event: Beam present -> always included in the report
-           uEventCode == EvrManager::EVENT_CODE_BYKIK    // special event: Dark frame   -> always included in the report
+      if ( uEventCode == (unsigned) EvrManager::EVENT_CODE_BEAM  || // special event: Beam present -> always included in the report
+           uEventCode == (unsigned) EvrManager::EVENT_CODE_BYKIK    // special event: Dark frame   -> always included in the report
          )
-        _L1DataUpdated.addFifoEvent(*(const EvrDataType::FIFOEvent*) &fe);
+        addSpecialEvent( *(const EvrDataType::FIFOEvent*) &fe );
         
       return;
     }
 
     
     if ( codeState.iDefReportDelay == 0 )
-      _L1DataUpdated.addFifoEvent(*(const EvrDataType::FIFOEvent*) &fe);
+      addFifoEventCheck( _L1DataUpdated, *(const EvrDataType::FIFOEvent*) &fe );
       
     if ( codeState.iDefReportDelay != 0 || codeState.iDefReportWidth > 1 )
     {
@@ -245,7 +247,7 @@ public:
            *       - then this event must have been added
            */
           if ( codeState.iDefReportDelay != 0 || codeState.iReportWidth != codeState.iDefReportWidth)
-            _L1DataFinal.addFifoEvent( fifoEvent );
+            addFifoEventCheck( _L1DataFinal, fifoEvent );
           --codeState.iReportWidth;
             
           if ( codeState.iReportWidth <= 0 )
@@ -267,10 +269,13 @@ public:
         for (unsigned int uEventIndex = 0; uEventIndex < _L1DataUpdated.numFifoEvents(); uEventIndex++ )
         {
           const EvrDataType::FIFOEvent& fifoEvent =  _L1DataUpdated.fifoEvent( uEventIndex );
-          _L1DataFinal.addFifoEvent( fifoEvent );
+          addFifoEventCheck( _L1DataFinal, fifoEvent );
         }
         
+        _bEvrDataFullFinal = _bEvrDataFullUpdated;
+        
         _L1DataUpdated.clearFifoEvents();
+        _bEvrDataFullUpdated = false;
 
         //// !! debug output
         //printf( "\nFinal data after appending all data:\n" );
@@ -310,6 +315,8 @@ public:
     _L1DataUpdated.clearFifoEvents();
     _L1DataFinal  .clearFifoEvents();
     _L1DataLatch  .clearFifoEvents();
+    _bEvrDataFullUpdated = false;
+    _bEvrDataFullFinal   = false;
   }
   void enable(bool e) { _enabled    = e; }
   bool enable() const { return _enabled; }
@@ -343,6 +350,7 @@ public:
   }
   
   const EvrDataUtil&  getL1Data     () { return _L1DataFinal; }
+  bool                getL1DataFull () { return _bEvrDataFullFinal; }
   void                releaseL1Data () { _L1DataFinal.clearFifoEvents(); }
     
 private:
@@ -360,6 +368,53 @@ private:
   EvrDataUtil&          _L1DataFinal;
   EvrDataUtil&          _L1DataLatch;
   EventCodeState        _lEventCodeState[guNumTypeEventCode];
+  bool                  _bEvrDataFullUpdated;
+  bool                  _bEvrDataFullFinal;
+  
+  // Add Fifo event to the evrData with boundary check
+  int addFifoEventCheck( EvrDataUtil& evrData, const EvrDataType::FIFOEvent& fe )
+  {
+    if ( (int) evrData.numFifoEvents() < giMaxNumFifoEvent )
+      return evrData.addFifoEvent(fe);
+    
+    _bEvrDataFullUpdated = true; // set the flag and later the L1Accept will send out damage    
+    return -1;
+  }
+  
+  /*
+   * Add a special event to the current evrData
+   *
+   *   Also checked the evrData content to remove all "previous" (not in the same timestamp) special events,
+   *     until an "interesting" event is encountered.
+   *
+   * Note: This algorithm is based on the assumption that
+   *   - All the "interesting" events occurs later than "special" events
+   *      - Current settings: All "interesting" event codes (67 - 98) occurs after all special events (140, 162)
+   */
+  int addSpecialEvent( const EvrDataType::FIFOEvent &feCur )
+  {
+    uint32_t uFiducialCur  = feCur.TimestampHigh;
+    
+    for (int iEventIndex = _L1DataUpdated.numFifoEvents()-1; iEventIndex >= 0; iEventIndex-- )
+    {
+      const EvrDataType::FIFOEvent& fifoEvent  = _L1DataUpdated.fifoEvent( iEventIndex );
+      uint32_t                      uFiducial  = fifoEvent.TimestampHigh;
+
+      if ( uFiducial == uFiducialCur ) // still in the same timestamp. this event will be checked again in later iteration.
+        break;
+      
+      uint32_t        uEventCode = fifoEvent.EventCode;
+      EventCodeState& codeState  = _lEventCodeState[uEventCode];
+    
+      if ( codeState.iDefReportWidth != 0 ) // interesting event
+        break;
+        
+      _L1DataUpdated.removeTailEvent();      
+    }
+    
+    addFifoEventCheck( _L1DataUpdated, feCur );       
+    return 0;
+  }
 };
 
 class EvrAction:public Action
@@ -377,7 +432,7 @@ public:
   EvrL1Action(Evr &      er, 
         const Src& src) :
     EvrAction(er),
-    _iMaxEvrDataSize(sizeof(Xtc) + EvrDataUtil::size( giMaxNumFifoEvent )),
+    _iMaxEvrDataSize(sizeof(CDatagram) + sizeof(Xtc) + EvrDataUtil::size( giMaxNumFifoEvent )),
     _src            (src),
     _swtrig_out     (Route::interface(), Mtu::Size, 16),
     _poolEvrData    (_iMaxEvrDataSize, 16) {}
@@ -399,11 +454,19 @@ public:
         break;
       }      
 
-      const EvrDataUtil& evrData = l1xmitGlobal->getL1Data();
+      const EvrDataUtil& evrData   = l1xmitGlobal->getL1Data();
+      bool               bDataFull = l1xmitGlobal->getL1DataFull();
       
       out = 
        new ( &_poolEvrData ) CDatagram( in->datagram() ); 
       out->datagram().xtc.alloc( sizeof(Xtc) + evrData.size() );
+      
+      if ( bDataFull )
+      {
+        printf( "EvrL1Action::fire(): Too many FIFO events recieved, so L1 data buffer is full.\n" );
+        printf( "  Please check the readout and terminator event settings.\n" );        
+        out->datagram().xtc.damage.increase(Pds::Damage::UserDefined);      
+      }
       
       /*
        * Set Evr object
@@ -417,14 +480,14 @@ public:
       char*  pcEvrData = (char*) (pXtc + 1);  
       new (pcEvrData) EvrDataUtil(evrData);
 
-      //// !! debug print
+      // !! debug print
       //if (  evrData.numFifoEvents() > 1 )
-      //{
-      //  printf( "Shot id = 0x%x\n", in->datagram().seq.stamp().fiducials() );
-      //  printf( "EvrL1Action::fire() data dump start (size = %u bytes)\n", evrData.size() );
-      //  evrData.printFifoEvents();
-      //  printf( "EvrL1Action::fire() data dump end\n\n" );
-      //}
+      {
+        printf( "Shot id = 0x%x\n", in->datagram().seq.stamp().fiducials() );
+        printf( "EvrL1Action::fire() data dump start (size = %u bytes)\n", evrData.size() );
+        evrData.printFifoEvents();
+        printf( "EvrL1Action::fire() data dump end\n\n" );
+      }
       
       l1xmitGlobal->releaseL1Data();      
     } 
@@ -836,4 +899,5 @@ void EvrManager::sigintHandler(int)
   exit(0);
 }
 
-const int EvrManager::EVENT_CODE_BEAM; // value is defined in the header file
+const int EvrManager::EVENT_CODE_BEAM;  // value is defined in the header file
+const int EvrManager::EVENT_CODE_BYKIK; // value is defined in the header file

@@ -16,6 +16,7 @@ public:
   unsigned int  PurgeDeletedEvents(); // return the new total number of events after the purge
   
 
+  unsigned int  removeTailEvent (); // return the number of total fifo events, after update
   void          clearFifoEvents ();
   void          printFifoEvents () const;
 
