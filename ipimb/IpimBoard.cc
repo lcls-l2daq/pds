@@ -6,9 +6,6 @@
 // for non-blocking attempt
 #include <fcntl.h>
 
-// include home-brewed list if need be
-
-//#include "pdsdata/ipimb/ConfigV1.hh"
 
 using namespace std;
 using namespace Pds;
@@ -440,7 +437,17 @@ bool IpimBoard::configure(Ipimb::ConfigV1& config) {
   SetChargeAmplifierRef(config.chargeAmpRefVoltage());
   // only allow one charge amp capacitance setting
   unsigned multiplier = (unsigned) config.chargeAmpRange();
-  unsigned inputAmplifier_pF[4] = {multiplier, multiplier, multiplier, multiplier};
+  unsigned mapping[4] = {1, 100, 10000, 0};
+  unsigned mult_chan0 = mapping[multiplier&0x3];
+  unsigned mult_chan1 = mapping[(multiplier>>2)&0x3];
+  unsigned mult_chan2 = mapping[(multiplier>>4)&0x3];
+  unsigned mult_chan3 = mapping[(multiplier>>6)&0x3];
+  if(mult_chan0*mult_chan1*mult_chan2*mult_chan3 == 0) {
+    printf("Do not understand bit pattern of 0x%x gain configuration, only 0, 1, 2 allowed per 2 bits\n", multiplier);
+    _commandResponseDamage = true;
+  }
+  unsigned inputAmplifier_pF[4] = {mult_chan0, mult_chan1, mult_chan2, mult_chan3};
+
   SetChargeAmplifierMultiplier(inputAmplifier_pF);
   //  SetCalibrationVoltage(float calibrationVoltage);
   SetInputBias(config.diodeBias());
