@@ -482,12 +482,12 @@ public:
 
       // !! debug print
       //if (  evrData.numFifoEvents() > 1 )
-      {
-        printf( "Shot id = 0x%x\n", in->datagram().seq.stamp().fiducials() );
-        printf( "EvrL1Action::fire() data dump start (size = %u bytes)\n", evrData.size() );
-        evrData.printFifoEvents();
-        printf( "EvrL1Action::fire() data dump end\n\n" );
-      }
+      //{
+      //  printf( "Shot id = 0x%x\n", in->datagram().seq.stamp().fiducials() );
+      //  printf( "EvrL1Action::fire() data dump start (size = %u bytes)\n", evrData.size() );
+      //  evrData.printFifoEvents();
+      //  printf( "EvrL1Action::fire() data dump end\n\n" );
+      //}
       
       l1xmitGlobal->releaseL1Data();      
     } 
