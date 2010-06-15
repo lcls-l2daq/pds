@@ -31,10 +31,10 @@ namespace Pds {
     bool        _bTurnOffBeamCodes;
     
   public:
-    static const int EVENT_CODE_BEAM  = 40;
-    static const int EVENT_CODE_BYKIK = 41;
-    //static const int EVENT_CODE_BEAM  = 140;
-    //static const int EVENT_CODE_BYKIK = 162;
+    //static const int EVENT_CODE_BEAM  = 40;
+    //static const int EVENT_CODE_BYKIK = 41;
+    static const int EVENT_CODE_BEAM  = 140;
+    static const int EVENT_CODE_BYKIK = 162;
   };
 }
 
