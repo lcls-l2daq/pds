@@ -144,12 +144,25 @@ int FccdFrameServer::_reorder_frame(FrameServerMsg* fmsg)
     reinterpret_cast<unsigned short*>(fmsg->handle->data);
   unsigned height = frame.height();
   unsigned width = frame.width();
+#ifdef FRAME_WIDTH_16_BIT_PIXELS
   unsigned uintsPerLine = width / 2;
+#else
+  unsigned uintsPerLine = width / 4;
+#endif
   unsigned ii;
 
   // sanity test
+#ifdef FRAME_WIDTH_16_BIT_PIXELS
+  // frame.width() expressed in 16 bit pixels
   if (!frame_data || !height || !width || (height % 2) || (width % 2) ||
       ((width * height * sizeof(uint16_t)) > sizeof(_reorder_tmp))) {
+#else
+  // frame.width() expressed in 8 bit pixels
+  if (!frame_data || !height || !width || (height % 2) || (width % 2) ||
+      ((width * height * sizeof(uint8_t)) > sizeof(_reorder_tmp))) {
+#endif
+    printf(">> %s ERROR: frame_data=%p height=%u width=%u sizeof(_reorder_tmp)=%u\n", __FUNCTION__,
+            frame_data, height, width, sizeof(_reorder_tmp));
     return -1;  // error
   }
 
