@@ -60,6 +60,7 @@ static void help(const char *progname)
     "--fps <nframes>: frames per second.\n"
     "--shutter: use external shutter.\n"
     "--camera {0|1|2}: choose Opal (0) or Pulnix (1) or FCCD (2).\n"
+    "--noccd: enable data module test pattern (FCCD only).\n"
     "--help: display this message.\n"
     "\n", progname, progname);
   return;
@@ -93,6 +94,7 @@ void *frame_cleanup(void *arg)
 int main(int argc, char *argv[])
 { // int exttrigger = 0;
   int extshutter = 0;
+  int noccd = 0;
   double fps = 0;
   int ifps =0;
   int usplice = 0;
@@ -127,21 +129,21 @@ int main(int argc, char *argv[])
   
   printf( "camreceiver: sizeof(camstream_image_t) = %lu.\n",
           camstream_image_t_len );
-  printf( "camreceiver: sizeof(camstream_img_t.camstream_basic_t) = %lu.\n",
+  printf( "camreceiver: sizeof(camstream_img_t.camstream_basic_t) = %u.\n",
           sizeof(xxx.base) );
-  printf( "camreceiver: sizeof(camstream_img_t.camstream_basic_t.hdr) = %lu.\n",
+  printf( "camreceiver: sizeof(camstream_img_t.camstream_basic_t.hdr) = %u.\n",
           sizeof(xxx.base.hdr) );
-  printf( "camreceiver: sizeof(camstream_img_t.camstream_basic_t.pktsize) = %lu.\n",
+  printf( "camreceiver: sizeof(camstream_img_t.camstream_basic_t.pktsize) = %u.\n",
           sizeof(xxx.base.pktsize) );
-  printf( "camreceiver: sizeof(camstream_img_t.format) = %lu.\n",
+  printf( "camreceiver: sizeof(camstream_img_t.format) = %u.\n",
           sizeof(xxx.format) );
-  printf( "camreceiver: sizeof(camstream_img_t.size) = %lu.\n",
+  printf( "camreceiver: sizeof(camstream_img_t.size) = %u.\n",
           sizeof(xxx.size) );
-  printf( "camreceiver: sizeof(camstream_img_t.width) = %lu.\n",
+  printf( "camreceiver: sizeof(camstream_img_t.width) = %u.\n",
           sizeof(xxx.width) );
-  printf( "camreceiver: sizeof(camstream_img_t.height) = %lu.\n",
+  printf( "camreceiver: sizeof(camstream_img_t.height) = %u.\n",
           sizeof(xxx.height) );
-  printf( "camreceiver: sizeof(camstream_img_t.data_off) = %lu.\n",
+  printf( "camreceiver: sizeof(camstream_img_t.data_off) = %u.\n",
           sizeof(xxx.data_off) );
 
   xxx.base.hdr = 0x12345678;
@@ -175,6 +177,8 @@ int main(int argc, char *argv[])
       camera_choice = atoi(argv[++i]);
     } else if (strcmp("--shutter",argv[i]) == 0) {
       extshutter = 1;
+    } else if (strcmp("--noccd",argv[i]) == 0) {
+      noccd = 1;
     } else if( strcmp("--grabber", argv[i]) == 0 ) {
        grabber = argv[i];
     } else if( strcmp("--testpat", argv[i]) == 0 ) {
@@ -234,8 +238,45 @@ int main(int argc, char *argv[])
   case 2:
     {
       FccdCamera* fCamera = new FccdCamera();
-      FccdConfigType* Config = new FccdConfigType();
-
+      FccdConfigType* Config = new FccdConfigType
+                                    (
+                                    0,      // outputMode: 0 == FIFO
+                                    noccd ? false : true,   // CCD Enable
+                                    ifps ? true : false,    // Focus Mode Enable
+                                    1,      // internal exposure time (ms)
+                                    6.0,    // DAC 1
+                                   -2.0,    // DAC 2
+                                    6.0,    // DAC 3
+                                   -2.0,    // DAC 4
+                                    8.0,    // DAC 5
+                                   -3.0,    // DAC 6
+                                    5.0,    // DAC 7
+                                   -5.0,    // DAC 8
+                                    0.0,    // DAC 9
+                                   -6.0,    // DAC 10
+                                   50.0,    // DAC 11
+                                    3.0,    // DAC 12
+                                  -14.8,    // DAC 13
+                                  -24.0,    // DAC 14
+                                    0.0,    // DAC 15
+                                    0.0,    // DAC 16
+                                    0.0,    // DAC 17
+                                    0xfe3f, // waveform0
+                                    0x0380, // waveform1
+                                    0xf8ff, // waveform2
+                                    0x0004, // waveform3
+                                    0xf83f, // waveform4
+                                    0xf1ff, // waveform5
+                                    0x1c00, // waveform6
+                                    0xc7ff, // waveform7
+                                    0x83ff, // waveform8
+                                    0xfe3f, // waveform9
+                                    0x0380, // waveform10
+                                    0xf8ff, // waveform11
+                                    0x0001, // waveform12
+                                    0xf83f, // waveform13
+                                    0x0020  // waveform14
+                                    );
       fCamera->Config(*Config);
       pCamera = fCamera;
       break;
@@ -526,13 +567,13 @@ int main(int argc, char *argv[])
 		       pFrame->width*pFrame->height*pFrame->elsize, 
 		       (unsigned long)pFrame);
 
-    printf( "sndimg.base.hdr = %lu.\n", sndimg.base.hdr );
-    printf( "sndimg.base.pktsize = %lu.\n", ntohl(sndimg.base.pktsize) );
+    printf( "sndimg.base.hdr = %u.\n", sndimg.base.hdr );
+    printf( "sndimg.base.pktsize = %u.\n", ntohl(sndimg.base.pktsize) );
     printf( "sndimg.format = %d.\n", sndimg.format );
-    printf( "sndimg.size = %lu.\n", sndimg.size );
+    printf( "sndimg.size = %u.\n", sndimg.size );
     printf( "sndimg.width = %hu.\n", sndimg.width );
     printf( "sndimg.height = %hu.\n", sndimg.height );
-    printf( "sndimg.data_off = %lu.\n", sndimg.data_off );
+    printf( "sndimg.data_off = %u.\n", sndimg.data_off );
     ret = send(sockfd, (char *)&sndimg, sizeof(sndimg), 0);
     if (ret < 0) {
       printf("failed.\n");
