@@ -69,13 +69,14 @@ private:
    * private static consts
    */  
   static const int      _iMaxCoolingTime        = 1000;         // in miliseconds
+  static const int      _iMaxCoolingTemp        = 2500;         // 25 C
   static const int      _iTemperatureTolerance  = 100;          // 1 degree Fahrenheit
   static const int      _iFrameHeaderSize;                      // Buffer header used to store the CDatagram, Xtc and FrameV1 object
   static const int      _iMaxFrameDataSize;                     // Buffer for 4 Mega (image pixels) x 2 (bytes per pixel) + header size
   static const int      _iPoolDataCount         = 2;
-  static const int      _iMaxReadoutTime        = 5000;         // Max readout time
+  static const int      _iMaxReadoutTime        = 15000;         // Max readout time
   static const int      _iMaxThreadEndTime      = 3000;         // Max thread terminating time (in ms)
-  static const int      _iMaxLastEventTime      = 3000;         // Max thread terminating time (in ms)
+  static const int      _iMaxLastEventTime      = 10000;         // Max thread terminating time (in ms)
   static const int      _iMaxEventReport        = 20;           // Only report some statistics and non-critical errors in the first few L1 events
   static const float    _fEventDeltaTimeFactor;                 // Event delta time factor, for detecting sequence error  
 

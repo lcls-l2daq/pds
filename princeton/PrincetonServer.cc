@@ -425,21 +425,39 @@ int PrincetonServer::setupCooling()
     displayParamIdInfo(_hCam, PARAM_COOLING_MODE, "Cooling Mode");
 
   //displayParamIdInfo(_hCam, PARAM_TEMP_SETPOINT, "Set Cooling Temperature *Org*");  
+
+
   const int16 iCoolingTemp = (int)( _configCamera.coolingTemp() * 100 );
-  setAnyParam(_hCam, PARAM_TEMP_SETPOINT, &iCoolingTemp );
-  displayParamIdInfo(_hCam, PARAM_TEMP_SETPOINT, "Set Cooling Temperature" );   
+
+  if ( iCoolingTemp == _iMaxCoolingTemp  )
+  {
+    printf( "Skip cooling, since the cooling temperature is set to max value (%.1f C)\n", iCoolingTemp/100.0f );
+    return 0;
+  }
+
+  int16 iTemperatureCurrent = -1;  
+  getAnyParam(_hCam, PARAM_TEMP, &iTemperatureCurrent );
+  if ( iTemperatureCurrent <= iCoolingTemp )
+  {
+    printf( "Skip cooling, since the cuurent  temperature (%.1f C) is lower than the setting (%.1f C)\n",
+	    iTemperatureCurrent/100.0f, iCoolingTemp/100.0f );
+    return 0;
+  }  
 
   displayParamIdInfo(_hCam, PARAM_TEMP, "Temperature Before Cooling" );  
+
+  setAnyParam(_hCam, PARAM_TEMP_SETPOINT, &iCoolingTemp );
+  displayParamIdInfo(_hCam, PARAM_TEMP_SETPOINT, "Set Cooling Temperature" );
   
   const static timeval timeSleepMicroOrg = {0, 1000}; // 1 millisecond    
   timespec timeVal1;
   clock_gettime( CLOCK_REALTIME, &timeVal1 );      
   
-  int16 iTemperatureCurrent = -1;  
   int iNumLoop = 0;
   
   while (1)
   {  
+    setAnyParam(_hCam, PARAM_TEMP_SETPOINT, &iCoolingTemp );
     getAnyParam(_hCam, PARAM_TEMP, &iTemperatureCurrent );
     if ( iTemperatureCurrent <= iCoolingTemp ) break;
     
@@ -943,7 +961,7 @@ int PrincetonServer::waitForNewFrameAvailable()
   
   _fReadoutTime = (tsWaitEnd.tv_nsec - tsWaitStart.tv_nsec) / 1.0e9 + ( tsWaitEnd.tv_sec - tsWaitStart.tv_sec ); // in seconds
   
-  if ( _iNumL1Event < _iMaxEventReport )
+  if ( _iNumL1Event <= _iMaxEventReport )
     printf( "Readout time report [%d]: %f s\n", _iNumL1Event, _fReadoutTime );
     
   return 0;
@@ -1045,11 +1063,16 @@ int PrincetonServer::checkTemperature()
   int16 iTemperatureCurrent = -1;  
   
   PICAM::getAnyParam(_hCam, PARAM_TEMP, &iTemperatureCurrent );
+
+  if ( _iNumL1Event % 10 == 1 )
+  {
+    printf( "CCD Temperature report [%d]: %.1f C\n", _iNumL1Event, iTemperatureCurrent/100.f );
+  }
     
   if ( iTemperatureCurrent >= iCoolingTemp + _iTemperatureTolerance ) 
   {
-    printf( "** PrincetonServer::checkTemperature(): Chip temperature (%lf) is higher than the settings (%lf)\n", 
-     iTemperatureCurrent/100.0, iCoolingTemp/100.0 );
+    printf( "** PrincetonServer::checkTemperature(): Chip temperature (%.1f) is higher than the settings (%.1f)\n", 
+     iTemperatureCurrent/100.0f, iCoolingTemp/100.0f );
     return ERROR_TEMPERATURE_HIGH;
   }
   
