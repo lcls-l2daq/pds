@@ -1,6 +1,9 @@
 #include "PrincetonServer.hh" 
 #include "PrincetonUtils.hh"
 
+#include "pdsdata/princeton/ConfigV1.hh"
+#include "pdsdata/princeton/FrameV1.hh"
+//#include "pdsdata/princeton/InfoV1.hh"
 #include "pds/xtc/Datagram.hh"
 #include "pds/xtc/CDatagram.hh"
 #include "pds/service/Task.hh"
@@ -325,11 +328,31 @@ int PrincetonServer::initCameraSettings(Princeton::ConfigV1& config)
 { 
   using PICAM::setAnyParam;
   using PICAM::displayParamIdInfo;
+    
+  displayParamIdInfo(_hCam, PARAM_SHTR_OPEN_MODE  , "Shutter Open Mode");
+  displayParamIdInfo(_hCam, PARAM_SHTR_OPEN_DELAY , "Shutter Open Delay");
+  displayParamIdInfo(_hCam, PARAM_SHTR_CLOSE_DELAY, "Shutter Close Delay");
+  displayParamIdInfo(_hCam, PARAM_EDGE_TRIGGER    , "Edge Trigger" );
+  displayParamIdInfo(_hCam, PARAM_EXP_RES         , "Exposure Resolution");
+  displayParamIdInfo(_hCam, PARAM_EXP_RES_INDEX   , "Exposure Resolution Index");
+  
+  
+  displayParamIdInfo(_hCam, PARAM_CLEAR_MODE  , "Clear Mode");
+  displayParamIdInfo(_hCam, PARAM_CONT_CLEARS , "Continuous Clearing");
+  displayParamIdInfo(_hCam, PARAM_CLEAR_CYCLES, "Clear Cycles");  
+  displayParamIdInfo(_hCam, PARAM_NUM_OF_STRIPS_PER_CLR, "Strips Per Clear");  
+  displayParamIdInfo(_hCam, PARAM_MIN_BLOCK    , "Min Block Size");  
+  displayParamIdInfo(_hCam, PARAM_NUM_MIN_BLOCK, "Num of Min Block");    
+  
+  displayParamIdInfo(_hCam, PARAM_READOUT_PORT, "Readout port");
   
   int16 iSpeedTableIndex = config.readoutSpeedIndex();
   setAnyParam(_hCam, PARAM_SPDTAB_INDEX, &iSpeedTableIndex );     
   displayParamIdInfo(_hCam, PARAM_SPDTAB_INDEX, "Speed Table Index" );
-  
+  displayParamIdInfo(_hCam, PARAM_GAIN_INDEX  , "Gain Index");  
+  displayParamIdInfo(_hCam, PARAM_PIX_TIME    , "Pixel Transfer Time");
+  displayParamIdInfo(_hCam, PARAM_BIT_DEPTH   , "Bit Depth");  
+
   //displayParamIdInfo(_hCam, PARAM_EXPOSURE_MODE,    "Exposure Mode");
   //displayParamIdInfo(_hCam, PARAM_CLEAR_MODE,       "Clear Mode");
   //displayParamIdInfo(_hCam, PARAM_SHTR_OPEN_MODE,   "Shutter Open Mode");
@@ -426,40 +449,48 @@ int PrincetonServer::setupCooling()
 
   //displayParamIdInfo(_hCam, PARAM_TEMP_SETPOINT, "Set Cooling Temperature *Org*");  
 
-
   const int16 iCoolingTemp = (int)( _configCamera.coolingTemp() * 100 );
 
-  if ( iCoolingTemp == _iMaxCoolingTemp  )
-  {
-    printf( "Skip cooling, since the cooling temperature is set to max value (%.1f C)\n", iCoolingTemp/100.0f );
-    return 0;
-  }
+  //if ( iCoolingTemp == _iMaxCoolingTemp  )
+  //{
+  //  printf( "Skip cooling, since the cooling temperature is set to max value (%.1f C)\n", iCoolingTemp/100.0f );
+  //  return 0;
+  //}
 
   int16 iTemperatureCurrent = -1;  
   getAnyParam(_hCam, PARAM_TEMP, &iTemperatureCurrent );
-  if ( iTemperatureCurrent <= iCoolingTemp )
-  {
-    printf( "Skip cooling, since the cuurent  temperature (%.1f C) is lower than the setting (%.1f C)\n",
-	    iTemperatureCurrent/100.0f, iCoolingTemp/100.0f );
-    return 0;
-  }  
+  //if ( iTemperatureCurrent <= iCoolingTemp )
+  //{
+  //  printf( "Skip cooling, since the current  temperature (%.1f C) is lower than the setting (%.1f C)\n",
+  //    iTemperatureCurrent/100.0f, iCoolingTemp/100.0f );
+  //  return 0;
+  //}  
 
   displayParamIdInfo(_hCam, PARAM_TEMP, "Temperature Before Cooling" );  
 
   setAnyParam(_hCam, PARAM_TEMP_SETPOINT, &iCoolingTemp );
-  displayParamIdInfo(_hCam, PARAM_TEMP_SETPOINT, "Set Cooling Temperature" );
+  displayParamIdInfo(_hCam, PARAM_TEMP_SETPOINT, "Set Cooling Temperature" );   
   
   const static timeval timeSleepMicroOrg = {0, 1000}; // 1 millisecond    
   timespec timeVal1;
   clock_gettime( CLOCK_REALTIME, &timeVal1 );      
   
-  int iNumLoop = 0;
+  int iNumLoop       = 0;
+  int iNumRepateRead = 3;
+  int iRead          = 0;
   
   while (1)
   {  
-    setAnyParam(_hCam, PARAM_TEMP_SETPOINT, &iCoolingTemp );
+    //setAnyParam(_hCam, PARAM_TEMP_SETPOINT, &iCoolingTemp );
     getAnyParam(_hCam, PARAM_TEMP, &iTemperatureCurrent );
-    if ( iTemperatureCurrent <= iCoolingTemp ) break;
+    
+    if ( iTemperatureCurrent <= iCoolingTemp ) 
+    {
+      if ( ++iRead >= iNumRepateRead )      
+        break;
+    }
+    else
+      iRead = 0;      
     
     if ( (iNumLoop+1) % 1000 == 0 )
       displayParamIdInfo(_hCam, PARAM_TEMP, "Temperature *Updating*" );
@@ -482,8 +513,8 @@ int PrincetonServer::setupCooling()
   
   if ( iTemperatureCurrent > iCoolingTemp ) 
   {
-    printf("PrincetonServer::setupCooling(): Cooling failed, final temperature = %lf degree Celcius", 
-     (iTemperatureCurrent / 100.0) );
+    printf("PrincetonServer::setupCooling(): Cooling failed, final temperature = %.1f C", 
+     (iTemperatureCurrent / 100.0f) );
     return ERROR_COOLING_FAILURE;
   }
   
@@ -550,8 +581,12 @@ int PrincetonServer::runCaptureTask()
   
   if ( iFail != 0 )
   {
-    resetFrameData(true);
-    return ERROR_FUNCTION_FAILURE;
+    // set damage bit, and still keep the image data
+    _pDgOut->datagram().xtc.damage.increase(Pds::Damage::UserDefined);      
+    
+    // // Old ways: delete image data and set the capture state to IDLE
+    //resetFrameData(true);
+    //return ERROR_FUNCTION_FAILURE;
   }
   
   /*
@@ -613,7 +648,7 @@ int PrincetonServer::onEventReadoutPrompt(int iShotId, InDatagram* in, InDatagra
     
     iFail = startCapture();
     if ( iFail != 0 ) break;
-        
+    
     iFail = waitForNewFrameAvailable();
     if ( iFail != 0 ) break;        
 
@@ -632,19 +667,20 @@ int PrincetonServer::onEventReadoutPrompt(int iShotId, InDatagram* in, InDatagra
    */  
   _fPrevReadoutTime = _fReadoutTime;  
       
+  
+  /*
+   * Check temperature
+   */  
+  if ( checkTemperature() != 0 )  
+    return ERROR_TEMPERATURE; // Will cause the caller function to set the damage of the out datagram     
+  
   /* 
    * Reset the frame data, without releasing the output data
    *
    * Note: _pDgOut will not be released, because the data need to be sent out for use.
    */   
   resetFrameData(false);
-      
-  /*
-   * Check temperature
-   */  
-  if ( checkTemperature() != 0 )  
-    return ERROR_TEMPERATURE_HIGH; // Will cause the caller function to set the damage of the out datagram     
-    
+          
   /*
    * Check if sequence error happened and has not been reset
    */  
@@ -889,7 +925,7 @@ int PrincetonServer::checkReadoutEventCode(InDatagram* in)
 }
 
 int PrincetonServer::waitForNewFrameAvailable()
-{   
+{         
   static timespec tsWaitStart;
   clock_gettime( CLOCK_REALTIME, &tsWaitStart );
   
@@ -961,8 +997,9 @@ int PrincetonServer::waitForNewFrameAvailable()
   
   _fReadoutTime = (tsWaitEnd.tv_nsec - tsWaitStart.tv_nsec) / 1.0e9 + ( tsWaitEnd.tv_sec - tsWaitStart.tv_sec ); // in seconds
   
+  // Report the readout time for the first few L1 events
   if ( _iNumL1Event <= _iMaxEventReport )
-    printf( "Readout time report [%d]: %f s\n", _iNumL1Event, _fReadoutTime );
+    printf( "Readout time report [%d]: %.2f s\n", _iNumL1Event, _fReadoutTime );
     
   return 0;
 }
@@ -980,7 +1017,23 @@ int PrincetonServer::processFrame()
    */
   unsigned char*  pFrameHeader  = (unsigned char*) _pDgOut + sizeof(CDatagram) + sizeof(Xtc);  
   new (pFrameHeader) Princeton::FrameV1(_iCurShotId, _fReadoutTime);
+  
+  if ( _iDebugLevel >= 5 )
+  {
+    Princeton::FrameV1* pFrame     = (Princeton::FrameV1*) pFrameHeader;    
+    const uint16_t*     pPixel     = pFrame->data();  
+    //int                 iWidth   = (int) ( (_configCamera.width()  + _configCamera.binX() - 1 ) / _configCamera.binX() );
+    //int                 iHeight  = (int) ( (_configCamera.height() + _configCamera.binY() - 1 ) / _configCamera.binY() );  
+    const uint16_t*     pEnd       = (const uint16_t*) ( (unsigned char*) pFrame->data() + _configCamera.frameSize() );
+    const int           iNumPixels = (int) (_configCamera.frameSize() / sizeof(uint16_t) );
+    
+    uint64_t            uSum    = 0;
+    for ( ; pPixel < pEnd; pPixel++ )
+      uSum += *pPixel;
       
+    printf( "Frame Avg Value = %.2lf\n", (double) uSum / (double) iNumPixels );
+  }  
+        
   return 0;
 }
 
@@ -996,7 +1049,8 @@ int PrincetonServer::setupFrame(InDatagram* in, InDatagram*& out)
   
   out = 
    new ( &_poolFrameData ) CDatagram( in->datagram() ); 
-  out->datagram().xtc.alloc( sizeof(Xtc) + iFrameSize ); // !! debug
+  //out->datagram().xtc.alloc( sizeof(Xtc) + iFrameSize + sizeof(Xtc) + sizeof(Princeton::InfoV1) ); 
+  out->datagram().xtc.alloc( sizeof(Xtc) + iFrameSize ); 
 
   /*
    * Set the output datagram pointer
@@ -1015,13 +1069,20 @@ int PrincetonServer::setupFrame(InDatagram* in, InDatagram*& out)
   /*
    * Set frame object
    */    
-  unsigned char* pXtcHeader = (unsigned char*) _pDgOut + sizeof(CDatagram);
+  unsigned char* pcXtcFrame = (unsigned char*) _pDgOut + sizeof(CDatagram);
      
   TypeId typePrincetonFrame(TypeId::Id_PrincetonFrame, Princeton::FrameV1::Version);
   Xtc* pXtcFrame = 
-   new ((char*)pXtcHeader) Xtc(typePrincetonFrame, _src);
+   new ((char*)pcXtcFrame) Xtc(typePrincetonFrame, _src);
   pXtcFrame->alloc( iFrameSize );
-      
+
+  //unsigned char* pcXtcInfo  = (unsigned char*) pXtcFrame->next() ;
+  //   
+  //TypeId typePrincetonInfo(TypeId::Id_PrincetonInfo, Princeton::InfoV1::Version);
+  //Xtc* pXtcInfo = 
+  // new ((char*)pcXtcInfo) Xtc(typePrincetonInfo, _src);
+  //pXtcInfo->alloc( sizeof(Princeton::InfoV1) );
+  
   return 0;
 }
 
@@ -1062,18 +1123,38 @@ int PrincetonServer::checkTemperature()
   const int16 iCoolingTemp = (int)( _configCamera.coolingTemp() * 100 );
   int16 iTemperatureCurrent = -1;  
   
-  PICAM::getAnyParam(_hCam, PARAM_TEMP, &iTemperatureCurrent );
-
+  PICAM::getAnyParam(_hCam, PARAM_TEMP, &iTemperatureCurrent );        
+    
+  /*
+   * Set Info object
+   */
   if ( _iNumL1Event % 10 == 1 )
   {
     printf( "CCD Temperature report [%d]: %.1f C\n", _iNumL1Event, iTemperatureCurrent/100.f );
   }
-    
-  if ( iTemperatureCurrent >= iCoolingTemp + _iTemperatureTolerance ) 
+
+  if ( _pDgOut == NULL )
   {
-    printf( "** PrincetonServer::checkTemperature(): Chip temperature (%.1f) is higher than the settings (%.1f)\n", 
-     iTemperatureCurrent/100.0f, iCoolingTemp/100.0f );
-    return ERROR_TEMPERATURE_HIGH;
+    printf( "PrincetonServer::checkTemperature(): Datagram has not been allocated. No buffer to store the info data\n" );
+  }
+  //else
+  //{
+  //  const int iFrameSize =_configCamera.frameSize();
+  //  float     fCoolingTemp = iTemperatureCurrent / 100.0f;  
+  //  unsigned char*  pcInfo       = (unsigned char*) _pDgOut + sizeof(CDatagram) + sizeof(Xtc) + iFrameSize + sizeof(Xtc);  
+  //  new (pcInfo) Princeton::InfoV1( fCoolingTemp );
+  //}
+  
+    
+  if ( _iDebugLevel >= 4 )
+    printf( "Current CCD Temperature = %.1f C\n", iTemperatureCurrent / 100.0f );
+    
+  if ( iTemperatureCurrent >= iCoolingTemp + _iTemperatureHiTol ||  
+    iTemperatureCurrent <= iCoolingTemp - _iTemperatureLoTol ) 
+  {
+    printf( "** PrincetonServer::checkTemperature(): CCD temperature (%.1f C) is not fixed to the configuration (%.1f C)\n", 
+      iTemperatureCurrent/100.0f, iCoolingTemp/100.0f );
+    return ERROR_TEMPERATURE;
   }
   
   return 0;
@@ -1099,7 +1180,7 @@ int PrincetonServer::checkSequence( const Datagram& datagram )
   {
     // Report the error for the first few L1 events
     if ( _iNumL1Event <= _iMaxEventReport )
-      printf( "** PrincetonServer::checkSequence(): Sequence error. Event delta time (%fs) < Prev Readout Time (%fs) * Factor (%f)\n",
+      printf( "** PrincetonServer::checkSequence(): Sequence error. Event delta time (%.2fs) < Prev Readout Time (%.2fs) * Factor (%.2f)\n",
         fDeltaTime, _fPrevReadoutTime, _fEventDeltaTimeFactor );
         
     _bSequenceError = true;
@@ -1108,7 +1189,7 @@ int PrincetonServer::checkSequence( const Datagram& datagram )
   
   if ( _iDebugLevel >= 3 )
   {
-    printf( "PrincetonServer::checkSequence(): Event delta time (%fs), Prev Readout Time (%fs), Factor (%f)\n",
+    printf( "PrincetonServer::checkSequence(): Event delta time (%.2fs), Prev Readout Time (%.2fs), Factor (%.2f)\n",
       fDeltaTime, _fPrevReadoutTime, _fEventDeltaTimeFactor );
   }
   _clockPrevDatagram = clockCurDatagram;
@@ -1119,10 +1200,13 @@ int PrincetonServer::checkSequence( const Datagram& datagram )
 /*
  * Definition of private static consts
  */
-const int       PrincetonServer::_iMaxCoolingTime;     
-const int       PrincetonServer::_iTemperatureTolerance;
+const int       PrincetonServer::_iMaxCoolingTime;  
+const int       PrincetonServer::_iTemperatureHiTol;
+const int       PrincetonServer::_iTemperatureLoTol;
 const int       PrincetonServer::_iFrameHeaderSize      = sizeof(CDatagram) + sizeof(Xtc) + sizeof(Princeton::FrameV1);
-const int       PrincetonServer::_iMaxFrameDataSize     = 2048*2048*2 + _iFrameHeaderSize;
+//const int       PrincetonServer::_iInfoSize             = sizeof(Xtc) + sizeof(Princeton::InfoV1);
+const int       PrincetonServer::_iInfoSize             = 0;
+const int       PrincetonServer::_iMaxFrameDataSize     = _iFrameHeaderSize + 2048*2048*2 + _iInfoSize;
 const int       PrincetonServer::_iPoolDataCount;
 const int       PrincetonServer::_iMaxReadoutTime;
 const int       PrincetonServer::_iMaxThreadEndTime;

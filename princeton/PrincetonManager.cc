@@ -11,6 +11,7 @@
 #include <new>
 #include <vector>
 
+#include "pdsdata/princeton/FrameV1.hh"
 #include "pds/service/GenericPool.hh"
 #include "pds/service/Task.hh"
 #include "pds/service/Routine.hh"
@@ -18,7 +19,6 @@
 #include "pds/client/Action.hh"
 #include "pds/config/CfgClientNfs.hh"
 #include "pds/utility/StreamPorts.hh"
-
 #include "PrincetonServer.hh"
 
 using std::string;

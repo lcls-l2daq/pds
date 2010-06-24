@@ -10,7 +10,6 @@
 #include "pvcam/include/pvcam.h"
 #include "pdsdata/xtc/DetInfo.hh"
 #include "pdsdata/princeton/ConfigV1.hh"
-#include "pdsdata/princeton/FrameV1.hh"
 #include "pds/xtc/InDatagram.hh"
 #include "pds/xtc/Datagram.hh"
 #include "pds/xtc/CDatagram.hh"
@@ -50,7 +49,7 @@ public:
     ERROR_SERVER_INIT_FAIL  = 6,
     ERROR_INVALID_CONFIG    = 7,
     ERROR_COOLING_FAILURE   = 8,
-    ERROR_TEMPERATURE_HIGH  = 9,
+    ERROR_TEMPERATURE       = 9,
     ERROR_SEQUENCE_ERROR    = 10,
   };
   
@@ -70,13 +69,16 @@ private:
    */  
   static const int      _iMaxCoolingTime        = 1000;         // in miliseconds
   static const int      _iMaxCoolingTemp        = 2500;         // 25 C
-  static const int      _iTemperatureTolerance  = 100;          // 1 degree Fahrenheit
+  static const int      _iTemperatureHiTol      = 100;          // 1 degree Celcius
+  static const int      _iTemperatureLoTol      = 20000;        // 200 degree Celcius -> Do not use Low Tolerance now
   static const int      _iFrameHeaderSize;                      // Buffer header used to store the CDatagram, Xtc and FrameV1 object
-  static const int      _iMaxFrameDataSize;                     // Buffer for 4 Mega (image pixels) x 2 (bytes per pixel) + header size
+  static const int      _iInfoSize;                             // For storing temperature infomation
+  static const int      _iMaxFrameDataSize;                     // Buffer for 4 Mega (image pixels) x 2 (bytes per pixel) + 
+                                                                //   info size + header size
   static const int      _iPoolDataCount         = 2;
-  static const int      _iMaxReadoutTime        = 15000;         // Max readout time
+  static const int      _iMaxReadoutTime        = 15000;        // Max readout time
   static const int      _iMaxThreadEndTime      = 3000;         // Max thread terminating time (in ms)
-  static const int      _iMaxLastEventTime      = 10000;         // Max thread terminating time (in ms)
+  static const int      _iMaxLastEventTime      = 15000;        // Max readout time for the last (diable) event
   static const int      _iMaxEventReport        = 20;           // Only report some statistics and non-critical errors in the first few L1 events
   static const float    _fEventDeltaTimeFactor;                 // Event delta time factor, for detecting sequence error  
 
