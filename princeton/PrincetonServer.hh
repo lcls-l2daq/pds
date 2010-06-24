@@ -33,6 +33,8 @@ public:
   int   unconfigCamera();
   int   beginRunCamera();
   int   endRunCamera();  
+  int   enableCamera();
+  int   disableCamera();  
   int   onEventReadoutPrompt(int iShotId, InDatagram* in, InDatagram*& out);
   int   onEventReadoutDelay(int iShotId, InDatagram* in);  
   int   getDelayData(InDatagram* in, InDatagram*& out);
@@ -66,11 +68,12 @@ private:
 
   /*  
    * private static consts
-   */  
+   */    
   static const int      _iMaxCoolingTime        = 1000;         // in miliseconds
   static const int      _iMaxCoolingTemp        = 2500;         // 25 C
   static const int      _iTemperatureHiTol      = 100;          // 1 degree Celcius
   static const int      _iTemperatureLoTol      = 20000;        // 200 degree Celcius -> Do not use Low Tolerance now
+  static const int      _iClockSavingExpTime    = 24*60*60*1000;// 24 hours -> Long exposure time for clock saving
   static const int      _iFrameHeaderSize;                      // Buffer header used to store the CDatagram, Xtc and FrameV1 object
   static const int      _iInfoSize;                             // For storing temperature infomation
   static const int      _iMaxFrameDataSize;                     // Buffer for 4 Mega (image pixels) x 2 (bytes per pixel) + 
@@ -110,6 +113,9 @@ private:
   int   initCameraSettings(Princeton::ConfigV1& config);
 
   int   initTest();
+  
+  int   initClockSaving();
+  int   deinitClockSaving();
   /*
    * Frame handling functions
    */
@@ -138,6 +144,7 @@ private:
   short               _hCam;  
   bool                _bCameraInited;
   bool                _bCaptureInited;
+  bool                _bClockSaving;
   
   /*
    * Event sequence/traffic control

@@ -327,16 +327,21 @@ class PrincetonEnableAction : public Action
 {
 public:
     PrincetonEnableAction(PrincetonManager& manager, bool bDelayMode, int iDebugLevel) : 
-     _manager(manager), _bDelayMode(bDelayMode), _iDebugLevel(iDebugLevel)
+     _manager(manager), _bDelayMode(bDelayMode), _iDebugLevel(iDebugLevel),
+     _iEnableCameraFail(0)
     {}
         
     virtual Transition* fire(Transition* in) 
     {
+      _iEnableCameraFail = _manager.enableCamera();
       return in;
     }
     
     virtual InDatagram* fire(InDatagram* in)     
     {
+      if ( _iEnableCameraFail != 0 )
+        in->datagram().xtc.damage.increase(Pds::Damage::UserDefined);
+        
       if (_iDebugLevel >= 1) 
         printf( "\n\n===== Writing Enable Data =========\n" );
       return in;
@@ -346,18 +351,20 @@ private:
     PrincetonManager& _manager;
     bool              _bDelayMode;
     int               _iDebugLevel;
+    int               _iEnableCameraFail;
 };
 
 class PrincetonDisableAction : public Action 
 {
 public:
     PrincetonDisableAction(PrincetonManager& manager, bool bDelayMode, int iDebugLevel) : 
-     _manager(manager), _bDelayMode(bDelayMode), _iDebugLevel(iDebugLevel)
+     _manager(manager), _bDelayMode(bDelayMode), _iDebugLevel(iDebugLevel),
+     _iDisableCameraFail(0)
     {}
         
     virtual Transition* fire(Transition* in) 
     {
-        return in;
+      return in;
     }
     
     virtual InDatagram* fire(InDatagram* in)     
@@ -388,6 +395,11 @@ public:
           }
         }          
       }      
+      
+      _iDisableCameraFail = _manager.disableCamera();
+      if ( _iDisableCameraFail != 0 )
+        in->datagram().xtc.damage.increase(Pds::Damage::UserDefined);
+      
       return out;
     }
     
@@ -395,6 +407,7 @@ private:
     PrincetonManager& _manager;
     bool              _bDelayMode;
     int               _iDebugLevel;
+    int               _iDisableCameraFail;    
 };
 
 PrincetonManager::PrincetonManager(CfgClientNfs& cfg, int iCamera, bool bDelayMode, bool bInitTest, int iDebugLevel) :
@@ -469,6 +482,16 @@ int PrincetonManager::beginRunCamera()
 int PrincetonManager::endRunCamera()
 {
   return _pServer->endRunCamera();
+}
+
+int PrincetonManager::enableCamera()
+{
+  return _pServer->enableCamera();
+}
+
+int PrincetonManager::disableCamera()
+{
+  return _pServer->disableCamera();
 }
 
 int PrincetonManager::onEventReadoutPrompt(int iShotId, InDatagram* in, InDatagram*& out)

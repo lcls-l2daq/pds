@@ -22,7 +22,7 @@ namespace Pds
 
 PrincetonServer::PrincetonServer(int iCamera, bool bDelayMode, bool bInitTest, const Src& src, int iDebugLevel) :
  _iCamera(iCamera), _bDelayMode(bDelayMode), _bInitTest(bInitTest), _src(src), _iDebugLevel(iDebugLevel),
- _hCam(-1), _bCameraInited(false), _bCaptureInited(false),
+ _hCam(-1), _bCameraInited(false), _bCaptureInited(false), _bClockSaving(false),
  _fPrevReadoutTime(0), _bSequenceError(false), _clockPrevDatagram(0,0), _iNumL1Event(0),
  _configCamera(), 
  _iCurShotId(-1), _fReadoutTime(0),  
@@ -125,8 +125,15 @@ int PrincetonServer::initCamera()
   }    
   
   printf( "Princeton Camera [%d] %s has been initialized\n", _iCamera, strCamera );
-  
   _bCameraInited = true;    
+  
+  int iFail = initClockSaving();  
+  if ( iFail != 0 )
+  {
+    deinitCamera();
+    return ERROR_FUNCTION_FAILURE;  
+  }
+  
   return 0;
 }
 
@@ -176,6 +183,10 @@ int PrincetonServer::configCamera(Princeton::ConfigV1& config)
 {  
   //if ( initCamera() != 0 ) 
   //  return ERROR_SERVER_INIT_FAIL;
+  
+  int iFail = deinitClockSaving();
+  if ( iFail != 0 )
+    return ERROR_FUNCTION_FAILURE;  
     
   if ( initCameraSettings(config) != 0 ) 
     return ERROR_SERVER_INIT_FAIL;
@@ -196,9 +207,13 @@ int PrincetonServer::configCamera(Princeton::ConfigV1& config)
    */
   config.setDelayMode( _bDelayMode?1:0 );
     
-  // Note: initCapture() has been moved to map event
+  // Note: initCaptureTask() has been moved to map event
   //if ( initCaptureTask() != 0 )
   //  return ERROR_SERVER_INIT_FAIL;
+  
+  iFail = initClockSaving();  
+  if ( iFail != 0 )
+    return ERROR_FUNCTION_FAILURE;  
   
   return 0;
 }
@@ -210,26 +225,94 @@ int PrincetonServer::unconfigCamera()
 
 int PrincetonServer::beginRunCamera()
 {
-  return initCapture();
+  /*
+   * Check data pool status
+   */  
+  if ( _poolFrameData.numberOfAllocatedObjects() > 0 )
+    printf( "PrincetonServer::enableCamera(): Memory usage issue. Data Pool is not empty (%d/%d allocated).\n",
+      _poolFrameData.numberOfAllocatedObjects(), _poolFrameData.numberofObjects() );
+  else if ( _iDebugLevel >= 3 )
+    printf( "BeginRun Pool status: %d/%d allocated.\n", _poolFrameData.numberOfAllocatedObjects(), _poolFrameData.numberofObjects() );
+    
+  /*
+   * Reset the per-run data
+   */
+  _fPrevReadoutTime = 0;
+  _bSequenceError   = false;
+  _iNumL1Event      = 0;
+  
+  return 0;
 }
 
 int PrincetonServer::endRunCamera()
-{
+{  
   /*
-   * Check buffer control buffer status
+   * Check data pool status
    */  
   if ( _poolFrameData.numberOfAllocatedObjects() > 0 )
-    printf( "PrincetonServer::endRunCamera(): Memory usage issue. Empty Data Pool is not totally free.\n" );
+    printf( "PrincetonServer::enableCamera(): Memory usage issue. Data Pool is not empty (%d/%d allocated).\n",
+      _poolFrameData.numberOfAllocatedObjects(), _poolFrameData.numberofObjects() );
+  else if ( _iDebugLevel >= 3 )
+    printf( "EndRun Pool status: %d/%d allocated.\n", _poolFrameData.numberOfAllocatedObjects(), _poolFrameData.numberofObjects() );
+    
+  return 0;
+}
 
-  return deinitCapture();
+int PrincetonServer::enableCamera()
+{
+  /*
+   * Check data pool status
+   */  
+  if ( _poolFrameData.numberOfAllocatedObjects() > 0 )
+    printf( "PrincetonServer::enableCamera(): Memory usage issue. Data Pool is not empty (%d/%d allocated).\n",
+      _poolFrameData.numberOfAllocatedObjects(), _poolFrameData.numberofObjects() );
+  else if ( _iDebugLevel >= 3 )
+    printf( "Enable Pool status: %d/%d allocated.\n", _poolFrameData.numberOfAllocatedObjects(), _poolFrameData.numberofObjects() );
+    
+    
+  int iFail  = deinitClockSaving();
+  iFail     |= initCapture();  
+  
+  if ( iFail != 0 )
+    return ERROR_FUNCTION_FAILURE;
+  
+  return 0;
+}
+
+int PrincetonServer::disableCamera()
+{
+  // Note: Here we don't worry if the data pool is not free, because the 
+  //       traffic shaping thead may still holding the L1 Data
+  if ( _iDebugLevel >= 3 )
+    printf( "Disable Pool status: %d/%d allocated.\n", _poolFrameData.numberOfAllocatedObjects(), _poolFrameData.numberofObjects() );
+      
+  int iFail  = deinitCapture();
+  iFail     |= initClockSaving();  
+  
+  if ( iFail != 0 )
+    return ERROR_FUNCTION_FAILURE;
+  
+  return 0;
 }
 
 int PrincetonServer::initCapture()
 { 
+  if ( _bClockSaving )
+    deinitClockSaving();
+    
   if ( _bCaptureInited )
     deinitCapture();
     
   LockCameraData lockInitCapture("PrincetonServer::initCapture()");    
+
+  // Note: pl_exp_init_seq() need not be called here, because
+  //       it doesn't help save the clocks  
+  ///* Initialize capture related functions */    
+  //if (!pl_exp_init_seq())
+  //{
+  //  printPvError("PrincetonServer::initCapture(): pl_exp_init_seq() failed!\n");
+  //  return ERROR_PVCAM_FUNC_FAIL; 
+  //}  
     
   rgn_type region;  
   setupROI(region);
@@ -282,26 +365,37 @@ int PrincetonServer::deinitCapture()
   
   resetFrameData(true);
       
+  int iPvCamFailCount = 0;
   /* Stop the acquisition */
   rs_bool bStatus = 
-   pl_exp_abort(_hCam, CCS_HALT);
+    pl_exp_abort(_hCam, CCS_HALT);
   
   if (!bStatus)
   {
-    printPvError("PrincetonServer::deinitCapture():pl_exp_abort() failed");
-    return ERROR_PVCAM_FUNC_FAIL;
-  } 
+    printPvError("PrincetonServer::deinitCapture():pl_exp_abort() failed");    
+    iPvCamFailCount++;
+  }    
     
   /*
-   * Reset the per-run data
+   * Reset clock saving, since it is cancelled by the above pl_exp_abort()
    */
-  _fPrevReadoutTime = 0;
-  _bSequenceError   = false;
-  _iNumL1Event      = 0;
+  _bClockSaving     = false;
+
+  // Note: pl_exp_uninit_seq() need not be called here, because
+  //       it doesn't help save the clocks
+  ///* Uninit capture related functions */  
+  //if (!pl_exp_uninit_seq() ) 
+  //{
+  //  printPvError("PrincetonServer::deinitCapture():pl_exp_uninit_seq() failed");
+  //  iPvCamFailCount++;
+  //}  
   
   printf( "Capture deinitialized\n" );
   
-  return 0;
+  if ( iPvCamFailCount == 0 )
+    return 0;
+  else
+    return ERROR_PVCAM_FUNC_FAIL;
 }
 
 int PrincetonServer::startCapture()
@@ -338,7 +432,9 @@ int PrincetonServer::initCameraSettings(Princeton::ConfigV1& config)
   
   
   displayParamIdInfo(_hCam, PARAM_CLEAR_MODE  , "Clear Mode");
-  displayParamIdInfo(_hCam, PARAM_CONT_CLEARS , "Continuous Clearing");
+  
+  // Note: continuous clearing can only be read and set after pl_exp_setup_seq(...,STORBED_MODE,...)
+  //displayParamIdInfo(_hCam, PARAM_CONT_CLEARS , "Continuous Clearing");
   displayParamIdInfo(_hCam, PARAM_CLEAR_CYCLES, "Clear Cycles");  
   displayParamIdInfo(_hCam, PARAM_NUM_OF_STRIPS_PER_CLR, "Strips Per Clear");  
   displayParamIdInfo(_hCam, PARAM_MIN_BLOCK    , "Min Block Size");  
@@ -398,10 +494,9 @@ int PrincetonServer::initTest()
   timespec timeVal2;
   clock_gettime( CLOCK_REALTIME, &timeVal2 );
   
-  uns32 uNumBytesTransfered;
-  int iNumLoop = 0;
+  int   iNumLoop = 0;
   int16 status = 0;
-
+  uns32 uNumBytesTransfered;
   /* wait for data or error */
   while (pl_exp_check_status(_hCam, &status, &uNumBytesTransfered) &&
          (status != READOUT_COMPLETE && status != READOUT_FAILED))
@@ -434,9 +529,71 @@ int PrincetonServer::initTest()
   free(pFrameBuffer);  
   
   /*Uninit the sequence */
-  pl_exp_uninit_seq();
-   
+  pl_exp_uninit_seq();   
   return 0;
+}
+
+/*
+ * This function is used to save the clocks of camera by
+ * putting the camera in long exposure mode
+ */
+int PrincetonServer::initClockSaving()
+{
+  if ( _bClockSaving )
+    deinitClockSaving();
+    
+  LockCameraData lockInitClockSaving("PrincetonServer::initClockSaving()");
+  
+  rgn_type region;
+  region.s1   = 0;
+  region.s2   = 127;
+  region.sbin = 1;
+  region.p1   = 0;
+  region.p2   = 127;
+  region.pbin = 1;   
+
+  uns32 uFrameSize;
+  rs_bool bStatus = 
+   pl_exp_setup_seq(_hCam, 1, 1, &region, TIMED_MODE, _iClockSavingExpTime, &uFrameSize);
+  if (!bStatus)
+  {
+    printPvError("PrincetonServer::initClockSaving(): pl_exp_setup_seq() failed!\n");
+    return ERROR_PVCAM_FUNC_FAIL;
+  }
+         
+  if ( _iDebugLevel >= 3 )
+    printf( "== initClockSaving == \n" );
+    
+  _bClockSaving = true;     
+  return 0;
+}
+
+int PrincetonServer::deinitClockSaving()
+{ 
+  if ( !_bClockSaving )
+    return 0;
+        
+  LockCameraData lockDeinitClockSaving("PrincetonServer::deinitClockSaving()");
+  
+  // For delay mode: release frame data if it is present
+  // Note: if there is any normal frame data, it should have been retrieved before this function
+  resetFrameData(true); 
+        
+  /* Stop the acquisition */
+  rs_bool bStatus = 
+    pl_exp_abort(_hCam, CCS_HALT);
+  
+  if (!bStatus)
+  {
+    printPvError("PrincetonServer::deinitCapture():pl_exp_abort() failed");    
+    return ERROR_PVCAM_FUNC_FAIL;
+  }    
+    
+  if ( _iDebugLevel >= 3 )
+    printf( "== deinitClockSaving ==\n" );
+  
+  _bClockSaving = false;  
+  return 0;  
 }
 
 int PrincetonServer::setupCooling()
@@ -871,8 +1028,7 @@ int PrincetonServer::getLastDelayData(InDatagram* in, InDatagram*& out)
       printf( "PrincetonServer::getLastDelayData(): Waiting time is too long. Skip the final data\n" );          
       return ERROR_FUNCTION_FAILURE;
     }
-  } // while (1)
-  
+  } // while (1)  
   
   return getDelayData(in, out);      
 }
@@ -1062,8 +1218,8 @@ int PrincetonServer::setupFrame(InDatagram* in, InDatagram*& out)
   
   if ( _iDebugLevel >= 3 )
   {
-    printf( "PrincetonServer::setupFrame(): pool free objects#: %d , data gram: %p\n", 
-     _poolFrameData.numberOfFreeObjects(), _pDgOut  );
+    printf( "PrincetonServer::setupFrame(): pool status: %d/%d allocated, datagram: %p\n", 
+     _poolFrameData.numberOfAllocatedObjects(), _poolFrameData.numberofObjects(), _pDgOut  );
   }
   
   /*

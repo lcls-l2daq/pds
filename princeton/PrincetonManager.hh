@@ -33,6 +33,8 @@ public:
   int   unconfigCamera();
   int   beginRunCamera();
   int   endRunCamera();
+  int   enableCamera();
+  int   disableCamera();
   int   onEventReadoutPrompt(int iShotId, InDatagram* in, InDatagram*& out);
   int   onEventReadoutDelay(int iShotId, InDatagram* in);
   int   getDelayData(InDatagram* in, InDatagram*& out);
