@@ -207,8 +207,16 @@ static void displayParamValueInfo(int16 hCam, uns32 uParamId)
       printf(" min = %g, max = %g\n", minVal.dval, maxVal.dval);
       printf(" increment = %g\n", incrementVal.dval);
       break;
+    case TYPE_BOOLEAN:
+      status = pl_get_param(hCam, uParamId, ATTR_CURRENT,
+                            (void *) &currentVal.bval);
+      status2 = pl_get_param(hCam, uParamId, ATTR_DEFAULT,
+                             (void *) &defaultVal.bval);
+      printf(" current value = %d\n", (int) currentVal.bval);
+      printf(" default value = %d\n", (int) defaultVal.bval);
+      break;
     default:
-      printf(" data type not supported in this functions\n");
+      printf(" data type %d not supported in this functions\n", type );      
       break;
     }
     if (!status || !status2 || !status3 || !status4 || !status5)
