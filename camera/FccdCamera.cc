@@ -168,18 +168,12 @@ int FccdCamera::PicPortCameraInit() {
     // -- 
     // --	SET State Parameters to fix fCRIC Pipe
     // --
-    // -- Change S1(25nsec_per_tick) from 50 to 04 or 05 to match state S4
-    "0c:00:04",
-    // -- Change S1 25nsec_per_tick from ? to 04
-    "0c:08:04",
     // -- Change S2(exp) next state from 3 to 5
     "0c:13:05",
-    // -- Change clks per tick in S3
-    "0c:18:04",
-    // -- Change clks per tick in S4 (Thinking about making 4 instead of 5)
-    "0c:20:04",
     // -- Change S4 next state from 0 to 7
     "0c:23:07",
+    // -- Change clks per tick in S3
+    "0c:18:04",
     // -- Init S5
     "0c:28:04",
     "0c:29:10",
@@ -201,7 +195,7 @@ int FccdCamera::PicPortCameraInit() {
     "0c:38:04",
     "0c:39:10",
     // --0x0c 0x3a 0x07 this was giving an extra pixel
-    "0c:3a:06",
+    "0c:3a:07",
     "0c:3b:00",
     "0c:3c:00",
     "0c:3d:00",
@@ -652,87 +646,87 @@ int FccdCamera::PicPortCameraInit() {
     if (_inputConfig->ccdEnable()) {
       printf(" >> Set the voltages... \n");
 
-      if ((makeDACWriteCommand(1, _inputConfig->dacVoltage1(), FCCD_DAC1_V_START, FCCD_DAC1_V_END, sendBuf) != 0) ||
+      if ((makeDACWriteCommand(0x00, _inputConfig->dacVoltage1(), FCCD_DAC1_V_START, FCCD_DAC1_V_END, sendBuf) != 0) ||
           (SendFccdCommand(sendBuf) < 0)) {
         printf(">> Failed to configure DAC 1\n");
       }
 
-      if ((makeDACWriteCommand(2, _inputConfig->dacVoltage2(), FCCD_DAC2_V_START, FCCD_DAC2_V_END, sendBuf) != 0) ||
+      if ((makeDACWriteCommand(0x02, _inputConfig->dacVoltage2(), FCCD_DAC2_V_START, FCCD_DAC2_V_END, sendBuf) != 0) ||
           (SendFccdCommand(sendBuf) < 0)) {
         printf(">> Failed to configure DAC 2\n");
       }
 
-      if ((makeDACWriteCommand(3, _inputConfig->dacVoltage3(), FCCD_DAC3_V_START, FCCD_DAC3_V_END, sendBuf) != 0) ||
+      if ((makeDACWriteCommand(0x04, _inputConfig->dacVoltage3(), FCCD_DAC3_V_START, FCCD_DAC3_V_END, sendBuf) != 0) ||
           (SendFccdCommand(sendBuf) < 0)) {
         printf(">> Failed to configure DAC 3\n");
       }
 
-      if ((makeDACWriteCommand(4, _inputConfig->dacVoltage4(), FCCD_DAC4_V_START, FCCD_DAC4_V_END, sendBuf) != 0) ||
+      if ((makeDACWriteCommand(0x06, _inputConfig->dacVoltage4(), FCCD_DAC4_V_START, FCCD_DAC4_V_END, sendBuf) != 0) ||
           (SendFccdCommand(sendBuf) < 0)) {
         printf(">> Failed to configure DAC 4\n");
       }
 
-      if ((makeDACWriteCommand(5, _inputConfig->dacVoltage5(), FCCD_DAC5_V_START, FCCD_DAC5_V_END, sendBuf) != 0) ||
+      if ((makeDACWriteCommand(0x08, _inputConfig->dacVoltage5(), FCCD_DAC5_V_START, FCCD_DAC5_V_END, sendBuf) != 0) ||
           (SendFccdCommand(sendBuf) < 0)) {
         printf(">> Failed to configure DAC 5\n");
       }
 
-      if ((makeDACWriteCommand(6, _inputConfig->dacVoltage6(), FCCD_DAC6_V_START, FCCD_DAC6_V_END, sendBuf) != 0) ||
+      if ((makeDACWriteCommand(0x0a, _inputConfig->dacVoltage6(), FCCD_DAC6_V_START, FCCD_DAC6_V_END, sendBuf) != 0) ||
           (SendFccdCommand(sendBuf) < 0)) {
         printf(">> Failed to configure DAC 6\n");
       }
 
-      if ((makeDACWriteCommand(7, _inputConfig->dacVoltage7(), FCCD_DAC7_V_START, FCCD_DAC7_V_END, sendBuf) != 0) ||
+      if ((makeDACWriteCommand(0x0c, _inputConfig->dacVoltage7(), FCCD_DAC7_V_START, FCCD_DAC7_V_END, sendBuf) != 0) ||
           (SendFccdCommand(sendBuf) < 0)) {
         printf(">> Failed to configure DAC 7\n");
       }
 
-      if ((makeDACWriteCommand(8, _inputConfig->dacVoltage8(), FCCD_DAC8_V_START, FCCD_DAC8_V_END, sendBuf) != 0) ||
+      if ((makeDACWriteCommand(0x0e, _inputConfig->dacVoltage8(), FCCD_DAC8_V_START, FCCD_DAC8_V_END, sendBuf) != 0) ||
           (SendFccdCommand(sendBuf) < 0)) {
         printf(">> Failed to configure DAC 8\n");
       }
 
-      if ((makeDACWriteCommand(9, _inputConfig->dacVoltage9(), FCCD_DAC9_V_START, FCCD_DAC9_V_END, sendBuf) != 0) ||
+      if ((makeDACWriteCommand(0x10, _inputConfig->dacVoltage9(), FCCD_DAC9_V_START, FCCD_DAC9_V_END, sendBuf) != 0) ||
           (SendFccdCommand(sendBuf) < 0)) {
         printf(">> Failed to configure DAC 9\n");
       }
 
-      if ((makeDACWriteCommand(10, _inputConfig->dacVoltage10(), FCCD_DAC10_V_START, FCCD_DAC10_V_END, sendBuf) != 0) ||
+      if ((makeDACWriteCommand(0x12, _inputConfig->dacVoltage10(), FCCD_DAC10_V_START, FCCD_DAC10_V_END, sendBuf) != 0) ||
           (SendFccdCommand(sendBuf) < 0)) {
         printf(">> Failed to configure DAC 10\n");
       }
 
-      if ((makeDACWriteCommand(11, _inputConfig->dacVoltage11(), FCCD_DAC11_V_START, FCCD_DAC11_V_END, sendBuf) != 0) ||
+      if ((makeDACWriteCommand(0x14, _inputConfig->dacVoltage11(), FCCD_DAC11_V_START, FCCD_DAC11_V_END, sendBuf) != 0) ||
           (SendFccdCommand(sendBuf) < 0)) {
         printf(">> Failed to configure DAC 11\n");
       }
 
-      if ((makeDACWriteCommand(12, _inputConfig->dacVoltage12(), FCCD_DAC12_V_START, FCCD_DAC12_V_END, sendBuf) != 0) ||
+      if ((makeDACWriteCommand(0x16, _inputConfig->dacVoltage12(), FCCD_DAC12_V_START, FCCD_DAC12_V_END, sendBuf) != 0) ||
           (SendFccdCommand(sendBuf) < 0)) {
         printf(">> Failed to configure DAC 12\n");
       }
 
-      if ((makeDACWriteCommand(13, _inputConfig->dacVoltage13(), FCCD_DAC13_V_START, FCCD_DAC13_V_END, sendBuf) != 0) ||
+      if ((makeDACWriteCommand(0x18, _inputConfig->dacVoltage13(), FCCD_DAC13_V_START, FCCD_DAC13_V_END, sendBuf) != 0) ||
           (SendFccdCommand(sendBuf) < 0)) {
         printf(">> Failed to configure DAC 13\n");
       }
 
-      if ((makeDACWriteCommand(14, _inputConfig->dacVoltage14(), FCCD_DAC14_V_START, FCCD_DAC14_V_END, sendBuf) != 0) ||
+      if ((makeDACWriteCommand(0x1a, _inputConfig->dacVoltage14(), FCCD_DAC14_V_START, FCCD_DAC14_V_END, sendBuf) != 0) ||
           (SendFccdCommand(sendBuf) < 0)) {
         printf(">> Failed to configure DAC 14\n");
       }
 
-      if ((makeDACWriteCommand(15, _inputConfig->dacVoltage15(), FCCD_DAC15_V_START, FCCD_DAC15_V_END, sendBuf) != 0) ||
+      if ((makeDACWriteCommand(0x1c, _inputConfig->dacVoltage15(), FCCD_DAC15_V_START, FCCD_DAC15_V_END, sendBuf) != 0) ||
           (SendFccdCommand(sendBuf) < 0)) {
         printf(">> Failed to configure DAC 15\n");
       }
 
-      if ((makeDACWriteCommand(16, _inputConfig->dacVoltage16(), FCCD_DAC16_V_START, FCCD_DAC16_V_END, sendBuf) != 0) ||
+      if ((makeDACWriteCommand(0x1e, _inputConfig->dacVoltage16(), FCCD_DAC16_V_START, FCCD_DAC16_V_END, sendBuf) != 0) ||
           (SendFccdCommand(sendBuf) < 0)) {
         printf(">> Failed to configure DAC 16\n");
       }
 
-      if ((makeDACWriteCommand(17, _inputConfig->dacVoltage17(), FCCD_DAC17_V_START, FCCD_DAC17_V_END, sendBuf) != 0) ||
+      if ((makeDACWriteCommand(0x20, _inputConfig->dacVoltage17(), FCCD_DAC17_V_START, FCCD_DAC17_V_END, sendBuf) != 0) ||
           (SendFccdCommand(sendBuf) < 0)) {
         printf(">> Failed to configure DAC 17\n");
       }
