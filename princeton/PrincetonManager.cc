@@ -25,11 +25,14 @@ using std::string;
 
 namespace Pds 
 {
-  
+
+static int printDataTime(const InDatagram* in);
+
 class PrincetonMapAction : public Action 
 {
 public:
-    PrincetonMapAction(PrincetonManager& manager, CfgClientNfs& cfg) : _manager(manager), _cfg(cfg), _iMapCameraFail(0) {}
+    PrincetonMapAction(PrincetonManager& manager, CfgClientNfs& cfg, int iDebugLevel) : 
+      _manager(manager), _cfg(cfg), _iMapCameraFail(0), _iDebugLevel(iDebugLevel) {}
     
     virtual Transition* fire(Transition* tr)     
     {
@@ -42,6 +45,10 @@ public:
     
     virtual InDatagram* fire(InDatagram* in) 
     {
+      if (_iDebugLevel >= 1) 
+        printf( "\n\n===== Writing Map Data =========\n" );          
+      if (_iDebugLevel>=2) printDataTime(in);
+      
       if ( _iMapCameraFail != 0 )
         in->datagram().xtc.damage.increase(Pds::Damage::UserDefined);      
       return in;
@@ -50,6 +57,7 @@ private:
     PrincetonManager& _manager;
     CfgClientNfs&     _cfg;
     int               _iMapCameraFail;    
+    int               _iDebugLevel;
 };
 
 class PrincetonConfigAction : public Action 
@@ -75,7 +83,7 @@ public:
           1,  // BinX
           1,  // BinX
           0.001,  // Exposure time
-          25.0f, // Cooling temperature
+          25.0f,  // Cooling temperature
           1,  // Readout speed index
           1   // Redout event code
         );
@@ -98,7 +106,8 @@ public:
 
     virtual InDatagram* fire(InDatagram* in) 
     {
-        if (_iDebugLevel>=1) printf( "\n\n===== Writing Configs =====\n" );
+        if (_iDebugLevel>=1) printf("\n\n===== Writing Configs =====\n" );
+        if (_iDebugLevel>=2) printDataTime(in);
 
         static bool bConfigAllocated = false;        
         if ( !bConfigAllocated )
@@ -163,6 +172,10 @@ public:
     
     virtual InDatagram* fire(InDatagram* in) 
     {
+      if (_iDebugLevel >= 1) 
+        printf( "\n\n===== Writing Unmap Data =========\n" );          
+      if (_iDebugLevel>=2) printDataTime(in);
+      
       if ( _iUnConfigCameraFail != 0 )
         in->datagram().xtc.damage.increase(Pds::Damage::UserDefined);      
       return in;
@@ -188,6 +201,10 @@ public:
 
     virtual InDatagram* fire(InDatagram* in) 
     {
+      if (_iDebugLevel >= 1) 
+        printf( "\n\n===== Writing BeginRun Data =========\n" );          
+      if (_iDebugLevel>=2) printDataTime(in);
+      
       if ( _iBeginRunCameraFail != 0 )
         in->datagram().xtc.damage.increase(Pds::Damage::UserDefined);      
       return in;
@@ -213,6 +230,10 @@ public:
     
     virtual InDatagram* fire(InDatagram* in) 
     {
+      if (_iDebugLevel >= 1) 
+        printf( "\n\n===== Writing EndRun Data =========\n" );          
+      if (_iDebugLevel>=2) printDataTime(in);
+      
       if ( _iEndRunCameraFail != 0 )
         in->datagram().xtc.damage.increase(Pds::Damage::UserDefined);
       return in;
@@ -240,6 +261,8 @@ public:
       if (_iDebugLevel >= 1) 
       {
         printf( "\n\n===== Writing L1Accept Data =========\n" );          
+        if (_iDebugLevel>=2) printDataTime(in);
+        
         if (_iDebugLevel >= 3) 
         {
           Xtc& xtcData = in->datagram().xtc;
@@ -344,6 +367,8 @@ public:
         
       if (_iDebugLevel >= 1) 
         printf( "\n\n===== Writing Enable Data =========\n" );
+      if (_iDebugLevel>=2) printDataTime(in);
+        
       return in;
     }
     
@@ -371,6 +396,7 @@ public:
     {
       if (_iDebugLevel >= 1) 
         printf( "\n\n===== Writing Disable Data =========\n" );          
+      if (_iDebugLevel>=2) printDataTime(in);
         
       InDatagram* out = in;
       if ( _bDelayMode )
@@ -414,7 +440,7 @@ PrincetonManager::PrincetonManager(CfgClientNfs& cfg, int iCamera, bool bDelayMo
   _iCamera(iCamera), _bDelayMode(bDelayMode), _bInitTest(bInitTest),
   _iDebugLevel(iDebugLevel), _pServer(NULL)
 {
-    _pActionMap       = new PrincetonMapAction      (*this, cfg);
+    _pActionMap       = new PrincetonMapAction      (*this, cfg, _iDebugLevel);
     _pActionConfig    = new PrincetonConfigAction   (*this, cfg, _bDelayMode, _iDebugLevel);
     _pActionUnconfig  = new PrincetonUnconfigAction (*this, _iDebugLevel);  
     _pActionBeginRun  = new PrincetonBeginRunAction (*this, _iDebugLevel);
@@ -517,6 +543,24 @@ int PrincetonManager::getLastDelayData(InDatagram* in, InDatagram*& out)
 int PrincetonManager::checkReadoutEventCode(InDatagram* in)
 {
   return _pServer->checkReadoutEventCode(in);
+}
+
+static int printDataTime(const InDatagram* in)
+{
+  static const char sTimeFormat[40] = "%02d_%02H:%02M:%02S"; /* Time format string */    
+  char sTimeText[40];
+  
+  time_t timeCurrent;
+  time(&timeCurrent);          
+  strftime(sTimeText, sizeof(sTimeText), sTimeFormat, localtime(&timeCurrent));
+  
+  printf("Local Time: %s\n", sTimeText);
+  
+  const ClockTime clockCurDatagram  = in->datagram().seq.clock();
+  timeCurrent = clockCurDatagram.seconds();
+  strftime(sTimeText, sizeof(sTimeText), sTimeFormat, localtime(&timeCurrent));
+  printf("Data  Time: %s\n", sTimeText);
+  return 0;
 }
 
 } //namespace Pds 
