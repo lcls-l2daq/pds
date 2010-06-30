@@ -329,7 +329,7 @@ public:
         {
           printf( "Frame  payload size = %d\n", xtcFrame.sizeofPayload());
           Princeton::FrameV1& frameData = *(Princeton::FrameV1*) xtcFrame.payload();
-          printf( "Frame Id Start %d ReadoutTime %f\n", frameData.shotIdStart(), 
+          printf( "Frame  Id 0x%05x  ReadoutTime %.2fs\n", frameData.shotIdStart(), 
            frameData.readoutTime() );
         }
       }
@@ -557,9 +557,10 @@ static int printDataTime(const InDatagram* in)
   printf("Local Time: %s\n", sTimeText);
   
   const ClockTime clockCurDatagram  = in->datagram().seq.clock();
-  timeCurrent = clockCurDatagram.seconds();
+  uint32_t        uFiducial         = in->datagram().seq.stamp().fiducials();
+  timeCurrent                       = clockCurDatagram.seconds();
   strftime(sTimeText, sizeof(sTimeText), sTimeFormat, localtime(&timeCurrent));
-  printf("Data  Time: %s\n", sTimeText);
+  printf("Data  Time: %s  Fiducial: 0x%05x\n", sTimeText, uFiducial);
   return 0;
 }
 
