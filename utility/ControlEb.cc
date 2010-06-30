@@ -56,7 +56,13 @@ void ControlEb::expired() {
 }
 
 Task* ControlEb::task() { return _task; }
+
+#ifdef BUILD_PRINCETON
+unsigned ControlEb::duration() const { return 30000; }
+#else
 unsigned ControlEb::duration() const { return 5000; }
+#endif
+
 unsigned ControlEb::repetitive() const { return 0; }
 
 Allocation ControlEb::remaining() const
