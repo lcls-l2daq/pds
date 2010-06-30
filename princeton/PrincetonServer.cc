@@ -435,8 +435,14 @@ int PrincetonServer::initCameraSettings(Princeton::ConfigV1& config)
   
   // Note: continuous clearing can only be read and set after pl_exp_setup_seq(...,STORBED_MODE,...)
   //displayParamIdInfo(_hCam, PARAM_CONT_CLEARS , "Continuous Clearing");
+
   displayParamIdInfo(_hCam, PARAM_CLEAR_CYCLES, "Clear Cycles");  
-  displayParamIdInfo(_hCam, PARAM_NUM_OF_STRIPS_PER_CLR, "Strips Per Clear");  
+
+  displayParamIdInfo(_hCam, PARAM_NUM_OF_STRIPS_PER_CLR, "Strips Per Clear *org*");
+  int16 i16Strip = (int16) 1;
+  PICAM::setAnyParam(_hCam, PARAM_NUM_OF_STRIPS_PER_CLR, &i16Strip );    
+  displayParamIdInfo(_hCam, PARAM_NUM_OF_STRIPS_PER_CLR, "Strips Per Clear *new*");  
+
   displayParamIdInfo(_hCam, PARAM_MIN_BLOCK    , "Min Block Size");  
   displayParamIdInfo(_hCam, PARAM_NUM_MIN_BLOCK, "Num of Min Block");    
   
@@ -449,15 +455,6 @@ int PrincetonServer::initCameraSettings(Princeton::ConfigV1& config)
   displayParamIdInfo(_hCam, PARAM_PIX_TIME    , "Pixel Transfer Time");
   displayParamIdInfo(_hCam, PARAM_BIT_DEPTH   , "Bit Depth");  
 
-  //displayParamIdInfo(_hCam, PARAM_EXPOSURE_MODE,    "Exposure Mode");
-  //displayParamIdInfo(_hCam, PARAM_CLEAR_MODE,       "Clear Mode");
-  //displayParamIdInfo(_hCam, PARAM_SHTR_OPEN_MODE,   "Shutter Open Mode");
-  //displayParamIdInfo(_hCam, PARAM_SHTR_OPEN_DELAY,  "Shutter Open Delay");
-  //displayParamIdInfo(_hCam, PARAM_SHTR_CLOSE_DELAY, "Shutter Close Delay");
-  //  
-  //displayParamIdInfo(_hCam, PARAM_EXP_RES,          "Exposure Resolution");
-  //displayParamIdInfo(_hCam, PARAM_EXP_RES_INDEX,    "Exposure Resolution Index");
-  
   //uns32 uTriggerEdge = EDGE_TRIG_POS;
   //PICAM::setAnyParam(_hCam, PARAM_EDGE_TRIGGER, &uTriggerEdge );    
   //displayParamIdInfo(_hCam, PARAM_EDGE_TRIGGER,     "Edge Trigger" );
