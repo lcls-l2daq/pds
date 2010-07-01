@@ -632,7 +632,7 @@ int PrincetonServer::setupCooling()
   clock_gettime( CLOCK_REALTIME, &timeVal1 );      
   
   int iNumLoop       = 0;
-  int iNumRepateRead = 3;
+  int iNumRepateRead = 5;
   int iRead          = 0;
   
   while (1)
@@ -728,10 +728,10 @@ int PrincetonServer::runCaptureTask()
   int iFail = 0;
   do 
   {    
-    iFail = waitForNewFrameAvailable();          
-    if ( iFail != 0 ) break;
+    iFail  = waitForNewFrameAvailable();          
     
-    iFail = processFrame();       
+    // Even if waitForNewFrameAvailable() failed, we still fill in the frame data with ShotId information
+    iFail |= processFrame();       
   }
   while (false);
   
@@ -803,19 +803,25 @@ int PrincetonServer::onEventReadoutPrompt(int iShotId, InDatagram* in, InDatagra
     if ( iFail != 0 ) break;
     
     iFail = startCapture();
-    if ( iFail != 0 ) break;
-    
-    iFail = waitForNewFrameAvailable();
-    if ( iFail != 0 ) break;        
 
-    iFail = processFrame();
+    if ( iFail == 0 ) 
+      iFail = waitForNewFrameAvailable();
+
+    // Even if waitForNewFrameAvailable() failed, we still fill in the frame data with ShotId information
+    iFail |= processFrame();
   }
   while (false);
 
   if ( iFail != 0 )
   {    
-    resetFrameData(true);
+    
+    // Still keep the image data, and the outer class will set the damage bit
     return ERROR_FUNCTION_FAILURE;  
+    
+    // // Old ways: delete image data
+    //resetFrameData(true);
+    //out = in;
+    //return ERROR_FUNCTION_FAILURE;          
   }
   
   /*
@@ -1143,6 +1149,13 @@ int PrincetonServer::waitForNewFrameAvailable()
     {
       printf( "PrincetonServer::waitForNewFrameAvailable(): Readout time is longer than %d miliseconds. Capture is stopped\n",
        _iMaxReadoutTime );    
+       
+      rs_bool bStatus = pl_exp_abort(_hCam, CCS_HALT);      
+      if (!bStatus)
+        printPvError("PrincetonServer::waitForNewFrameAvailable():pl_exp_abort() failed");    
+       
+      // The  readout time (with incomplete data) will be reported in the framedata
+      _fReadoutTime = (tsCurrent.tv_nsec - tsWaitStart.tv_nsec) / 1.0e9 + ( tsCurrent.tv_sec - tsWaitStart.tv_sec ); // in seconds
       return ERROR_FUNCTION_FAILURE;
     }     
   } // while (1)
