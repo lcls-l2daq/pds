@@ -10,6 +10,7 @@
 #include "pds/service/Routine.hh"
 #include "pds/config/EvrConfigType.hh"
 
+#include <math.h>
 #include <errno.h>
 #include <pthread.h> 
  
@@ -455,6 +456,11 @@ int PrincetonServer::initCameraSettings(Princeton::ConfigV1& config)
   displayParamIdInfo(_hCam, PARAM_PIX_TIME    , "Pixel Transfer Time");
   displayParamIdInfo(_hCam, PARAM_BIT_DEPTH   , "Bit Depth");  
 
+  displayParamIdInfo(_hCam, PARAM_LOGIC_OUTPUT, "Logic Output *org*");    
+  uns32 u32LogicOutput = (uns32) OUTPUT_NOT_SCAN;
+  PICAM::setAnyParam(_hCam, PARAM_LOGIC_OUTPUT, &u32LogicOutput ); 
+  displayParamIdInfo(_hCam, PARAM_LOGIC_OUTPUT, "Logic Output *new*");    
+  
   //uns32 uTriggerEdge = EDGE_TRIG_POS;
   //PICAM::setAnyParam(_hCam, PARAM_EDGE_TRIGGER, &uTriggerEdge );    
   //displayParamIdInfo(_hCam, PARAM_EDGE_TRIGGER,     "Edge Trigger" );
@@ -1186,7 +1192,7 @@ int PrincetonServer::processFrame()
   unsigned char*  pFrameHeader  = (unsigned char*) _pDgOut + sizeof(CDatagram) + sizeof(Xtc);  
   new (pFrameHeader) Princeton::FrameV1(_iCurShotId, _fReadoutTime);
   
-  if ( _iDebugLevel >= 5 )
+  if ( _iNumL1Event <= _iMaxEventReport ||  _iDebugLevel >= 5 )
   {
     Princeton::FrameV1* pFrame     = (Princeton::FrameV1*) pFrameHeader;    
     const uint16_t*     pPixel     = pFrame->data();  
@@ -1196,10 +1202,15 @@ int PrincetonServer::processFrame()
     const int           iNumPixels = (int) (_configCamera.frameSize() / sizeof(uint16_t) );
     
     uint64_t            uSum    = 0;
+    uint64_t            uSumSq  = 0;
     for ( ; pPixel < pEnd; pPixel++ )
-      uSum += *pPixel;
+    {
+      uSum   += *pPixel;
+      uSumSq += ((uint32_t)*pPixel) * ((uint32_t)*pPixel);
+    }
       
-    printf( "Frame Avg Value = %.2lf\n", (double) uSum / (double) iNumPixels );
+    printf( "Frame Avg Value = %.2lf  Std = %.2lf\n", (double) uSum / (double) iNumPixels, 
+      sqrt( (iNumPixels * uSumSq - uSum * uSum) / (double)(iNumPixels*iNumPixels)) );
   }  
         
   return 0;
@@ -1296,7 +1307,7 @@ int PrincetonServer::checkTemperature()
   /*
    * Set Info object
    */
-  if ( _iNumL1Event % 10 == 1 )
+  if ( _iNumL1Event % 10 == 1 || _iDebugLevel >= 4 )
   {
     printf( "CCD Temperature report [%d]: %.1f C\n", _iNumL1Event, iTemperatureCurrent/100.f );
   }
@@ -1312,11 +1323,7 @@ int PrincetonServer::checkTemperature()
   //  unsigned char*  pcInfo       = (unsigned char*) _pDgOut + sizeof(CDatagram) + sizeof(Xtc) + iFrameSize + sizeof(Xtc);  
   //  new (pcInfo) Princeton::InfoV1( fCoolingTemp );
   //}
-  
-    
-  if ( _iDebugLevel >= 4 )
-    printf( "Current CCD Temperature = %.1f C\n", iTemperatureCurrent / 100.0f );
-    
+          
   if ( iTemperatureCurrent >= iCoolingTemp + _iTemperatureHiTol ||  
     iTemperatureCurrent <= iCoolingTemp - _iTemperatureLoTol ) 
   {
