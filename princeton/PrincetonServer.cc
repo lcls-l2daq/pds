@@ -1078,7 +1078,7 @@ int PrincetonServer::checkReadoutEventCode(InDatagram* in)
     }
 
     if ( _iDebugLevel >= 3 )    
-      printf( "[%02u] Event Code %u  TimeStampHigh 0x%x  TimeStampLow 0x%x\n",
+      printf( "[%02u] Event Code %3u  TimeStampHigh 0x%x  TimeStampLow 0x%x\n",
         iEventIndex, event.EventCode, event.TimestampHigh, event.TimestampLow );
   }
   
