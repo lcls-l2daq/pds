@@ -248,8 +248,8 @@ class PrincetonL1AcceptAction : public Action
 {
 public:
     PrincetonL1AcceptAction(PrincetonManager& manager, CfgClientNfs& cfg, bool bDelayMode, int iDebugLevel) :
-        _manager(manager), _cfg(cfg), _bDelayMode(bDelayMode), _iDebugLevel(iDebugLevel),
-        _poolFrameData(1024*1024*8 + 1024, 16)
+        _manager(manager), _cfg(cfg), _bDelayMode(bDelayMode), _iDebugLevel(iDebugLevel)
+        //, _poolFrameData(1024*1024*8 + 1024, 16) // pool for debug
     {
     }
     
@@ -342,7 +342,7 @@ private:
     CfgClientNfs&       _cfg;
     bool                _bDelayMode;
     int                 _iDebugLevel;
-    GenericPool         _poolFrameData;
+    //GenericPool         _poolFrameData; // pool for debug
 };
 
 

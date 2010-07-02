@@ -105,7 +105,7 @@ int PrincetonServer::initCamera()
   clock_gettime( CLOCK_REALTIME, &timeVal1 );
   
   double fOpenTime = (timeVal1.tv_nsec - timeVal0.tv_nsec) * 1.e-6 + ( timeVal1.tv_sec - timeVal0.tv_sec ) * 1.e3;    
-  printf("Camera Open Time = %6.3lf ms\n", fOpenTime);    
+  printf("Camera Open Time = %6.1lf ms\n", fOpenTime);    
 
   int iCcdWidth = 0, iCcdHeight = 0;
   PICAM::getAnyParam(_hCam, PARAM_SER_SIZE, &iCcdWidth );
@@ -633,7 +633,7 @@ int PrincetonServer::setupCooling()
   setAnyParam(_hCam, PARAM_TEMP_SETPOINT, &iCoolingTemp );
   displayParamIdInfo(_hCam, PARAM_TEMP_SETPOINT, "Set Cooling Temperature" );   
   
-  const static timeval timeSleepMicroOrg = {0, 1000}; // 1 millisecond    
+  const static timeval timeSleepMicroOrg = {0, 5000}; // 5 millisecond    
   timespec timeVal1;
   clock_gettime( CLOCK_REALTIME, &timeVal1 );      
   
@@ -643,7 +643,6 @@ int PrincetonServer::setupCooling()
   
   while (1)
   {  
-    //setAnyParam(_hCam, PARAM_TEMP_SETPOINT, &iCoolingTemp );
     getAnyParam(_hCam, PARAM_TEMP, &iTemperatureCurrent );
     
     if ( iTemperatureCurrent <= iCoolingTemp ) 
@@ -654,10 +653,14 @@ int PrincetonServer::setupCooling()
     else
       iRead = 0;      
     
-    if ( (iNumLoop+1) % 1000 == 0 )
+    if ( (iNumLoop+1) % 200 == 0 )
       displayParamIdInfo(_hCam, PARAM_TEMP, "Temperature *Updating*" );
-    
-    if ( iNumLoop > _iMaxCoolingTime ) break;
+      
+    timespec timeValCur;
+    clock_gettime( CLOCK_REALTIME, &timeValCur );
+    int iWaitTime = (timeValCur.tv_nsec - timeVal1.tv_nsec) / 1000000 + 
+     ( timeValCur.tv_sec - timeVal1.tv_sec ) * 1000; // in milliseconds
+    if ( iWaitTime > _iMaxCoolingTime ) break;
     
     // This data will be modified by select(), so need to be reset
     timeval timeSleepMicro = timeSleepMicroOrg; 
@@ -669,7 +672,7 @@ int PrincetonServer::setupCooling()
   timespec timeVal2;
   clock_gettime( CLOCK_REALTIME, &timeVal2 );
   double fCoolingTime = (timeVal2.tv_nsec - timeVal1.tv_nsec) * 1.e-6 + ( timeVal2.tv_sec - timeVal1.tv_sec ) * 1.e3;    
-  printf("Cooling Time = %6.3lf ms\n", fCoolingTime);  
+  printf("Cooling Time = %6.1lf ms\n", fCoolingTime);  
   
   displayParamIdInfo(_hCam, PARAM_TEMP, "Temperature After Cooling" );
   
@@ -1199,7 +1202,7 @@ int PrincetonServer::processFrame()
     //int                 iWidth   = (int) ( (_configCamera.width()  + _configCamera.binX() - 1 ) / _configCamera.binX() );
     //int                 iHeight  = (int) ( (_configCamera.height() + _configCamera.binY() - 1 ) / _configCamera.binY() );  
     const uint16_t*     pEnd       = (const uint16_t*) ( (unsigned char*) pFrame->data() + _configCamera.frameSize() );
-    const int           iNumPixels = (int) (_configCamera.frameSize() / sizeof(uint16_t) );
+    const uint64_t      uNumPixels = (uint64_t) (_configCamera.frameSize() / sizeof(uint16_t) );
     
     uint64_t            uSum    = 0;
     uint64_t            uSumSq  = 0;
@@ -1209,8 +1212,8 @@ int PrincetonServer::processFrame()
       uSumSq += ((uint32_t)*pPixel) * ((uint32_t)*pPixel);
     }
       
-    printf( "Frame Avg Value = %.2lf  Std = %.2lf\n", (double) uSum / (double) iNumPixels, 
-      sqrt( (iNumPixels * uSumSq - uSum * uSum) / (double)(iNumPixels*iNumPixels)) );
+    printf( "Frame Avg Value = %.2lf  Std = %.2lf\n", (double) uSum / (double) uNumPixels, 
+      sqrt( (uNumPixels * uSumSq - uSum * uSum) / (double)(uNumPixels*uNumPixels)) );
   }  
         
   return 0;
