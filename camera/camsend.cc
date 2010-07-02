@@ -30,6 +30,10 @@
 
 #define USE_TCP
 
+#define OPALGAIN_MIN      1.
+#define OPALGAIN_MAX      32.
+#define OPALGAIN_DEFAULT  30.
+
 using namespace PdsLeutron;
 
 static unsigned long long gettime(void)
@@ -61,8 +65,9 @@ static void help(const char *progname)
     "--shutter: use external shutter.\n"
     "--camera {0|1|2}: choose Opal (0) or Pulnix (1) or FCCD (2).\n"
     "--noccd: enable data module test pattern (FCCD only).\n"
+    "--opalgain: digital gain (%4.2f - %5.2f, default %5.2f) (Opal only).\n"
     "--help: display this message.\n"
-    "\n", progname, progname);
+    "\n", progname, progname, OPALGAIN_MIN, OPALGAIN_MAX, OPALGAIN_DEFAULT);
   return;
 }
 
@@ -97,6 +102,8 @@ int main(int argc, char *argv[])
   int noccd = 0;
   double fps = 0;
   int ifps =0;
+  double opalgain = OPALGAIN_DEFAULT;
+  unsigned uopalgain100 = (unsigned) int(opalgain * 100.);
   int usplice = 0;
   int i, ret, sockfd=-1;
   long nimages = 0;
@@ -197,6 +204,16 @@ int main(int argc, char *argv[])
     } else if (strcmp("--fps",argv[i]) == 0) {
       fps = strtod(argv[++i],NULL);
       ifps = int(fps);
+    } else if (strcmp("--opalgain",argv[i]) == 0) {
+      double dtmp = strtod(argv[++i],NULL);
+      if ((dtmp >= OPALGAIN_MIN) && (dtmp <= OPALGAIN_MAX)) {
+        opalgain = dtmp;
+        uopalgain100 = (unsigned) int(opalgain * 100.);
+      } else {
+        fprintf(stderr, "ERROR: opalgain value %s out of range, try --help.\n",
+            argv[i]);
+        return -1;
+      }
     } else if (strcmp("--count",argv[i]) == 0) {
       nimages = atol(argv[++i]);
     } else if (strcmp("--bpp",argv[i]) == 0) {
@@ -349,13 +366,12 @@ int main(int argc, char *argv[])
   if (!extshutter && camera_choice==0) {
     //    unsigned _mode=0, _fps=100000/fps, _it=540/10;
     unsigned _mode=0, _fps=unsigned(100000/fps), _it=_fps-10;
-    unsigned _gain=3000;
     SetParameter ("Operating Mode","MO",_mode);
     SetParameter ("Frame Period","FP",_fps);
     // SetParameter ("Frame Period","FP",813);
     SetParameter ("Integration Time","IT", _it);
     // SetParameter ("Integration Time","IT", 810);
-    SetParameter ("Digital Gain","GA", _gain);
+    SetParameter ("Digital Gain","GA", uopalgain100);
   }
 
   printf("done.\n"); 
