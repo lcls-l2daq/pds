@@ -602,6 +602,15 @@ public:
 
     _er.Reset();
 
+    // Problem in Reset() function: It doesn't reset the set and clear masks
+    // workaround: manually call the clear function to set and clear all masks
+    for (unsigned ram=0;ram<2;ram++) {
+      for (unsigned iopcode=0;iopcode<=EVR_MAX_EVENT_CODE;iopcode++) {
+        for (unsigned jSetClear=0;jSetClear<EVR_MAX_PULSES;jSetClear++)
+          _er.ClearPulseMap(ram, iopcode, jSetClear, jSetClear, jSetClear);
+      }
+    }    
+
     // setup map ram
     int ram = 0;
     int enable = l1xmitGlobal->enable();
