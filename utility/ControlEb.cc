@@ -32,7 +32,7 @@ void        ControlEb::reset(const Allocation& alloc)
 }
 
 Transition* ControlEb::build(const Node& hdr,
-			     const Transition& tr)
+           const Transition& tr)
 {
   cancel();
 
@@ -44,7 +44,7 @@ Transition* ControlEb::build(const Node& hdr,
       _remaining.clearBit(k);
       if (_remaining.isZero()) return _pending;
       else break;
-    }	
+    } 
   }
 
   start();
@@ -58,7 +58,7 @@ void ControlEb::expired() {
 Task* ControlEb::task() { return _task; }
 
 #ifdef BUILD_PRINCETON
-unsigned ControlEb::duration() const { return 30000; }
+unsigned ControlEb::duration() const { return 60000; }
 #else
 unsigned ControlEb::duration() const { return 5000; }
 #endif
@@ -68,8 +68,8 @@ unsigned ControlEb::repetitive() const { return 0; }
 Allocation ControlEb::remaining() const
 {
   Allocation alloc(_alloc->partition(),
-		   _alloc->dbpath(),
-		   _alloc->partitionid());
+       _alloc->dbpath(),
+       _alloc->partitionid());
   for(unsigned k=0; k<_alloc->nnodes(); k++) {
     if (_remaining.hasBitSet(k))
       alloc.add(*_alloc->node(k));
