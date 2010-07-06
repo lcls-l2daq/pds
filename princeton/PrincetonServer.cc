@@ -542,28 +542,30 @@ int PrincetonServer::initTest()
  */
 int PrincetonServer::initClockSaving()
 {
+  // !! Turn off the long exposure
+  return 0;
+  
   if ( _bClockSaving )
     deinitClockSaving();
     
   LockCameraData lockInitClockSaving("PrincetonServer::initClockSaving()");
   
-  // !! Temp setting: Turn off the long exposure
-//   rgn_type region;
-//   region.s1   = 0;
-//   region.s2   = 127;
-//   region.sbin = 1;
-//   region.p1   = 0;
-//   region.p2   = 127;
-//   region.pbin = 1;   
+  rgn_type region;
+  region.s1   = 0;
+  region.s2   = 127;
+  region.sbin = 1;
+  region.p1   = 0;
+  region.p2   = 127;
+  region.pbin = 1;   
 
-//   uns32 uFrameSize;
-//   rs_bool bStatus = 
-//    pl_exp_setup_seq(_hCam, 1, 1, &region, TIMED_MODE, _iClockSavingExpTime, &uFrameSize);
-//   if (!bStatus)
-//   {
-//     printPvError("PrincetonServer::initClockSaving(): pl_exp_setup_seq() failed!\n");
-//     return ERROR_PVCAM_FUNC_FAIL;
-//   }
+  uns32 uFrameSize;
+  rs_bool bStatus = 
+  pl_exp_setup_seq(_hCam, 1, 1, &region, TIMED_MODE, _iClockSavingExpTime, &uFrameSize);
+  if (!bStatus)
+  {
+   printPvError("PrincetonServer::initClockSaving(): pl_exp_setup_seq() failed!\n");
+   return ERROR_PVCAM_FUNC_FAIL;
+  }
          
   if ( _iDebugLevel >= 3 )
     printf( "== initClockSaving == \n" );
@@ -574,6 +576,9 @@ int PrincetonServer::initClockSaving()
 
 int PrincetonServer::deinitClockSaving()
 { 
+  // !! Temp setting: Turn off the long exposure
+  return 0;
+  
   if ( !_bClockSaving )
     return 0;
         
@@ -583,16 +588,15 @@ int PrincetonServer::deinitClockSaving()
   // Note: if there is any normal frame data, it should have been retrieved before this function
   resetFrameData(true); 
         
-  // !! Temp setting: Turn off the long exposure
-//   /* Stop the acquisition */
-//   rs_bool bStatus = 
-//     pl_exp_abort(_hCam, CCS_HALT);
-  
-//   if (!bStatus)
-//   {
-//     printPvError("PrincetonServer::deinitCapture():pl_exp_abort() failed");    
-//     return ERROR_PVCAM_FUNC_FAIL;
-//   }    
+  /* Stop the acquisition */
+  rs_bool bStatus = 
+   pl_exp_abort(_hCam, CCS_HALT);
+
+  if (!bStatus)
+  {
+   printPvError("PrincetonServer::deinitCapture():pl_exp_abort() failed");    
+   return ERROR_PVCAM_FUNC_FAIL;
+  }    
     
   if ( _iDebugLevel >= 3 )
     printf( "== deinitClockSaving ==\n" );
