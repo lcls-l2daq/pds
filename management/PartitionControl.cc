@@ -196,6 +196,9 @@ bool PartitionControl::set_partition(const char* name,
   return true;
 }
 
+const Allocation& PartitionControl::partition() const
+{ return _partition; }
+
 void PartitionControl::set_target_state(State state)
 {
   printf("PartitionControl::set_target_state curr %s  prevtgt %s  tgt %s\n",
@@ -229,6 +232,9 @@ void  PartitionControl::set_experiment(unsigned experiment) {
 void  PartitionControl::use_run_info(bool r) {
   _use_run_info=r;
 }
+
+unsigned PartitionControl::get_transition_env(TransitionId::Value tr) const
+{ return _transition_env[tr]; }
 
 void  PartitionControl::set_transition_env(TransitionId::Value tr, unsigned env)
 { _transition_env[tr] = env; }

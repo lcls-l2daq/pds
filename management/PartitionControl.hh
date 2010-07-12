@@ -31,6 +31,7 @@ namespace Pds {
 			    const char* db_path,
 			    const Node* nodes,
 			    unsigned    nnodes);
+    const Allocation& partition() const;
   public:
     virtual void  set_target_state (State);
   public:
@@ -38,6 +39,8 @@ namespace Pds {
     State current_state    ()             const;
     static const char* name(State);
   public:
+    unsigned get_transition_env (TransitionId::Value) const;
+
     void  reconfigure      ();
     void  set_transition_env    (TransitionId::Value, unsigned);
     void  set_transition_payload(TransitionId::Value, Xtc*, void*);
