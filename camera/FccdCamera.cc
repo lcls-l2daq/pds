@@ -43,7 +43,6 @@ void FccdCamera::Config(const FccdConfigType& config)
 }  
 
 unsigned FccdCamera::output_resolution() const 
-// { return Pds::FCCD::FccdConfigV1::Sixteen_bit; } FIXME
 { return Pds::FCCD::FccdConfigV2::Eight_bit; }
 
 unsigned    FccdCamera::pixel_rows         () const
@@ -209,31 +208,16 @@ int FccdCamera::PicPortCameraInit() {
   };
 
   char *singleCmd[] = {
-    // -- begin steps 2 - 5
-    // -- 0x08 Internal Exposure time
-    // ---- The time is in milliseconds
-    // "08:00:00:01",
-    // -- 0x09 Exposure Cycle Time
-    // ---- If you set aa, bb, and cc to zero, the repeat exposures stop.
-    "09:00:00:00",
     // -- Single Mode = Focus bit = 0 and Number of Images = 1
     // ----- Number of Exposures to take after a trigger = 1
     "0e:00:01",
     // ----- Clear focus bit
     "13:00",
-    // -- Make sure the Exposure Delay is set to zero (Should be default condition)
-    "0f:00:00:00",
-    // -- mask out all of the data coming form the fCRICs
-    "10:04:ff:ff",
-    "11:04:ff:ff",
     // empty string marks end of list
     ""
   };
 
   char *focusCmd[] = {
-    // -- Not sure if this is needed...
-    "08:00:00:10",
-    "09:00:02:00",
     // ----- Continuous trigger mode (focus):
     // ----- Specify zero images
     "0e:00:00",
@@ -518,15 +502,21 @@ int FccdCamera::PicPortCameraInit() {
     "11:f0",
     "10:f0",
     "11:f0",
+    // -- turn on CCDs here?
+    "04:01",
     // -- Descramble right to left
     "10:03:07",
     "11:03:07",
-    // -- turn on CCDs here?
-    "04:01",
     // empty string marks end of list
     ""
   };
-    
+
+  // enable manual configuration
+  if (_inputConfig->outputMode() == 1) {
+    printf(">> Output mode 1: Skip %s\n", __PRETTY_FUNCTION__);
+    return (0);
+  }
+
   //
   // initialize FCCD via CameraLink serial commands
   //
@@ -620,28 +610,6 @@ int FccdCamera::PicPortCameraInit() {
 
   if (ret >= 0) {
     printf(">> Set variable portion of FCCD configuration...\n");
-
-    printf(">> Set internal exposure time...\n");
-    sprintf(sendBuf, "08:00:00:%02x", _inputConfig->exposureTime());
-    if (SendFccdCommand(sendBuf) < 0) {
-      printf(">> Failed to set internal exposure time\n");
-    }
-
-    if (_inputConfig->focusMode()) {
-      printf(">> Focus mode is enabled\n");
-      for (trace = 0; *focusCmd[trace]; trace++) {
-        if ((ret = SendFccdCommand(focusCmd[trace])) < 0) {
-          break;
-        }
-      }
-    } else {
-      printf(">> Focus mode is NOT enabled\n");
-      for (trace = 0; *singleCmd[trace]; trace++) {
-        if ((ret = SendFccdCommand(singleCmd[trace])) < 0) {
-          break;
-        }
-      }
-    }
 
     if (_inputConfig->ccdEnable()) {
       printf(" >> Set the voltages... \n");
@@ -743,9 +711,39 @@ int FccdCamera::PicPortCameraInit() {
       (void) SendFccdCommand("12");
     }
 
-    printf(">> Set camera link output source...\n");
-    sprintf(sendBuf, "03:%02d", _inputConfig->outputMode());
-    ret = SendFccdCommand(sendBuf);
+    if (_inputConfig->focusMode()) {
+      printf(">> Focus mode is enabled\n");
+      for (trace = 0; *focusCmd[trace]; trace++) {
+        if ((ret = SendFccdCommand(focusCmd[trace])) < 0) {
+          break;
+        }
+      }
+    } else {
+      printf(">> Focus mode is NOT enabled\n");
+      for (trace = 0; *singleCmd[trace]; trace++) {
+        if ((ret = SendFccdCommand(singleCmd[trace])) < 0) {
+          break;
+        }
+      }
+    }
+
+    printf(">> Set internal exposure time...\n");
+    sprintf(sendBuf, "08:00:00:%02x", _inputConfig->exposureTime());
+    if (SendFccdCommand(sendBuf) < 0) {
+      printf(">> Failed to set internal exposure time\n");
+    }
+
+    if (_inputConfig->focusMode()) {
+      printf(">> Set exposure cycle time to 512 ms...\n");
+      if (SendFccdCommand("09:00:02:00") < 0) {
+        printf(">> Failed to set exposure cycle time\n");
+      }
+    } else {
+      printf(">> Set exposure cycle time to 0 ms...\n");
+      if (SendFccdCommand("09:00:00:00") < 0) {
+        printf(">> Failed to set exposure cycle time\n");
+      }
+    }
   }
 
   return (ret);
