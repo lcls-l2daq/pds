@@ -23,17 +23,18 @@ namespace RceFBld {
 
   class ProxyMsg {
     public:
-      ProxyMsg() : numberOfLinks(0) {};
+      ProxyMsg() : state(UnMapped) {};
       ~ProxyMsg() {};
 
     public:
       enum {MaxEventLevelServers=64, ProxyPort=5000};
-      bool        byteOrderIsBigEndian;
+      enum {ConfigChunkSize=(1<<13)};
+      enum {UnMapped, Mapped};
+      uint32_t    state;
+      uint32_t    byteOrderIsBigEndian;
       uint32_t    numberOfEventLevels;
       mcaddress   mcAddrs[MaxEventLevelServers];
       mcaddress   evrMcAddr;
-      uint32_t    payloadSizePerLink;
-      uint32_t    numberOfLinks;
       Pds::Src    procInfoSrc;
       Pds::Src    detInfoSrc;
       Pds::TypeId contains;
@@ -43,7 +44,6 @@ namespace RceFBld {
 
   class ProxyReplyMsg {
 
-    public:
     public:
       ProxyReplyMsg() : type(Done), damage(Pds::Damage(0)) {};
       ~ProxyReplyMsg() {};

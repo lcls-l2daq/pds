@@ -7,6 +7,9 @@
 #ifndef CSPADCONFIGTYPE_HH_
 #define CSPADCONFIGTYPE_HH_
 
+#include "pdsdata/xtc/TypeId.hh"
+#include "pdsdata/cspad/ConfigV1.hh"
+
 typedef Pds::CsPad::ConfigV1 CsPadConfigType;
 
 static Pds::TypeId _CsPadConfigType(Pds::TypeId::Id_CspadConfig,

@@ -4,6 +4,7 @@
 #include <string>
 #include <vector>
 #include "RceProxyMsg.hh"
+#include "pdsdata/xtc/DetInfo.hh"
 
 namespace RcePnccd
 {
@@ -24,31 +25,40 @@ namespace Pds
   class RceProxyManager
   {
     public:
-      RceProxyManager(CfgClientNfs& cfg, const std::string& sRceIp, const std::string& sConfigFile, int iNumLinks, int iPayloadSizePerLink,
-          TypeId typeidData, int iTsWidth, int iPhase, const Node& selfNode, int iDebugLevel);
+      RceProxyManager(CfgClientNfs&, const std::string&, const std::string&,
+          TypeId, DetInfo::Device, int, int, const Node&, int);
       ~RceProxyManager();
 
       Appliance& appliance() { return *_pFsm; }
 
       // event handlers
-      int onActionMap(const Allocation& allocation);
-      int onActionUnmap(const Allocation& allocation, Damage& damageFromRce);
-      int onActionConfigure(Damage& damageFromRce);           
+      int onActionMap(const Allocation&);
+      int onActionUnmap(const Allocation&, Damage&);
+      int onActionConfigure(Damage&);
+
+      TypeId&                 typeId() { return _typeidData;}
+      DetInfo::Device        device() { return _device;}
+      void*                  config() { return _config;}
+      unsigned               configSize() { return _configSize;}
 
     private:
-      int sendMessageToRce(const RceFBld::ProxyMsg& msg, RceFBld::ProxyReplyMsg& msgReply);    
+      enum {chunkSize=1<<13};
+      int sendMessageToRce(const RceFBld::ProxyMsg& msg, RceFBld::ProxyReplyMsg& msgReply);
+      int sendConfigToRce(void*, unsigned, RceFBld::ProxyReplyMsg&);
 
       std::string           _sRceIp;
       std::string           _sConfigFile;
-      int                   _iNumLinks;
-      int                   _iPayloadSizePerLink;
       TypeId                _typeidData;
+      DetInfo::Device       _device;
       int                   _iTsWidth;
       int                   _iPhase;
       const Node&           _selfNode;
       int                   _iDebugLevel;
 
+
       CfgClientNfs&         _cfg;
+      void*                 _config;
+      unsigned              _configSize;
       Fsm*                  _pFsm;
       //     RceProxyConfigAction* _pActionConfig;
       Action*               _pActionConfig;
@@ -62,8 +72,8 @@ namespace Pds
       static RceFBld::ProxyMsg    _msg;
 
       /* static private functions */
-      static int setupProxyMsg( const Ins& insEvr, const std::vector<Ins>& vInsEvent, int iNumLinks,
-          int iPayloadSizePerLink, const ProcInfo& procInfo, const Src& srcProxy, TypeId typeidData, int iTsWidth, int iPhase );
+      static int setupProxyMsg( const Ins& insEvr, const std::vector<Ins>& vInsEvent,
+          const ProcInfo& procInfo, const Src& srcProxy, TypeId typeidData, int iTsWidth, int iPhase );
   };
 
 } // namespace Pds
