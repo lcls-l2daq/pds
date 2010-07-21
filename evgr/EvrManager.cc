@@ -286,8 +286,9 @@ public:
       static const int NEVENTPRINT = 1000;      
       if (_evtCounter%NEVENTPRINT == 0) 
       {
-        float dfid = fe.TimestampHigh-_lastfid;
-        if (fe.TimestampHigh<_lastfid) dfid += float(Pds::TimeStamp::MaxFiducials);
+        float dfid = (_lastfid < fe.TimestampHigh) ? 
+	  fe.TimestampHigh-_lastfid :
+	  fe.TimestampHigh+Pds::TimeStamp::MaxFiducials-_lastfid;
         float period=dfid/(float)(NEVENTPRINT)/360.0;
         float rate=0.0;
         if (period>1.e-8) rate=1./period;
