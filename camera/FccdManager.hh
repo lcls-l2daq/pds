@@ -25,7 +25,7 @@ namespace Pds {
     FrameServer& server();
 
   private: // out of order checking
-    // Pds::Damage _handle    ();
+    Pds::Damage _handle    ();
     void        _register  ();
     void        _unregister();
 
@@ -50,7 +50,7 @@ namespace Pds {
     FccdFrameServer*           _server;
     PdsLeutron::FccdCamera*  _camera;
     //  buffer management
-    // bool            _outOfOrder;
+    bool            _outOfOrder;
     GenericPool*    _occPool;
     unsigned        _grabberId;
   };

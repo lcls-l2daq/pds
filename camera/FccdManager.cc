@@ -36,12 +36,14 @@ FccdManager::FccdManager(const Src& src,
   CameraManager(src, new FccdConfig(src)),
   _server      (new FccdFrameServer(src,*_splice)),
   _camera    (0),
+  _occPool     (new GenericPool(sizeof(Occurrence),1)),
   _grabberId (grabberId)
 {
 }
 
 FccdManager::~FccdManager()
 {
+  delete   _occPool;
   delete   _server;
 }
 
@@ -75,9 +77,33 @@ void FccdManager::_configure(const void* buff)
   }
 }  
 
+Pds::Damage FccdManager::_handle()
+{
+  //  Trigger a clear readout
+//   if (_camera->CurrentCount == 2001)
+//     _outOfOrder = false;
+//   if (_camera->CurrentCount == 2000)
+//     _camera->CurrentCount++;
+
+  // FCCD frame counter is 16-bit, so limit comparison to 16-bit
+  if (!_outOfOrder &&
+      ((0xffff & _camera->CurrentCount) != (0xffff & _nposts))) {
+    _outOfOrder = true;
+
+    Pds::Occurrence* occ = new (_occPool)
+      Pds::Occurrence(Pds::OccurrenceId::ClearReadout);
+    appliance().post(occ);
+
+    printf("Camera frame number(%ld) != Server number(%d)\n",
+     0xffff & _camera->CurrentCount, 0xffff & _nposts);
+  }
+
+  return Pds::Damage(_outOfOrder ? (1<<Pds::Damage::OutOfOrder) : 0);
+}
+
 void FccdManager::_register()
 {
-// _outOfOrder = false;
+  _outOfOrder = false;
 }
 
 void FccdManager::_unregister()

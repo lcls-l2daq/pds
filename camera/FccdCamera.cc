@@ -18,6 +18,8 @@
 
 #include <new>
 
+#define RESET_COUNT 0x80000000
+
 using namespace PdsLeutron;
 
 FccdCamera::FccdCamera(char *id, unsigned grabberId, const char *grabberName) :
@@ -162,7 +164,8 @@ int FccdCamera::SendFccdCommand(const char *cmd)
 
 int FccdCamera::PicPortCameraInit() {
   char sendBuf[SENDBUF_MAXLEN];
-  int ret, trace;
+  int ret = 0;
+  int trace;
   char *initCmd[] = {
     // -- 
     // --	SET State Parameters to fix fCRIC Pipe
@@ -728,7 +731,10 @@ int FccdCamera::PicPortCameraInit() {
     }
 
     printf(">> Set internal exposure time...\n");
-    sprintf(sendBuf, "08:00:00:%02x", _inputConfig->exposureTime());
+    sprintf(sendBuf, "08:%02x:%02x:%02x",
+            (_inputConfig->exposureTime() & 0xff0000) >> 16,
+            (_inputConfig->exposureTime() & 0x00ff00) >> 8,
+            (_inputConfig->exposureTime() & 0x0000ff));
     if (SendFccdCommand(sendBuf) < 0) {
       printf(">> Failed to set internal exposure time\n");
     }
@@ -746,11 +752,33 @@ int FccdCamera::PicPortCameraInit() {
     }
   }
 
+  CurrentCount = RESET_COUNT;
+
   return (ret);
 }
 
+// We redefine this API to be able to detect dropped/repeated frames
+// because the frame grabber is not very good at that. To do that we
+// read the 16 bit signature embedded in the frame by the FCCD.
 FrameHandle* 
 FccdCamera::PicPortFrameProcess(FrameHandle *pFrame) {
-  // do nothing, currently
+  unsigned long Count;
+
+  if (pFrame && pFrame->data) {
+    unsigned short *data = (unsigned short *)pFrame->data;
+    Count = (unsigned long)data[0];
+
+    if (CurrentCount==RESET_COUNT) {
+      CurrentCount = 0;
+      LastCount = Count;
+    }
+    else {
+      CurrentCount = Count - LastCount;
+    }
+  } else {
+    printf("%s: NULL pFrame or pFrame->data\n", __PRETTY_FUNCTION__);
+  }
+
   return pFrame;
 }
+
