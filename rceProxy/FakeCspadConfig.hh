@@ -1,3 +1,4 @@
+#include "pdsdata/cspad/ElementV1.hh"
 namespace Pds {
 
   enum {compBias1=0xff, compBias2=0xc8, iss2=0x3c, iss5=0x25, vref=0xba};
@@ -89,8 +90,8 @@ namespace Pds {
 
   class pCfg {
     public:
-      enum {MattSays=12};
-      pCfg() : rd(0), ec(40), arm(Pds::CsPad::RunAndSendTriggeredByTTL), tdi(4), ppq((287129 * 4)-firmwareHeaderSizeInBytes+MattSays), bam(0), am(0xffffffff), qm(15) {};
+      enum {LastWordSize=4};
+      pCfg() : rd(0), ec(40), arm(Pds::CsPad::RunAndSendTriggeredByTTL), tdi(4), ppq(sizeof(Pds::Cspad::ElementV1)+LastWordSize), bam(0), am(0xffffffff), qm(15) {};
     public:
       void testDataIndex(uint32_t i) {tdi=i;}
       void quadMask(uint32_t m) {qm=m;}

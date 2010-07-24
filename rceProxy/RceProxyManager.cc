@@ -65,9 +65,10 @@ class RceProxyUnmapAction : public Action
     
     virtual InDatagram* fire(InDatagram* in) 
     {
-      if ( _damageFromRce.value() != 0 )
+      if ( _damageFromRce.bits() != 0 ) {
         in->datagram().xtc.damage.increase(_damageFromRce.value());
-        
+        in->datagram().xtc.damage.userBits(_damageFromRce.userBits());
+      }
       return in;
     }
     
@@ -89,10 +90,10 @@ class RceProxyConfigAction : public Action
     {
      // in the long term, we should get this from database - cpo
       //_cfg.fetch(*tr,_epicsArchConfigType, &_config);
+      _damageFromRce = Damage(0);
       int iFail = _manager.onActionConfigure(_damageFromRce);
       if ( iFail != 0 ) {
         _damageFromRce.increase(Damage::UserDefined);
-        _damageFromRce.userBits(0x80);
       }
 
 
@@ -120,8 +121,9 @@ class RceProxyConfigAction : public Action
       in->insert(_cfgtc, _manager.config());
       
       if ( _damageFromRce.value() != 0 ) {
-        in->datagram().xtc.damage.increase(_damageFromRce.value());
-      }
+        in->datagram().xtc.damage.increase(_damageFromRce.bits());
+        in->datagram().xtc.damage.userBits(_damageFromRce.userBits());
+     }
       return in;
     }
 
@@ -406,7 +408,10 @@ int RceProxyManager::sendConfigToRce(void* config, unsigned size, RceFBld::Proxy
     return 8;
   }
 
-  printf( "Received Reply: Damage %d\n", msgReply.damage.value() );
+  printf( "Received Reply: Damage 0x%x\n", msgReply.damage.bits() );
+  if (msgReply.damage.bits() & (1<<Pds::Damage::UserDefined)) {
+    printf( "\tUser Defined Damage 0x%x\n", msgReply.damage.userBits());
+  }
   if (msgReply.type == RceFBld::ProxyReplyMsg::Done) {
     printf("Rce Replied that it is done Config\n");
   } else printf("Unknown reply type from Rce!\n");
@@ -465,7 +470,10 @@ int RceProxyManager::sendMessageToRce(const RceFBld::ProxyMsg& msg, RceFBld::Pro
     return 5;      
   }
   
-  printf( "Received Reply: Damage %d\n", msgReply.damage.value() );
+  printf( "Received Reply: Damage 0x%x\n", msgReply.damage.bits() );
+  if (msgReply.damage.bits() & (1<<Pds::Damage::UserDefined)) {
+    printf( "\tUser Defined Damage 0x%x\n", msgReply.damage.userBits());
+  }
     
   close(iSocket);  
   
