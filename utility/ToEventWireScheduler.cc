@@ -66,7 +66,13 @@ Occurrence* ToEventWireScheduler::forward(Occurrence* tr)
 void ToEventWireScheduler::_flush(InDatagram* dg)
 {
   TrafficDst* n = dg->traffic(_bcast);
-  while (n->send_next(_client)) ;
+  while (n->send_next(_client)) 
+  {
+#ifdef BUILD_PACKAGE_SPACE
+    const struct timespec timeSleep = { 0, 1000000 };
+    nanosleep(&timeSleep, NULL);
+#endif
+  }
   delete n;
 }
 
@@ -76,6 +82,12 @@ void ToEventWireScheduler::_flush()
   while(t != _list.empty()) {
     do {
       TrafficDst* n = t->forward();
+
+#ifdef BUILD_PACKAGE_SPACE
+      const struct timespec timeSleep = { 0, 1000000 };
+      nanosleep(&timeSleep, NULL);
+#endif
+
       if (!t->send_next(_client))
 	delete t->disconnect();
       t = n;
