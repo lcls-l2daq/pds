@@ -51,7 +51,7 @@
 #include "pds/utility/Occurrence.hh"
 #include "pds/utility/OccurrenceId.hh"
 
-#define ACQ_TIMEOUT_MILISEC 5000
+#define ACQ_TIMEOUT_MILISEC 1000
 
 using namespace Pds;
 
@@ -59,10 +59,11 @@ static unsigned cpol1=0;
 static unsigned nprint =0;
 
 
+
 class AcqReader : public Routine {
 public:
   AcqReader(ViSession instrumentId, AcqServer& server, Task* task) :
-    _instrumentId(instrumentId),_task(task),_server(server),_count(0) {
+    _instrumentId(instrumentId),_task(task),_server(server),_count(0),_acqReadEnb(false) {
   }
   void setConfig(const AcqConfigType& config) {
     _nbrSamples=config.horiz().nbrSamples();
@@ -71,27 +72,38 @@ public:
   }
   void resetCount() {_count=0;}
   void start() {_task->call(this);}
+  void acqReadEnbFlag( bool flag) {_acqReadEnb = flag;} 
   virtual ~AcqReader() {}
   void routine() {
     ViStatus status;
+    char message[256];
     status = AcqrsD1_acquire(_instrumentId);		
-    do {      
-      status = AcqrsD1_waitForEndOfAcquisition(_instrumentId,ACQ_TIMEOUT_MILISEC);
-      if (status != (int)ACQIRIS_ERROR_ACQ_TIMEOUT && status != VI_SUCCESS) {
-        char message[256];
+    status = AcqrsD1_waitForEndOfAcquisition(_instrumentId,ACQ_TIMEOUT_MILISEC);
+				if (!_acqReadEnb) {       //to disable acq reading when unconfigured
+				  status = AcqrsD1_stopAcquisition(_instrumentId);
+						if(status != VI_SUCCESS) {
+						  AcqrsD1_errorMessage(_instrumentId,status,message);
+						  printf("AcqReader::Error AcqrsD1_stopAcquisition : %s\n",message);
+				  }
+				} else if (status == (int)ACQIRIS_ERROR_ACQ_TIMEOUT) {
+      _task->call(this);
+    } else {
+      if (status != VI_SUCCESS) {
         AcqrsD1_errorMessage(_instrumentId,status,message);
         printf("%s\n",message);
-      }
-    } while (status);	
-    _server.headerComplete(_totalSize,_count++);
-  }
+        }
+        _server.headerComplete(_totalSize,_count++);   
+    }
+  } 
+ 
 private:
-  ViSession  _instrumentId;
+  ViSession  _instrumentId; 
   Task*      _task;
   AcqServer& _server;
   unsigned   _count;
   unsigned   _nbrSamples;
   unsigned   _totalSize;
+  bool       _acqReadEnb; 
 };
 
 class AcqDma : public DmaEngine {
@@ -230,7 +242,7 @@ public:
       _evrAbsDiffNSec = evrClkDiffNSec;
     
     unsigned long long evrAcqDiff =  abs(_evrAbsDiffNSec - acqdiff);
-    // Time adaptive offset comparison to detect ant dropped trigger --> Adaptive Time Offset @ 6.5 uSec/Sec rate	
+    // Time adaptive offset comparison to detect a dropped trigger --> Adaptive Time Offset @ 6.5 uSec/Sec rate	
     if (_initFlag && ((double)evrAcqDiff> ((double)_evrAbsDiffNSec*6.5e-3)) &&
 	!_outoforder) {  
       if (nprint++<10) {
@@ -247,7 +259,7 @@ public:
     }
 	
 
-    // Handleing the drop
+    // Handle dropped event
     if (_outoforder) 
       dg.xtc.damage.increase(Pds::Damage::OutOfOrder);
     else {
@@ -256,7 +268,6 @@ public:
       _lastEvrClockNSec = evrClockNSec;
     }
 
-    //    _outoforder=0; 
     _initFlag = 1;
     return 0;
   }
@@ -270,6 +281,22 @@ private:
   GenericPool* _occPool;
   unsigned _outoforder;
 };
+
+
+class AcqUnconfigureAction : public AcqDC282Action {
+public:
+  AcqUnconfigureAction(ViSession instrumentId, AcqReader& reader) : AcqDC282Action(instrumentId),_reader(reader) { }
+  InDatagram* fire(InDatagram* in) {	
+    _reader.acqReadEnbFlag(false);
+    return in;
+  }
+private:
+   AcqReader& _reader;     
+
+};
+
+
+
 
 class AcqDisableAction : public AcqDC282Action {
 public:
@@ -488,11 +515,8 @@ public:
     _reader.setConfig(_config);
     _reader.resetCount();
 
-    // now that we're configured, do one-time setup
-    if (_firstTime) {
-      _reader.start();
-      _firstTime=0;
-    }
+    _reader.acqReadEnbFlag(true);
+    _reader.start();
 
     return tr;
   }
@@ -537,7 +561,7 @@ private:
         printf("%s: %s\n",routine,message);
       }
   }
-  AcqReader& _reader;
+  AcqReader& _reader;  
   AcqDma&    _dma;
   AcqConfigType _config;
   Xtc _cfgtc;
@@ -571,7 +595,7 @@ const char* AcqManager::calibPath() {
 
 AcqManager::AcqManager(ViSession InstrumentID, AcqServer& server, CfgClientNfs& cfg) :
   _instrumentId(InstrumentID),_fsm(*new Fsm) {
-  Task* task = new Task(TaskObject("AcqReadout",35)); //default priority=127 (lowest), changed to 35 => (127-35) by Wilfred
+  Task* task = new Task(TaskObject("AcqReadout",35)); //default priority=127 (lowest), changed to 35 => (127-35) 
   AcqReader& reader = *new AcqReader(_instrumentId,server,task);
   AcqDma& dma = *new AcqDma(_instrumentId,reader,server,task);
   server.setDma(&dma);
@@ -582,6 +606,7 @@ AcqManager::AcqManager(ViSession InstrumentID, AcqServer& server, CfgClientNfs& 
   _fsm.callback(TransitionId::L1Accept,&acql1);
   _fsm.callback(TransitionId::Enable ,new AcqEnableAction(acql1));
   _fsm.callback(TransitionId::Disable,new AcqDisableAction(_instrumentId,acql1));
+  _fsm.callback(TransitionId::Unconfigure,new AcqUnconfigureAction(_instrumentId,reader));
 
   ViStatus status = Acqrs_calLoad(_instrumentId,AcqManager::calibPath(),1);
   if(status != VI_SUCCESS) {
