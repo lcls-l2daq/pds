@@ -226,11 +226,13 @@ int RceProxyManager::onActionConfigure(Damage& damageFromRce)
       _configSize = sizeof(pnCCDConfigType);
       _config = calloc(1, _configSize);
       new(_config) pnCCDConfigType(_sConfigFile);
+      printf("New pnCCD config from binary file\n");
       break;
     case DetInfo::Cspad :
       _configSize = sizeof(CsPadConfigType);
       _config = calloc(1, _configSize);
       new(_config) pCfg();    // get this from the database !!!!!!  (jackp)
+      printf("New CsPad config, quadMask 0x%x\n", (unsigned)((pCfg*)_config)->qm);
       break;
     default :
       printf("RceProxyManager.onActionConfigure() Bad device index! %u\n", _device);
