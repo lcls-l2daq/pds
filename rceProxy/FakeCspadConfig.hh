@@ -90,7 +90,7 @@ namespace Pds {
 
   class pCfg {
     public:
-      pCfg() : rd(0), ec(40), arm(Pds::CsPad::RunAndSendTriggeredByTTL), tdi(4), ppq(sizeof(Pds::Cspad::ElementV1)), bam(0), am(0xf), qm(0xf) {};
+      pCfg() : rd(0), ec(40), arm(Pds::CsPad::RunAndSendTriggeredByTTL), tdi(4), ppq(sizeof(Pds::CsPad::ElementV1)), bam(0), am(0xf), qm(0xf) {};
     public:
       void testDataIndex(uint32_t i) {tdi=i;}
       void quadMask(uint32_t m) {qm=m;}
