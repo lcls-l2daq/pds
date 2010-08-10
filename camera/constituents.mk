@@ -16,7 +16,8 @@ libsrcs_camera := DmaSplice.cc \
 		  CameraManager.cc \
 		  Opal1kManager.cc \
 		  FccdManager.cc \
-	          TM6740Manager.cc
+	          TM6740Manager.cc \
+	          PimManager.cc
 
 libsinc_camera := /usr/include/lvsds
 libincs_camera := leutron/include

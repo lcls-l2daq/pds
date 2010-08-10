@@ -231,15 +231,7 @@ unsigned FexFrameServer::_post_frame(void* xtc, const FrameServerMsg* fmsg) cons
 						 frame.depth(), frame.offset(),
 						 frame_data);
   frameXtc.extent += fp->data_size();
-
-  //  return frameXtc.extent;
-  //
-  //  Copy frame readout times at the end
-  //
-  Xtc& timeXtc = *new((char*)frameXtc.next()) Xtc(TypeId(TypeId::Any,0), _xtc.src);
-  *reinterpret_cast<ClockTime*>(timeXtc.alloc(sizeof(ClockTime))) = fmsg->time;
-
-  return frameXtc.extent + timeXtc.extent;
+  return frameXtc.extent;
 }
 
 //

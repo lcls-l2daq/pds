@@ -16,8 +16,6 @@
 #include "pds/config/CfgCache.hh"
 #include "pds/config/CfgClientNfs.hh"
 
-#include "pdsdata/xtc/XtcIterator.hh"
-
 #include <signal.h>
 #include <stdlib.h>
 #include <stdio.h>
@@ -98,59 +96,6 @@ namespace Pds {
   private:
     CameraManager& _mgr;
   };
-
-  int event_diff(const ClockTime& curr, const ClockTime& prev)
-  {
-    const int GIGA = 1000000000;
-    const int EVENT_RATE = GIGA/120;
-    int seconds = curr.seconds() - prev.seconds();
-    int nseconds = curr.nanoseconds() - prev.nanoseconds();
-    long long diff = seconds;
-    diff *= GIGA;
-    diff += nseconds + (EVENT_RATE>>1);
-    return diff / EVENT_RATE;
-  }
-
-  class CameraL1Action : public Action, public XtcIterator {
-  public:
-    CameraL1Action() : prev_evr_time(0,0), prev_frame_time(0,0) {}
-    Transition* fire(Transition* tr) { return tr; }
-    InDatagram* fire(InDatagram* tr) 
-    {
-      Xtc* xtc = &tr->datagram().xtc;
-      if (xtc->damage.value() == 0) {
-	curr_frame_time = 0;
-	iterate(xtc);
-	if (curr_frame_time) {
-	  
-	  int evr_diff   = event_diff( tr->seq.clock(), prev_evr_time  );
-	  int frame_diff = event_diff(*curr_frame_time, prev_frame_time);
-	  
-	  if (evr_diff != frame_diff)
-	    printf("CameraL1 diff  evr(%d)  frame(%d)  ts %u.%09u\n",
-		   evr_diff, frame_diff,
-		   tr->seq.clock().seconds(),
-		   tr->seq.clock().nanoseconds());
-	  
-	  prev_evr_time   =  tr->seq.clock();
-	  prev_frame_time = *curr_frame_time;
-	}
-      }
-      return tr; 
-    }
-    int process(Xtc* xtc) 
-    {
-      if (xtc->contains.id() == TypeId::Id_Xtc)
-	iterate(xtc);
-      else if (xtc->contains.id() == TypeId::Any)
-	curr_frame_time = reinterpret_cast<ClockTime*>(xtc->payload());
-      return 1;
-    }
-  private:
-    ClockTime  prev_evr_time;
-    ClockTime  prev_frame_time;
-    ClockTime* curr_frame_time;
-  };
 };
 
 using namespace Pds;
@@ -169,8 +114,6 @@ CameraManager::CameraManager(const Src& src,
   _fsm->callback(TransitionId::Unconfigure    , new CameraUnconfigAction  (*this));
 //   _fsm->callback(TransitionId::BeginCalibCycle, new CameraBeginCalibAction(*this));
 //   _fsm->callback(TransitionId::EndCalibCycle  , new CameraEndCalibAction  (*this));
-
-  _fsm->callback(TransitionId::L1Accept , new CameraL1Action);
 
   // Unix signal support
   struct sigaction int_action;
@@ -267,10 +210,10 @@ Appliance& CameraManager::appliance() { return *_fsm; }
 
 void CameraManager::handle()
 {
-    timespec ts;
-    clock_gettime(CLOCK_REALTIME, &ts);
 #ifdef SIMULATE_EVR
   // simulate an EVR for testing
+    timespec ts;
+    clock_gettime(CLOCK_REALTIME, &ts);
     ClockTime ctime(ts.tv_sec,ts.tv_nsec);
     Sequence seq(Sequence::Event,TransitionId::L1Accept,ctime,TimeStamp(0,_nposts));
     EvrDatagram datagram(seq, _nposts);
@@ -281,9 +224,7 @@ void CameraManager::handle()
     new Pds::FrameServerMsg(Pds::FrameServerMsg::NewFrame,
 			    camera().GetFrameHandle(),
 			    _nposts,
-			    0,
-			    ts.tv_sec,
-			    ts.tv_nsec);
+			    0);
 
   msg->damage.increase(_handle().value());
 
