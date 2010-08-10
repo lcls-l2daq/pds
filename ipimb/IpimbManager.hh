@@ -8,10 +8,11 @@ namespace Pds {
   class IpimbServer;
   class CfgClientNfs;
   class IpimBoard;
+  class IpimbFex;
 
   class IpimbManager {
   public:
-    IpimbManager(IpimbServer* server[], unsigned nServers, CfgClientNfs** cfg, int* portInfo);
+    IpimbManager(IpimbServer* server[], unsigned nServers, CfgClientNfs** cfg, int* portInfo, IpimbFex&);
     Appliance& appliance();
   private:
     Fsm& _fsm;

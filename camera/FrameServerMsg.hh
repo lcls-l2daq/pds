@@ -3,6 +3,7 @@
 
 #include "pds/service/LinkedList.hh"
 #include "pdsdata/xtc/Damage.hh"
+#include "pdsdata/xtc/ClockTime.hh"
 
 namespace PdsLeutron {
   class FrameHandle;
@@ -17,11 +18,14 @@ namespace Pds {
     FrameServerMsg(Type _type,
 		   PdsLeutron::FrameHandle* _handle,
 		   unsigned _count,
-		   unsigned _offset) :
+		   unsigned _offset,
+		   unsigned _seconds,
+		   unsigned _nseconds) :
       type  (_type),
       handle(_handle),
       count (_count),
       offset(_offset),
+      time  (_seconds,_nseconds),
       damage(0) {}
     
     Type type;
@@ -29,7 +33,8 @@ namespace Pds {
     unsigned count;
     unsigned offset;
     unsigned extent;
-    Damage   damage;
+    ClockTime time;    
+    Damage    damage;
   };
   
 };

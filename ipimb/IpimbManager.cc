@@ -15,6 +15,7 @@
 #include "IpimBoard.hh"
 #include "IpimbManager.hh"
 #include "IpimbServer.hh"
+#include "IpimbFex.hh"
 #include "pdsdata/ipimb/DataV1.hh"
 #include "pdsdata/ipimb/ConfigV1.hh"
 #include "pds/config/CfgClientNfs.hh"
@@ -43,7 +44,7 @@ private:
 
 class IpimbL1Action : public Action {
 public:
-  IpimbL1Action() {}
+  IpimbL1Action(IpimbFex& fex) : _fex(fex) {}
   InDatagram* fire(InDatagram* in) {
     Datagram& dg = in->datagram();
     // todo: may want to validate the datagram here?  but maybe not.
@@ -52,20 +53,20 @@ public:
     if (int d = dg.xtc.damage.value()) {
       printf("Ipimb damage 0x%x\n",d);
     }
-    //    printf("L1 called back with payload ptr %p\n", dg.xtc.payload());
-    //    unsigned* data = (unsigned*)(dg.xtc.payload());
-    //    for (unsigned i=0;i<48;i++) {
-    //      printf("0x%8.8x ",data[i]);
-    //      if ((i+1)%8==0) printf("\n");
-    //  }
-    return in;
+
+    return _fex.process(in);
   }
+private:
+  IpimbFex& _fex;
 };
 
 class IpimbConfigAction : public IpimbAction {
 public:
-  IpimbConfigAction(CfgClientNfs** cfg, IpimbServer* server[], int nServers) :
-    _cfg(cfg), _server(server), _nServers(nServers), _nDamagedConfigures(0),
+  IpimbConfigAction(CfgClientNfs** cfg, IpimbServer* server[], int nServers,
+		    IpimbFex& fex) :
+    _cfg(cfg), _server(server), _nServers(nServers), 
+    _fex(fex),
+    _nDamagedConfigures(0),
     _config(new IpimbConfigType[_nServers]) {}
   ~IpimbConfigAction() {}
   InDatagram* fire(InDatagram* dg) {
@@ -76,6 +77,8 @@ public:
       Xtc _cfgtc = Xtc(_ipimbConfigType, _server[i]->client());
       _cfgtc.extent += sizeof(IpimbConfigType);
       dg->insert(_cfgtc, &_config[i]);
+
+      _fex.recordConfigure(dg, _server[i]->client());
     }
     if (_nDamagedConfigures) {
       printf("*** Found %d ipimb configuration errors\n",_nDamagedConfigures);
@@ -95,7 +98,12 @@ public:
       _config[i].dump();
       if (!_server[i]->configure(_config[i])) {
 	printf("Ipimb server %d configuration was damaged\n", i);
-	_nDamagedConfigures += 1;
+	_nDamagedConfigures ++;
+      }
+
+      if (!_fex.configure(*_cfg[i],*tr)) {
+	printf("Fex configuration was damaged\n");
+	_nDamagedConfigures ++;
       }
     }
     //    printf("fake success back from ipim board class: %d\n", _nerror);
@@ -106,6 +114,7 @@ private:
   CfgClientNfs** _cfg;
   IpimbServer** _server;
   unsigned _nServers;
+  IpimbFex&  _fex;
   unsigned _nDamagedConfigures;
   IpimbConfigType* _config;
 };
@@ -131,7 +140,7 @@ private:
 
 Appliance& IpimbManager::appliance() {return _fsm;}
 
-IpimbManager::IpimbManager(IpimbServer* server[], unsigned nServers, CfgClientNfs** cfg, int* portInfo) :
+IpimbManager::IpimbManager(IpimbServer* server[], unsigned nServers, CfgClientNfs** cfg, int* portInfo, IpimbFex& fex) :
   _fsm(*new Fsm), _nServers(nServers) {
   char portName[12];
   for (unsigned i=0; i<_nServers; i++) {
@@ -144,11 +153,11 @@ IpimbManager::IpimbManager(IpimbServer* server[], unsigned nServers, CfgClientNf
     IpimBoard* ipimBoard = new IpimBoard(portName);
     server[i]->setIpimb(ipimBoard); // this is obviously wrong
   }
-  Action* caction = new IpimbConfigAction(cfg, server, _nServers);
+  Action* caction = new IpimbConfigAction(cfg, server, _nServers, fex);
   _fsm.callback(TransitionId::Configure, caction);
   Action* uncaction = new IpimbUnconfigAction(server, _nServers);
   _fsm.callback(TransitionId::Unconfigure, uncaction);
-  IpimbL1Action& ipimbl1 = *new IpimbL1Action();
+  IpimbL1Action& ipimbl1 = *new IpimbL1Action(fex);
   _fsm.callback(TransitionId::Map, new IpimbAllocAction(cfg, _nServers));
   _fsm.callback(TransitionId::L1Accept,&ipimbl1);
 }
