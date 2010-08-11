@@ -34,6 +34,9 @@
 #define OPALGAIN_MAX      32.
 #define OPALGAIN_DEFAULT  30.
 
+#define OPALEXP_MIN       0.01
+#define OPALEXP_MAX       320.00
+
 using namespace PdsLeutron;
 
 static unsigned long long gettime(void)
@@ -66,8 +69,10 @@ static void help(const char *progname)
     "--camera {0|1|2}: choose Opal (0) or Pulnix (1) or FCCD (2).\n"
     "--noccd: enable data module test pattern (FCCD only).\n"
     "--opalgain: digital gain (%4.2f - %5.2f, default %5.2f) (Opal only).\n"
+    "--opalexp: integration time (%4.2f - %5.2f ms, default frame period minus 0.1) (Opal only).\n"
     "--help: display this message.\n"
-    "\n", progname, progname, OPALGAIN_MIN, OPALGAIN_MAX, OPALGAIN_DEFAULT);
+    "\n", progname, progname, OPALGAIN_MIN, OPALGAIN_MAX, OPALGAIN_DEFAULT,
+                              OPALEXP_MIN, OPALEXP_MAX);
   return;
 }
 
@@ -103,6 +108,7 @@ int main(int argc, char *argv[])
   double fps = 0;
   int ifps =0;
   double opalgain = OPALGAIN_DEFAULT;
+  double opalexp = -1;    // default: calculate based on frame rate
   unsigned uopalgain100 = (unsigned) int(opalgain * 100.);
   int usplice = 0;
   int i, ret, sockfd=-1;
@@ -211,6 +217,15 @@ int main(int argc, char *argv[])
         uopalgain100 = (unsigned) int(opalgain * 100.);
       } else {
         fprintf(stderr, "ERROR: opalgain value %s out of range, try --help.\n",
+            argv[i]);
+        return -1;
+      }
+    } else if (strcmp("--opalexp",argv[i]) == 0) {
+      double dtmp = strtod(argv[++i],NULL);
+      if ((dtmp >= OPALEXP_MIN) && (dtmp <= OPALEXP_MAX)) {
+        opalexp = dtmp;
+      } else {
+        fprintf(stderr, "ERROR: opalexp value %s out of range, try --help.\n",
             argv[i]);
         return -1;
       }
@@ -369,6 +384,10 @@ int main(int argc, char *argv[])
     SetParameter ("Operating Mode","MO",_mode);
     SetParameter ("Frame Period","FP",_fps);
     // SetParameter ("Frame Period","FP",813);
+    if (opalexp > 0) {
+      // exposure (integration time) has been set on cmd line
+      _it = (unsigned) int(opalexp * 100.);
+    }
     SetParameter ("Integration Time","IT", _it);
     // SetParameter ("Integration Time","IT", 810);
     SetParameter ("Digital Gain","GA", uopalgain100);
