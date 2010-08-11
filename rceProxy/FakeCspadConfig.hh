@@ -98,8 +98,8 @@ namespace Pds {
         tdi(4),
         ppq(sizeof(Pds::CsPad::ElementV1) + ASICS*Columns*Rows*sizeof(uint16_t) + 4),
         bam(0),
-        am(0x5),
-        qm(0x4) {};
+        am(0xf),
+        qm(0xf) {};
     public:
       void testDataIndex(uint32_t i) {tdi=i;}
       void quadMask(uint32_t m) {qm=m;}
