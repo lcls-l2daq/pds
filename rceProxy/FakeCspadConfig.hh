@@ -5,7 +5,6 @@ namespace Pds {
   enum {rampcurrR1=0x4, rampCurrR2=0x25, rampCurrRef=0, rampVoltRef=0x61, analogPrst=0xfc};
   enum {vinj=0xba};
   enum {firmwareHeaderSizeInBytes=16};
-  enum { ASICS=16, Columns=185, Rows=194 };
 
   uint8_t myPots[80] = {
       vref, vref, rampcurrR1, 0,
@@ -91,15 +90,7 @@ namespace Pds {
 
   class pCfg {
     public:
-      pCfg() :
-        rd(0),
-        ec(40),
-        arm(Pds::CsPad::RunAndSendTriggeredByTTL),
-        tdi(4),
-        ppq(sizeof(Pds::CsPad::ElementV1) + ASICS*Columns*Rows*sizeof(uint16_t) + 4),
-        bam(0),
-        am(0xf),
-        qm(0xf) {};
+      pCfg() : rd(0), ec(40), arm(Pds::CsPad::RunAndSendTriggeredByTTL), tdi(4), ppq(sizeof(Pds::CsPad::ElementV1)), bam(0), am(0xf), qm(0xf) {};
     public:
       void testDataIndex(uint32_t i) {tdi=i;}
       void quadMask(uint32_t m) {qm=m;}
