@@ -6,6 +6,7 @@
 #include "pdsdata/xtc/XtcIterator.hh"
 #include "pds/service/GenericPool.hh"
 
+#include "pds/config/IpimbConfigType.hh"
 #include "pds/config/IpmFexConfigType.hh"
 #include "pds/config/DiodeFexConfigType.hh"
 
@@ -20,16 +21,17 @@ namespace Pds {
     LusiDiagFex();
     ~LusiDiagFex();
   public:
-    bool        configure      (CfgClientNfs&, Transition&);
+    bool        configure      (CfgClientNfs&, Transition&, const IpimbConfigType&);
     void        recordConfigure(InDatagram*, const Src&);
     InDatagram* process        (InDatagram*);
   public:
     int process(Xtc*);
   private:
-    GenericPool         _pool;
-    IpmFexConfigType*   _ipm_config;
-    DiodeFexConfigType* _pim_config;
-    InDatagram*         _odg;
+    GenericPool            _pool;
+    IpmFexConfigType*      _ipm_config;
+    DiodeFexConfigType*    _pim_config;
+    int                    _cap[4];
+    InDatagram*            _odg;
   };
 };
 

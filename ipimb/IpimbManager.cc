@@ -101,7 +101,7 @@ public:
 	_nDamagedConfigures ++;
       }
 
-      if (!_fex.configure(*_cfg[i],*tr)) {
+      if (!_fex.configure(*_cfg[i],*tr,_config[i])) {
 	printf("Fex configuration was damaged\n");
 	_nDamagedConfigures ++;
       }
