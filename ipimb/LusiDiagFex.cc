@@ -84,8 +84,8 @@ int LusiDiagFex::process(Xtc* xtc)
     s=_cap[2]; fex.channel[2] = (cfg.diode[2].base[s] - data.channel2Volts())*cfg.diode[2].scale[s];
     s=_cap[3]; fex.channel[3] = (cfg.diode[3].base[s] - data.channel3Volts())*cfg.diode[3].scale[s];
     fex.sum = fex.channel[0] + fex.channel[1] + fex.channel[2] + fex.channel[3];
-    fex.xpos = cfg.xscale*(fex.channel[0] - fex.channel[2])/(fex.channel[0] + fex.channel[2]);
-    fex.ypos = cfg.yscale*(fex.channel[1] - fex.channel[3])/(fex.channel[1] + fex.channel[3]);
+    fex.xpos = cfg.yscale*(fex.channel[1] - fex.channel[3])/(fex.channel[1] + fex.channel[3]);
+    fex.ypos = cfg.xscale*(fex.channel[0] - fex.channel[2])/(fex.channel[0] + fex.channel[2]);
   }
   else if (IS_PIM(det)) {
     // keep a copy of the raw data
