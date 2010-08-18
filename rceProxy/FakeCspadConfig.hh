@@ -44,7 +44,7 @@ namespace Pds {
   //rowColShiftPer 0x00000005
   //gainMap        0xffff
 
-  uint32_t myQuad[13] = {2, 1, 2, 1, Pds::CsPad::testData, 0, 0x118, 0x5dc, 0x3c0, 0, 0, 5};
+  uint32_t myQuad[13] = {4, 0, 2, 1, 0, 1, 0x118, 0x5dc, 0x3c0, 0, 0, 5};
 
   class pGain {
     public:
@@ -99,7 +99,7 @@ namespace Pds {
         ppq(sizeof(Pds::CsPad::ElementV1) + ASICS*Columns*Rows*sizeof(uint16_t) + 4),
         bam(0),
         am(0xf),
-        qm(0xf) {};
+        qm(0x7) {};
     public:
       void testDataIndex(uint32_t i) {tdi=i;}
       void quadMask(uint32_t m) {qm=m;}
