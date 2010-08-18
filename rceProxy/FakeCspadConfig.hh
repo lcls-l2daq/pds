@@ -42,9 +42,21 @@ namespace Pds {
   //ampIdle        0x00000000
   //injTotal       0x00
   //rowColShiftPer 0x00000005
-  //gainMap        0xffff
 
-  uint32_t myQuad[13] = {4, 0, 2, 1, 0, 1, 0x118, 0x5dc, 0x3c0, 0, 0, 5};
+  uint32_t myQuad[13] = {
+      4,  //shiftSelect
+      0,  //edgeSelect
+      2, //readClkSet
+      1, //readClkHold
+      0, //dataMode
+      1, //prstSel
+      0x118, //acqDelay
+      0x5dc, //intTime
+      0x3c0, //digDelay
+      0,  //ampIdle
+      0, //injTotal
+      5 //rowColShiftPer
+  };
 
   class pGain {
     public:
@@ -92,14 +104,16 @@ namespace Pds {
   class pCfg {
     public:
       pCfg() :
-        rd(0),
-        ec(40),
+        rd(0),    // runDelay
+        ec(40),   // eventCode (40-45)
+        // activeRunMode (2-3)
         arm(Pds::CsPad::RunAndSendTriggeredByTTL),
-        tdi(4),
+        tdi(4),  // testDataIndex (0-7)
+        // payloadPerQuad
         ppq(sizeof(Pds::CsPad::ElementV1) + ASICS*Columns*Rows*sizeof(uint16_t) + 4),
-        bam(0),
-        am(0xf),
-        qm(0x7) {};
+        bam(0),  // badAsicMask (?)
+        am(0xf), // asicMask (1-15)
+        qm(0xf) {}; // quadMask (1-15)
     public:
       void testDataIndex(uint32_t i) {tdi=i;}
       void quadMask(uint32_t m) {qm=m;}
