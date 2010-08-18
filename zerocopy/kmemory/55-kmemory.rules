@@ -1,2 +1,0 @@
-# UDev rules for the kmemory driver
-KERNEL=="kmemory", NAME="%k", GROUP="root", MODE="0666"

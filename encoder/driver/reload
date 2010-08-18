@@ -1,4 +1,0 @@
-#!/bin/sh
-PWD		:= $(shell pwd)
-PWD/unload
-PWD/reload
