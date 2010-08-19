@@ -81,11 +81,14 @@ int Browser::process(const Xtc& xtc, InDatagramIterator* iter)
   }
 
 
+static int DumpWords=4;
+
+void Browser::setDumpLength(unsigned l) { DumpWords = l>>2; }
+
 int Browser::_dumpBinaryPayload(const Xtc& xtc, InDatagramIterator* iter){
   int advance = xtc.sizeofPayload() >> 2;
   if(advance)
     {
-      const int DumpWords=4;
       //      const int DumpWords=10;
       advance = advance < DumpWords ? advance : DumpWords;
       int remaining = advance;

@@ -21,6 +21,8 @@ class Browser : public XtcIterator
 	    int&);
     int process(const Xtc&,
 		InDatagramIterator*);
+
+    static void setDumpLength(unsigned);
   private:
     int _dumpBinaryPayload(const Xtc& xtc,
 			   InDatagramIterator*);
