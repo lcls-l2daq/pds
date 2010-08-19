@@ -15,6 +15,7 @@ namespace Pds {
   class Src;
   class CfgClientNfs;
   class Transition;
+  class IpimbCapSetting;
 
   class LusiDiagFex : public IpimbFex, XtcIterator {
   public:
@@ -30,7 +31,7 @@ namespace Pds {
     GenericPool            _pool;
     IpmFexConfigType*      _ipm_config;
     DiodeFexConfigType*    _pim_config;
-    int                    _cap[4];
+    IpimbCapSetting*       _cap_config;
     InDatagram*            _odg;
   };
 };
