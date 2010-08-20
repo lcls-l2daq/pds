@@ -106,7 +106,8 @@ namespace Pds {
       pCfg() :
         rd(0),    // runDelay
         ec(40),   // eventCode (40-45)
-        // activeRunMode (2-3)
+        irm(Pds::CsPad::RunButDrop), // inactiveRunMode (1,5)
+        // activeRunMode (2,3,4)
         arm(Pds::CsPad::RunAndSendTriggeredByTTL),
         tdi(4),  // testDataIndex (0-7)
         // payloadPerQuad
@@ -121,6 +122,7 @@ namespace Pds {
     public:
       uint32_t rd;
       uint32_t ec;
+      uint32_t irm;
       uint32_t arm;
       uint32_t tdi;
       uint32_t ppq;
