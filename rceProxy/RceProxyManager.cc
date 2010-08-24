@@ -29,6 +29,7 @@
 
 #include "FakeCspadConfig.hh"
 #include <time.h>
+#include <signal.h>
 
 using namespace Pds;
 using std::string;
@@ -178,6 +179,7 @@ class RceProxyDisableAction : public Action
 };
 
 RceFBld::ProxyMsg RceProxyManager::_msg;
+RceProxyManager* RceProxyManager::_i;
 
 RceProxyManager::RceProxyManager(CfgClientNfs& cfg, const string& sRceIp, const string& sConfigFile,
     TypeId typeidData, DetInfo::Device device, int iTsWidth, int iPhase, const Node& selfNode, int iDebugLevel) :
@@ -185,6 +187,7 @@ RceProxyManager::RceProxyManager(CfgClientNfs& cfg, const string& sRceIp, const 
     _typeidData(typeidData), _device(device), _iTsWidth(iTsWidth),
     _iPhase(iPhase),  _selfNode(selfNode), _iDebugLevel(iDebugLevel), _cfg(cfg), _config(0)
 {
+  registerInstance(this);
   _pFsm            = new Fsm();
   _pActionMap      = new RceProxyAllocAction(*this, cfg);
   _pActionUnmap    = new RceProxyUnmapAction(*this);
@@ -268,9 +271,23 @@ int RceProxyManager::onActionUnmap(const Allocation& alloc, Damage& damageFromRc
   return 0;  
 }
 
+void sigHandler( int signal ) {
+  psignal( signal, "Signal received: ");
+  RceFBld::ProxyMsg msgUnmap;
+  msgUnmap.state = RceFBld::ProxyMsg::UnMapped;
+  msgUnmap.byteOrderIsBigEndian = 0;
+  RceFBld::ProxyReplyMsg msgReply;
+  RceProxyManager* mgr = RceProxyManager::instance();
+  int iFail = mgr->sendMessageToRce( msgUnmap, msgReply );
+  if ( iFail != 0 ) {
+    printf("Danger! Danger! sending unmap to RCE failed!\n");
+  }
+}
+
 int RceProxyManager::onActionMap(const Allocation& alloc)
 {
   unsigned partition= alloc.partitionid();
+  signal( SIGINT, sigHandler );
 
   //  setup EVR server
   Ins insEvr(StreamPorts::event(partition, Level::Segment));

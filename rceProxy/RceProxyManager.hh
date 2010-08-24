@@ -35,15 +35,18 @@ namespace Pds
       int onActionMap(const Allocation&);
       int onActionUnmap(const Allocation&, Damage&);
       int onActionConfigure(Damage&);
+      int sendMessageToRce(const RceFBld::ProxyMsg& msg, RceFBld::ProxyReplyMsg& msgReply);
 
       TypeId&                 typeId() { return _typeidData;}
       DetInfo::Device        device() { return _device;}
       void*                  config() { return _config;}
       unsigned               configSize() { return _configSize;}
+      static void            registerInstance(RceProxyManager* i) {_i=i;}
+      static RceProxyManager* instance() { return _i; }
+      static RceProxyManager* _i;
 
     private:
       enum {chunkSize=1<<13};
-      int sendMessageToRce(const RceFBld::ProxyMsg& msg, RceFBld::ProxyReplyMsg& msgReply);
       int sendConfigToRce(void*, unsigned, RceFBld::ProxyReplyMsg&);
 
       std::string           _sRceIp;
