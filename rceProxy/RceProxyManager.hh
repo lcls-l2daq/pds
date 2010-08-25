@@ -5,6 +5,7 @@
 #include <vector>
 #include "RceProxyMsg.hh"
 #include "pdsdata/xtc/DetInfo.hh"
+#include "pds/utility/Transition.hh"
 
 namespace RcePnccd
 {
@@ -34,7 +35,7 @@ namespace Pds
       // event handlers
       int onActionMap(const Allocation&);
       int onActionUnmap(const Allocation&, Damage&);
-      int onActionConfigure(Damage&);
+      int onActionConfigure(Damage&, Transition*);
       int sendMessageToRce(const RceFBld::ProxyMsg& msg, RceFBld::ProxyReplyMsg& msgReply);
 
       TypeId&                 typeId() { return _typeidData;}

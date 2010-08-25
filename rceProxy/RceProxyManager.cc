@@ -27,7 +27,6 @@
 #include "pds/config/pnCCDConfigType.hh"
 #include "pds/config/CsPadConfigType.hh"
 
-#include "FakeCspadConfig.hh"
 #include <time.h>
 #include <signal.h>
 
@@ -92,7 +91,7 @@ class RceProxyConfigAction : public Action
      // in the long term, we should get this from database - cpo
       //_cfg.fetch(*tr,_epicsArchConfigType, &_config);
       _damageFromRce = Damage(0);
-      int iFail = _manager.onActionConfigure(_damageFromRce);
+      int iFail = _manager.onActionConfigure(_damageFromRce, tr);
       if ( iFail != 0 ) {
         _damageFromRce.increase(Damage::UserDefined);
       }
@@ -213,7 +212,7 @@ RceProxyManager::~RceProxyManager()
   delete _pFsm;
 }
 
-int RceProxyManager::onActionConfigure(Damage& damageFromRce)
+int RceProxyManager::onActionConfigure(Damage& damageFromRce, Transition* transition)
 {
   printf("RceProxy Configure transition\n");
   printf( "Sent %d bytes to RCE %s/%d \n", sizeof(_msg), _sRceIp.c_str(), RceFBld::ProxyMsg::ProxyPort);
@@ -234,8 +233,8 @@ int RceProxyManager::onActionConfigure(Damage& damageFromRce)
     case DetInfo::Cspad :
       _configSize = sizeof(CsPadConfigType);
       _config = calloc(1, _configSize);
-      new(_config) pCfg();    // get this from the database !!!!!!  (jackp)
-      printf("New CsPad config, quadMask 0x%x\n", (unsigned)((pCfg*)_config)->qm);
+      _cfg.fetch(*transition,_CsPadConfigType, &_config);
+      printf("Retrieved CsPad configuration, quadMask 0x%x\n", (unsigned)((CsPadConfigType*)_config)->quadMask());
       break;
     default :
       printf("RceProxyManager.onActionConfigure() Bad device index! %u\n", _device);
