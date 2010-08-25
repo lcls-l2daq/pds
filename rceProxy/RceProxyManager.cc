@@ -233,7 +233,7 @@ int RceProxyManager::onActionConfigure(Damage& damageFromRce, Transition* transi
     case DetInfo::Cspad :
       _configSize = sizeof(CsPadConfigType);
       _config = calloc(1, _configSize);
-      _cfg.fetch(*transition,_CsPadConfigType, &_config);
+      _cfg.fetch(*transition,_CsPadConfigType, _config);
       printf("Retrieved CsPad configuration, quadMask 0x%x\n", (unsigned)((CsPadConfigType*)_config)->quadMask());
       break;
     default :

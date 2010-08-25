@@ -43,9 +43,9 @@ namespace Pds {
   //injTotal       0x00
   //rowColShiftPer 0x00000005
 
-  uint32_t myQuad[13] = {
-      4,  //shiftSelect
-      0,  //edgeSelect
+  uint32_t myQuad[18] = {
+      4, 4, 4, 4,  //shiftSelect
+      0, 0, 0, 0, //edgeSelect
       2, //readClkSet
       1, //readClkHold
       0, //dataMode
@@ -74,10 +74,10 @@ namespace Pds {
   class pPots {
     public:
       pPots() {
-        for(int i=0; i<80; i++) pots[i] = myPots[i];
+        for(unsigned i=0; i<sizeof(myPots); i++) pots[i] = myPots[i];
       };
     public:
-      uint8_t pots[80];
+      uint8_t pots[sizeof(myPots)];
   };
 
   class pReadOnly {
@@ -92,10 +92,10 @@ namespace Pds {
   class pQuad {
     public:
       pQuad() {
-        for(int i=0; i<12; i++) wr[i] = myQuad[i];
+        for(unsigned i=0; i<(sizeof(myQuad)/sizeof(uint32_t)); i++) wr[i] = myQuad[i];
       }
     public:
-      uint32_t wr[12];
+      uint32_t wr[sizeof(myQuad)/sizeof(uint32_t)];
       pReadOnly ro;
       pPots     pots;
       pGain     map;
@@ -104,7 +104,7 @@ namespace Pds {
   class pCfg {
     public:
       pCfg() :
-        rd(0),    // runDelay
+        rd(2),    // runDelay
         ec(40),   // eventCode (40-45)
         irm(Pds::CsPad::RunButDrop), // inactiveRunMode (1,5)
         // activeRunMode (2,3,4)
@@ -126,7 +126,7 @@ namespace Pds {
       uint32_t arm;
       uint32_t tdi;
       uint32_t ppq;
-      uint32_t bam;
+      uint64_t bam;
       uint32_t am;
       uint32_t qm;
       pQuad  quads[4];
