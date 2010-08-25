@@ -79,6 +79,8 @@ int FexFrameServer::fetch(char* payload, int flags)
     else
       length = 0;
 
+    _xtc.damage = fmsg->damage;
+
     delete fmsg->handle;
     delete fmsg;
     return length;
