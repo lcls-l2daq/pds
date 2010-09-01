@@ -22,6 +22,7 @@ namespace Pds
   class CfgClientNfs;
   class Action;
   class Damage;
+  class RceCfgCache;
 
   class RceProxyManager
   {
@@ -35,23 +36,22 @@ namespace Pds
       // event handlers
       int onActionMap(const Allocation&);
       int onActionUnmap(const Allocation&, Damage&);
-      int onActionConfigure(Damage&, Transition*);
+      int onActionConfigure(Damage&);
       int sendMessageToRce(const RceFBld::ProxyMsg& msg, RceFBld::ProxyReplyMsg& msgReply);
 
       TypeId&                 typeId() { return _typeidData;}
       DetInfo::Device        device() { return _device;}
-      void*                  config() { return _config;}
-      unsigned               configSize() { return _configSize;}
+    //      void*                  config() { return _config;}
+    //      unsigned               configSize() { return _configSize;}
       static void            registerInstance(RceProxyManager* i) {_i=i;}
       static RceProxyManager* instance() { return _i; }
       static RceProxyManager* _i;
 
     private:
       enum {chunkSize=1<<13};
-      int sendConfigToRce(void*, unsigned, RceFBld::ProxyReplyMsg&);
+      int sendConfigToRce(const void*, unsigned, RceFBld::ProxyReplyMsg&);
 
       std::string           _sRceIp;
-      std::string           _sConfigFile;
       TypeId                _typeidData;
       DetInfo::Device       _device;
       int                   _iTsWidth;
@@ -60,9 +60,7 @@ namespace Pds
       int                   _iDebugLevel;
 
 
-      CfgClientNfs&         _cfg;
-      void*                 _config;
-      unsigned              _configSize;
+      RceCfgCache*          _cfg;
       Fsm*                  _pFsm;
       //     RceProxyConfigAction* _pActionConfig;
       Action*               _pActionConfig;

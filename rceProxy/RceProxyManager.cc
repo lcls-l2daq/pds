@@ -18,10 +18,10 @@
 #include "pds/xtc/CDatagram.hh"
 #include "pds/client/Fsm.hh"
 #include "pds/client/Action.hh"
-#include "pds/config/CfgClientNfs.hh"
 #include "pds/utility/StreamPorts.hh"
 #include "pds/rceProxy/RceProxyManager.hh"
 #include "pds/rceProxy/RceProxyMsg.hh"
+#include "pds/rceProxy/RceCfgCache.hh"
 #include "pdsdata/xtc/DetInfo.hh"
 #include "pdsdata/xtc/TypeId.hh"
 #include "pds/config/pnCCDConfigType.hh"
@@ -37,18 +37,16 @@ using std::vector;
 class RceProxyAllocAction : public Action 
 {
   public:
-    RceProxyAllocAction(RceProxyManager& manager, CfgClientNfs& cfg) : _manager(manager), _cfg(cfg) {}
+    RceProxyAllocAction(RceProxyManager& manager) : _manager(manager) {}
 
     virtual Transition* fire(Transition* tr)     
     {
       const Allocate& alloc = reinterpret_cast<const Allocate&>(*tr);
-      _cfg.initialize(alloc.allocation());
       _manager.onActionMap(alloc.allocation());
       return tr;
     }
   private:
     RceProxyManager& _manager;
-    CfgClientNfs& _cfg;
 };
 
 class RceProxyUnmapAction : public Action
@@ -80,22 +78,39 @@ class RceProxyUnmapAction : public Action
 class RceProxyConfigAction : public Action 
 {
   public:
-    RceProxyConfigAction(RceProxyManager& manager, CfgClientNfs& cfg, int iDebugLevel) :
-      _manager(manager), _cfg(cfg), _iDebugLevel(iDebugLevel), _damageFromRce(0)
+    RceProxyConfigAction(RceProxyManager& manager, 
+			 RceCfgCache& cfg,
+			 const std::string& sConfigFile) :
+      _manager(manager), _cfg(cfg), _sConfigFile(sConfigFile)
       {}
 
     // this is the first "phase" of a transition where
     // all CPUs configure in parallel.RceProxyConfigAction
     virtual Transition* fire(Transition* tr) 
     {
-     // in the long term, we should get this from database - cpo
-      //_cfg.fetch(*tr,_epicsArchConfigType, &_config);
-      _damageFromRce = Damage(0);
-      int iFail = _manager.onActionConfigure(_damageFromRce, tr);
-      if ( iFail != 0 ) {
-        _damageFromRce.increase(Damage::UserDefined);
+      const DetInfo& info = (const DetInfo&)(_cfg.tc().src);
+      switch (info.device()) {
+      case DetInfo::pnCCD :
+	new(_cfg.allocate()) pnCCDConfigType(_sConfigFile);
+	printf("New pnCCD config from binary file\n");
+	break;
+      case DetInfo::Cspad :
+	_cfg.fetch(*tr);
+	printf("Retrieved CsPad configuration, quadMask 0x%x\n", ((CsPadConfigType*)(_cfg.current()))->quadMask());
+	break;
+      default :
+	printf("RceProxyConfigAction.fire() Bad device index! %u\n", info.device());
+        _cfg.damage().increase(Damage::UserDefined);
+	return tr;
       }
 
+      Damage dmg(0);
+      int iFail = _manager.onActionConfigure(dmg);
+      if ( iFail != 0 ) {
+        dmg.increase(Damage::UserDefined);
+      }
+      _cfg.damage().increase(dmg.bits());
+      _cfg.damage().userBits(dmg.userBits());
 
       return tr;
     }
@@ -105,34 +120,55 @@ class RceProxyConfigAction : public Action
     // archived in the xtc file).
     virtual InDatagram* fire(InDatagram* in) 
     {
-      _cfgtc.src = _cfg.src();
-      switch (_manager.device()) {
-        case DetInfo::pnCCD :
-          _cfgtc.extent = sizeof(Xtc)+sizeof(pnCCDConfigType);
-          _cfgtc.contains = TypeId(TypeId::Id_pnCCDconfig, 2);
-          break;
-        case DetInfo::Cspad :
-          _cfgtc.extent = sizeof(Xtc)+sizeof(CsPadConfigType);
-          _cfgtc.contains = TypeId(TypeId::Id_CspadConfig, 1);
-          break;
-        default :
-          printf("RceProxyConfigAction.fire(in) Bad device index! %u\n", _manager.device());
-      }
-      in->insert(_cfgtc, _manager.config());
-      
-      if ( _damageFromRce.value() != 0 ) {
-        in->datagram().xtc.damage.increase(_damageFromRce.bits());
-        in->datagram().xtc.damage.userBits(_damageFromRce.userBits());
-     }
+      _cfg.record(in);
       return in;
     }
-
   private:
     RceProxyManager&    _manager;
-    CfgClientNfs&       _cfg;
-    int                 _iDebugLevel;
+    RceCfgCache&        _cfg;
     Xtc                 _cfgtc;
-    Damage              _damageFromRce;
+    std::string         _sConfigFile;
+};
+
+class RceProxyBeginCalibAction : public Action 
+{
+  public:
+    RceProxyBeginCalibAction(RceProxyManager& manager,
+			     RceCfgCache&     cfg) :
+      _manager(manager),
+      _cfg    (cfg) {}
+
+    Transition* fire(Transition* tr)     
+      {
+	if (_cfg.scan()) 
+	  {
+	    Damage dmg(0);
+	    if (_manager.onActionConfigure(dmg))
+	      dmg.increase(Damage::UserDefined);
+	    _cfg.damage().increase(dmg.bits());
+	    _cfg.damage().userBits(dmg.userBits());
+	  }
+	return tr;
+      }
+    InDatagram* fire(InDatagram* in)     
+      {
+	if (_cfg.scan()) 
+	  _cfg.record(in);
+	return in;
+      }
+  private:
+    RceProxyManager& _manager;
+    RceCfgCache&     _cfg;
+};
+
+class RceProxyEndCalibAction : public Action 
+{
+  public:
+    RceProxyEndCalibAction(RceCfgCache&     cfg) :
+      _cfg    (cfg) {}
+    Transition* fire(Transition* tr) { _cfg.next(); return tr; }
+  private:
+    RceCfgCache&     _cfg;
 };
 
 class RceProxyL1AcceptAction : public Action 
@@ -182,24 +218,27 @@ RceProxyManager* RceProxyManager::_i;
 
 RceProxyManager::RceProxyManager(CfgClientNfs& cfg, const string& sRceIp, const string& sConfigFile,
     TypeId typeidData, DetInfo::Device device, int iTsWidth, int iPhase, const Node& selfNode, int iDebugLevel) :
-    _sRceIp(sRceIp), _sConfigFile(sConfigFile),
+    _sRceIp(sRceIp), 
     _typeidData(typeidData), _device(device), _iTsWidth(iTsWidth),
-    _iPhase(iPhase),  _selfNode(selfNode), _iDebugLevel(iDebugLevel), _cfg(cfg), _config(0)
+    _iPhase(iPhase),  _selfNode(selfNode), _iDebugLevel(iDebugLevel), _cfg(new RceCfgCache(cfg,device))
 {
   registerInstance(this);
   _pFsm            = new Fsm();
-  _pActionMap      = new RceProxyAllocAction(*this, cfg);
+  _pActionMap      = new RceProxyAllocAction(*this);
   _pActionUnmap    = new RceProxyUnmapAction(*this);
-  _pActionConfig   = new RceProxyConfigAction(*this, cfg, _iDebugLevel);
-  // this should go away when we get the configuration from the database - cpo
+  _pActionConfig   = new RceProxyConfigAction(*this, *_cfg, sConfigFile);
   _pActionL1Accept = new RceProxyL1AcceptAction(*this, _iDebugLevel);
   _pActionDisable  = new RceProxyDisableAction(*this);
-
+  
   _pFsm->callback(TransitionId::Map,        _pActionMap);
   _pFsm->callback(TransitionId::Unmap,      _pActionUnmap);
   _pFsm->callback(TransitionId::Configure,  _pActionConfig);
   _pFsm->callback(TransitionId::L1Accept,   _pActionL1Accept);
   _pFsm->callback(TransitionId::Disable,    _pActionDisable);
+  _pFsm->callback(TransitionId::BeginCalibCycle, 
+		  new RceProxyBeginCalibAction(*this,*_cfg));
+  _pFsm->callback(TransitionId::EndCalibCycle, 
+		  new RceProxyEndCalibAction(*_cfg));
 }
 
 RceProxyManager::~RceProxyManager()
@@ -210,9 +249,10 @@ RceProxyManager::~RceProxyManager()
   delete _pActionMap;
 
   delete _pFsm;
+  delete _cfg;
 }
 
-int RceProxyManager::onActionConfigure(Damage& damageFromRce, Transition* transition)
+int RceProxyManager::onActionConfigure(Damage& damageFromRce)
 {
   printf("RceProxy Configure transition\n");
   printf( "Sent %d bytes to RCE %s/%d \n", sizeof(_msg), _sRceIp.c_str(), RceFBld::ProxyMsg::ProxyPort);
@@ -223,28 +263,11 @@ int RceProxyManager::onActionConfigure(Damage& damageFromRce, Transition* transi
   printf( "Traffic shaping width %d  Phase %d\n", _msg.maxTrafficShapingWidth, _msg.trafficShapingInitialPhase );
       
   RceFBld::ProxyReplyMsg msgReply;        
-  switch (_device) {
-    case DetInfo::pnCCD :
-      _configSize = sizeof(pnCCDConfigType);
-      _config = calloc(1, _configSize);
-      new(_config) pnCCDConfigType(_sConfigFile);
-      printf("New pnCCD config from binary file\n");
-      break;
-    case DetInfo::Cspad :
-      _configSize = sizeof(CsPadConfigType);
-      _config = calloc(1, _configSize);
-      _cfg.fetch(*transition,_CsPadConfigType, _config);
-      printf("Retrieved CsPad configuration, quadMask 0x%x\n", (unsigned)((CsPadConfigType*)_config)->quadMask());
-      break;
-    default :
-      printf("RceProxyManager.onActionConfigure() Bad device index! %u\n", _device);
-      return 1;
-  }
   int iFail = sendMessageToRce( _msg, msgReply );
   if ( iFail != 0 ) return 2;
   if (msgReply.type == RceFBld::ProxyReplyMsg::SendConfig) {
     printf("Sending Configuration to RCE\n");
-    int jFail = sendConfigToRce(_config, _configSize, msgReply);
+    int jFail = sendConfigToRce(_cfg->current(), _cfg->tc().sizeofPayload(), msgReply);
     if ( jFail != 0 ) {
       printf("sendConfigToRce returned %d\n", jFail);
       return 3;
@@ -285,6 +308,8 @@ void sigHandler( int signal ) {
 
 int RceProxyManager::onActionMap(const Allocation& alloc)
 {
+  _cfg->initialize(alloc);
+
   unsigned partition= alloc.partitionid();
   signal( SIGINT, sigHandler );
 
@@ -336,12 +361,12 @@ int RceProxyManager::onActionMap(const Allocation& alloc)
     return 2;
   }
 
-  setupProxyMsg( insEvr, vInsEvent, _selfNode.procInfo(), _cfg.src(), _typeidData, _iTsWidth, _iPhase );
+  setupProxyMsg( insEvr, vInsEvent, _selfNode.procInfo(), _cfg->src(), _typeidData, _iTsWidth, _iPhase );
 
   return 0;
 }
 
-int RceProxyManager::sendConfigToRce(void* config, unsigned size, RceFBld::ProxyReplyMsg& msgReply) {
+int RceProxyManager::sendConfigToRce(const void* config, unsigned size, RceFBld::ProxyReplyMsg& msgReply) {
   unsigned numberWholeChunks = size / chunkSize;
   unsigned bytesInLastChunk  = size % chunkSize;
   timespec sleepTime, fooTime;
