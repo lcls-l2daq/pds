@@ -13,6 +13,7 @@ namespace Pds {
     ~PimManager();
 
   public:
+    virtual void        allocate         (Transition* tr);
     virtual void        doConfigure      (Transition* tr);
     virtual InDatagram* recordConfigure  (InDatagram* in);
 

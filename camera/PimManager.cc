@@ -2,16 +2,17 @@
 
 #include "pds/config/CfgCache.hh"
 #include "pds/config/PimImageConfigType.hh"
+#include "pds/utility/Transition.hh"
 
 #include <stdio.h>
 
 namespace Pds {
-  class FexConfig : public CfgCache {
+  class PimConfig : public CfgCache {
   public:
-    FexConfig(const Src& src) :
+    PimConfig(const Src& src) :
       CfgCache(src,_pimImageConfigType,sizeof(PimImageConfigType)) {}
   private:
-    int _size(void* tc) const { return reinterpret_cast<FrameFexConfigType*>(tc)->size(); }
+    int _size(void* tc) const { return sizeof(PimImageConfigType); }
   };
 };
 
@@ -20,13 +21,21 @@ using namespace Pds;
 
 PimManager::PimManager(const Src& src, unsigned grabberId) :
   TM6740Manager(src, grabberId),
-  _fexConfig    (new FexConfig(src))
+  _fexConfig    (new PimConfig(src))
 {
 }
 
 PimManager::~PimManager()
 {
   delete   _fexConfig;
+}
+
+void PimManager::allocate (Transition* tr)
+{
+  TM6740Manager::allocate(tr);
+
+  const Allocate& alloc = reinterpret_cast<const Allocate&>(*tr);
+  _fexConfig->init(alloc.allocation());
 }
 
 void PimManager::doConfigure(Transition* tr)
