@@ -273,11 +273,16 @@ void PartitionControl::message(const Node& hdr, const Message& msg)
       const Occurrence& occ = reinterpret_cast<const Occurrence&>(msg);
       switch(occ.id()) {
       case OccurrenceId::ClearReadout:
-	printf("Received ClearReadout occurrence from %x/%d\nReconfiguring\n",
+	printf("Received ClearReadout occurrence from %x/%d\n",
 	       hdr.procInfo().ipAddr(),
 	       hdr.procInfo().processId());
 	//	reconfigure();
 	break;
+      case OccurrenceId::DataFileOpened:
+	printf("Received DataFileOpened occurrence from %x/%d [%s]\n",
+	       hdr.procInfo().ipAddr(),
+	       hdr.procInfo().processId(),
+	       reinterpret_cast<const char*>(&occ+1));
       default:
 	break;
       }
@@ -351,19 +356,7 @@ void PartitionControl::_complete(TransitionId::Value id)
 
 void PartitionControl::_queue(TransitionId::Value id)
 {
-  //  timestamp and pulseId should come from master EVR
-  //  fake it for now
-
-  timespec tp;
-  clock_gettime(CLOCK_REALTIME, &tp);
-  ClockTime clocktime(tp.tv_sec, tp.tv_nsec);
-
-  if (++_pulse_id >= TimeStamp::MaxFiducials)
-    _pulse_id = 0;
-  TimeStamp timestamp(0, _pulse_id, 0);
-  Sequence now(Sequence::Event, id, clocktime, timestamp);
-  
-  Transition tr(id, Transition::Execute, now, _transition_env[id]);
+  Transition tr(id, _transition_env[id], sizeof(Transition));
   _queue(tr);
 }
 

@@ -7,6 +7,7 @@ namespace Pds
 {
 
 class Fsm;
+class Allocation;
 class Appliance;
 class CfgClientNfs;
 class EpicsArchMonitor;

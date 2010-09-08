@@ -34,8 +34,9 @@ class OccurrenceId
     {            // global commands
       Noop,        
       ClearReadout,  
-      SequencerDone
-      };
+      SequencerDone,
+      DataFileOpened
+    };
     enum {numberof = 32};
   };
 }

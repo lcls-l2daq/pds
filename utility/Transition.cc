@@ -2,6 +2,7 @@
 
 #include <string.h>
 #include <time.h>
+#include <stdio.h>
 
 using namespace Pds;
 
@@ -9,10 +10,15 @@ static Sequence now(TransitionId::Value id)
 {
   timespec tp;
   clock_gettime(CLOCK_REALTIME, &tp);
-  unsigned pulseId = (tp.tv_nsec >> 23) | (tp.tv_sec << 9);
+  unsigned pulseId = -1;
   ClockTime clocktime(tp.tv_sec, tp.tv_nsec);
   TimeStamp timestamp(0, pulseId, 0);
   return Sequence(Sequence::Event, id, clocktime, timestamp);
+}
+
+static Sequence none(TransitionId::Value id)
+{
+  return Sequence(Sequence::Event, id, ClockTime(-1, -1), TimeStamp(0,-1,0) );
 }
 
 Transition::Transition(TransitionId::Value id,
@@ -33,7 +39,7 @@ Transition::Transition(TransitionId::Value id,
   Message  (Message::Transition, size),
   _id      (id),
   _phase   (Execute),
-  _sequence(now(id)),
+  _sequence(none(id)),
   _env     (env)
 {}
 
@@ -76,6 +82,11 @@ void Transition::operator delete(void* buffer)
   } else {
     delete [] reinterpret_cast<char*>(entry);
   }
+}
+
+void Transition::_stampIt()
+{
+  _sequence = now(_id);
 }
 
 Allocation::Allocation() :
@@ -125,7 +136,7 @@ unsigned    Allocation::size() const { return sizeof(*this)+(_nnodes-MaxNodes)*s
 
 
 Allocate::Allocate(const Allocation& allocation) :
-  Transition(TransitionId::Map, Transition::Execute, now(TransitionId::Map), 0,
+  Transition(TransitionId::Map, Transition::Execute, none(TransitionId::Map), 0,
              sizeof(Allocate)+allocation.size()-sizeof(Allocation)),
   _allocation(allocation)
 {
@@ -144,7 +155,7 @@ const Allocation& Allocate::allocation() const
 
 RunInfo::RunInfo(unsigned run, unsigned experiment) :
   Transition(TransitionId::BeginRun, Transition::Execute,
-             now(TransitionId::BeginRun), 0,
+             none(TransitionId::BeginRun), run,
              sizeof(RunInfo)),
   _run(run),_experiment(experiment){}
 unsigned RunInfo::run() {return _run;}

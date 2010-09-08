@@ -8,6 +8,7 @@
 #include "Mtu.hh"
 #include "pds/xtc/Datagram.hh"
 
+#include "pds/xtc/ZcpDatagram.hh"
 #include "pds/service/ZcpFragment.hh"
 #include "pds/service/ZcpStream.hh"
 
@@ -34,21 +35,16 @@ namespace Pds {
 class DgChunkIterator {
 public:
   DgChunkIterator(const Datagram* dg)
+    : _header (dg),
+      _payload((const char*)&dg->xtc) 
+  { _construct(dg); }
+
+  DgChunkIterator(const Datagram* dg,
+		  const char*     payload)
     : _header(dg),
-      _payload((char*)&dg->xtc)
-  {
-    unsigned size(dg->xtc.sizeofPayload()+sizeof(Xtc));
-    _nextSize = size & Mtu::SizeAsMask;
-    _remaining = (size >> Mtu::SizeAsPowerOfTwo)+1;
-    
-    if (!_nextSize) {
-      _nextSize=Mtu::Size;
-      _remaining--;
-    }
-#ifdef DROP_FIRST
-    next();
-#endif
-  }
+      _payload(payload)
+  { _construct(dg); }
+
   ~DgChunkIterator() {}
 
   const OutletWireHeader* header() { return &_header; }
@@ -100,8 +96,22 @@ public:
   }
 
 private:
+  void _construct(const Datagram* dg) {
+    unsigned size(dg->xtc.sizeofPayload()+sizeof(Xtc));
+    _nextSize = size & Mtu::SizeAsMask;
+    _remaining = (size >> Mtu::SizeAsPowerOfTwo)+1;
+    
+    if (!_nextSize) {
+      _nextSize=Mtu::Size;
+      _remaining--;
+    }
+#ifdef DROP_FIRST
+    next();
+#endif
+  }
+private:
   OutletWireHeader  _header;
-  char*                _payload;
+  const char*          _payload;
   unsigned             _nextSize;
   int                  _remaining;
 };

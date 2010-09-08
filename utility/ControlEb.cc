@@ -22,21 +22,25 @@ void        ControlEb::reset(const Allocation& alloc)
 {
   _alloc = &alloc;
   _remaining.clearAll();
-//   _remaining = ~_remaining;
-//   _remaining >>= (_remaining.BitMaskBits - alloc.nnodes());
   for(unsigned k=0; k<alloc.nnodes(); k++)
     if (alloc.node(k)->level() < Pds::Level::Observer)
       _remaining.setBit(k);
+  for(unsigned k=0; k<alloc.nnodes(); k++)
+    if (alloc.node(k)->level() == Pds::Level::Segment) {
+      _master = *alloc.node(k);
+      break;
+    }
   cancel();
   start();
 }
 
 Transition* ControlEb::build(const Node& hdr,
-           const Transition& tr)
+			     const Transition& tr)
 {
   cancel();
 
-  if (hdr == _hdr)
+  //  if (hdr == _hdr)
+  if (hdr == _master)
     _pending = new(&_buffer) Transition(tr);
 
   for(unsigned k=0; k<_alloc->nnodes(); k++) {

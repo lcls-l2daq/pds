@@ -28,6 +28,7 @@ namespace Pds {
     unsigned repetitive() const;
   private:
     const Node&       _hdr;
+    Node              _master;
     Routine*          _timeout;
     Task*             _task;
     const Allocation* _alloc;

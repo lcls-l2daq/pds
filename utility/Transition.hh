@@ -41,6 +41,9 @@ namespace Pds {
     Phase        _phase;
     Sequence     _sequence;
     Env          _env;
+  private:
+    void         _stampIt();
+    friend class TimeStampApp;
   };
 
   class Allocation {

@@ -1,3 +1,8 @@
+2010-Sep-7  weaver	Changes to get single-source timestamps: 
+			  utility/ControEb,Transition, 
+			  management/PartitionControl
+			Added DataFileOpened occurrence type.
+			Added broadcast mechanism to EpicsArchManager.
 2010-Aug-11 caf  Added camsend flag --opalexp: integration time (0.01 - 320.00 ms, default frame period minus 0.1) (Opal only).
 2010-Aug-10 weaver	Tag V02-06-00.  Added FEX algorithm to IpimbManager and non-default LusiDiagFex instance.
 2010-Jun-08 weaver	Added separate a/b tap reference voltages for TM6740 camera.  Fixed payload size of Ipimb config.

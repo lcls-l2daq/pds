@@ -21,21 +21,61 @@
 using namespace Pds;
 using std::string;
 
+//
+//  After a call to 'reset()', one set of data goes to each receiving node.
+//  This behavior emulates the broadcast of a transition.
+//
+class DestinationFilter {
+public:
+    DestinationFilter() : _numberOfDst(0) {}
+
+    void reset() 
+    {
+        _remainingDst = (1<<_numberOfDst)-1;
+    }
+  
+    bool accept(const InDatagram& in) 
+    {
+        unsigned dst = 1 << (in.datagram().seq.stamp().vector()%_numberOfDst);
+	if ( (_remainingDst & dst) ) 
+	{
+	    _remainingDst ^= dst;
+	    return true;
+	}
+	return false;
+    }
+
+    void map(const Allocation& alloc)
+    {
+        _numberOfDst = 0;
+        for(unsigned i=0; i<alloc.nnodes(); i++)
+	    if (alloc.node(i)->level() == Level::Event)
+	        _numberOfDst++;
+    }  
+
+private:
+    unsigned _numberOfDst;
+    unsigned _remainingDst;
+};
+
 class EpicsArchAllocAction : public Action 
 {
 public:
-    EpicsArchAllocAction(EpicsArchManager& manager, CfgClientNfs& cfg) : _manager(manager), _cfg(cfg) {}
+  EpicsArchAllocAction(EpicsArchManager& manager, DestinationFilter& filter, CfgClientNfs& cfg) : 
+    _manager(manager), _filter(filter), _cfg(cfg) {}
     
     virtual Transition* fire(Transition* tr)     
     {
         const Allocate& alloc = reinterpret_cast<const Allocate&>(*tr);
         _cfg.initialize(alloc.allocation());  
+	_filter.map(alloc.allocation());
         _manager.onActionMap();
         return tr;
     }
 private:
-    EpicsArchManager& _manager;
-    CfgClientNfs& _cfg;
+    EpicsArchManager&  _manager;
+    DestinationFilter& _filter;
+    CfgClientNfs&      _cfg;
 };
 
 class EpicsArchConfigAction : public Action 
@@ -101,14 +141,14 @@ private:
 class EpicsArchL1AcceptAction : public Action 
 {
 public:
-    EpicsArchL1AcceptAction(EpicsArchManager& manager, float fMinTriggerInterval, int iDebugLevel) :
-        _manager(manager) , _fMinTriggerInterval(fMinTriggerInterval), _iDebugLevel(iDebugLevel)
+    EpicsArchL1AcceptAction(EpicsArchManager& manager, float fMinTriggerInterval, DestinationFilter* filter, int iDebugLevel) :
+        _manager(manager) , _fMinTriggerInterval(fMinTriggerInterval), _filter(filter), _iDebugLevel(iDebugLevel)
     {
         tsPrev.tv_sec = tsPrev.tv_nsec = 0;   
     }
     
     ~EpicsArchL1AcceptAction()
-    {}
+    { delete _filter; }
     
     virtual InDatagram* fire(InDatagram* in)     
     {
@@ -118,13 +158,18 @@ public:
         if (iStatus)
         {
             printf( "EpicsArchL1AcceptAction::fire():clock_gettime() Failed: %s\n", strerror(iStatus) );               
-            return in;
         }
-        
         // check if delta time < (_fMinTriggerInterval) second => do nothing
-        if ( (tsCurrent.tv_sec-tsPrev.tv_sec) + (tsCurrent.tv_nsec-tsPrev.tv_nsec)/1.0e9f < _fMinTriggerInterval )
-            return in;    
-            
+        else if ( (tsCurrent.tv_sec-tsPrev.tv_sec) + (tsCurrent.tv_nsec-tsPrev.tv_nsec)/1.0e9f >= _fMinTriggerInterval )
+	{
+	    _filter->reset();
+        }
+    
+	if (!_filter->accept(*in))
+	{
+  	    return in;
+	}
+
         if (_iDebugLevel >= 1) printf( "\n\n===== Writing L1 Data =====\n" );
         InDatagram* out = new ( _manager.getPool() ) Pds::CDatagram( in->datagram() );
         int iFail = _manager.writeMonitoredContent( out->datagram(), false );                
@@ -151,10 +196,11 @@ public:
         tsPrev = tsCurrent;  
         return out;
     }
-  
+
 private:        
     EpicsArchManager&   _manager;
     float               _fMinTriggerInterval;
+    DestinationFilter*  _filter;
     int                 _iDebugLevel;
     timespec            tsPrev;    
 };
@@ -179,10 +225,11 @@ EpicsArchManager::EpicsArchManager(CfgClientNfs& cfg, const std::string& sFnConf
   _sFnConfig(sFnConfig), _fMinTriggerInterval(fMinTriggerInterval), _iDebugLevel(iDebugLevel),
   _pMonitor(NULL) // _pMonitor need to be initialized in the task thread
 {
+    DestinationFilter* filter = new DestinationFilter;
     _pFsm            = new Fsm();    
-    _pActionMap      = new EpicsArchAllocAction(*this, cfg);
+    _pActionMap      = new EpicsArchAllocAction(*this, *filter, cfg);
     _pActionConfig   = new EpicsArchConfigAction(*this, EpicsArchManager::srcLevel, cfg, _iDebugLevel);  // Level::Reporter for Epics Archiver
-    _pActionL1Accept = new EpicsArchL1AcceptAction(*this, _fMinTriggerInterval, _iDebugLevel);
+    _pActionL1Accept = new EpicsArchL1AcceptAction(*this, _fMinTriggerInterval, filter, _iDebugLevel);
     _pActionDisable  = new EpicsArchDisableAction(*this);
     
     _pFsm->callback(TransitionId::Map,        _pActionMap);
@@ -190,7 +237,7 @@ EpicsArchManager::EpicsArchManager(CfgClientNfs& cfg, const std::string& sFnConf
     _pFsm->callback(TransitionId::L1Accept,   _pActionL1Accept);
     _pFsm->callback(TransitionId::Disable,    _pActionDisable);    
     
-    _pPool = new GenericPool(EpicsArchMonitor::iMaxXtcSize, 1);
+    _pPool = new GenericPool(EpicsArchMonitor::iMaxXtcSize, 8);
 }
 
 EpicsArchManager::~EpicsArchManager()
