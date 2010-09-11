@@ -16,7 +16,7 @@ PartitionMember::PartitionMember(unsigned char platform,
 				   Arp*          arp) :
   CollectionManager(level, platform, MaxPayload, ConnectTimeOut, arp),
   _isallocated     (false),
-  _pool            (MaxPayload,4),
+  _pool            (MaxPayload,8),
   _index           ((unsigned)-1)
 {
 }
