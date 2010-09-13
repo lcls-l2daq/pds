@@ -151,7 +151,7 @@ IpimbManager::IpimbManager(IpimbServer* server[], unsigned nServers, CfgClientNf
       sprintf(portName, "/dev/ttyPS%d", portInfo[i*4+3]);//*6+1);
     }
     IpimBoard* ipimBoard = new IpimBoard(portName);
-    server[i]->setIpimb(ipimBoard); // this is obviously wrong
+    server[i]->setIpimb(ipimBoard, portName);
   }
   Action* caction = new IpimbConfigAction(cfg, server, _nServers, fex);
   _fsm.callback(TransitionId::Configure, caction);

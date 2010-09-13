@@ -40,7 +40,8 @@ namespace Pds {
       status = 0x0c,
       errors = 0x0d,
       cal_strobe = 0x0e,
-      trig_delay = 0x0f
+      trig_delay = 0x0f,
+      trig_ps_delay = 0x10
     };
 
     void SetTriggerCounter(unsigned start0, unsigned start1);
@@ -54,6 +55,7 @@ namespace Pds {
     void SetInputBias(float biasVoltage);
     void SetChannelAcquisitionWindow(uint32_t acqLength, uint16_t acqDelay);
     void SetTriggerDelay(uint32_t triggerDelay);
+    void SetTriggerPreSampleDelay(uint32_t triggerPreSampleDelay);
     void CalibrationStart(unsigned calStrobeLength);
     unsigned ReadRegister(unsigned regAddr);
     void WriteRegister(unsigned regAddr, unsigned regValue);
@@ -79,6 +81,7 @@ namespace Pds {
     int _commandIndex;
     int _dataIndex;
     int _fd;//, _res, _maxfd;
+    char* _serialDevice;
     //    fd_set _readfs;
     bool _dataDamage, _commandResponseDamage;
   };
@@ -113,17 +116,54 @@ namespace Pds {
     unsigned _respList[4];
   };
   
-  class IpimBoardData {
+  class IpimBoardPsData {
   public:
-    IpimBoardData(unsigned* packet);
-    IpimBoardData();
-    ~IpimBoardData() {};//printf("IPBMD::dtor, this = %p\n", this);}
+    IpimBoardPsData(unsigned* packet);
+    IpimBoardPsData();
+    ~IpimBoardPsData() {};//printf("IPBMD::dtor, this = %p\n", this);}
     
     bool CheckCRC();
-    void setAll(int, int, unsigned*);
-    void setList(int, int, unsigned*);
     uint64_t GetTriggerCounter();
     unsigned GetTriggerDelay_ns();
+    unsigned GetTriggerPreSampleDelay_ns();
+    uint16_t GetCh0();
+    uint16_t GetCh1();
+    uint16_t GetCh2();
+    uint16_t GetCh3();
+    unsigned GetConfig0();
+    unsigned GetConfig1();
+    unsigned GetConfig2();
+    unsigned GetChecksum();
+    void setAll(int, int, unsigned*);
+    void setList(int, int, unsigned*);
+    
+    void dumpRaw();
+
+  private:
+    uint64_t _triggerCounter;
+    uint16_t _config0;
+    uint16_t _config1;
+    uint16_t _config2;
+    uint16_t _ch0;
+    uint16_t _ch1;
+    uint16_t _ch2;
+    uint16_t _ch3;
+    uint16_t _ch0_ps;
+    uint16_t _ch1_ps;
+    uint16_t _ch2_ps;
+    uint16_t _ch3_ps;
+    uint16_t _checksum;
+  };
+  
+  class IpimBoardData {
+  public:
+    IpimBoardData(IpimBoardPsData data);
+    //    IpimBoardData();
+    ~IpimBoardData() {};//printf("IPBMD::dtor, this = %p\n", this);}
+    
+    uint64_t GetTriggerCounter();
+    unsigned GetTriggerDelay_ns();
+    unsigned GetTriggerPreSampleDelay_ns();
     float GetCh0_V();
     float GetCh1_V();
     float GetCh2_V();
@@ -152,7 +192,7 @@ namespace Pds {
     
     void update(char*);
     bool packetIncomplete();
-    void readTimedOut(int, int);
+    void readTimedOut(int, int, char*);
     int packetsRead();
 
   private:

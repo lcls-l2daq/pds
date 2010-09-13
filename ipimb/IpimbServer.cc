@@ -56,7 +56,7 @@ int IpimbServer::fetch(char* payload, int flags)
 {
   IpimBoardData data = _ipimBoard->WaitData();
   if (_ipimBoard->dataDamaged()) {
-    printf("IpimBoard error: IpimbServer::fetch had problems getting data, fd %d\n", fd());
+    printf("IpimBoard error: IpimbServer::fetch had problems getting data, fd %d, device %s\n", fd(), _serialDevice);
     data.dumpRaw();
     // register damage in manager
   }
@@ -81,9 +81,10 @@ unsigned IpimbServer::count() const
   return _count - 1; // "counting from" hack
 }
 
-void IpimbServer::setIpimb(IpimBoard* ipimb) {
+void IpimbServer::setIpimb(IpimBoard* ipimb, char* portName) {
   _ipimBoard = ipimb;
   fd(_ipimBoard->get_fd());
+  _serialDevice = portName;
 }
 
 unsigned IpimbServer::configure(IpimbConfigType& config) {

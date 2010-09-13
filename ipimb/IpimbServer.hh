@@ -35,7 +35,7 @@ namespace Pds {
     int      fetch (ZcpFragment& , int flags);
   public:
     unsigned count() const;
-    void setIpimb(IpimBoard* ipimb); // temp???
+    void setIpimb(IpimBoard* ipimb, char* serialDevice);
 
   public:
     unsigned configure(IpimbConfigType& config);
@@ -45,6 +45,7 @@ namespace Pds {
     Xtc _xtc;
     unsigned _count;
     IpimBoard* _ipimBoard;
+    char* _serialDevice;
   };
 }
 #endif
