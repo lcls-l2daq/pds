@@ -57,7 +57,7 @@ int IpimbServer::fetch(char* payload, int flags)
   IpimBoardData data = _ipimBoard->WaitData();
   if (_ipimBoard->dataDamaged()) {
     printf("IpimBoard error: IpimbServer::fetch had problems getting data, fd %d, device %s\n", fd(), _serialDevice);
-    data.dumpRaw();
+    //    data.dumpRaw(); // turned off for the moment for presampling
     // register damage in manager
   }
   //  double ch0 = data.GetCh0_V();
