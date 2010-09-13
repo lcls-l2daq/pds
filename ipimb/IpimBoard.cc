@@ -100,10 +100,10 @@ IpimBoard::IpimBoard(char* serialDevice){
   if (_fd <0) {
     perror(serialDevice); exit(-1); 
   }
-  if (serialDevice == "/dev/ttyPS4") {
-    printf("using sb4 test hack\n");
-    DataPacketLength=16; // hack for 13 Sep 2010 sb4 test
-  }
+  //  if (serialDevice == "/dev/ttyPS4") {
+  //    printf("using sb4 test hack\n");
+  //    DataPacketLength=16; // hack for 13 Sep 2010 sb4 test
+  //  }
 
   //  bzero(&newtio, sizeof(newtio));
   newtio.c_cflag = BAUDRATE | CS8 | CLOCAL;// | CREAD;
