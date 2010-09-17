@@ -58,60 +58,87 @@ using namespace Pds;
 static unsigned cpol1=0; 
 static unsigned nprint =0;
 
-
+class AcqEnable;
+class AcqDisable;
 
 class AcqReader : public Routine {
 public:
   AcqReader(ViSession instrumentId, AcqServer& server, Task* task) :
-    _instrumentId(instrumentId),_task(task),_server(server),_count(0),_acqReadEnb(false) {
-  }
+    _instrumentId(instrumentId),_task(task),_server(server),_count(0),_acqReadEnb(false) { }
   void setConfig(const AcqConfigType& config) {
     _nbrSamples=config.horiz().nbrSamples();
-    _totalSize=Acqiris::DataDescV1::totalSize(config.horiz())*
-      config.nbrChannels();
+    _totalSize=Acqiris::DataDescV1::totalSize(config.horiz())*config.nbrChannels();
   }
   void resetCount() {_count=0;}
   void start() {_task->call(this);}
-  void acqReadEnbFlag( bool flag) {_acqReadEnb = flag;} 
+  
+  void acqControl(AcqEnable* acqEnable, AcqDisable* acqDisable) {
+    _acqEnable  = acqEnable;
+    _acqDisable = acqDisable;
+  }
+  void enableAcqRead()  {_task->call((Routine*)_acqEnable); }
+  void disableAcqRead() {_task->call((Routine*)_acqDisable);}  
+  void acqReadEnbFlag(bool flag) {_acqReadEnb = flag;} 
+  
   virtual ~AcqReader() {}
   void routine() {
     ViStatus status;
     char message[256];
     status = AcqrsD1_acquire(_instrumentId);		
     status = AcqrsD1_waitForEndOfAcquisition(_instrumentId,ACQ_TIMEOUT_MILISEC);
-				if (!_acqReadEnb) {       //to disable acq reading when unconfigured
-				  status = AcqrsD1_stopAcquisition(_instrumentId);
-						if(status != VI_SUCCESS) {
-						  AcqrsD1_errorMessage(_instrumentId,status,message);
-						  printf("AcqReader::Error AcqrsD1_stopAcquisition : %s\n",message);
-				  }
-				} else if (status == (int)ACQIRIS_ERROR_ACQ_TIMEOUT) {
+    if (!_acqReadEnb) {       //to disable acq reading when unconfigured
+      status = AcqrsD1_stopAcquisition(_instrumentId); 
+      if(status != VI_SUCCESS) {
+        AcqrsD1_errorMessage(_instrumentId,status,message);
+        printf("AcqReader::Error AcqrsD1_stopAcquisition : %s\n",message);
+      }
+    } else if (status == (int)ACQIRIS_ERROR_ACQ_TIMEOUT) {
       _task->call(this);
     } else {
       if (status != VI_SUCCESS) {
         AcqrsD1_errorMessage(_instrumentId,status,message);
         printf("%s\n",message);
-        }
-        _server.headerComplete(_totalSize,_count++);   
+      }
+      _server.headerComplete(_totalSize,_count++);   
     }
   } 
  
 private:
-  ViSession  _instrumentId; 
-  Task*      _task;
-  AcqServer& _server;
-  unsigned   _count;
-  unsigned   _nbrSamples;
-  unsigned   _totalSize;
-  bool       _acqReadEnb; 
+  ViSession   _instrumentId; 
+  Task*       _task;
+  AcqServer&  _server;
+  unsigned    _count;
+  unsigned    _nbrSamples;
+  unsigned    _totalSize;
+  bool        _acqReadEnb; 
+  AcqEnable*  _acqEnable;
+  AcqDisable* _acqDisable;
+};
+
+
+class AcqEnable : public Routine {
+public:
+  AcqEnable(AcqReader& reader): _acqReader(reader) { }
+  ~AcqEnable() { }
+  void routine() { _acqReader.acqReadEnbFlag(true); }
+
+private:
+  AcqReader& _acqReader;
+};
+
+class AcqDisable : public Routine {
+public:
+  AcqDisable(AcqReader& reader): _acqReader(reader) { }
+  ~AcqDisable() { }  
+  void routine() { _acqReader.acqReadEnbFlag(false); }
+private:
+  AcqReader& _acqReader;
 };
 
 class AcqDma : public DmaEngine {
 public:
-  AcqDma(ViSession instrumentId, AcqReader& reader, AcqServer& server,
-         Task* task) :
-    DmaEngine(task),
-    _instrumentId(instrumentId),_reader(reader),_server(server),_lastAcqTS(0),_count(0) {}
+  AcqDma(ViSession instrumentId, AcqReader& reader, AcqServer& server,Task* task) :
+    DmaEngine(task),_instrumentId(instrumentId),_reader(reader),_server(server),_lastAcqTS(0),_count(0) {}
   void setConfig(AcqConfigType& config) {_config=&config;}
   void routine() {
     ViStatus status=0;
@@ -254,7 +281,7 @@ public:
       _outoforder=1;	  
 
       Pds::Occurrence* occ = new (_occPool)
- 	Pds::Occurrence(Pds::OccurrenceId::ClearReadout);
+      Pds::Occurrence(Pds::OccurrenceId::ClearReadout);
       _mgr->appliance().post(occ);
     }
 	
@@ -282,21 +309,17 @@ private:
   unsigned _outoforder;
 };
 
-
 class AcqUnconfigureAction : public AcqDC282Action {
 public:
   AcqUnconfigureAction(ViSession instrumentId, AcqReader& reader) : AcqDC282Action(instrumentId),_reader(reader) { }
-  InDatagram* fire(InDatagram* in) {	
-    _reader.acqReadEnbFlag(false);
+  InDatagram* fire(InDatagram* in) {
+    _reader.disableAcqRead();
     return in;
   }
 private:
    AcqReader& _reader;     
 
 };
-
-
-
 
 class AcqDisableAction : public AcqDC282Action {
 public:
@@ -325,8 +348,7 @@ private:
 class AcqConfigAction : public AcqDC282Action {
   enum {MaxConfigSize=0x100000};
 public:
-  AcqConfigAction(ViSession instrumentId, AcqReader& reader, AcqDma& dma, const Src& src,
-		  CfgClientNfs& cfg) :
+  AcqConfigAction(ViSession instrumentId, AcqReader& reader, AcqDma& dma, const Src& src, CfgClientNfs& cfg) :
     AcqDC282Action(instrumentId),_reader(reader),_dma(dma), 
     _cfgtc(_acqConfigType,src),
     _cfg(cfg), _firstTime(1) {}
@@ -380,7 +402,7 @@ public:
       _nerror++;
     }
 
-    // SAR mode (currently doesn't work for reasons I don't understand - cpo)
+//     SAR mode (currently doesn't work for reasons I don't understand - cpo)
 //     _check(AcqrsD1_configMode(_instrumentId, 0, 0, 10)); // 10 = SAR mode
 //     _check(AcqrsD1_configMemoryEx(_instrumentId, 0, nbrSamples, nbrSegments,
 //                                   nbrBanks, 0));
@@ -515,9 +537,8 @@ public:
     _reader.setConfig(_config);
     _reader.resetCount();
 
-    _reader.acqReadEnbFlag(true);
+    _reader.enableAcqRead();
     _reader.start();
-
     return tr;
   }
 private:
@@ -597,6 +618,11 @@ AcqManager::AcqManager(ViSession InstrumentID, AcqServer& server, CfgClientNfs& 
   _instrumentId(InstrumentID),_fsm(*new Fsm) {
   Task* task = new Task(TaskObject("AcqReadout",35)); //default priority=127 (lowest), changed to 35 => (127-35) 
   AcqReader& reader = *new AcqReader(_instrumentId,server,task);
+  
+  AcqEnable&  acqEnable  = *new AcqEnable (reader);
+  AcqDisable& acqDisable = *new AcqDisable(reader);
+  reader.acqControl(&acqEnable,&acqDisable);
+  
   AcqDma& dma = *new AcqDma(_instrumentId,reader,server,task);
   server.setDma(&dma);
   Action* caction = new AcqConfigAction(_instrumentId,reader,dma,server.client(),cfg);
