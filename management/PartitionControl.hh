@@ -78,6 +78,7 @@ namespace Pds {
     unsigned   _experiment;
     bool       _use_run_info;
     unsigned   _pulse_id;
+    Task*      _reportTask;
     friend class ControlAction;
   };
 

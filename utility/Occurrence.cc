@@ -3,6 +3,7 @@
 #include "pds/service/Pool.hh"
 
 #include <stdio.h>
+#include <string.h>
 
 using namespace Pds;
 
@@ -11,6 +12,13 @@ Occurrence::Occurrence(OccurrenceId::Value id,
   Message  (Message::Occurrence, size),
   _id      (id)
 {
+}
+
+Occurrence::Occurrence(const Occurrence& c) :
+  Message  (Message::Occurrence, c.size()),
+  _id      (c._id)
+{
+  memcpy(this+1, &c+1, c.size()-sizeof(Occurrence));
 }
 
 OccurrenceId::Value Occurrence::id      () const { return _id; }

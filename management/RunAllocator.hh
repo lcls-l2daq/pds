@@ -6,6 +6,7 @@ namespace Pds {
   class RunAllocator {
   public:
     virtual unsigned alloc() {return 0;}
+    virtual int reportOpenFile(int, int, int, int) {return 0;}
     virtual ~RunAllocator() {};
     enum {Error=0xffffffff};
   };

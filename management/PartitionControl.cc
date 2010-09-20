@@ -45,6 +45,22 @@ namespace Pds {
     char              _buffer[sizeof(Allocate)];
   };
 
+  class ReportJob : public Routine {
+  public:
+    ReportJob(RunAllocator& allocator,
+	      int expt, int run, int stream, int chunk) :
+      _allocator(allocator), 
+      _expt(expt), _run(run), _stream(stream), _chunk(chunk) {}
+  public:
+    void routine() { 
+      _allocator.reportOpenFile(_expt,_run,_stream,_chunk); 
+      delete this;
+    }
+  private:
+    RunAllocator& _allocator;
+    int _expt, _run, _stream, _chunk;
+  };
+
   class ControlAction : public Appliance {
   public:
     ControlAction(PartitionControl& control) :
@@ -166,7 +182,8 @@ PartitionControl::PartitionControl(unsigned platform,
   _control_cb     (&cb),
   _platform_cb    (0),
   _experiment     (0),
-  _use_run_info   (true)
+  _use_run_info   (true),
+  _reportTask     (new Task(TaskObject("controlRep")))
 {
   memset(_transition_env,0,TransitionId::NumberOf*sizeof(unsigned));
   memset(_transition_xtc,0,TransitionId::NumberOf*sizeof(Xtc*));
@@ -175,6 +192,7 @@ PartitionControl::PartitionControl(unsigned platform,
 PartitionControl::~PartitionControl() 
 {
   _sequenceTask->destroy(); 
+  _reportTask  ->destroy(); 
 }
 
 void PartitionControl::platform_rollcall(PlatformCallback* cb)
@@ -278,11 +296,16 @@ void PartitionControl::message(const Node& hdr, const Message& msg)
 	       hdr.procInfo().processId());
 	//	reconfigure();
 	break;
-      case OccurrenceId::DataFileOpened:
-	printf("Received DataFileOpened occurrence from %x/%d [%s]\n",
+      case OccurrenceId::DataFileOpened: {
+	const DataFileOpened& dfo = reinterpret_cast<const DataFileOpened&>(occ);
+	printf("Received DataFileOpened occurrence from %x/%d [r%04d-s%02d-c%02d]\n",
 	       hdr.procInfo().ipAddr(),
 	       hdr.procInfo().processId(),
-	       reinterpret_cast<const char*>(&occ+1));
+	       dfo.run, dfo.stream, dfo.chunk);
+	if (_runAllocator)
+	  _reportTask->call(new ReportJob(*_runAllocator, dfo.expt, dfo.run, dfo.stream, dfo.chunk));
+	break;
+      }
       default:
 	break;
       }
@@ -308,8 +331,12 @@ void PartitionControl::_next()
 	  RunInfo rinfo(run,_experiment); _queue(rinfo);
 	}
       }
-      else
-	_queue(TransitionId::BeginRun  );
+      else {
+	timespec ts;
+	clock_gettime(CLOCK_REALTIME,&ts);
+	Transition rinfo(TransitionId::BeginRun, ts.tv_sec);
+	_queue(rinfo );
+      }
       break;
     }
     case Running   : _queue(TransitionId::BeginCalibCycle); break;

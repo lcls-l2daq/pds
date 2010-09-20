@@ -9,6 +9,7 @@ namespace Pds {
   public:
     OfflineClient(const char *path, const char *instrument, const char *experiment);
     int AllocateRunNumber(unsigned int *runNumber);
+    int reportOpenFile (int expt, int run, int stream, int chunk);
     unsigned int GetExperimentNumber();
     const char * GetExperimentName();
     const char * GetInstrumentName();

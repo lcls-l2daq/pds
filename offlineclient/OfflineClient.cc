@@ -154,6 +154,61 @@ int OfflineClient::AllocateRunNumber(unsigned int *runNumber) {
   return (returnVal);
 }
 
+int OfflineClient::reportOpenFile (int expt, int run, int stream, int chunk) {
+  LogBook::Connection * conn = NULL;
+  int returnVal = -1;  // default return is ERROR
+
+  // sanity check
+  if (run && _instrument_name && _experiment_name) {
+
+    // in case of NULL database, report nothing
+    if ((_path == (char *)NULL) || (strcmp(_path, "/dev/null") == 0)) {
+      returnVal = 0;  // OK
+    } else {
+      try {
+        conn = LogBook::Connection::open(_path);
+
+        if (conn != NULL) {
+          // begin transaction
+          conn->beginTransaction();
+
+	  //	  conn->reportOpenFile(expt, run, stream, chunk);
+          returnVal = 0; // OK
+
+          // commit transaction
+          conn->commitTransaction();
+        } else {
+            printf("LogBook::Connection::connect() failed\n");
+        }
+
+      } catch (const LogBook::ValueTypeMismatch& e) {
+        printf ("Parameter type mismatch %s:\n", e.what());
+        returnVal = -1; // ERROR
+
+      } catch (const LogBook::WrongParams& e) {
+        printf ("Problem with parameters %s:\n", e.what());
+        returnVal = -1; // ERROR
+    
+      } catch (const LogBook::DatabaseError& e) {
+        printf ("Database operation failed: %s\n", e.what());
+        returnVal = -1; // ERROR
+      }
+
+      if (conn != NULL) {
+        // close connection
+        delete conn ;
+      }
+    }
+  }
+
+  if (-1 == returnVal) {
+    printf("Error reporting open file expt %d run %d stream %d chunk %d\n",
+	   expt, run, stream, chunk);
+  }
+
+  return (returnVal);
+}
+
 //
 // GetExperimentNumber
 //
