@@ -17,6 +17,7 @@
 namespace Pds {
   class IpimbCapSetting {
   public:
+    int ndiodes;
     int cap[4];
   };
 };
@@ -35,8 +36,12 @@ static const unsigned pimMask = ( 1 << Pds::DetInfo::XppSb1Pim) |
 				( 1 << Pds::DetInfo::XppSb3Pim) |
 				( 1 << Pds::DetInfo::XppSb4Pim);
 
-#define IS_IPM(det) ((1<<det) & ipmMask)
-#define IS_PIM(det) ((1<<det) & pimMask)
+//#define IS_IPM(det) ((1<<det) & ipmMask)
+//#define IS_PIM(det) ((1<<det) & pimMask)
+#define IS_IPM(det) (_cap_config[det].ndiodes >1)
+#define IS_PIM(det) (_cap_config[det].ndiodes==1)
+#define SET_IPM(det) (_cap_config[det].ndiodes=4)
+#define SET_PIM(det) (_cap_config[det].ndiodes=1)
 
 static inline unsigned ipmIndex(DetInfo::Detector det) { return det; }
 static inline unsigned ipmIndexBound() { return DetInfo::NumDetector; }
@@ -121,19 +126,17 @@ bool LusiDiagFex::configure(CfgClientNfs& cfg,
 			    const IpimbConfigType& ipimb_config)
 {
   DetInfo::Detector det = static_cast<const DetInfo&>(cfg.src()).detector();
-  if (IS_IPM(det)) {
-    if ( cfg.fetch(tr, _ipmFexConfigType, 
-		   &_ipm_config[ipmIndex(det)], sizeof(IpmFexConfigType)) <= 0 )
-      return false;
+  if ( cfg.fetch(tr, _ipmFexConfigType, 
+		 &_ipm_config[ipmIndex(det)], sizeof(IpmFexConfigType)) > 0 ) {
+    SET_IPM(det);
     _cap_config[det].cap[0] = (ipimb_config.chargeAmpRange()>>0)&0x3;
     _cap_config[det].cap[1] = (ipimb_config.chargeAmpRange()>>2)&0x3;
     _cap_config[det].cap[2] = (ipimb_config.chargeAmpRange()>>4)&0x3;
     _cap_config[det].cap[3] = (ipimb_config.chargeAmpRange()>>6)&0x3;
   }
-  else if (IS_PIM(det)) {
-    if ( cfg.fetch(tr, _diodeFexConfigType, 
-		   &_pim_config[pimIndex(det)], sizeof(DiodeFexConfigType)) <= 0 )
-      return false;
+  else if ( cfg.fetch(tr, _diodeFexConfigType, 
+		      &_pim_config[pimIndex(det)], sizeof(DiodeFexConfigType)) > 0 ) {
+    SET_PIM(det);
     _cap_config[det].cap[0] = (ipimb_config.chargeAmpRange()>>0)&0x3;
   }
   return true;
