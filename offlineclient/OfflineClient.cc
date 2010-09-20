@@ -172,7 +172,7 @@ int OfflineClient::reportOpenFile (int expt, int run, int stream, int chunk) {
           // begin transaction
           conn->beginTransaction();
 
-	  //	  conn->reportOpenFile(expt, run, stream, chunk);
+	  conn->reportOpenFile(expt, run, stream, chunk);
           returnVal = 0; // OK
 
           // commit transaction
