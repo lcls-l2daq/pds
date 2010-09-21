@@ -23,12 +23,12 @@ RceCfgCache::RceCfgCache(CfgClientNfs& cfg,
   switch(dev) {
   case DetInfo::pnCCD :
     _cfgtc.extent   = sizeof(Xtc)+sizeof(pnCCDConfigType);
-    _cfgtc.contains = TypeId(TypeId::Id_pnCCDconfig, 2);
+    _cfgtc.contains = _pnCCDConfigType;
     _bsize          = sizeof(pnCCDConfigType); 
     break;
   case DetInfo::Cspad :
     _cfgtc.extent   = sizeof(Xtc)+sizeof(CsPadConfigType);
-    _cfgtc.contains = TypeId(TypeId::Id_CspadConfig, 1);
+    _cfgtc.contains = _CsPadConfigType;
     _bsize          = 100*sizeof(CsPadConfigType); 
     break;
   default :
