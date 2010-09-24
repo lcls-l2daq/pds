@@ -33,6 +33,7 @@
 #include <new>
 #include <errno.h>
 #include <math.h>
+#include <time.h>
 
 #include "pds/service/GenericPool.hh"
 #include "pds/service/Task.hh"
@@ -64,7 +65,10 @@ class AcqDisable;
 class AcqReader : public Routine {
 public:
   AcqReader(ViSession instrumentId, AcqServer& server, Task* task) :
-    _instrumentId(instrumentId),_task(task),_server(server),_count(0),_acqReadEnb(false) { }
+    _instrumentId(instrumentId),_task(task),_server(server),_count(0),_acqReadEnb(false) {
+    _sleepTime.tv_sec = 0;
+    _sleepTime.tv_nsec = (long) 0.5e9;  //0.5 sec
+  }
   void setConfig(const AcqConfigType& config) {
     _nbrSamples=config.horiz().nbrSamples();
     _totalSize=Acqiris::DataDescV1::totalSize(config.horiz())*config.nbrChannels();
@@ -84,23 +88,24 @@ public:
   void routine() {
     ViStatus status;
     char message[256];
-    status = AcqrsD1_acquire(_instrumentId);		
-    status = AcqrsD1_waitForEndOfAcquisition(_instrumentId,ACQ_TIMEOUT_MILISEC);
-    if (!_acqReadEnb) {       //to disable acq reading when unconfigured
-      status = AcqrsD1_stopAcquisition(_instrumentId); 
-      if(status != VI_SUCCESS) {
-        AcqrsD1_errorMessage(_instrumentId,status,message);
-        printf("AcqReader::Error AcqrsD1_stopAcquisition : %s\n",message);
+	
+    if (_acqReadEnb) {
+      AcqrsD1_acquire(_instrumentId);		
+      status = AcqrsD1_waitForEndOfAcquisition(_instrumentId,ACQ_TIMEOUT_MILISEC);
+      if (status == (int)ACQIRIS_ERROR_ACQ_TIMEOUT) 
+        _task->call(this);
+      else {
+        if (status != VI_SUCCESS) {
+          AcqrsD1_errorMessage(_instrumentId,status,message);
+          printf("AcqReader::Error = %s\n",message);
+        }
+        _server.headerComplete(_totalSize,_count++);   
       }
-    } else if (status == (int)ACQIRIS_ERROR_ACQ_TIMEOUT) {
-      _task->call(this);
     } else {
-      if (status != VI_SUCCESS) {
-        AcqrsD1_errorMessage(_instrumentId,status,message);
-        printf("%s\n",message);
-      }
-      _server.headerComplete(_totalSize,_count++);   
-    }
+      nanosleep(&_sleepTime,NULL);
+      _task->call(this);
+    }	
+	
   } 
  
 private:
@@ -113,6 +118,7 @@ private:
   bool        _acqReadEnb; 
   AcqEnable*  _acqEnable;
   AcqDisable* _acqDisable;
+  timespec    _sleepTime;
 };
 
 
@@ -538,7 +544,10 @@ public:
     _reader.resetCount();
 
     _reader.enableAcqRead();
-    _reader.start();
+    if (_firstTime) {
+      _reader.start();
+      _firstTime = 0;
+    }
     return tr;
   }
 private:
