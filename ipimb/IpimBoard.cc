@@ -23,15 +23,13 @@ const int CLOCK_PERIOD = 8;
 const float ADC_RANGE = 3.3;
 const unsigned ADC_STEPS = 65536;
 
-//static const int DataPacketLength = 16;
-static int DataPacketLength = 12;
 static const int HardCodedPresampleDelay = 150000;
 static const int HardCodedADCTime = 10000;
 
-const bool DEBUG = false;//true;
+const bool DEBUG = false;
 
 static int KvetchCounter = 0;
-static const bool DumpSampleEvents = true; // should be false in normal running
+static const bool DumpSampleEvents = false; // should be false in normal running
 
 namespace Pds {
 
@@ -90,20 +88,16 @@ namespace Pds {
   }
 }
 
-IpimBoard::IpimBoard(char* serialDevice){
+IpimBoard::IpimBoard(char* serialDevice) {
   _serialDevice = serialDevice;
   struct termios newtio;
   memset(&newtio, 0, sizeof(newtio));
         
-  //  /* open the device to be non-blocking (read will return immediatly) */
+  //  /* open the device to be non-blocking (read will return immediately) */
   _fd = open(serialDevice, O_RDWR | O_NOCTTY | O_NONBLOCK);
   if (_fd <0) {
     perror(serialDevice); exit(-1); 
   }
-  //  if (serialDevice == "/dev/ttyPS4") {
-  //    printf("using sb4 test hack\n");
-  //    DataPacketLength=16; // hack for 13 Sep 2010 sb4 test
-  //  }
 
   //  bzero(&newtio, sizeof(newtio));
   newtio.c_cflag = BAUDRATE | CS8 | CLOCAL;// | CREAD;
@@ -118,13 +112,13 @@ IpimBoard::IpimBoard(char* serialDevice){
   flush();
   tcsetattr(_fd,TCSANOW,&newtio);
   
-  memset(_dataList, 0, DataPacketLength);//*sizeof(_dataList[0]));// This is nonsense - fix or discard
+  memset(_dataList, 0, DataPackets*sizeof(unsigned));
+  memset(_commandList, 0, CRPackets*sizeof(unsigned));
   _commandIndex = 0;
   _dataIndex = 0;
 }
 
 IpimBoard::~IpimBoard() {
-  //  printf("IPBM::dtor, this = %p\n", this);
   //  _ser.close();
   // delete _lstData;
   // delete _lstCommands;
@@ -349,7 +343,7 @@ IpimBoardData IpimBoard::WaitData() {
       int packetsRead = packetParser.packetsRead();
       if (packetParser.packetIncomplete()) {
 	_dataDamage = true;
-	for (int i=packetsRead; i< DataPacketLength; i++) {
+	for (int i=packetsRead; i< DataPackets; i++) {
 	  _dataList[i] = fakeData;
 	}
 	if (DEBUG or KvetchCounter++<20) {
@@ -360,7 +354,7 @@ IpimBoardData IpimBoard::WaitData() {
     }
   }
 
-  IpimBoardPsData data = IpimBoardPsData(_dataList);
+  IpimBoardPsData data = IpimBoardPsData(_dataList, _doBaselineSubtraction);
   int c = data.CheckCRC();
   if (!c) {
     if (DEBUG or KvetchCounter++<20) {
@@ -413,10 +407,9 @@ void IpimBoard::WriteCommand(unsigned* cList) {
 
 int IpimBoard::inWaiting(IpimBoardPacketParser& packetParser) {
   char bufferReceive[3];
-  //  int res = read(_fd, bufferReceive, 3);
   int nBytes = 0;
   int nTries = 0;
-   while (nBytes<3) {
+  while (nBytes<3) {
     int nRead = read(_fd, &(bufferReceive[nBytes]), 3-nBytes);
     if (nRead<0) {
       printf("IpimBoard error:failed read from fd %d, device %s\n", _fd, _serialDevice);
@@ -429,7 +422,7 @@ int IpimBoard::inWaiting(IpimBoardPacketParser& packetParser) {
 	packetParser.readTimedOut(nBytes, _fd, _serialDevice);
 	return packetParser.packetIncomplete();
       }      
-      //      printf("IpimBoard warning: have read %d (%d) (total) bytes of data from _fd %d, need 3, will retry\n", nRead, nBytes,_fd);
+      if (DEBUG) printf("IpimBoard warning: have read %d (%d) (total) bytes of data from _fd %d, need 3, will retry\n", nRead, nBytes,_fd);
       struct timespec req = {0, 2000000}; // 2 ms
       nanosleep(&req, NULL);
     }
@@ -471,6 +464,7 @@ bool IpimBoard::configure(Ipimb::ConfigV1& config) {
   unsigned mult_chan1 = mapping[(multiplier>>2)&0x3];
   unsigned mult_chan2 = mapping[(multiplier>>4)&0x3];
   unsigned mult_chan3 = mapping[(multiplier>>6)&0x3];
+  printf("Configuring gain with %d, %d, %d, %d\n", mult_chan0, mult_chan1, mult_chan2, mult_chan3);
   if(mult_chan0*mult_chan1*mult_chan2*mult_chan3 == 0) {
     printf("Do not understand bit pattern of 0x%x gain configuration, only 0, 1, 2 allowed per 2 bits\n", multiplier);
     _commandResponseDamage = true;
@@ -482,13 +476,11 @@ bool IpimBoard::configure(Ipimb::ConfigV1& config) {
   SetInputBias(config.diodeBias());
   SetChannelAcquisitionWindow(config.resetLength(), config.resetDelay());
   SetTriggerDelay((unsigned) config.trigDelay());
-  if (DataPacketLength==16) {
-    SetTriggerPreSampleDelay(HardCodedPresampleDelay);
-    printf("Have hardcoded presample delay to %d us\n", HardCodedPresampleDelay/1000);
-    if (HardCodedPresampleDelay+HardCodedADCTime>config.trigDelay()) {
-      _commandResponseDamage = true;
-      printf("Presample delay %d is too long - must be at least %d earlier than %d\n", HardCodedPresampleDelay, config.trigDelay(), HardCodedADCTime);
-    }
+  SetTriggerPreSampleDelay(HardCodedPresampleDelay);
+  printf("Have hardcoded presample delay to %d us\n", HardCodedPresampleDelay/1000);
+  if (HardCodedPresampleDelay+HardCodedADCTime>config.trigDelay()) {
+    _commandResponseDamage = true;
+    printf("Presample delay %d is too long - must be at least %d earlier than %d\n", HardCodedPresampleDelay, config.trigDelay(), HardCodedADCTime);
   }
   //  CalibrationStart((unsigned) config.calStrobeLength());
 
@@ -525,6 +517,10 @@ bool IpimBoard::setReadable(bool flag) {
   return true; // do something smarter here if possible
 }
 
+void IpimBoard::setBaselineSubtraction(bool doBaselineSubtraction) {
+  _doBaselineSubtraction = doBaselineSubtraction;
+}
+
 IpimBoardCommand::IpimBoardCommand(bool write, unsigned address, unsigned data) {
   _commandList[0] = address & 0xFF;
   _commandList[1] = data & 0xFFFF;
@@ -532,7 +528,7 @@ IpimBoardCommand::IpimBoardCommand(bool write, unsigned address, unsigned data) 
   if (write) {
     _commandList[0] |= 1<<8;
   }
-  _commandList[3] = CRC(_commandList, 3);
+  _commandList[3] = CRC(_commandList, CRPackets-1);
   if (DEBUG)
     printf("data: 0x%x, address 0x%x, write %d, command list: 0x%x, 0x%x, 0x%x 0x%x\n", 
 	   data, address, write, _commandList[0], _commandList[1], _commandList[2], _commandList[3]);
@@ -551,7 +547,7 @@ IpimBoardResponse::IpimBoardResponse(unsigned* packet) {
   _addr = 0;
   _data = 0;
   _checksum = 0;
-  setAll(0, 4, packet);
+  setAll(0, CRPackets, packet);
 }
 
 IpimBoardResponse::~IpimBoardResponse() {
@@ -604,14 +600,14 @@ unsigned IpimBoardResponse::getData() { // slice
 }
 
 bool IpimBoardResponse::CheckCRC() {
-  if (CRC(getAll(0, 3), 3) == _checksum){
+  if (CRC(getAll(0, CRPackets-1), CRPackets-1) == _checksum){
     return true;
   }
   return false;
 }
 
 
-IpimBoardPsData::IpimBoardPsData(unsigned* packet) {
+IpimBoardPsData::IpimBoardPsData(unsigned* packet, bool doBaselineSubtraction) {
   _triggerCounter = 0;
   _config0 = 0;
   _config1 = 0;
@@ -621,7 +617,8 @@ IpimBoardPsData::IpimBoardPsData(unsigned* packet) {
   _ch2 = 0;
   _ch3 = 0;
   _checksum = 0;
-  setAll(0, DataPacketLength, packet);
+  setAll(0, DataPackets, packet);
+  _doBaselineSubtraction = doBaselineSubtraction;
 }
 
 IpimBoardPsData::IpimBoardPsData() { // for IpimbServer setup
@@ -689,25 +686,25 @@ void IpimBoardPsData::setAll(int i, int j, unsigned* s) { // slice
     else if (count==10) {
       _ch3 = s[count-i];
     }
-    else if (count==11 and DataPacketLength==16) {
+    else if (count==11) {
       _ch0_ps = s[count-i];
     }
-    else if (count==12 and DataPacketLength==16) {
+    else if (count==12) {
       _ch1_ps = s[count-i];
     }
-    else if (count==13 and DataPacketLength==16) {
+    else if (count==13) {
       _ch2_ps = s[count-i];
     }
-    else if (count==14 and DataPacketLength==16) {
+    else if (count==14) {
       _ch3_ps = s[count-i];
     }
-    else if (count==DataPacketLength-1) {
+    else if (count==DataPackets-1) {
       _checksum = s[count-i];
     }
     else {
       if (DEBUG or KvetchCounter++<20) {
 	printf("IpimBoard error: data list parsing broken\n");
-	//      _dataDamage = true; 	
+	//	_dataDamage = true; 	
       }
     }
   }
@@ -751,19 +748,19 @@ void IpimBoardPsData::setList(int i, int j, unsigned* lst) { // slice - already 
     else if (count==10) {
       lst[count] = _ch3;
     }
-    else if (count==11 and DataPacketLength==16) {
+    else if (count==11) {
       lst[count] = _ch0_ps;
     }
-    else if (count==12 and DataPacketLength==16) {
+    else if (count==12) {
       lst[count] = _ch1_ps;
     }
-    else if (count==13 and DataPacketLength==16) {
+    else if (count==13) {
       lst[count] = _ch2_ps;
     }
-    else if (count==14 and DataPacketLength==16) {
+    else if (count==14) {
       lst[count] = _ch3_ps;
     }
-    else if (count==DataPacketLength-1) {
+    else if (count==DataPackets-1) {
       lst[count] = _checksum;
     }
     else {
@@ -776,9 +773,9 @@ void IpimBoardPsData::setList(int i, int j, unsigned* lst) { // slice - already 
 }
 
 bool IpimBoardPsData::CheckCRC() {
-  unsigned lst[DataPacketLength];
-  setList(0, DataPacketLength-1, lst);
-  unsigned crc = CRC(lst, DataPacketLength-1);
+  unsigned lst[DataPackets];
+  setList(0, DataPackets-1, lst);
+  unsigned crc = CRC(lst, DataPackets-1);
   if (crc == _checksum){
     return true;
   }
@@ -792,16 +789,28 @@ unsigned IpimBoardPsData::GetTriggerDelay_ns() {
   return _config2*CLOCK_PERIOD;
 }
 uint16_t IpimBoardPsData::GetCh0() {
-  return max(0, _ch0_ps - _ch0); // negative-going signal
+  if(_doBaselineSubtraction) {
+     return ADC_STEPS -1 - max(0, _ch0_ps - _ch0); // negative-going signal; ACD maximum is ADC_STEPS -1
+  }
+  return _ch0;
 }
 uint16_t IpimBoardPsData::GetCh1() {
-  return max(0, _ch1_ps - _ch1); // negative-going signal
+  if(_doBaselineSubtraction) {
+    return ADC_STEPS -1 - max(0, _ch1_ps - _ch1);
+  }
+  return _ch1;
 }
 uint16_t IpimBoardPsData::GetCh2() {
-  return max(0, _ch2_ps - _ch2); // negative-going signal
+  if(_doBaselineSubtraction) {
+    return ADC_STEPS - 1 - max(0, _ch2_ps - _ch2);
+  }
+  return _ch2;
 }
 uint16_t IpimBoardPsData::GetCh3() {
-  return max(0, _ch3_ps - _ch3); // negative-going signal
+  if(_doBaselineSubtraction) {
+    return ADC_STEPS -1 - max(0, _ch3_ps - _ch3);
+  }
+  return _ch3;
 }
 unsigned IpimBoardPsData::GetConfig0() {
   return _config0;
@@ -813,11 +822,7 @@ unsigned IpimBoardPsData::GetConfig2() {
   return _config2;
 }
 unsigned IpimBoardPsData::GetChecksum() {
-  if (DataPacketLength == 12) {
-    return _checksum;
-  } else {
-    return 0;
-  }
+    return 0; // checksum has no meaning for baseline-subtracted data or unsubtracted data without baseline data
 }
 
 
@@ -868,12 +873,12 @@ IpimBoardPacketParser::IpimBoardPacketParser(bool command, bool* damage, unsigne
   _lastDamaged = *_damage;
   *_damage = false;
   if (!command) {
-    _allowedPackets = DataPacketLength;
+    _allowedPackets = DataPackets;
     _leadHeaderNibble = 0xc;
     _bodyHeaderNibble = 0x8;
     _tailHeaderNibble = 0xa;
   } else {
-    _allowedPackets = 4;
+    _allowedPackets = CRPackets;
     _leadHeaderNibble = 0xd;
     _bodyHeaderNibble = 0x9;
     _tailHeaderNibble = 0xb;
@@ -925,7 +930,6 @@ void IpimBoardPacketParser::update(char* buff) {
 }
 
 bool IpimBoardPacketParser::packetIncomplete() {
-  //  printf("have seen %d packets of %d\n", _nPackets, _allowedPackets);
   return _nPackets != _allowedPackets;
 }
 

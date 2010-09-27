@@ -14,6 +14,8 @@
 #include "pdsdata/ipimb/ConfigV1.hh"
 
 #define BAUDRATE B115200
+#define DataPackets 16
+#define CRPackets 4
 
 namespace Pds {
   class IpimBoardData;
@@ -67,6 +69,7 @@ namespace Pds {
     bool configure(Ipimb::ConfigV1& config);
     bool unconfigure();
     bool setReadable(bool);
+    void setBaselineSubtraction(bool);
     int get_fd();
     void flush();
     bool dataDamaged();
@@ -76,13 +79,13 @@ namespace Pds {
     uint16_t GetErrors();
     
   private:
-    unsigned _commandList[4];
-    unsigned _dataList[12];
+    unsigned _commandList[CRPackets];
+    unsigned _dataList[DataPackets];
     int _commandIndex;
     int _dataIndex;
-    int _fd;//, _res, _maxfd;
+    int _fd;
     char* _serialDevice;
-    //    fd_set _readfs;
+    bool _doBaselineSubtraction;
     bool _dataDamage, _commandResponseDamage;
   };
   
@@ -95,7 +98,7 @@ namespace Pds {
     unsigned* getAll();
     
   private:
-    unsigned _commandList[4];
+    unsigned _commandList[CRPackets];
   };
 
 
@@ -113,12 +116,12 @@ namespace Pds {
     unsigned _addr;
     unsigned _data;
     unsigned _checksum;
-    unsigned _respList[4];
+    unsigned _respList[CRPackets];
   };
   
   class IpimBoardPsData {
   public:
-    IpimBoardPsData(unsigned* packet);
+    IpimBoardPsData(unsigned* packet, bool doBaselineSubtraction);
     IpimBoardPsData();
     ~IpimBoardPsData() {};//printf("IPBMD::dtor, this = %p\n", this);}
     
@@ -153,6 +156,7 @@ namespace Pds {
     uint16_t _ch2_ps;
     uint16_t _ch3_ps;
     uint16_t _checksum;
+    bool _doBaselineSubtraction;
   };
   
   class IpimBoardData {

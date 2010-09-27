@@ -140,18 +140,16 @@ private:
 
 Appliance& IpimbManager::appliance() {return _fsm;}
 
-IpimbManager::IpimbManager(IpimbServer* server[], unsigned nServers, CfgClientNfs** cfg, int* portInfo, IpimbFex& fex) :
+IpimbManager::IpimbManager(IpimbServer* server[], unsigned nServers, CfgClientNfs** cfg, char** portName, IpimbFex& fex) :
   _fsm(*new Fsm), _nServers(nServers) {
-  char portName[12];
   for (unsigned i=0; i<_nServers; i++) {
-    if (portInfo[i*4+3] == -1) {
-      sprintf(portName, "/dev/ttyPS%d", i);//*6+1);
+    if (not portName[i]) {
+      sprintf(portName[i], "/dev/ttyPS%d", i);//*6+1);
     } else {
-      printf("assign server %d to port %d\n", i, portInfo[i*4+3]);
-      sprintf(portName, "/dev/ttyPS%d", portInfo[i*4+3]);//*6+1);
+      printf("assign server %d to port %s\n", i, portName[i]);
     }
-    IpimBoard* ipimBoard = new IpimBoard(portName);
-    server[i]->setIpimb(ipimBoard, portName);
+    IpimBoard* ipimBoard = new IpimBoard(portName[i]);
+    server[i]->setIpimb(ipimBoard, portName[i]);
   }
   Action* caction = new IpimbConfigAction(cfg, server, _nServers, fex);
   _fsm.callback(TransitionId::Configure, caction);
