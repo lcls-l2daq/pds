@@ -5,7 +5,7 @@
 #include "memory.h"
 // for non-blocking attempt
 #include <fcntl.h>
-
+#include <cmath>
 
 using namespace std;
 using namespace Pds;
@@ -30,6 +30,8 @@ const bool DEBUG = false;
 
 static int KvetchCounter = 0;
 static const bool DumpSampleEvents = false; // should be false in normal running
+
+static float BaselineShiftTolerance = 0.005*(ADC_STEPS-1)/ADC_RANGE; // 5 mV
 
 namespace Pds {
 
@@ -116,12 +118,15 @@ IpimBoard::IpimBoard(char* serialDevice) {
   memset(_commandList, 0, CRPackets*sizeof(unsigned));
   _commandIndex = 0;
   _dataIndex = 0;
+
+  _history = new IpimBoardBaselineHistory();
 }
 
 IpimBoard::~IpimBoard() {
   //  _ser.close();
   // delete _lstData;
   // delete _lstCommands;
+  delete _history;
 }
 
 void IpimBoard::SetTriggerCounter(unsigned start0, unsigned start1) {
@@ -354,7 +359,7 @@ IpimBoardData IpimBoard::WaitData() {
     }
   }
 
-  IpimBoardPsData data = IpimBoardPsData(_dataList, _doBaselineSubtraction);
+  IpimBoardPsData data = IpimBoardPsData(_dataList, _baselineSubtraction, _history);
   int c = data.CheckCRC();
   if (!c) {
     if (DEBUG or KvetchCounter++<20) {
@@ -517,8 +522,8 @@ bool IpimBoard::setReadable(bool flag) {
   return true; // do something smarter here if possible
 }
 
-void IpimBoard::setBaselineSubtraction(bool doBaselineSubtraction) {
-  _doBaselineSubtraction = doBaselineSubtraction;
+void IpimBoard::setBaselineSubtraction(const int baselineSubtraction) {
+  _baselineSubtraction = baselineSubtraction;
 }
 
 IpimBoardCommand::IpimBoardCommand(bool write, unsigned address, unsigned data) {
@@ -606,8 +611,15 @@ bool IpimBoardResponse::CheckCRC() {
   return false;
 }
 
+IpimBoardBaselineHistory::IpimBoardBaselineHistory() {
+  memset(baselineBuffer, 0, sizeof(double)*NChannels*BufferLength);
+  nUpdates = 0;
+  bufferLength = 0;
+  memset(baselineRunningAverage, 0, sizeof(double)*NChannels);
+}
 
-IpimBoardPsData::IpimBoardPsData(unsigned* packet, bool doBaselineSubtraction) {
+
+IpimBoardPsData::IpimBoardPsData(unsigned* packet, const int baselineSubtraction, IpimBoardBaselineHistory* history) {
   _triggerCounter = 0;
   _config0 = 0;
   _config1 = 0;
@@ -618,7 +630,10 @@ IpimBoardPsData::IpimBoardPsData(unsigned* packet, bool doBaselineSubtraction) {
   _ch3 = 0;
   _checksum = 0;
   setAll(0, DataPackets, packet);
-  _doBaselineSubtraction = doBaselineSubtraction;
+  
+  _history = history;
+  _baselineSubtraction = baselineSubtraction;
+  updateBaselineHistory();
 }
 
 IpimBoardPsData::IpimBoardPsData() { // for IpimbServer setup
@@ -782,36 +797,48 @@ bool IpimBoardPsData::CheckCRC() {
   return false;
 }
 
+void IpimBoardPsData::updateBaselineHistory() {
+  _presampleChannel[0] = _ch0_ps;
+  _presampleChannel[1] = _ch1_ps;
+  _presampleChannel[2] = _ch2_ps;
+  _presampleChannel[3] = _ch3_ps;
+  _sampleChannel[0] = _ch0;
+  _sampleChannel[1] = _ch1;
+  _sampleChannel[2] = _ch2;
+  _sampleChannel[3] = _ch3;
+  for (int i=0; i<NChannels; i++) {
+    _history->baselineBuffer[i][_history->nUpdates%BufferLength] = _presampleChannel[i];
+    double oldAverage = _history->baselineRunningAverage[i];
+    double delta = std::abs(oldAverage -_presampleChannel[i]);
+    if (oldAverage > 0 and delta>BaselineShiftTolerance) {
+	if (DEBUG or KvetchCounter++<20) {
+	  printf("Running baseline average for channel %d is %f, new baseline value %f is larger than %f away\n", i, oldAverage, _presampleChannel[i], BaselineShiftTolerance);
+	}
+    }
+    _history->baselineRunningAverage[i] = (_history->nUpdates*_history->baselineRunningAverage[i] + _presampleChannel[i])/float(_history->nUpdates+1);
+  }
+  if (_history->bufferLength < 100)
+    _history->bufferLength++;
+  _history->nUpdates++;
+}
+
 uint64_t IpimBoardPsData::GetTriggerCounter() {
   return _triggerCounter;
 }
 unsigned IpimBoardPsData::GetTriggerDelay_ns() {
   return _config2*CLOCK_PERIOD;
 }
-uint16_t IpimBoardPsData::GetCh0() {
-  if(_doBaselineSubtraction) {
-     return ADC_STEPS -1 - max(0, _ch0_ps - _ch0); // negative-going signal; ACD maximum is ADC_STEPS -1
+uint16_t IpimBoardPsData::GetCh(int i) {
+  if(_baselineSubtraction == 1) {
+    return ADC_STEPS -1 - max(0, (int)_presampleChannel[i] - (int)_sampleChannel[i]); // negative-going signal; ACD maximum is ADC_STEPS -1
+  } else if (_baselineSubtraction == 2) {
+    return ADC_STEPS -1 - max(0, int(_history->baselineBufferedAverage[i] - _sampleChannel[i]));
+  } else if (_baselineSubtraction == 3) {
+    return ADC_STEPS -1 - max(0, int(_history->baselineRunningAverage[i] - _sampleChannel[i]));
   }
-  return _ch0;
+  return (uint16_t) _sampleChannel[i];
 }
-uint16_t IpimBoardPsData::GetCh1() {
-  if(_doBaselineSubtraction) {
-    return ADC_STEPS -1 - max(0, _ch1_ps - _ch1);
-  }
-  return _ch1;
-}
-uint16_t IpimBoardPsData::GetCh2() {
-  if(_doBaselineSubtraction) {
-    return ADC_STEPS - 1 - max(0, _ch2_ps - _ch2);
-  }
-  return _ch2;
-}
-uint16_t IpimBoardPsData::GetCh3() {
-  if(_doBaselineSubtraction) {
-    return ADC_STEPS -1 - max(0, _ch3_ps - _ch3);
-  }
-  return _ch3;
-}
+
 unsigned IpimBoardPsData::GetConfig0() {
   return _config0;
 }
@@ -831,10 +858,10 @@ IpimBoardData::IpimBoardData(IpimBoardPsData data) {
   _config0 = data.GetConfig0();
   _config1 = data.GetConfig1();
   _config2 = data.GetConfig2();
-  _ch0 = data.GetCh0(); 
-  _ch1 = data.GetCh1(); 
-  _ch2 = data.GetCh2(); 
-  _ch3 = data.GetCh3();
+  _ch0 = data.GetCh(0);
+  _ch1 = data.GetCh(1);
+  _ch2 = data.GetCh(2);
+  _ch3 = data.GetCh(3);
   _checksum = data.GetChecksum();
  }
 

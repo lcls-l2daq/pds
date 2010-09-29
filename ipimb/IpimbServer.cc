@@ -10,8 +10,8 @@
 
 using namespace Pds;
 
-IpimbServer::IpimbServer(const Src& client, const bool doBaselineSubtraction) :
-  _xtc(_ipimbDataType,client), _doBaselineSubtraction(doBaselineSubtraction)
+IpimbServer::IpimbServer(const Src& client, const int baselineSubtraction) :
+  _xtc(_ipimbDataType,client), _baselineSubtraction(baselineSubtraction)
 {
   _xtc.extent = sizeof(IpimbDataType)+sizeof(Xtc);
 }
@@ -88,7 +88,7 @@ void IpimbServer::setIpimb(IpimBoard* ipimb, char* portName) {
 }
 
 unsigned IpimbServer::configure(IpimbConfigType& config) {
-  _ipimBoard->setBaselineSubtraction(_doBaselineSubtraction); // avoid updating config class; caveat user
+  _ipimBoard->setBaselineSubtraction(_baselineSubtraction); // avoid updating config class; caveat user
   return _ipimBoard->configure(config);
   
 }

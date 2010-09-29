@@ -17,9 +17,13 @@
 #define DataPackets 16
 #define CRPackets 4
 
+static const int NChannels = 4;
+static const int BufferLength = 100;
+
 namespace Pds {
   class IpimBoardData;
   class IpimBoardPacketParser;
+  class IpimBoardBaselineHistory;
 
   class IpimBoard {
   public:
@@ -69,7 +73,7 @@ namespace Pds {
     bool configure(Ipimb::ConfigV1& config);
     bool unconfigure();
     bool setReadable(bool);
-    void setBaselineSubtraction(bool);
+    void setBaselineSubtraction(const int);
     int get_fd();
     void flush();
     bool dataDamaged();
@@ -85,7 +89,8 @@ namespace Pds {
     int _dataIndex;
     int _fd;
     char* _serialDevice;
-    bool _doBaselineSubtraction;
+    int _baselineSubtraction;
+    IpimBoardBaselineHistory* _history;
     bool _dataDamage, _commandResponseDamage;
   };
   
@@ -119,9 +124,21 @@ namespace Pds {
     unsigned _respList[CRPackets];
   };
   
+  class IpimBoardBaselineHistory {
+  public:
+    IpimBoardBaselineHistory();
+    ~IpimBoardBaselineHistory(){}
+    
+    double baselineBuffer[NChannels][BufferLength];
+    double baselineBufferedAverage[NChannels];
+    int nUpdates;
+    int bufferLength;
+    double baselineRunningAverage[NChannels];
+  };
+
   class IpimBoardPsData {
   public:
-    IpimBoardPsData(unsigned* packet, bool doBaselineSubtraction);
+    IpimBoardPsData(unsigned* packet, const int baselineSubtraction, IpimBoardBaselineHistory* history);
     IpimBoardPsData();
     ~IpimBoardPsData() {};//printf("IPBMD::dtor, this = %p\n", this);}
     
@@ -129,16 +146,14 @@ namespace Pds {
     uint64_t GetTriggerCounter();
     unsigned GetTriggerDelay_ns();
     unsigned GetTriggerPreSampleDelay_ns();
-    uint16_t GetCh0();
-    uint16_t GetCh1();
-    uint16_t GetCh2();
-    uint16_t GetCh3();
+    uint16_t GetCh(int channel);
     unsigned GetConfig0();
     unsigned GetConfig1();
     unsigned GetConfig2();
     unsigned GetChecksum();
     void setAll(int, int, unsigned*);
     void setList(int, int, unsigned*);
+    void updateBaselineHistory();
     
     void dumpRaw();
 
@@ -156,7 +171,10 @@ namespace Pds {
     uint16_t _ch2_ps;
     uint16_t _ch3_ps;
     uint16_t _checksum;
-    bool _doBaselineSubtraction;
+    
+    double _presampleChannel[NChannels], _sampleChannel[NChannels];
+    int _baselineSubtraction;
+    IpimBoardBaselineHistory* _history;
   };
   
   class IpimBoardData {

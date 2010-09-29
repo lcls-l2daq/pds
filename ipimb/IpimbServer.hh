@@ -13,7 +13,7 @@ namespace Pds {
 
   class IpimbServer : public EbServer, public EbCountSrv {
   public:
-    IpimbServer(const Src& client, const bool doBaselineSubtraction);
+    IpimbServer(const Src& client, const int baselineSubtraction);
     virtual ~IpimbServer() {}
     
   public:
@@ -46,7 +46,7 @@ namespace Pds {
     unsigned _count;
     IpimBoard* _ipimBoard;
     char* _serialDevice;
-    bool _doBaselineSubtraction;
+    int _baselineSubtraction;
   };
 }
 #endif
