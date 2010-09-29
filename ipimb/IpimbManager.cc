@@ -140,13 +140,13 @@ private:
 
 Appliance& IpimbManager::appliance() {return _fsm;}
 
-IpimbManager::IpimbManager(IpimbServer* server[], unsigned nServers, CfgClientNfs** cfg, char** portName, IpimbFex& fex) :
+IpimbManager::IpimbManager(IpimbServer* server[], unsigned nServers, CfgClientNfs** cfg, char* portName[16], IpimbFex& fex) :
   _fsm(*new Fsm), _nServers(nServers) {
   for (unsigned i=0; i<_nServers; i++) {
-    if (not portName[i]) {
-      sprintf(portName[i], "/dev/ttyPS%d", i);//*6+1);
-    } else {
+    if (portName[i][0]) {
       printf("assign server %d to port %s\n", i, portName[i]);
+    } else {
+      sprintf(portName[i], "/dev/ttyPS%d", i);//*6+1);
     }
     IpimBoard* ipimBoard = new IpimBoard(portName[i]);
     server[i]->setIpimb(ipimBoard, portName[i]);
