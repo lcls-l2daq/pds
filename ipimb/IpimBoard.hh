@@ -25,6 +25,12 @@ namespace Pds {
   class IpimBoardPacketParser;
   class IpimBoardBaselineHistory;
 
+  enum {
+    crcFailed = 0x00,
+    packetIncomplete = 0x01,
+    baselineShift = 0x02
+  };
+
   class IpimBoard {
   public:
     IpimBoard(char* serialDevice);
@@ -73,10 +79,10 @@ namespace Pds {
     bool configure(Ipimb::ConfigV1& config);
     bool unconfigure();
     bool setReadable(bool);
-    void setBaselineSubtraction(const int);
+    void setBaselineSubtraction(const int, const int);
     int get_fd();
     void flush();
-    bool dataDamaged();
+    int dataDamage();
     bool commandResponseDamaged();
     uint64_t GetSerialID();
     uint16_t GetStatus();
@@ -89,9 +95,9 @@ namespace Pds {
     int _dataIndex;
     int _fd;
     char* _serialDevice;
-    int _baselineSubtraction;
+    int _baselineSubtraction, _polarity;
     IpimBoardBaselineHistory* _history;
-    bool _dataDamage, _commandResponseDamage;
+    int _dataDamage, _commandResponseDamage;
   };
   
   
@@ -138,7 +144,7 @@ namespace Pds {
 
   class IpimBoardPsData {
   public:
-    IpimBoardPsData(unsigned* packet, const int baselineSubtraction, IpimBoardBaselineHistory* history);
+    IpimBoardPsData(unsigned* packet, const int baselineSubtraction, const int polarity, IpimBoardBaselineHistory* history, int& dataDamage);
     IpimBoardPsData();
     ~IpimBoardPsData() {};//printf("IPBMD::dtor, this = %p\n", this);}
     
@@ -173,7 +179,8 @@ namespace Pds {
     uint16_t _checksum;
     
     double _presampleChannel[NChannels], _sampleChannel[NChannels];
-    int _baselineSubtraction;
+    int _baselineSubtraction, _polarity;
+    int _dataDamage;
     IpimBoardBaselineHistory* _history;
   };
   
@@ -209,7 +216,7 @@ namespace Pds {
   
   class IpimBoardPacketParser {
   public:
-    IpimBoardPacketParser(bool command, bool* damage, unsigned* lst);
+    IpimBoardPacketParser(bool command, int* damage, unsigned* lst);
     ~IpimBoardPacketParser() {};
     
     void update(char*);
@@ -219,7 +226,7 @@ namespace Pds {
 
   private:
     bool _command;
-    bool* _damage;
+    int* _damage;
     bool _lastDamaged;
     unsigned* _lst;
     int _nPackets;

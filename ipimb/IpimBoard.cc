@@ -120,6 +120,8 @@ IpimBoard::IpimBoard(char* serialDevice) {
   _dataIndex = 0;
 
   _history = new IpimBoardBaselineHistory();
+  _dataDamage = 0;
+  _commandResponseDamage = 0;
 }
 
 IpimBoard::~IpimBoard() {
@@ -347,7 +349,7 @@ IpimBoardData IpimBoard::WaitData() {
       unsigned fakeData = 0xdead;
       int packetsRead = packetParser.packetsRead();
       if (packetParser.packetIncomplete()) {
-	_dataDamage = true;
+	_dataDamage = packetIncomplete;
 	for (int i=packetsRead; i< DataPackets; i++) {
 	  _dataList[i] = fakeData;
 	}
@@ -359,23 +361,23 @@ IpimBoardData IpimBoard::WaitData() {
     }
   }
 
-  IpimBoardPsData data = IpimBoardPsData(_dataList, _baselineSubtraction, _history);
+  IpimBoardPsData data = IpimBoardPsData(_dataList, _baselineSubtraction, _polarity, _history, _dataDamage);
   int c = data.CheckCRC();
   if (!c) {
     if (DEBUG or KvetchCounter++<20) {
       printf("IpimBoard warning: data CRC check failed\n");
     }
-    _dataDamage = true;
+    _dataDamage = crcFailed;
   }
   return IpimBoardData(data);
 }
 
-bool IpimBoard::dataDamaged() {
+int IpimBoard::dataDamage() {
   return _dataDamage;
 }
 
 bool IpimBoard::commandResponseDamaged() {
-  return _commandResponseDamage;
+  return _commandResponseDamage>0;
 }
 
 void IpimBoard::WriteCommand(unsigned* cList) {
@@ -522,8 +524,9 @@ bool IpimBoard::setReadable(bool flag) {
   return true; // do something smarter here if possible
 }
 
-void IpimBoard::setBaselineSubtraction(const int baselineSubtraction) {
+void IpimBoard::setBaselineSubtraction(const int baselineSubtraction, const int polarity) {
   _baselineSubtraction = baselineSubtraction;
+  _polarity = polarity;
 }
 
 IpimBoardCommand::IpimBoardCommand(bool write, unsigned address, unsigned data) {
@@ -619,7 +622,7 @@ IpimBoardBaselineHistory::IpimBoardBaselineHistory() {
 }
 
 
-IpimBoardPsData::IpimBoardPsData(unsigned* packet, const int baselineSubtraction, IpimBoardBaselineHistory* history) {
+IpimBoardPsData::IpimBoardPsData(unsigned* packet, const int baselineSubtraction, const int polarity, IpimBoardBaselineHistory* history, int &dataDamage) {
   _triggerCounter = 0;
   _config0 = 0;
   _config1 = 0;
@@ -629,10 +632,13 @@ IpimBoardPsData::IpimBoardPsData(unsigned* packet, const int baselineSubtraction
   _ch2 = 0;
   _ch3 = 0;
   _checksum = 0;
-  setAll(0, DataPackets, packet);
-  
+  _dataDamage = dataDamage;
   _history = history;
   _baselineSubtraction = baselineSubtraction;
+  _polarity = polarity; // input is 0 or 1, use -1 or 1
+  if(polarity == 0) _polarity = -1;
+
+  setAll(0, DataPackets, packet);  
   updateBaselineHistory();
 }
 
@@ -811,14 +817,23 @@ void IpimBoardPsData::updateBaselineHistory() {
     double oldAverage = _history->baselineRunningAverage[i];
     double delta = std::abs(oldAverage -_presampleChannel[i]);
     if (oldAverage > 0 and delta>BaselineShiftTolerance) {
-	if (DEBUG or KvetchCounter++<20) {
-	  printf("Running baseline average for channel %d is %f, new baseline value %f is larger than %f away\n", i, oldAverage, _presampleChannel[i], BaselineShiftTolerance);
-	}
+      _dataDamage = baselineShift;
+      if (DEBUG or KvetchCounter++<20) {
+	printf("Running baseline average for channel %d is %f, new baseline value %f is larger than %f away\n", i, oldAverage, _presampleChannel[i], BaselineShiftTolerance);
+      }
     }
     _history->baselineRunningAverage[i] = (_history->nUpdates*_history->baselineRunningAverage[i] + _presampleChannel[i])/float(_history->nUpdates+1);
   }
   if (_history->bufferLength < 100)
     _history->bufferLength++;
+  
+  for (int i=0; i<NChannels; i++) {
+    double sum = 0;
+    for (int j=0; j<_history->bufferLength; j++) {
+      sum += _history->baselineBuffer[i][j];
+    }
+    _history->baselineBufferedAverage[i] = sum/_history->bufferLength;
+  }
   _history->nUpdates++;
 }
 
@@ -829,12 +844,18 @@ unsigned IpimBoardPsData::GetTriggerDelay_ns() {
   return _config2*CLOCK_PERIOD;
 }
 uint16_t IpimBoardPsData::GetCh(int i) {
+  double presample = 0;
   if(_baselineSubtraction == 1) {
-    return ADC_STEPS -1 - max(0, (int)_presampleChannel[i] - (int)_sampleChannel[i]); // negative-going signal; ACD maximum is ADC_STEPS -1
+    presample = _presampleChannel[i];
   } else if (_baselineSubtraction == 2) {
-    return ADC_STEPS -1 - max(0, int(_history->baselineBufferedAverage[i] - _sampleChannel[i]));
+    presample = _history->baselineBufferedAverage[i];
   } else if (_baselineSubtraction == 3) {
-    return ADC_STEPS -1 - max(0, int(_history->baselineRunningAverage[i] - _sampleChannel[i]));
+    presample = _history->baselineRunningAverage[i];
+  }
+  if (_baselineSubtraction != 0) {
+    // polarity -1 for negative-going signal (default)
+    // ADC maximum is ADC_STEPS - 1
+    return ADC_STEPS - 1 - max((uint16_t)0, (uint16_t)(-1*_polarity*presample + _polarity*_sampleChannel[i]));
   }
   return (uint16_t) _sampleChannel[i];
 }
@@ -894,7 +915,7 @@ unsigned IpimBoardData::GetConfig2() {
 }
 
 
-IpimBoardPacketParser::IpimBoardPacketParser(bool command, bool* damage, unsigned* lst):
+IpimBoardPacketParser::IpimBoardPacketParser(bool command, int* damage, unsigned* lst):
   _command(command), _damage(damage), _lst(lst),
   _nPackets(0), _allowedPackets(0), _leadHeaderNibble(0), _bodyHeaderNibble(0), _tailHeaderNibble(0) {
   _lastDamaged = *_damage;

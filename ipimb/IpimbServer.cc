@@ -10,8 +10,8 @@
 
 using namespace Pds;
 
-IpimbServer::IpimbServer(const Src& client, const int baselineSubtraction) :
-  _xtc(_ipimbDataType,client), _baselineSubtraction(baselineSubtraction)
+IpimbServer::IpimbServer(const Src& client, const int baselineSubtraction, const int polarity) :
+  _xtc(_ipimbDataType,client), _baselineSubtraction(baselineSubtraction), _polarity(polarity)
 {
   _xtc.extent = sizeof(IpimbDataType)+sizeof(Xtc);
 }
@@ -55,10 +55,11 @@ unsigned IpimbServer::length() const {
 int IpimbServer::fetch(char* payload, int flags)
 {
   IpimBoardData data = _ipimBoard->WaitData();
-  if (_ipimBoard->dataDamaged()) {
-    printf("IpimBoard error: IpimbServer::fetch had problems getting data, fd %d, device %s\n", fd(), _serialDevice);
+  _xtc.damage = 0;
+  if (_ipimBoard->dataDamage()) {
+    printf("IpimBoard error: IpimbServer::fetch had problems getting data, fd %d, device %s or data had issues\n", fd(), _serialDevice);
     //    data.dumpRaw(); // turned off for the moment for presampling
-    // need to register damage in manager (?)
+    _xtc.damage.increase(Pds::Damage::UserDefined);
   }
   //  double ch0 = data.GetCh0_V();
   unsigned long long ts = data.GetTriggerCounter();//_data->GetTimestamp_ticks();
@@ -88,7 +89,7 @@ void IpimbServer::setIpimb(IpimBoard* ipimb, char* portName) {
 }
 
 unsigned IpimbServer::configure(IpimbConfigType& config) {
-  _ipimBoard->setBaselineSubtraction(_baselineSubtraction); // avoid updating config class; caveat user
+  _ipimBoard->setBaselineSubtraction(_baselineSubtraction, _polarity); // avoid updating config class; caveat user
   return _ipimBoard->configure(config);
   
 }
