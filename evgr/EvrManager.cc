@@ -142,7 +142,7 @@ public:
   {      
     FIFOEvent fe;
     _er.GetFIFOEvent(&fe);
-        
+
     // for testing
     if ((fe.TimestampHigh & dropPulseMask) == dropPulseMask)
     {
@@ -420,7 +420,7 @@ private:
 
 class EvrAction:public Action
 {
-protected:
+public:
   EvrAction(Evr & er):_er(er)
   {
   }
@@ -448,7 +448,7 @@ public:
     {
       if (!l1xmitGlobal->enable())
         break;
-      
+
       if ( _poolEvrData.numberOfFreeObjects() <= 0 )
       {
         printf( "EvrL1Action::fire(): Pool is full, so cannot provide buffer for new datagram\n" );
@@ -698,8 +698,6 @@ public:
     _end_config = _configBuffer+len;
     _cfgtc.extent = sizeof(Xtc) + _cur_config->size();
 
-    printf("fetch: curr %p  end %p\n", _cur_config, _end_config);
-
     return true;
   }
 
@@ -712,8 +710,6 @@ public:
     else
       _cur_config = reinterpret_cast<const EvrConfigType*>(_configBuffer);
     _cfgtc.extent = sizeof(Xtc) + _cur_config->size();
-
-    printf("advance: curr %p  end %p\n", _cur_config, _end_config);
   }
 
   void enable()
@@ -780,22 +776,30 @@ private:
 class EvrAllocAction:public Action
 {
 public:
-  EvrAllocAction(CfgClientNfs & cfg, EvrL1Action& l1A):_cfg(cfg),_l1action(l1A)
+  EvrAllocAction(CfgClientNfs & cfg, 
+		 EvrL1Action&   l1A,
+		 DoneTimer&     done) :
+    _cfg(cfg),_l1action(l1A), _done(done), _xmitter(0)
   {
   }
   Transition *fire(Transition * tr)
   {
     const Allocate & alloc = reinterpret_cast < const Allocate & >(*tr);
     _cfg.initialize(alloc.allocation());
+
+    if (!_xmitter)
+      _xmitter = new L1Xmitter(_l1action._er,_done);
+    l1xmitGlobal = _xmitter;
+
     //
     //  Test if we own the primary EVR for this partition
     //
-#if 0
-    unsigned nnodes = alloc.nnodes();
+#if 1
+    unsigned nnodes = alloc.allocation().nnodes();
     int pid = getpid();
     for (unsigned n = 0; n < nnodes; n++)
     {
-      const Node *node = alloc.node(n);
+      const Node *node = alloc.allocation().node(n);
       if (node->pid() == pid)
       {
         printf("Found our EVR\n");
@@ -821,6 +825,8 @@ public:
 private:
   CfgClientNfs& _cfg;
   EvrL1Action&  _l1action;
+  DoneTimer&    _done;
+  L1Xmitter*    _xmitter;
 };
 
 extern "C"
@@ -849,12 +855,10 @@ Appliance & EvrManager::appliance()
 EvrManager::EvrManager(EvgrBoardInfo < Evr > &erInfo, CfgClientNfs & cfg, bool bTurnOffBeamCodes):
   _er(erInfo.board()), _fsm(*new Fsm), _done(new DoneTimer(_fsm)), _bTurnOffBeamCodes(bTurnOffBeamCodes)
 {
-  l1xmitGlobal = new L1Xmitter(_er, *_done);
-  
   EvrL1Action* l1A = new EvrL1Action(_er, cfg.src());
   EvrConfigManager* cmgr = new EvrConfigManager(_er, cfg, bTurnOffBeamCodes);
 
-  _fsm.callback(TransitionId::Map            , new EvrAllocAction     (cfg,*l1A));
+  _fsm.callback(TransitionId::Map            , new EvrAllocAction     (cfg,*l1A,*_done));
   _fsm.callback(TransitionId::Configure      , new EvrConfigAction    (*cmgr));
   _fsm.callback(TransitionId::BeginCalibCycle, new EvrBeginCalibAction(*cmgr));
   _fsm.callback(TransitionId::EndCalibCycle  , new EvrEndCalibAction  (*cmgr));
