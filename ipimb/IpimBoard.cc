@@ -301,7 +301,7 @@ void IpimBoard::SetTriggerPreSampleDelay(uint32_t triggerPsDelay) {
     _commandResponseDamage = true;
     return;
   }
-  WriteRegister(trig_delay, delay);
+  WriteRegister(trig_ps_delay, delay);
 }
 
 void IpimBoard::CalibrationStart(unsigned calStrobeLength) { //=0xff):
