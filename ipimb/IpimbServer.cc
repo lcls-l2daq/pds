@@ -10,9 +10,11 @@
 
 using namespace Pds;
 
-IpimbServer::IpimbServer(const Src& client, const int baselineSubtraction, const int polarity) :
-  _xtc(_ipimbDataType,client), _baselineSubtraction(baselineSubtraction), _polarity(polarity)
+IpimbServer::IpimbServer(const Src& client) :
+  _xtc(_ipimbDataType,client)
 {
+  _baselineSubtraction = 1;
+  _polarity = -1;
   _xtc.extent = sizeof(IpimbDataType)+sizeof(Xtc);
 }
 
@@ -82,13 +84,16 @@ unsigned IpimbServer::count() const
   return _count - 1; // "counting from" hack
 }
 
-void IpimbServer::setIpimb(IpimBoard* ipimb, char* portName) {
+void IpimbServer::setIpimb(IpimBoard* ipimb, char* portName, const int baselineSubtraction, const int polarity) {
   _ipimBoard = ipimb;
+  _baselineSubtraction = baselineSubtraction;
+  _polarity = polarity;
   fd(_ipimBoard->get_fd());
   _serialDevice = portName;
 }
 
 unsigned IpimbServer::configure(IpimbConfigType& config) {
+  printf("In IpimbServer, using baseline mode %d, polarity %d\n", _baselineSubtraction, _polarity);
   _ipimBoard->setBaselineSubtraction(_baselineSubtraction, _polarity); // avoid updating config class; caveat user
   return _ipimBoard->configure(config);
   

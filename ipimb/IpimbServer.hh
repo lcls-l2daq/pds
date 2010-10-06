@@ -13,7 +13,7 @@ namespace Pds {
 
   class IpimbServer : public EbServer, public EbCountSrv {
   public:
-    IpimbServer(const Src& client, const int baselineSubtraction, const int polarity);
+    IpimbServer(const Src& client);
     virtual ~IpimbServer() {}
     
   public:
@@ -35,7 +35,7 @@ namespace Pds {
     int      fetch (ZcpFragment& , int flags);
   public:
     unsigned count() const;
-    void setIpimb(IpimBoard* ipimb, char* serialDevice);
+    void setIpimb(IpimBoard* ipimb, char* serialDevice, int baselineMode, int polarity);
 
   public:
     unsigned configure(IpimbConfigType& config);

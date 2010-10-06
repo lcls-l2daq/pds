@@ -855,7 +855,12 @@ uint16_t IpimBoardPsData::GetCh(int i) {
   if (_baselineSubtraction != 0) {
     // polarity -1 for negative-going signal (default)
     // ADC maximum is ADC_STEPS - 1
-    return ADC_STEPS - 1 - max((uint16_t)0, (uint16_t)(-1*_polarity*presample + _polarity*_sampleChannel[i]));
+    int diff = max(0, int(-1*_polarity*presample + _polarity*_sampleChannel[i])); // guard against overflow due to noise
+    if (_polarity == 1) {
+      return diff;
+    } else {
+      return ADC_STEPS - 1 - diff; // 0xffff if diff is zero (negative-going signal)
+    }
   }
   return (uint16_t) _sampleChannel[i];
 }

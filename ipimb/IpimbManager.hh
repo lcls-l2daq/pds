@@ -12,7 +12,7 @@ namespace Pds {
 
   class IpimbManager {
   public:
-    IpimbManager(IpimbServer* server[], unsigned nServers, CfgClientNfs** cfg, char* portName[16], IpimbFex&);
+    IpimbManager(IpimbServer* server[], unsigned nServers, CfgClientNfs** cfg, char* portName[16], const int baselineMode, const int polarities[16], IpimbFex&);
     Appliance& appliance();
   private:
     Fsm& _fsm;

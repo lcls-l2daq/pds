@@ -140,7 +140,7 @@ private:
 
 Appliance& IpimbManager::appliance() {return _fsm;}
 
-IpimbManager::IpimbManager(IpimbServer* server[], unsigned nServers, CfgClientNfs** cfg, char* portName[16], IpimbFex& fex) :
+IpimbManager::IpimbManager(IpimbServer* server[], unsigned nServers, CfgClientNfs** cfg, char* portName[16], const int baselineMode, const int polarities[16], IpimbFex& fex) :
   _fsm(*new Fsm), _nServers(nServers) {
   for (unsigned i=0; i<_nServers; i++) {
     if (portName[i][0]) {
@@ -149,7 +149,7 @@ IpimbManager::IpimbManager(IpimbServer* server[], unsigned nServers, CfgClientNf
       sprintf(portName[i], "/dev/ttyPS%d", i);//*6+1);
     }
     IpimBoard* ipimBoard = new IpimBoard(portName[i]);
-    server[i]->setIpimb(ipimBoard, portName[i]);
+    server[i]->setIpimb(ipimBoard, portName[i], baselineMode, polarities[i]);
   }
   Action* caction = new IpimbConfigAction(cfg, server, _nServers, fex);
   _fsm.callback(TransitionId::Configure, caction);
