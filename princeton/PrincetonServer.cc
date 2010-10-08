@@ -1355,7 +1355,7 @@ int PrincetonServer::checkSequence( const Datagram& datagram )
    *   We need to convert the computed differences to signed values by using (int) operator.
    *   Otherwise, negative values will be interpreted as large positive values.
    */
-  const float     fDeltaTime        = (int) ( clockCurDatagram.seconds() - _clockPrevDatagram.seconds() ) +
+  float     fDeltaTime        = (int) ( clockCurDatagram.seconds() - _clockPrevDatagram.seconds() ) +
    (int) ( clockCurDatagram.nanoseconds() - _clockPrevDatagram.nanoseconds() ) * 1.0e-9f;
    
   if ( fDeltaTime < _fPrevReadoutTime * _fEventDeltaTimeFactor )
@@ -1371,6 +1371,9 @@ int PrincetonServer::checkSequence( const Datagram& datagram )
   
   if ( _iDebugLevel >= 3 )
   {
+    if ( _clockPrevDatagram.seconds() == 0 && _clockPrevDatagram.nanoseconds() == 0 )
+      fDeltaTime = 0;
+      
     printf( "PrincetonServer::checkSequence(): Event delta time (%.2fs), Prev Readout Time (%.2fs), Factor (%.2f)\n",
       fDeltaTime, _fPrevReadoutTime, _fEventDeltaTimeFactor );
   }

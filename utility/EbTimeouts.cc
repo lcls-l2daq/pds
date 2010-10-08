@@ -31,11 +31,11 @@ EbTimeouts::EbTimeouts(int stream,
   switch(level) {
 
 #ifdef BUILD_PRINCETON
-  case Level::Source : _tmos = 400; break;
-  case Level::Segment: _tmos = 401; break;
-  case Level::Event  : _tmos = 402; break;
-  case Level::Control: _tmos = 403; break;
-  default            : _tmos = 403; break;
+  case Level::Source : _tmos = 120; break;
+  case Level::Segment: _tmos = 121; break;
+  case Level::Event  : _tmos = 122; break;
+  case Level::Control: _tmos = 123; break;
+  default            : _tmos = 123; break;
 #else
   case Level::Source : _tmos = 1; break;
   case Level::Segment: _tmos = 2; break;

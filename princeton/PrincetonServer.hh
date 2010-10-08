@@ -78,9 +78,9 @@ private:
   static const int      _iMaxFrameDataSize;                     // Buffer for 4 Mega (image pixels) x 2 (bytes per pixel) + 
                                                                 //   info size + header size
   static const int      _iPoolDataCount         = 5;            // 4 buffer for traffic shaping, 1 buffer for capture thread (in delay mode)
-  static const int      _iMaxReadoutTime        = 30000;        // Max readout time
-  static const int      _iMaxThreadEndTime      = 30000;        // Max thread terminating time (in ms)
-  static const int      _iMaxLastEventTime      = 30000;        // Max readout time for the last (diable) event
+  static const int      _iMaxReadoutTime        = 120000;        // Max readout time
+  static const int      _iMaxThreadEndTime      = 120000;        // Max thread terminating time (in ms)
+  static const int      _iMaxLastEventTime      = 120000;        // Max readout time for the last (diable) event
   static const int      _iMaxEventReport        = 20;           // Only report some statistics and non-critical errors in the first few L1 events
   static const float    _fEventDeltaTimeFactor;                 // Event delta time factor, for detecting sequence error  
 
