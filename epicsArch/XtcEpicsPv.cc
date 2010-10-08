@@ -18,6 +18,9 @@ int XtcEpicsPv::setValue(EpicsMonitorPv& epicsPv, bool bCtrlValue )
     else if ( iFail != 0 )
       return 1;
             
+    if ( (iSizeXtcEpics & 0x3) != 0 ) // Align to 4-bytes boundary
+      iSizeXtcEpics = (iSizeXtcEpics & ~0x3) + 4;
+      
     // Adjust self size
     alloc( iSizeXtcEpics );
     
