@@ -546,7 +546,7 @@ int main(int argc, char *argv[])
       }
       else {
 	
-	unsigned thisId;
+	unsigned thisId = 0;
 	switch (bitsperpixel) {
 	case 0:
 	case 8:

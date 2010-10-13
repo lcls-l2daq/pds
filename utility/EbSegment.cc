@@ -127,7 +127,7 @@ bool EbSegment::deallocate(char* payload, int sizeofFragment)
   //  If the fragment has overwritten the end of the allocated space,
   //  record damage and give up.
   //
-  if (sizeofFragment + _offset > _header.extent) {
+  if (sizeofFragment + _offset > (int)_header.extent) {
     _header.damage.increase(Damage::IncompleteContribution);
     if (nEbPrints)
       printf("EbSegment overwrote next %x + %x > %x\n",

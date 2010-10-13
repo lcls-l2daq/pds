@@ -83,7 +83,7 @@ static void displayParamValueInfo(int16 hCam, uns32 uParamId)
     signed char bval;
   } currentVal, minVal, maxVal, defaultVal, incrementVal;
   uns16 type;                 /* data type of paramater id */
-  boolean status, status2, status3, status4, status5; /* status of pvcam functions */
+  boolean status = false, status2 = false, status3 = false, status4 = false, status5 = false; /* status of pvcam functions */
 
   /* get the data type of parameter id */
   status = pl_get_param(hCam, uParamId, ATTR_TYPE, (void *) &type);

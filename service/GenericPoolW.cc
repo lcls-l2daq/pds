@@ -12,7 +12,7 @@ GenericPoolW::GenericPoolW(size_t sizeofObject, int numberofObjects) :
   //  Note that the base class GenericPool populates the pool by
   //  calling enque() before we have overridden that function.
   //
-  for(unsigned i=0; i<numberofObjects; i++)
+  for(int i=0; i<numberofObjects; i++)
     _sem.give();
 }
 

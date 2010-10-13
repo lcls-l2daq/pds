@@ -596,7 +596,7 @@ void EbBase::dump(int detail)
 
   printf(" Time of dump: ");
   printf(ctime(&timeNow));
-  printf("%08x/%08x\n", ts.tv_sec, ts.tv_nsec);
+  printf("%08x/%08x\n", (unsigned)ts.tv_sec, (unsigned)ts.tv_nsec);
   printf(" Event Timeout is %u [ms]\n", timeout());
   printf(" Has posted %u datagrams\n", _output.datagrams());
   printf(" %u Contributions, %u Chunks, %u Cache misses, %u Discards\n",

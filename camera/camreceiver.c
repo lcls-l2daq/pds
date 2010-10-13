@@ -185,21 +185,21 @@ int main (int argc, char *argv[])
   
   printf( "camreceiver: sizeof(camstream_image_t) = %lu.\n",
           camstream_image_t_len );
-  printf( "camreceiver: sizeof(camstream_img_t.camstream_basic_t) = %lu.\n",
+  printf( "camreceiver: sizeof(camstream_img_t.camstream_basic_t) = %u.\n",
           sizeof(xxx.base) );
-  printf( "camreceiver: sizeof(camstream_img_t.camstream_basic_t.hdr) = %lu.\n",
+  printf( "camreceiver: sizeof(camstream_img_t.camstream_basic_t.hdr) = %u.\n",
           sizeof(xxx.base.hdr) );
-  printf( "camreceiver: sizeof(camstream_img_t.camstream_basic_t.pktsize) = %lu.\n",
+  printf( "camreceiver: sizeof(camstream_img_t.camstream_basic_t.pktsize) = %u.\n",
           sizeof(xxx.base.pktsize) );
-  printf( "camreceiver: sizeof(camstream_img_t.format) = %lu.\n",
+  printf( "camreceiver: sizeof(camstream_img_t.format) = %u.\n",
           sizeof(xxx.format) );
-  printf( "camreceiver: sizeof(camstream_img_t.size) = %lu.\n",
+  printf( "camreceiver: sizeof(camstream_img_t.size) = %u.\n",
           sizeof(xxx.size) );
-  printf( "camreceiver: sizeof(camstream_img_t.width) = %lu.\n",
+  printf( "camreceiver: sizeof(camstream_img_t.width) = %u.\n",
           sizeof(xxx.width) );
-  printf( "camreceiver: sizeof(camstream_img_t.height) = %lu.\n",
+  printf( "camreceiver: sizeof(camstream_img_t.height) = %u.\n",
           sizeof(xxx.height) );
-  printf( "camreceiver: sizeof(camstream_img_t.data_off) = %lu.\n",
+  printf( "camreceiver: sizeof(camstream_img_t.data_off) = %u.\n",
           sizeof(xxx.data_off) );
 
   xxx.base.hdr = 0x12345678;
@@ -418,13 +418,13 @@ int main (int argc, char *argv[])
 			total += pktsize;
 			if (p->base.hdr != CAMSTREAM_IMAGE_HDR) {
 				if(sync) {
-                                   printf( "\np->base.hdr = %lu.\n", p->base.hdr );
-                                   printf( "p->base.pktsize = %lu.\n", ntohl(p->base.pktsize) );
+                                   printf( "\np->base.hdr = %u.\n", p->base.hdr );
+                                   printf( "p->base.pktsize = %u.\n", ntohl(p->base.pktsize) );
                                    printf( "p->format = %d.\n", p->format );
-                                   printf( "p->size = %lu.\n", p->size );
+                                   printf( "p->size = %u.\n", p->size );
                                    printf( "p->width = %hu.\n", p->width );
                                    printf( "p->height = %hu.\n", p->height );
-                                   printf( "p->data_off = %lu.\n", p->data_off );
+                                   printf( "p->data_off = %u.\n", p->data_off );
 					printf("invalid header, skipping.\nWaiting for image %lu ...   ", i);			
 					sync = 0;
 				}
