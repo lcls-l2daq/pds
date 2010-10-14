@@ -4,7 +4,7 @@
 #include <unistd.h>
 
 #include "pdsdata/encoder/ConfigV1.hh"
-#include "pdsdata/encoder/DataV1.hh"
+#include "pdsdata/encoder/DataV2.hh"
 #include "driver/pci3e-wrapper.hh"
 
 namespace Pds
@@ -17,6 +17,7 @@ class Pds::PCI3E_dev
  public:
    PCI3E_dev( const char* pci3e_dev_node )
       : _pci3e( pci3e_dev_node ) {}
+
    ~PCI3E_dev() {}
     
    int open( void );
@@ -25,14 +26,13 @@ class Pds::PCI3E_dev
 
    // Clears FIFO and disables interrupts.
    int unconfigure();
-   int get_data( Pds::Encoder::DataV1& data );
+   int get_data( Pds::Encoder::DataV2& data );
    int ignore_old_data( void );
    int get_fd()
       { return _pci3e.get_fd(); }
 
  private:
    PCI3E::dev _pci3e;
-   PCI3E::channel _channel;
 };
   
 #endif

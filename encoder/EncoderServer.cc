@@ -1,7 +1,7 @@
 #include "EncoderServer.hh"
 #include "pds/xtc/CDatagram.hh"
 #include "pds/xtc/ZcpDatagram.hh"
-#include "pdsdata/encoder/DataV1.hh"
+#include "pdsdata/encoder/DataV2.hh"
 #include "pds/config/EncoderDataType.hh"
 
 #include <unistd.h>
@@ -31,7 +31,7 @@ unsigned Pds::EncoderServer::unconfigure(void)
 
 int Pds::EncoderServer::fetch( char* payload, int flags )
 {
-   Pds::Encoder::DataV1 data;
+   Pds::Encoder::DataV2 data;
    int ret;
 
    // Verify that there is indeed data to read.

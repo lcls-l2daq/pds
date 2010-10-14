@@ -418,11 +418,9 @@ int PCI3E::channel::latch_counter( uint32_t*  count )
    return reg_read( REG_LATCH_OUTPUT, count );
 }
 
-int PCI3E::channel::read_fifo( fifo_chan_entry* chan_entry )
+int PCI3E::channel::read_fifo( fifo_entry* entry )
 {
-   fifo_entry entry;
-   int ret = _dev->read_fifo( &entry );
-   new (chan_entry) fifo_chan_entry( _chan, &entry );
+   int ret = _dev->read_fifo( entry );
    return ret;
 }
 

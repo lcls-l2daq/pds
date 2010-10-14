@@ -15,7 +15,7 @@
 #include "pci3e_dev.hh"
 #include "EncoderManager.hh"
 #include "EncoderServer.hh"
-#include "pdsdata/encoder/DataV1.hh"
+#include "pdsdata/encoder/DataV2.hh"
 #include "pdsdata/encoder/ConfigV1.hh"
 #include "pds/config/CfgClientNfs.hh"
 // FIXME: Only for initial bringup - when the configuration database
@@ -147,7 +147,7 @@ InDatagram* EncoderL1Action::fire(InDatagram* in)
 // encoder timestamp is valid.
 void EncoderL1Action::validate( InDatagram* in )
 {
-   Encoder::DataV1* data;
+   Encoder::DataV2* data;
 
    uint32_t curr_fiducial;
    uint32_t diff_fiducial;
@@ -163,7 +163,7 @@ void EncoderL1Action::validate( InDatagram* in )
    uint64_t diff_evr_vs_enc_ns;
 
    Datagram& dg = in->datagram();
-   data = (Encoder::DataV1*) ( dg.xtc.payload() + sizeof(Xtc) );
+   data = (Encoder::DataV2*) ( dg.xtc.payload() + sizeof(Xtc) );
 
    curr_fiducial = dg.seq.stamp().fiducials();
    curr_enc_timestamp = data->_33mhz_timestamp;

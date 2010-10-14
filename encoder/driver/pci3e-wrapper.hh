@@ -59,7 +59,7 @@ class PCI3E::channel
 
    int latch_counter( uint32_t* count );
 
-   int read_fifo( fifo_chan_entry* chan_entry );
+   int read_fifo( fifo_entry* entry );
 
    int enable( void );
    int set_quadrature_mode( uint32_t mode );
