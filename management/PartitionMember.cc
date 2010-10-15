@@ -89,7 +89,7 @@ void PartitionMember::message(const Node& hdr, const Message& msg)
 	    else if (header().level()==Level::Segment) {
 	      CDatagram* ndg = 
 		new(&_pool) CDatagram(Datagram(tr,_xtcType,header().procInfo()));
-	      if (tr.size() > sizeof(Transition)) {
+	      if (tr.size() > sizeof(Transition) && _index==0) {
 		const Xtc& tc = *reinterpret_cast<const Xtc*>(&tr+1);
 		ndg->insert(tc,tc.payload());
 	      }
