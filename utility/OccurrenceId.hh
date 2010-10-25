@@ -35,7 +35,8 @@ class OccurrenceId
       Noop,        
       ClearReadout,  
       SequencerDone,
-      DataFileOpened
+      DataFileOpened,
+      UserMessage
     };
     enum {numberof = 32};
   };

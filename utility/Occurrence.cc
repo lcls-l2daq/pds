@@ -35,3 +35,19 @@ void Occurrence::operator delete(void* buffer)
     delete [] reinterpret_cast<char*>(entry);
   }
 }
+
+UserMessage::UserMessage() :
+  Occurrence(OccurrenceId::UserMessage,
+	     sizeof(UserMessage))
+{ _msg[0]=0; }
+
+UserMessage::UserMessage(const char* msg) :
+  Occurrence(OccurrenceId::UserMessage,
+	     sizeof(UserMessage))
+{ strncpy(_msg, msg, MaxMsgLength); }
+
+void UserMessage::append(const char* msg)
+{ 
+  char* m = _msg + strlen(_msg);
+  strncpy(m, msg, _msg+MaxMsgLength-m-1);
+}

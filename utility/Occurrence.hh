@@ -41,6 +41,19 @@ namespace Pds {
     unsigned stream;
     unsigned chunk;
   };
+
+  class UserMessage : public Occurrence
+  {
+  public:
+    enum { MaxMsgLength=64 };
+    UserMessage();
+    UserMessage(const char* msg);
+  public:
+    const char* msg() const { return _msg; }
+    void append(const char*);
+  private:
+    char _msg[MaxMsgLength];
+  };
 }
 
 #endif
