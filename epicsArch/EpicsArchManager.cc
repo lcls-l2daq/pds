@@ -12,6 +12,7 @@
 #include "pds/service/Routine.hh"
 #include "pds/service/GenericPool.hh"
 #include "pds/xtc/CDatagram.hh"
+#include "pds/utility/Occurrence.hh"
 #include "pds/client/Fsm.hh"
 #include "pds/client/Action.hh"
 #include "pds/config/CfgClientNfs.hh"
@@ -83,7 +84,8 @@ class EpicsArchConfigAction : public Action
 public:
     EpicsArchConfigAction(EpicsArchManager& manager, const Src& src, CfgClientNfs& cfg, int iDebugLevel) :
         //_cfgtc(_epicsArchConfigType,src),
-        _manager(manager), _src(src), _cfg(cfg), _iDebugLevel(iDebugLevel)
+      _manager(manager), _src(src), _cfg(cfg), _iDebugLevel(iDebugLevel),
+      _occPool(sizeof(UserMessage),1)
     {}
     
     // this is the first "phase" of a transition where
@@ -118,10 +120,22 @@ public:
          * 4              Some PV values have been outputted, but some has write error
          * 5              Some PV values have been outputted, but some has not been connected
          */
+	static const char* cfgError[] = { NULL, 
+					  NULL,
+					  ":PV data size too large", 
+					  NULL,
+					  NULL,
+					  ":Some PVs not connected" };
         if ( iFail != 0 )
         {
           // set damage bit          
           out->datagram().xtc.damage.increase(Pds::Damage::UserDefined);
+	  if (cfgError[iFail]) {
+	    UserMessage* msg = new(&_occPool) UserMessage;
+	    msg->append(DetInfo::name(static_cast<const DetInfo&>(_cfg.src())));
+	    msg->append(cfgError[iFail]);
+	    _manager.appliance().post(msg);
+	  }
         }                
                   
         if (_iDebugLevel>=1) printf( "\nOutput payload size = %d\n", out->datagram().xtc.sizeofPayload());
@@ -136,6 +150,7 @@ private:
     Src                 _src;
     CfgClientNfs&       _cfg;
     int                 _iDebugLevel;
+    GenericPool         _occPool;
 };
 
 class EpicsArchL1AcceptAction : public Action 
