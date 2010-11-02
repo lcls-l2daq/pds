@@ -124,6 +124,10 @@ int Opal1kCamera::PicPortCameraInit() {
   char szResponse[SZCOMMAND_MAXLEN];
   int val1, val2;
   int ret;
+  char *versionString;
+  int versionMajor, versionMinor;
+  int versionFPGA = 0;
+  bool triggerInverted = false;
 
   Opal1kConfigType* outputConfig = const_cast<Opal1kConfigType*>(_inputConfig);
 
@@ -143,6 +147,42 @@ int Opal1kCamera::PicPortCameraInit() {
 
   GetParameter( "BS", val1 );
   printf( ">> Build versions: '%s'\n", szResponse );
+
+  // FPGA firmware versions older than 1.20 have the external
+  // trigger polarity inverted.  If FPGA firmware is older than 1.20,
+  // we compensate by inverting the polarity requested by software.
+
+  // Command syntax: BS?
+  // Reply message: "x.xx;y.yy;z.zz
+  //   Where x.xx stands for camera issue, y.yy indicates the microcontroller firmware version
+  //   and z.zz indicates the FPGA firmware version.
+  if (((versionString = strchr(szResponse, ';')) != NULL) &&
+      ((versionString = strchr(versionString + 1, ';')) != NULL)) {
+    // advance to character after the 2nd ';'
+    ++versionString;
+  }
+  if (versionString) {
+    versionMajor = atoi(versionString);
+    versionMinor = atoi(versionString + 2);
+    // sanity check
+    if ((versionMajor <= 9) && (versionMinor <= 99)) {
+      versionFPGA = (100 * versionMajor) + versionMinor;
+    }
+  }
+  // sanity check
+  if ((versionFPGA < 1) || (versionFPGA > 999))
+    {
+    printf( ">> ERROR: Failed to read FPGA firmware version\n");
+    return (-1);
+    }
+
+  printf( ">> FPGA firmware version %d.%02d: ", versionMajor, versionMinor);
+  if (versionFPGA < 120) {
+    printf( "adjusting for inverted trigger polarity.\n");
+    triggerInverted = true;
+  } else {
+    printf( "trigger polarity is normal.\n");
+  }
 
   GetParameter( "ID", val1 );
   printf( ">> Camera ID: '%s'\n", szResponse );
@@ -205,7 +245,7 @@ int Opal1kCamera::PicPortCameraInit() {
 	        config.ShutterMicroSec/10);
 #else
   SetParameter ("Operating Mode","MO",1);
-  SetParameters("External Inputs","CCE",4,1);
+  SetParameters("External Inputs","CCE",4, triggerInverted ? 0 : 1);
 #endif
 
   CurrentCount = RESET_COUNT;
