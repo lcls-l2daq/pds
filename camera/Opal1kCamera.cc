@@ -148,8 +148,8 @@ int Opal1kCamera::PicPortCameraInit() {
   GetParameter( "BS", val1 );
   printf( ">> Build versions: '%s'\n", szResponse );
 
-  // FPGA firmware versions older than 1.20 have the external
-  // trigger polarity inverted.  If FPGA firmware is older than 1.20,
+  // FPGA firmware versions 1.20 and newer have the external
+  // trigger polarity inverted.  If FPGA firmware is 1.20 or later,
   // we compensate by inverting the polarity requested by software.
 
   // Command syntax: BS?
@@ -177,7 +177,7 @@ int Opal1kCamera::PicPortCameraInit() {
     }
 
   printf( ">> FPGA firmware version %d.%02d: ", versionMajor, versionMinor);
-  if (versionFPGA < 120) {
+  if (versionFPGA >= 120) {
     printf( "adjusting for inverted trigger polarity.\n");
     triggerInverted = true;
   } else {
