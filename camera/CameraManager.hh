@@ -17,6 +17,7 @@ namespace Pds {
   class Transition;
   class InDatagram;
   class FrameServer;
+  class GenericPool;
 
   class CameraManager {
   public:
@@ -61,10 +62,12 @@ namespace Pds {
   protected:
     DmaSplice*      _splice;
   private:
+    const Src&      _src;
     Fsm*            _fsm;
     int             _sig;
     CfgCache*       _camConfig;
     bool            _configured;
+    GenericPool*    _occPool;
   protected:
     unsigned        _nposts;
   };

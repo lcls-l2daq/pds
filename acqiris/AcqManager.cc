@@ -47,6 +47,7 @@
 #include "AcqManager.hh"
 #include "AcqServer.hh"
 #include "pdsdata/acqiris/DataDescV1.hh"
+#include "pdsdata/xtc/DetInfo.hh"
 #include "pds/config/CfgClientNfs.hh"
 #include "acqiris/aqdrv4/AcqirisImport.h"
 #include "pds/utility/Occurrence.hh"
@@ -354,10 +355,12 @@ private:
 class AcqConfigAction : public AcqDC282Action {
   enum {MaxConfigSize=0x100000};
 public:
-  AcqConfigAction(ViSession instrumentId, AcqReader& reader, AcqDma& dma, const Src& src, CfgClientNfs& cfg) :
+  AcqConfigAction(ViSession instrumentId, AcqReader& reader, AcqDma& dma, 
+		  const Src& src, CfgClientNfs& cfg,
+		  AcqManager& mgr) :
     AcqDC282Action(instrumentId),_reader(reader),_dma(dma), 
     _cfgtc(_acqConfigType,src),
-    _cfg(cfg), _firstTime(1) {}
+    _cfg(cfg), _mgr(mgr), _occPool(sizeof(UserMessage),1), _firstTime(1) {}
   ~AcqConfigAction() {}
   InDatagram* fire(InDatagram* dg) {
     // insert assumes we have enough space in the input datagram
@@ -384,10 +387,15 @@ public:
            (unsigned)_instrumentId,nbrModulesInInstrument,(unsigned)nbrChans,nbrIntTrigsPerModule,nbrExtTrigsPerModule);
 
     // get configuration from database
+    UserMessage* msg = new(&_occPool) UserMessage;
+    msg->append(DetInfo::name(static_cast<const DetInfo&>(_cfgtc.src)));
+    msg->append(":");
+
     _nerror=0;
     int len = _cfg.fetch(*tr,_acqConfigType, &_config, sizeof(_config));
     if (len <= 0) {
       printf("AcqConfigAction: failed to retrieve configuration : (%d)%s.  Applying default.\n",errno,strerror(errno));
+      msg->append("Failed to open config file\n");
       _nerror++;
     }
     _config.dump();
@@ -400,11 +408,13 @@ public:
     if (nbrSamples != _config.horiz().nbrSamples()) {
       printf("*** Requested %d samples, received %d\n",
              _config.horiz().nbrSamples(),nbrSamples);
+      msg->append("Incorrect #samples\n");
       _nerror++;
     }
     if (nbrSegments != _config.horiz().nbrSegments()) {
       printf("*** Requested %d segments, received %d\n",
              _config.horiz().nbrSegments(),nbrSegments);
+      msg->append("Incorrect #segments\n");
       _nerror++;
     }
 
@@ -431,11 +441,13 @@ public:
     if (nbrConvertersPerChannel != _config.nbrConvertersPerChannel()) {
       printf("*** Requested %d converters per channel, received %d\n",
              _config.nbrConvertersPerChannel(),nbrConvertersPerChannel);
+      msg->append("Incorrect #converters\n");
       _nerror++;
     }
     if (usedChannels != (_config.channelMask()&0xf)) {
       printf("*** Requested used channels %d, received %d\n",
              _config.channelMask()&0xf,usedChannels);
+      msg->append("Incorrect #channels\n");
       _nerror++;
     }
 
@@ -456,21 +468,25 @@ public:
         if (fabs(fullScale-_config.vert(nchan).fullScale())>epsilon) {
           printf("*** Requested %e fullscale, received %e\n",
                  _config.vert(nchan).fullScale(),fullScale);
+	  msg->append("Incorrect scale\n");
           _nerror++;
         }
         if (fabs(offset-_config.vert(nchan).offset())>epsilon) {
           printf("*** Requested %e fullscale, received %e\n",
                  _config.vert(nchan).offset(),offset);
+	  msg->append("Incorrect scale\n");
           _nerror++;
         }
         if (coupling != _config.vert(nchan).coupling()) {
           printf("*** Requested coupling %d, received %d\n",
                  _config.vert(nchan).coupling(),coupling);
+	  msg->append("Incorrect coupling\n");
           _nerror++;
         }
         if (bandwidth != _config.vert(nchan).bandwidth()) {
           printf("*** Requested bandwidth %d, received %d\n",
                  _config.vert(nchan).bandwidth(),bandwidth);
+	  msg->append("Incorrect bandwidth\n");
           _nerror++;
         }
         nchan++;
@@ -489,11 +505,13 @@ public:
     if (fabs(sampInterval-_config.horiz().sampInterval())>epsilon) {
       printf("*** Requested %e fullscale, received %e\n",
              _config.horiz().sampInterval(),sampInterval);
+      msg->append("Incorrect sample intvl\n");
       _nerror++;
     }
     if (fabs(delayTime-_config.horiz().delayTime())>epsilon) {
       printf("*** Requested %e fullscale, received %e\n",
              _config.horiz().delayTime(),delayTime);
+      msg->append("Incorrect delay\n");
       _nerror++;
     }
 
@@ -506,11 +524,13 @@ public:
                          (ViInt32*)(void*)&junk, (ViReal64*)&djunk, (ViReal64*)&djunk);
     if (trigClass!=0) {
       printf("*** Requested trigger class 0 received %d\n",trigClass);
+      msg->append("Incorrect trigger class\n");
       _nerror++;
     }
     if (srcPatternOut != srcPattern) {
       printf("*** Requested src pattern 0x%x received 0x%x\n",srcPattern,srcPatternOut);
       _nerror++;
+      msg->append("Incorrect src pattern\n");
     }
 
     _check("AcqrsD1_configTrigSource",AcqrsD1_configTrigSource(_instrumentId, _config.trig().input(),
@@ -525,18 +545,26 @@ public:
     if (fabs(level-_config.trig().level())>epsilon) {
       printf("*** Requested %e trig level, received %e\n",
              _config.trig().level(),level);
+      msg->append("Incorrect trig level\n");
       _nerror++;
     }
     if (fabs(coupling!=_config.trig().coupling())>epsilon) {
       printf("*** Requested trig coupling %d, received %d\n",
              _config.trig().coupling(),coupling);
+      msg->append("Incorrect trig coupling\n");
       _nerror++;
     }
     if (slope != _config.trig().slope()) {
       printf("*** Requested trig slope %d, received %d\n",
              _config.trig().slope(),slope);
+      msg->append("Incorrect trig slope\n");
       _nerror++;
     }
+
+    if (_nerror)
+      _mgr.appliance().post(msg);
+    else
+      delete msg;
 
     _cfgtc.extent = sizeof(Xtc)+sizeof(AcqConfigType);
     _dma.setConfig(_config);
@@ -591,12 +619,14 @@ private:
         printf("%s: %s\n",routine,message);
       }
   }
+private:
   AcqReader& _reader;  
   AcqDma&    _dma;
   AcqConfigType _config;
   Xtc _cfgtc;
-  Src _src;
   CfgClientNfs& _cfg;
+  AcqManager& _mgr;
+  GenericPool _occPool;
   unsigned _nerror;
   unsigned _firstTime;
 };
@@ -634,7 +664,7 @@ AcqManager::AcqManager(ViSession InstrumentID, AcqServer& server, CfgClientNfs& 
   
   AcqDma& dma = *new AcqDma(_instrumentId,reader,server,task);
   server.setDma(&dma);
-  Action* caction = new AcqConfigAction(_instrumentId,reader,dma,server.client(),cfg);
+  Action* caction = new AcqConfigAction(_instrumentId,reader,dma,server.client(),cfg,*this);
   AcqL1Action& acql1 = *new AcqL1Action(_instrumentId,this);
   _fsm.callback(TransitionId::Configure,caction);
   _fsm.callback(TransitionId::Map, new AcqAllocAction(cfg)); 

@@ -2,6 +2,7 @@
 
 #include "pdsdata/xtc/TypeId.hh"
 #include "pdsdata/xtc/Damage.hh"
+#include "pdsdata/xtc/DetInfo.hh"
 
 #include "pds/client/Fsm.hh"
 #include "pds/client/Action.hh"
@@ -15,6 +16,9 @@
 
 #include "pds/config/CfgCache.hh"
 #include "pds/config/CfgClientNfs.hh"
+
+#include "pds/utility/Occurrence.hh"
+#include "pds/service/GenericPool.hh"
 
 #include <signal.h>
 #include <stdlib.h>
@@ -105,9 +109,11 @@ CameraManager::CameraManager(const Src& src,
 			     CfgCache*  camConfig) :
   //  _splice  (new DmaSplice),
   _splice  (0),
+  _src     (src),
   _fsm     (new Fsm),
   _camConfig  (camConfig),
-  _configured (false)
+  _configured (false),
+  _occPool     (new GenericPool(sizeof(UserMessage),1))
 {
   _fsm->callback(TransitionId::Map            , new CameraMapAction       (*this));
   _fsm->callback(TransitionId::Configure      , new CameraConfigAction    (*this));
@@ -162,9 +168,13 @@ void CameraManager::doConfigure(Transition* tr)
     else {
       register_(sig);
 
-      if ((ret = camera().Init()) < 0)
+      if ((ret = camera().Init()) < 0) {
 	printf("Camera::Init: %s.\n", strerror(-ret));
-    
+	UserMessage* msg = new(_occPool) UserMessage;
+	msg->append(DetInfo::name(static_cast<const DetInfo&>(_src)));
+	msg->append(":Failed to initialize.\nCheck camera power and connections");
+	appliance().post(msg);
+      }
       else {
 	if (_splice)
 	  _splice->initialize( camera().frameBufferBaseAddress(),
@@ -180,8 +190,13 @@ void CameraManager::doConfigure(Transition* tr)
       }
     }
   }
-  else
+  else {
     printf("Config::configure failed to retrieve camera configuration\n");
+    UserMessage* msg = new(_occPool) UserMessage;
+    msg->append(DetInfo::name(static_cast<const DetInfo&>(_src)));
+    msg->append(":Failed to open config file");
+    appliance().post(msg);
+  }
 
   _camConfig->damage().increase(Damage::UserDefined);
 }

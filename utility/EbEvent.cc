@@ -247,7 +247,7 @@ unsigned EbEvent::fixup(const Src& client, const EbBitMask& id)
     Damage damaged(1 << Damage::DroppedContribution);
     // kludge away the bld dummy contribution until we understand
     // data corruption. - weaver,cpo
-    if (client.level()!=Level::Reporter) 
+    //    if (client.level()!=Level::Reporter) 
       new(&datagram()->xtc) Xtc(TypeId(TypeId::Any,0), client, damaged);
     return damaged.value();
     }
