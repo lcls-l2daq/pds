@@ -675,7 +675,8 @@ public:
       _er.SetFIFOEvent(ram, EvrManager::EVENT_CODE_BYKIK, enable);
     }
     
-    _er.MapRamEnable(ram, 0);
+    unsigned dummyram = 1;
+    _er.MapRamEnable(dummyram, 1);
     
     l1xmitGlobal->setEvrConfig( &cfg );
   }
