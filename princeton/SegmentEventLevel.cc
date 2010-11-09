@@ -50,10 +50,10 @@ void SegmentEventLevel::allocated(const Allocation & alloc, unsigned index)
 
   InletWire & inlet = *_streams->wire(StreamParams::FrameWork);
 
-  for (unsigned n = 0; n < nnodes; n++)
-  {
-    const Node & node = *alloc.node(n);
-    if (node.level() == Level::Segment) {
+  //for (unsigned n = 0; n < nnodes; n++)
+  //{
+  //  const Node & node = *alloc.node(n);
+  //  if (node.level() == Level::Segment) {
       Ins ins = StreamPorts::event(partition, Level::Observer, 0, 0);
       _pEventServer = new NetDgServer(ins,
 				      header().procInfo(),
@@ -64,9 +64,9 @@ void SegmentEventLevel::allocated(const Allocation & alloc, unsigned index)
       _pEventServer->server().join(mcastIns, Ins(header().ip()));
       
       inlet.add_input(_pEventServer);
-      break;
-    }
-  }
+  //    break;
+  //  }
+  //}
 
   unsigned vectorid = 0;
 
