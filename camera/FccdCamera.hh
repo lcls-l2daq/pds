@@ -47,6 +47,7 @@ namespace PdsLeutron {
   private:
     int SendFccdCommand(const char *cmd);
     unsigned long LastCount;
+    int ShiftDataModulePhase(int moduleNum);
   public:
     unsigned long CurrentCount;
   private:

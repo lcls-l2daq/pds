@@ -162,9 +162,35 @@ int FccdCamera::SendFccdCommand(const char *cmd)
   return (ret);
 }
 
+int FccdCamera::ShiftDataModulePhase(int moduleNum) {
+  int ret;
+
+  switch (moduleNum) {
+  case 1:
+    printf(">> Shift clock phase of Data Module 1...\n");
+    if ((ret = SendFccdCommand("10:0a")) < 0) {
+      printf(">> Failed to shift clock phase of Data Module 1.\n");
+    }
+    break;
+  case 2:
+    printf(">> Shift clock phase of Data Module 2...\n");
+    if ((ret = SendFccdCommand("11:0a")) < 0) {
+      printf(">> Failed to shift clock phase of Data Module 2.\n");
+    }
+    break;
+  default:
+    printf(">> %s: moduleNum %d is invalid.\n",  __FUNCTION__, moduleNum);
+    ret = -1;   // Error
+    break;
+  }
+
+  return (ret);
+}
+
 int FccdCamera::PicPortCameraInit() {
   char sendBuf[SENDBUF_MAXLEN];
   int ret = 0;
+  int ret1, ret2;
   int trace;
   char *initCmd[] = {
     // -- 
@@ -514,10 +540,35 @@ int FccdCamera::PicPortCameraInit() {
     ""
   };
 
+  CurrentCount = RESET_COUNT;
+
   // enable manual configuration
-  if (_inputConfig->outputMode() == 1) {
-    printf(">> Output mode 1: Skip %s\n", __PRETTY_FUNCTION__);
-    return (0);
+  switch (_inputConfig->outputMode()) {
+    case 1:
+      printf(">> Output mode 1: Skip %s\n", __PRETTY_FUNCTION__);
+      return (0);
+
+    case 2:
+      // shift clock phase of Data Module 1
+      ret = ShiftDataModulePhase(1);
+      printf(">> Output mode 2: Skip remainder of %s\n", __PRETTY_FUNCTION__);
+      return (ret);
+
+    case 3:
+      // shift clock phase of Data Module 2
+      ret = ShiftDataModulePhase(2);
+      printf(">> Output mode 3: Skip remainder of %s\n", __PRETTY_FUNCTION__);
+      return (ret);
+
+    case 4:
+      // shift clock phase of Data Modules 1 and 2
+      ret1 = ShiftDataModulePhase(1);
+      ret2 = ShiftDataModulePhase(2);
+      printf(">> Output mode 4: Skip remainder of %s\n", __PRETTY_FUNCTION__);
+      return (((ret1 >= 0) && (ret2 >= 0)) ? 0 : -1);
+
+    default:
+      break;
   }
 
   //
@@ -751,8 +802,6 @@ int FccdCamera::PicPortCameraInit() {
       }
     }
   }
-
-  CurrentCount = RESET_COUNT;
 
   return (ret);
 }
