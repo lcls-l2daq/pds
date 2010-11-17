@@ -24,7 +24,7 @@ const float ADC_RANGE = 3.3;
 const unsigned ADC_STEPS = 65536;
 
 static const int HardCodedPresampleDelay = 150000;
-static const int HardCodedADCTime = 10000;
+static const int HardCodedADCTime = 100000;
 
 const bool DEBUG = false;
 
@@ -487,7 +487,7 @@ bool IpimBoard::configure(Ipimb::ConfigV1& config) {
   printf("Have hardcoded presample delay to %d us\n", HardCodedPresampleDelay/1000);
   if (HardCodedPresampleDelay+HardCodedADCTime>config.trigDelay()) {
     _commandResponseDamage = true;
-    printf("Presample delay %d is too long - must be at least %d earlier than %d\n", HardCodedPresampleDelay, config.trigDelay(), HardCodedADCTime);
+    printf("Sample delay %d is too short - must be at least %d earlier than %d\n", config.trigDelay(), HardCodedADCTime, HardCodedPresampleDelay);
   }
   //  CalibrationStart((unsigned) config.calStrobeLength());
 
