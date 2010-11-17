@@ -17,6 +17,8 @@
 
 #include "pds/config/EvrConfigType.hh"
 
+#define BASE_120
+
 using namespace Pds;
 
 class TimeLoader;
@@ -27,6 +29,7 @@ static EvgrBoardInfo<Evr> *erInfoGlobal;
 
 static unsigned _opcodecount=0;
 static unsigned _lastopcode=0;
+static int _ram=0;
 
 class TimeLoader {
 public:
@@ -40,7 +43,7 @@ public:
       _nfid=0;
     }
     int numEvtCode=0;
-    int ram=0;
+    int ram=_ram;
     //we send down MSB first
     do {
       unsigned mask = (1<<((NumEvtCodes-2)-numEvtCode)); 
@@ -91,22 +94,29 @@ class OpcodeLoader {
 public:
   OpcodeLoader(Evg& eg, Evr& er) : _count(0),_eg(eg),_er(er) {}
   void set() {
-    int ram=0;
+    int ram=_ram;
     int pos=TimeLoader::NumEvtCodes;
-    _count++; _count%=(360*8);
+    int ts =TimeLoader::NumEvtCodes+WaitForTimestamp;
 
-    _eg.SetSeqRamEvent(ram, pos, pos+WaitForTimestamp, 9); pos++;
-    if (_count%2  ==0) {_eg.SetSeqRamEvent(ram, pos, pos+WaitForTimestamp, 180); pos++;}
-    if (_count%3  ==0) {_eg.SetSeqRamEvent(ram, pos, pos+WaitForTimestamp, OPCODEC(r120Hz)); pos++;}
-    if (_count%6  ==0) {_eg.SetSeqRamEvent(ram, pos, pos+WaitForTimestamp, OPCODEC(r60Hz)); pos++;}
-    if (_count%12 ==0) {_eg.SetSeqRamEvent(ram, pos, pos+WaitForTimestamp, OPCODEC(r30Hz)); pos++;}
-    if (_count%36 ==0) {_eg.SetSeqRamEvent(ram, pos, pos+WaitForTimestamp, OPCODEC(r10Hz)); pos++;}
-    if (_count%72 ==0) {_eg.SetSeqRamEvent(ram, pos, pos+WaitForTimestamp, OPCODEC(r5Hz)); pos++;}
-    if (_count%360==0) {_eg.SetSeqRamEvent(ram, pos, pos+WaitForTimestamp, OPCODEC(r1Hz)); pos++;}
-    if (_count%(360*2)==0) {_eg.SetSeqRamEvent(ram, pos, pos+WaitForTimestamp, OPCODEC(r0_5Hz)); pos++;}
-    if (_count%(360*4)==0) {_eg.SetSeqRamEvent(ram, pos, pos+WaitForTimestamp, OPCODEC(r0_25Hz)); pos++;}
-    if (_count%(360*8)==0) {_eg.SetSeqRamEvent(ram, pos, pos+WaitForTimestamp, OPCODEC(r0_125Hz)); pos++;}
-    _eg.SetSeqRamEvent(ram, pos, pos+WaitForTimestamp, EvgrOpcode::EndOfSequence);
+#ifdef BASE_120
+    _count+=3;
+#else
+    _count++; 
+#endif
+    _count%=(360*8);
+
+    _eg.SetSeqRamEvent(ram, pos, ts, 9); pos++; ts++;
+    if (_count%2      ==0) {_eg.SetSeqRamEvent(ram, pos, ts, 180              ); pos++;} ts++;
+    if (_count%3      ==0) {_eg.SetSeqRamEvent(ram, pos, ts, OPCODEC(r120Hz)  ); pos++;} ts++;
+    if (_count%6      ==0) {_eg.SetSeqRamEvent(ram, pos, ts, OPCODEC(r60Hz)   ); pos++;} ts++;
+    if (_count%12     ==0) {_eg.SetSeqRamEvent(ram, pos, ts, OPCODEC(r30Hz)   ); pos++;} ts++;
+    if (_count%36     ==0) {_eg.SetSeqRamEvent(ram, pos, ts, OPCODEC(r10Hz)   ); pos++;} ts++;
+    if (_count%72     ==0) {_eg.SetSeqRamEvent(ram, pos, ts, OPCODEC(r5Hz)    ); pos++;} ts++;
+    if (_count%360    ==0) {_eg.SetSeqRamEvent(ram, pos, ts, OPCODEC(r1Hz)    ); pos++;} ts++;
+    if (_count%(360*2)==0) {_eg.SetSeqRamEvent(ram, pos, ts, OPCODEC(r0_5Hz)  ); pos++;} ts++;
+    if (_count%(360*4)==0) {_eg.SetSeqRamEvent(ram, pos, ts, OPCODEC(r0_25Hz) ); pos++;} ts++;
+    if (_count%(360*8)==0) {_eg.SetSeqRamEvent(ram, pos, ts, OPCODEC(r0_125Hz)); pos++;} ts++;
+    _eg.SetSeqRamEvent(ram, pos, ts, EvgrOpcode::EndOfSequence);
   }
 private:
   enum {WaitForTimestamp=8}; // timestamp takes some clock ticks to take effect
@@ -127,10 +137,13 @@ public:
   EvgrEnableAction(TimeLoader& time, OpcodeLoader& opcodes, Evg& eg, Evr& er) :
     EvgrAction(eg,er),_time(time),_opcodes(opcodes) {}
   Transition* fire(Transition* tr) {
+    _ram=0;
     _time.load();
     _opcodes.set();
-    unsigned ram=0;
-    _er.MapRamEnable(ram,1);
+    _ram=1;
+    _time.load();
+    _opcodes.set();
+    _er.MapRamEnable(0,1);  // enable ram 0
     return tr;
   }
 private:
@@ -142,8 +155,9 @@ class EvgrDisableAction : public EvgrAction {
 public:
   EvgrDisableAction(Evg& eg, Evr& er) : EvgrAction(eg,er) {}
   Transition* fire(Transition* tr) {
-    unsigned ram=0;
-    _er.MapRamEnable(ram,0);
+    unsigned ram;
+    ram=0;    _er.MapRamEnable(ram,0);
+    ram=1;    _er.MapRamEnable(ram,0);
     return tr;
   }
 };
@@ -152,8 +166,9 @@ class EvgrBeginRunAction : public EvgrAction {
 public:
   EvgrBeginRunAction(Evg& eg, Evr& er) : EvgrAction(eg,er) {}
   Transition* fire(Transition* tr) {
-    unsigned ram=0;
-    _er.MapRamEnable(ram,0);
+    unsigned ram;
+    ram=0;    _er.MapRamEnable(ram,0);
+    ram=1;    _er.MapRamEnable(ram,0);
     _er.IrqEnable(EVR_IRQ_MASTER_ENABLE | EVR_IRQFLAG_EVENT);
     _er.EnableFIFO(1);
     _er.Enable(1);
@@ -183,13 +198,15 @@ public:
     _er.Reset();
     _eg.SetRFInput(0,C_EVG_RFDIV_4);
 
-    // setup map ram
-    int ram=0; int enable=1;
-    _er.MapRamEnable(ram,0);
-    int opcode=9; // for testing, use the highest rate opcode (360Hz).
-    _er.SetFIFOEvent(ram, opcode, enable);
-    int trig=0; int set=-1; int clear=-1;
-    _er.SetPulseMap(ram, opcode, trig, set, clear);
+    int enable=1;
+    // setup map rams
+    for(int ram=0; ram<2; ram++) {
+      _er.MapRamEnable(ram,0);
+      int opcode=9; // for testing, use the highest rate opcode (360Hz).
+      _er.SetFIFOEvent(ram, opcode, enable);
+      int trig=0; int set=-1; int clear=-1;
+      _er.SetPulseMap(ram, opcode, trig, set, clear);
+    }
 
     int pulse = 0; int presc = 1; int delay = 0; int width = 16;
     int polarity=0;  int map_reset_ena=0; int map_set_ena=0; int map_trigger_ena=1;
@@ -202,13 +219,18 @@ public:
 
     // setup properties for multiplexed counter 0
     // to trigger the sequencer at 360Hz (so we can "stress" the system).
+#ifdef BASE_120
+    static const unsigned EVTCLK_TO_360HZ=991666;
+#else
     static const unsigned EVTCLK_TO_360HZ=991666/3;
+#endif
     _eg.SetMXCPrescaler(0, EVTCLK_TO_360HZ); // set prescale to 1
     _eg.SyncMxc();
 
     enable=1; int single=0; int recycle=0; int reset=0;
     int trigsel=C_EVG_SEQTRIG_MXC_BASE;
-    _eg.SeqRamCtrl(ram, enable, single, recycle, reset, trigsel);
+    for(int ram=0; ram<2; ram++)
+      _eg.SeqRamCtrl(ram, enable, single, recycle, reset, trigsel);
 
     return tr;
   }
@@ -221,6 +243,8 @@ extern "C" {
     int flags = er.GetIrqFlags();
     if (flags & EVR_IRQFLAG_EVENT)
       {
+	er.MapRamEnable(_ram,1);
+	_ram = 1-_ram;
         timeLoaderGlobal->set();
         opcodeLoaderGlobal->set();
         er.ClearIrqFlags(EVR_IRQFLAG_EVENT);
