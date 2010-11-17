@@ -37,7 +37,12 @@ public:
   virtual ~TimeLoader() {}
   enum {NumEvtCodes=33};
   void load() {
-    _nfid++; _nfid&=((1<<Pds::TimeStamp::NumFiducialBits)-1);
+#ifdef BASE_120
+    _nfid+=3;
+#else
+    _nfid++;
+#endif
+    _nfid&=((1<<Pds::TimeStamp::NumFiducialBits)-1);
     //to simulate real evgr => nfid variation from 0 to (0x1ffff-32)
     if(_nfid>0x1ffdf) {   
       _nfid=0;
@@ -140,10 +145,9 @@ public:
     _ram=0;
     _time.load();
     _opcodes.set();
-    _ram=1;
-    _time.load();
-    _opcodes.set();
-    _er.MapRamEnable(0,1);  // enable ram 0
+
+    int ram=0;    _er.MapRamEnable(ram,1);
+
     return tr;
   }
 private:
@@ -227,10 +231,10 @@ public:
     _eg.SetMXCPrescaler(0, EVTCLK_TO_360HZ); // set prescale to 1
     _eg.SyncMxc();
 
+    int ram=_ram;
     enable=1; int single=0; int recycle=0; int reset=0;
     int trigsel=C_EVG_SEQTRIG_MXC_BASE;
-    for(int ram=0; ram<2; ram++)
-      _eg.SeqRamCtrl(ram, enable, single, recycle, reset, trigsel);
+    _eg.SeqRamCtrl(ram, enable, single, recycle, reset, trigsel);
 
     return tr;
   }
@@ -243,8 +247,6 @@ extern "C" {
     int flags = er.GetIrqFlags();
     if (flags & EVR_IRQFLAG_EVENT)
       {
-	er.MapRamEnable(_ram,1);
-	_ram = 1-_ram;
         timeLoaderGlobal->set();
         opcodeLoaderGlobal->set();
         er.ClearIrqFlags(EVR_IRQFLAG_EVENT);
