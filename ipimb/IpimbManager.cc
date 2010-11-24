@@ -44,20 +44,23 @@ private:
 
 class IpimbL1Action : public Action {
 public:
-  IpimbL1Action(IpimbFex& fex) : _fex(fex) {}
+  IpimbL1Action(IpimbFex& fex) : _fex(fex), _nprints(50) {}
   InDatagram* fire(InDatagram* in) {
     Datagram& dg = in->datagram();
     // todo: may want to validate the datagram here?  but maybe not.
     // if (!dg.xtc.damage.value()) validate(in);
     //dg->datagram().xtc.damage.increase(Pds::Damage::UserDefined);
-    if (int d = dg.xtc.damage.value()) {
+    int d = dg.xtc.damage.value();
+    if ((d != 0) && (_nprints !=0)) {
       printf("Ipimb damage 0x%x\n",d);
+      _nprints--;
     }
 
     return _fex.process(in);
   }
 private:
   IpimbFex& _fex;
+  unsigned _nprints;
 };
 
 class IpimbConfigAction : public IpimbAction {
