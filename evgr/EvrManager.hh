@@ -3,7 +3,12 @@
 
 #include "EvgrOpcode.hh"
 
+// Special define used to trigger princeton by
+// adding terminator to event-code 150
+//#define SINGLE_SHOT_MODE_SUPPORT
+
 namespace Pds {
+
 
   class CfgClientNfs;
   class Fsm;
@@ -33,8 +38,13 @@ namespace Pds {
   public:
     //static const int EVENT_CODE_BEAM  = 40;
     //static const int EVENT_CODE_BYKIK = 41;
-    static const int EVENT_CODE_BEAM  = 140;
-    static const int EVENT_CODE_BYKIK = 162;
+    static const int EVENT_CODE_BEAM        = 140;
+    static const int EVENT_CODE_BYKIK       = 162;
+    
+#ifdef SINGLE_SHOT_MODE_SUPPORT
+    static const int EVENT_CODE_SINGLE_SHOT = 150;
+    static const int EVENT_CODE_TRIGGER     = 89;
+#endif
   };
 }
 

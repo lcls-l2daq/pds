@@ -35,6 +35,7 @@
 #include "pds/xtc/EnableEnv.hh"
 #include "pds/xtc/CDatagram.hh"
 
+
 namespace Pds
 {
   class DoneTimer:public Timer
@@ -96,6 +97,8 @@ static EvgrBoardInfo < Evr > *erInfoGlobal; // yuck
  * Note: Used to initialize the EventCodeState list
  */
 static const unsigned int guNumTypeEventCode = 256; 
+
+
 struct EventCodeState
 {
   bool bReadout;
@@ -287,8 +290,8 @@ public:
       if (_evtCounter%NEVENTPRINT == 0) 
       {
         float dfid = (_lastfid < fe.TimestampHigh) ? 
-	  fe.TimestampHigh-_lastfid :
-	  fe.TimestampHigh+Pds::TimeStamp::MaxFiducials-_lastfid;
+    fe.TimestampHigh-_lastfid :
+    fe.TimestampHigh+Pds::TimeStamp::MaxFiducials-_lastfid;
         float period=dfid/(float)(NEVENTPRINT)/360.0;
         float rate=0.0;
         if (period>1.e-8) rate=1./period;
@@ -332,7 +335,7 @@ public:
     
     memset( _lEventCodeState, 0, sizeof(_lEventCodeState) );
 
-    unsigned int uEventIndex = 0; 
+    unsigned int uEventIndex = 0;
     for ( ; uEventIndex < _pEvrConfig->neventcodes(); uEventIndex++ )
     {
       const EvrConfigType::EventCodeType& eventCode = _pEvrConfig->eventcode( uEventIndex );
@@ -348,6 +351,15 @@ public:
       codeState.iDefReportDelay = eventCode.reportDelay ();
       codeState.iDefReportWidth = eventCode.reportWidth ();             
     }    
+
+#ifdef SINGLE_SHOT_MODE_SUPPORT
+    EventCodeState& codeState = _lEventCodeState[EvrManager::EVENT_CODE_SINGLE_SHOT];
+    codeState.bReadout        = true;
+    codeState.bTerminator     = true;
+    if (codeState.iDefReportWidth <= 0) {
+      codeState.iDefReportWidth = 1;
+    }
+#endif
   }
   
   const EvrDataUtil&  getL1Data     () { return _L1DataFinal; }
@@ -665,14 +677,27 @@ public:
           ((eventCode.maskTrigger() & uPulseBit) != 0 ? iPulseIndex : -1 ),
           ((eventCode.maskSet()     & uPulseBit) != 0 ? iPulseIndex : -1 ),
           ((eventCode.maskClear()   & uPulseBit) != 0 ? iPulseIndex : -1 )
-          );          
-      }
+          );
+
+#ifdef SINGLE_SHOT_MODE_SUPPORT
+        if ( eventCode.code() == EvrManager::EVENT_CODE_TRIGGER )
+          _er.SetPulseMap(ram, EvrManager::EVENT_CODE_SINGLE_SHOT, 
+            ((eventCode.maskTrigger() & uPulseBit) != 0 ? iPulseIndex : -1 ),
+            ((eventCode.maskSet()     & uPulseBit) != 0 ? iPulseIndex : -1 ),
+            ((eventCode.maskClear()   & uPulseBit) != 0 ? iPulseIndex : -1 )
+            );
+#endif
+      }      
     }
     
     if (!_bTurnOffBeamCodes)
     {
       _er.SetFIFOEvent(ram, EvrManager::EVENT_CODE_BEAM,  enable);
       _er.SetFIFOEvent(ram, EvrManager::EVENT_CODE_BYKIK, enable);
+
+#ifdef SINGLE_SHOT_MODE_SUPPORT
+      _er.SetFIFOEvent(ram, EvrManager::EVENT_CODE_SINGLE_SHOT, enable);
+#endif
     }
     
     unsigned dummyram = 1;
@@ -778,8 +803,8 @@ class EvrAllocAction:public Action
 {
 public:
   EvrAllocAction(CfgClientNfs & cfg, 
-		 EvrL1Action&   l1A,
-		 DoneTimer&     done) :
+     EvrL1Action&   l1A,
+     DoneTimer&     done) :
     _cfg(cfg),_l1action(l1A), _done(done), _xmitter(0)
   {
   }
@@ -914,5 +939,12 @@ void EvrManager::sigintHandler(int)
   exit(0);
 }
 
-const int EvrManager::EVENT_CODE_BEAM;  // value is defined in the header file
-const int EvrManager::EVENT_CODE_BYKIK; // value is defined in the header file
+const int EvrManager::EVENT_CODE_BEAM;        // value is defined in the header file
+const int EvrManager::EVENT_CODE_BYKIK;       // value is defined in the header file
+
+#ifdef SINGLE_SHOT_MODE_SUPPORT
+
+const int EvrManager::EVENT_CODE_SINGLE_SHOT; // value is defined in the header file
+const int EvrManager::EVENT_CODE_TRIGGER;     // value is defined in the header file
+
+#endif // #ifdef SINGLE_SHOT_MODE_SUPPORT
