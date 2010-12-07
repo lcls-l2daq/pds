@@ -36,9 +36,10 @@ class OccurrenceId
       ClearReadout,  
       SequencerDone,
       DataFileOpened,
-      UserMessage
+      UserMessage,
+      EvrCommand,
+      NumberOf
     };
-    enum {numberof = 32};
   };
 }
 #endif

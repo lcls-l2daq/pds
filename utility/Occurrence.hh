@@ -54,6 +54,17 @@ namespace Pds {
   private:
     char _msg[MaxMsgLength];
   };
+
+  class EvrCommand : public Occurrence
+  {
+  public:
+    EvrCommand(unsigned char _code) : 
+      Occurrence(OccurrenceId::EvrCommand,sizeof(EvrCommand)), 
+      code(_code) 
+    {}
+  public:
+    unsigned code;
+  };
 }
 
 #endif

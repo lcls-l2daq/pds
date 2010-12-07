@@ -25,7 +25,7 @@ class PrincetonServer;
 class PrincetonServer
 {
 public:
-  PrincetonServer(int iCamera, bool bUseCaptureTask, bool bInitTest, const Src& src, int iDebugLevel);
+  PrincetonServer(int iCamera, bool bInitTest, const Src& src, int iDebugLevel);
   ~PrincetonServer();
   
   int   mapCamera();  
@@ -35,11 +35,10 @@ public:
   int   endRunCamera();  
   int   enableCamera();
   int   disableCamera();  
-  int   onEventReadoutPrompt(int iShotId, InDatagram* in, InDatagram*& out);
-  int   onEventReadoutDelay(int iShotId, InDatagram* in);  
+  int   onEventReadout();
   int   getDelayData(InDatagram* in, InDatagram*& out);
   int   getLastDelayData(InDatagram* in, InDatagram*& out);
-  int   checkReadoutEventCode(InDatagram* in);
+  int   checkReadoutEventCode(unsigned code);
   
   enum  ErrorCodeEnum
   {
@@ -85,18 +84,6 @@ private:
   static const float    _fEventDeltaTimeFactor;                 // Event delta time factor, for detecting sequence error  
 
   /*
-   * private classes
-   */
-  class CaptureRoutine : public Routine 
-  {
-  public:
-    CaptureRoutine(PrincetonServer& server);
-    void routine(void);
-  private:
-    PrincetonServer& _server;
-  };  
-  
-  /*
    * private functions
    */
   int   initCamera();
@@ -106,7 +93,6 @@ private:
   int   startCapture();
   int   deinitCapture();  
 
-  int   initCaptureTask();
   int   runCaptureTask();
   
   int   initCameraSettings(Princeton::ConfigV1& config);
@@ -118,7 +104,7 @@ private:
   /*
    * Frame handling functions
    */
-  int   setupFrame(InDatagram* in, InDatagram*& out);  
+  int   setupFrame();
   int   waitForNewFrameAvailable();
   int   processFrame();
   int   resetFrameData(bool bDelOutDatagram);
@@ -132,7 +118,6 @@ private:
    * Initial settings
    */
   const int           _iCamera;
-  const bool          _bDelayMode;
   const bool          _bInitTest;
   const Src           _src;
   const int           _iDebugLevel;
@@ -161,7 +146,6 @@ private:
   /*
    * Per-frame data
    */
-  int                 _iCurShotId;
   float               _fReadoutTime;    // in seconds
       
   /*
@@ -174,8 +158,6 @@ private:
    * Capture Task Control
    */
   CaptureStateEnum    _CaptureState;    // 0 -> idle, 1 -> start data polling/processing, 2 -> data ready  
-  Task*               _pTaskCapture;
-  CaptureRoutine      _routineCapture;
       
   /*
    * Thread syncronization (lock/unlock) functions

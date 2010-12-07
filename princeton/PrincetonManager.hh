@@ -16,13 +16,14 @@ class Fsm;
 class Appliance;
 class CfgClientNfs;
 class Action;
+class Response;
 class GenericPool;
 class PrincetonServer;
 
 class PrincetonManager 
 {
 public:
-  PrincetonManager(CfgClientNfs& cfg, int iCamera, bool bDelayMode, bool bInitTest, int iDebugLevel);
+  PrincetonManager(CfgClientNfs& cfg, int iCamera, bool bInitTest, int iDebugLevel);
   ~PrincetonManager();
 
   Appliance&    appliance() { return *_pFsm; }
@@ -35,15 +36,13 @@ public:
   int   endRunCamera();
   int   enableCamera();
   int   disableCamera();
-  int   onEventReadoutPrompt(int iShotId, InDatagram* in, InDatagram*& out);
-  int   onEventReadoutDelay(int iShotId, InDatagram* in);
+  int   onEventReadout();
   int   getDelayData(InDatagram* in, InDatagram*& out);
   int   getLastDelayData(InDatagram* in, InDatagram*& out);
-  int   checkReadoutEventCode(InDatagram* in);
+  int   checkReadoutEventCode(unsigned);
   
 private:          
   const int           _iCamera;
-  const bool          _bDelayMode;
   const bool          _bInitTest;
   const int           _iDebugLevel;
   
@@ -56,7 +55,7 @@ private:
   Action*             _pActionEnable;  
   Action*             _pActionDisable;  
   Action*             _pActionL1Accept;
-
+  Response*           _pResponse;
   
   PrincetonServer*    _pServer;
 };

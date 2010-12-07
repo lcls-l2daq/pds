@@ -1,3 +1,11 @@
+2010-Dec-06 weaver	Tag V02-10-00.  Added software commands onto EvrDatagram.  Results in Command occurrence posted
+			to segment-level appliance stream.  Changed Princeton to use new software command (rather than
+			extra L1Accept) - only one readout mode now.
+			Added sequencer to Evr configuration object (pdsdata/evr/ConfigV5).
+			Sequencer can now be controlled by PartitionControl.
+			Evr configuration object now describes EVR system configuration.  Each EVR parses its
+			configuration from this object (using evgr/EvrCfgClient object).
+			Added epicstools package for common channel access classes/methods.
 2010-Nov-04 caf         Tag V02-08-05.  Inverted polarity of Opal trigger for newer cameras (FPGA firmware rev >= 1.20).
 2010-Sep-20 weaver	Tag V02-08-00.  	
 2010-Sep-7  weaver	Changes to get single-source timestamps: 

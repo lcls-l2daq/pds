@@ -14,6 +14,7 @@ namespace Pds {
   class PlatformCallback;
   class Task;
   class RunAllocator;
+  class Sequencer;
 
   class PartitionControl : public ControlLevel {
   public:
@@ -44,9 +45,10 @@ namespace Pds {
     void  reconfigure      ();
     void  set_transition_env    (TransitionId::Value, unsigned);
     void  set_transition_payload(TransitionId::Value, Xtc*, void*);
-    void  set_run(unsigned run);
-    void  set_runAllocator(RunAllocator* ra);
-    void  set_experiment(unsigned experiment);
+    void  set_run          (unsigned run);
+    void  set_runAllocator (RunAllocator* ra);
+    void  set_experiment   (unsigned experiment);
+    void  set_sequencer    (Sequencer* seq);
     void  use_run_info(bool);
   public: // Implements ControlLevel
     void  message          (const Node& hdr, 
@@ -74,6 +76,7 @@ namespace Pds {
     ControlCallback*  _control_cb;
     PlatformCallback* _platform_cb;
     RunAllocator*     _runAllocator;
+    Sequencer*        _sequencer;
     unsigned   _run;
     unsigned   _experiment;
     bool       _use_run_info;

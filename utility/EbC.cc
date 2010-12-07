@@ -31,7 +31,7 @@ EbC::~EbC()
 EbEventBase* EbC::_new_event(const EbBitMask& serverId, char* payload, unsigned sizeofPayload)
 {
   CDatagram* datagram = new(&_datagrams) CDatagram(_ctns, _id);
-  EbCountKey* key = new(&_keys) EbCountKey(const_cast<Datagram&>(datagram->datagram()).seq);
+  EbCountKey* key = new(&_keys) EbCountKey(datagram->dg().seq);
   EbEvent* event = new(&_events) EbEvent(serverId, _clients, datagram, key);
   event->allocated().insert(serverId);
   event->recopy(payload, sizeofPayload, serverId);
@@ -58,7 +58,7 @@ EbEventBase* EbC::_new_event(const EbBitMask& serverId)
   //    arm(_postEvent(_pending.forward()));
 
   CDatagram* datagram = new(&_datagrams) CDatagram(_ctns, _id);
-  EbCountKey* key = new(&_keys) EbCountKey(const_cast<Datagram&>(datagram->datagram()).seq);
+  EbCountKey* key = new(&_keys) EbCountKey(datagram->dg().seq);
   return new(&_events) EbEvent(serverId, _clients, datagram, key);
 }
 

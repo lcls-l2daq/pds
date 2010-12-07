@@ -80,6 +80,7 @@ void    SegmentLevel::allocated(const Allocation& alloc,
   DetInfo evrInfo(evrNode.pid(),DetInfo::NoDetector,0,DetInfo::Evr,0);
   EvrServer* esrv = new EvrServer(source,
 				  evrInfo,
+                                  inlet,
 				  NetBufferDepth); // revisit
   inlet.add_input(esrv);
   esrv->server().join(source, Ins(header().ip()));

@@ -10,6 +10,7 @@
 #include "pds/management/ControlCallback.hh"
 #include "pds/management/PlatformCallback.hh"
 #include "pds/management/RunAllocator.hh"
+#include "pds/management/Sequencer.hh"
 
 #include "pds/collection/PingReply.hh"
 #include "pds/service/Task.hh"
@@ -181,6 +182,7 @@ PartitionControl::PartitionControl(unsigned platform,
   _sem            (Semaphore::EMPTY),
   _control_cb     (&cb),
   _platform_cb    (0),
+  _sequencer      (0),
   _experiment     (0),
   _use_run_info   (true),
   _reportTask     (new Task(TaskObject("controlRep")))
@@ -239,12 +241,16 @@ void PartitionControl::reconfigure()
   }
 }
 
-void  PartitionControl::set_runAllocator(RunAllocator* ra) {
+void  PartitionControl::set_runAllocator (RunAllocator* ra) {
   _runAllocator = ra;
 }
 
-void  PartitionControl::set_experiment(unsigned experiment) {
+void  PartitionControl::set_experiment   (unsigned experiment) {
   _experiment=experiment;
+}
+
+void  PartitionControl::set_sequencer    (Sequencer* seq) {
+  _sequencer = seq;
 }
 
 void  PartitionControl::use_run_info(bool r) {
@@ -349,7 +355,10 @@ void PartitionControl::_next()
     case Configured: _queue(TransitionId::Unconfigure  ); break;
     case Running   : _queue(TransitionId::EndRun       ); break;
     case Disabled  : _queue(TransitionId::EndCalibCycle); break;
-    case Enabled   : _queue(TransitionId::Disable      ); break;
+    case Enabled   : 
+      if (_sequencer) _sequencer->stop();
+      _queue(TransitionId::Disable); 
+      break;
     default: break;
     }
 }
@@ -373,7 +382,10 @@ void PartitionControl::_complete(TransitionId::Value id)
   case TransitionId::EndCalibCycle  : _current_state = Running   ; break;
   case TransitionId::BeginCalibCycle:
   case TransitionId::Disable        : _current_state = Disabled  ; break;
-  case TransitionId::Enable         : _current_state = Enabled   ; break;
+  case TransitionId::Enable         : 
+    _current_state = Enabled   ; 
+    if (_sequencer) _sequencer->start();
+    break;
   case TransitionId::L1Accept       : return;
   default: break;
   }

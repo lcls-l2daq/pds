@@ -5,14 +5,17 @@
 #include "EbCountSrv.hh"
 #include "EbEventKey.hh"
 #include "pds/service/NetServer.hh"
+#include "pds/service/GenericPool.hh"
 #include "pds/xtc/EvrDatagram.hh"
 
 namespace Pds {
+  class InletWire;
   class EvrServer : public EbServer, EbCountSrv
   {
   public:
     EvrServer(const Ins& ins,
 	      const Src& src,
+              InletWire& inlet,
 	      unsigned   nbufs);
    ~EvrServer();
   public:
@@ -41,6 +44,8 @@ namespace Pds {
   private:
     NetServer     _server;
     Src           _client;
+    InletWire&    _inlet;
+    GenericPool   _occPool;
   };
 }
 

@@ -39,7 +39,7 @@ void EbS::no_build(Sequence::Type type, unsigned mask)
 EbEventBase* EbS::_new_event(const EbBitMask& serverId, char* payload, unsigned sizeofPayload)
 {
   CDatagram* datagram = new(&_datagrams) CDatagram(_ctns, _id);
-  EbSequenceKey* key = new(&_keys) EbSequenceKey(const_cast<Datagram&>(datagram->datagram()));
+  EbSequenceKey* key = new(&_keys) EbSequenceKey(datagram->dg());
   EbEvent* event = new(&_events) EbEvent(serverId, _clients, datagram, key);
   event->allocated().insert(serverId);
   event->recopy(payload, sizeofPayload, serverId);
@@ -69,7 +69,7 @@ EbEventBase* EbS::_new_event(const EbBitMask& serverId)
   //    arm(_postEvent(_pending.forward()));
 
   CDatagram* datagram = new(&_datagrams) CDatagram(_ctns, _id);
-  EbSequenceKey* key = new(&_keys) EbSequenceKey(const_cast<Datagram&>(datagram->datagram()));
+  EbSequenceKey* key = new(&_keys) EbSequenceKey(datagram->dg());
   return new(&_events) EbEvent(serverId, _clients, datagram, key);
 }
 

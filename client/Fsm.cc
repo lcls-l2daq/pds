@@ -1,6 +1,7 @@
 
 #include "Fsm.hh"
 #include "Action.hh"
+#include "Response.hh"
 
 #include <stdlib.h>
 
@@ -14,15 +15,23 @@ const char* Fsm::_stateName()
   return (_state < NumberOf ? _names[_state] : "-Invalid-");
 };
 
-Fsm::Fsm() : _state(Idle), _defaultAction(new Action) {
+Fsm::Fsm() : 
+  _state(Idle), 
+  _defaultAction(new Action), 
+  _defaultResponse(new Response) 
+{
   unsigned i;
   for (i=0;i<TransitionId::NumberOf;i++) {
-    _action[i] = _defaultAction;
+    _action  [i] = _defaultAction;
+  }
+  for (i=0;i<OccurrenceId::NumberOf;i++) {
+    _response[i] = _defaultResponse;
   }
 }
 
 Fsm::~Fsm() {
   delete _defaultAction;
+  delete _defaultResponse;
 }
 
 Fsm::State Fsm::_reqState(TransitionId::Value id) {
@@ -102,8 +111,8 @@ InDatagram* Fsm::events(InDatagram* in) {
   return in;
 }
 
-InDatagram* Fsm::occurrences(InDatagram* in) {
-  return in;
+Occurrence* Fsm::occurrences(Occurrence* occ) {
+  return _response[occ->id()]->fire(occ);
 }
 
 Transition* Fsm::transitions(Transition* tr) {
@@ -125,4 +134,10 @@ Action* Fsm::callback(TransitionId::Value id, Action* action) {
   Action* oldAction = _action[id];
   _action[id]=action;
   return oldAction;
+}
+
+Response* Fsm::callback(OccurrenceId::Value id, Response* response) {
+  Response* oldResponse = _response[id];
+  _response[id]=response;
+  return oldResponse;
 }

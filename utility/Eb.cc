@@ -96,7 +96,7 @@ int Eb::processIo(Server* serverGeneric)
   //  If there was an error on receive, remove the contribution from the event.
   //  Remove the event if this was the only contribution.
   if(sizeofPayload<0) {
-    printf("Eb::processIo sizeofPayload %d\n",sizeofPayload);
+    //    printf("Eb::processIo sizeofPayload %d\n",sizeofPayload);
     if(event->deallocate(serverId,payload,sizeofPayload).isZero()) { // this was the only contributor
       delete event->finalize();
       delete event;

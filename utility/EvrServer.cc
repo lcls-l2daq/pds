@@ -1,7 +1,9 @@
-#include "EvrServer.hh"
-#include "EbEventBase.hh"
-#include "Mtu.hh"
-#include "OutletWireHeader.hh"
+#include "pds/utility/EvrServer.hh"
+#include "pds/utility/EbEventBase.hh"
+#include "pds/utility/Mtu.hh"
+#include "pds/utility/InletWire.hh"
+#include "pds/utility/OutletWireHeader.hh"
+#include "pds/utility/Occurrence.hh"
 #include "pds/xtc/EvrDatagram.hh"
 
 using namespace Pds;
@@ -42,14 +44,17 @@ static const unsigned MaxPayload = Mtu::Size;
 
 EvrServer::EvrServer(const Ins& ins,
 		     const Src& src,
+                     InletWire& inlet,
 		     unsigned   nbufs) :
-  _server((unsigned)-1,
-	  Port::VectoredServerPort,  // REUSE_ADDR
-	  ins,
-	  DatagramSize,
-	  MaxPayload,
-	  nbufs),
-  _client(src)
+  _server ((unsigned)-1,
+           Port::VectoredServerPort,  // REUSE_ADDR
+           ins,
+           DatagramSize,
+           MaxPayload,
+           nbufs),
+  _client (src),
+  _inlet  (inlet),
+  _occPool(sizeof(EvrCommand),16)
 {
   fd(_server.fd());
 }
@@ -136,12 +141,20 @@ int EvrServer::pend(int flag)
 int EvrServer::fetch(char* payload, int flags)
 {
   int length = _server.fetch(payload,flags);
-  /*
+  if (length < 0)
+    return -1;
+
   const EvrDatagram& dg = reinterpret_cast<const EvrDatagram&>(*_server.datagram());
+  /*
   printf("EvrServer cnt %08x  clock %08x/%08x  pulse %08x\n",
 	 dg.evr, dg.seq.clock().high, dg.seq.clock().low, dg.seq.highAll(), dg.seq.low());
   */
-  return length;
+
+  const char* cmd = payload;
+  for(unsigned i=0; i<dg.ncmds; i++, cmd++)
+    _inlet.post(*new(&_occPool) EvrCommand(*cmd));
+
+  return (dg.seq.isEvent()) ? 0 : -1;
 }
 
 int EvrServer::fetch(ZcpFragment& dg, int flags)
