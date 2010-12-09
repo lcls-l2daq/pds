@@ -16,7 +16,7 @@
 #include <math.h>
 #include <time.h>
 #include <unistd.h>
-#include "PgpCardMod.h"
+#include "pgpcard/include/PgpCardMod.h"
 
 #include "TestData.cc"
 

@@ -13,7 +13,7 @@
 #include "pds/pgp/DataImportFrame.hh"
 #include "pds/pgp/RegisterSlaveExportFrame.hh"
 #include "pds/csPad/CspadConfigurator.hh"
-#include "PgpCardMod.h"
+#include "pgpcard/include/PgpCardMod.h"
 #include <unistd.h>
 #include <sys/uio.h>
 #include <string.h>
