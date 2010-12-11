@@ -110,6 +110,7 @@ public:
 #endif
     _count%=(360*8);
 
+    _eg.SetSeqRamEvent(ram, pos, ts, 1); pos++; ts++;
     _eg.SetSeqRamEvent(ram, pos, ts, 9); pos++; ts++;
     if (_count%2      ==0) {_eg.SetSeqRamEvent(ram, pos, ts, 180              ); pos++;} ts++;
     if (_count%3      ==0) {_eg.SetSeqRamEvent(ram, pos, ts, OPCODEC(r120Hz)  ); pos++;} ts++;
