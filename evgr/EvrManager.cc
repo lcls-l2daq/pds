@@ -108,6 +108,7 @@ struct EventCodeState
   int  iDefReportWidth;  
   int  iReportDelay;
   int  iReportWidth;
+  int  iReportDelayQ;
 };
 
 //
@@ -132,6 +133,7 @@ public:
     _L1DataUpdated      ( *(EvrDataUtil*) new char[ EvrDataUtil::size( giMaxNumFifoEvent ) ]  ),
     _L1DataFinal        ( *(EvrDataUtil*) new char[ EvrDataUtil::size( giMaxNumFifoEvent ) ]  ),
     _L1DataLatch        ( *(EvrDataUtil*) new char[ EvrDataUtil::size( giMaxNumFifoEvent ) ]  ),
+    _L1DataLatchQ       ( *(EvrDataUtil*) new char[ EvrDataUtil::size( giMaxNumFifoEvent ) ]  ),
     _bEvrDataFullUpdated(false),
     _bEvrDataFullFinal  (false),
     _ncommands          (0)
@@ -139,6 +141,7 @@ public:
     new (&_L1DataUpdated) EvrDataUtil( 0, NULL );
     new (&_L1DataFinal)   EvrDataUtil( 0, NULL );
     new (&_L1DataLatch)   EvrDataUtil( 0, NULL );    
+    new (&_L1DataLatchQ)  EvrDataUtil( 0, NULL );    
     
     memset( _lEventCodeState, 0, sizeof(_lEventCodeState) );
   }
@@ -148,6 +151,7 @@ public:
     delete (char*) &_L1DataUpdated;
     delete (char*) &_L1DataFinal;
     delete (char*) &_L1DataLatch;    
+    delete (char*) &_L1DataLatchQ;    
   }
   
   void xmit(const FIFOEvent& fe)
@@ -204,6 +208,16 @@ public:
     //
     { 
       bool eventDeleted = false;
+      for (unsigned int uEventIndex = 0; uEventIndex < _L1DataLatchQ.numFifoEvents(); uEventIndex++ )
+      {
+        const EvrDataType::FIFOEvent& fifoEvent = _L1DataLatchQ.fifoEvent( uEventIndex );
+        EventCodeState&               codeState = _lEventCodeState[fifoEvent.EventCode];
+        if (codeState.iReportWidth == -int(uEventCode)) 
+        {
+          _L1DataLatchQ.markEventAsDeleted( uEventIndex );
+          eventDeleted = true;
+        }
+      }
       for (unsigned int uEventIndex = 0; uEventIndex < _L1DataLatch.numFifoEvents(); uEventIndex++ )
       {
         const EvrDataType::FIFOEvent& fifoEvent = _L1DataLatch.fifoEvent( uEventIndex );
@@ -219,9 +233,20 @@ public:
         _L1DataLatch.PurgeDeletedEvents();          
     }
       
-    _L1DataLatch.updateFifoEvent( *(const EvrDataType::FIFOEvent*) &fe );
-    codeState.iReportDelay = codeState.iDefReportDelay;
-    codeState.iReportWidth = codeState.iDefReportWidth;
+    if (codeState.iReportWidth > 0) {
+      if (codeState.iReportDelayQ <= 0) {
+        _L1DataLatchQ.updateFifoEvent( *(const EvrDataType::FIFOEvent*) &fe );
+        codeState.iReportDelayQ = codeState.iDefReportDelay;
+      }
+      else {
+        printf("Can't queue eventcode %d\n",fe.EventCode);
+      }
+    }
+    else {
+      _L1DataLatch.updateFifoEvent( *(const EvrDataType::FIFOEvent*) &fe );
+      codeState.iReportDelay = codeState.iDefReportDelay;
+      codeState.iReportWidth = codeState.iDefReportWidth;
+    }
   }
 
   void startL1Accept(const FIFOEvent& fe)
@@ -254,6 +279,26 @@ public:
              * Process delayed & enlongated events
              */
             bool bAnyLatchedEventDeleted = false;
+            for (unsigned int uEventIndex = 0; uEventIndex < _L1DataLatchQ.numFifoEvents(); uEventIndex++ )
+              {
+                const EvrDataType::FIFOEvent& fifoEvent = _L1DataLatchQ.fifoEvent( uEventIndex );
+                EventCodeState&               codeState = _lEventCodeState[fifoEvent.EventCode];
+                
+                if ( codeState.iReportWidth  <= 0 ||
+                     codeState.iReportDelayQ <= 0 )
+                  {
+                    _L1DataLatch.updateFifoEvent( fifoEvent  );
+                    _L1DataLatchQ.markEventAsDeleted( uEventIndex );
+                    bAnyLatchedEventDeleted = true;
+                    codeState.iReportDelay  = codeState.iReportDelayQ;
+                    codeState.iReportWidth  = codeState.iDefReportWidth;
+                    codeState.iReportDelayQ = 0;
+                    continue;
+                  }
+                
+                --codeState.iReportDelayQ;
+              }
+
             for (unsigned int uEventIndex = 0; uEventIndex < _L1DataLatch.numFifoEvents(); uEventIndex++ )
               {
                 const EvrDataType::FIFOEvent& fifoEvent = _L1DataLatch.fifoEvent( uEventIndex );
@@ -280,9 +325,11 @@ public:
                   }
               }
         
-            if ( bAnyLatchedEventDeleted )
-              _L1DataLatch.PurgeDeletedEvents();          
-
+            if ( bAnyLatchedEventDeleted ) {
+              _L1DataLatchQ.PurgeDeletedEvents();          
+              _L1DataLatch .PurgeDeletedEvents();          
+            }
+            
             for (unsigned int uEventIndex = 0; uEventIndex < _L1DataUpdated.numFifoEvents(); uEventIndex++ )
               {
                 const EvrDataType::FIFOEvent& fifoEvent =  _L1DataUpdated.fifoEvent( uEventIndex );
@@ -332,6 +379,7 @@ public:
     _L1DataUpdated.clearFifoEvents();
     _L1DataFinal  .clearFifoEvents();
     _L1DataLatch  .clearFifoEvents();
+    _L1DataLatchQ .clearFifoEvents();
     _bEvrDataFullUpdated = false;
     _bEvrDataFullFinal   = false;
     _ncommands = 0;
@@ -388,6 +436,7 @@ private:
   EvrDataUtil&          _L1DataUpdated;
   EvrDataUtil&          _L1DataFinal;
   EvrDataUtil&          _L1DataLatch;
+  EvrDataUtil&          _L1DataLatchQ;
   EventCodeState        _lEventCodeState[guNumTypeEventCode];
   bool                  _bEvrDataFullUpdated;
   bool                  _bEvrDataFullFinal;
