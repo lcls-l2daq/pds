@@ -20,7 +20,7 @@ class Pds::CspadServer
      public EbCountSrv
 {
  public:
-   CspadServer( const Src& client );
+   CspadServer( const Src& client, unsigned configMask=0 );
    virtual ~CspadServer() {}
     
    //  Eb interface
@@ -40,6 +40,7 @@ class Pds::CspadServer
    int pend( int flag = 0 ) { return -1; }
    int fetch( ZcpFragment& , int flags ) { return 0; }
    int fetch( char* payload, int flags );
+   bool more() const;
 
    unsigned count() const;
    void setCspad( int fd );
@@ -49,6 +50,9 @@ class Pds::CspadServer
 
    unsigned payloadSize(void)   { return _payloadSize; }
    unsigned numberOfQuads(void) { return _quads; }
+   unsigned flushInputQueue(int);
+   void     enable();
+   void     disable();
 
  private:
    Xtc                            _xtc;
@@ -57,6 +61,9 @@ class Pds::CspadServer
    unsigned                       _count;
    unsigned                       _quadsThisCount;
    unsigned                       _payloadSize;
+   unsigned                       _configMask;
+   unsigned                       _configureResult;
+   bool                           _configured;
 };
 
 #endif

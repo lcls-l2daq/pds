@@ -79,8 +79,8 @@ class RceProxyConfigAction : public Action
 {
   public:
     RceProxyConfigAction(RceProxyManager& manager, 
-			 RceCfgCache& cfg,
-			 const std::string& sConfigFile) :
+                         RceCfgCache& cfg,
+                         const std::string& sConfigFile) :
       _manager(manager), _cfg(cfg), _sConfigFile(sConfigFile)
       {}
 
@@ -91,17 +91,17 @@ class RceProxyConfigAction : public Action
       const DetInfo& info = (const DetInfo&)(_cfg.tc().src);
       switch (info.device()) {
       case DetInfo::pnCCD :
-	new(_cfg.allocate()) pnCCDConfigType(_sConfigFile);
-	printf("New pnCCD config from binary file\n");
-	break;
+        new(_cfg.allocate()) pnCCDConfigType(_sConfigFile);
+        printf("New pnCCD config from binary file\n");
+        break;
       case DetInfo::Cspad :
-	_cfg.fetch(*tr);
-	printf("Retrieved CsPad configuration, quadMask 0x%x\n", ((CsPadConfigType*)(_cfg.current()))->quadMask());
-	break;
+        _cfg.fetch(*tr);
+        printf("Retrieved CsPad configuration, quadMask 0x%x\n", ((CsPadConfigType*)(_cfg.current()))->quadMask());
+        break;
       default :
-	printf("RceProxyConfigAction.fire() Bad device index! %u\n", info.device());
+        printf("RceProxyConfigAction.fire() Bad device index! %u\n", info.device());
         _cfg.damage().increase(Damage::UserDefined);
-	return tr;
+        return tr;
       }
 
       Damage dmg(0);
@@ -134,27 +134,27 @@ class RceProxyBeginCalibAction : public Action
 {
   public:
     RceProxyBeginCalibAction(RceProxyManager& manager,
-			     RceCfgCache&     cfg) :
+                             RceCfgCache&     cfg) :
       _manager(manager),
       _cfg    (cfg) {}
 
     Transition* fire(Transition* tr)     
       {
-	if (_cfg.scan()) 
-	  {
-	    Damage dmg(0);
-	    if (_manager.onActionConfigure(dmg))
-	      dmg.increase(Damage::UserDefined);
-	    _cfg.damage().increase(dmg.bits());
-	    _cfg.damage().userBits(dmg.userBits());
-	  }
-	return tr;
+        if (_cfg.scan())
+          {
+            Damage dmg(0);
+            if (_manager.onActionConfigure(dmg))
+              dmg.increase(Damage::UserDefined);
+            _cfg.damage().increase(dmg.bits());
+            _cfg.damage().userBits(dmg.userBits());
+          }
+        return tr;
       }
     InDatagram* fire(InDatagram* in)     
       {
-	if (_cfg.scan()) 
-	  _cfg.record(in);
-	return in;
+        if (_cfg.scan())
+          _cfg.record(in);
+        return in;
       }
   private:
     RceProxyManager& _manager;
@@ -236,9 +236,9 @@ RceProxyManager::RceProxyManager(CfgClientNfs& cfg, const string& sRceIp, const 
   _pFsm->callback(TransitionId::L1Accept,   _pActionL1Accept);
   _pFsm->callback(TransitionId::Disable,    _pActionDisable);
   _pFsm->callback(TransitionId::BeginCalibCycle, 
-		  new RceProxyBeginCalibAction(*this,*_cfg));
+                  new RceProxyBeginCalibAction(*this,*_cfg));
   _pFsm->callback(TransitionId::EndCalibCycle, 
-		  new RceProxyEndCalibAction(*_cfg));
+                  new RceProxyEndCalibAction(*_cfg));
 }
 
 RceProxyManager::~RceProxyManager()

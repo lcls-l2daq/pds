@@ -16,10 +16,10 @@ namespace Pds {
 
     class LastBits {
       public:
-        unsigned mbz1:        14;      //31:18
-        unsigned timeout:      1;      //17
-        unsigned failed:       1;      //16
         unsigned mbz2:        16;      //15:0
+        unsigned failed:       1;      //16
+        unsigned timeout:      1;      //17
+        unsigned mbz1:        14;      //31:18
     };
 
     class RegisterSlaveImportFrame {

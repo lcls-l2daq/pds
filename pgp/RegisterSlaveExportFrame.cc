@@ -22,11 +22,14 @@ namespace Pds {
 
     int       RegisterSlaveExportFrame::_fd  = 0;
     fd_set    RegisterSlaveExportFrame::_fds;
+    unsigned  RegisterSlaveExportFrame::count = 0;
+    unsigned  RegisterSlaveExportFrame::errors = 0;
 
     void RegisterSlaveExportFrame::FileDescr(int i) {
       _fd = i;
       FD_ZERO(&_fds);
       FD_SET(_fd,&_fds);
+      printf("RegisterSlaveExportFrame::FileDescr(%d)\n", _fd);
     }
 
     RegisterSlaveExportFrame::RegisterSlaveExportFrame(
@@ -61,53 +64,51 @@ namespace Pds {
       return (RegisterSlaveExportFrame::FEdest) ret;
     }
 
+    // parameter is the size of the post in number of 32 bit words
     unsigned RegisterSlaveExportFrame::post(__u32 size) {
       struct timeval  timeout;
       PgpCardTx       pgpCardTx;
-      PgpCardRx       pgpCardRx;
-      RegisterSlaveImportFrame inf;
-
-      pgpCardRx.model   = sizeof(&pgpCardRx);
-      pgpCardRx.maxSize = sizeof(inf);
-      pgpCardRx.data    = (__u32*)&inf;
+      int             ret;
 
       pgpCardTx.model   = (sizeof(&pgpCardTx));
       pgpCardTx.cmd     = IOCTL_Normal_Write;
       pgpCardTx.pgpVc   = bits.vc;
       pgpCardTx.pgpLane = bits.lane;
-      pgpCardTx.size    = size / sizeof(__u32);
+      pgpCardTx.size    = size;
       pgpCardTx.data    = (__u32 *)this;
 
       // Wait for write ready
       timeout.tv_sec=0;
-      timeout.tv_usec=1000;
-      if (select( _fd+1, NULL, &_fds, NULL, &timeout) > 0) {
+      timeout.tv_usec=100000;
+      FD_ZERO(&_fds);
+      FD_SET(_fd,&_fds);
+//      uint32_t* u = (uint32_t*)this;
+//      printf("\n\t-->"); for (unsigned i=0;i<size;i++) printf("0x%x ", u[i]); printf("<--\n");
+      if ((ret = select( _fd+1, NULL, &_fds, NULL, &timeout)) > 0) {
         ::write(_fd, &pgpCardTx, sizeof(pgpCardTx));
-        if ((!bits.waiting) && (bits.oc != Pds::Pgp::RegisterSlaveExportFrame::read)) {
-          if (select( _fd+1, &_fds, NULL, NULL, &timeout) > 0) {
-            ::read(_fd,&pgpCardRx,sizeof(PgpCardRx));
-          } else {
-            printf("RegisterSlaveExportFrame read select timed out\n");
-            return Failure;
-          }
-        }
       } else {
-        printf("RegisterSlaveExportFrame post select timed out\n");
+        if (ret < 0) {
+          perror("RegisterSlaveExportFrame post select error: ");
+        } else {
+          printf("RegisterSlaveExportFrame post select timed out on %u\n", count);
+        }
+        if (errors++ < 11) print(count, size);
         return Failure;
       }
-      //    this->print();
+      count += 1;
       return Success;
     }
 
-    void RegisterSlaveExportFrame::print() {
+    void RegisterSlaveExportFrame::print(unsigned n, unsigned s) {
       char ocn[][20] = {"read", "write", "set", "clear"};
       char dn[][20]  = {"Q0", "Q1", "Q2", "Q3", "Cncntr"};
-      printf("Register Slave Export Frame:\n\t");
-      printf("lane(%u), vc(%u), dest(%s), opcode(%s), addr(0x%x), waiting(%s), tid(0x%x)\n\t",
+      printf("Register Slave Export Frame: %u %u\n\t", s, n);
+      printf("lane(%u), vc(%u), dest(%s), opcode(%s), addr(0x%x), waiting(%s), tid(0x%x), ",
           bits.lane, bits.vc, &dn[(int)dest()][0], &ocn[bits.oc][0],
           bits.addr, bits.waiting ? "waiting" : "not waiting", bits.tid);
       printf("data(0x%x)\n", (unsigned)_data);
-
+      uint32_t* u = (uint32_t*)this;
+      printf("\t"); for (unsigned i=0;i<s;i++) printf("0x%x ", u[i]); printf("\n");
     }
   }
 }

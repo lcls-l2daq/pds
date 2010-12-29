@@ -6,6 +6,7 @@
  */
 
 #include "CspadServer.hh"
+#include "CspadConfigurator.hh"
 #include "pds/xtc/CDatagram.hh"
 #include "pds/xtc/ZcpDatagram.hh"
 #include "pds/config/CsPadConfigType.hh"
@@ -19,18 +20,29 @@
 #include <string.h>
 #include <errno.h>
 #include <string.h>
+#include <fcntl.h>
 
 using namespace Pds;
 //using namespace Pds::CsPad;
 
-CspadServer::CspadServer( const Pds::Src& client )
-   : _xtc( _CsPadDataType, client ) {}
+CspadServer::CspadServer( const Pds::Src& client, unsigned configMask )
+   : _xtc( _CsPadDataType, client ),
+     _cfg(0),
+     _quads(0),
+     _configMask(configMask),
+     _configureResult(0),
+     _configured(false) {}
 
 unsigned CspadServer::configure(CsPadConfigType& config) {
-  unsigned ret = 0;
-  _cfg = new Pds::CsPad::CspadConfigurator::CspadConfigurator(config, fd());
-  if ((ret = _cfg->configure())) {
-    printf("CspadServer::configure failed %u\n", ret);
+  if (_cfg == 0) {
+    _cfg = new Pds::CsPad::CspadConfigurator::CspadConfigurator(config, fd());
+  } else {
+    printf("CspadConfigurator already instantiated\n");
+  }
+  unsigned c = flushInputQueue(fd());
+  if (c) printf("CspadServer::configure flushed %u event%s before configuration\n", c, c>1 ? "s" : "");
+  if ((_configureResult = _cfg->configure(_configMask))) {
+    printf("CspadServer::configure failed 0x%x\n", _configureResult);
   } else {
     _quads = 0;
     for (unsigned i=0; i<4; i++) if ((1<<i) & config.quadMask()) _quads += 1;
@@ -40,15 +52,47 @@ unsigned CspadServer::configure(CsPadConfigType& config) {
         _quads, _payloadSize, _xtc.extent);
   }
   _count = _quadsThisCount = 0;
-  return ret;
+  _configured = _configureResult == 0;
+  c = this->flushInputQueue(fd());
+  if (c) printf("CspadServer::configure flushed %u event%s after confguration\n", c, c>1 ? "s" : "");
+  return _configureResult;
 }
 
-unsigned Pds::CspadServer::unconfigure(void) { return 0; }
+void Pds::CspadServer::enable() {
+  this->_cfg->writeRegister(
+      Pds::Pgp::RegisterSlaveExportFrame::CR,
+      CsPad::CspadConfigurator::RunModeAddr,
+      _cfg->configuration().activeRunMode());
+}
+
+void Pds::CspadServer::disable() {
+  this->_cfg->writeRegister(
+      Pds::Pgp::RegisterSlaveExportFrame::CR,
+      CsPad::CspadConfigurator::RunModeAddr,
+      _cfg->configuration().inactiveRunMode());
+}
+
+unsigned Pds::CspadServer::unconfigure(void) {
+  printf("CspadServer::unconfigure flushed ");
+  unsigned c = this->flushInputQueue(fd());
+  if (c) printf("%u event%s\n", c, c>1 ? "s" : "");
+  else printf("nothing\n");
+  return 0;
+}
 
 int Pds::CspadServer::fetch( char* payload, int flags ) {
    int ret = 0;
    PgpCardRx       pgpCardRx;
-   char*           dest = payload;
+   unsigned        offset = 0;
+
+   if (_configured == false)  {
+     printf("CspadServer::fetch() called before configuration, configuration result 0x%x\n", _configureResult);
+     unsigned c = this->flushInputQueue(fd());
+     printf("\tWe flushed %u input buffer%s\n", c, c>1 ? "s" : "");
+     return 0;
+   }
+
+//   printf("CspadServer::fetch called ");
 
    _xtc.damage = 0;
 
@@ -56,14 +100,16 @@ int Pds::CspadServer::fetch( char* payload, int flags ) {
 
    if (!_quadsThisCount) {
      memcpy( payload, &_xtc, sizeof(Xtc) );
-     dest += sizeof(Xtc);
+     offset = sizeof(Xtc);
    }
 
    pgpCardRx.model   = sizeof(&pgpCardRx);
    pgpCardRx.maxSize = _payloadSize / sizeof(__u32);
-   pgpCardRx.data    = (__u32*)dest;
+   pgpCardRx.data    = (__u32*)(payload + offset);
 
-   ret = read(fd(), &pgpCardRx, sizeof(PgpCardRx));
+   while ((ret < (int)(_payloadSize/sizeof(__u32))) && (ret >= 0)) {
+     ret = sizeof(__u32) * read(fd(), &pgpCardRx, sizeof(PgpCardRx));
+   }
    if (ret < 0) {
      perror ("CspadServer::fetch pgpCard read error");
    } else {
@@ -77,9 +123,11 @@ int Pds::CspadServer::fetch( char* payload, int flags ) {
        _xtc.damage.userBits(damageMask);
        printf("CsPadServer::fetch setting user damage 0x%x\n", damageMask);
      } else {
-       Pds::Pgp::DataImportFrame* data = (Pds::Pgp::DataImportFrame*)dest;
+       Pds::Pgp::DataImportFrame* data = (Pds::Pgp::DataImportFrame*)(payload + offset);
        unsigned oldCount = _count;
        _count = data->frameNumber() - 1;  // cspad starts counting at 1, not zero
+//       printf("fiducial(%u) _oldCount(%u) _count(%u) _quadsThisCount(%u)",
+//           data->fiducials(), oldCount, _count, _quadsThisCount);
        if ((_count != oldCount) && (_quadsThisCount)) {
          _quadsThisCount = 0;
          memcpy( payload, &_xtc, sizeof(Xtc) );
@@ -88,22 +136,56 @@ int Pds::CspadServer::fetch( char* payload, int flags ) {
      }
      _quadsThisCount += 1;
    }
+   ret += offset;
+//   printf(" returned %d\n", ret);
    return ret;
 }
 
+bool CspadServer::more() const {
+  bool ret = _quads > 1;
+//  printf("CspadServer::more(%s)\n", ret ? "true" : "false");
+  return ret;
+}
+
 unsigned CspadServer::offset() const {
-  return (_quadsThisCount==1 ? 0 : sizeof(Xtc) + _payloadSize * (_quadsThisCount-1));
+  unsigned ret = _quadsThisCount == 1 ? 0 : sizeof(Xtc) + _payloadSize * (_quadsThisCount-1);
+//  printf("CspadServer::offset(%u)\n", ret);
+  return (ret);
 }
 
 unsigned CspadServer::count() const {
-   if( ( _count % 1000 ) == 0 ) {
-      printf( "in CspadServer::count, fd(%d) _count(%u)\n",
-              fd(), _count);
-   }
+//    printf( "CspadServer::count(%u)\n", _count);
    return _count;
 }
 
+unsigned CspadServer::flushInputQueue(int f) {
+  fd_set          fds;
+  struct timeval  timeout;
+  timeout.tv_sec  = 0;
+  timeout.tv_usec = 100;
+  int ret;
+  unsigned dummy[4];
+  unsigned count = 0;
+  PgpCardRx       pgpCardRx;
+  pgpCardRx.model   = sizeof(&pgpCardRx);
+  pgpCardRx.maxSize = 4;
+  pgpCardRx.data    = dummy;
+  do {
+    FD_ZERO(&fds);
+    FD_SET(f,&fds);
+    ret = select( f+1, &fds, NULL, NULL, &timeout);
+    if (ret>0) {
+      count += 1;
+      ::read(f, &pgpCardRx, sizeof(PgpCardRx));
+    }
+  } while (ret > 0);
+  return count;
+}
+
 void CspadServer::setCspad( int f ) {
-   fd( f );
-   Pds::Pgp::RegisterSlaveExportFrame::FileDescr(f);
+  if (unsigned c = this->flushInputQueue(f)) {
+    printf("CspadServer::setCspad read %u time%s after opening pgpcard driver\n", c, c==1 ? "" : "s");
+  }
+  fd( f );
+  Pds::Pgp::RegisterSlaveExportFrame::FileDescr(f);
 }

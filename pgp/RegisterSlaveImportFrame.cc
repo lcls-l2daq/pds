@@ -35,6 +35,8 @@ namespace Pds {
           bits.lane, bits.vc, &dn[(int)dest()][0], &ocn[bits.oc][0],
           bits.addr, bits.waiting ? "waiting" : "not waiting", bits.tid);
       printf("data(0x%x)\n", (unsigned)_data);
+      uint32_t* u = (uint32_t*)this;
+      printf("\t"); for (unsigned i=0;i<4;i++) printf("0x%x ", u[i]); printf("\n");
     }
   }
 }

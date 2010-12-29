@@ -17,14 +17,15 @@ namespace Pds {
 
     class SEbits {
       public:
-        unsigned tid:    23;    //31:9
-        unsigned waiting: 1;    // 8
-        unsigned lane:    2;    // 7:6
-        unsigned mbz:     4;    // 5:2
         unsigned vc:      2;    // 1:0
-        unsigned oc:      2;    //31:30
-        unsigned dnc:     6;    //29:24
+        unsigned mbz:     4;    // 5:2
+        unsigned lane:    2;    // 7:6
+        unsigned waiting: 1;    // 8
+        unsigned tid:    23;    //31:9
+
         unsigned addr:   24;    //23:0
+        unsigned dnc:     6;    //29:24
+        unsigned oc:      2;    //31:30
     };
 
     class RegisterSlaveExportFrame {
@@ -39,6 +40,8 @@ namespace Pds {
         ~RegisterSlaveExportFrame() {};
 
       public:
+        static unsigned    count;
+        static unsigned    errors;
         static void FileDescr(int i);
 
       private:
@@ -49,9 +52,9 @@ namespace Pds {
         unsigned tid() {return bits.tid;}
         void waiting(waitState w) {bits.waiting = w;}
         uint32_t* array() {return (uint32_t*)&_data;}
-        void print();
+        void print(unsigned = 0, unsigned = 4);
         RegisterSlaveExportFrame::FEdest dest();
-        unsigned post(__u32);
+        unsigned post(__u32);  // the size of the entire header + payload in number of 32 bit words
 
 
       public:

@@ -1,7 +1,7 @@
 /*
  * CspadConfigurator.hh
  *
- *  Created on: Apr 21, 2010
+ *  Created on: Nov 15, 2010
  *      Author: jackp
  */
 
@@ -9,19 +9,24 @@
 #define CSPADCONFIGURATOR_HH_
 
 #include "pds/config/CsPadConfigType.hh"
-//#include "rce/pic/Pool.hh"
 #include "pds/pgp/RegisterSlaveExportFrame.hh"
-//#include "rceusr/cxi/CxiPgpHandler.hh"
+#include "pds/pgp/RegisterSlaveImportFrame.hh"
 #include <stdlib.h>
 #include <stdint.h>
 #include <time.h>
+#include <pthread.h>
 #include <new>
+#include <mqueue.h>
 
 namespace Pds { namespace CsPad { class ConfigV1QuadReg; } }
+
+namespace Pds { namespace Pgp { class RegisterSlaveImportFrame; } }
 
 namespace Pds {
 
   namespace CsPad {
+
+    class CspadConfigurator;
 
     class AddressRange {
       public:
@@ -35,8 +40,8 @@ namespace Pds {
 
     class CspadConfigSynch {
       public:
-        CspadConfigSynch(int fd, uint32_t d, unsigned* h) :
-          _depth(d), _length(d), _histo(h) {};
+        CspadConfigSynch(int fd, uint32_t d, unsigned* h,CspadConfigurator* c) :
+          _depth(d), _length(d), _histo(h), _fd(fd), cfgrt(c) {};
         bool take();
         bool clear();
 
@@ -47,12 +52,13 @@ namespace Pds {
         unsigned _length;
         unsigned* _histo;
         int       _fd;
+        CspadConfigurator* cfgrt;
     };
 
     class CspadConfigurator {
       public:
         CspadConfigurator( CsPadConfigType&, int);
-        virtual ~CspadConfigurator() {}
+        virtual ~CspadConfigurator();
 
         enum {Success=0, Failure=1, numberTestImages=8};
         enum {ConcentratorVersionAddr=0,
@@ -71,23 +77,32 @@ namespace Pds {
         enum {QuadResetRegisterAddr=0x500004};
 
         unsigned                  configure(unsigned mask=0);
+        CsPadConfigType&          configuration() { return _config; };
         void                      print();
         unsigned                  writeRegister(Pds::Pgp::RegisterSlaveExportFrame::FEdest, unsigned, uint32_t, bool pf=false);
         unsigned                  writeRegister(Pds::Pgp::RegisterSlaveExportFrame::FEdest, unsigned, uint32_t, Pds::Pgp::RegisterSlaveExportFrame::waitState);
         unsigned                  readRegister(Pds::Pgp::RegisterSlaveExportFrame::FEdest, unsigned, unsigned, uint32_t*);
         void                      printMe();
+        int                       fd() { return _fd; }
 
         static unsigned           _quadAddrs[];
         static unsigned           _quadReadOnlyAddrs[];
         static uint16_t           rawTestData[][Pds::CsPad::RowsPerBank][Pds::CsPad::ColumnsPerASIC];
 
       private:
+        static char                       _inputQueueName[80];
+        static char                       _outputQueueName[80];
+
+      private:
         unsigned                   writeRegs();
         unsigned                   writeDigPots();
         unsigned                   writeTestData();
         unsigned                   writeGainMap();
-        unsigned                   read();
+        unsigned                   readRegs();
         long long int              timeDiff(timespec*, timespec*);
+        bool                      _startRxThread();
+        bool                      _stopRxThread();
+        Pds::Pgp::RegisterSlaveImportFrame*   _readPgpCard();
         void                      _initRanges() {
           new ((void*)&_gainMap) AddressRange(0x000000, 0x010000);
           new ((void*)&_digPot)  AddressRange(0x200000, 0x210000);
@@ -99,12 +114,15 @@ namespace Pds {
         enum {runDelayAddr=0x101};
         enum {sizeOfQuadWrite=18, sizeOfQuadReadOnly=2};
         enum {quadGainMapStartAddr=0, quadGainMapLoadAddr=0x10000, quadTestDataAddr=0x100000};
-        enum {RtemsQueueTimeout=50};
+        enum {RtemsQueueTimeout=50, MicroSecondsSleepTime=50};
         CsPadConfigType&          _config;
         int                       _fd;
         AddressRange              _gainMap;
         AddressRange              _digPot;
         unsigned*                 _rhisto;
+        pthread_t                 _rxThread;
+        mqd_t                     _myInputQueue;
+        mqd_t                     _myOutputQueue;
         //      LoopHisto*                _lhisto;
         bool                      _print;
     };
