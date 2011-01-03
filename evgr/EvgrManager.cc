@@ -21,15 +21,29 @@
 
 using namespace Pds;
 
+class TerminatorLoader;
 class TimeLoader;
 class OpcodeLoader;
-static TimeLoader* timeLoaderGlobal;
-static OpcodeLoader* opcodeLoaderGlobal;
+static TerminatorLoader* terminatorLoaderGlobal;
+static TimeLoader*       timeLoaderGlobal;
+static OpcodeLoader*     opcodeLoaderGlobal;
 static EvgrBoardInfo<Evr> *erInfoGlobal;
 
 static unsigned _opcodecount=0;
 static unsigned _lastopcode=0;
 static int _ram=0;
+static int _pos=0;
+
+class TerminatorLoader {
+public:
+  TerminatorLoader(Evg& eg) : _eg(eg) {}
+  virtual ~TerminatorLoader() {}
+  void set() {
+    _eg.SetSeqRamEvent(_ram, _pos, _pos, 1); _pos++;
+  }
+private:
+  Evg& _eg;
+};
 
 class TimeLoader {
 public:
@@ -54,11 +68,9 @@ public:
       unsigned mask = (1<<((NumEvtCodes-2)-numEvtCode)); 
       unsigned opcode = (_nfid&mask) ?
         EvgrOpcode::TsBit1 : EvgrOpcode::TsBit0;
-      unsigned timestamp=numEvtCode;
-      _eg.SetSeqRamEvent(ram, numEvtCode, timestamp, opcode);
+      _eg.SetSeqRamEvent(ram, _pos, _pos, opcode); _pos++;
     } while (++numEvtCode<(NumEvtCodes-1));
-    unsigned timestamp=numEvtCode;
-    _eg.SetSeqRamEvent(ram, numEvtCode, timestamp, EvgrOpcode::TsBitEnd);
+    _eg.SetSeqRamEvent(ram, _pos, _pos, EvgrOpcode::TsBitEnd); _pos++;
   }
   void set() {
     FIFOEvent fe;
@@ -97,11 +109,10 @@ static unsigned int opcodeFromBeamRate(BeamCode bc, RateCode rc)
 
 class OpcodeLoader {
 public:
-  OpcodeLoader(Evg& eg, Evr& er) : _count(0),_eg(eg),_er(er) {}
+  OpcodeLoader(Evg& eg) : _count(0),_eg(eg) {}
   void set() {
     int ram=_ram;
-    int pos=TimeLoader::NumEvtCodes;
-    int ts =TimeLoader::NumEvtCodes+WaitForTimestamp;
+    int ts =_pos+WaitForTimestamp;
 
 #ifdef BASE_120
     _count+=3;
@@ -110,25 +121,23 @@ public:
 #endif
     _count%=(360*8);
 
-    _eg.SetSeqRamEvent(ram, pos, ts, 1); pos++; ts++;
-    _eg.SetSeqRamEvent(ram, pos, ts, 9); pos++; ts++;
-    if (_count%2      ==0) {_eg.SetSeqRamEvent(ram, pos, ts, 180              ); pos++;} ts++;
-    if (_count%3      ==0) {_eg.SetSeqRamEvent(ram, pos, ts, OPCODEC(r120Hz)  ); pos++;} ts++;
-    if (_count%6      ==0) {_eg.SetSeqRamEvent(ram, pos, ts, OPCODEC(r60Hz)   ); pos++;} ts++;
-    if (_count%12     ==0) {_eg.SetSeqRamEvent(ram, pos, ts, OPCODEC(r30Hz)   ); pos++;} ts++;
-    if (_count%36     ==0) {_eg.SetSeqRamEvent(ram, pos, ts, OPCODEC(r10Hz)   ); pos++;} ts++;
-    if (_count%72     ==0) {_eg.SetSeqRamEvent(ram, pos, ts, OPCODEC(r5Hz)    ); pos++;} ts++;
-    if (_count%360    ==0) {_eg.SetSeqRamEvent(ram, pos, ts, OPCODEC(r1Hz)    ); pos++;} ts++;
-    if (_count%(360*2)==0) {_eg.SetSeqRamEvent(ram, pos, ts, OPCODEC(r0_5Hz)  ); pos++;} ts++;
-    if (_count%(360*4)==0) {_eg.SetSeqRamEvent(ram, pos, ts, OPCODEC(r0_25Hz) ); pos++;} ts++;
-    if (_count%(360*8)==0) {_eg.SetSeqRamEvent(ram, pos, ts, OPCODEC(r0_125Hz)); pos++;} ts++;
-    _eg.SetSeqRamEvent(ram, pos, ts, EvgrOpcode::EndOfSequence);
+    _eg.SetSeqRamEvent(ram, _pos, ts, 9); _pos++; ts++;
+    if (_count%2      ==0) {_eg.SetSeqRamEvent(ram, _pos, ts, 180              ); _pos++;} ts++;
+    if (_count%3      ==0) {_eg.SetSeqRamEvent(ram, _pos, ts, OPCODEC(r120Hz)  ); _pos++;} ts++;
+    if (_count%6      ==0) {_eg.SetSeqRamEvent(ram, _pos, ts, OPCODEC(r60Hz)   ); _pos++;} ts++;
+    if (_count%12     ==0) {_eg.SetSeqRamEvent(ram, _pos, ts, OPCODEC(r30Hz)   ); _pos++;} ts++;
+    if (_count%36     ==0) {_eg.SetSeqRamEvent(ram, _pos, ts, OPCODEC(r10Hz)   ); _pos++;} ts++;
+    if (_count%72     ==0) {_eg.SetSeqRamEvent(ram, _pos, ts, OPCODEC(r5Hz)    ); _pos++;} ts++;
+    if (_count%360    ==0) {_eg.SetSeqRamEvent(ram, _pos, ts, OPCODEC(r1Hz)    ); _pos++;} ts++;
+    if (_count%(360*2)==0) {_eg.SetSeqRamEvent(ram, _pos, ts, OPCODEC(r0_5Hz)  ); _pos++;} ts++;
+    if (_count%(360*4)==0) {_eg.SetSeqRamEvent(ram, _pos, ts, OPCODEC(r0_25Hz) ); _pos++;} ts++;
+    if (_count%(360*8)==0) {_eg.SetSeqRamEvent(ram, _pos, ts, OPCODEC(r0_125Hz)); _pos++;} ts++;
+    _eg.SetSeqRamEvent(ram, _pos, ts, EvgrOpcode::EndOfSequence); _pos++;
   }
 private:
   enum {WaitForTimestamp=8}; // timestamp takes some clock ticks to take effect
   unsigned _count;
   Evg& _eg;
-  Evr& _er;
 };
 
 class EvgrAction : public Action {
@@ -248,8 +257,9 @@ extern "C" {
     int flags = er.GetIrqFlags();
     if (flags & EVR_IRQFLAG_EVENT)
       {
-        timeLoaderGlobal->set();
-        opcodeLoaderGlobal->set();
+	terminatorLoaderGlobal->set();
+        timeLoaderGlobal      ->set();
+        opcodeLoaderGlobal    ->set();
         er.ClearIrqFlags(EVR_IRQFLAG_EVENT);
       }
     int fdEr = erInfoGlobal->filedes();
@@ -262,8 +272,9 @@ Appliance& EvgrManager::appliance() {return _fsm;}
 EvgrManager::EvgrManager(EvgrBoardInfo<Evg> &egInfo, EvgrBoardInfo<Evr> &erInfo) :
   _eg(egInfo.board()),_er(erInfo.board()),_fsm(*new Fsm) {
 
-  timeLoaderGlobal = new TimeLoader(_eg,_er);
-  opcodeLoaderGlobal = new OpcodeLoader(_eg,_er);
+  terminatorLoaderGlobal = new TerminatorLoader(_eg);
+  timeLoaderGlobal       = new TimeLoader(_eg,_er);
+  opcodeLoaderGlobal     = new OpcodeLoader(_eg);
 //   _fsm.callback(TransitionId::Configure,new EvgrConfigAction(_eg,_er));
 //   _fsm.callback(TransitionId::BeginRun,new EvgrBeginRunAction(_eg,_er));
 //   _fsm.callback(TransitionId::Enable,new EvgrEnableAction(*timeLoaderGlobal,_eg,_er));
