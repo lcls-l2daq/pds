@@ -257,6 +257,7 @@ extern "C" {
     int flags = er.GetIrqFlags();
     if (flags & EVR_IRQFLAG_EVENT)
       {
+      _pos = 0;
 	terminatorLoaderGlobal->set();
         timeLoaderGlobal      ->set();
         opcodeLoaderGlobal    ->set();

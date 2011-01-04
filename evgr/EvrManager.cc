@@ -376,6 +376,7 @@ public:
   void reset()        
   { 
     _evtCounter = 0; 
+    _bReadout = false;
     _L1DataUpdated.clearFifoEvents();
     _L1DataFinal  .clearFifoEvents();
     _L1DataLatch  .clearFifoEvents();

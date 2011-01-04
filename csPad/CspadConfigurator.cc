@@ -184,7 +184,7 @@ namespace Pds {
       _mymq_attr.mq_msgsize = (long int)sizeof(_myIn);
       _mymq_attr.mq_flags = 0L;
       _myOut.type = Disable;
-      printf("CspadConfigurator::_stopRxThread sending Disable to receive thread\n");
+      printf("\nCspadConfigurator::_stopRxThread sending Disable to receive thread\n");
       usleep(500);
       if (mq_send(_myOutputQueue, (const char *)&_myOut, sizeof(_myOut), 0) < 0) {
         perror("CspadConfigurator::_startRxThreadmq_send Disable failed ");
@@ -301,6 +301,7 @@ namespace Pds {
         ret |= writeRegister(Pds::Pgp::RegisterSlaveExportFrame::CR, EnableEvrAddr, EnableEvrValue);
         ret |= writeRegister(Pds::Pgp::RegisterSlaveExportFrame::CR, resetCountersAddr, 1);
         ret |= writeRegister(Pds::Pgp::RegisterSlaveExportFrame::CR, RunModeAddr, _config.inactiveRunMode());
+        ::usleep(10000);
         if (_stopRxThread() == false) {
           printf("CspadConfigurator::configure failed to stop the RX thread\n");
           ret <<= 1;

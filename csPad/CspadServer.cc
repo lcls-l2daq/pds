@@ -63,6 +63,7 @@ void Pds::CspadServer::enable() {
       Pds::Pgp::RegisterSlaveExportFrame::CR,
       CsPad::CspadConfigurator::RunModeAddr,
       _cfg->configuration().activeRunMode());
+      this->flushInputQueue(fd());
 }
 
 void Pds::CspadServer::disable() {
@@ -70,6 +71,7 @@ void Pds::CspadServer::disable() {
       Pds::Pgp::RegisterSlaveExportFrame::CR,
       CsPad::CspadConfigurator::RunModeAddr,
       _cfg->configuration().inactiveRunMode());
+      this->flushInputQueue(fd());
 }
 
 unsigned Pds::CspadServer::unconfigure(void) {
@@ -107,12 +109,10 @@ int Pds::CspadServer::fetch( char* payload, int flags ) {
    pgpCardRx.maxSize = _payloadSize / sizeof(__u32);
    pgpCardRx.data    = (__u32*)(payload + offset);
 
-   while ((ret < (int)(_payloadSize/sizeof(__u32))) && (ret >= 0)) {
-     ret = sizeof(__u32) * read(fd(), &pgpCardRx, sizeof(PgpCardRx));
-   }
+   ret = sizeof(__u32) * read(fd(), &pgpCardRx, sizeof(PgpCardRx));
    if (ret < 0) {
      perror ("CspadServer::fetch pgpCard read error");
-   } else {
+   } else if    (ret == (int)_payloadSize) {
      unsigned damageMask = 0;
      if (pgpCardRx.eofe)      damageMask |= 1;
      if (pgpCardRx.fifoErr)   damageMask |= 2;
@@ -135,8 +135,11 @@ int Pds::CspadServer::fetch( char* payload, int flags ) {
        }
      }
      _quadsThisCount += 1;
+     ret += offset;
+   } else {
+     printf("CspadServer::fetch() returning -1, ret was %d\n", ret);
+     ret = -1;
    }
-   ret += offset;
 //   printf(" returned %d\n", ret);
    return ret;
 }
@@ -162,7 +165,7 @@ unsigned CspadServer::flushInputQueue(int f) {
   fd_set          fds;
   struct timeval  timeout;
   timeout.tv_sec  = 0;
-  timeout.tv_usec = 100;
+  timeout.tv_usec = 1000;
   int ret;
   unsigned dummy[4];
   unsigned count = 0;

@@ -59,7 +59,7 @@ class CspadL1Action : public Action {
 CspadL1Action::CspadL1Action(CspadServer* svr) : server(svr) {}
 
 InDatagram* CspadL1Action::fire(InDatagram* in) {
-  printf("CspadL1Action::fire!\n");
+//  printf("CspadL1Action::fire!\n");
   if (in->datagram().xtc.damage.value() == 0) {
     Pds::Pgp::DataImportFrame* data;
     Datagram& dg = in->datagram();
@@ -83,7 +83,7 @@ InDatagram* CspadL1Action::fire(InDatagram* in) {
     }
 
     for (unsigned i=0; i<server->numberOfQuads(); i++) {
-      data = (Pds::Pgp::DataImportFrame*) ( payload + sizeof(Xtc) + (i * server->payloadSize()) );
+      data = (Pds::Pgp::DataImportFrame*) ( payload + (i * server->payloadSize()) );
       if (evrFiducials != data->fiducials()) {
         error |= 1<<i;
         printf("CspadL1Action::fire(in) fiducial mismatch evr(%u) cspad(%u) in quad %u\n",
@@ -114,6 +114,7 @@ class CspadConfigAction : public Action {
 
    InDatagram* fire(InDatagram* dg) {
       // insert assumes we have enough space in the input datagram
+     printf("CspadConfigAction::fire(InDatagram)\n");
       dg->insert(_cfgtc, &_config);
       if( _result ) {
          printf( "*** CspadConfigAction found configuration errors _result(0x%x)\n", _result );
@@ -127,6 +128,7 @@ class CspadConfigAction : public Action {
 
    Transition* fire(Transition* tr) {
       _result = 0;
+      printf("CspadConfigAction::fire(Transition)\n");
       int ret = _cfg->fetch( *tr, _CsPadConfigType, &_config, sizeof(_config) );
       if (ret != sizeof(_config)) {
          printf("CspadConfigAction: failed to retrieve configuration: ");
@@ -135,6 +137,7 @@ class CspadConfigAction : public Action {
          _result = 0xcf;
       } else {
          _result = _server->configure( _config );
+         _server->enable();
       }
 
       return tr;
@@ -149,6 +152,10 @@ class CspadConfigAction : public Action {
    unsigned       _result;
 };
 
+//class CspadBeginCalibAction : public Action {
+//
+//};
+
 
 class CspadUnconfigAction : public Action {
  public:
@@ -156,16 +163,20 @@ class CspadUnconfigAction : public Action {
    ~CspadUnconfigAction() {}
 
    InDatagram* fire(InDatagram* dg) {
+     printf("CspadUnconfigAction:;fire(InDatagram)\n");
       if( _result ) {
          printf( "*** Found %d cspad Unconfig errors\n", _result );
          dg->datagram().xtc.damage.increase(Pds::Damage::UserDefined);
          dg->datagram().xtc.damage.userBits(0xda);
       }
+      ::usleep(250000);
       return dg;
    }
 
    Transition* fire(Transition* tr) {
+     printf("CspadUnconfigAction:;fire(Transition)\n");
       _result = 0;
+      _server->disable();
       _result += _server->unconfigure();
       return tr;
    }
@@ -181,7 +192,8 @@ class CspadEnableAction : public Action {
     ~CspadEnableAction() {}
 
     Transition* fire(Transition* tr) {
-      _server->enable();
+      printf("CspadEnableAction:;fire(Transition)\n");
+//      _server->enable();
       return tr;
     }
 
@@ -195,7 +207,7 @@ class CspadDisableAction : public Action {
     ~CspadDisableAction() {}
 
     Transition* fire(Transition* tr) {
-      _server->disable();
+      printf("CspadDisableAction:;fire(Transition)\n");
       return tr;
     }
 
@@ -220,14 +232,16 @@ CspadManager::CspadManager( CspadServer* server, CfgClientNfs* cfg ) : _fsm(*new
 
    const Src& src0 = server->client();
 
+   _fsm.callback( TransitionId::Map, new CspadAllocAction( *cfg ) );
    _fsm.callback( TransitionId::Configure, new CspadConfigAction( src0, cfg, server ) );
-   _fsm.callback( TransitionId::Unconfigure, new CspadUnconfigAction( server ) );
    _fsm.callback( TransitionId::Enable, new CspadEnableAction( server ) );
+//   _fsm.callback( TransitionId::BeginCalibCycle, new CspadBeginCalibCycleAction( server ) );
+   _fsm.callback( TransitionId::L1Accept, new CspadL1Action( server ) );
+//   _fsm.callback( TransitionId::EndCalibCycle, new CspadEndCalibCycleAction( server ) );
+   _fsm.callback( TransitionId::Unconfigure, new CspadUnconfigAction( server ) );
    _fsm.callback( TransitionId::Disable, new CspadDisableAction( server ) );
    // _fsm.callback( TransitionId::BeginRun,
    //                new CspadBeginRunAction( server ) );
    // _fsm.callback( TransitionId::EndRun,
    //                new CspadEndRunAction( server ) );
-   _fsm.callback( TransitionId::Map, new CspadAllocAction( *cfg ) );
-   _fsm.callback( TransitionId::L1Accept, new CspadL1Action( server ) );
 }
