@@ -63,11 +63,7 @@ EpicsCA::~EpicsCA()
   delete[] _pvdata; 
 }
 
-void EpicsCA::connected   (bool c) { _connected = c; }
-
-bool EpicsCA::connected() const { return _connected; }
-
-void EpicsCA::getData     (const void* dbr)  
+void EpicsCA::connected   (bool c) 
 {
   int nelem = _channel.nelements();
   int sz = dbr_size_n(_channel.type(),nelem);
@@ -76,7 +72,14 @@ void EpicsCA::getData     (const void* dbr)
     _pvdata = new char[_pvsiz=sz];
     printf("pvdata allocated @ %p sz %d type %d\n",_pvdata,sz,int(_channel.type()));
   }
+  _connected = c;
+}
 
+bool EpicsCA::connected() const { return _connected; }
+
+void EpicsCA::getData     (const void* dbr)  
+{
+  int nelem = _channel.nelements();
   switch(_channel.type()) {
     handle_type(DBR_TIME_SHORT , dbr_time_short , dbr_short_t ) break;
     handle_type(DBR_TIME_FLOAT , dbr_time_float , dbr_float_t ) break;
@@ -129,24 +132,39 @@ EpicsCAChannel::~EpicsCAChannel()
   ca_clear_channel(_epicsChanID);
 }
 
+void EpicsCAChannel::get()
+{
+  int st = ca_array_get_callback (_type,
+				  _nelements,
+				  _epicsChanID,
+				  GetDataCallback,
+				  this);
+  if (st != ECA_NORMAL)
+    printf("%s : %s [get st]\n",_epicsName, ca_message(st));
+}
+
 void EpicsCAChannel::put()
 {
   int dbfType = ca_field_type(_epicsChanID);
-#if 0
+  int st = ca_array_put (dbfType, 
+			 _nelements,
+			 _epicsChanID,
+			 _proxy.data());
+  if (st != ECA_NORMAL)
+    printf("%s : %s [put st] : %d\n",_epicsName, ca_message(st), dbfType);
+}
+
+void EpicsCAChannel::put_cb()
+{
+  int dbfType = ca_field_type(_epicsChanID);
   int st = ca_array_put_callback (dbfType,
 				  _nelements,
 				  _epicsChanID,
 				  _proxy.data(),
 				  PutDataCallback,
 				  this);
-#else
-  int st = ca_array_put (dbfType, 
-			 _nelements,
-			 _epicsChanID,
-			 _proxy.data());
-#endif				  
   if (st != ECA_NORMAL)
-    printf("%s : %s [put st] : %d\n",_epicsName, ca_message(st), dbfType);
+    printf("%s : %s [put_cb st] : %d\n",_epicsName, ca_message(st), dbfType);
 }
 
 void EpicsCAChannel::connStatusCallback(struct connection_handler_args chArgs)
@@ -158,8 +176,6 @@ void EpicsCAChannel::connStatusCallback(struct connection_handler_args chArgs)
     _connected = Connected;
     int dbfType = ca_field_type(_epicsChanID);
 
-    _proxy.connected(true);
-
     int dbrType = dbf_type_to_DBR_TIME(dbfType);
     if (dbr_type_is_ENUM(dbrType))
       dbrType = DBR_TIME_INT;
@@ -167,9 +183,11 @@ void EpicsCAChannel::connStatusCallback(struct connection_handler_args chArgs)
     _type = dbrType;
     _nelements = ca_element_count(_epicsChanID);
 
-    int st;
+    _proxy.connected(true);
+
     if (_monitor) {
       // establish monitoring
+      int st;
       st = ca_create_subscription(_type,
 				  _nelements,
 				  _epicsChanID,
@@ -177,16 +195,9 @@ void EpicsCAChannel::connStatusCallback(struct connection_handler_args chArgs)
 				  GetDataCallback,
 				  this,
 				  &_event);
+      if (st != ECA_NORMAL)
+        printf("%s : %s [connStatusCallback]\n", _epicsName, ca_message(st));
     }
-    else {
-      st = ca_array_get_callback (_type,
-				  _nelements,
-				  _epicsChanID,
-				  GetDataCallback,
-				  this);
-    }
-    if (st != ECA_NORMAL)
-      printf("%s : %s [connStatusCallback]\n", _epicsName, ca_message(st));
   }
   else {
     printf("EpicsCAChannel::connStatusCallback %s disconnected (%p)\n",_epicsName, this);
@@ -201,21 +212,6 @@ void EpicsCAChannel::getDataCallback(struct event_handler_args ehArgs)
     printf("%s : %s [getDataCallback ehArgs]\n",_epicsName, ca_message(ehArgs.status));
   else {
     _proxy.getData(ehArgs.dbr);
-
-    int dbfType = ca_field_type(_epicsChanID);
-
-    if (!_monitor) {
-      int st = ca_array_put_callback (dbfType,
-				      _nelements,
-				      _epicsChanID,
-				      _proxy.data(),
-				      PutDataCallback,
-				      this);
-      if (st != ECA_NORMAL)
-	printf("%s : %s [getDataCallback st]\n",_epicsName, ca_message(st));
-
-      ca_flush_io();
-    }
   }
 } 
 
