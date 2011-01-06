@@ -68,7 +68,9 @@ private:
   /*  
    * private static consts
    */    
-  static const int      _iMaxCoolingTime        = 58000;        // in miliseconds
+  // !! For XPP non-shutter mode
+  static const int      _iMaxCoolingTime        = 100;        // in miliseconds
+  //static const int      _iMaxCoolingTime        = 58000;        // in miliseconds
   static const int      _iTemperatureHiTol      = 100;          // 1 degree Celcius
   static const int      _iTemperatureLoTol      = 20000;        // 200 degree Celcius -> Do not use Low Tolerance now
   static const int      _iClockSavingExpTime    = 24*60*60*1000;// 24 hours -> Long exposure time for clock saving
