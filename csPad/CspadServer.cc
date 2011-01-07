@@ -14,34 +14,46 @@
 #include "pds/pgp/DataImportFrame.hh"
 #include "pds/pgp/RegisterSlaveExportFrame.hh"
 #include "pds/csPad/CspadConfigurator.hh"
-#include "pgpcard/include/PgpCardMod.h"
+#include "PgpCardMod.h"
 #include <unistd.h>
 #include <sys/uio.h>
 #include <string.h>
 #include <errno.h>
 #include <string.h>
 #include <fcntl.h>
+#include <signal.h>
 
 using namespace Pds;
 //using namespace Pds::CsPad;
 
+CspadServer* CspadServer::_instance = 0;
+
 CspadServer::CspadServer( const Pds::Src& client, unsigned configMask )
    : _xtc( _CsPadDataType, client ),
-     _cfg(0),
+     _cnfgrtr(0),
      _quads(0),
      _configMask(configMask),
      _configureResult(0),
-     _configured(false) {}
+     _configured(false),
+     _dead(false) {
+  instance(this);
+}
+
+void sigHandler( int signal ) {
+  Pds::CspadServer::instance()->die();
+  psignal( signal, "Signal received by CspadServer");
+}
 
 unsigned CspadServer::configure(CsPadConfigType& config) {
-  if (_cfg == 0) {
-    _cfg = new Pds::CsPad::CspadConfigurator::CspadConfigurator(config, fd());
+  if (_cnfgrtr == 0) {
+    _cnfgrtr = new Pds::CsPad::CspadConfigurator::CspadConfigurator(config, fd());
+    ::signal( SIGINT, sigHandler );
   } else {
     printf("CspadConfigurator already instantiated\n");
   }
   unsigned c = flushInputQueue(fd());
   if (c) printf("CspadServer::configure flushed %u event%s before configuration\n", c, c>1 ? "s" : "");
-  if ((_configureResult = _cfg->configure(_configMask))) {
+  if ((_configureResult = _cnfgrtr->configure(_configMask))) {
     printf("CspadServer::configure failed 0x%x\n", _configureResult);
   } else {
     _quads = 0;
@@ -58,27 +70,36 @@ unsigned CspadServer::configure(CsPadConfigType& config) {
   return _configureResult;
 }
 
+void Pds::CspadServer::die() {
+  if (_cnfgrtr != 0) {
+    _cnfgrtr->writeRegister(
+          Pds::Pgp::RegisterSlaveExportFrame::CR,
+          CsPad::CspadConfigurator::RunModeAddr,
+          _cnfgrtr->configuration().inactiveRunMode());
+    //    _dead = true;
+    ::usleep(2500);
+  }
+}
+
 void Pds::CspadServer::enable() {
-  this->_cfg->writeRegister(
+  _cnfgrtr->writeRegister(
       Pds::Pgp::RegisterSlaveExportFrame::CR,
       CsPad::CspadConfigurator::RunModeAddr,
-      _cfg->configuration().activeRunMode());
-      this->flushInputQueue(fd());
+      _cnfgrtr->configuration().activeRunMode());
+      flushInputQueue(fd());
 }
 
 void Pds::CspadServer::disable() {
-  this->_cfg->writeRegister(
+  _cnfgrtr->writeRegister(
       Pds::Pgp::RegisterSlaveExportFrame::CR,
       CsPad::CspadConfigurator::RunModeAddr,
-      _cfg->configuration().inactiveRunMode());
-      this->flushInputQueue(fd());
+      _cnfgrtr->configuration().inactiveRunMode());
+      flushInputQueue(fd());
 }
 
 unsigned Pds::CspadServer::unconfigure(void) {
-  printf("CspadServer::unconfigure flushed ");
-  unsigned c = this->flushInputQueue(fd());
-  if (c) printf("%u event%s\n", c, c>1 ? "s" : "");
-  else printf("nothing\n");
+  unsigned c = flushInputQueue(fd());
+  if (c) printf("CspadServer::unconfigure flushed %u event%s\n", c, c>1 ? "s" : "");
   return 0;
 }
 
@@ -86,15 +107,18 @@ int Pds::CspadServer::fetch( char* payload, int flags ) {
    int ret = 0;
    PgpCardRx       pgpCardRx;
    unsigned        offset = 0;
+   enum {Ignore=-1};
+
+   if (_dead) return Ignore;
 
    if (_configured == false)  {
      printf("CspadServer::fetch() called before configuration, configuration result 0x%x\n", _configureResult);
      unsigned c = this->flushInputQueue(fd());
      printf("\tWe flushed %u input buffer%s\n", c, c>1 ? "s" : "");
-     return 0;
+     return Ignore;
    }
 
-//   printf("CspadServer::fetch called ");
+   //   printf("CspadServer::fetch called ");
 
    _xtc.damage = 0;
 
@@ -109,38 +133,40 @@ int Pds::CspadServer::fetch( char* payload, int flags ) {
    pgpCardRx.maxSize = _payloadSize / sizeof(__u32);
    pgpCardRx.data    = (__u32*)(payload + offset);
 
-   ret = sizeof(__u32) * read(fd(), &pgpCardRx, sizeof(PgpCardRx));
-   if (ret < 0) {
+   if ((ret = read(fd(), &pgpCardRx, sizeof(PgpCardRx))) < 0) {
      perror ("CspadServer::fetch pgpCard read error");
-   } else if    (ret == (int)_payloadSize) {
-     unsigned damageMask = 0;
-     if (pgpCardRx.eofe)      damageMask |= 1;
-     if (pgpCardRx.fifoErr)   damageMask |= 2;
-     if (pgpCardRx.lengthErr) damageMask |= 4;
-     if (damageMask) {
-       damageMask |= 0xe0;
-       _xtc.damage.increase(Pds::Damage::UserDefined);
-       _xtc.damage.userBits(damageMask);
-       printf("CsPadServer::fetch setting user damage 0x%x\n", damageMask);
-     } else {
-       Pds::Pgp::DataImportFrame* data = (Pds::Pgp::DataImportFrame*)(payload + offset);
-       unsigned oldCount = _count;
-       _count = data->frameNumber() - 1;  // cspad starts counting at 1, not zero
-//       printf("fiducial(%u) _oldCount(%u) _count(%u) _quadsThisCount(%u)",
-//           data->fiducials(), oldCount, _count, _quadsThisCount);
-       if ((_count != oldCount) && (_quadsThisCount)) {
-         _quadsThisCount = 0;
-         memcpy( payload, &_xtc, sizeof(Xtc) );
-         ret = sizeof(Xtc);
-       }
-     }
-     _quadsThisCount += 1;
-     ret += offset;
-   } else {
-     printf("CspadServer::fetch() returning -1, ret was %d\n", ret);
-     ret = -1;
+     return Ignore;
    }
-//   printf(" returned %d\n", ret);
+   ret *= sizeof(__u32);
+   if (ret != (int)_payloadSize) {
+     printf("CspadServer::fetch() returning Ignore, ret was %d\n", ret);
+     return Ignore;
+   }
+
+   unsigned damageMask = 0;
+   if (pgpCardRx.eofe)      damageMask |= 1;
+   if (pgpCardRx.fifoErr)   damageMask |= 2;
+   if (pgpCardRx.lengthErr) damageMask |= 4;
+   if (damageMask) {
+     damageMask |= 0xe0;
+     _xtc.damage.increase(Pds::Damage::UserDefined);
+     _xtc.damage.userBits(damageMask);
+     printf("CsPadServer::fetch setting user damage 0x%x\n", damageMask);
+   } else {
+     Pds::Pgp::DataImportFrame* data = (Pds::Pgp::DataImportFrame*)(payload + offset);
+     unsigned oldCount = _count;
+     _count = data->frameNumber() - 1;  // cspad starts counting at 1, not zero
+     //       printf("fiducial(%u) _oldCount(%u) _count(%u) _quadsThisCount(%u)",
+     //           data->fiducials(), oldCount, _count, _quadsThisCount);
+     if ((_count != oldCount) && (_quadsThisCount)) {
+       _quadsThisCount = 0;
+       memcpy( payload, &_xtc, sizeof(Xtc) );
+       ret = sizeof(Xtc);
+     }
+   }
+   _quadsThisCount += 1;
+   ret += offset;
+   //   printf(" returned %d\n", ret);
    return ret;
 }
 
