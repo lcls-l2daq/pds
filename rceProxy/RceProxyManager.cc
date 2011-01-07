@@ -126,7 +126,6 @@ class RceProxyConfigAction : public Action
   private:
     RceProxyManager&    _manager;
     RceCfgCache&        _cfg;
-    Xtc                 _cfgtc;
     std::string         _sConfigFile;
 };
 

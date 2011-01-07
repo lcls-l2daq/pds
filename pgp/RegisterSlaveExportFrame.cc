@@ -21,14 +21,11 @@ namespace Pds {
   namespace Pgp {
 
     int       RegisterSlaveExportFrame::_fd  = 0;
-    fd_set    RegisterSlaveExportFrame::_fds;
     unsigned  RegisterSlaveExportFrame::count = 0;
     unsigned  RegisterSlaveExportFrame::errors = 0;
 
     void RegisterSlaveExportFrame::FileDescr(int i) {
       _fd = i;
-      FD_ZERO(&_fds);
-      FD_SET(_fd,&_fds);
       printf("RegisterSlaveExportFrame::FileDescr(%d)\n", _fd);
     }
 
@@ -69,6 +66,7 @@ namespace Pds {
       struct timeval  timeout;
       PgpCardTx       pgpCardTx;
       int             ret;
+      fd_set          fds;
 
       pgpCardTx.model   = (sizeof(&pgpCardTx));
       pgpCardTx.cmd     = IOCTL_Normal_Write;
@@ -80,11 +78,11 @@ namespace Pds {
       // Wait for write ready
       timeout.tv_sec=0;
       timeout.tv_usec=100000;
-      FD_ZERO(&_fds);
-      FD_SET(_fd,&_fds);
+      FD_ZERO(&fds);
+      FD_SET(_fd,&fds);
 //      uint32_t* u = (uint32_t*)this;
 //      printf("\n\t-->"); for (unsigned i=0;i<size;i++) printf("0x%x ", u[i]); printf("<--\n");
-      if ((ret = select( _fd+1, NULL, &_fds, NULL, &timeout)) > 0) {
+      if ((ret = select( _fd+1, NULL, &fds, NULL, &timeout)) > 0) {
         ::write(_fd, &pgpCardTx, sizeof(pgpCardTx));
       } else {
         if (ret < 0) {

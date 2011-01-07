@@ -37,7 +37,8 @@ int CfgCache::fetch  (Transition* tr)
   _changed = true;
   int len = _config.fetch(*tr, _type, _buffer, _bsize);
   if (len > 0) {
-    printf("CfgCache: configuration type %x is size 0x%x bytes\n",_type.value(),len);
+    printf("CfgCache::fetch configuration type %x is size %u bytes, buffer is %u bytes\n",
+        _type.value(), len, _bsize);
     _cur_config = _buffer;
     _end_config = _buffer + len;
     _configtc.damage = 0;

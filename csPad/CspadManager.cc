@@ -22,28 +22,56 @@
 #include "pds/config/CsPadDataType.hh"
 #include "pds/csPad/CspadServer.hh"
 #include "pds/pgp/DataImportFrame.hh"
+#include "pdsdata/xtc/DetInfo.hh"
 #include "CspadManager.hh"
 #include "CspadServer.hh"
 #include "pds/pgp/DataImportFrame.hh"
 #include "pds/config/CfgClientNfs.hh"
+#include "pds/config/CfgCache.hh"
+
+namespace Pds {
+  class CspadConfigCache : public CfgCache {
+    public:
+    enum {StaticALlocationNumberOfConfigurationsForScanning=100};
+    CspadConfigCache(const Src& src) :
+      CfgCache(src, _CsPadConfigType, StaticALlocationNumberOfConfigurationsForScanning * sizeof(CsPadConfigType)) {}   // ToDo KLUDGE ALERT !!!!!!!!!!!!!!!!!!!!
+    private:
+    int _size(void* tc) const { return sizeof(CsPadConfigType); }
+  };
+}
+
 
 using namespace Pds;
 
 class CspadAllocAction : public Action {
 
   public:
-   CspadAllocAction(CfgClientNfs& cfg)
+   CspadAllocAction(CspadConfigCache& cfg)
       : _cfg(cfg) {}
 
    Transition* fire(Transition* tr)
    {
       const Allocate& alloc = reinterpret_cast<const Allocate&>(*tr);
-      _cfg.initialize(alloc.allocation());
+      _cfg.init(alloc.allocation());
       return tr;
    }
 
  private:
-   CfgClientNfs& _cfg;
+   CspadConfigCache& _cfg;
+};
+
+class CspadUnmapAction : public Action {
+  public:
+    CspadUnmapAction(CspadServer* s) : server(s) {};
+
+    Transition* fire(Transition* tr) {
+      printf("CspadUnmapAction::fire(tr) disabling front end\n");
+      server->disable();
+      return tr;
+    }
+
+  private:
+    CspadServer* server;
 };
 
 class CspadL1Action : public Action {
@@ -101,145 +129,158 @@ InDatagram* CspadL1Action::fire(InDatagram* in) {
 
 class CspadConfigAction : public Action {
 
- public:
-   CspadConfigAction( const Src& src0,
-                        CfgClientNfs* cfg,
-                        CspadServer* server)
-      : _cfgtc( _CsPadConfigType, src0 ),
-        _cfg( cfg ),
-        _server( server )
-   {}
+  public:
+    CspadConfigAction( Pds::CspadConfigCache& cfg, CspadServer* server)
+    : _cfg( cfg ), _server(server), _result(0)
+      {}
 
-   ~CspadConfigAction() {}
+    ~CspadConfigAction() {}
 
-   InDatagram* fire(InDatagram* dg) {
-      // insert assumes we have enough space in the input datagram
-     printf("CspadConfigAction::fire(InDatagram)\n");
-      dg->insert(_cfgtc, &_config);
-      if( _result ) {
-         printf( "*** CspadConfigAction found configuration errors _result(0x%x)\n", _result );
-         if (dg->datagram().xtc.damage.value() == 0) {
-           dg->datagram().xtc.damage.increase(Pds::Damage::UserDefined);
-           dg->datagram().xtc.damage.userBits(_result);
-         }
-      }
-      return dg;
-   }
-
-   Transition* fire(Transition* tr) {
+    Transition* fire(Transition* tr) {
       _result = 0;
-      printf("CspadConfigAction::fire(Transition)\n");
-      int ret = _cfg->fetch( *tr, _CsPadConfigType, &_config, sizeof(_config) );
-      if (ret != sizeof(_config)) {
-         printf("CspadConfigAction: failed to retrieve configuration: ");
-         if (ret < 0) printf("(%d) %s.\n", errno, strerror(errno) );
-         else printf("length returned %u, config size %u", ret, sizeof(_config));
-         _result = 0xcf;
-      } else {
-         _result = _server->configure( _config );
-         _server->enable();
-      }
-
+      int i = _cfg.fetch(tr);
+      printf("CspadConfigAction::fire(Transition) fetched %d\n", i);
       return tr;
-   }
+    }
 
- private:
-   CsPadConfigType _config;
-   Xtc             _cfgtc;
-   Src             _src;
-   CfgClientNfs*   _cfg;
-   CspadServer*    _server;
-   unsigned       _result;
+    InDatagram* fire(InDatagram* in) {
+      printf("CspadConfigAction::fire(InDatagram) recorded\n");
+      _cfg.record(in);
+      if( _result ) {
+        printf( "*** CspadConfigAction found configuration errors _result(0x%x)\n", _result );
+        if (in->datagram().xtc.damage.value() == 0) {
+          in->datagram().xtc.damage.increase(Damage::UserDefined);
+          in->datagram().xtc.damage.userBits(_result);
+        }
+      }
+      return in;
+    }
+
+  private:
+    CspadConfigCache&   _cfg;
+    CspadServer*    _server;
+  unsigned       _result;
 };
 
-//class CspadBeginCalibAction : public Action {
-//
-//};
+class CspadBeginCalibCycleAction : public Action {
+  public:
+    CspadBeginCalibCycleAction(CspadServer* s, CspadConfigCache& cfg) : _server(s), _cfg(cfg), _result(0) {};
+
+    Transition* fire(Transition* tr) {
+      printf("CspadBeginCalibCycleAction:;fire(Transition)");
+        if (_cfg.changed()) {
+          printf(" configured and enabled\n");
+          _result = _server->configure( *(CsPadConfigType*)_cfg.current() );
+          _server->enable();
+        } else printf("\n");
+        return tr;
+     }
+
+    InDatagram* fire(InDatagram* in) {
+      printf("CspadBeginCalibCycleAction:;fire(InDatagram)");
+      if (_cfg.changed()) {
+        printf(" recorded");
+        _cfg.record(in);
+      }
+      printf("\n");
+      if( _result ) {
+        printf( "*** CspadConfigAction found configuration errors _result(0x%x)\n", _result );
+        if (in->datagram().xtc.damage.value() == 0) {
+          in->datagram().xtc.damage.increase(Damage::UserDefined);
+          in->datagram().xtc.damage.userBits(_result);
+        }
+      }
+      return in;
+    }
+  private:
+    CspadServer*      _server;
+    CspadConfigCache& _cfg;
+    unsigned          _result;
+};
 
 
 class CspadUnconfigAction : public Action {
  public:
-   CspadUnconfigAction( CspadServer* server ) : _server( server ) {}
+   CspadUnconfigAction( CspadServer* server, CspadConfigCache& cfg ) : _server( server ), _cfg(cfg) {}
    ~CspadUnconfigAction() {}
 
-   InDatagram* fire(InDatagram* dg) {
+   Transition* fire(Transition* tr) {
+     printf("CspadUnconfigAction:;fire(Transition) unconfigured\n");
+     _result = _server->unconfigure();
+     return tr;
+   }
+
+   InDatagram* fire(InDatagram* in) {
      printf("CspadUnconfigAction:;fire(InDatagram)\n");
       if( _result ) {
          printf( "*** Found %d cspad Unconfig errors\n", _result );
-         dg->datagram().xtc.damage.increase(Pds::Damage::UserDefined);
-         dg->datagram().xtc.damage.userBits(0xda);
+         in->datagram().xtc.damage.increase(Pds::Damage::UserDefined);
+         in->datagram().xtc.damage.userBits(0xda);
       }
-      ::usleep(250000);
-      return dg;
-   }
-
-   Transition* fire(Transition* tr) {
-     printf("CspadUnconfigAction:;fire(Transition)\n");
-      _result = 0;
-      _server->disable();
-      _result += _server->unconfigure();
-      return tr;
+      return in;
    }
 
  private:
-   CspadServer* _server;
-   unsigned _result;
+   CspadServer*      _server;
+   CspadConfigCache& _cfg;
+   unsigned          _result;
 };
 
-class CspadEnableAction : public Action {
+class CspadEndCalibCycleAction : public Action {
   public:
-    CspadEnableAction( CspadServer* server ) : _server( server ) {}
-    ~CspadEnableAction() {}
+    CspadEndCalibCycleAction(CspadServer* s, CspadConfigCache& cfg) : _server(s), _cfg(cfg), _result(0) {};
 
     Transition* fire(Transition* tr) {
-      printf("CspadEnableAction:;fire(Transition)\n");
-//      _server->enable();
+      printf("CspadEndCalibCycleAction:;fire(Transition) %p", _cfg.current());
+      _cfg.next();
+      printf(" %p\n", _cfg.current());
+      _result = _server->unconfigure();
       return tr;
     }
 
-  private:
-    CspadServer* _server;
-};
-
-class CspadDisableAction : public Action {
-  public:
-    CspadDisableAction( CspadServer* server ) : _server( server ) {}
-    ~CspadDisableAction() {}
-
-    Transition* fire(Transition* tr) {
-      printf("CspadDisableAction:;fire(Transition)\n");
-      return tr;
+    InDatagram* fire(InDatagram* in) {
+      printf("CspadEndCalibCycleAction:;fire(InDatagram)\n");
+      if( _result ) {
+        printf( "*** CspadEndCalibCycleAction found configuration errors _result(0x%x)\n", _result );
+        if (in->datagram().xtc.damage.value() == 0) {
+          in->datagram().xtc.damage.increase(Damage::UserDefined);
+          in->datagram().xtc.damage.userBits(_result);
+        }
+      }
+      return in;
     }
 
   private:
-    CspadServer* _server;
+    CspadServer*      _server;
+    CspadConfigCache& _cfg;
+    unsigned          _result;
 };
 
-
-CspadManager::CspadManager( CspadServer* server, CfgClientNfs* cfg ) : _fsm(*new Fsm) {
+CspadManager::CspadManager( CspadServer* server) :
+    _fsm(*new Fsm), _cfg(*new CspadConfigCache(server->client())) {
 
    printf("CspadManager being initialized... " );
 
    int cspad = open( "/dev/pgpcard",  O_RDWR);
    printf("pgpcard file number %d\n", cspad);
    if (cspad < 0) {
-     perror("CspadManager::CspadManager() opening pgpcard failed: ");
+     perror("CspadManager::CspadManager() opening pgpcard failed");
      // What else to do if the open fails?
      ::exit(-1);
    }
 
    server->setCspad( cspad );
 
-   const Src& src0 = server->client();
-
-   _fsm.callback( TransitionId::Map, new CspadAllocAction( *cfg ) );
-   _fsm.callback( TransitionId::Configure, new CspadConfigAction( src0, cfg, server ) );
-   _fsm.callback( TransitionId::Enable, new CspadEnableAction( server ) );
-//   _fsm.callback( TransitionId::BeginCalibCycle, new CspadBeginCalibCycleAction( server ) );
-   _fsm.callback( TransitionId::L1Accept, new CspadL1Action( server ) );
-//   _fsm.callback( TransitionId::EndCalibCycle, new CspadEndCalibCycleAction( server ) );
-   _fsm.callback( TransitionId::Unconfigure, new CspadUnconfigAction( server ) );
-   _fsm.callback( TransitionId::Disable, new CspadDisableAction( server ) );
+   _fsm.callback( TransitionId::Map, new CspadAllocAction( _cfg ) );
+   _fsm.callback( TransitionId::Unmap, new CspadUnmapAction( server ) );
+   _fsm.callback( TransitionId::Configure, new CspadConfigAction(_cfg, server ) );
+   //   _fsm.callback( TransitionId::Enable, new CspadEnableAction( server ) );
+   //   _fsm.callback( TransitionId::Disable, new CspadDisableAction( server ) );
+   _fsm.callback( TransitionId::BeginCalibCycle, new CspadBeginCalibCycleAction( server, _cfg ) );
+   _fsm.callback( TransitionId::EndCalibCycle, new CspadEndCalibCycleAction( server, _cfg ) );
+  _fsm.callback( TransitionId::L1Accept, new CspadL1Action( server ) );
+   //   _fsm.callback( TransitionId::EndCalibCycle, new CspadEndCalibCycleAction( server ) );
+   _fsm.callback( TransitionId::Unconfigure, new CspadUnconfigAction( server, _cfg ) );
    // _fsm.callback( TransitionId::BeginRun,
    //                new CspadBeginRunAction( server ) );
    // _fsm.callback( TransitionId::EndRun,

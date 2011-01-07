@@ -53,10 +53,18 @@ class Pds::CspadServer
    unsigned flushInputQueue(int);
    void     enable();
    void     disable();
+   void     die();
+
+ public:
+   static CspadServer* instance() { return _instance; }
+
+ private:
+   static CspadServer*            _instance;
+   static void instance(CspadServer* s) { _instance = s; }
 
  private:
    Xtc                            _xtc;
-   Pds::CsPad::CspadConfigurator* _cfg;
+   Pds::CsPad::CspadConfigurator* _cnfgrtr;
    unsigned                       _quads;
    unsigned                       _count;
    unsigned                       _quadsThisCount;
@@ -64,6 +72,7 @@ class Pds::CspadServer
    unsigned                       _configMask;
    unsigned                       _configureResult;
    bool                           _configured;
+   bool                           _dead;
 };
 
 #endif

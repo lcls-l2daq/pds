@@ -8,16 +8,17 @@ namespace Pds {
     class CspadServer;
     class CspadManager;
     class CfgClientNfs;
+    class CspadConfigCache;
   }
 
   class Pds::CspadManager {
     public:
-      CspadManager( CspadServer* server,
-          CfgClientNfs* cfg );
+      CspadManager( CspadServer* server);
       Appliance& appliance( void ) { return _fsm; }
 
     private:
       Fsm& _fsm;
+      CspadConfigCache& _cfg;
   };
 
 #endif

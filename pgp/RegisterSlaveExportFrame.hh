@@ -46,7 +46,6 @@ namespace Pds {
 
       private:
         static int             _fd;
-        static fd_set          _fds;
 
       public:
         unsigned tid() {return bits.tid;}
