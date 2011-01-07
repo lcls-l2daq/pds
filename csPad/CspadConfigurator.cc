@@ -19,7 +19,7 @@
 #include <unistd.h>
 #include <string.h>
 #include <mqueue.h>
-#include "pgpcard/include/PgpCardMod.h"
+#include "PgpCardMod.h"
 #include <sys/types.h>
 #include <sys/stat.h>
 
@@ -153,7 +153,7 @@ namespace Pds {
             }
           }
           _myOut.type = Enable;
-          printf("CspadConfigurator::_startRxThread sending Enable to receive thread\n");
+//          printf("CspadConfigurator::_startRxThread sending Enable to receive thread\n");
           if (mq_send(_myOutputQueue, (const char *)&_myOut, sizeof(_myOut), priority) < 0) {
             perror("CspadConfigurator::_startRxThreadmq_send Enable failed ");
             ret = false;
@@ -166,7 +166,7 @@ namespace Pds {
                 printf("CspadConfigurator::_startRxThread did not get EnableAck");
                 ret = false;
               } else {
-                printf("CspadConfigurator::_startRxThread got Enable acknowledgment\n");
+//                printf("CspadConfigurator::_startRxThread got Enable acknowledgment\n");
               }
             }
           }
@@ -184,7 +184,7 @@ namespace Pds {
       _mymq_attr.mq_msgsize = (long int)sizeof(_myIn);
       _mymq_attr.mq_flags = 0L;
       _myOut.type = Disable;
-      printf("\nCspadConfigurator::_stopRxThread sending Disable to receive thread\n");
+//      printf("\nCspadConfigurator::_stopRxThread sending Disable to receive thread\n");
       usleep(500);
       if (mq_send(_myOutputQueue, (const char *)&_myOut, sizeof(_myOut), 0) < 0) {
         perror("CspadConfigurator::_startRxThreadmq_send Disable failed ");
@@ -198,7 +198,7 @@ namespace Pds {
             printf("CspadConfigurator::_stopRxThread did not get DisableAck");
             ret = false;
           } else {
-            printf("CspadConfigurator::_stopRxThread got Disable acknowledgment\n");
+//            printf("CspadConfigurator::_stopRxThread got Disable acknowledgment\n");
             if (mq_getattr(_myInputQueue, &_mymq_attr) < 0) {
               perror("CspadConfigurator::_startRxThread mq_getattr failed: ");
               ret = false;
@@ -223,7 +223,7 @@ namespace Pds {
     unsigned CspadConfigurator::configure(unsigned mask) {
       timespec      start, end, sleepTime;
       sleepTime.tv_sec = 0;
-      sleepTime.tv_nsec = 50000000; // 50ms
+      sleepTime.tv_nsec = 25000000; // 25ms
       bool printFlag = !(mask & 0x2000);
       if (printFlag) printf("CXI Config");
       printf(" config(%p) quadMask(0x%x) mask(0x%x)\n", &_config, (unsigned)_config.quadMask(), ~mask);
@@ -234,7 +234,7 @@ namespace Pds {
       if (_startRxThread()) {
         ret |= writeRegister(Pds::Pgp::RegisterSlaveExportFrame::CR, RunModeAddr, Pds::CsPad::NoRunning);
         //      ret |= writeRegister(Pds::Pgp::RegisterSlaveExportFrame::CR, resetAddr, 1);
-        //      nanosleep(&sleepTime, 0);
+        nanosleep(&sleepTime, 0);
         ret |= writeRegister(Pds::Pgp::RegisterSlaveExportFrame::CR, resetQuadsAddr, 1);
         nanosleep(&sleepTime, 0);
         ret |= writeRegister(Pds::Pgp::RegisterSlaveExportFrame::CR, RunModeAddr, Pds::CsPad::NoRunning);
@@ -698,7 +698,7 @@ namespace Pds {
               switch (_myIn.type) {
                 case Enable :
                   _state = Enabled;
-                  printf("CspadConfigurator rxMain going to Enabled state\n");
+//                  printf("CspadConfigurator rxMain going to Enabled state\n");
                   _myOut.type = EnableAck;
                   if (mq_send(_myOutputQueue, (const char *)&_myOut, sizeof(_myOut), 0) < 0) {
                     if (!errorState) perror("CspadConfigurator rxMain mq_send EnableAck");
@@ -707,7 +707,7 @@ namespace Pds {
                   break;
                 case Disable :
                   _state = Disabled;
-                  printf("CspadConfigurator rxMain going to Disabled state\n");
+//                  printf("CspadConfigurator rxMain going to Disabled state\n");
                   _myOut.type = DisableAck;
                   if (mq_send(_myOutputQueue, (const char *)&_myOut, sizeof(_myOut), 0) < 0) {
                     if (!errorState) perror("CspadConfigurator rxMain mq_send DisableAck");
