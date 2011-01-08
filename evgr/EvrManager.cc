@@ -36,6 +36,7 @@
 #include "pds/xtc/CDatagram.hh"
 
 #include "pdsdata/xtc/DetInfo.hh"
+#include "pdsdata/xtc/TimeStamp.hh"
 
 namespace Pds
 {
@@ -136,6 +137,7 @@ public:
     _L1DataLatchQ       ( *(EvrDataUtil*) new char[ EvrDataUtil::size( giMaxNumFifoEvent ) ]  ),
     _bEvrDataFullUpdated(false),
     _bEvrDataFullFinal  (false),
+    _bEvrDataIncomplete (false),
     _ncommands          (0)
   {
     new (&_L1DataUpdated) EvrDataUtil( 0, NULL );
@@ -165,6 +167,7 @@ public:
 
     if (fe.EventCode == TERMINATOR) {
       if (_bReadout || _ncommands) {
+	_bEvrDataIncomplete = false;
         startL1Accept(fe);
       }
       return;
@@ -373,9 +376,16 @@ public:
     _ncommands = 0;
   } 
 
-  void reset()        
+  void clear()        
   { 
-    _evtCounter = 0; 
+    if (_bReadout || _ncommands) {
+      _bEvrDataIncomplete = true;
+      FIFOEvent fe;
+      fe.TimestampHigh = Pds::TimeStamp::ErrFiducial;
+      fe.TimestampLow  = 0;
+      fe.EventCode     = TERMINATOR;
+      startL1Accept(fe);
+    }
     _bReadout = false;
     _L1DataUpdated.clearFifoEvents();
     _L1DataFinal  .clearFifoEvents();
@@ -385,6 +395,13 @@ public:
     _bEvrDataFullFinal   = false;
     _ncommands = 0;
   }
+
+  void reset()        
+  {
+    clear();
+    _evtCounter = 0;
+  }
+
   void enable(bool e) { _enabled    = e; }
   bool enable() const { return _enabled; }
   
@@ -419,9 +436,10 @@ public:
     }    
   }
   
-  const EvrDataUtil&  getL1Data     () { return _L1DataFinal; }
-  bool                getL1DataFull () { return _bEvrDataFullFinal; }
-  void                releaseL1Data () { _L1DataFinal.clearFifoEvents(); }
+  const EvrDataUtil&  getL1Data          () { return _L1DataFinal; }
+  bool                getL1DataFull      () { return _bEvrDataFullFinal; }
+  bool                getL1DataIncomplete() { return _bEvrDataIncomplete; }
+  void                releaseL1Data      () { _L1DataFinal.clearFifoEvents(); }
     
 private:
   Evr &                 _er;
@@ -441,6 +459,7 @@ private:
   EventCodeState        _lEventCodeState[guNumTypeEventCode];
   bool                  _bEvrDataFullUpdated;
   bool                  _bEvrDataFullFinal;
+  bool                  _bEvrDataIncomplete;
   unsigned              _ncommands;
   char                  _commands[giMaxCommands];
   
@@ -545,6 +564,7 @@ public:
 
       const EvrDataUtil& evrData   = l1xmitGlobal->getL1Data();
       bool               bDataFull = l1xmitGlobal->getL1DataFull();
+      bool               bDataInc  = l1xmitGlobal->getL1DataIncomplete();
       
       out = 
        new ( &_poolEvrData ) CDatagram( in->datagram() ); 
@@ -556,7 +576,11 @@ public:
         printf( "  Please check the readout and terminator event settings.\n" );        
         out->datagram().xtc.damage.increase(Pds::Damage::UserDefined);      
       }
-      
+
+      if ( bDataInc )
+        out->datagram().xtc.damage.increase(Pds::Damage::UserDefined);      
+
+
       /*
        * Set Evr object
        */    
@@ -641,6 +665,9 @@ public:
     _er.MapRamEnable(dummyram,1);
     
     _done.cancel();
+
+    l1xmitGlobal->clear();
+
     return tr;
   }
 private:
