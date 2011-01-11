@@ -34,6 +34,8 @@ CspadServer::CspadServer( const Pds::Src& client, unsigned configMask )
      _quads(0),
      _configMask(configMask),
      _configureResult(0),
+     _debug(0),
+     _offset(0),
      _configured(false),
      _dead(false) {
   instance(this);
@@ -118,7 +120,7 @@ int Pds::CspadServer::fetch( char* payload, int flags ) {
      return Ignore;
    }
 
-   //   printf("CspadServer::fetch called ");
+   if (_debug > 5) printf("CspadServer::fetch called ");
 
    _xtc.damage = 0;
 
@@ -166,7 +168,7 @@ int Pds::CspadServer::fetch( char* payload, int flags ) {
    }
    _quadsThisCount += 1;
    ret += offset;
-   //   printf(" returned %d\n", ret);
+   if (_debug > 5) printf(" returned %d\n", ret);
    return ret;
 }
 
@@ -184,20 +186,20 @@ unsigned CspadServer::offset() const {
 
 unsigned CspadServer::count() const {
 //    printf( "CspadServer::count(%u)\n", _count);
-   return _count;
+   return _count + _offset;
 }
 
 unsigned CspadServer::flushInputQueue(int f) {
   fd_set          fds;
   struct timeval  timeout;
   timeout.tv_sec  = 0;
-  timeout.tv_usec = 1000;
+  timeout.tv_usec = 2500;
   int ret;
-  unsigned dummy[4];
+  unsigned dummy[5];
   unsigned count = 0;
   PgpCardRx       pgpCardRx;
   pgpCardRx.model   = sizeof(&pgpCardRx);
-  pgpCardRx.maxSize = 4;
+  pgpCardRx.maxSize = 5;
   pgpCardRx.data    = dummy;
   do {
     FD_ZERO(&fds);

@@ -54,6 +54,12 @@ class Pds::CspadServer
    void     enable();
    void     disable();
    void     die();
+   void     debug(unsigned d) { _debug = d; }
+   unsigned debug() { return _debug; }
+   void     offset(unsigned c) { _offset = c; }
+   unsigned offset() { return _offset; }
+   void     resetOffset() { _offset = 0; _count = 0xffffffff; }
+   unsigned myCount() { return _count; }
 
  public:
    static CspadServer* instance() { return _instance; }
@@ -71,6 +77,8 @@ class Pds::CspadServer
    unsigned                       _payloadSize;
    unsigned                       _configMask;
    unsigned                       _configureResult;
+   unsigned                       _debug;
+   unsigned                       _offset;
    bool                           _configured;
    bool                           _dead;
 };

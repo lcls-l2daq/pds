@@ -301,7 +301,7 @@ namespace Pds {
         ret |= writeRegister(Pds::Pgp::RegisterSlaveExportFrame::CR, EnableEvrAddr, EnableEvrValue);
         ret |= writeRegister(Pds::Pgp::RegisterSlaveExportFrame::CR, resetCountersAddr, 1);
         ret |= writeRegister(Pds::Pgp::RegisterSlaveExportFrame::CR, RunModeAddr, _config.inactiveRunMode());
-        ::usleep(10000);
+        ::usleep(25000);
         if (_stopRxThread() == false) {
           printf("CspadConfigurator::configure failed to stop the RX thread\n");
           ret <<= 1;
