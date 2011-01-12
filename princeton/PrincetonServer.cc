@@ -3,12 +3,14 @@
 
 #include "pdsdata/princeton/ConfigV1.hh"
 #include "pdsdata/princeton/FrameV1.hh"
-//#include "pdsdata/princeton/InfoV1.hh"
 #include "pds/xtc/Datagram.hh"
 #include "pds/xtc/CDatagram.hh"
 #include "pds/service/Task.hh"
 #include "pds/service/Routine.hh"
 #include "pds/config/EvrConfigType.hh"
+
+// !! for XPP's princeton run
+#include "pdsdata/princeton/InfoV1.hh"
 
 #include <math.h>
 #include <errno.h>
@@ -157,7 +159,8 @@ int PrincetonServer::configCamera(Princeton::ConfigV1& config)
   _configCamera = config;
     
   if ( setupCooling() != 0 )
-    return ERROR_SERVER_INIT_FAIL;  
+    ; // !! for XPP's princeton run
+    //return ERROR_SERVER_INIT_FAIL;  
   
   iFail = initClockSaving();  
   if ( iFail != 0 )
@@ -695,8 +698,10 @@ int PrincetonServer::runCaptureTask()
    *   1. temperature status is not good
    *   2. sequence error happened in the current run
    */
+  // !! For XPP's temporary requirement - dont send damage when temperature is high
   if ( checkTemperature() != 0 )
-    _pDgOut->datagram().xtc.damage.increase(Pds::Damage::UserDefined);      
+    ;// !! do nothing
+  //  _pDgOut->datagram().xtc.damage.increase(Pds::Damage::UserDefined);      
     
   _CaptureState = CAPTURE_STATE_DATA_READY;
   return 0;
@@ -807,7 +812,10 @@ int PrincetonServer::getDelayData(InDatagram* in, InDatagram*& out)
    *   3. Use the data from dgOut (the data was located right after the xtc)
    */
   dgOut     = dgIn;   
-  dgOut.xtc = xtcOutBkp;
+
+  //dgOut.xtc = xtcOutBkp; // not okay for command
+  dgOut.xtc.damage = xtcOutBkp.damage;
+  dgOut.xtc.extent = xtcOutBkp.extent;
 
   unsigned char*  pFrameHeader  = (unsigned char*) _pDgOut + sizeof(CDatagram) + sizeof(Xtc);  
   new (pFrameHeader) Princeton::FrameV1(in->datagram().seq.stamp().fiducials(), _fReadoutTime);
@@ -1001,8 +1009,10 @@ int PrincetonServer::setupFrame()
   //
   out = 
     new ( &_poolFrameData ) CDatagram( TypeId(TypeId::Any,0), DetInfo(0,DetInfo::NoDetector,0,DetInfo::NoDevice,0) );
-  //out->datagram().xtc.alloc( sizeof(Xtc) + iFrameSize + sizeof(Xtc) + sizeof(Princeton::InfoV1) ); 
-  out->datagram().xtc.alloc( sizeof(Xtc) + iFrameSize ); 
+  
+  // !! for XPP's princeton run
+  out->datagram().xtc.alloc( sizeof(Xtc) + iFrameSize + sizeof(Xtc) + sizeof(Princeton::InfoV1) ); 
+  //out->datagram().xtc.alloc( sizeof(Xtc) + iFrameSize );   
 
   if ( _iDebugLevel >= 3 )
   {
@@ -1020,12 +1030,13 @@ int PrincetonServer::setupFrame()
    new ((char*)pcXtcFrame) Xtc(typePrincetonFrame, _src);
   pXtcFrame->alloc( iFrameSize );
 
-  //unsigned char* pcXtcInfo  = (unsigned char*) pXtcFrame->next() ;
-  //   
-  //TypeId typePrincetonInfo(TypeId::Id_PrincetonInfo, Princeton::InfoV1::Version);
-  //Xtc* pXtcInfo = 
-  // new ((char*)pcXtcInfo) Xtc(typePrincetonInfo, _src);
-  //pXtcInfo->alloc( sizeof(Princeton::InfoV1) );
+  // !! for XPP's princeton run
+  unsigned char* pcXtcInfo  = (unsigned char*) pXtcFrame->next() ;
+     
+  TypeId typePrincetonInfo(TypeId::Id_PrincetonInfo, Princeton::InfoV1::Version);
+  Xtc* pXtcInfo = 
+   new ((char*)pcXtcInfo) Xtc(typePrincetonInfo, _src);
+  pXtcInfo->alloc( sizeof(Princeton::InfoV1) );
   
   return 0;
 }
@@ -1075,13 +1086,14 @@ int PrincetonServer::checkTemperature()
   {
     printf( "PrincetonServer::checkTemperature(): Datagram has not been allocated. No buffer to store the info data\n" );
   }
-  //else
-  //{
-  //  const int iFrameSize =_configCamera.frameSize();
-  //  float     fCoolingTemp = iTemperatureCurrent / 100.0f;  
-  //  unsigned char*  pcInfo       = (unsigned char*) _pDgOut + sizeof(CDatagram) + sizeof(Xtc) + iFrameSize + sizeof(Xtc);  
-  //  new (pcInfo) Princeton::InfoV1( fCoolingTemp );
-  //}
+  // !! for XPP's princeton run
+  else
+  {
+    const int       iFrameSize   = _configCamera.frameSize();
+    float           fCoolingTemp = iTemperatureCurrent / 100.0f;  
+    unsigned char*  pcInfo       = (unsigned char*) _pDgOut + sizeof(CDatagram) + sizeof(Xtc) + iFrameSize + sizeof(Xtc);  
+    new (pcInfo) Princeton::InfoV1( fCoolingTemp );
+  }
           
   if ( iTemperatureCurrent >= iCoolingTemp + _iTemperatureHiTol ||  
     iTemperatureCurrent <= iCoolingTemp - _iTemperatureLoTol ) 
@@ -1141,15 +1153,20 @@ const int       PrincetonServer::_iMaxCoolingTime;
 const int       PrincetonServer::_iTemperatureHiTol;
 const int       PrincetonServer::_iTemperatureLoTol;
 const int       PrincetonServer::_iFrameHeaderSize      = sizeof(CDatagram) + sizeof(Xtc) + sizeof(Princeton::FrameV1);
-//const int       PrincetonServer::_iInfoSize             = sizeof(Xtc) + sizeof(Princeton::InfoV1);
-const int       PrincetonServer::_iInfoSize             = 0;
+
+// !! for XPP's princeton run
+const int       PrincetonServer::_iInfoSize             = sizeof(Xtc) + sizeof(Princeton::InfoV1);
+//const int       PrincetonServer::_iInfoSize             = 0;
+
 const int       PrincetonServer::_iMaxFrameDataSize     = _iFrameHeaderSize + 2048*2048*2 + _iInfoSize;
 const int       PrincetonServer::_iPoolDataCount;
 const int       PrincetonServer::_iMaxReadoutTime;
 const int       PrincetonServer::_iMaxThreadEndTime;
 const int       PrincetonServer::_iMaxLastEventTime;
 const int       PrincetonServer::_iMaxEventReport;
-const float     PrincetonServer::_fEventDeltaTimeFactor = 1.1f;
+const float     PrincetonServer::_fEventDeltaTimeFactor = 1.01f; // !! For XPP non-shutter mode
+//const float     PrincetonServer::_fEventDeltaTimeFactor = 1.1f; 
+
 /*
  * Definition of private static data
  */

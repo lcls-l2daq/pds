@@ -413,20 +413,28 @@ private:
 //
 class PrincetonResponse : public Response {
 public:
-  PrincetonResponse(PrincetonManager& mgr) : _manager(mgr)
+  PrincetonResponse(PrincetonManager& mgr, int iDebugLevel) :
+    _manager(mgr), _iDebugLevel(iDebugLevel)
   {
   }
 public:
   Occurrence* fire(Occurrence* occ) {
+    if (_iDebugLevel >= 1) 
+      printf( "\n\n===== Get Occurance =========\n" );          
+    if (_iDebugLevel>=2) printDataTime(NULL);
+
     const EvrCommand& cmd = *reinterpret_cast<const EvrCommand*>(occ);
     if (_manager.checkReadoutEventCode(cmd.code)) {
-      printf("PM readout\n");
+      if (_iDebugLevel >= 1) 
+        printf( "Get command event code: %u\n", cmd.code );          
+
       _manager.onEventReadout();
     }
     return 0;
   }
 private:
   PrincetonManager& _manager;
+  int               _iDebugLevel;
 };
 
 PrincetonManager::PrincetonManager(CfgClientNfs& cfg, int iCamera, bool bInitTest, int iDebugLevel) :
@@ -441,7 +449,7 @@ PrincetonManager::PrincetonManager(CfgClientNfs& cfg, int iCamera, bool bInitTes
     _pActionEnable    = new PrincetonEnableAction   (*this, _iDebugLevel);
     _pActionDisable   = new PrincetonDisableAction  (*this, _iDebugLevel);
     _pActionL1Accept  = new PrincetonL1AcceptAction (*this, cfg, _iDebugLevel);
-    _pResponse        = new PrincetonResponse       (*this);
+    _pResponse        = new PrincetonResponse       (*this, _iDebugLevel);
 
     try
     {     
@@ -535,6 +543,11 @@ int PrincetonManager::checkReadoutEventCode(unsigned code)
   return _pServer->checkReadoutEventCode(code);
 }
 
+/* 
+ * Print the local timestamp and the data timestamp
+ *
+ * If the input parameter in == NULL, no data timestamp will be printed
+ */
 static int printDataTime(const InDatagram* in)
 {
   static const char sTimeFormat[40] = "%02d_%02H:%02M:%02S"; /* Time format string */    
@@ -545,6 +558,8 @@ static int printDataTime(const InDatagram* in)
   strftime(sTimeText, sizeof(sTimeText), sTimeFormat, localtime(&timeCurrent));
   
   printf("Local Time: %s\n", sTimeText);
+
+  if ( in == NULL ) return 0;
   
   const ClockTime clockCurDatagram  = in->datagram().seq.clock();
   uint32_t        uFiducial         = in->datagram().seq.stamp().fiducials();
