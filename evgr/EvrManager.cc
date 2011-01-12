@@ -189,6 +189,7 @@ public:
 
     if ( codeState.bReadout ) 
     {
+      _lastFiducial = fe.TimestampHigh;
       _bReadout = true;
       addSpecialEvent( *(const EvrDataType::FIFOEvent*) &fe );
       return;
@@ -196,6 +197,7 @@ public:
 
     if ( codeState.bCommand )
     {
+      _lastFiducial = fe.TimestampHigh;
       addCommand( fe );
     }
 
@@ -381,7 +383,7 @@ public:
     if (_bReadout || _ncommands) {
       _bEvrDataIncomplete = true;
       FIFOEvent fe;
-      fe.TimestampHigh = Pds::TimeStamp::ErrFiducial;
+      fe.TimestampHigh = _lastFiducial;
       fe.TimestampLow  = 0;
       fe.EventCode     = TERMINATOR;
       startL1Accept(fe);
@@ -460,6 +462,7 @@ private:
   bool                  _bEvrDataFullUpdated;
   bool                  _bEvrDataFullFinal;
   bool                  _bEvrDataIncomplete;
+  unsigned              _lastFiducial;
   unsigned              _ncommands;
   char                  _commands[giMaxCommands];
   
