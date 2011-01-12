@@ -81,10 +81,11 @@ class CspadL1Action : public Action {
    InDatagram* fire(InDatagram* in);
 
    CspadServer* server;
+   unsigned _lastMatchedFiducial;
 
 };
 
-CspadL1Action::CspadL1Action(CspadServer* svr) : server(svr) {}
+CspadL1Action::CspadL1Action(CspadServer* svr) : server(svr), _lastMatchedFiducial(0xfffffff) {}
 
 InDatagram* CspadL1Action::fire(InDatagram* in) {
   if (server->debug() > 5) printf("CspadL1Action::fire!\n");
@@ -114,8 +115,10 @@ InDatagram* CspadL1Action::fire(InDatagram* in) {
       data = (Pds::Pgp::DataImportFrame*) ( payload + (i * server->payloadSize()) );
       if (evrFiducials != data->fiducials()) {
         error |= 1<<i;
-        printf("CspadL1Action::fire(in) fiducial mismatch evr(%u) cspad(%u) in quad %u\n",
-            evrFiducials, data->fiducials(), i);
+        printf("CspadL1Action::fire(in) fiducial mismatch evr(%u) cspad(%u) in quad %u, lastMatchedFiducial(%u)\n",
+            evrFiducials, data->fiducials(), i, _lastMatchedFiducial);
+      } else {
+        _lastMatchedFiducial = evrFiducials;
       }
     }
     if (error) {
