@@ -140,7 +140,7 @@ int Pds::CspadServer::fetch( char* payload, int flags ) {
      ret =  Ignore;
    } else ret *= sizeof(__u32);
 
-   if ((ret > 0) && (ret != (int)_payloadSize)) {
+   if ((ret > 0) && (ret < (int)_payloadSize)) {
      printf("CspadServer::fetch() returning Ignore, ret was %d\n", ret);
      ret = Ignore;
    }
@@ -153,7 +153,9 @@ int Pds::CspadServer::fetch( char* payload, int flags ) {
      damageMask |= 0xe0;
      _xtc.damage.increase(Pds::Damage::UserDefined);
      _xtc.damage.userBits(damageMask);
-     printf("CsPadServer::fetch setting user damage 0x%x\n", damageMask);
+     printf("CsPadServer::fetch setting user damage 0x%x", damageMask);
+     if (pgpCardRx.lengthErr) printf(", rxSize(%u)", (unsigned)pgpCardRx.rxSize);
+     printf("\n");
    } else {
      Pds::Pgp::DataImportFrame* data = (Pds::Pgp::DataImportFrame*)(payload + offset);
      unsigned oldCount = _count;
