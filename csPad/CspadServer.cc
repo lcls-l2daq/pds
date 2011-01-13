@@ -36,8 +36,7 @@ CspadServer::CspadServer( const Pds::Src& client, unsigned configMask )
      _configureResult(0),
      _debug(0),
      _offset(0),
-     _configured(false),
-     _dead(false) {
+     _configured(false) {
   instance(this);
 }
 
@@ -78,7 +77,7 @@ void Pds::CspadServer::die() {
           Pds::Pgp::RegisterSlaveExportFrame::CR,
           CsPad::CspadConfigurator::RunModeAddr,
           _cnfgrtr->configuration().inactiveRunMode());
-    //    _dead = true;
+    printf("CspadServer::die has been called !!!!!!!\n");
     ::usleep(2500);
   }
 }
@@ -110,8 +109,6 @@ int Pds::CspadServer::fetch( char* payload, int flags ) {
    PgpCardRx       pgpCardRx;
    unsigned        offset = 0;
    enum {Ignore=-1};
-
-   if (_dead) return Ignore;
 
    if (_configured == false)  {
      printf("CspadServer::fetch() called before configuration, configuration result 0x%x\n", _configureResult);

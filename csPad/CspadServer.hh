@@ -80,7 +80,6 @@ class Pds::CspadServer
    unsigned                       _debug;
    unsigned                       _offset;
    bool                           _configured;
-   bool                           _dead;
 };
 
 #endif
