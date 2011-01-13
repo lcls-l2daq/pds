@@ -137,12 +137,12 @@ int Pds::CspadServer::fetch( char* payload, int flags ) {
 
    if ((ret = read(fd(), &pgpCardRx, sizeof(PgpCardRx))) < 0) {
      perror ("CspadServer::fetch pgpCard read error");
-     return Ignore;
-   }
-   ret *= sizeof(__u32);
+     ret =  Ignore;
+   } else ret *= sizeof(__u32);
+
    if (ret != (int)_payloadSize) {
      printf("CspadServer::fetch() returning Ignore, ret was %d\n", ret);
-     return Ignore;
+     ret = Ignore;
    }
 
    unsigned damageMask = 0;
@@ -158,35 +158,37 @@ int Pds::CspadServer::fetch( char* payload, int flags ) {
      Pds::Pgp::DataImportFrame* data = (Pds::Pgp::DataImportFrame*)(payload + offset);
      unsigned oldCount = _count;
      _count = data->frameNumber() - 1;  // cspad starts counting at 1, not zero
-     //       printf("fiducial(%u) _oldCount(%u) _count(%u) _quadsThisCount(%u)",
-     //           data->fiducials(), oldCount, _count, _quadsThisCount);
+     if (_debug > 9) printf("fiducial(%u) _oldCount(%u) _count(%u) _quadsThisCount(%u)",
+         data->fiducials(), oldCount, _count, _quadsThisCount);
      if ((_count != oldCount) && (_quadsThisCount)) {
        _quadsThisCount = 0;
        memcpy( payload, &_xtc, sizeof(Xtc) );
        ret = sizeof(Xtc);
      }
    }
-   _quadsThisCount += 1;
-   ret += offset;
+   if (ret > 0) {
+     _quadsThisCount += 1;
+     ret += offset;
+   }
    if (_debug > 5) printf(" returned %d\n", ret);
    return ret;
 }
 
 bool CspadServer::more() const {
   bool ret = _quads > 1;
-//  printf("CspadServer::more(%s)\n", ret ? "true" : "false");
+  if (_debug > 7) printf("CspadServer::more(%s)\n", ret ? "true" : "false");
   return ret;
 }
 
 unsigned CspadServer::offset() const {
   unsigned ret = _quadsThisCount == 1 ? 0 : sizeof(Xtc) + _payloadSize * (_quadsThisCount-1);
-//  printf("CspadServer::offset(%u)\n", ret);
+  if (_debug > 7) printf("CspadServer::offset(%u)\n", ret);
   return (ret);
 }
 
 unsigned CspadServer::count() const {
-//    printf( "CspadServer::count(%u)\n", _count);
-   return _count + _offset;
+  if (_debug > 7) printf( "CspadServer::count(%u)\n", _count);
+  return _count + _offset;
 }
 
 unsigned CspadServer::flushInputQueue(int f) {
