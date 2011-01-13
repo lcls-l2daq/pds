@@ -140,7 +140,7 @@ int Pds::CspadServer::fetch( char* payload, int flags ) {
      ret =  Ignore;
    } else ret *= sizeof(__u32);
 
-   if (ret != (int)_payloadSize) {
+   if ((ret > 0) && (ret != (int)_payloadSize)) {
      printf("CspadServer::fetch() returning Ignore, ret was %d\n", ret);
      ret = Ignore;
    }
