@@ -19,7 +19,6 @@
 #include "pds/client/Fsm.hh"
 #include "pds/client/Action.hh"
 #include "pds/config/CsPadConfigType.hh"
-#include "pds/config/CsPadDataType.hh"
 #include "pds/csPad/CspadServer.hh"
 #include "pds/pgp/DataImportFrame.hh"
 #include "pdsdata/xtc/DetInfo.hh"

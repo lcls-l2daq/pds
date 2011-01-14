@@ -10,10 +10,10 @@
 #include "pds/xtc/CDatagram.hh"
 #include "pds/xtc/ZcpDatagram.hh"
 #include "pds/config/CsPadConfigType.hh"
-#include "pds/config/CsPadDataType.hh"
 #include "pds/pgp/DataImportFrame.hh"
 #include "pds/pgp/RegisterSlaveExportFrame.hh"
 #include "pds/csPad/CspadConfigurator.hh"
+#include "pdsdata/cspad/ElementV1.hh"
 #include "PgpCardMod.h"
 #include <unistd.h>
 #include <sys/uio.h>
@@ -27,6 +27,11 @@ using namespace Pds;
 //using namespace Pds::CsPad;
 
 CspadServer* CspadServer::_instance = 0;
+
+typedef Pds::CsPad::ElementV1 CsPadDataType;
+
+static Pds::TypeId _CsPadDataType(Pds::TypeId::Id_CspadElement,
+                                    Pds::CsPad::ElementV1::Version);
 
 CspadServer::CspadServer( const Pds::Src& client, unsigned configMask )
    : _xtc( _CsPadDataType, client ),
