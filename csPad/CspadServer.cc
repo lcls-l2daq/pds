@@ -28,8 +28,6 @@ using namespace Pds;
 
 CspadServer* CspadServer::_instance = 0;
 
-typedef Pds::CsPad::ElementV1 CsPadDataType;
-
 static Pds::TypeId _CsPadDataType(Pds::TypeId::Id_CspadElement,
                                     Pds::CsPad::ElementV1::Version);
 
@@ -162,8 +160,8 @@ int Pds::CspadServer::fetch( char* payload, int flags ) {
      Pds::Pgp::DataImportFrame* data = (Pds::Pgp::DataImportFrame*)(payload + offset);
      unsigned oldCount = _count;
      _count = data->frameNumber() - 1;  // cspad starts counting at 1, not zero
-     if (_debug > 9) printf("fiducial(%u) _oldCount(%u) _count(%u) _quadsThisCount(%u)",
-         data->fiducials(), oldCount, _count, _quadsThisCount);
+     if (_debug > 9 || ret < 0) printf("frameNumber(%u) fiducials(%u) _oldCount(%u) _count(%u) _quadsThisCount(%u)",
+         data->frameNumber(), data->fiducials(), oldCount, _count, _quadsThisCount);
      if ((_count != oldCount) && (_quadsThisCount)) {
        _quadsThisCount = 0;
        memcpy( payload, &_xtc, sizeof(Xtc) );
