@@ -141,7 +141,7 @@ int Pds::CspadServer::fetch( char* payload, int flags ) {
    } else ret *= sizeof(__u32);
 
    if ((ret > 0) && (ret < (int)_payloadSize)) {
-     printf("CspadServer::fetch() returning Ignore, ret was %d\n", ret);
+     printf("CspadServer::fetch() returning Ignore, ret was %d ", ret);
      ret = Ignore;
    }
 
@@ -160,8 +160,8 @@ int Pds::CspadServer::fetch( char* payload, int flags ) {
      Pds::Pgp::DataImportFrame* data = (Pds::Pgp::DataImportFrame*)(payload + offset);
      unsigned oldCount = _count;
      _count = data->frameNumber() - 1;  // cspad starts counting at 1, not zero
-     if (_debug > 9 || ret < 0) printf("frameNumber(%u) fiducials(%u) _oldCount(%u) _count(%u) _quadsThisCount(%u)",
-         data->frameNumber(), data->fiducials(), oldCount, _count, _quadsThisCount);
+     if (_debug > 9 || ret < 0) printf("\n\tportNumber(%u) fiducials(0x%x) _oldCount(%u) _count(%u) _quadsThisCount(%u) lane(%u) vc(%u)\n",
+         data->portNumber(), data->fiducials(), oldCount, _count, _quadsThisCount, pgpCardRx.pgpLane, pgpCardRx.pgpVc);
      if ((_count != oldCount) && (_quadsThisCount)) {
        _quadsThisCount = 0;
        memcpy( payload, &_xtc, sizeof(Xtc) );
