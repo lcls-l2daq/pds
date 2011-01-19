@@ -15,13 +15,14 @@ namespace Pds {
 
   class AcqServer : public EbServer, public EbCountSrv {
   public:
-    AcqServer(const Src& client);
+    AcqServer(const Src& client, const TypeId& id);
     virtual ~AcqServer() {}
     
     enum Command {Header,Payload};
     int  payloadComplete();
     int  headerComplete(unsigned payloadSize,
-			unsigned count);
+			unsigned count,
+			Damage dmg=Damage(0));
   public:
     //  Eb interface
     void        dump    (int detail)   const;

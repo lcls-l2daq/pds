@@ -10,8 +10,8 @@
 
 using namespace Pds;
 
-AcqServer::AcqServer(const Src& client) :
-  _xtc(TypeId(TypeId::Id_AcqWaveform,1),client)
+AcqServer::AcqServer(const Src& client, const TypeId& id) :
+  _xtc(id,client)
 {
   int err = ::pipe(_pipefd);
   if (err)
@@ -31,18 +31,20 @@ int AcqServer::payloadComplete()
 }
 
 int AcqServer::headerComplete(unsigned payloadSize,
-			      unsigned count)
+			      unsigned count,
+			      Damage   dmg)
 {
   Command cmd = Header;
-  iovec iov[3];
+  iovec iov[4];
   iov[0].iov_base = &cmd; 
   iov[0].iov_len = sizeof(cmd);
   iov[1].iov_base = &payloadSize; 
   iov[1].iov_len = sizeof(payloadSize);
   iov[2].iov_base = &count;
   iov[2].iov_len = sizeof(count);
-
-  ::writev(_pipefd[1], iov, 3);
+  iov[3].iov_base = &dmg;
+  iov[3].iov_len = sizeof(dmg);
+  ::writev(_pipefd[1], iov, 4);
   return 0;
 }
 
@@ -95,6 +97,8 @@ int AcqServer::fetch(char* payload, int flags)
     if (length < 0) return length;
     _xtc.extent = payloadSize+sizeof(Xtc);
     memcpy(payload, &_xtc, sizeof(Xtc));
+    length = ::read(_pipefd[0],&_xtc.damage,sizeof(_xtc.damage));
+    if (length < 0) return length;
     _dma->start(payload+sizeof(Xtc));
     return sizeof(Xtc);
   } else if (_cmd == Payload) {
