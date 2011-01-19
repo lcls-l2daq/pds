@@ -45,7 +45,7 @@ class Pds::CspadServer
    unsigned count() const;
    void setCspad( int fd );
 
-   unsigned configure(CsPadConfigType&);
+   unsigned configure(CsPadConfigType*);
    unsigned unconfigure(void);
 
    unsigned payloadSize(void)   { return _payloadSize; }

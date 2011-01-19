@@ -48,9 +48,9 @@ void sigHandler( int signal ) {
   psignal( signal, "Signal received by CspadServer");
 }
 
-unsigned CspadServer::configure(CsPadConfigType& config) {
+unsigned CspadServer::configure(CsPadConfigType* config) {
   if (_cnfgrtr == 0) {
-    _cnfgrtr = new Pds::CsPad::CspadConfigurator::CspadConfigurator(config, fd());
+    _cnfgrtr = new Pds::CsPad::CspadConfigurator::CspadConfigurator(config, fd(), _debug);
     ::signal( SIGINT, sigHandler );
   } else {
     printf("CspadConfigurator already instantiated\n");
@@ -61,8 +61,8 @@ unsigned CspadServer::configure(CsPadConfigType& config) {
     printf("CspadServer::configure failed 0x%x\n", _configureResult);
   } else {
     _quads = 0;
-    for (unsigned i=0; i<4; i++) if ((1<<i) & config.quadMask()) _quads += 1;
-    _payloadSize = config.payloadSize();
+    for (unsigned i=0; i<4; i++) if ((1<<i) & config->quadMask()) _quads += 1;
+    _payloadSize = config->payloadSize();
     _xtc.extent = (_payloadSize * _quads) + sizeof(Xtc);
     printf("CspadServer::configure _quads(%u) _payloadSize(%u) _xtc.extent(%u)\n",
         _quads, _payloadSize, _xtc.extent);
@@ -120,7 +120,7 @@ int Pds::CspadServer::fetch( char* payload, int flags ) {
      return Ignore;
    }
 
-   if (_debug > 5) printf("CspadServer::fetch called ");
+   if (_debug & 1) printf("CspadServer::fetch called ");
 
    _xtc.damage = 0;
 
@@ -160,7 +160,7 @@ int Pds::CspadServer::fetch( char* payload, int flags ) {
      Pds::Pgp::DataImportFrame* data = (Pds::Pgp::DataImportFrame*)(payload + offset);
      unsigned oldCount = _count;
      _count = data->frameNumber() - 1;  // cspad starts counting at 1, not zero
-     if (_debug > 9 || ret < 0) printf("\n\tportNumber(%u) fiducials(0x%x) _oldCount(%u) _count(%u) _quadsThisCount(%u) lane(%u) vc(%u)\n",
+     if (_debug & 4 || ret < 0) printf("\n\tportNumber(%u) fiducials(0x%x) _oldCount(%u) _count(%u) _quadsThisCount(%u) lane(%u) vc(%u)\n",
          data->portNumber(), data->fiducials(), oldCount, _count, _quadsThisCount, pgpCardRx.pgpLane, pgpCardRx.pgpVc);
      if ((_count != oldCount) && (_quadsThisCount)) {
        _quadsThisCount = 0;
@@ -172,24 +172,24 @@ int Pds::CspadServer::fetch( char* payload, int flags ) {
      _quadsThisCount += 1;
      ret += offset;
    }
-   if (_debug > 5) printf(" returned %d\n", ret);
+   if (_debug & 1) printf(" returned %d\n", ret);
    return ret;
 }
 
 bool CspadServer::more() const {
   bool ret = _quads > 1;
-  if (_debug > 7) printf("CspadServer::more(%s)\n", ret ? "true" : "false");
+  if (_debug & 2) printf("CspadServer::more(%s)\n", ret ? "true" : "false");
   return ret;
 }
 
 unsigned CspadServer::offset() const {
   unsigned ret = _quadsThisCount == 1 ? 0 : sizeof(Xtc) + _payloadSize * (_quadsThisCount-1);
-  if (_debug > 7) printf("CspadServer::offset(%u)\n", ret);
+  if (_debug & 2) printf("CspadServer::offset(%u)\n", ret);
   return (ret);
 }
 
 unsigned CspadServer::count() const {
-  if (_debug > 7) printf( "CspadServer::count(%u)\n", _count);
+  if (_debug & 2) printf( "CspadServer::count(%u)\n", _count);
   return _count + _offset;
 }
 

@@ -11,7 +11,6 @@
 #include "pds/pgp/RegisterSlaveImportFrame.hh"
 #include "pds/pgp/RegisterSlaveExportFrame.hh"
 #include "pds/config/CsPadConfigType.hh"
-//#include <rtems.h>
 #include <stdio.h>
 #include <math.h>
 #include <time.h>
@@ -60,11 +59,11 @@ namespace Pds {
     char                       CspadConfigurator::_inputQueueName[] = "/MsgFromCsPadReceiverQueue";
     char                       CspadConfigurator::_outputQueueName[] = "/MsgToCsPadReceiverQueue";
 
-    CspadConfigurator::CspadConfigurator( CsPadConfigType& c, int f) :
-                   _config(c), _fd(f), _rhisto(0), _rxThread(0), _print(false) {
+    CspadConfigurator::CspadConfigurator( CsPadConfigType* c, int f, unsigned d) :
+                   _config(c), _fd(f), _rhisto(0), _rxThread(0), _debug(d), _print(false) {
       _initRanges();
       printf("CspadConfigurator constructor _config(%p), quadMask(0x%x)\n",
-         &_config, (unsigned)_config.quadMask());
+         _config, (unsigned)_config->quadMask());
       //    printf("\tlocations _pool(%p), _config(%p)\n", _pool, &_config);
       //    _rhisto = (unsigned*) calloc(1000, 4);
       //    _lhisto = (LoopHisto*) calloc(4*10000, 4);
@@ -226,7 +225,7 @@ namespace Pds {
       sleepTime.tv_nsec = 25000000; // 25ms
       bool printFlag = !(mask & 0x2000);
       if (printFlag) printf("CXI Config");
-      printf(" config(%p) quadMask(0x%x) mask(0x%x)\n", &_config, (unsigned)_config.quadMask(), ~mask);
+      printf(" config(%p) quadMask(0x%x) mask(0x%x)\n", &_config, (unsigned)_config->quadMask(), ~mask);
       unsigned ret = 0;
       mask = ~mask;
       //    _print = true;
@@ -268,7 +267,7 @@ namespace Pds {
         }
         ret <<= 1;
         if (mask&4 && ret==0) {
-          if (printFlag) printf("- 0x%x - \n\twriting test data[%u] ", ret, (unsigned)_config.tdi());
+          if (printFlag) printf("- 0x%x - \n\twriting test data[%u] ", ret, (unsigned)_config->tdi());
           ret |= writeTestData();
           if (printFlag) {
             clock_gettime(CLOCK_REALTIME, &end);
@@ -300,7 +299,7 @@ namespace Pds {
         ret <<= 1;
         ret |= writeRegister(Pds::Pgp::RegisterSlaveExportFrame::CR, EnableEvrAddr, EnableEvrValue);
         ret |= writeRegister(Pds::Pgp::RegisterSlaveExportFrame::CR, resetCountersAddr, 1);
-        ret |= writeRegister(Pds::Pgp::RegisterSlaveExportFrame::CR, RunModeAddr, _config.inactiveRunMode());
+        ret |= writeRegister(Pds::Pgp::RegisterSlaveExportFrame::CR, RunModeAddr, _config->inactiveRunMode());
         ::usleep(25000);
         if (_stopRxThread() == false) {
           printf("CspadConfigurator::configure failed to stop the RX thread\n");
@@ -317,7 +316,7 @@ namespace Pds {
         uint64_t diff = timeDiff(&end, &start) + 50000LL;
         printf("- 0x%x - \n\tdone \n", ret);
         printf(" it took %lld.%lld milliseconds with mask 0x%x\n", diff/1000000LL, diff%1000000LL, mask&0x1f);
-        //      printf(" quadMask(0x%x) ", (unsigned)_config.quadMask());
+        //      printf(" quadMask(0x%x) ", (unsigned)_config->quadMask());
         //    print();
       }
       return ret;
@@ -428,18 +427,21 @@ namespace Pds {
           Pds::Pgp::RegisterSlaveExportFrame::CR,
           ConcentratorVersionAddr,
           0x55000,
-          _config.concentratorVersionAddr())) {
+          _config->concentratorVersionAddr())) {
         return Failure;
       }
+      if (_debug & 0x10) printf("\nCspadConfigurator concentrator version 0x%x\n", *_config->concentratorVersionAddr());
       for (unsigned i=0; i<MaxQuadsPerSensor; i++) {
-        if ((1<<i) & _config.quadMask()) {
-          uint32_t* u = (uint32_t*) _config.quads()[i].readOnly();
+        if ((1<<i) & _config->quadMask()) {
+          uint32_t* u = (uint32_t*) _config->quads()[i].readOnly();
           Pds::Pgp::RegisterSlaveExportFrame::FEdest dest = (Pds::Pgp::RegisterSlaveExportFrame::FEdest)i;
           for (unsigned j=0; j<sizeOfQuadReadOnly; j++) {
             if (Failure == readRegister(dest, _quadReadOnlyAddrs[j], 0x55000 | (i<<4) | j, u+j)) {
               return Failure;
             }
           }
+          if (_debug & 0x10) printf("CspadConfigurator Quad %u read only 0x%x 0x%x %p %p\n",
+              i, (unsigned)u[0], (unsigned)u[1], u, _config->quads()[i].readOnly());
         }
       }
       return Success;
@@ -447,16 +449,16 @@ namespace Pds {
 
     unsigned CspadConfigurator::writeRegs() {
       uint32_t* u;
-      if (writeRegister(Pds::Pgp::RegisterSlaveExportFrame::CR, EventCodeAddr, _config.eventCode())) {
+      if (writeRegister(Pds::Pgp::RegisterSlaveExportFrame::CR, EventCodeAddr, _config->eventCode())) {
         return Failure;
       }
-      //    printf(" ev code %u", (unsigned)_config.eventCode());
-      if (writeRegister(Pds::Pgp::RegisterSlaveExportFrame::CR, runDelayAddr, _config.runDelay())) {
+      //    printf(" ev code %u", (unsigned)_config->eventCode());
+      if (writeRegister(Pds::Pgp::RegisterSlaveExportFrame::CR, runDelayAddr, _config->runDelay())) {
         return Failure;
       }
       for (unsigned i=0; i<MaxQuadsPerSensor; i++) {
-        if ((1<<i) & _config.quadMask()) {
-          u = (uint32_t*)&(_config.quads()[i]);
+        if ((1<<i) & _config->quadMask()) {
+          u = (uint32_t*)&(_config->quads()[i]);
           Pds::Pgp::RegisterSlaveExportFrame::FEdest dest = (Pds::Pgp::RegisterSlaveExportFrame::FEdest)i;
           for (unsigned j=0; j<sizeOfQuadWrite; j++) {
             if(writeRegister(dest, _quadAddrs[j], u[j])) {
@@ -505,21 +507,21 @@ namespace Pds {
     }
 
     unsigned CspadConfigurator::writeDigPots() {
-      //    printf(" quadMask(0x%x) ", (unsigned)_config.quadMask());
+      //    printf(" quadMask(0x%x) ", (unsigned)_config->quadMask());
       unsigned numberOfQuads = 0;
       unsigned quadCount = 0;
       unsigned ret = Success;
       // in bytes, size of pots array minus the two in the header plus the NotSupposedToCare, written as uint32_t.
       uint32_t myArray[(sizeof(Pds::Pgp::RegisterSlaveExportFrame)/sizeof(uint32_t)) + PotsPerQuad -2 + 1];
       for (int i=0; i<Pds::CsPad::MaxQuadsPerSensor; i++) {
-        if ((1<<i) & _config.quadMask()) numberOfQuads += 1;
+        if ((1<<i) & _config->quadMask()) numberOfQuads += 1;
       }
       CspadConfigSynch mySynch(_fd, 0, _rhisto, this);
       for (unsigned i=0; i<MaxQuadsPerSensor && ret == Success; i++) {
-        if ((1<<i) & _config.quadMask()) {
+        if ((1<<i) & _config->quadMask()) {
           quadCount += 1;
           Pds::Pgp::RegisterSlaveExportFrame::FEdest dest = (Pds::Pgp::RegisterSlaveExportFrame::FEdest)i;
-          //          printf("\n/tpot write, %u, 0x%x, %u", j, (unsigned)(_digPot.base + j), (unsigned)_config.quads()[i].dp().value(j));
+          //          printf("\n/tpot write, %u, 0x%x, %u", j, (unsigned)(_digPot.base + j), (unsigned)_config->quads()[i].dp().value(j));
           Pds::Pgp::RegisterSlaveExportFrame* rsef = new (myArray) Pds::Pgp::RegisterSlaveExportFrame::RegisterSlaveExportFrame(
               Pds::Pgp::RegisterSlaveExportFrame::write,
               dest,
@@ -527,7 +529,7 @@ namespace Pds {
               i);
           uint32_t* bulk = rsef->array();
           for (unsigned j=0; j<PotsPerQuad; j++) {
-            bulk[j] = (uint32_t)_config.quads()[i].dp().value(j);
+            bulk[j] = (uint32_t)_config->quads()[i].dp().value(j);
           }
           bulk[PotsPerQuad] = 0;
           if (rsef->post(sizeof(myArray)/sizeof(uint32_t)) != Success) {
@@ -546,7 +548,7 @@ namespace Pds {
       }
       if (!mySynch.take()) {
         printf("Write Dig Pots synchronization failed! quadMask(%u), numberOfQuads(%u), quadCount(%u)\n",
-            (unsigned)_config.quadMask(), numberOfQuads, quadCount);
+            (unsigned)_config->quadMask(), numberOfQuads, quadCount);
         ret = Failure;
       }
       return ret;
@@ -560,12 +562,12 @@ namespace Pds {
       // number of columns minus the two in the header and plus one for the dnc at the end
       uint32_t myArray[(sizeof(Pds::Pgp::RegisterSlaveExportFrame)/sizeof(uint32_t)) +  ColumnsPerASIC - 2 + 1];
       for (int i=0; i<Pds::CsPad::MaxQuadsPerSensor; i++) {
-        if ((1<<i) & _config.quadMask()) numberOfQuads += 1;
+        if ((1<<i) & _config->quadMask()) numberOfQuads += 1;
       }
       CspadConfigSynch mySynch(_fd, 0, _rhisto, this);
       Pds::Pgp::RegisterSlaveExportFrame* rsef = 0;
       for (unsigned i=0; i<MaxQuadsPerSensor; i++) {
-        if ((1<<i) & _config.quadMask()) {
+        if ((1<<i) & _config->quadMask()) {
           quadCount += 1;
           Pds::Pgp::RegisterSlaveExportFrame::FEdest dest = (Pds::Pgp::RegisterSlaveExportFrame::FEdest)i;
           for (row=0; row<RowsPerBank; row++) {
@@ -580,7 +582,7 @@ namespace Pds {
                     Pds::Pgp::RegisterSlaveExportFrame::notWaiting);
             uint32_t* bulk = rsef->array();
             for (unsigned col=0; col<ColumnsPerASIC; col++) {
-              bulk[col] = (uint32_t)rawTestData[_config.tdi()][row][col];
+              bulk[col] = (uint32_t)rawTestData[_config->tdi()][row][col];
             }
             bulk[ColumnsPerASIC] = 0;
 //            if (row == RowsPerBank-1) rsef->print(i, sizeof(myArray)/sizeof(uint32_t));
@@ -603,7 +605,7 @@ namespace Pds {
     void CspadConfigurator::print() {}
 
     unsigned CspadConfigurator::writeGainMap() {
-      //    printf(" quadMask(0x%x) ", (unsigned)_config.quadMask());
+      //    printf(" quadMask(0x%x) ", (unsigned)_config->quadMask());
       unsigned numberOfQuads = 0;
       Pds::CsPad::CsPadGainMapCfg::GainMap* map[Pds::CsPad::MaxQuadsPerSensor];
       // the first two are in the header, but we need one DNC for Ryan's logic
@@ -611,13 +613,13 @@ namespace Pds {
       unsigned len = (((RowsPerBank-1)<<3) + BanksPerASIC-2 + 1) - 2 + 1;  // uint32_t's in the payload
       uint32_t myArray[(sizeof(Pds::Pgp::RegisterSlaveExportFrame)/sizeof(uint32_t)) + len];
       for (int i=0; i<Pds::CsPad::MaxQuadsPerSensor; i++) {
-        if ((1<<i) & _config.quadMask()) numberOfQuads += 1;
-        map[i] = (Pds::CsPad::CsPadGainMapCfg::GainMap*)_config.quads()[i].gm()->map();
+        if ((1<<i) & _config->quadMask()) numberOfQuads += 1;
+        map[i] = (Pds::CsPad::CsPadGainMapCfg::GainMap*)_config->quads()[i].gm()->map();
       }
       CspadConfigSynch mySynch(_fd, numberOfQuads, _rhisto, this);
       for (unsigned col=0; col<ColumnsPerASIC; col++) {
         for (unsigned i=0; i<MaxQuadsPerSensor; i++) {
-          if ((1<<i) & _config.quadMask()) {
+          if ((1<<i) & _config->quadMask()) {
             Pds::Pgp::RegisterSlaveExportFrame::FEdest dest = (Pds::Pgp::RegisterSlaveExportFrame::FEdest)i;
             if (!mySynch.take()) {
               printf("Gain Map Write synchronization failed! col(%u), quad(%u)\n", col, i);

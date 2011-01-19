@@ -57,7 +57,7 @@ namespace Pds {
 
     class CspadConfigurator {
       public:
-        CspadConfigurator( CsPadConfigType&, int);
+        CspadConfigurator( CsPadConfigType*, int, unsigned);
         virtual ~CspadConfigurator();
 
         enum {Success=0, Failure=1, numberTestImages=8};
@@ -77,7 +77,7 @@ namespace Pds {
         enum {QuadResetRegisterAddr=0x500004};
 
         unsigned                  configure(unsigned mask=0);
-        CsPadConfigType&          configuration() { return _config; };
+        CsPadConfigType&          configuration() { return *_config; };
         void                      print();
         unsigned                  writeRegister(Pds::Pgp::RegisterSlaveExportFrame::FEdest, unsigned, uint32_t, bool pf=false);
         unsigned                  writeRegister(Pds::Pgp::RegisterSlaveExportFrame::FEdest, unsigned, uint32_t, Pds::Pgp::RegisterSlaveExportFrame::waitState);
@@ -115,7 +115,7 @@ namespace Pds {
         enum {sizeOfQuadWrite=18, sizeOfQuadReadOnly=2};
         enum {quadGainMapStartAddr=0, quadGainMapLoadAddr=0x10000, quadTestDataAddr=0x100000};
         enum {RtemsQueueTimeout=50, MicroSecondsSleepTime=50};
-        CsPadConfigType&          _config;
+        CsPadConfigType*          _config;
         int                       _fd;
         AddressRange              _gainMap;
         AddressRange              _digPot;
@@ -123,6 +123,7 @@ namespace Pds {
         pthread_t                 _rxThread;
         mqd_t                     _myInputQueue;
         mqd_t                     _myOutputQueue;
+        unsigned                  _debug;
         //      LoopHisto*                _lhisto;
         bool                      _print;
     };

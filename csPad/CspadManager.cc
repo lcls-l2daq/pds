@@ -87,7 +87,7 @@ class CspadL1Action : public Action {
 CspadL1Action::CspadL1Action(CspadServer* svr) : server(svr), _lastMatchedFiducial(0xfffffff) {}
 
 InDatagram* CspadL1Action::fire(InDatagram* in) {
-  if (server->debug() > 5) printf("CspadL1Action::fire!\n");
+  if (server->debug() & 8) printf("CspadL1Action::fire!\n");
   if (in->datagram().xtc.damage.value() == 0) {
     Pds::Pgp::DataImportFrame* data;
     Datagram& dg = in->datagram();
@@ -174,7 +174,7 @@ class CspadBeginCalibCycleAction : public Action {
         if (_cfg.changed()) {
           printf(" configured and enabled\n");
           _server->offset(_server->offset()+_server->myCount()+1);
-          _result = _server->configure( *(CsPadConfigType*)_cfg.current() );
+          _result = _server->configure( (CsPadConfigType*)_cfg.current() );
           _server->enable();
         } else printf("\n");
         return tr;
