@@ -29,6 +29,8 @@ static const int HardCodedADCTime = 100000;
 const bool DEBUG = false;
 
 static int KvetchCounter = 0;
+static int AllowedKvetches = 50;
+static int BaselineKvetchCounter = 0;
 static const bool DumpSampleEvents = false; // should be false in normal running
 
 static float BaselineShiftTolerance = 0.005*(ADC_STEPS-1)/ADC_RANGE; // 5 mV
@@ -353,7 +355,7 @@ IpimBoardData IpimBoard::WaitData() {
 	for (int i=packetsRead; i< DataPackets; i++) {
 	  _dataList[i] = fakeData;
 	}
-	if (DEBUG or KvetchCounter++<20) {
+	if (DEBUG or KvetchCounter++<AllowedKvetches) {
 	  printf("IpimBoard warning: have failed to find expected event in %d * 6 ms, attempting to continue\n", nTries);
 	}
 	break;
@@ -364,7 +366,7 @@ IpimBoardData IpimBoard::WaitData() {
   IpimBoardPsData data = IpimBoardPsData(_dataList, _baselineSubtraction, _polarity, _history, _dataDamage);
   int c = data.CheckCRC();
   if (!c) {
-    if (DEBUG or KvetchCounter++<20) {
+    if (DEBUG or KvetchCounter++<AllowedKvetches) {
       printf("IpimBoard warning: data CRC check failed\n");
     }
     _dataDamage = crcFailed;
@@ -402,7 +404,7 @@ void IpimBoard::WriteCommand(unsigned* cList) {
     bufferSend[2] = (char)((int)w2);
     int res = write(_fd, bufferSend, 3);
     if (res != 3) {
-      if (DEBUG or KvetchCounter++<20) {
+      if (DEBUG or KvetchCounter++<AllowedKvetches) {
 	printf( "write failed: %d bytes of %s written\n", res, bufferSend);
       }
       _commandResponseDamage = true;
@@ -577,7 +579,7 @@ void IpimBoardResponse::setAll(int i, int j, unsigned* s) { // slice
       _checksum = s[count-i];
     }
     else {
-      if (DEBUG or KvetchCounter++<20) {
+      if (DEBUG or KvetchCounter++<AllowedKvetches) {
 	printf("IpimBoard error: resp list broken\n");
       }
       //      _commandResponseDamage = true;
@@ -723,7 +725,7 @@ void IpimBoardPsData::setAll(int i, int j, unsigned* s) { // slice
       _checksum = s[count-i];
     }
     else {
-      if (DEBUG or KvetchCounter++<20) {
+      if (DEBUG or KvetchCounter++<AllowedKvetches) {
 	printf("IpimBoard error: data list parsing broken\n");
 	//	_dataDamage = true; 	
       }
@@ -785,7 +787,7 @@ void IpimBoardPsData::setList(int i, int j, unsigned* lst) { // slice - already 
       lst[count] = _checksum;
     }
     else {
-      if (DEBUG or KvetchCounter++<20) {
+      if (DEBUG or KvetchCounter++<AllowedKvetches) {
 	printf("IpimBoard error: data list retrieval broken\n");
       //      _dataDamage = true;
       }
@@ -818,7 +820,7 @@ void IpimBoardPsData::updateBaselineHistory() {
     double delta = std::abs(oldAverage -_presampleChannel[i]);
     if (oldAverage > 0 and delta>BaselineShiftTolerance) {
       _dataDamage = baselineShift;
-      if (DEBUG or KvetchCounter++<20) {
+      if (DEBUG or BaselineKvetchCounter++<AllowedKvetches) {
 	printf("Running baseline average for channel %d is %f, new baseline value %f is larger than %f away\n", i, oldAverage, _presampleChannel[i], BaselineShiftTolerance);
       }
     }
@@ -947,11 +949,11 @@ void IpimBoardPacketParser::update(char* buff) {
     if ((w0>>4) != _leadHeaderNibble) {
       if (!_lastDamaged) {
 	*_damage = true;
-	if (DEBUG or KvetchCounter++<20) {
+	if (DEBUG or KvetchCounter++<AllowedKvetches) {
 	  printf("IpimBoard warning: read initial packet with bad header, expected 0x%xnnnnn, got 0x%x%x%x\n", _leadHeaderNibble, w0, w1, w2);
 	}
       } else {
-	if (DEBUG or KvetchCounter++<20) {
+	if (DEBUG or KvetchCounter++<AllowedKvetches) {
 	  printf("IpimBoard warning: previous message damaged, demand correct header; expected 0x%xnnnnn, got 0x%x%x%x; dropping packet to reframe\n", _leadHeaderNibble, w0, w1, w2);
 	}
 	return;
@@ -960,14 +962,14 @@ void IpimBoardPacketParser::update(char* buff) {
   } else if (_nPackets < _allowedPackets -1) {
     if ((w0>>4) != _bodyHeaderNibble) {
       *_damage = true;
-      if (DEBUG or KvetchCounter++<20) {
+      if (DEBUG or KvetchCounter++<AllowedKvetches) {
 	printf("IpimBoard warning: read packet with bad header, expected 0x%xnnnnn, got 0x%x%x%x\n", _bodyHeaderNibble, w0, w1, w2);
       }
     }
   } else if (_nPackets == _allowedPackets -1) {
     if ((w0>>4) != _tailHeaderNibble) {
       *_damage = true;
-      if (DEBUG or KvetchCounter++<20) {
+      if (DEBUG or KvetchCounter++<AllowedKvetches) {
 	printf("IpimBoard warning: read trailing packet with bad header, expected 0x%xnnnnn, got 0x%x%x%x\n", _tailHeaderNibble, w0, w1, w2);
       }
     }
@@ -976,7 +978,7 @@ void IpimBoardPacketParser::update(char* buff) {
     _lst[_nPackets++] = (w0 & 0xf) | ((w1 & 0x3f)<<4) | ((w2 & 0x3f)<<10); // strip header bits
   } else {
     *_damage = true;
-    if (DEBUG or KvetchCounter++<20) {
+    if (DEBUG or KvetchCounter++<AllowedKvetches) {
       printf("IpimBoard error parsing type %d packet, have found %d packets, %d allowed\n", _command, _nPackets, _allowedPackets);
     }
   }
@@ -988,7 +990,7 @@ bool IpimBoardPacketParser::packetIncomplete() {
 
 void IpimBoardPacketParser::readTimedOut(int nBytes, int fd, char* serialDevice) {
   *_damage = true;
-  if (DEBUG or KvetchCounter++<20) {
+  if (DEBUG or KvetchCounter++<AllowedKvetches) {
     printf("IpimBoard error: read only %d bytes of required 3 from fd %d, device %s, timed out after %d packets of %d, should probably flush\n", nBytes, fd, serialDevice, _nPackets, _allowedPackets);
   }
 }
