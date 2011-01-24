@@ -10,5 +10,5 @@ libsrcs_csPad := \
 		 CspadServer.cc \
 		 CspadManager.cc
 #libsinc_csPad :=
-libincs_csPad := pgpcard/include
+libincs_csPad := pgpcard
 CPPFLAGS += -fno-strict-aliasing
