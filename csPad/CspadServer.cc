@@ -21,7 +21,6 @@
 #include <errno.h>
 #include <string.h>
 #include <fcntl.h>
-#include <signal.h>
 
 using namespace Pds;
 //using namespace Pds::CsPad;
@@ -43,15 +42,9 @@ CspadServer::CspadServer( const Pds::Src& client, unsigned configMask )
   instance(this);
 }
 
-void sigHandler( int signal ) {
-  Pds::CspadServer::instance()->die();
-  psignal( signal, "Signal received by CspadServer");
-}
-
 unsigned CspadServer::configure(CsPadConfigType* config) {
   if (_cnfgrtr == 0) {
     _cnfgrtr = new Pds::CsPad::CspadConfigurator::CspadConfigurator(config, fd(), _debug);
-    ::signal( SIGINT, sigHandler );
   } else {
     printf("CspadConfigurator already instantiated\n");
   }
@@ -81,8 +74,12 @@ void Pds::CspadServer::die() {
           CsPad::CspadConfigurator::RunModeAddr,
           _cnfgrtr->configuration().inactiveRunMode());
     printf("CspadServer::die has been called !!!!!!!\n");
-    ::usleep(2500);
-  }
+   }
+}
+
+void Pds::CspadServer::dumpFrontEnd() {
+  disable();
+  _cnfgrtr->dumpFrontEnd();
 }
 
 void Pds::CspadServer::enable() {
@@ -90,7 +87,9 @@ void Pds::CspadServer::enable() {
       Pds::Pgp::RegisterSlaveExportFrame::CR,
       CsPad::CspadConfigurator::RunModeAddr,
       _cnfgrtr->configuration().activeRunMode());
-      flushInputQueue(fd());
+  ::usleep(10000);
+  flushInputQueue(fd());
+  if (_debug & 0x20) printf("CspadServer::enable\n");
 }
 
 void Pds::CspadServer::disable() {
@@ -98,7 +97,9 @@ void Pds::CspadServer::disable() {
       Pds::Pgp::RegisterSlaveExportFrame::CR,
       CsPad::CspadConfigurator::RunModeAddr,
       _cnfgrtr->configuration().inactiveRunMode());
-      flushInputQueue(fd());
+  ::usleep(10000);
+  flushInputQueue(fd());
+  if (_debug & 0x20) printf("CspadServer::disable\n");
 }
 
 unsigned Pds::CspadServer::unconfigure(void) {

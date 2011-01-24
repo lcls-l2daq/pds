@@ -31,11 +31,16 @@
 namespace Pds {
   class CspadConfigCache : public CfgCache {
     public:
-    enum {StaticALlocationNumberOfConfigurationsForScanning=100};
-    CspadConfigCache(const Src& src) :
-      CfgCache(src, _CsPadConfigType, StaticALlocationNumberOfConfigurationsForScanning * sizeof(CsPadConfigType)) {}   // ToDo KLUDGE ALERT !!!!!!!!!!!!!!!!!!!!
+      enum {StaticALlocationNumberOfConfigurationsForScanning=100};
+      CspadConfigCache(const Src& src) :
+        CfgCache(src, _CsPadConfigType, StaticALlocationNumberOfConfigurationsForScanning * sizeof(CsPadConfigType)) {}
+    public:
+     void printRO() {
+       CsPadConfigType* cfg = (CsPadConfigType*)current();
+       printf("CspadConfigCache::printRO concentrator config 0x%x\n", (unsigned)cfg->concentratorVersion());
+     }
     private:
-    int _size(void* tc) const { return sizeof(CsPadConfigType); }
+      int _size(void* tc) const { return sizeof(CsPadConfigType); }
   };
 }
 
@@ -114,8 +119,8 @@ InDatagram* CspadL1Action::fire(InDatagram* in) {
       data = (Pds::Pgp::DataImportFrame*) ( payload + (i * server->payloadSize()) );
       if (evrFiducials != data->fiducials()) {
         error |= 1<<i;
-        printf("CspadL1Action::fire(in) fiducial mismatch evr(%u) cspad(%u) in quad %u, lastMatchedFiducial(%u)\n",
-            evrFiducials, data->fiducials(), i, _lastMatchedFiducial);
+        printf("CspadL1Action::fire(in) fiducial mismatch evr(0x%x) cspad(0x%x) in quad %u, lastMatchedFiducial(0x%x), frameNumber(%u)\n",
+            evrFiducials, data->fiducials(), i, _lastMatchedFiducial, data->frameNumber());
       } else {
         _lastMatchedFiducial = evrFiducials;
       }
@@ -143,12 +148,17 @@ class CspadConfigAction : public Action {
       int i = _cfg.fetch(tr);
       printf("CspadConfigAction::fire(Transition) fetched %d\n", i);
       _server->resetOffset();
+      if (_cfg.scanning() == false) {
+        _result = _server->configure( (CsPadConfigType*)_cfg.current() );
+        if (_server->debug() & 0x10) _cfg.printRO();
+      }
       return tr;
     }
 
     InDatagram* fire(InDatagram* in) {
       printf("CspadConfigAction::fire(InDatagram) recorded\n");
       _cfg.record(in);
+      if (_server->debug() & 0x10) _cfg.printRO();
       if( _result ) {
         printf( "*** CspadConfigAction found configuration errors _result(0x%x)\n", _result );
         if (in->datagram().xtc.damage.value() == 0) {
@@ -170,23 +180,27 @@ class CspadBeginCalibCycleAction : public Action {
     CspadBeginCalibCycleAction(CspadServer* s, CspadConfigCache& cfg) : _server(s), _cfg(cfg), _result(0) {};
 
     Transition* fire(Transition* tr) {
-      printf("CspadBeginCalibCycleAction:;fire(Transition)");
+      printf("CspadBeginCalibCycleAction:;fire(Transition) ");
+      if (_cfg.scanning()) {
         if (_cfg.changed()) {
-          printf(" configured and enabled\n");
+          printf("configured and \n");
           _server->offset(_server->offset()+_server->myCount()+1);
           _result = _server->configure( (CsPadConfigType*)_cfg.current() );
-          _server->enable();
-        } else printf("\n");
-        return tr;
-     }
+          if (_server->debug() & 0x10) _cfg.printRO();
+        }
+      }
+      printf("enabled\n");
+      _server->enable();
+      return tr;
+    }
 
     InDatagram* fire(InDatagram* in) {
       printf("CspadBeginCalibCycleAction:;fire(InDatagram)");
-      if (_cfg.changed()) {
-        printf(" recorded");
+      if (_cfg.scanning() && _cfg.changed()) {
+        printf(" recorded\n");
         _cfg.record(in);
-      }
-      printf("\n");
+        if (_server->debug() & 0x10) _cfg.printRO();
+      } else printf("\n");
       if( _result ) {
         printf( "*** CspadConfigAction found configuration errors _result(0x%x)\n", _result );
         if (in->datagram().xtc.damage.value() == 0) {
@@ -239,6 +253,7 @@ class CspadEndCalibCycleAction : public Action {
       _cfg.next();
       printf(" %p\n", _cfg.current());
       _result = _server->unconfigure();
+      _server->dumpFrontEnd();
       return tr;
     }
 

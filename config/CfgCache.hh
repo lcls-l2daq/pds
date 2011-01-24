@@ -19,6 +19,7 @@ namespace Pds {
     virtual ~CfgCache();
   public:
     bool        changed() const;
+    bool        scanning() const;
     const void* current() const;
     void        record (InDatagram*) const;
   public:
@@ -37,6 +38,7 @@ namespace Pds {
     char*        _cur_config;
     char*        _end_config;
     bool         _changed;
+    bool         _scanning;
   };
 };
 

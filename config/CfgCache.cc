@@ -18,7 +18,8 @@ CfgCache::CfgCache(const Src&    src,
   _buffer    (new char[size]),
   _cur_config(0),
   _end_config(0),
-  _changed   (false)
+  _changed   (false),
+  _scanning  (false)
 {
 }
 
@@ -43,6 +44,7 @@ int CfgCache::fetch  (Transition* tr)
     _end_config = _buffer + len;
     _configtc.damage = 0;
     _configtc.extent = sizeof(Xtc) + _size(_cur_config);
+    _scanning = len >= _size(_cur_config) << 1;
   }
   else
     _configtc.damage.increase(Damage::UserDefined);
@@ -51,6 +53,8 @@ int CfgCache::fetch  (Transition* tr)
 }
 
 bool CfgCache::changed() const { return _changed; }
+
+bool CfgCache::scanning() const { return _scanning; }
 
 const void* CfgCache::current() const
 {

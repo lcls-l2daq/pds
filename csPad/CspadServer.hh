@@ -60,6 +60,7 @@ class Pds::CspadServer
    unsigned offset() { return _offset; }
    void     resetOffset() { _offset = 0; _count = 0xffffffff; }
    unsigned myCount() { return _count; }
+   void     dumpFrontEnd();
 
  public:
    static CspadServer* instance() { return _instance; }

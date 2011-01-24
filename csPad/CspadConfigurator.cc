@@ -5,12 +5,6 @@
  *      Author: jackp
  */
 
-#include "pds/csPad/CspadConfigurator.hh"
-//#include "csPad/CspadReadOnlyRegisters.hh"
-//#include "rceusr/pgptest/PgpStat.hh"
-#include "pds/pgp/RegisterSlaveImportFrame.hh"
-#include "pds/pgp/RegisterSlaveExportFrame.hh"
-#include "pds/config/CsPadConfigType.hh"
 #include <stdio.h>
 #include <math.h>
 #include <time.h>
@@ -21,14 +15,22 @@
 #include "PgpCardMod.h"
 #include <sys/types.h>
 #include <sys/stat.h>
+#include "pds/csPad/CspadConfigurator.hh"
+//#include "csPad/CspadReadOnlyRegisters.hh"
+//#include "rceusr/pgptest/PgpStat.hh"
+#include "pds/pgp/RegisterSlaveImportFrame.hh"
+#include "pds/pgp/RegisterSlaveExportFrame.hh"
+#include "pds/config/CsPadConfigType.hh"
 
 #include "TestData.cc"
 
 namespace Pds {
-
   namespace CsPad {
 
     void* rxMain(void* p);
+    class CspadQuadRegisters;
+    class CspadConcentratorRegisters;
+    class CspadDirectRegisterReader;
 
     unsigned                  CspadConfigurator::_quadAddrs[] = {
         0x110001,  // shiftSelect0    1
@@ -60,9 +62,11 @@ namespace Pds {
     char                       CspadConfigurator::_outputQueueName[] = "/MsgToCsPadReceiverQueue";
 
     CspadConfigurator::CspadConfigurator( CsPadConfigType* c, int f, unsigned d) :
-                   _config(c), _fd(f), _rhisto(0), _rxThread(0), _debug(d), _print(false) {
+                   _config(c), _fd(f), _rhisto(0), _rxThread(0), _debug(d),
+                   _drdr(new CspadDirectRegisterReader(f)), _conRegs(new CspadConcentratorRegisters()),
+                   _quadRegs(new CspadQuadRegisters()), _print(false) {
       _initRanges();
-      printf("CspadConfigurator constructor _config(%p), quadMask(0x%x)\n",
+       printf("CspadConfigurator constructor _config(%p), quadMask(0x%x)\n",
          _config, (unsigned)_config->quadMask());
       //    printf("\tlocations _pool(%p), _config(%p)\n", _pool, &_config);
       //    _rhisto = (unsigned*) calloc(1000, 4);
@@ -73,6 +77,9 @@ namespace Pds {
       printf("CspadConfigurator destructor unlinking queues\n");
       mq_unlink(_inputQueueName);
       mq_unlink(_outputQueueName);
+      delete (_drdr);
+      delete (_conRegs);
+      delete (_quadRegs);
     }
 
     void CspadConfigurator::printMe() {
@@ -320,6 +327,43 @@ namespace Pds {
         //    print();
       }
       return ret;
+    }
+
+    void CspadConfigurator::dumpFrontEnd() {
+      timespec      start, end;
+      clock_gettime(CLOCK_REALTIME, &start);
+      unsigned ret = Success;
+      if (_debug & 0x100) {
+        printf("CspadConfigurator::dumpFrontEnd: Concentrator\n");
+        ret = _conRegs->read(_drdr);
+        if (ret == Success) {
+          _conRegs->print();
+        } else {
+          printf("\tCould not be read!\n");
+        }
+      }
+      if (_debug & 0x200) {
+        for (unsigned i=0; i<MaxQuadsPerSensor && ret == Success; i++) {
+          unsigned ret2 = 0;
+          if ((1<<i) & _config->quadMask()) {
+            printf("CspadConfigurator::dumpFrontEnd: Quad %u\n", i);
+            ret2 = _quadRegs->read(i, _drdr);
+            if (ret2 == Success) {
+              _quadRegs->print();
+            } else {
+              printf("\tCould not be read!\n");
+            }
+            ret |= ret2;
+          }
+        }
+      }
+      clock_gettime(CLOCK_REALTIME, &end);
+      uint64_t diff = timeDiff(&end, &start) + 50000LL;
+      if (_debug & 0x300) {
+        printf("CspadConfigurator::dumpFrontEnd took %lld.%lld milliseconds", diff/1000000LL, diff%1000000LL);
+        printf(" - %s\n", ret == Success ? "Success" : "Failed!");
+      }
+      return;
     }
 
     unsigned CspadConfigurator::writeRegister(

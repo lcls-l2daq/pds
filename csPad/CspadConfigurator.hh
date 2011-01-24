@@ -11,14 +11,15 @@
 #include "pds/config/CsPadConfigType.hh"
 #include "pds/pgp/RegisterSlaveExportFrame.hh"
 #include "pds/pgp/RegisterSlaveImportFrame.hh"
+#include "pds/csPad/CspadQuadRegisters.hh"
+#include "pds/csPad/CspadConcentratorRegisters.hh"
+#include "pds/csPad/CspadDirectRegisterReader.hh"
 #include <stdlib.h>
 #include <stdint.h>
 #include <time.h>
 #include <pthread.h>
 #include <new>
 #include <mqueue.h>
-
-namespace Pds { namespace CsPad { class ConfigV1QuadReg; } }
 
 namespace Pds { namespace Pgp { class RegisterSlaveImportFrame; } }
 
@@ -27,6 +28,9 @@ namespace Pds {
   namespace CsPad {
 
     class CspadConfigurator;
+    class CspadConcentratorRegisters;
+    class CspadQuadRegisters;
+    class CspadDirectRegisterReader;
 
     class AddressRange {
       public:
@@ -82,6 +86,7 @@ namespace Pds {
         unsigned                  writeRegister(Pds::Pgp::RegisterSlaveExportFrame::FEdest, unsigned, uint32_t, bool pf=false);
         unsigned                  writeRegister(Pds::Pgp::RegisterSlaveExportFrame::FEdest, unsigned, uint32_t, Pds::Pgp::RegisterSlaveExportFrame::waitState);
         unsigned                  readRegister(Pds::Pgp::RegisterSlaveExportFrame::FEdest, unsigned, unsigned, uint32_t*);
+        void                      dumpFrontEnd();
         void                      printMe();
         int                       fd() { return _fd; }
 
@@ -115,17 +120,20 @@ namespace Pds {
         enum {sizeOfQuadWrite=18, sizeOfQuadReadOnly=2};
         enum {quadGainMapStartAddr=0, quadGainMapLoadAddr=0x10000, quadTestDataAddr=0x100000};
         enum {RtemsQueueTimeout=50, MicroSecondsSleepTime=50};
-        CsPadConfigType*          _config;
-        int                       _fd;
-        AddressRange              _gainMap;
-        AddressRange              _digPot;
-        unsigned*                 _rhisto;
-        pthread_t                 _rxThread;
-        mqd_t                     _myInputQueue;
-        mqd_t                     _myOutputQueue;
-        unsigned                  _debug;
+        CsPadConfigType*            _config;
+        int                         _fd;
+        AddressRange                _gainMap;
+        AddressRange                _digPot;
+        unsigned*                   _rhisto;
+        pthread_t                   _rxThread;
+        mqd_t                       _myInputQueue;
+        mqd_t                       _myOutputQueue;
+        unsigned                    _debug;
+        CspadDirectRegisterReader*  _drdr;
+        CspadConcentratorRegisters* _conRegs;
+        CspadQuadRegisters*         _quadRegs;
         //      LoopHisto*                _lhisto;
-        bool                      _print;
+        bool                        _print;
     };
 
   }
