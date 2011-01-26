@@ -150,6 +150,9 @@ class CspadConfigAction : public Action {
       _server->resetOffset();
       if (_cfg.scanning() == false) {
         _result = _server->configure( (CsPadConfigType*)_cfg.current() );
+        if( _result ) {
+          _result = _server->configure( (CsPadConfigType*)_cfg.current() );
+        }
         if (_server->debug() & 0x10) _cfg.printRO();
       }
       return tr;
@@ -186,6 +189,9 @@ class CspadBeginCalibCycleAction : public Action {
           printf("configured and \n");
           _server->offset(_server->offset()+_server->myCount()+1);
           _result = _server->configure( (CsPadConfigType*)_cfg.current() );
+          if( _result ) {
+            _result = _server->configure( (CsPadConfigType*)_cfg.current() );
+          }
           if (_server->debug() & 0x10) _cfg.printRO();
         }
       }
