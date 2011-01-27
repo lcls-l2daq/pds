@@ -56,6 +56,7 @@
 #include "pdsdata/xtc/DetInfo.hh"
 
 #define ACQ_TIMEOUT_MILISEC 4000
+//#define DBUG
 
 using namespace Pds;
 
@@ -120,7 +121,9 @@ public:
       AcqrsT3_acquire(_instrumentId);		
       status = AcqrsT3_waitForEndOfAcquisition(_instrumentId,ACQ_TIMEOUT_MILISEC);
       if (status == (int)ACQIRIS_ERROR_ACQ_TIMEOUT) {
+#ifdef DBUG
 	dumpStatus(_instrumentId, status,"AcqT3Reader::wait");
+#endif
         _task->call(this);
       }
       else {
@@ -143,11 +146,15 @@ public:
 	dumpStatus(_instrumentId, status,"AcqT3Reader::readData");
 
 	if (!_outoforder) {
+#ifdef DBUG
 	  printf("event 0x%x\n",_event);
+#endif
 	  long countLast = _count;
 	  for(int i=0; i<dataDesc.nbrSamples; i++) {
 	    long sample = ((long *)dataDesc.dataPtr)[i];
+#ifdef DBUG
 	    printf("data %d : %08x\n", i, unsigned(sample));
+#endif
 	    long flag = (sample & 0x80000000) >> 31;
 	    long channel = (sample & 0x70000000) >> 28;
 	    if (flag == 0 && channel == 0) {
