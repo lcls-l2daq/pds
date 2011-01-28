@@ -48,6 +48,9 @@ UserMessage::UserMessage(const char* msg) :
 
 void UserMessage::append(const char* msg)
 { 
-  char* m = _msg + strlen(_msg);
-  strncpy(m, msg, _msg+MaxMsgLength-m-1);
+  int l = strlen(_msg);
+  if (l < MaxMsgLength-1) {
+    strncpy(_msg+l, msg, MaxMsgLength-l-1);
+    _msg[MaxMsgLength-1] = 0;
+  }
 }

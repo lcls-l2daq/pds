@@ -84,8 +84,7 @@ class EpicsArchConfigAction : public Action
 public:
     EpicsArchConfigAction(EpicsArchManager& manager, const Src& src, CfgClientNfs& cfg, int iDebugLevel) :
         //_cfgtc(_epicsArchConfigType,src),
-      _manager(manager), _src(src), _cfg(cfg), _iDebugLevel(iDebugLevel),
-      _occPool(sizeof(UserMessage),1)
+      _manager(manager), _src(src), _cfg(cfg), _iDebugLevel(iDebugLevel)
     {}
     
     // this is the first "phase" of a transition where
@@ -106,8 +105,10 @@ public:
         // insert assumes we have enough space in the input datagram
         //dg->insert(_cfgtc, &_config);
         //if (_nerror) dg->datagram().xtc.damage.increase(Pds::Damage::UserDefined);
+
+        UserMessage* msg = 0;
         InDatagram* out = new ( _manager.getPool() ) Pds::CDatagram( in->datagram() );
-        int iFail = _manager.writeMonitoredContent( out->datagram(), true );
+        int iFail = _manager.writeMonitoredContent( out->datagram(), &msg );
         
         /*
          * Possible failure modes for _manager.writeMonitoredConfigContent()
@@ -120,24 +121,17 @@ public:
          * 4              Some PV values have been outputted, but some has write error
          * 5              Some PV values have been outputted, but some has not been connected
          */
-	static const char* cfgError[] = { NULL, 
-					  NULL,
-					  ":PV data size too large", 
-					  NULL,
-					  NULL,
-					  ":Some PVs not connected" };
         if ( iFail != 0 )
         {
           // set damage bit          
           out->datagram().xtc.damage.increase(Pds::Damage::UserDefined);
-	  if (cfgError[iFail]) {
-	    UserMessage* msg = new(&_occPool) UserMessage;
-	    msg->append(DetInfo::name(static_cast<const DetInfo&>(_cfg.src())));
-	    msg->append(cfgError[iFail]);
-	    _manager.appliance().post(msg);
-	  }
         }                
-                  
+
+        if ( msg != 0 )
+        {
+          _manager.appliance().post(msg);
+        }
+
         if (_iDebugLevel>=1) printf( "\nOutput payload size = %d\n", out->datagram().xtc.sizeofPayload());
         
         return out;
@@ -150,7 +144,6 @@ private:
     Src                 _src;
     CfgClientNfs&       _cfg;
     int                 _iDebugLevel;
-    GenericPool         _occPool;
 };
 
 class EpicsArchL1AcceptAction : public Action 
@@ -187,7 +180,7 @@ public:
 
         if (_iDebugLevel >= 1) printf( "\n\n===== Writing L1 Data =====\n" );
         InDatagram* out = new ( _manager.getPool() ) Pds::CDatagram( in->datagram() );
-        int iFail = _manager.writeMonitoredContent( out->datagram(), false );                
+        int iFail = _manager.writeMonitoredContent( out->datagram() );
         
         /*
          * Possible failure modes for _manager.writeMonitoredConfigContent()
@@ -252,11 +245,13 @@ EpicsArchManager::EpicsArchManager(CfgClientNfs& cfg, const std::string& sFnConf
     _pFsm->callback(TransitionId::L1Accept,   _pActionL1Accept);
     _pFsm->callback(TransitionId::Disable,    _pActionDisable);    
     
-    _pPool = new GenericPool(EpicsArchMonitor::iMaxXtcSize, 8);
+    _pPool   = new GenericPool(EpicsArchMonitor::iMaxXtcSize, 8);
+    _occPool = new GenericPool(sizeof(UserMessage), 1);
 }
 
 EpicsArchManager::~EpicsArchManager()
 {
+    delete _occPool;     
     delete _pPool;     
     delete _pMonitor;
     
@@ -280,7 +275,7 @@ int EpicsArchManager::initMonitor()
 
     try
     {
-        _pMonitor = new EpicsArchMonitor( _sFnConfig, _iDebugLevel );
+      _pMonitor = new EpicsArchMonitor( _sFnConfig, *_occPool, _iDebugLevel );
     }
     catch (string& sError)
     {
@@ -293,7 +288,7 @@ int EpicsArchManager::initMonitor()
     return 0;
 }
 
-int EpicsArchManager::writeMonitoredContent( Datagram& dg, bool bCtrlValue )
+int EpicsArchManager::writeMonitoredContent( Datagram& dg, UserMessage** msg )
 {
     if ( _pMonitor == NULL )
     {
@@ -301,6 +296,6 @@ int EpicsArchManager::writeMonitoredContent( Datagram& dg, bool bCtrlValue )
         return 100;
     }        
 
-    return _pMonitor->writeToXtc( dg, bCtrlValue );
+    return _pMonitor->writeToXtc( dg, msg );
 }
 

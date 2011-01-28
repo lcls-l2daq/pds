@@ -5,6 +5,7 @@
 #include "pds/xtc/Datagram.hh"
 #include "pds/service/GenericPool.hh"
 #include "pdsdata/xtc/TypeId.hh"
+#include "pds/utility/Occurrence.hh"
 #include "XtcEpicsPv.hh"
 #include "EpicsArchMonitor.hh"
 
@@ -16,8 +17,10 @@ using std::string;
 const DetInfo& EpicsArchMonitor::detInfoEpics = EpicsXtcSettings::detInfo;
 const char EpicsArchMonitor::sPvListSeparators[] = " ,;\t\r\n";
 
-EpicsArchMonitor::EpicsArchMonitor( const std::string& sFnConfig, int iDebugLevel ) :
-  _sFnConfig(sFnConfig), _iDebugLevel(iDebugLevel)
+EpicsArchMonitor::EpicsArchMonitor( const std::string& sFnConfig, 
+                                    Pool& occPool,
+                                    int iDebugLevel ) :
+  _sFnConfig(sFnConfig), _occPool(occPool), _iDebugLevel(iDebugLevel)
 {
     if ( _sFnConfig == "" )
         throw string("EpicsArchMonitor::EpicsArchMonitor(): Invalid parameters");
@@ -65,8 +68,10 @@ EpicsArchMonitor::~EpicsArchMonitor()
       SEVCHK( iFail, "EpicsArchMonitor::~EpicsArchMonitor(): ca_task_exit() failed" );    
 }
 
-int EpicsArchMonitor::writeToXtc( Datagram& dg, bool bCtrlValue )
+int EpicsArchMonitor::writeToXtc( Datagram& dg, UserMessage** msg )
 {
+    bool bCtrlValue = (msg != 0);
+
     const int iNumPv = _lpvPvList.size();
     
     ca_poll();
@@ -90,9 +95,19 @@ int EpicsArchMonitor::writeToXtc( Datagram& dg, bool bCtrlValue )
           bAnyPvWriteOkay = true;
         else if ( iFail == 2 ) // Error code 2 means this PV has no connection
         {
-          if ( bCtrlValue ) // If this happens in the "config" action (ctrl value is about to be written)
+          if ( bCtrlValue ) { // If this happens in the "config" action (ctrl value is about to be written)
             epicsPvCur.release(); // release this PV and never update it again
             
+            if ( (*msg)==0 )
+            {
+              (*msg) = new(&_occPool) UserMessage;
+              (*msg)->append("EpicsArch:Some PVs not connected:\n");
+            }
+
+            (*msg)->append(epicsPvCur.getPvName().c_str());
+            (*msg)->append("\n");
+          }
+
           bSomePvNotConnected = true;
         }
         else
@@ -104,6 +119,11 @@ int EpicsArchMonitor::writeToXtc( Datagram& dg, bool bCtrlValue )
             printf( "EpicsArchMonitor::writeToXtc(): Pool buffer size is too small.\n" );
             printf( "EpicsArchMonitor::writeToXtc(): %d Pvs are stored in 90%% of the pool buffer (size = %d bytes)\n", 
               iPvName+1, EpicsArchMonitor::iMaxXtcSize );              
+            if ( (*msg)==0 )
+            {
+              (*msg) = new(&_occPool) UserMessage;
+              (*msg)->append("EpicsArch:PV data size too large\n");
+            }
             return 2;
         }
     }

@@ -11,6 +11,7 @@ class Allocation;
 class Appliance;
 class CfgClientNfs;
 class EpicsArchMonitor;
+class GenericPool;
 
 class EpicsArchManager 
 {
@@ -19,7 +20,7 @@ public:
     ~EpicsArchManager();
 
     Appliance& appliance() { return *_pFsm; }
-    int writeMonitoredContent( Datagram& dg, bool bCtrlValue );
+    int writeMonitoredContent( Datagram& dg, UserMessage** msg=0 );
 
     GenericPool* getPool() { return _pPool; }
     // event handlers
@@ -41,6 +42,7 @@ private:
     int                 _iDebugLevel;
     EpicsArchMonitor*   _pMonitor;    
     GenericPool*        _pPool;     
+    GenericPool*        _occPool;
 };
 
 } // namespace Pds

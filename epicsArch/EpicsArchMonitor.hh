@@ -8,13 +8,17 @@
 
 namespace Pds
 {
-    
+  class Pool;
+  class UserMessage;
+
 class EpicsArchMonitor
 {
 public:
-    EpicsArchMonitor( const std::string& sFnConfig, int iDebugLevel );
+    EpicsArchMonitor( const std::string& sFnConfig, 
+                      Pool& occPool,
+                      int iDebugLevel );
     ~EpicsArchMonitor();
-    int writeToXtc( Datagram& dg, bool bCtrlValue );
+    int writeToXtc( Datagram& dg, UserMessage** msg );
     
     static const int            iXtcVersion = EpicsXtcSettings::iXtcVersion;    
     static const int            iMaxNumPv   = EpicsXtcSettings::iMaxNumPv;
@@ -25,6 +29,7 @@ public:
 private:        
 
     std::string         _sFnConfig;
+    Pool&               _occPool;
     int                 _iDebugLevel;
     TEpicsMonitorPvList _lpvPvList;     
     
