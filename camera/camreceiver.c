@@ -22,8 +22,6 @@
 #include "camstream.h"
 #include "display.h"
 
-#define USE_TCP
-
 #define IMAGE_RINGBUFFER_SIZE	2
 #define SOCKET_BUFFER_SIZE	(1*1024*1024)	/* buffer of the socket, VERY important in UDP */
 
@@ -77,8 +75,6 @@ unsigned long long gettime(void)
 	gettimeofday(&t, NULL);
 	return t.tv_sec*1000000+t.tv_usec;
 }
-
-int usequence;
 
 void *writing_main(void *arg)
 {	unsigned long long start_save_time, end_save_time, total_save_time = 0;
@@ -149,8 +145,7 @@ void *writing_main(void *arg)
 			end_display_time = gettime();
 			total_display_time += end_display_time - start_display_time;
 		}
-		if (!usequence)
-		  free(images.ring[images.next_ready]);
+                free(images.ring[images.next_ready]);
 		frames_count++;
 		pthread_mutex_lock(&images.lock);
 		images.next_ready++;
@@ -165,10 +160,6 @@ void *writing_main(void *arg)
 int main (int argc, char *argv[])
 {	int sockfd, ret;
 	int port = CAMSTREAM_DEFAULT_PORT;
-	usequence = 0;
-	int ufirst = 0;
-	char* ufirstbuffer;
-	char* useqbuffer;
 	struct sockaddr_in listen_addr;
 	unsigned long long start_time, end_time, total;
 	pthread_t writing_thread;
@@ -179,48 +170,6 @@ int main (int argc, char *argv[])
         char ip[32];
 
         memset( ip, 0, 32 );
-
-  struct camstream_image_t xxx;
-  unsigned long camstream_image_t_len = sizeof(struct camstream_image_t);
-  
-  printf( "camreceiver: sizeof(camstream_image_t) = %lu.\n",
-          camstream_image_t_len );
-  printf( "camreceiver: sizeof(camstream_img_t.camstream_basic_t) = %u.\n",
-          sizeof(xxx.base) );
-  printf( "camreceiver: sizeof(camstream_img_t.camstream_basic_t.hdr) = %u.\n",
-          sizeof(xxx.base.hdr) );
-  printf( "camreceiver: sizeof(camstream_img_t.camstream_basic_t.pktsize) = %u.\n",
-          sizeof(xxx.base.pktsize) );
-  printf( "camreceiver: sizeof(camstream_img_t.format) = %u.\n",
-          sizeof(xxx.format) );
-  printf( "camreceiver: sizeof(camstream_img_t.size) = %u.\n",
-          sizeof(xxx.size) );
-  printf( "camreceiver: sizeof(camstream_img_t.width) = %u.\n",
-          sizeof(xxx.width) );
-  printf( "camreceiver: sizeof(camstream_img_t.height) = %u.\n",
-          sizeof(xxx.height) );
-  printf( "camreceiver: sizeof(camstream_img_t.data_off) = %u.\n",
-          sizeof(xxx.data_off) );
-
-  xxx.base.hdr = 0x12345678;
-  xxx.base.pktsize = 0x87654321;
-  xxx.format = 0xA5;
-  xxx.size = 0x87654321;
-  xxx.width = 0x1234;
-  xxx.height = 0x4321;
-  xxx.data_off = 0x13243546;
-
-  unsigned char* xxxptr = (unsigned char*) &xxx;
-  unsigned row, col;
-  for( row = 0; row < (camstream_image_t_len / 16 + 1); ++row )
-  {
-     printf( "%04d: ", row * 16 );
-     for( col = 0; col < 16; ++col )
-     {
-        printf( " %02x", xxxptr[row*16 + col] );
-     }
-     printf( "\n" );
-  }
 
 	/* Parse the command line and check arguments */
 	for (i = 1; i < argc; i++) {
@@ -242,10 +191,6 @@ int main (int argc, char *argv[])
  		        bw_mode = 0;
 		} else if (strcmp("--sockbuf", argv[i]) == 0) {
 			sockbufsz = atoi(argv[++i]);
-		} else if (strcmp("--first", argv[i]) == 0) {
-			ufirst = 1;
-		} else if (strcmp("--sequence", argv[i]) == 0) {
-			usequence = 1;
                 } else if (strcmp("--ip", argv[i]) == 0) {
                         strncpy( ip, argv[++i], 32 );
 		} else {
@@ -254,9 +199,6 @@ int main (int argc, char *argv[])
 			return -EINVAL;
 		}
 	}
-
-	ufirstbuffer = (char*)malloc(1024*1024);
-	useqbuffer   = (char*)malloc(sizeof(struct camstream_image_t)+1024*1024);
 
 	printf("Initializing application data ... ");
 	/* Start the writing thread */
@@ -302,7 +244,7 @@ int main (int argc, char *argv[])
            listen_addr.sin_addr.s_addr = htonl(INADDR_ANY);
         }
 	listen_addr.sin_port = htons(port);
-#ifdef USE_TCP
+
 	sockfd = socket(AF_INET, SOCK_STREAM, 0);
 	if (sockfd < 0) {
 		printf("failed.\n");
@@ -310,15 +252,7 @@ int main (int argc, char *argv[])
 		free(buffer);
 		return -errno;
 	}
-#else
-	sockfd = socket(AF_INET, SOCK_DGRAM, 0);
-	if (sockfd < 0) {
-		printf("failed.\n");
-		perror("ERROR: socket() failed");
-		free(buffer);
-		return -errno;
-	}
-#endif
+
 	ret = bind(sockfd, (struct sockaddr *)&listen_addr, sizeof(listen_addr));
 	if (ret < 0) {
 		printf("failed.\n");
@@ -358,7 +292,7 @@ int main (int argc, char *argv[])
 		printf("continue ... ");
 	}
 	printf("done, waiting on port %d.\n", ntohs(listen_addr.sin_port));
-#ifdef USE_TCP
+
 	ret = listen(sockfd, 1);
 	if (ret < 0) {
 		perror("ERROR: listen() failed");
@@ -375,22 +309,7 @@ int main (int argc, char *argv[])
 	}
 	close(sockfd);
 	sockfd = ret;
-#else
-#if 0
-	/* Wait for a connection */
-	{	fd_set fdset;
-		FD_ZERO(&fdset);
-		FD_SET(sockfd, &fdset);
-		ret = select(sockfd+1, &fdset, NULL, NULL, NULL);
-		if (ret < 0) {
-			perror("ERROR: select() failed");
-			close(sockfd);
-			free(buffer);
-			return -errno;
-		}
-	}
-#endif
-#endif
+
 	/* We receive the data */
 	start_time = gettime();
 	for (total = 0, i = 0, dropped = 0; i < nframes; i++) {
@@ -400,12 +319,14 @@ int main (int argc, char *argv[])
 		unsigned long tx;
 		uint32_t imgsize, imgwidth, imgheight;
 		int sync = 1;
-		int useqrow = 0,useqoff = 0;
 
 		printf("\rWaiting for image %lu ... ", i+1);
 		/* First we receive the header */
 		while(1) {
-			pktsize = recv(sockfd, buffer, sizeof(struct camstream_image_t), 0);
+			pktsize = recv(sockfd, 
+                                       buffer, 
+                                       sizeof(struct camstream_image_t), 
+                                       0);
 			if (pktsize < 0) {
 				printf("failed.\n");
 				perror("ERROR: recv() failed");
@@ -451,15 +372,8 @@ int main (int argc, char *argv[])
 		imgheight = ntohs(p->height);
 		imgwidth  = ntohs(p->width );
 
-		if (usequence) {
-		  useqrow = i%imgheight;
-		  useqoff = useqrow*imgwidth;
-		  printf("\rReceiving row %d off %d ...   ", useqrow, useqoff);
-		  image = (struct camstream_image_t*)useqbuffer;
-		}
-		else
-		  image = (struct camstream_image_t *)
-		    malloc(sizeof(struct camstream_image_t) + imgsize);
+                image = (struct camstream_image_t *)
+                  malloc(sizeof(struct camstream_image_t) + imgsize);
 		if (image == NULL) {
 			printf("failed.\n");
 			fprintf(stderr, "ERROR: could not allocate %d Bytes for image.\n", 
@@ -469,17 +383,10 @@ int main (int argc, char *argv[])
 			return -errno;
 		}
 		for (tx = 0; tx < imgsize; tx += pktsize, total += pktsize) {
-		  if (usequence) {
-		    if (tx < imgwidth)
-			pktsize = recv(sockfd, 
-				       (char*)image + sizeof(struct camstream_image_t) + tx + useqoff,
-				       imgwidth - tx,
-				       MSG_WAITALL);
-		    else
-			pktsize = recv(sockfd, ufirstbuffer, imgsize-tx, MSG_WAITALL);
-		  }				       
-		  else
-			pktsize = recv(sockfd, ((char *)image)+sizeof(struct camstream_image_t)+tx, imgsize-tx, MSG_WAITALL);
+                  pktsize = recv(sockfd, 
+                                 ((char *)image)+sizeof(struct camstream_image_t)+tx, 
+                                 imgsize-tx, 
+                                 MSG_WAITALL);
 		  if (pktsize < 0) {
 		    printf("failed.\n");
 		    perror("ERROR: recv() failed");
@@ -498,12 +405,6 @@ int main (int argc, char *argv[])
 		image->height = imgheight;
 		image->data_off = ntohl(p->data_off);
                 char* data = (char *)((unsigned long)(&image->data_off) + ntohl((unsigned long)p->data_off));
-		/* special transformation */
-		if (ufirst) {
-		  int k;
-		  for(k = 1; k < image->height; k++)
-		    memcpy( data + k*image->width, data, image->width );
-		}
 
 		/* Notify writing thread that an image is available */
 		pthread_mutex_lock(&images.lock);
@@ -511,6 +412,7 @@ int main (int argc, char *argv[])
 			printf("image queue full, image dropped !\n");
 			dropped++;
 			pthread_mutex_unlock(&images.lock);
+                        free(image);
 			continue;
 		}
 		images.ring[images.next_free] = image;
