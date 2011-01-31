@@ -137,6 +137,7 @@ int main(int argc, char *argv[])
     return ret;
   }
 
+  /*
   struct camstream_image_t xxx;
   unsigned long camstream_image_t_len = sizeof(struct camstream_image_t);
   
@@ -178,6 +179,7 @@ int main(int argc, char *argv[])
      }
      printf( "\n" );
   }
+  */
 
   test_pattern = false;
 
@@ -532,8 +534,6 @@ int main(int argc, char *argv[])
     }
 
     pFrame = pCamera->GetFrameHandle();
-    printf( "\npFrame = 0x%p.\n", pFrame );
-    printf( "dest_host = 0x%p.\n", dest_host );
 
     if (!dest_host) {
        printf( "a\n" );
@@ -564,8 +564,6 @@ int main(int argc, char *argv[])
 // 	  printf("unexpected frameId %x -> %x\n",frameId,thisId);
 // 	  frameId = thisId;
 // 	}
-        printf("frameId= %x\n",thisId);
-        printf("frame @ %p (%p)\n",pFrame->data, pFrame);
 
 	nFrames++;
 	// if ((nFrames%ifps)==0) {
@@ -582,7 +580,6 @@ int main(int argc, char *argv[])
       continue;
     }
 
-    printf("frame @ %p (%p)\n",pFrame->data, pFrame);
     if (pFrame == NULL) {
       printf("skipped.\nGetFrameHandle returned NULL.\n");
       continue;
@@ -602,6 +599,7 @@ int main(int argc, char *argv[])
 		       pFrame->width*pFrame->height*pFrame->elsize, 
 		       (unsigned long)pFrame);
 
+    /*
     printf( "sndimg.base.hdr = %u.\n", sndimg.base.hdr );
     printf( "sndimg.base.pktsize = %u.\n", ntohl(sndimg.base.pktsize) );
     printf( "sndimg.format = %d.\n", sndimg.format );
@@ -609,6 +607,7 @@ int main(int argc, char *argv[])
     printf( "sndimg.width = %hu.\n", sndimg.width );
     printf( "sndimg.height = %hu.\n", sndimg.height );
     printf( "sndimg.data_off = %u.\n", sndimg.data_off );
+    */
     ret = send(sockfd, (char *)&sndimg, sizeof(sndimg), 0);
     if (ret < 0) {
       printf("failed.\n");
@@ -654,11 +653,13 @@ int main(int argc, char *argv[])
     {
 #endif
       char* p;
+      /*
       printf( "pFrame->Data: [0]=0x%08x, [1]=0x%08x, [2]=0x%08x, [3]=0x%08x\n",
               ((unsigned int*)pFrame->data)[0], 
               ((unsigned int*)pFrame->data)[1], 
               ((unsigned int*)pFrame->data)[2], 
               ((unsigned int*)pFrame->data)[3] );
+      */
       for(tosend = pFrame->width*pFrame->height*pFrame->elsize, 
 	    p=(char *)pFrame->data; 
 	  tosend > 0; tosend -= ret, p += ret) {

@@ -27,7 +27,7 @@ libincs_camera := leutron/include
 tgtnames :=
 
 ifneq ($(findstring x86_64,$(tgt_arch)),)
-tgtnames := camsend serialcmd fccdcmd
+tgtnames := camsend camreceiver serialcmd fccdcmd
 else
 tgtnames := camsend camreceiver serialcmd fccdcmd
 endif
@@ -57,11 +57,8 @@ tgtlibs_camsend += $(leutron_libs)
 tgtincs_camsend += leutron/include
 
 tgtsrcs_camreceiver := camreceiver.c display.cc
-tgtincs_camreceiver := qt/include
-
+tgtincs_camreceiver := qt/include_${ARCHCODE}
 tgtlibs_camreceiver := qt/QtGui qt/QtCore
-#tgtslib_camreceiver := /usr/lib/qt4/lib/QtGui /usr/lib/qt4/lib/QtCore
-#tgtsinc_camreceiver := /usr/lib/qt4/include
 
 tgtsrcs_serialcmd := serialcmd.cc
 tgtlibs_serialcmd := $(leutron_libs)
