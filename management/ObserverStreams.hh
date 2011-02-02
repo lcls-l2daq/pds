@@ -10,7 +10,13 @@ namespace Pds {
 
   class ObserverStreams: public WiredStreams {
   public:
+
+#ifdef BUILD_LARGE_STREAM_BUFFER
+    enum { netbufdepth = 16 };
+#else
     enum { netbufdepth = 8 };
+#endif
+
     enum { ebdepth     = 16 };
     enum { MaxSize     = 16*1024*1024 };
 
