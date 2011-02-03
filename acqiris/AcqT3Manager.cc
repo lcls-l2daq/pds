@@ -41,6 +41,7 @@
 #include "acqiris/aqdrv4/AcqirisImport.h"
 #include "acqiris/aqdrv4/AcqirisT3Import.h"
 #include "pds/service/GenericPool.hh"
+#include "pds/service/Semaphore.hh"
 #include "pds/service/Task.hh"
 #include "pds/service/Routine.hh"
 #include "pds/service/SysClk.hh"
@@ -62,9 +63,6 @@ using namespace Pds;
 
 static unsigned nprint =0;
 
-class AcqT3Enable;
-class AcqT3Disable;
-
 static void dumpStatus(ViSession instrumentId, ViStatus status, const char* ctxt)
 {
   const int messageSize=256;
@@ -74,6 +72,30 @@ static void dumpStatus(ViSession instrumentId, ViStatus status, const char* ctxt
     printf("%s : %s\n",ctxt,message);
   }
 }
+
+class AcqT3Reader;
+
+class AcqT3Enable : public Routine {
+public:
+  AcqT3Enable(AcqT3Reader& reader): _acqReader(reader), _sem(Pds::Semaphore::EMPTY) { }
+  ~AcqT3Enable() { }
+  void routine();
+  void wait() { _sem.take(); }
+private:
+  AcqT3Reader& _acqReader;
+  Pds::Semaphore _sem;
+};
+
+class AcqT3Disable : public Routine {
+public:
+  AcqT3Disable(AcqT3Reader& reader): _acqReader(reader), _sem(Pds::Semaphore::EMPTY) { }
+  ~AcqT3Disable() { }  
+  void routine();
+  void wait() { _sem.take(); }
+private:
+  AcqT3Reader& _acqReader;
+  Pds::Semaphore _sem;
+};
 
 class AcqT3Reader : public Routine {
   enum { ArraySize=8*1024*1024 };
@@ -105,8 +127,8 @@ public:
     _acqEnable  = acqEnable;
     _acqDisable = acqDisable;
   }
-  void enableAcqRead()  {_task->call((Routine*)_acqEnable); }
-  void disableAcqRead() {_task->call((Routine*)_acqDisable);}  
+  void enableAcqRead()  {_task->call((Routine*)_acqEnable ); _acqEnable ->wait(); }
+  void disableAcqRead() {_task->call((Routine*)_acqDisable); _acqDisable->wait(); }  
   void enable()  {_acqReadEnb = true;} 
   void disable() {
     ViStatus status = AcqrsT3_stopAcquisition(_instrumentId);
@@ -144,7 +166,6 @@ public:
 	//
 	status = AcqrsT3_readData(_instrumentId, 0, &readParam, &dataDesc);
 	dumpStatus(_instrumentId, status,"AcqT3Reader::readData");
-
 	if (!_outoforder) {
 #ifdef DBUG
 	  printf("event 0x%x\n",_event);
@@ -201,24 +222,9 @@ private:
 };
 
 
-class AcqT3Enable : public Routine {
-public:
-  AcqT3Enable(AcqT3Reader& reader): _acqReader(reader) { }
-  ~AcqT3Enable() { }
-  void routine() { _acqReader.enable(); }
+void AcqT3Enable::routine()  { _acqReader.enable (); _sem.give(); }
 
-private:
-  AcqT3Reader& _acqReader;
-};
-
-class AcqT3Disable : public Routine {
-public:
-  AcqT3Disable(AcqT3Reader& reader): _acqReader(reader) { }
-  ~AcqT3Disable() { }  
-  void routine() { _acqReader.disable(); }
-private:
-  AcqT3Reader& _acqReader;
-};
+void AcqT3Disable::routine() { _acqReader.disable(); _sem.give(); }
 
 class AcqT3Dma : public DmaEngine {
 public:
@@ -244,17 +250,6 @@ public:
   }
 private:
   CfgClientNfs& _cfg;
-};
-
-class AcqT3UnconfigureAction : public Action {
-public:
-  AcqT3UnconfigureAction(AcqT3Reader& reader) : _reader(reader) { }
-  InDatagram* fire(InDatagram* in) {
-    _reader.disableAcqRead();
-    return in;
-  }
-private:
-   AcqT3Reader& _reader;     
 };
 
 class AcqT3ConfigAction : public Action {
@@ -354,7 +349,6 @@ public:
     _cfgtc.extent = sizeof(Xtc)+sizeof(AcqTdcConfigType);
     _reader.resetCount();
 
-    _reader.enableAcqRead();
     if (_firstTime) {
       _reader.start();
       _firstTime = 0;
@@ -374,6 +368,26 @@ private:
   unsigned         _firstTime;
 };
 
+class AcqT3EnableAction : public Action {
+public:
+  AcqT3EnableAction(AcqT3Reader& reader) : _reader(reader) {}
+public:
+  InDatagram* fire(InDatagram* dg) { return dg; }
+  Transition* fire(Transition* tr) { _reader.enableAcqRead(); return tr; }
+private:
+  AcqT3Reader& _reader;
+};
+
+class AcqT3DisableAction : public Action {
+public:
+  AcqT3DisableAction(AcqT3Reader& reader) : _reader(reader) {}
+public:
+  InDatagram* fire(InDatagram* dg) { return dg; }
+  Transition* fire(Transition* tr) { _reader.disableAcqRead(); return tr; }
+private:
+  AcqT3Reader& _reader;
+};
+
 Appliance& AcqT3Manager::appliance() {return _fsm;}
 
 AcqT3Manager::AcqT3Manager(ViSession InstrumentID, AcqServer& server, CfgClientNfs& cfg) :
@@ -389,8 +403,8 @@ AcqT3Manager::AcqT3Manager(ViSession InstrumentID, AcqServer& server, CfgClientN
 
   _fsm.callback(TransitionId::Map        , new AcqT3AllocAction(cfg)); 
   _fsm.callback(TransitionId::Configure  ,new AcqT3ConfigAction(_instrumentId,reader,server.client(),cfg,*this));
-  _fsm.callback(TransitionId::Unconfigure,new AcqT3UnconfigureAction(reader));
-
+  _fsm.callback(TransitionId::Enable     ,new AcqT3EnableAction (reader));
+  _fsm.callback(TransitionId::Disable    ,new AcqT3DisableAction(reader));
 #if 0
   ViStatus status = Acqrs_calLoad(_instrumentId,AcqManager::calibPath(),1);
   if(status != VI_SUCCESS) {
