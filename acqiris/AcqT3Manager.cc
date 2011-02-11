@@ -119,7 +119,7 @@ public:
   }
   ~AcqT3Reader() { delete[] _buffer; }
 public:
-  void resetCount() {_count=_event=0;}
+  void resetCount() {_event=0; _outoforder=false;}
   void start() {_task->call(this);}
   
   void acqControl(AcqT3Enable*  acqEnable, 
@@ -134,6 +134,7 @@ public:
     ViStatus status = AcqrsT3_stopAcquisition(_instrumentId);
     dumpStatus(_instrumentId, status, "AcqT3Reader::stop");
     _acqReadEnb = false;
+    _count = 0;
   }
   
   void routine() {
