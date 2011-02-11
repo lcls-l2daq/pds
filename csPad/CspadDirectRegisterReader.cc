@@ -18,7 +18,7 @@
 using namespace Pds::CsPad;
 
 int CspadDirectRegisterReader::_readPgpCard(Pds::Pgp::RegisterSlaveImportFrame* rsif) {
-  enum {SleepTimeUSec=2500, BufferWords=2048};
+  enum {SleepTimeUSec=100000, BufferWords=2048};
   int ret = 0;
   fd_set          fds;
   int             sret = 0;
