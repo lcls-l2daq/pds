@@ -5,8 +5,8 @@
  *      Author: jackp
  */
 
-#include "CspadServer.hh"
-#include "CspadConfigurator.hh"
+#include "pds/csPad/CspadServer.hh"
+#include "pds/csPad/CspadConfigurator.hh"
 #include "pds/xtc/CDatagram.hh"
 #include "pds/xtc/ZcpDatagram.hh"
 #include "pds/config/CsPadConfigType.hh"
@@ -30,6 +30,14 @@ CspadServer* CspadServer::_instance = 0;
 static Pds::TypeId _CsPadDataType(Pds::TypeId::Id_CspadElement,
                                     Pds::CsPad::ElementV1::Version);
 
+long long int timeDiff(timespec* end, timespec* start) {
+  long long int diff;
+  diff =  (end->tv_sec - start->tv_sec) * 1000000000LL;
+  diff += end->tv_nsec;
+  diff -= start->tv_nsec;
+  return diff;
+}
+
 CspadServer::CspadServer( const Pds::Src& client, unsigned configMask )
    : _xtc( _CsPadDataType, client ),
      _cnfgrtr(0),
@@ -38,7 +46,9 @@ CspadServer::CspadServer( const Pds::Src& client, unsigned configMask )
      _configureResult(0),
      _debug(0),
      _offset(0),
-     _configured(false) {
+     _configured(false),
+     _firstFetch(true) {
+  _histo = (unsigned*)calloc(sizeOfHisto, sizeof(unsigned));
   instance(this);
 }
 
@@ -60,6 +70,7 @@ unsigned CspadServer::configure(CsPadConfigType* config) {
     printf("CspadServer::configure _quads(%u) _payloadSize(%u) _xtc.extent(%u)\n",
         _quads, _payloadSize, _xtc.extent);
   }
+  _firstFetch = true;
   _count = _quadsThisCount = 0;
   _configured = _configureResult == 0;
   c = this->flushInputQueue(fd());
@@ -88,6 +99,7 @@ void Pds::CspadServer::enable() {
       CsPad::CspadConfigurator::RunModeAddr,
       _cnfgrtr->configuration().activeRunMode());
   ::usleep(10000);
+  _firstFetch = true;
   flushInputQueue(fd());
   if (_debug & 0x20) printf("CspadServer::enable\n");
 }
@@ -130,6 +142,18 @@ int Pds::CspadServer::fetch( char* payload, int flags ) {
    if (!_quadsThisCount) {
      memcpy( payload, &_xtc, sizeof(Xtc) );
      offset = sizeof(Xtc);
+     if (_firstFetch) {
+       _firstFetch = false;
+       clock_gettime(CLOCK_REALTIME, &_lastTime);
+     } else {
+       clock_gettime(CLOCK_REALTIME, &_thisTime);
+       long long unsigned diff = timeDiff(&_thisTime, &_lastTime);
+       diff += 500000;
+       diff /= 1000000;
+       if (diff > sizeOfHisto-1) diff = sizeOfHisto-1;
+       _histo[diff] += 1;
+       memcpy(&_lastTime, &_thisTime, sizeof(timespec));
+     }
    }
 
    pgpCardRx.model   = sizeof(&pgpCardRx);
@@ -224,4 +248,14 @@ void CspadServer::setCspad( int f ) {
   }
   fd( f );
   Pds::Pgp::RegisterSlaveExportFrame::FileDescr(f);
+}
+
+void CspadServer::printHisto(bool c) {
+  printf("CspadServer event fetch periods\n");
+  for (unsigned i=0; i<sizeOfHisto; i++) {
+    if (_histo[i]) {
+      printf("\t%3u ms   %8u\n", i, _histo[i]);
+      if (c) _histo[i] = 0;
+    }
+  }
 }

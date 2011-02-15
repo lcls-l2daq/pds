@@ -9,6 +9,7 @@
 #include "pds/csPad/CspadConfigurator.hh"
 #include "pdsdata/xtc/Xtc.hh"
 #include <fcntl.h>
+#include <time.h>
 
 namespace Pds
 {
@@ -61,6 +62,7 @@ class Pds::CspadServer
    void     resetOffset() { _offset = 0; _count = 0xffffffff; }
    unsigned myCount() { return _count; }
    void     dumpFrontEnd();
+   void     printHisto(bool);
 
  public:
    static CspadServer* instance() { return _instance; }
@@ -70,6 +72,7 @@ class Pds::CspadServer
    static void instance(CspadServer* s) { _instance = s; }
 
  private:
+   enum     {sizeOfHisto=1000};
    Xtc                            _xtc;
    Pds::CsPad::CspadConfigurator* _cnfgrtr;
    unsigned                       _quads;
@@ -80,7 +83,11 @@ class Pds::CspadServer
    unsigned                       _configureResult;
    unsigned                       _debug;
    unsigned                       _offset;
+   timespec                       _thisTime;
+   timespec                       _lastTime;
+   unsigned*                      _histo;
    bool                           _configured;
+   bool                           _firstFetch;
 };
 
 #endif

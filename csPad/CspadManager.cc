@@ -86,10 +86,11 @@ class CspadL1Action : public Action {
 
    CspadServer* server;
    unsigned _lastMatchedFiducial;
+   bool              _fiducialError;
 
 };
 
-CspadL1Action::CspadL1Action(CspadServer* svr) : server(svr), _lastMatchedFiducial(0xfffffff) {}
+CspadL1Action::CspadL1Action(CspadServer* svr) : server(svr), _lastMatchedFiducial(0xfffffff), _fiducialError(false) {}
 
 InDatagram* CspadL1Action::fire(InDatagram* in) {
   if (server->debug() & 8) printf("CspadL1Action::fire!\n");
@@ -129,6 +130,8 @@ InDatagram* CspadL1Action::fire(InDatagram* in) {
       dg.xtc.damage.increase(Pds::Damage::UserDefined);
       dg.xtc.damage.userBits(0xf0 | (error&0xf));
       printf("CspadL1Action setting user damage due to fiducial in quads(0x%x)\n", error);
+      if (!_fiducialError) server->printHisto(false);
+      else _fiducialError = true;
     }
   }
   return in;
@@ -260,6 +263,7 @@ class CspadEndCalibCycleAction : public Action {
       printf(" %p\n", _cfg.current());
       _result = _server->unconfigure();
       _server->dumpFrontEnd();
+      _server->printHisto(true);
       return tr;
     }
 
