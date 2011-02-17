@@ -89,6 +89,7 @@ namespace Pds {
         void                      dumpFrontEnd();
         void                      printMe();
         int                       fd() { return _fd; }
+        void                      microSpin(unsigned);
 
         static unsigned           _quadAddrs[];
         static unsigned           _quadReadOnlyAddrs[];

@@ -112,6 +112,16 @@ namespace Pds {
       return diff;
     }
 
+    void CspadConfigurator::microSpin(unsigned m) {
+      long long unsigned gap = 0;
+      timespec start, now;
+      clock_gettime(CLOCK_REALTIME, &start);
+      while (gap < m) {
+        clock_gettime(CLOCK_REALTIME, &now);
+        gap = timeDiff(&now, &start) / 1000LL;
+      }
+    }
+
     bool CspadConfigurator::_startRxThread() {
       bool ret = true;
       unsigned      priority = 0;
@@ -307,7 +317,7 @@ namespace Pds {
         ret |= writeRegister(Pds::Pgp::RegisterSlaveExportFrame::CR, EnableEvrAddr, EnableEvrValue);
         ret |= writeRegister(Pds::Pgp::RegisterSlaveExportFrame::CR, resetCountersAddr, 1);
         ret |= writeRegister(Pds::Pgp::RegisterSlaveExportFrame::CR, RunModeAddr, _config->inactiveRunMode());
-        ::usleep(25000);
+        microSpin(25000);
         if (_stopRxThread() == false) {
           printf("CspadConfigurator::configure failed to stop the RX thread\n");
           ret <<= 1;
@@ -687,7 +697,7 @@ namespace Pds {
             bulk[len] = 0;
             //          if ((col==0) && (i==0)) printf(" payload words %u, length %u ", len, len*4);
             rsef->post(sizeof(myArray)/sizeof(uint32_t));
-            usleep(MicroSecondsSleepTime);
+            microSpin(MicroSecondsSleepTime);
 
             if(writeRegister(dest, _gainMap.load, col, Pds::Pgp::RegisterSlaveExportFrame::Waiting)) {
               return Failure;
