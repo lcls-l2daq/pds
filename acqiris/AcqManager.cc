@@ -252,7 +252,8 @@ public:
 
   unsigned validate(InDatagram* in) {
     Datagram& dg = in->datagram();
-    Acqiris::DataDescV1& data = *(Acqiris::DataDescV1*)(dg.xtc.payload()+sizeof(Xtc));
+    Xtc& xtc = *reinterpret_cast<Xtc*>(dg.xtc.payload());
+    Acqiris::DataDescV1& data = *(Acqiris::DataDescV1*)(xtc->payload());
     unsigned long long acqts = data.timestamp(0).value();
     unsigned evrfid = dg.seq.stamp().fiducials();
     unsigned long long nsPerFiducial = 2777777ULL;
@@ -294,8 +295,10 @@ public:
 	
 
     // Handle dropped event
-    if (_outoforder) 
+    if (_outoforder) {
+      xtc.damage.increase(Pds::Damage::OutOfOrder);
       dg.xtc.damage.increase(Pds::Damage::OutOfOrder);
+    }
     else {
       _lastAcqTS  = acqts;
       _lastEvrFid = evrfid;
