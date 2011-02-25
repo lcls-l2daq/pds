@@ -253,7 +253,7 @@ public:
   unsigned validate(InDatagram* in) {
     Datagram& dg = in->datagram();
     Xtc& xtc = *reinterpret_cast<Xtc*>(dg.xtc.payload());
-    Acqiris::DataDescV1& data = *(Acqiris::DataDescV1*)(xtc->payload());
+    Acqiris::DataDescV1& data = *(Acqiris::DataDescV1*)(xtc.payload());
     unsigned long long acqts = data.timestamp(0).value();
     unsigned evrfid = dg.seq.stamp().fiducials();
     unsigned long long nsPerFiducial = 2777777ULL;
