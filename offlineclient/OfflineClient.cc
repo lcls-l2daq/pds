@@ -54,13 +54,6 @@ OfflineClient::OfflineClient(const char* path, const char* instrument_name, cons
                     break;
                 }
             }
-
-            // if experiment name passed in != current experiment in DB, complain
-            if (_experiment_name != _experiment_descr.name.c_str()){
-              printf("Error:  OfflineClient():  %s/%s does not match current experiment in database, %s\n", 
-                     _instrument_name, _experiment_name, _experiment_descr.name.c_str());
-            }
-
         }
 
     } catch (const LogBook::ValueTypeMismatch& e) {
@@ -218,7 +211,6 @@ int OfflineClient::reportOpenFile (int expt, int run, int stream, int chunk) {
   int returnVal = -1;  // default return is ERROR
 
   // sanity check
-  // JBT - may not work (experiment_name, compare to space)
   if (run && _instrument_name && _experiment_name) {
 
     // in case of NULL database, report nothing
