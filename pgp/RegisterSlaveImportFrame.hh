@@ -35,10 +35,13 @@ namespace Pds {
         unsigned vc()                                 {return bits.vc;}
         RegisterSlaveExportFrame::opcode opcode()     {return (RegisterSlaveExportFrame::opcode)bits.oc;}
         uint32_t data()                               {return _data;}
+        uint32_t* array()                             {return (uint32_t*)&_data;}
         unsigned timeout()                            {return lbits.timeout;}
         unsigned failed()                             {return lbits.failed;}
+        unsigned timeout(LastBits* l);
+        unsigned failed(LastBits* l);
         RegisterSlaveExportFrame::FEdest   dest();
-        void print();
+        void print(unsigned size=4);
         enum VcTypes {dataVC=3};
 
       public:

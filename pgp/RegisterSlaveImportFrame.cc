@@ -25,7 +25,15 @@ namespace Pds {
       return (RegisterSlaveExportFrame::FEdest) ret;
     }
 
-    void RegisterSlaveImportFrame::print() {
+    unsigned RegisterSlaveImportFrame::timeout(LastBits* l) {
+      return l->timeout;
+    }
+
+    unsigned RegisterSlaveImportFrame::failed(LastBits* l) {
+      return l->failed;
+    }
+
+    void RegisterSlaveImportFrame::print(unsigned size) {
       char ocn[][20] = {"read", "write", "set", "clear"};
       char dn[][20]  = {"Q0", "Q1", "Q2", "Q3", "Cncntr"};
       printf("Register Slave Import Frame:\n\t");
@@ -34,9 +42,15 @@ namespace Pds {
       printf("lane(%u), vc(%u), dest(%s), opcode(%s), addr(0x%x), waiting(%s), tid(0x%x)\n\t",
           bits.lane, bits.vc, &dn[(int)dest()][0], &ocn[bits.oc][0],
           bits.addr, bits.waiting ? "waiting" : "not waiting", bits.tid);
-      printf("data(0x%x)\n", (unsigned)_data);
-      uint32_t* u = (uint32_t*)this;
-      printf("\t"); for (unsigned i=0;i<4;i++) printf("0x%x ", u[i]); printf("\n");
+      uint32_t* u = &_data;
+      printf("\n\tdata: ");
+      for (unsigned i=0; i<(size-2);) {  //
+        printf("0x%04x ", u[i++]);
+        if (!(i&7)) printf("\n\t      ");
+      }
+      printf(" size(%u)\n", size);
+//      u = (uint32_t*)this;
+//      printf("\t"); for (unsigned i=0;i<size;i++) printf("0x%04x ", u[i]); printf("\n");
     }
   }
 }

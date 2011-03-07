@@ -83,9 +83,21 @@ namespace Pds {
         unsigned                  configure(unsigned mask=0);
         CsPadConfigType&          configuration() { return *_config; };
         void                      print();
-        unsigned                  writeRegister(Pds::Pgp::RegisterSlaveExportFrame::FEdest, unsigned, uint32_t, bool pf=false);
-        unsigned                  writeRegister(Pds::Pgp::RegisterSlaveExportFrame::FEdest, unsigned, uint32_t, Pds::Pgp::RegisterSlaveExportFrame::waitState);
-        unsigned                  readRegister(Pds::Pgp::RegisterSlaveExportFrame::FEdest, unsigned, unsigned, uint32_t*);
+        unsigned                  writeRegister(
+                                      Pds::Pgp::RegisterSlaveExportFrame::FEdest,
+                                      unsigned,
+                                      uint32_t,
+                                      bool pf=false);
+        unsigned                  writeRegister(
+                                      Pds::Pgp::RegisterSlaveExportFrame::FEdest,
+                                      unsigned, uint32_t,
+                                      Pds::Pgp::RegisterSlaveExportFrame::waitState);
+        unsigned                  readRegister(
+                                      Pds::Pgp::RegisterSlaveExportFrame::FEdest,
+                                      unsigned,
+                                      unsigned,
+                                      uint32_t*,
+                                      unsigned size=(sizeof(Pds::Pgp::RegisterSlaveImportFrame)/sizeof(uint32_t)));
         void                      dumpFrontEnd();
         void                      printMe();
         int                       fd() { return _fd; }
@@ -101,14 +113,16 @@ namespace Pds {
 
       private:
         unsigned                   writeRegs();
+        unsigned                   checkWrittenRegs();
         unsigned                   writeDigPots();
+        unsigned                   checkDigPots();
         unsigned                   writeTestData();
         unsigned                   writeGainMap();
         unsigned                   readRegs();
         long long int              timeDiff(timespec*, timespec*);
         bool                      _startRxThread();
         bool                      _stopRxThread();
-        Pds::Pgp::RegisterSlaveImportFrame*   _readPgpCard();
+        Pds::Pgp::RegisterSlaveImportFrame*   _readPgpCard(unsigned size=(sizeof(Pds::Pgp::RegisterSlaveImportFrame)/sizeof(uint32_t)));
         void                      _initRanges() {
           new ((void*)&_gainMap) AddressRange(0x000000, 0x010000);
           new ((void*)&_digPot)  AddressRange(0x200000, 0x210000);
