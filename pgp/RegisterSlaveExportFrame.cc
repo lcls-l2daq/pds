@@ -6,6 +6,7 @@
  */
 
 #include "pds/pgp/RegisterSlaveExportFrame.hh"
+#include "pds/pgp/PgpRSBits.hh"
 #include "pds/pgp/RegisterSlaveImportFrame.hh"
 #include <sys/time.h>
 #include <sys/types.h>
@@ -30,36 +31,56 @@ namespace Pds {
     }
 
     RegisterSlaveExportFrame::RegisterSlaveExportFrame(
-        opcode o,
+        PgpRSBits::opcode o,
         FEdest dt,
         unsigned a,
         unsigned transID,
         uint32_t da,
-        waitState w)
+        PgpRSBits::waitState w)
     {
-      bits.tid     = transID & ((1<<23)-1);
-      bits.waiting = w & 1;
-      bits.lane    = (dt & laneMask) ? 1 : 0;
+      bits._tid     = transID & ((1<<23)-1);
+      bits._waiting = w;
+      bits._lane    = (dt & laneMask) ? 1 : 0;
       bits.mbz    = 0;
-      bits.vc      = dt & concentratorMask ? 0 : (dt & 1) + 1;
+      bits._vc      = dt & concentratorMask ? 0 : (dt & 1) + 1;
       bits.oc      = o;
-      bits.addr    = a & addrMask;
+      bits._addr    = a & addrMask;
       _data         = da;
       NotSupposedToCare = 0;
     }
 
-    RegisterSlaveExportFrame::FEdest RegisterSlaveExportFrame::dest() {
-      unsigned ret = 0;
-      if (bits.lane) ret |= RegisterSlaveExportFrame::laneMask;
-      if (bits.vc & RegisterSlaveExportFrame::laneMask) ret |= 1;
-      if (bits.vc==0) {
-        ret = RegisterSlaveExportFrame::concentratorMask;
-        if (bits.lane) {
-          printf("ERROR ERROR bad dest lane(%u), vc(%u)\n", bits.lane, bits.vc);
-        }
-      }
-      return (RegisterSlaveExportFrame::FEdest) ret;
+    RegisterSlaveExportFrame::RegisterSlaveExportFrame(
+        PgpRSBits::opcode o,
+        unsigned lane,
+        unsigned vc,
+        unsigned a,
+        unsigned transID,
+        uint32_t da,
+        PgpRSBits::waitState w)
+    {
+      bits._tid     = transID & ((1<<23)-1);
+      bits._waiting = w;
+      bits._lane    = lane & 3;
+      bits.mbz    = 0;
+      bits._vc      = vc & 3;
+      bits.oc      = o;
+      bits._addr    = a & addrMask;
+      _data         = da;
+      NotSupposedToCare = 0;
     }
+
+//    RegisterSlaveExportFrame::FEdest RegisterSlaveExportFrame::dest() {
+//      unsigned ret = 0;
+//      if (bits._lane) ret |= RegisterSlaveExportFrame::laneMask;
+//      if (bits._vc & RegisterSlaveExportFrame::laneMask) ret |= 1;
+//      if (bits._vc==0) {
+//        ret = RegisterSlaveExportFrame::concentratorMask;
+//        if (bits._lane) {
+//          printf("ERROR ERROR bad dest lane(%u), vc(%u)\n", bits._lane, bits._vc);
+//        }
+//      }
+//      return (RegisterSlaveExportFrame::FEdest) ret;
+//    }
 
     // parameter is the size of the post in number of 32 bit words
     unsigned RegisterSlaveExportFrame::post(__u32 size) {
@@ -70,8 +91,8 @@ namespace Pds {
 
       pgpCardTx.model   = (sizeof(&pgpCardTx));
       pgpCardTx.cmd     = IOCTL_Normal_Write;
-      pgpCardTx.pgpVc   = bits.vc;
-      pgpCardTx.pgpLane = bits.lane;
+      pgpCardTx.pgpVc   = bits._vc;
+      pgpCardTx.pgpLane = bits._lane;
       pgpCardTx.size    = size;
       pgpCardTx.data    = (__u32 *)this;
 
@@ -99,11 +120,11 @@ namespace Pds {
 
     void RegisterSlaveExportFrame::print(unsigned n, unsigned s) {
       char ocn[][20] = {"read", "write", "set", "clear"};
-      char dn[][20]  = {"Q0", "Q1", "Q2", "Q3", "Cncntr"};
+//      char dn[][20]  = {"Q0", "Q1", "Q2", "Q3", "Cncntr"};
       printf("Register Slave Export Frame: %u %u\n\t", s, n);
-      printf("lane(%u), vc(%u), dest(%s), opcode(%s), addr(0x%x), waiting(%s), tid(0x%x), ",
-          bits.lane, bits.vc, &dn[(int)dest()][0], &ocn[bits.oc][0],
-          bits.addr, bits.waiting ? "waiting" : "not waiting", bits.tid);
+      printf("lane(%u), vc(%u), opcode(%s), addr(0x%x), waiting(%s), tid(0x%x), ",
+          bits._lane, bits._vc, &ocn[bits.oc][0],
+          bits._addr, bits._waiting ? "waiting" : "not waiting", bits._tid);
       printf("data(0x%x)\n", (unsigned)_data);
       uint32_t* u = (uint32_t*)this;
       printf("\t"); for (unsigned i=0;i<s;i++) printf("0x%x ", u[i]); printf("\n");

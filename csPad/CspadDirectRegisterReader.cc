@@ -12,6 +12,7 @@
 #include <string.h>
 #include "pds/pgp/RegisterSlaveImportFrame.hh"
 #include "pds/pgp/RegisterSlaveExportFrame.hh"
+#include "pds/pgp/PgpRSBits.hh"
 #include "PgpCardMod.h"
 #include "CspadDirectRegisterReader.hh"
 
@@ -82,12 +83,12 @@ int CspadDirectRegisterReader::readRegister(
   enum {Success=0, Failure=-1};
   Pds::Pgp::RegisterSlaveImportFrame rsif;
   Pds::Pgp::RegisterSlaveExportFrame  rsef = Pds::Pgp::RegisterSlaveExportFrame::RegisterSlaveExportFrame(
-      Pds::Pgp::RegisterSlaveExportFrame::read,
+      Pds::Pgp::PgpRSBits::read,
       dest,
       addr,
       tid,
       (uint32_t)0,
-      Pds::Pgp::RegisterSlaveExportFrame::Waiting);
+      Pds::Pgp::PgpRSBits::Waiting);
   if (rsef.post(sizeof(Pds::Pgp::RegisterSlaveExportFrame)/sizeof(uint32_t)) != Success) {
     printf("CspadDirectRegisterReader::readRegister failed, export frame follows.\n");
     rsef.print(0, sizeof(Pds::Pgp::RegisterSlaveExportFrame)/sizeof(uint32_t));

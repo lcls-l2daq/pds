@@ -10,6 +10,7 @@
 
 #include <stdint.h>
 #include "pds/pgp/RegisterSlaveExportFrame.hh"
+#include "pds/pgp/PgpRSBits.hh"
 
 namespace Pds {
   namespace Pgp {
@@ -28,24 +29,24 @@ namespace Pds {
         ~RegisterSlaveImportFrame() {};
 
       public:
-        unsigned tid()                                {return bits.tid;}
-        unsigned addr()                               {return bits.addr;}
-        RegisterSlaveExportFrame::waitState waiting() {return (RegisterSlaveExportFrame::waitState)bits.waiting;}
-        unsigned lane()                               {return bits.lane;}
-        unsigned vc()                                 {return bits.vc;}
-        RegisterSlaveExportFrame::opcode opcode()     {return (RegisterSlaveExportFrame::opcode)bits.oc;}
+        unsigned tid()                                {return bits._tid;}
+        unsigned addr()                               {return bits._addr;}
+        PgpRSBits::waitState waiting() {return (PgpRSBits::waitState)bits._waiting;}
+        unsigned lane()                               {return bits._lane;}
+        unsigned vc()                                 {return bits._vc;}
+        PgpRSBits::opcode opcode()     {return (PgpRSBits::opcode)bits.oc;}
         uint32_t data()                               {return _data;}
         uint32_t* array()                             {return (uint32_t*)&_data;}
         unsigned timeout()                            {return lbits.timeout;}
         unsigned failed()                             {return lbits.failed;}
         unsigned timeout(LastBits* l);
         unsigned failed(LastBits* l);
-        RegisterSlaveExportFrame::FEdest   dest();
+//        RegisterSlaveExportFrame::FEdest   dest();
         void print(unsigned size=4);
-        enum VcTypes {dataVC=3};
+//        enum VcTypes {dataVC=3};
 
       public:
-        SEbits    bits;
+        PgpRSBits    bits;
         uint32_t  _data;
         LastBits  lbits;
     };

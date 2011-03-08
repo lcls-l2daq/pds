@@ -20,6 +20,7 @@
 //#include "rceusr/pgptest/PgpStat.hh"
 #include "pds/pgp/RegisterSlaveImportFrame.hh"
 #include "pds/pgp/RegisterSlaveExportFrame.hh"
+#include "pds/pgp/PgpRSBits.hh"
 #include "pds/config/CsPadConfigType.hh"
 
 #include "TestData.cc"
@@ -392,9 +393,9 @@ namespace Pds {
         Pds::Pgp::RegisterSlaveExportFrame::FEdest dst,
         unsigned addr,
         uint32_t data,
-        Pds::Pgp::RegisterSlaveExportFrame::waitState w) {
+        Pds::Pgp::PgpRSBits::waitState w) {
       Pds::Pgp::RegisterSlaveExportFrame rsef = Pds::Pgp::RegisterSlaveExportFrame::RegisterSlaveExportFrame(
-              Pds::Pgp::RegisterSlaveExportFrame::write,
+              Pds::Pgp::PgpRSBits::write,
               dst,
               addr,
               0x6969,
@@ -410,7 +411,7 @@ namespace Pds {
         uint32_t data,
         bool printFlag) {
       _print = printFlag;
-      unsigned ret = writeRegister(dst, addr, data, Pds::Pgp::RegisterSlaveExportFrame::notWaiting);
+      unsigned ret = writeRegister(dst, addr, data, Pds::Pgp::PgpRSBits::notWaiting);
       _print = false;
       return ret;
     }
@@ -465,12 +466,12 @@ namespace Pds {
         unsigned size) {
       Pds::Pgp::RegisterSlaveImportFrame* rsif;
       Pds::Pgp::RegisterSlaveExportFrame  rsef = Pds::Pgp::RegisterSlaveExportFrame::RegisterSlaveExportFrame(
-          Pds::Pgp::RegisterSlaveExportFrame::read,
+          Pds::Pgp::PgpRSBits::read,
           dest,
           addr,
           tid,
           size - sizeof(Pds::Pgp::RegisterSlaveExportFrame)/sizeof(uint32_t),
-          Pds::Pgp::RegisterSlaveExportFrame::Waiting);
+          Pds::Pgp::PgpRSBits::Waiting);
 //      if (size>4) {
 //        printf("CspadConfigurator::readRegister size %u\n", size);
 //        rsef.print();
@@ -644,7 +645,7 @@ namespace Pds {
           Pds::Pgp::RegisterSlaveExportFrame::FEdest dest = (Pds::Pgp::RegisterSlaveExportFrame::FEdest)i;
           //          printf("\n/tpot write, %u, 0x%x, %u", j, (unsigned)(_digPot.base + j), (unsigned)_config->quads()[i].dp().value(j));
           Pds::Pgp::RegisterSlaveExportFrame* rsef = new (myArray) Pds::Pgp::RegisterSlaveExportFrame::RegisterSlaveExportFrame(
-              Pds::Pgp::RegisterSlaveExportFrame::write,
+              Pds::Pgp::PgpRSBits::write,
               dest,
               _digPot.base,
               i);
@@ -660,8 +661,8 @@ namespace Pds {
           if (writeRegister(dest,
               _digPot.load,
               1,
-              quadCount == numberOfQuads ? Pds::Pgp::RegisterSlaveExportFrame::Waiting
-                  : Pds::Pgp::RegisterSlaveExportFrame::notWaiting)) {
+              quadCount == numberOfQuads ? Pds::Pgp::PgpRSBits::Waiting
+                  : Pds::Pgp::PgpRSBits::notWaiting)) {
             printf("Writing load command failed\n");
             ret = Failure;
           }
@@ -724,14 +725,14 @@ namespace Pds {
           Pds::Pgp::RegisterSlaveExportFrame::FEdest dest = (Pds::Pgp::RegisterSlaveExportFrame::FEdest)i;
           for (row=0; row<RowsPerBank; row++) {
             rsef = new (myArray) Pds::Pgp::RegisterSlaveExportFrame::RegisterSlaveExportFrame(
-                Pds::Pgp::RegisterSlaveExportFrame::write,
+                Pds::Pgp::PgpRSBits::write,
                 dest,
                 quadTestDataAddr + (row<<8),  // hardware wants rows spaced 8 bits apart
                 (i << 8) | row,
                 0,
                 (row == RowsPerBank-1) && (quadCount == numberOfQuads) ?
-                    Pds::Pgp::RegisterSlaveExportFrame::Waiting :
-                    Pds::Pgp::RegisterSlaveExportFrame::notWaiting);
+                    Pds::Pgp::PgpRSBits::Waiting :
+                    Pds::Pgp::PgpRSBits::notWaiting);
             uint32_t* bulk = rsef->array();
             for (unsigned col=0; col<ColumnsPerASIC; col++) {
               bulk[col] = (uint32_t)rawTestData[_config->tdi()][row][col];
@@ -778,12 +779,12 @@ namespace Pds {
               return Failure;
             }
             Pds::Pgp::RegisterSlaveExportFrame* rsef = new (myArray) Pds::Pgp::RegisterSlaveExportFrame::RegisterSlaveExportFrame(
-                Pds::Pgp::RegisterSlaveExportFrame::write,
+                Pds::Pgp::PgpRSBits::write,
                 dest,
                 _gainMap.base,
                 (col << 4) | i,
                 (uint32_t)((*map[i])[col][0] & 0xffff),
-                Pds::Pgp::RegisterSlaveExportFrame::notWaiting);
+                Pds::Pgp::PgpRSBits::notWaiting);
             uint32_t* bulk = rsef->array();
             for (unsigned row=0; row<RowsPerBank; row++) {
               for (unsigned bank=0; bank<BanksPerASIC; bank++) {
@@ -797,7 +798,7 @@ namespace Pds {
             rsef->post(sizeof(myArray)/sizeof(uint32_t));
             microSpin(MicroSecondsSleepTime);
 
-            if(writeRegister(dest, _gainMap.load, col, Pds::Pgp::RegisterSlaveExportFrame::Waiting)) {
+            if(writeRegister(dest, _gainMap.load, col, Pds::Pgp::PgpRSBits::Waiting)) {
               return Failure;
             }
           }
@@ -904,8 +905,8 @@ namespace Pds {
                   printf("\tpgpLane(%u), pgpVc(%u)\n", pgpCardRx.pgpLane, pgpCardRx.pgpVc);
                   rsif->print();
                 }
-                if ((rsif->bits.waiting == Pds::Pgp::RegisterSlaveExportFrame::Waiting) ||
-                    (rsif->bits.oc == Pds::Pgp::RegisterSlaveExportFrame::read)) {
+                if ((rsif->bits._waiting == Pds::Pgp::PgpRSBits::Waiting) ||
+                    (rsif->bits.oc == Pds::Pgp::PgpRSBits::read)) {
                   _myOut.type = PGPrsif;
                   _myOut.rsif = rsif;
                   _myOut.size = readRet;

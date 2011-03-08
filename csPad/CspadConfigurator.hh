@@ -11,6 +11,7 @@
 #include "pds/config/CsPadConfigType.hh"
 #include "pds/pgp/RegisterSlaveExportFrame.hh"
 #include "pds/pgp/RegisterSlaveImportFrame.hh"
+#include "pds/pgp/PgpRSBits.hh"
 #include "pds/csPad/CspadQuadRegisters.hh"
 #include "pds/csPad/CspadConcentratorRegisters.hh"
 #include "pds/csPad/CspadDirectRegisterReader.hh"
@@ -91,7 +92,7 @@ namespace Pds {
         unsigned                  writeRegister(
                                       Pds::Pgp::RegisterSlaveExportFrame::FEdest,
                                       unsigned, uint32_t,
-                                      Pds::Pgp::RegisterSlaveExportFrame::waitState);
+                                      Pds::Pgp::PgpRSBits::waitState);
         unsigned                  readRegister(
                                       Pds::Pgp::RegisterSlaveExportFrame::FEdest,
                                       unsigned,
