@@ -9,10 +9,11 @@ namespace Pds {
   class Appliance;
   class AcqServer;
   class CfgClientNfs;
+  class Semaphore;
 
   class AcqT3Manager {
   public:
-    AcqT3Manager(ViSession instrumentId, AcqServer& server, CfgClientNfs& cfg);
+    AcqT3Manager(ViSession instrumentId, AcqServer& server, CfgClientNfs& cfg, Semaphore&);
     ~AcqT3Manager();
     Appliance& appliance();
   private:

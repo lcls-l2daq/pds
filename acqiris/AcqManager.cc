@@ -52,6 +52,7 @@
 #include "acqiris/aqdrv4/AcqirisImport.h"
 #include "pds/utility/Occurrence.hh"
 #include "pds/utility/OccurrenceId.hh"
+#include "pdsdata/xtc/XtcIterator.hh"
 
 #define ACQ_TIMEOUT_MILISEC 1000
 
@@ -144,8 +145,9 @@ private:
 
 class AcqDma : public DmaEngine {
 public:
-  AcqDma(ViSession instrumentId, AcqReader& reader, AcqServer& server,Task* task) :
-    DmaEngine(task),_instrumentId(instrumentId),_reader(reader),_server(server),_lastAcqTS(0),_count(0) {}
+  AcqDma(ViSession instrumentId, AcqReader& reader, AcqServer& server,Task* task,Semaphore& sem) :
+    DmaEngine(task),_instrumentId(instrumentId),_reader(reader),_server(server),_sem(sem),
+    _lastAcqTS(0),_count(0) {}
   void setConfig(AcqConfigType& config) {_config=&config;}
   void routine() {
     ViStatus status=0;
@@ -178,11 +180,13 @@ public:
       // being stored in the same order as the channel waveform data
       if (!(channelMask&(1<<i))) continue;
       unsigned channel = i+1;      
+      _sem.take();
       status = AcqrsD1_readData(_instrumentId, channel, &readParams,
                                 data->waveform(hconfig),
                                 (AqDataDescriptor*)data, 
                                 &(data->timestamp(0)));
-       
+      _sem.give();
+
       // for SAR mode
       // AcqrsD1_freeBank(_instrumentId,0);
 
@@ -208,6 +212,7 @@ private:
   ViSession  _instrumentId;
   AcqReader& _reader;
   AcqServer& _server;
+  Semaphore& _sem;
   AcqConfigType* _config;
   unsigned _nbrSamples;
   long long _lastAcqTS;
@@ -231,38 +236,54 @@ public:
 private:
   CfgClientNfs& _cfg;
 };
-class AcqL1Action : public AcqDC282Action {
+class AcqL1Action : public AcqDC282Action,
+		    public XtcIterator {
 public:
-  AcqL1Action(ViSession instrumentId, AcqManager* mgr) :
+  AcqL1Action(ViSession instrumentId, AcqManager* mgr, const Src& src) :
     AcqDC282Action(instrumentId),
+    _src(src),
     _lastAcqTS(0),_lastEvrFid(0),_lastEvrClockNSec(0),_initFlag(0),_evrAbsDiffNSec(0),
     _mgr(mgr),
     _occPool   (new GenericPool(sizeof(Occurrence),1)), 
     _outoforder(0) {}
   ~AcqL1Action() { delete _occPool; }
 
+  int process(Xtc* xtc) {
+    if (xtc->contains.id()==TypeId::Id_Xtc) {
+      iterate(xtc);
+      xtc->damage.increase(_damage);
+      return 1;
+    }
+    else if (xtc->src == _src) {
+      validate(xtc);
+      return 0;
+    }
+    return 1;
+  }
+
   InDatagram* fire(InDatagram* in) {
     Datagram& dg = in->datagram();
-    if (!dg.xtc.damage.value()) validate(in);
-    cpol1++;
+    _damage = 0;
+    _seq    = dg.seq;
+    iterate(&dg.xtc);
     return in;
   }
   void notRunning() { } 
   void reset() { _outoforder = 0; _initFlag = 0; }
 
-  unsigned validate(InDatagram* in) {
-    Datagram& dg = in->datagram();
-    Xtc& xtc = *reinterpret_cast<Xtc*>(dg.xtc.payload());
+  unsigned validate(Xtc* pxtc) {
+    cpol1++;
+    Xtc& xtc = *pxtc;
     Acqiris::DataDescV1& data = *(Acqiris::DataDescV1*)(xtc.payload());
     unsigned long long acqts = data.timestamp(0).value();
-    unsigned evrfid = dg.seq.stamp().fiducials();
+    unsigned evrfid = _seq.stamp().fiducials();
     unsigned long long nsPerFiducial = 2777777ULL;
     unsigned long long evrdiff = ((evrfid > _lastEvrFid) ? (evrfid-_lastEvrFid) : (evrfid-_lastEvrFid+Pds::TimeStamp::MaxFiducials))*nsPerFiducial;    
     unsigned long long acqdiff = (long long)( (double)(acqts-_lastAcqTS)/1000.0);
     //unsigned long long diff = abs(evrdiff - acqdiff);
     
-    unsigned long long evrClockSeconds = dg.seq.clock().seconds();
-    unsigned long long evrClockNSec = dg.seq.clock().nanoseconds(); 
+    unsigned long long evrClockSeconds = _seq.clock().seconds();
+    unsigned long long evrClockNSec = _seq.clock().nanoseconds(); 
     evrClockNSec = (evrClockSeconds*1000000000) + evrClockNSec;
     unsigned long long evrClkDiffNSec = (evrClockNSec - _lastEvrClockNSec);
 
@@ -296,8 +317,8 @@ public:
 
     // Handle dropped event
     if (_outoforder) {
-      xtc.damage.increase(Pds::Damage::OutOfOrder);
-      dg.xtc.damage.increase(Pds::Damage::OutOfOrder);
+      _damage = (1<<Pds::Damage::OutOfOrder);
+      xtc.damage.increase(_damage);
     }
     else {
       _lastAcqTS  = acqts;
@@ -309,6 +330,7 @@ public:
     return 0;
   }
 private:
+  Src _src;
   unsigned long long _lastAcqTS;
   unsigned _lastEvrFid;
   long long _lastEvrClockNSec;
@@ -317,6 +339,8 @@ private:
   AcqManager* _mgr;
   GenericPool* _occPool;
   unsigned _outoforder;
+  unsigned _damage;
+  Sequence _seq;
 };
 
 class AcqUnconfigureAction : public AcqDC282Action {
@@ -656,7 +680,7 @@ const char* AcqManager::calibPath() {
   return _calibPath;
 }
 
-AcqManager::AcqManager(ViSession InstrumentID, AcqServer& server, CfgClientNfs& cfg) :
+AcqManager::AcqManager(ViSession InstrumentID, AcqServer& server, CfgClientNfs& cfg, Semaphore& sem) :
   _instrumentId(InstrumentID),_fsm(*new Fsm) {
   Task* task = new Task(TaskObject("AcqReadout",35)); //default priority=127 (lowest), changed to 35 => (127-35) 
   AcqReader& reader = *new AcqReader(_instrumentId,server,task);
@@ -665,10 +689,10 @@ AcqManager::AcqManager(ViSession InstrumentID, AcqServer& server, CfgClientNfs& 
   AcqDisable& acqDisable = *new AcqDisable(reader);
   reader.acqControl(&acqEnable,&acqDisable);
   
-  AcqDma& dma = *new AcqDma(_instrumentId,reader,server,task);
+  AcqDma& dma = *new AcqDma(_instrumentId,reader,server,task,sem);
   server.setDma(&dma);
   Action* caction = new AcqConfigAction(_instrumentId,reader,dma,server.client(),cfg,*this);
-  AcqL1Action& acql1 = *new AcqL1Action(_instrumentId,this);
+  AcqL1Action& acql1 = *new AcqL1Action(_instrumentId,this,cfg.src());
   _fsm.callback(TransitionId::Configure,caction);
   _fsm.callback(TransitionId::Map, new AcqAllocAction(cfg)); 
   _fsm.callback(TransitionId::L1Accept,&acql1);

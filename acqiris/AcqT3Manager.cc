@@ -100,15 +100,17 @@ private:
 class AcqT3Reader : public Routine {
   enum { ArraySize=8*1024*1024 };
 public:
-  AcqT3Reader(ViSession instrumentId, 
+  AcqT3Reader(ViSession     instrumentId, 
 	      AcqT3Manager& mgr,
-	      AcqServer& server, 
-	      Task* task) :
+	      AcqServer&    server, 
+	      Task*         task,
+	      Semaphore&    sem ) :
     _instrumentId(instrumentId),
     _task        (task),
     _mgr         (mgr),
     _occPool     (sizeof(Occurrence),1),
     _server      (server),
+    _sem         (sem),
     _event       (0),
     _count       (0),
     _buffer      (new char[ArraySize]),
@@ -165,7 +167,10 @@ public:
 	//  I worry that in the time between calls to AcqrsT3_acquire
 	//  we are 'dead'.  Maybe move this to another thread.
 	//
+	_sem.take();
 	status = AcqrsT3_readData(_instrumentId, 0, &readParam, &dataDesc);
+	_sem.give();
+
 	dumpStatus(_instrumentId, status,"AcqT3Reader::readData");
 	if (!_outoforder) {
 #ifdef DBUG
@@ -211,6 +216,7 @@ private:
   AcqT3Manager& _mgr;
   GenericPool   _occPool;
   AcqServer&    _server;
+  Semaphore&    _sem;
   unsigned      _event;
   long          _count;
   unsigned      _payloadSize;
@@ -391,11 +397,11 @@ private:
 
 Appliance& AcqT3Manager::appliance() {return _fsm;}
 
-AcqT3Manager::AcqT3Manager(ViSession InstrumentID, AcqServer& server, CfgClientNfs& cfg) :
+AcqT3Manager::AcqT3Manager(ViSession InstrumentID, AcqServer& server, CfgClientNfs& cfg, Semaphore& sem) :
   _instrumentId(InstrumentID),_fsm(*new Fsm) 
 {
   Task* task = new Task(TaskObject("AcqT3Readout",35)); //default priority=127 (lowest), changed to 35 => (127-35) 
-  AcqT3Reader& reader = *new AcqT3Reader(_instrumentId,*this,server,task);
+  AcqT3Reader& reader = *new AcqT3Reader(_instrumentId,*this,server,task,sem);
   reader.acqControl(new AcqT3Enable (reader),
 		    new AcqT3Disable(reader));
   
