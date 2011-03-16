@@ -87,7 +87,7 @@ using namespace Pds;
 static unsigned       dropPulseMask     = 0xffffffff;
 static const int      giMaxNumFifoEvent = 32;
 static const int      giMaxEventCodes   = 64; // max number of event code configurations
-static const int      giNumL1Buffers    = 16; // number of L1 data buffers
+static const int      giNumL1Buffers    = 32; // number of L1 data buffers
 static const int      giMaxPulses       = 10; 
 static const int      giMaxOutputMaps   = 16; 
 static const int      giMaxCalibCycles  = 500;
