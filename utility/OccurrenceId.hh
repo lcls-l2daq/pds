@@ -38,6 +38,7 @@ class OccurrenceId
       DataFileOpened,
       UserMessage,
       EvrCommand,
+      DataFileError,
       NumberOf
     };
   };

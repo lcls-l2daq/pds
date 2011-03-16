@@ -42,6 +42,27 @@ namespace Pds {
     unsigned chunk;
   };
 
+  class DataFileError : public Occurrence
+  {
+  public:
+    DataFileError(unsigned _expt,
+		   unsigned _run,
+		   unsigned _stream,
+		   unsigned _chunk ) :
+      Occurrence(OccurrenceId::DataFileError,
+		 sizeof(DataFileError)),
+      expt  (_expt  ),
+      run   (_run   ),
+      stream(_stream),
+      chunk (_chunk )
+    {}
+  public:
+    unsigned expt;
+    unsigned run;
+    unsigned stream;
+    unsigned chunk;
+  };
+
   class UserMessage : public Occurrence
   {
   public:
