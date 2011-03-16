@@ -54,6 +54,27 @@ unsigned int EvrDataUtil::updateFifoEvent( const FIFOEvent& fifoEvent )
   return _u32NumFifoEvents++;
 }
 
+// return the index to the updated fifo event
+int EvrDataUtil::updateFifoEventCheck( const FIFOEvent& fifoEvent, unsigned int iMaxSize )
+{
+  FIFOEvent*    pFifoEvent = (FIFOEvent*) (this+1);  
+  
+  for ( unsigned int iEvent = 0 ; iEvent < _u32NumFifoEvents; iEvent++, pFifoEvent++ )
+  {
+    if ( pFifoEvent->EventCode == fifoEvent.EventCode )
+    {
+      *pFifoEvent = fifoEvent;
+      return iEvent;
+    }
+  }
+
+  if ( _u32NumFifoEvents >= iMaxSize )
+    return -1;
+    
+  *pFifoEvent = fifoEvent;
+  return _u32NumFifoEvents++;
+}
+
 static const uint32_t giMarkEventDel = 0xFFFFFFFF;
 
 void EvrDataUtil::markEventAsDeleted( unsigned int iEventIndex )
@@ -63,7 +84,7 @@ void EvrDataUtil::markEventAsDeleted( unsigned int iEventIndex )
 }
 
 // return the new total number of events after the purge
-unsigned int EvrDataUtil::PurgeDeletedEvents()
+unsigned int EvrDataUtil::purgeDeletedEvents()
 {  
   FIFOEvent* pFifoEventUpdate = (FIFOEvent*) (this+1);  
   FIFOEvent* pFifoEventCur    = pFifoEventUpdate;

@@ -66,7 +66,8 @@ static void help(const char *progname)
     "--splice: use splice.\n"
     "--fps <nframes>: frames per second.\n"
     "--shutter: use external shutter.\n"
-    "--camera {0|1|2}: choose Opal (0) or Pulnix (1) or FCCD (2).\n"
+    "--camera  {0|1|2}   : choose Opal (0) or Pulnix (1) or FCCD (2).\n"
+    "--grabber <grabber#>: choose grabber number\n"
     "--noccd: enable data module test pattern (FCCD only).\n"
     "--opalgain: digital gain (%4.2f - %5.2f, default %5.2f) (Opal only).\n"
     "--opalexp: integration time (%4.2f - %5.2f ms, default frame period minus 0.1) (Opal only).\n"
@@ -116,10 +117,10 @@ int main(int argc, char *argv[])
   unsigned long long start_time, end_time;
   int camera_choice = 0;
   LvCamera::Status Status;
-  char *dest_host=NULL;
+  char *dest_host = NULL;
   char *strport;
-  char* grabber;
-  int dest_port = CAMSTREAM_DEFAULT_PORT;
+  int  grabberid  = 0;
+  int dest_port   = CAMSTREAM_DEFAULT_PORT;
   struct sockaddr_in dest_addr;
   struct hostent *dest_info;
   int camsig;
@@ -195,7 +196,9 @@ int main(int argc, char *argv[])
     } else if (strcmp("--noccd",argv[i]) == 0) {
       noccd = 1;
     } else if( strcmp("--grabber", argv[i]) == 0 ) {
-       grabber = argv[i];
+      grabberid = atoi(argv[++i]);
+   	  printf( "Use grabber %d\n", grabberid );
+      printf( "\n" );
     } else if( strcmp("--testpat", argv[i]) == 0 ) {
        // Currently only valid for the Opal1K camera!
        test_pattern = true;
@@ -251,12 +254,12 @@ int main(int argc, char *argv[])
   printf( "Preparing camera...\n" );
 
   /* Open the camera */
-  PicPortCL* pCamera(0);
+  PicPortCL* pCamera(NULL);
 
   switch(camera_choice) {
   case 0:
     {
-      Opal1kCamera* oCamera = new Opal1kCamera( "OpalId0" );
+      Opal1kCamera* oCamera = new Opal1kCamera( "OpalId0", grabberid );
       Opal1kConfigType* Config = new Opal1kConfigType( 32, 100, 
 						       bitsperpixel==8 ? Opal1kConfigType::Eight_bit : 
 						       bitsperpixel==10 ? Opal1kConfigType::Ten_bit :
@@ -271,7 +274,7 @@ int main(int argc, char *argv[])
     }
   case 2:
     {
-      FccdCamera* fCamera = new FccdCamera();
+      FccdCamera* fCamera = new FccdCamera( "FccdId0", grabberid );
       FccdConfigType* Config = new FccdConfigType
                                     (
                                     0,      // outputMode: 0 == FIFO
@@ -318,7 +321,7 @@ int main(int argc, char *argv[])
   case 1:
   default:
     {
-      TM6740Camera* tCamera = new TM6740Camera( "PulnixId0" );
+      TM6740Camera* tCamera = new TM6740Camera( "PulnixId0", grabberid );
       TM6740ConfigType* Config = new TM6740ConfigType( 0x28,  // black-level-a
 						       0x28,  // black-level-b
 						       0xde,  // gain-tap-a

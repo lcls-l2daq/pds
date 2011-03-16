@@ -12,6 +12,7 @@
 #include "EvrManager.hh"
 #include "EvrDataUtil.hh"
 #include "EvrCfgClient.hh"
+#include "EvrL1Data.hh"
 
 #include "evgr/evr/evr.hh"
 
@@ -83,9 +84,10 @@ namespace Pds
 
 using namespace Pds;
 
-static unsigned dropPulseMask     = 0xffffffff;
+static unsigned       dropPulseMask     = 0xffffffff;
 static const int      giMaxNumFifoEvent = 32;
 static const int      giMaxEventCodes   = 64; // max number of event code configurations
+static const int      giNumL1Buffers    = 16; // number of L1 data buffers
 static const int      giMaxPulses       = 10; 
 static const int      giMaxOutputMaps   = 16; 
 static const int      giMaxCalibCycles  = 500;
@@ -107,18 +109,15 @@ struct EventCodeState
   bool bCommand;
   int  iDefReportDelay;
   int  iDefReportWidth;  
-  int  iReportDelay;
   int  iReportWidth;
-  int  iReportDelayQ;
+  int  iReportDelayQ; // First-order  delay for Control-Transient events
+  int  iReportDelay;  // Second-order delay for Control-Transient events; First-order delay for Control-Latch events
 };
 
-//
-//  We have three lists of received event codes:
-//
-//    _L1DataUpdated  : codes that contribute to the coming L1Accept
-//    _L1DataLatch    : codes that contribute to later L1Accepts
-//    _L1DataFinal    : codes that are recorded for the current L1Accept
-//
+/*
+ * Signal handler, for processing the incoming event codes, and providing interfaces for
+ *   retrieving L1 data from the L1Xmitter object
+ */
 class L1Xmitter {
 public:
   L1Xmitter(Evr & er, DoneTimer & done):
@@ -132,16 +131,13 @@ public:
     _bReadout           (false),
     _pEvrConfig         (NULL),
     _L1DataUpdated      ( *(EvrDataUtil*) new char[ EvrDataUtil::size( giMaxNumFifoEvent ) ]  ),
-    _L1DataFinal        ( *(EvrDataUtil*) new char[ EvrDataUtil::size( giMaxNumFifoEvent ) ]  ),
-    _L1DataLatch        ( *(EvrDataUtil*) new char[ EvrDataUtil::size( giMaxNumFifoEvent ) ]  ),
     _L1DataLatchQ       ( *(EvrDataUtil*) new char[ EvrDataUtil::size( giMaxNumFifoEvent ) ]  ),
+    _L1DataLatch        ( *(EvrDataUtil*) new char[ EvrDataUtil::size( giMaxNumFifoEvent ) ]  ),
     _bEvrDataFullUpdated(false),
-    _bEvrDataFullFinal  (false),
-    _bEvrDataIncomplete (false),
-    _ncommands          (0)
+    _ncommands          (0),
+    _evrL1Data          (giMaxNumFifoEvent, giNumL1Buffers)
   {
     new (&_L1DataUpdated) EvrDataUtil( 0, NULL );
-    new (&_L1DataFinal)   EvrDataUtil( 0, NULL );
     new (&_L1DataLatch)   EvrDataUtil( 0, NULL );    
     new (&_L1DataLatchQ)  EvrDataUtil( 0, NULL );    
     
@@ -150,10 +146,9 @@ public:
   
   ~L1Xmitter()
   {
-    delete (char*) &_L1DataUpdated;
-    delete (char*) &_L1DataFinal;
-    delete (char*) &_L1DataLatch;    
-    delete (char*) &_L1DataLatchQ;    
+    delete[] (char*) &_L1DataUpdated;
+    delete[] (char*) &_L1DataLatch;    
+    delete[] (char*) &_L1DataLatchQ;
   }
   
   void xmit(const FIFOEvent& fe)
@@ -166,32 +161,32 @@ public:
      */
 
     if (fe.EventCode == TERMINATOR) {
+      // TERMINATOR will not be stored in the event code list
       if (_bReadout || _ncommands) {
-	_bEvrDataIncomplete = false;
+        _evrL1Data.setDataWriteIncomplete(false);
         startL1Accept(fe);
       }
       return;
     }
 
-    uint32_t uEventCode      = fe.EventCode;
-
-    EventCodeState& codeState = _lEventCodeState[uEventCode];
+    uint32_t        uEventCode = fe.EventCode;
+    EventCodeState& codeState  = _lEventCodeState[uEventCode];
     
     if ( codeState.iDefReportWidth == 0 )// not an interesting event
     {
       if ( uEventCode == (unsigned) EvrManager::EVENT_CODE_BEAM  || // special event: Beam present -> always included in the report
            uEventCode == (unsigned) EvrManager::EVENT_CODE_BYKIK    // special event: Dark frame   -> always included in the report
          )
-        addSpecialEvent( *(const EvrDataType::FIFOEvent*) &fe );
+        addSpecialEvent( _L1DataUpdated, *(const EvrDataType::FIFOEvent*) &fe );
         
       return;
     }
 
     if ( codeState.bReadout ) 
     {
+      addFifoEventCheck( _L1DataUpdated, *(const EvrDataType::FIFOEvent*) &fe );      
       _lastFiducial = fe.TimestampHigh;
-      _bReadout = true;
-      addSpecialEvent( *(const EvrDataType::FIFOEvent*) &fe );
+      _bReadout     = true;
       return;
     }
 
@@ -199,18 +194,24 @@ public:
     {
       _lastFiducial = fe.TimestampHigh;
       addCommand( fe );
+      return;
     }
-
+    
     // for testing
     if ((fe.TimestampHigh & dropPulseMask) == dropPulseMask)
     {
       printf("Dropping %x\n", fe.TimestampHigh);
       return;
     }
+    
+    /*
+     * The readout and command codes are processed above.
+     * Now start to process the control-transient and control-latch codes
+     */    
 
-    //
-    //  Removed "latched" event codes if its partner ("release") code is found
-    //
+    /*
+     *  Removed "latched" event codes if its partner ("release") code is found
+     */
     { 
       bool eventDeleted = false;
       for (unsigned int uEventIndex = 0; uEventIndex < _L1DataLatchQ.numFifoEvents(); uEventIndex++ )
@@ -235,20 +236,23 @@ public:
       }
         
       if ( eventDeleted )
-        _L1DataLatch.PurgeDeletedEvents();          
+      {
+        _L1DataLatch .purgeDeletedEvents();          
+        _L1DataLatchQ.purgeDeletedEvents();          
+      }
     }
       
     if (codeState.iReportWidth > 0) {
       if (codeState.iReportDelayQ <= 0) {
-        _L1DataLatchQ.updateFifoEvent( *(const EvrDataType::FIFOEvent*) &fe );
+        updateFifoEventCheck( _L1DataLatchQ, *(const EvrDataType::FIFOEvent*) &fe );
         codeState.iReportDelayQ = codeState.iDefReportDelay;
       }
       else {
-        printf("Can't queue eventcode %d\n",fe.EventCode);
+        printf("L1Xmitter::xmit(): Can't queue eventcode %d\n",fe.EventCode);
       }
     }
     else {
-      _L1DataLatch.updateFifoEvent( *(const EvrDataType::FIFOEvent*) &fe );
+      updateFifoEventCheck( _L1DataLatch, *(const EvrDataType::FIFOEvent*) &fe );
       codeState.iReportDelay = codeState.iDefReportDelay;
       codeState.iReportWidth = codeState.iDefReportWidth;
     }
@@ -271,14 +275,21 @@ public:
       {
         Sequence seq(Sequence::Event, TransitionId::L1Accept, ctime, stamp);
         EvrDatagram datagram(seq, _evtCounter++, _ncommands);
-            
-        if ( _L1DataFinal.numFifoEvents() != 0 )
+                    
+        if ( ! _evrL1Data.isDataWriteReady() )
           {
-            printf( "L1Xmitter::xmit(): Previous Evr Data has not been transferred out. Current data will be reported in next round.\n" );
+            printf( "L1Xmitter::startL1Accept(): Previous Evr Data has not been transferred out.\n"
+              "  Current data will be reported in next round.\n"
+              "  Trigger counter: %d, Current Data counter: %d\n"
+              "  Read Index = %d, Write Index = %d\n", 
+              stamp.vector() ,        _evrL1Data.getCounterRead(),
+              _evrL1Data.readIndex(), _evrL1Data.writeIndex() );
           }
         else
           {
-            new (&_L1DataFinal) EvrDataType( 0, NULL );
+            EvrDataUtil& _lL1DataFianl = _evrL1Data.getDataWrite();
+            
+            _evrL1Data.setCounterWrite(stamp.vector());
 
             /* 
              * Process delayed & enlongated events
@@ -292,7 +303,7 @@ public:
                 if ( codeState.iReportWidth  <= 0 ||
                      codeState.iReportDelayQ <= 0 )
                   {
-                    _L1DataLatch.updateFifoEvent( fifoEvent  );
+                    updateFifoEventCheck( _L1DataLatch, fifoEvent );
                     _L1DataLatchQ.markEventAsDeleted( uEventIndex );
                     bAnyLatchedEventDeleted = true;
                     codeState.iReportDelay  = codeState.iReportDelayQ;
@@ -304,6 +315,11 @@ public:
                 --codeState.iReportDelayQ;
               }
 
+            if ( bAnyLatchedEventDeleted ) {
+              _L1DataLatchQ.purgeDeletedEvents();          
+              bAnyLatchedEventDeleted = false;
+            }
+              
             for (unsigned int uEventIndex = 0; uEventIndex < _L1DataLatch.numFifoEvents(); uEventIndex++ )
               {
                 const EvrDataType::FIFOEvent& fifoEvent = _L1DataLatch.fifoEvent( uEventIndex );
@@ -318,9 +334,12 @@ public:
                 /*
                  * Add the latched events to final buffer
                  */
-                addFifoEventCheck( _L1DataFinal, fifoEvent );
-
-                if (codeState.iReportWidth>=0) 
+                addFifoEventCheck( _lL1DataFianl, fifoEvent );
+                
+                /*
+                 * Test if any control-transient event codes has expired.
+                 */
+                if (codeState.iReportWidth>=0) // control-latch codes will bypass this test, since its report width = -1 * (release code)
                   {
                     if ( --codeState.iReportWidth <= 0 )
                       {
@@ -331,22 +350,23 @@ public:
               }
         
             if ( bAnyLatchedEventDeleted ) {
-              _L1DataLatchQ.PurgeDeletedEvents();          
-              _L1DataLatch .PurgeDeletedEvents();          
+              _L1DataLatch .purgeDeletedEvents();  
+              bAnyLatchedEventDeleted = false;
             }
             
             for (unsigned int uEventIndex = 0; uEventIndex < _L1DataUpdated.numFifoEvents(); uEventIndex++ )
               {
                 const EvrDataType::FIFOEvent& fifoEvent =  _L1DataUpdated.fifoEvent( uEventIndex );
-                addFifoEventCheck( _L1DataFinal, fifoEvent );
-              }
-        
-            _bEvrDataFullFinal = _bEvrDataFullUpdated;
+                addFifoEventCheck( _lL1DataFianl, fifoEvent );
+              }                    
+            
+            _evrL1Data.setDataWriteFull( _bEvrDataFullUpdated );
+            _evrL1Data.finishDataWrite();
         
             _L1DataUpdated.clearFifoEvents();
             _bEvrDataFullUpdated = false;
-
-          } // if ( _L1DataFinal.numFifoEvents() == 0 )
+                        
+          } // else ( ! _evrL1Data.isDataWriteReady() )
       
         static const int NEVENTPRINT = 1000;      
         if (_evtCounter%NEVENTPRINT == 0) 
@@ -372,7 +392,7 @@ public:
          *   race with this thread to get the evr data and send it out immediately.
          */
         _outlet.send((char *) &datagram, _commands, _ncommands, _dst);      
-      }
+      } // if (!_bReadout) 
 
     _bReadout  = false;
     _ncommands = 0;
@@ -380,27 +400,33 @@ public:
 
   void clear()        
   { 
-    if (_bReadout || _ncommands) {
-      _bEvrDataIncomplete = true;
-      FIFOEvent fe;
-      fe.TimestampHigh = _lastFiducial;
-      fe.TimestampLow  = 0;
-      fe.EventCode     = TERMINATOR;
-      startL1Accept(fe);
+    if (_bReadout || _ncommands) {      
+      while (_evrL1Data.isDataReadReady())
+      {
+        _evrL1Data.setDataWriteIncomplete(true);      
+        FIFOEvent fe;
+        fe.TimestampHigh = _lastFiducial;
+        fe.TimestampLow  = 0;
+        fe.EventCode     = TERMINATOR;
+        startL1Accept(fe);
+      }
     }
     _bReadout = false;
-    _L1DataUpdated.clearFifoEvents();
-    _L1DataFinal  .clearFifoEvents();
-    _L1DataLatch  .clearFifoEvents();
-    _L1DataLatchQ .clearFifoEvents();
-    _bEvrDataFullUpdated = false;
-    _bEvrDataFullFinal   = false;
     _ncommands = 0;
+    _L1DataUpdated.clearFifoEvents();
+    _L1DataLatch  .clearFifoEvents();
+    _L1DataLatchQ .clearFifoEvents();       
+    
+    /**
+     * Note: Don't call _evrL1Data.reset() to clear the L1 Data buffer here
+     *   Because the un-processed L1 Data will be sent out in the Disable action
+     */
   }
 
   void reset()        
   {
-    clear();
+    clear();    
+    _evrL1Data.reset();
     _evtCounter = 0;
   }
 
@@ -438,10 +464,151 @@ public:
     }    
   }
   
-  const EvrDataUtil&  getL1Data          () { return _L1DataFinal; }
-  bool                getL1DataFull      () { return _bEvrDataFullFinal; }
-  bool                getL1DataIncomplete() { return _bEvrDataIncomplete; }
-  void                releaseL1Data      () { _L1DataFinal.clearFifoEvents(); }
+  static const int GETL1DATA_OUT_OF_ORDER = 100;
+  
+  int getL1Data(int iTriggerCounter, const EvrDataUtil* & pEvrData) 
+  {  
+    pEvrData = NULL; // default return value: invalid data
+    
+    if ( ! _evrL1Data.isDataReadReady() )
+    {
+      printf( "L1Xmitter::getL1Data(): No L1 Data ready. Trigger Counter: %d\n"
+        "  Read Index = %d, Write Index = %d\n", 
+        iTriggerCounter,
+        _evrL1Data.readIndex(), _evrL1Data.writeIndex() );
+      return 1; // Will set Dropped Contribution damage for L1 Data
+    }    
+    
+    /*
+     * Normal case: current data counter == trigger counter
+     */
+    if ( _evrL1Data.getCounterRead() == iTriggerCounter )
+    {
+      pEvrData = & _evrL1Data.getDataRead();    
+      return 0;      
+    }
+        
+    /*
+     * Error cases:
+     *
+     * Case 1: Current data counter is later than the trigger counter
+     *   
+     *   In this case, we will do nothing to the existing data     
+     *   We just return an error code to indicate
+     *   thre is no valid L1 data returned
+     */
+    if ( _evrL1Data.getCounterRead() > iTriggerCounter && //  test if data is later than trigger
+      iTriggerCounter + 2*_evrL1Data.numOfBuffers() > _evrL1Data.getCounterRead() // special case: counter wrap-around    
+    )
+    {
+      printf( "L1Xmitter::getL1Data(): Missing L1 Data: "
+        "Trigger counter: %d, Current Data counter: %d\n"
+        "  Read Index = %d, Write Index = %d\n", 
+        iTriggerCounter,        _evrL1Data.getCounterRead(),
+        _evrL1Data.readIndex(), _evrL1Data.writeIndex() );
+      
+      return 2;      
+    }
+
+    /*
+     * Case 2: Current data counter is earlier than trigger counter
+     *   
+     *   We test if there exists a data that has the same counter as the trigger
+     */
+    int iDataIndex =  _evrL1Data.findDataWithCounter( iTriggerCounter );
+    if ( iDataIndex != -1 )
+    {
+      /*
+       * Case 2a: Some out-of-order data matches the trigger
+       *
+       *   In this case, we will return corresponding data, 
+       *   and mark this data as invalid, so it will not be
+       *   used later
+       */      
+      printf( "L1Xmitter::getL1Data(): Recovered Out-of-order L1 Data: "
+        "Trigger counter: %d, Current Data counter: %d\n"
+        "  Read Index = %d, Write Index = %d, Data Index = %d\n", 
+        iTriggerCounter,        _evrL1Data.getCounterRead(),
+        _evrL1Data.readIndex(), _evrL1Data.writeIndex(), iDataIndex );
+       
+      _evrL1Data.markDataAsInvalid( iDataIndex );
+      pEvrData = & _evrL1Data.getDataWithIndex( iDataIndex );
+      
+      /* 
+       *   We return a special error code to indicate that 
+       *   the data is an out-of-order data, so the buffer 
+       *   should not be released by client, until all earlier 
+       *   data have been processed
+       */
+      return GETL1DATA_OUT_OF_ORDER;
+    }
+                 
+     
+    /*
+     * Case 2b: No data in the buffer can match the trigger
+     *
+     *   In this case, we will discard the data until the remaining
+     *   data is newer than the trigger
+     *
+     *   Then we return an error code to 
+     *   indicate thre is no valid L1 data returned
+     */         
+
+    printf( "L1Xmitter::getL1Data(): Missing Triggers: "
+      "Trigger counter: %d, Current Data counter: %d\n"
+      "  Read Index = %d, Write Index = %d\n", 
+      iTriggerCounter,        _evrL1Data.getCounterRead(),
+      _evrL1Data.readIndex(), _evrL1Data.writeIndex() );
+        
+    int iDataDropped = 0;
+    while ( 
+      _evrL1Data.isDataReadReady() &&
+      (
+        _evrL1Data.getCounterRead() < iTriggerCounter || // test if trigger is later than data
+        iTriggerCounter + 2*_evrL1Data.numOfBuffers() <= _evrL1Data.getCounterRead() // special case: counter wrap-around
+      )
+    )
+    {
+      ++iDataDropped;
+      _evrL1Data.finishDataRead();
+    }
+    
+    printf( "L1Xmitter::getL1Data(): Dropped %d Data: "
+      "Trigger counter: %d, Current Data counter: %d\n"
+      "  Read Index = %d, Write Index = %d\n", 
+      iDataDropped,
+      iTriggerCounter,        _evrL1Data.getCounterRead(),
+      _evrL1Data.readIndex(), _evrL1Data.writeIndex() );
+
+    return 3; // Will set Dropped Contribution damage for L1 Data
+  }
+  
+  bool                getL1DataFull      () { return _evrL1Data.getDataReadFull(); }
+  bool                getL1DataIncomplete() { return _evrL1Data.getDataReadIncomplete(); }
+  
+  void releaseL1Data() 
+  { 
+    /*
+     * For the first time setup:
+     *
+     * Set signal mask so that this thread will not be used 
+     * as evr's signal handler
+     */
+    static bool bThreadSyncInit = false;        
+    if (!bThreadSyncInit)
+    {
+      sigset_t sigetHoldIO;
+      sigemptyset(&sigetHoldIO);
+      sigaddset  (&sigetHoldIO, SIGIO);
+      
+      if ( pthread_sigmask(SIG_BLOCK, &sigetHoldIO, NULL) < 0 )
+        perror( "L1Xmitter::releaseL1Data(): pthread_sigmask() failed" );
+        
+      bThreadSyncInit = true;
+    }
+        
+    _evrL1Data.finishDataRead();     
+  }
     
 private:
   Evr &                 _er;
@@ -454,23 +621,33 @@ private:
   unsigned              _lastfid;
   bool                  _bReadout;
   const EvrConfigType*  _pEvrConfig;
-  EvrDataUtil&          _L1DataUpdated;
-  EvrDataUtil&          _L1DataFinal;
-  EvrDataUtil&          _L1DataLatch;
-  EvrDataUtil&          _L1DataLatchQ;
+  EvrDataUtil&          _L1DataUpdated;     // codes that contribute to the coming L1Accept
+  EvrDataUtil&          _L1DataLatchQ;      // codes that contribute to later L1Accepts. Holding first-order transient events.
+  EvrDataUtil&          _L1DataLatch;       // codes that contribute to later L1Accepts. Holding second-order transient events and first-order latch events
   EventCodeState        _lEventCodeState[guNumTypeEventCode];
   bool                  _bEvrDataFullUpdated;
-  bool                  _bEvrDataFullFinal;
-  bool                  _bEvrDataIncomplete;
   unsigned              _lastFiducial;
   unsigned              _ncommands;
   char                  _commands[giMaxCommands];
+  EvrL1Data             _evrL1Data;
   
   // Add Fifo event to the evrData with boundary check
   int addFifoEventCheck( EvrDataUtil& evrData, const EvrDataType::FIFOEvent& fe )
   {
     if ( (int) evrData.numFifoEvents() < giMaxNumFifoEvent )
       return evrData.addFifoEvent(fe);
+    
+    _bEvrDataFullUpdated = true; // set the flag and later the L1Accept will send out damage    
+    return -1;
+  }
+
+  // Update Fifo event to the evrData with boundary check
+  int updateFifoEventCheck( EvrDataUtil& evrData, const EvrDataType::FIFOEvent& fe )
+  {
+    int iNewEventIndex = evrData.updateFifoEventCheck(fe, giMaxNumFifoEvent);
+
+    if ( (int) evrData.numFifoEvents() < giMaxNumFifoEvent ) 
+      return iNewEventIndex;
     
     _bEvrDataFullUpdated = true; // set the flag and later the L1Accept will send out damage    
     return -1;
@@ -486,17 +663,13 @@ private:
    *   - All the "interesting" events occurs later than "special" events
    *      - Current settings: All "interesting" event codes (67 - 98) occurs after all special events (140, 162)
    */
-  int addSpecialEvent( const EvrDataType::FIFOEvent &feCur )
+  int addSpecialEvent( EvrDataUtil& evrData, const EvrDataType::FIFOEvent &feCur )
   {
     uint32_t uFiducialCur  = feCur.TimestampHigh;
     
-    for (unsigned iEventIndex = 0; iEventIndex < _L1DataUpdated.numFifoEvents(); iEventIndex++)
+    for (int iEventIndex = evrData.numFifoEvents()-1; iEventIndex >= 0; iEventIndex-- )
     {
-      const EvrDataType::FIFOEvent& fifoEvent  = _L1DataUpdated.fifoEvent( iEventIndex );
-      if (fifoEvent.EventCode == feCur.EventCode) {
-        
-      }
-
+      const EvrDataType::FIFOEvent& fifoEvent  = evrData.fifoEvent( iEventIndex );
       uint32_t                      uFiducial  = fifoEvent.TimestampHigh;
 
       if ( uFiducial == uFiducialCur ) // still in the same timestamp. this event will be checked again in later iteration.
@@ -508,13 +681,13 @@ private:
       if ( codeState.iDefReportWidth != 0 ) // interesting event
         break;
         
-      _L1DataUpdated.removeTailEvent();      
+      evrData.removeTailEvent();      
     }
     
-    addFifoEventCheck( _L1DataUpdated, feCur );       
+    addFifoEventCheck( evrData, feCur );       
     return 0;
   }
-
+  
   void addCommand( const FIFOEvent& fe )
   {
     if (_ncommands < giMaxCommands) 
@@ -553,7 +726,7 @@ public:
   InDatagram *fire(InDatagram * in)
   {
     InDatagram* out = in;
-
+    
     do
     {
       if (!l1xmitGlobal->enable())
@@ -565,9 +738,20 @@ public:
         break;
       }      
 
-      const EvrDataUtil& evrData   = l1xmitGlobal->getL1Data();
-      bool               bDataFull = l1xmitGlobal->getL1DataFull();
-      bool               bDataInc  = l1xmitGlobal->getL1DataIncomplete();
+      int                iTriggerCounter  = in->seq.stamp().vector();      
+      bool               bDataFull        = l1xmitGlobal->getL1DataFull();
+      bool               bDataInc         = l1xmitGlobal->getL1DataIncomplete();
+      
+      const EvrDataUtil* pEvrData         = NULL;
+      int                iL1DataError     = l1xmitGlobal->getL1Data(iTriggerCounter, pEvrData);
+      
+      if ( pEvrData == NULL )
+      {
+        static const EvrDataUtil evrDataEmpty( 0, NULL );      
+        pEvrData = &evrDataEmpty;        
+      }
+      
+      const EvrDataUtil& evrData     = *pEvrData;
       
       out = 
        new ( &_poolEvrData ) CDatagram( in->datagram() ); 
@@ -575,15 +759,20 @@ public:
       
       if ( bDataFull )
       {
-        printf( "EvrL1Action::fire(): Too many FIFO events recieved, so L1 data buffer is full.\n" );
+        printf( "EvrL1Action::fire(): Too many FIFO events recieved, so L1 data buffer is full and incomplete.\n" );
         printf( "  Please check the readout and terminator event settings.\n" );        
-        out->datagram().xtc.damage.increase(Pds::Damage::UserDefined);      
+        out->datagram().xtc.damage.increase(Pds::Damage::IncompleteContribution);      
       }
 
       if ( bDataInc )
-        out->datagram().xtc.damage.increase(Pds::Damage::UserDefined);      
+      {
+        printf( "EvrL1Action::fire(): Data incomplete, because disable action occurs before the terminator event comes\n" );
+        out->datagram().xtc.damage.increase(Pds::Damage::IncompleteContribution);      
+      }
 
-
+      if ( iL1DataError != 0 && iL1DataError !=  L1Xmitter::GETL1DATA_OUT_OF_ORDER )
+        out->datagram().xtc.damage.increase(Pds::Damage::DroppedContribution);
+        
       /*
        * Set Evr object
        */    
@@ -605,7 +794,8 @@ public:
       //  printf( "EvrL1Action::fire() data dump end\n\n" );
       //}
       
-      l1xmitGlobal->releaseL1Data();      
+      if ( iL1DataError == 0 )
+        l1xmitGlobal->releaseL1Data();      
     } 
     while (false);
     
@@ -753,8 +943,8 @@ public:
       _er.SetPulseParams(pc.pulseId(), pc.prescale(), pc.delay(), pc.width());
 
       printf("pulse %d :%d %c %d/%d/%d\n",
-	     k, pc.pulseId(), pc.polarity() ? '-':'+', 
-	     pc.prescale(), pc.delay(), pc.width());
+       k, pc.pulseId(), pc.polarity() ? '-':'+', 
+       pc.prescale(), pc.delay(), pc.width());
     }
 
     for (unsigned k = 0; k < cfg.noutputs(); k++)
@@ -797,10 +987,10 @@ public:
       }
 
       printf("event %d : %d %x/%x/%x\n",
-	     uEventIndex, eventCode.code(), 
-	     eventCode.maskTrigger(),
-	     eventCode.maskSet(),
-	     eventCode.maskClear());
+       uEventIndex, eventCode.code(), 
+       eventCode.maskTrigger(),
+       eventCode.maskSet(),
+       eventCode.maskClear());
     }
     
     if (!_bTurnOffBeamCodes)
@@ -927,8 +1117,8 @@ class EvrAllocAction:public Action
 {
 public:
   EvrAllocAction(CfgClientNfs & cfg, 
-		 EvrL1Action&   l1A,
-		 DoneTimer&     done) :
+     EvrL1Action&   l1A,
+     DoneTimer&     done) :
     _cfg(cfg),_l1action(l1A), _done(done), _xmitter(0)
   {
   }

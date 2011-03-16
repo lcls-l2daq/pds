@@ -1,3 +1,6 @@
+#ifndef Pds_EvrDataUtil_hh
+#define Pds_EvrDataUtil_hh
+
 #include "pds/config/EvrConfigType.hh" // typedefs for the Evr config data types
 
 namespace Pds
@@ -10,10 +13,11 @@ public:
   EvrDataUtil(uint32_t u32NumFifoEvents, const FIFOEvent* lFifoEvent);
   EvrDataUtil(const EvrDataType& dataCopy);
 
-  unsigned int  addFifoEvent      ( const FIFOEvent& fifoEvent ); // return the number of total fifo events, including the new one  
-  unsigned int  updateFifoEvent   ( const FIFOEvent& fifoEvent ); // return the index to the updated fifo event
-  void          markEventAsDeleted( unsigned int iEventIndex );
-  unsigned int  PurgeDeletedEvents(); // return the new total number of events after the purge
+  unsigned int  addFifoEvent        ( const FIFOEvent& fifoEvent ); // return the number of total fifo events, including the new one  
+  unsigned int  updateFifoEvent     ( const FIFOEvent& fifoEvent ); // return the index to the updated fifo event
+  int           updateFifoEventCheck( const FIFOEvent& fifoEvent, unsigned int iMaxSize ); // return the index to the updated fifo event
+  void          markEventAsDeleted  ( unsigned int iEventIndex );
+  unsigned int  purgeDeletedEvents  (); // return the new total number of events after the purge
   
 
   unsigned int  removeTailEvent (); // return the number of total fifo events, after update
@@ -29,3 +33,5 @@ public:
 }; // class EvrDataUtil
 
 } // namespace Pds
+
+#endif // #ifndef Pds_EvrDataUtil_hh
