@@ -222,7 +222,7 @@ unsigned CspadServer::flushInputQueue(int f) {
   fd_set          fds;
   struct timeval  timeout;
   timeout.tv_sec  = 0;
-  timeout.tv_usec = 2500;
+  timeout.tv_usec = 10000;
   int ret;
   unsigned dummy[5];
   unsigned count = 0;

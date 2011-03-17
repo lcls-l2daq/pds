@@ -123,6 +123,7 @@ namespace Pds {
         long long int              timeDiff(timespec*, timespec*);
         bool                      _startRxThread();
         bool                      _stopRxThread();
+        bool                      _flush(unsigned);
         Pds::Pgp::RegisterSlaveImportFrame*   _readPgpCard(unsigned size=(sizeof(Pds::Pgp::RegisterSlaveImportFrame)/sizeof(uint32_t)));
         void                      _initRanges() {
           new ((void*)&_gainMap) AddressRange(0x000000, 0x010000);

@@ -1,5 +1,5 @@
-#ifndef PDS_ENCODERSERVER
-#define PDS_ENCODERSERVER
+#ifndef PDS_CSPADSERVER
+#define PDS_CSPADSERVER
 
 #include "pds/utility/EbServer.hh"
 #include "pds/utility/EbCountSrv.hh"

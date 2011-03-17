@@ -15,6 +15,7 @@
 #include "PgpCardMod.h"
 #include <sys/types.h>
 #include <sys/stat.h>
+#include <errno.h>
 #include "pds/csPad/CspadConfigurator.hh"
 //#include "csPad/CspadReadOnlyRegisters.hh"
 //#include "rceusr/pgptest/PgpStat.hh"
@@ -193,6 +194,38 @@ namespace Pds {
       return ret;
     }
 
+    bool CspadConfigurator::_flush(unsigned index) {
+      enum {numberOfTries=5};
+      unsigned version = 0;
+      unsigned failCount = 0;
+      bool ret = false;
+      printf("--flush-%u-", index);
+      while ((Failure == readRegister(
+          Pds::Pgp::RegisterSlaveExportFrame::CR,
+          ConcentratorVersionAddr,
+          0x55000,
+          &version)) && failCount++<numberOfTries ) {
+        printf("-(%u)", failCount);
+      }
+      if (failCount<numberOfTries) printf("-version(0x%x)", version);
+      else ret = true;
+      for (unsigned q=0; q<4; q++) {
+        unsigned version = 0;
+        failCount = 0;
+        while ((Failure == readRegister(
+            (Pds::Pgp::RegisterSlaveExportFrame::FEdest) q,
+            0x500000,  // version address
+            0x50000 + (q<<12),
+            &version)) && failCount++<numberOfTries ) {
+          printf("-[%u:%u]", q, failCount);
+        }
+        if (failCount<numberOfTries) printf("-version[%u:0x%x]", q, version);
+        else ret = true;
+      }
+      printf("\n");
+      return ret;
+    }
+
     bool CspadConfigurator::_stopRxThread() {
       bool ret = true;
       Msg _myIn, _myOut;
@@ -239,9 +272,11 @@ namespace Pds {
     }
 
     unsigned CspadConfigurator::configure(unsigned mask) {
-      timespec      start, end, sleepTime;
+      timespec      start, end, sleepTime, shortSleepTime;
       sleepTime.tv_sec = 0;
       sleepTime.tv_nsec = 25000000; // 25ms
+      shortSleepTime.tv_sec = 0;
+      shortSleepTime.tv_nsec = 5000000;  // 5ms (10 ms is shortest sleep on some computers
       bool printFlag = !(mask & 0x2000);
       if (printFlag) printf("CXI Config");
       printf(" config(%p) quadMask(0x%x) mask(0x%x)\n", &_config, (unsigned)_config->quadMask(), ~mask);
@@ -250,12 +285,16 @@ namespace Pds {
       //    _print = true;
       clock_gettime(CLOCK_REALTIME, &start);
       if (_startRxThread()) {
+        nanosleep(&shortSleepTime, 0);
+        // N.B. We MUST stop running before resetting anything, preventing garbaging the FE pipeline
         ret |= writeRegister(Pds::Pgp::RegisterSlaveExportFrame::CR, RunModeAddr, Pds::CsPad::NoRunning);
-        //      ret |= writeRegister(Pds::Pgp::RegisterSlaveExportFrame::CR, resetAddr, 1);
-        nanosleep(&sleepTime, 0);
-        ret |= writeRegister(Pds::Pgp::RegisterSlaveExportFrame::CR, resetQuadsAddr, 1);
-        nanosleep(&sleepTime, 0);
-        ret |= writeRegister(Pds::Pgp::RegisterSlaveExportFrame::CR, RunModeAddr, Pds::CsPad::NoRunning);
+        nanosleep(&sleepTime, 0); nanosleep(&sleepTime, 0);
+//        ret |= writeRegister(Pds::Pgp::RegisterSlaveExportFrame::CR, resetQuadsAddr, 1);
+        clock_gettime(CLOCK_REALTIME, &end); printf("\n\ttxClock %d %ld\n", (int)end.tv_sec, end.tv_nsec);
+        ret |= writeRegister(Pds::Pgp::RegisterSlaveExportFrame::CR, resetAddr, 1);
+//        while (1) { sleep(1); }
+        nanosleep(&sleepTime, 0); //nanosleep(&sleepTime, 0); nanosleep(&sleepTime, 0); nanosleep(&sleepTime, 0); nanosleep(&sleepTime, 0);
+//        if (_flush(0)) printf("CspadConfigurator::configure _flush(0) FAILED\n");
         ret |= writeRegister(Pds::Pgp::RegisterSlaveExportFrame::CR, TriggerWidthAddr, TriggerWidthValue);
         ret |= writeRegister(Pds::Pgp::RegisterSlaveExportFrame::CR, ResetSeqCountRegisterAddr, 1);
         _print = false;
@@ -267,6 +306,7 @@ namespace Pds {
         }
         if (mask&1) {
           if (printFlag) printf("\nConfiguring:\n\twriting control regs - 0x%x - \n\twriting regs", ret);
+//          _flush(2);
           ret |= writeRegs();
           if (printFlag) {
             clock_gettime(CLOCK_REALTIME, &end);
@@ -275,7 +315,7 @@ namespace Pds {
           }
         }
         ret <<= 1;
-        if (mask&2 && ret==0) {
+        if (mask&2 ) {
           if (printFlag) printf(" - 0x%x - \n\twriting pots ", ret);
           ret |= writeDigPots();
           if (printFlag) {
@@ -285,7 +325,7 @@ namespace Pds {
           }
         }
         ret <<= 1;
-        if (mask&4 && ret==0) {
+        if (mask&4 ) {
           if (printFlag) printf("- 0x%x - \n\twriting test data[%u] ", ret, (unsigned)_config->tdi());
           ret |= writeTestData();
           if (printFlag) {
@@ -295,7 +335,7 @@ namespace Pds {
           }
         }
         ret <<= 1;
-        if (mask&8 && ret==0) {
+        if (mask&8 ) {
           if (printFlag) printf("- 0x%x - \n\twriting gain map ", ret);
           ret |= writeGainMap();
           if (printFlag) {
@@ -305,7 +345,7 @@ namespace Pds {
           }
         }
         ret <<= 1;
-        if (mask&16 && ret==0) {
+        if (mask&16 ) {
           if (printFlag) printf("- 0x%x - \n\treading ", ret);
           ret |= readRegs();
           if (printFlag) {
@@ -424,7 +464,7 @@ namespace Pds {
       unsigned        _priority = 0;
       struct timeval  timeout;
       timeout.tv_sec  = 0;
-      timeout.tv_usec = 200000;
+      timeout.tv_usec = 20000;
       FD_ZERO(&fds);
       FD_SET(_myInputQueue,&fds);
       if ( (sret = select( _myInputQueue+1, &fds, NULL, NULL, &timeout)) > 0) {
@@ -555,22 +595,22 @@ namespace Pds {
       uint32_t readBack;
       unsigned ret = Success;
       if (readRegister(Pds::Pgp::RegisterSlaveExportFrame::CR, EventCodeAddr, 0xa000, &readBack)) {
-        printf("CspadConfigurator::writeRegs concentrator read back failed at %u\n", EventCodeAddr);
+        printf("CspadConfigurator::checkWrittenRegs concentrator read back failed at %u\n", EventCodeAddr);
         return Failure;
       }
       if (readBack != _config->eventCode()) {
+        printf("CspadConfigurator::checkWrittenRegs concentrator read back wrong eventCode %u!=%u at %u\n", _config->eventCode(), readBack, EventCodeAddr);
         ret = Failure;
         _config->eventCode(readBack);
-        printf("CspadConfigurator::writeRegs concentrator read back wrong value %u!=%u at %u\n", _config->eventCode(), readBack, EventCodeAddr);
       }
       if (readRegister(Pds::Pgp::RegisterSlaveExportFrame::CR, runDelayAddr, 0xa001, &readBack)) {
-        printf("CspadConfigurator::writeRegs concentrator read back failed at %u\n", runDelayAddr);
+        printf("CspadConfigurator::checkWrittenRegs concentrator read back failed at %u\n", runDelayAddr);
         return Failure;
       }
       if (readBack != _config->runDelay()) {
+        printf("CspadConfigurator::checkWrittenRegs concentrator read back wrong runDelayAddr %u!=%u at %u\n", _config->runDelay(), readBack, runDelayAddr);
         ret = Failure;
         _config->runDelay(readBack);
-        printf("CspadConfigurator::writeRegs concentrator read back wrong value %u!=%u at %u\n", _config->runDelay(), readBack, runDelayAddr);
       }
       for (unsigned i=0; i<MaxQuadsPerSensor; i++) {
         if ((1<<i) & _config->quadMask()) {
@@ -578,13 +618,13 @@ namespace Pds {
           Pds::Pgp::RegisterSlaveExportFrame::FEdest dest = (Pds::Pgp::RegisterSlaveExportFrame::FEdest)i;
           for (unsigned j=0; j<sizeOfQuadWrite; j++) {
             if (readRegister(dest, _quadAddrs[j], 0xb000+(i<<8)+j, &readBack)) {
-              printf("CspadConfigurator::writeRegs quad %u read back failed at %u\n", i, j);
+              printf("CspadConfigurator::checkWrittenRegs quad %u read back failed at %u\n", i, j);
               return Failure;
             }
             if (readBack != u[j]) {
+              printf("CspadConfigurator::checkWrittenRegs quad %u read back wrong value %u!=%u at %u\n", i, u[j], readBack, j);
               ret = Failure;
               u[j] = readBack;
-              printf("CspadConfigurator::writeRegs quad %u read back wrong value %u!=%u at %u\n", i, u[j], readBack, j);
             }
           }
         }
@@ -879,6 +919,7 @@ namespace Pds {
             _state = Disabled;
           }
           if (_state == Enabled) {
+            timespec end;
             int sret = 0;
             unsigned readRet = 0;
             timeout.tv_sec  = 0;
@@ -894,15 +935,18 @@ namespace Pds {
                 printf("Cspad Config Receiver pgpcard error eofe(%u), fifoErr(%u), lengthErr(%u)\n",
                     pgpCardRx.eofe, pgpCardRx.fifoErr, pgpCardRx.lengthErr);
                 printf("\tpgpLane(%u), pgpVc(%u)\n", pgpCardRx.pgpLane, pgpCardRx.pgpVc);
+                clock_gettime(CLOCK_REALTIME, &end); printf("\terr--Clock %d %ld\n", (int)end.tv_sec, end.tv_nsec);
               } else {
                 if (rsif->failed()) {
                   printf("Cspad Config Receiver receive HW failed\n");
                   printf("\tpgpLane(%u), pgpVc(%u)\n", pgpCardRx.pgpLane, pgpCardRx.pgpVc);
+                  clock_gettime(CLOCK_REALTIME, &end); printf("\n\terrClock %d %ld\n", (int)end.tv_sec, end.tv_nsec);
                   rsif->print();
                 }
                 if (rsif->timeout()) {
                   printf("Cspad Config Receiver receive HW timed out\n");
                   printf("\tpgpLane(%u), pgpVc(%u)\n", pgpCardRx.pgpLane, pgpCardRx.pgpVc);
+                  clock_gettime(CLOCK_REALTIME, &end); printf("\terr--Clock %d %ld\n", (int)end.tv_sec, end.tv_nsec);
                   rsif->print();
                 }
                 if ((rsif->bits._waiting == Pds::Pgp::PgpRSBits::Waiting) ||
@@ -921,6 +965,10 @@ namespace Pds {
                   rxPoolIndex += 1;
                   rxPoolIndex %= SizeOfRxPool;
 //                  printf("sent to output queue\n");
+                } else {
+                  if ((rsif->bits.addr() == 1) && (rsif->bits._vc == 0)) {
+                    clock_gettime(CLOCK_REALTIME, &end); printf("\t --Clock %d %ld\n", (int)end.tv_sec, end.tv_nsec);
+                  }
                 }
               }
             } else {

@@ -86,7 +86,7 @@ class CspadL1Action : public Action {
 
    CspadServer* server;
    unsigned _lastMatchedFiducial;
-   bool              _fiducialError;
+   bool     _fiducialError;
 
 };
 
@@ -125,6 +125,15 @@ InDatagram* CspadL1Action::fire(InDatagram* in) {
       } else {
         _lastMatchedFiducial = evrFiducials;
       }
+      // Kludge test of sending nothing ....                  !!!!!!!!!!!!!!!!!!!!!!
+//      if (data->frameNumber()) {
+//        if ((data->frameNumber() & 0xfff) == 0) {
+//          printf("CspadL1Action::CspadL1Action sending nothing %u 0x%x\n",
+//              data->frameNumber(),
+//              data->fiducials());
+//          return NULL;
+//        }
+//      }
     }
     if (error) {
       dg.xtc.damage.increase(Pds::Damage::UserDefined);
@@ -152,10 +161,10 @@ class CspadConfigAction : public Action {
       printf("CspadConfigAction::fire(Transition) fetched %d\n", i);
       _server->resetOffset();
       if (_cfg.scanning() == false) {
-        _result = _server->configure( (CsPadConfigType*)_cfg.current() );
-        if( _result ) {
-          _result = _server->configure( (CsPadConfigType*)_cfg.current() );
-        }
+        unsigned count = 0;
+        while ((_result = _server->configure( (CsPadConfigType*)_cfg.current())) && count++<10) {
+          printf("\nCspadConfigAction::fire(tr) retrying config %u\n", count);
+        };
         if (_server->debug() & 0x10) _cfg.printRO();
       }
       return tr;
@@ -191,10 +200,10 @@ class CspadBeginCalibCycleAction : public Action {
         if (_cfg.changed()) {
           printf("configured and \n");
           _server->offset(_server->offset()+_server->myCount()+1);
-          _result = _server->configure( (CsPadConfigType*)_cfg.current() );
-          if( _result ) {
-            _result = _server->configure( (CsPadConfigType*)_cfg.current() );
-          }
+          unsigned count = 0;
+          while ((_result = _server->configure( (CsPadConfigType*)_cfg.current())) && count++<10) {
+            printf("\nCspadBeginCalibCycleAction::fire(tr) retrying config %u\n", count);
+          };
           if (_server->debug() & 0x10) _cfg.printRO();
         }
       }

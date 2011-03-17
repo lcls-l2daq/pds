@@ -1,5 +1,5 @@
-#ifndef ENCODERMANAGER_HH
-#define ENCODERMANAGER_HH
+#ifndef CSPADMANAGER_HH
+#define CSPADMANAGER_HH
 
 #include "pds/utility/Appliance.hh"
 #include "pds/client/Fsm.hh"
