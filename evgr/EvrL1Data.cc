@@ -56,17 +56,17 @@ EvrDataUtil& EvrL1Data::getDataWrite()
   return data;
 }
 
-static bool bDataWriteAbnormal; // !! debug
+//static bool bDataWriteAbnormal; // !! debug
 
 void EvrL1Data::finishDataRead()  // move on to the next data position for data read
 {    
   LockData lockData; // lock data indexes
   
-  if ( bDataWriteAbnormal ) // !! debug
-  {
-    printf("EvrL1Data::finishDataRead(): Old Read  Index = %d\n", _iDataReadIndex );// !! debug
-    printf("EvrL1Data::finishDataRead(): Old Write Index = %d\n", _iDataWriteIndex );// !! debug
-  }
+  //if ( bDataWriteAbnormal ) // !! debug
+  //{
+  //  printf("EvrL1Data::finishDataRead(): Old Read  Index = %d\n", _iDataReadIndex );// !! debug
+  //  printf("EvrL1Data::finishDataRead(): Old Write Index = %d\n", _iDataWriteIndex );// !! debug
+  //}
   
   do
   {
@@ -78,23 +78,23 @@ void EvrL1Data::finishDataRead()  // move on to the next data position for data 
     }
   } while ( _liCounter[_iDataReadIndex] == -1 ); // if current data counter is invalid, keep moving forward
   
-  if ( _iDataReadIndex != -1 || bDataWriteAbnormal ) // !! debug
-  {
-    printf("EvrL1Data::finishDataRead(): New Read  Index = %d\n", _iDataReadIndex );// !! debug
-    bDataWriteAbnormal = false;
-  }
+  //if ( _iDataReadIndex != -1 || bDataWriteAbnormal ) // !! debug
+  //{
+  //  printf("EvrL1Data::finishDataRead(): New Read  Index = %d\n", _iDataReadIndex );// !! debug
+  //  bDataWriteAbnormal = false;
+  //}
 }
 
 void EvrL1Data::finishDataWrite() // move on to the next data position for data write
 {    
   LockData lockData; // lock data indexes
   
-  if ( _iDataReadIndex != -1 )// !! debug
-  {
-    printf("EvrL1Data::finishDataWrite(): Old Read  Index = %d\n", _iDataReadIndex );// !! debug
-    printf("EvrL1Data::finishDataWrite(): Old Write Index = %d\n", _iDataWriteIndex );// !! debug
-    bDataWriteAbnormal = true;
-  }
+  //if ( _iDataReadIndex != -1 )// !! debug
+  //{
+  //  printf("EvrL1Data::finishDataWrite(): Old Read  Index = %d\n", _iDataReadIndex );// !! debug
+  //  printf("EvrL1Data::finishDataWrite(): Old Write Index = %d\n", _iDataWriteIndex );// !! debug
+  //  bDataWriteAbnormal = true;
+  //}
   
   if ( _iDataReadIndex == -1 ) // No previously buffered data -> set read index to updated data
     _iDataReadIndex  = _iDataWriteIndex;
