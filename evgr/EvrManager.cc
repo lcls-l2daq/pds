@@ -442,13 +442,7 @@ public:
       fe.TimestampLow     = 0;
       fe.EventCode        = TERMINATOR;      
       _bEvrDataIncomplete = true;
-      startL1Accept(fe);
-      
-      if ( _evrL1Data.isDataReadReady() )
-      {
-        timespec ts = { 0, (long int) 1e8 }; // 0.1 sec
-        nanosleep(&ts, NULL);
-      }
+      startL1Accept(fe);      
     }
     _bReadout = false;
     _ncommands = 0;
