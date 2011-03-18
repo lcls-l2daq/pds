@@ -174,25 +174,27 @@ public:
     }    
      
     if (fe.EventCode == TERMINATOR) {
-      // TERMINATOR will not be stored in the event code list
-      bool bL1Accept = false;
-      if (_bReadout || _ncommands) 
-      {
-        _evrL1Data.setDataWriteIncomplete(false);
-        startL1Accept(fe);
-        bL1Accept = true;
-      }
-      
       /*
        * Check if we are in the disable action, and waiting for 
        * the last terminator
        */      
       if (_bWaitForLastTerminator)
       {
+        // switch to the "dummy" map ram so we can still get eventcodes 0x70,0x71,0x7d for timestamps
+        unsigned dummyram=1;
+        _er.MapRamEnable(dummyram,1);
+        
         _bWaitForLastTerminator   = false;
         _bLastTerminatorReceived  = true;
-        //printf( "L1Xmitter::xmit(): Last terminator waited, L1Accept sent: %s\n", (bL1Accept? "yes":"no") ); // !! debug
+      }      
+      
+      // TERMINATOR will not be stored in the event code list
+      if (_bReadout || _ncommands) 
+      {
+        _evrL1Data.setDataWriteIncomplete(false);
+        startL1Accept(fe);
       }
+      
       return;
     }
 
