@@ -136,7 +136,9 @@ public:
     _bEvrDataFullUpdated(false),
     _bEvrDataIncomplete (false),
     _ncommands          (0),
-    _evrL1Data          (giMaxNumFifoEvent, giNumL1Buffers)
+    _evrL1Data          (giMaxNumFifoEvent, giNumL1Buffers),
+    _bWaitForLastTerminator  (false),
+    _bLastTerminatorReceived     (false)
   {
     new (&_L1DataUpdated) EvrDataUtil( 0, NULL );
     new (&_L1DataLatch)   EvrDataUtil( 0, NULL );    
@@ -161,11 +163,35 @@ public:
      *    then we will start L1Accept 
      */
 
+    /*
+     * Check if we are in the disable action, and the last terminator
+     * has been received. 
+     */           
+    if ( _bLastTerminatorReceived ) 
+    {
+      // Discard all incoming fifo events
+      return;
+    }    
+     
     if (fe.EventCode == TERMINATOR) {
       // TERMINATOR will not be stored in the event code list
-      if (_bReadout || _ncommands) {
+      bool bL1Accept = false;
+      if (_bReadout || _ncommands) 
+      {
         _evrL1Data.setDataWriteIncomplete(false);
         startL1Accept(fe);
+        bL1Accept = true;
+      }
+      
+      /*
+       * Check if we are in the disable action, and waiting for 
+       * the last terminator
+       */      
+      if (_bWaitForLastTerminator)
+      {
+        _bWaitForLastTerminator   = false;
+        _bLastTerminatorReceived  = true;
+        //printf( "L1Xmitter::xmit(): Last terminator waited, L1Accept sent: %s\n", (bL1Accept? "yes":"no") ); // !! debug
       }
       return;
     }
@@ -405,6 +431,10 @@ public:
   { 
     if (_bReadout || _ncommands) 
     {
+      /*
+       * This case will not happen if we have waited for the last
+       * terminator
+       */
       FIFOEvent fe;
       fe.TimestampHigh    = _lastFiducial;
       fe.TimestampLow     = 0;
@@ -422,12 +452,40 @@ public:
     _ncommands = 0;
     _L1DataUpdated.clearFifoEvents();
     _L1DataLatch  .clearFifoEvents();
-    _L1DataLatchQ .clearFifoEvents();       
+    _L1DataLatchQ .clearFifoEvents();  
+    
+    _bWaitForLastTerminator   = false;
+    _bLastTerminatorReceived  = false;
     
     /**
      * Note: Don't call _evrL1Data.reset() to clear the L1 Data buffer here
      *   Because the un-processed L1 Data will be sent out in the Disable action
      */
+  }
+  
+  void waitForLastTerminator()
+  {
+    if (!_bReadout && !_ncommands) 
+      return;      
+    
+    _bWaitForLastTerminator = true;
+    
+    const int iSleepTotalWaitTimeInMsec = 10;  // Total wait time
+    const int iSleepStepWaitTimeInMsec  = 2;   // Each step's wait time
+    int iSleep;
+    
+    while (!_bLastTerminatorReceived)
+    {
+      timespec ts = { 0, (long int) (iSleepStepWaitTimeInMsec * 1e6) };
+      nanosleep(&ts, NULL);
+      
+      iSleep += 2;
+      if ( iSleep >= iSleepTotalWaitTimeInMsec )
+        break;
+    }    
+        
+    _bWaitForLastTerminator = false;
+    _bLastTerminatorReceived    = false;
   }
 
   void reset()        
@@ -494,7 +552,9 @@ public:
       pEvrData = & _evrL1Data.getDataRead();    
       return 0;      
     }
-        
+
+    const int iFiducialWrapAroundDiffMin = 65536; 
+    
     /*
      * Error cases:
      *
@@ -504,8 +564,9 @@ public:
      *   We just return an error code to indicate
      *   thre is no valid L1 data returned
      */
+     
     if ( _evrL1Data.getCounterRead() > iTriggerCounter && //  test if data is later than trigger
-      iTriggerCounter + 2*_evrL1Data.numOfBuffers() > _evrL1Data.getCounterRead() // special case: counter wrap-around    
+      iTriggerCounter + iFiducialWrapAroundDiffMin > _evrL1Data.getCounterRead() // special case: counter wrap-around    
     )
     {
       printf( "L1Xmitter::getL1Data(): Missing L1 Data: "
@@ -572,7 +633,7 @@ public:
       _evrL1Data.isDataReadReady() &&
       (
         _evrL1Data.getCounterRead() < iTriggerCounter || // test if trigger is later than data
-        iTriggerCounter + 2*_evrL1Data.numOfBuffers() <= _evrL1Data.getCounterRead() // special case: counter wrap-around
+        iTriggerCounter + iFiducialWrapAroundDiffMin <= _evrL1Data.getCounterRead() // special case: counter wrap-around
       )
     )
     {
@@ -638,6 +699,9 @@ private:
   unsigned              _ncommands;
   char                  _commands[giMaxCommands];
   EvrL1Data             _evrL1Data;
+  
+  bool                  _bWaitForLastTerminator;
+  bool                  _bLastTerminatorReceived;
   
   // Add Fifo event to the evrData with boundary check
   int addFifoEventCheck( EvrDataUtil& evrData, const EvrDataType::FIFOEvent& fe )
@@ -861,6 +925,8 @@ public:
     
   Transition* fire(Transition* tr) 
   {
+    l1xmitGlobal->waitForLastTerminator();
+    
     // switch to the "dummy" map ram so we can still get eventcodes 0x70,0x71,0x7d for timestamps
     unsigned dummyram=1;
     _er.MapRamEnable(dummyram,1);
