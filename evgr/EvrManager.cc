@@ -169,8 +169,9 @@ public:
      */           
     if ( _bLastTerminatorReceived ) 
     {
+      //printf( "L1Xmitter::xmit(): event %d received after the last terminator\n", fe.EventCode );
       // Discard all incoming fifo events
-      return;
+      //return;
     }    
      
     if (fe.EventCode == TERMINATOR) {
@@ -468,7 +469,7 @@ public:
     
     const int iSleepTotalWaitTimeInMsec = 10;  // Total wait time
     const int iSleepStepWaitTimeInMsec  = 2;   // Each step's wait time
-    int iSleep;
+    int iSleep = 0;
     
     while (!_bLastTerminatorReceived)
     {
