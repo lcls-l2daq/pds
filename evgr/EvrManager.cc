@@ -922,7 +922,7 @@ public:
     
   Transition* fire(Transition* tr) 
   {
-    l1xmitGlobal->waitForLastTerminator();
+    //l1xmitGlobal->waitForLastTerminator(); // !! under testing
     
     // switch to the "dummy" map ram so we can still get eventcodes 0x70,0x71,0x7d for timestamps
     unsigned dummyram=1;
