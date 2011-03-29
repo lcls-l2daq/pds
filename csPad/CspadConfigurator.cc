@@ -290,11 +290,11 @@ namespace Pds {
         ret |= writeRegister(Pds::Pgp::RegisterSlaveExportFrame::CR, RunModeAddr, Pds::CsPad::NoRunning);
         nanosleep(&sleepTime, 0); nanosleep(&sleepTime, 0);
 //        ret |= writeRegister(Pds::Pgp::RegisterSlaveExportFrame::CR, resetQuadsAddr, 1);
-        clock_gettime(CLOCK_REALTIME, &end); printf("\n\ttxClock %d %ld\n", (int)end.tv_sec, end.tv_nsec);
+//        clock_gettime(CLOCK_REALTIME, &end); printf("\n\ttxClock %d %ld\n", (int)end.tv_sec, end.tv_nsec);
         ret |= writeRegister(Pds::Pgp::RegisterSlaveExportFrame::CR, resetAddr, 1);
 //        while (1) { sleep(1); }
         nanosleep(&sleepTime, 0); //nanosleep(&sleepTime, 0); nanosleep(&sleepTime, 0); nanosleep(&sleepTime, 0); nanosleep(&sleepTime, 0);
-//        if (_flush(0)) printf("CspadConfigurator::configure _flush(0) FAILED\n");
+        if (_flush(0)) printf("CspadConfigurator::configure _flush(0) FAILED\n");
         ret |= writeRegister(Pds::Pgp::RegisterSlaveExportFrame::CR, TriggerWidthAddr, TriggerWidthValue);
         ret |= writeRegister(Pds::Pgp::RegisterSlaveExportFrame::CR, ResetSeqCountRegisterAddr, 1);
         _print = false;
@@ -935,7 +935,7 @@ namespace Pds {
                 printf("Cspad Config Receiver pgpcard error eofe(%u), fifoErr(%u), lengthErr(%u)\n",
                     pgpCardRx.eofe, pgpCardRx.fifoErr, pgpCardRx.lengthErr);
                 printf("\tpgpLane(%u), pgpVc(%u)\n", pgpCardRx.pgpLane, pgpCardRx.pgpVc);
-                clock_gettime(CLOCK_REALTIME, &end); printf("\terr--Clock %d %ld\n", (int)end.tv_sec, end.tv_nsec);
+//                clock_gettime(CLOCK_REALTIME, &end); printf("\terr--Clock %d %ld\n", (int)end.tv_sec, end.tv_nsec);
               } else {
                 if (rsif->failed()) {
                   printf("Cspad Config Receiver receive HW failed\n");
