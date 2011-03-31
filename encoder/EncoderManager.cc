@@ -258,7 +258,7 @@ class EncoderConfigAction : public EncoderAction
         _cfg( cfg ),
         _server( server ),
         _L1( L1 )
-   {}
+  { _cfgtc.extent += sizeof(EncoderConfigType); }
 
    ~EncoderConfigAction() {}
 

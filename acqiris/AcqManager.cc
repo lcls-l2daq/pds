@@ -61,9 +61,6 @@ using namespace Pds;
 static unsigned cpol1=0; 
 static unsigned nprint =0;
 
-class AcqEnable;
-class AcqDisable;
-
 class AcqReader : public Routine {
 public:
   AcqReader(ViSession instrumentId, AcqServer& server, Task* task) :
@@ -78,12 +75,7 @@ public:
   void resetCount() {_count=0;}
   void start() {_task->call(this);}
   
-  void acqControl(AcqEnable* acqEnable, AcqDisable* acqDisable) {
-    _acqEnable  = acqEnable;
-    _acqDisable = acqDisable;
-  }
-  void enableAcqRead()  {_task->call((Routine*)_acqEnable); }
-  void disableAcqRead() {_task->call((Routine*)_acqDisable);}  
+  Task& task() { return *_task; }
   void acqReadEnbFlag(bool flag) {_acqReadEnb = flag;} 
   
   virtual ~AcqReader() {}
@@ -118,29 +110,31 @@ private:
   unsigned    _nbrSamples;
   unsigned    _totalSize;
   bool        _acqReadEnb; 
-  AcqEnable*  _acqEnable;
-  AcqDisable* _acqDisable;
   timespec    _sleepTime;
 };
 
 
 class AcqEnable : public Routine {
 public:
-  AcqEnable(AcqReader& reader): _acqReader(reader) { }
+  AcqEnable(AcqReader& reader): _acqReader(reader), _sem(Semaphore::EMPTY) { }
   ~AcqEnable() { }
-  void routine() { _acqReader.acqReadEnbFlag(true); }
+  void call   () { _acqReader.task().call(this);    _sem.take(); }
+  void routine() { _acqReader.acqReadEnbFlag(true); _sem.give(); }
 
 private:
   AcqReader& _acqReader;
+  Semaphore  _sem;
 };
 
 class AcqDisable : public Routine {
 public:
-  AcqDisable(AcqReader& reader): _acqReader(reader) { }
+  AcqDisable(AcqReader& reader): _acqReader(reader), _sem(Semaphore::EMPTY) { }
   ~AcqDisable() { }  
-  void routine() { _acqReader.acqReadEnbFlag(false); }
+  void call   () { _acqReader.task().call(this);     _sem.take(); }
+  void routine() { _acqReader.acqReadEnbFlag(false); _sem.give(); }
 private:
   AcqReader& _acqReader;
+  Semaphore  _sem;
 };
 
 class AcqDma : public DmaEngine {
@@ -345,14 +339,14 @@ private:
 
 class AcqUnconfigureAction : public AcqDC282Action {
 public:
-  AcqUnconfigureAction(ViSession instrumentId, AcqReader& reader) : AcqDC282Action(instrumentId),_reader(reader) { }
+  AcqUnconfigureAction(ViSession instrumentId, AcqReader& reader) : 
+    AcqDC282Action(instrumentId),_acqDisable(reader) { }
   InDatagram* fire(InDatagram* in) {
-    _reader.disableAcqRead();
+    _acqDisable.call();
     return in;
   }
 private:
-   AcqReader& _reader;     
-
+  AcqDisable _acqDisable;
 };
 
 class AcqDisableAction : public AcqDC282Action {
@@ -386,6 +380,7 @@ public:
 		  const Src& src, CfgClientNfs& cfg,
 		  AcqManager& mgr) :
     AcqDC282Action(instrumentId),_reader(reader),_dma(dma), 
+    _acqEnable(reader),
     _cfgtc(_acqConfigType,src),
     _cfg(cfg), _mgr(mgr), _occPool(sizeof(UserMessage),1), _firstTime(1) {}
   ~AcqConfigAction() {}
@@ -598,7 +593,8 @@ public:
     _reader.setConfig(_config);
     _reader.resetCount();
 
-    _reader.enableAcqRead();
+    _acqEnable.call();
+
     if (_firstTime) {
       _reader.start();
       _firstTime = 0;
@@ -649,6 +645,7 @@ private:
 private:
   AcqReader& _reader;  
   AcqDma&    _dma;
+  AcqEnable  _acqEnable;
   AcqConfigType _config;
   Xtc _cfgtc;
   CfgClientNfs& _cfg;
@@ -684,10 +681,6 @@ AcqManager::AcqManager(ViSession InstrumentID, AcqServer& server, CfgClientNfs& 
   _instrumentId(InstrumentID),_fsm(*new Fsm) {
   Task* task = new Task(TaskObject("AcqReadout",35)); //default priority=127 (lowest), changed to 35 => (127-35) 
   AcqReader& reader = *new AcqReader(_instrumentId,server,task);
-  
-  AcqEnable&  acqEnable  = *new AcqEnable (reader);
-  AcqDisable& acqDisable = *new AcqDisable(reader);
-  reader.acqControl(&acqEnable,&acqDisable);
   
   AcqDma& dma = *new AcqDma(_instrumentId,reader,server,task,sem);
   server.setDma(&dma);

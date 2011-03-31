@@ -1,3 +1,6 @@
+2011-Mar-31 weaver	Fixed recording of EncoderConfig.  Fixed 0.5s deadtime in AcqReader.  Added semaphore
+			around Acqiris DMA routine calls to avoid driver bug that uses global mapping of
+			DMA target memory pages.
 2010-Dec-06 weaver	Tag V02-10-00.  Added software commands onto EvrDatagram.  Results in Command occurrence posted
 			to segment-level appliance stream.  Changed Princeton to use new software command (rather than
 			extra L1Accept) - only one readout mode now.
