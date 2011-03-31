@@ -209,18 +209,20 @@ namespace Pds {
       }
       if (failCount<numberOfTries) printf("-version(0x%x)", version);
       else ret = true;
-      for (unsigned q=0; q<4; q++) {
-        unsigned version = 0;
-        failCount = 0;
-        while ((Failure == readRegister(
-            (Pds::Pgp::RegisterSlaveExportFrame::FEdest) q,
-            0x500000,  // version address
-            0x50000 + (q<<12),
-            &version)) && failCount++<numberOfTries ) {
-          printf("-[%u:%u]", q, failCount);
+      for (unsigned q=0; q<MaxQuadsPerSensor; q++) {
+        if ((1<<q) & _config->quadMask()) {
+          unsigned version = 0;
+          failCount = 0;
+          while ((Failure == readRegister(
+              (Pds::Pgp::RegisterSlaveExportFrame::FEdest) q,
+              0x500000,  // version address
+              0x50000 + (q<<12),
+              &version)) && failCount++<numberOfTries ) {
+            printf("-[%u:%u]", q, failCount);
+          }
+          if (failCount<numberOfTries) printf("-version[%u:0x%x]", q, version);
+          else ret = true;
         }
-        if (failCount<numberOfTries) printf("-version[%u:0x%x]", q, version);
-        else ret = true;
       }
       printf("\n");
       return ret;
