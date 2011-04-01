@@ -253,6 +253,15 @@ int main (int argc, char *argv[])
 		return -errno;
 	}
 
+	int reuseaddr=1;
+	ret = setsockopt(sockfd, SOL_SOCKET, SO_REUSEADDR, &reuseaddr, sizeof(int));
+	if (ret < 0) {
+		printf("failed.\n");
+		perror("ERROR: setsockopt() failed");
+		close(sockfd);
+		free(buffer);
+		return -errno;
+	}
 	ret = bind(sockfd, (struct sockaddr *)&listen_addr, sizeof(listen_addr));
 	if (ret < 0) {
 		printf("failed.\n");
