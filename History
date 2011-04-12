@@ -1,3 +1,6 @@
+2011-Apr-12 weaver	Changed EbC to always keep a full select mask.  Segment levels typically
+			don't have much buffering in front of the select, so the event-builder
+			should read pending data as quickly as possible.
 2011-Mar-31 weaver	Fixed recording of EncoderConfig.  Fixed 0.5s deadtime in AcqReader.  Added semaphore
 			around Acqiris DMA routine calls to avoid driver bug that uses global mapping of
 			DMA target memory pages.

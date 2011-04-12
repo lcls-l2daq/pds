@@ -22,7 +22,7 @@ namespace Pds {
     VmonClientManager(unsigned char platform,
 		      const char*   partition,
 		      MonConsumerClient& consumer);
-    ~VmonClientManager();
+    virtual ~VmonClientManager();
   public:
     void request_payload();
   public:

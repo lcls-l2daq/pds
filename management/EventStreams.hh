@@ -17,7 +17,7 @@ namespace Pds {
 #endif
 
     enum { EbDepth = 16 };
-    enum { MaxSize = 16*1024*1024 };
+    enum { MaxSize = 20*1024*1024 };
   public:
     EventStreams(PartitionMember& cmgr, 
 		 unsigned max_size      = MaxSize,

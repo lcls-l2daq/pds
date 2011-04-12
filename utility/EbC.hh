@@ -21,6 +21,9 @@ class EbC : public Eb
 	unsigned eventpooldepth,
 	VmonEb* vmoneb=0);
     ~EbC();
+  public:
+    int  poll();
+    int  processIo(Server*);
   private:
     EbEventBase* _new_event  ( const EbBitMask& );
     EbEventBase* _new_event  ( const EbBitMask&, char* payload, unsigned sizeofPayload );

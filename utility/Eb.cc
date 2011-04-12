@@ -67,8 +67,6 @@ unsigned Eb::_fixup( EbEventBase* event, const Src& client, const EbBitMask& id 
 
 int Eb::processIo(Server* serverGeneric)
 {
-  //  printf("Eb::pIo fd %x\n",serverGeneric->fd());
-
   EbServer* server = (EbServer*)serverGeneric;
 
   //  Find the next event waiting for a contribution from this server.
@@ -80,9 +78,10 @@ int Eb::processIo(Server* serverGeneric)
   //  Allocate space within this event-under-construction and receive the contribution.
   EbBitMask serverId;
   serverId.setBit(server->id());
-  char* payload = event->payload(serverId);
 
   int sizeofPayload;
+  char* payload = event->payload(serverId);
+
   if (_vmoneb && _vmoneb->time_fetch()) {
     unsigned begin = SysClk::sample();
     sizeofPayload  = server->fetch(payload, MSG_DONTWAIT);
@@ -117,15 +116,12 @@ int Eb::processIo(Server* serverGeneric)
     //            and copy the payload there.  If the correct event doesn't yet exist, it will
     //            be created, if possible.
 
-//      { const ClockTime& clk = event->key().sequence().clock();
-//        printf("miss %x  seq %08x  ts %08x/%08x  srv %x\n", 
-//  	     _misses, 
-//  	     event->key().sequence().stamp().fiducials(), 
-//  	     clk.seconds(), clk.nanoseconds(), 
-//  	     serverId.value());
-//      }
     _misses++;
-    event->deallocate(serverId, payload, sizeofPayload);  // remove the contribution from this event
+    // remove the contribution from this event
+    if (event->deallocate(serverId, payload, sizeofPayload).isZero()) {
+      delete event->finalize();
+      delete event;
+    }
     event = (EbEvent*)_seek(server);
     if (event == (EbEvent*)_pending.empty()) {
       event = (EbEvent*)_new_event(serverId, payload, sizeofPayload); // copies payload into new event
@@ -167,7 +163,6 @@ int Eb::processIo(Server* serverGeneric)
   //  (or a full queue) rather than timing out.
   //  return 1;
 }
-
 
 Eb::~Eb()
 {

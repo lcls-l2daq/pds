@@ -18,7 +18,7 @@ namespace Pds {
 #endif
 
     enum { ebdepth     = 16 };
-    enum { MaxSize     = 16*1024*1024 };
+    enum { MaxSize     = 20*1024*1024 };
 
     ObserverStreams(CollectionObserver& cmgr);
     virtual ~ObserverStreams();
