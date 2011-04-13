@@ -20,7 +20,7 @@ namespace Pds {
     // SIGINT handler
     static void sigintHandler(int);
     
-    Appliance& appliance();
+    Appliance&  appliance();
 
     // for testing
     static void drop_pulses(unsigned mask);

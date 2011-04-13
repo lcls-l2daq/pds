@@ -115,12 +115,20 @@ struct EventCodeState
 };
 
 /*
+ * Forward declaration
+ *  
+ * bool evrHasEvent(): check if evr has any unprocessed fifo event
+ */
+bool evrHasEvent(Evr& er);
+
+/*
  * Signal handler, for processing the incoming event codes, and providing interfaces for
  *   retrieving L1 data from the L1Xmitter object
  */
 class L1Xmitter {
 public:
   L1Xmitter(Evr & er, DoneTimer & done):
+    uFiducialPrev       (0),
     _er                 (er),
     _done               (done),
     _outlet             (sizeof(EvrDatagram), 0, Ins   (Route::interface())),
@@ -136,9 +144,7 @@ public:
     _bEvrDataFullUpdated(false),
     _bEvrDataIncomplete (false),
     _ncommands          (0),
-    _evrL1Data          (giMaxNumFifoEvent, giNumL1Buffers),
-    _bWaitForLastTerminator  (false),
-    _bLastTerminatorReceived     (false)
+    _evrL1Data          (giMaxNumFifoEvent, giNumL1Buffers)
   {
     new (&_L1DataUpdated) EvrDataUtil( 0, NULL );
     new (&_L1DataLatch)   EvrDataUtil( 0, NULL );    
@@ -162,33 +168,8 @@ public:
      * Rule: If we have got an readout event before, and get the terminator event now,
      *    then we will start L1Accept 
      */
-
-    /*
-     * Check if we are in the disable action, and the last terminator
-     * has been received. 
-     */           
-    if ( _bLastTerminatorReceived ) 
-    {
-      //printf( "L1Xmitter::xmit(): event %d received after the last terminator\n", fe.EventCode );
-      // Discard all incoming fifo events
-      //return;
-    }    
      
-    if (fe.EventCode == TERMINATOR) {
-      /*
-       * Check if we are in the disable action, and waiting for 
-       * the last terminator
-       */      
-      if (_bWaitForLastTerminator)
-      {
-        // switch to the "dummy" map ram so we can still get eventcodes 0x70,0x71,0x7d for timestamps
-        unsigned dummyram=1;
-        _er.MapRamEnable(dummyram,1);
-        
-        _bWaitForLastTerminator   = false;
-        _bLastTerminatorReceived  = true;
-      }      
-      
+    if (fe.EventCode == TERMINATOR) {            
       // TERMINATOR will not be stored in the event code list
       if (_bReadout || _ncommands) 
       {
@@ -211,19 +192,19 @@ public:
         
       return;
     }
-
+    
     if ( codeState.bReadout ) 
     {
       addFifoEventCheck( _L1DataUpdated, *(const EvrDataType::FIFOEvent*) &fe );      
       _lastFiducial = fe.TimestampHigh;
-      _bReadout     = true;
+      _bReadout     = true;           
       return;
     }
 
     if ( codeState.bCommand )
     {
       _lastFiducial = fe.TimestampHigh;
-      addCommand( fe );
+      addCommand( fe );            
       return;
     }
     
@@ -346,7 +327,7 @@ public:
           }
 
         if ( bAnyLatchedEventDeleted ) {
-          _L1DataLatchQ.purgeDeletedEvents();          
+          _L1DataLatchQ.purgeDeletedEvents();     
           bAnyLatchedEventDeleted = false;
         }
           
@@ -416,7 +397,7 @@ public:
 
       if (_evtCounter == _evtStop)
         _done.expired();                     
-      
+              
       /*
        * Send out the L1 "trigger" to make all L1 node start processing.
        *
@@ -432,6 +413,12 @@ public:
 
   void clear()        
   { 
+    if ( evrHasEvent(_er) )
+    { // sleep for 1 millisecond to let signal handler process FIFO events
+      timeval timeSleepMicro = {0, 1000}; // 1 milliseconds  
+      select( 0, NULL, NULL, NULL, &timeSleepMicro);       
+    }
+    
     if (_bReadout || _ncommands) 
     {
       /*
@@ -445,46 +432,18 @@ public:
       _bEvrDataIncomplete = true;
       startL1Accept(fe);      
     }
-    _bReadout = false;
-    _ncommands = 0;
+    _bReadout   = false;
+    _ncommands  = 0;
     _L1DataUpdated.clearFifoEvents();
     _L1DataLatch  .clearFifoEvents();
-    _L1DataLatchQ .clearFifoEvents();  
-    
-    _bWaitForLastTerminator   = false;
-    _bLastTerminatorReceived  = false;
-    
+    _L1DataLatchQ .clearFifoEvents();    
+        
     /**
      * Note: Don't call _evrL1Data.reset() to clear the L1 Data buffer here
      *   Because the un-processed L1 Data will be sent out in the Disable action
      */
   }
   
-  void waitForLastTerminator()
-  {
-    if (!_bReadout && !_ncommands) 
-      return;      
-    
-    _bWaitForLastTerminator = true;
-    
-    const int iSleepTotalWaitTimeInMsec = 10;  // Total wait time
-    const int iSleepStepWaitTimeInMsec  = 2;   // Each step's wait time
-    int iSleep = 0;
-    
-    while (!_bLastTerminatorReceived)
-    {
-      timespec ts = { 0, (long int) (iSleepStepWaitTimeInMsec * 1e6) };
-      nanosleep(&ts, NULL);
-      
-      iSleep += 2;
-      if ( iSleep >= iSleepTotalWaitTimeInMsec )
-        break;
-    }    
-        
-    _bWaitForLastTerminator = false;
-    _bLastTerminatorReceived    = false;
-  }
-
   void reset()        
   {
     clear();    
@@ -524,13 +483,12 @@ public:
       else
         codeState.iDefReportWidth = eventCode.reportWidth ();             
     }    
-  }
+  }  
   
-  static const int GETL1DATA_OUT_OF_ORDER = 100;
-  
-  int getL1Data(int iTriggerCounter, const EvrDataUtil* & pEvrData) 
+  int getL1Data(int iTriggerCounter, const EvrDataUtil* & pEvrData, bool& bOutOfOrder) 
   {  
-    pEvrData = NULL; // default return value: invalid data
+    pEvrData    = NULL; // default return value: invalid data
+    bOutOfOrder = false;
     
     if ( ! _evrL1Data.isDataReadReady() )
     {
@@ -605,7 +563,8 @@ public:
        *   should not be released by client, until all earlier 
        *   data have been processed
        */
-      return GETL1DATA_OUT_OF_ORDER;
+      bOutOfOrder = true;
+      return 3;
     }
                  
      
@@ -645,7 +604,7 @@ public:
       iTriggerCounter,        _evrL1Data.getCounterRead(),
       _evrL1Data.readIndex(), _evrL1Data.writeIndex() );
 
-    return 3; // Will set Dropped Contribution damage for L1 Data
+    return 4; // Will set Dropped Contribution damage for L1 Data
   }
   
   bool                getL1DataFull      () { return _evrL1Data.getDataReadFull(); }
@@ -675,6 +634,8 @@ public:
     _evrL1Data.finishDataRead();     
   }
     
+  unsigned int          uFiducialPrev; // public data for checking fiducial increasing steps
+  
 private:
   Evr &                 _er;
   DoneTimer &           _done;
@@ -696,10 +657,7 @@ private:
   unsigned              _ncommands;
   char                  _commands[giMaxCommands];
   EvrL1Data             _evrL1Data;
-  
-  bool                  _bWaitForLastTerminator;
-  bool                  _bLastTerminatorReceived;
-  
+    
   // Add Fifo event to the evrData with boundary check
   int addFifoEventCheck( EvrDataUtil& evrData, const EvrDataType::FIFOEvent& fe )
   {
@@ -782,8 +740,7 @@ public:
 class EvrL1Action:public EvrAction
 {
 public:
-  EvrL1Action(Evr &      er, 
-        const Src& src) :
+  EvrL1Action(Evr & er, const Src& src) :
     EvrAction(er),
     _iMaxEvrDataSize(sizeof(CDatagram) + sizeof(Xtc) + EvrDataUtil::size( giMaxNumFifoEvent )),
     _src            (src),
@@ -812,35 +769,60 @@ public:
       bool               bDataInc         = l1xmitGlobal->getL1DataIncomplete();
       
       const EvrDataUtil* pEvrData         = NULL;
-      int                iL1DataError     = l1xmitGlobal->getL1Data(iTriggerCounter, pEvrData);
+      bool               bOutOfOrder      = false;
       
-      if ( pEvrData == NULL )
+      l1xmitGlobal->getL1Data(iTriggerCounter, pEvrData, bOutOfOrder);
+      
+      bool bNoL1Data = ( pEvrData == NULL );
+      if ( bNoL1Data )
       {
         static const EvrDataUtil evrDataEmpty( 0, NULL );      
         pEvrData = &evrDataEmpty;        
       }
       
-      const EvrDataUtil& evrData     = *pEvrData;
+      const EvrDataUtil& evrData = *pEvrData;
       
       out = 
        new ( &_poolEvrData ) CDatagram( in->datagram() ); 
       out->datagram().xtc.alloc( sizeof(Xtc) + evrData.size() );
       
+      unsigned int  uFiducialPrev = l1xmitGlobal->uFiducialPrev;
+      unsigned int  uFiducialCur  = out->datagram().seq.stamp().fiducials();  
+      
+      if ( uFiducialPrev != 0 )
+      {
+        const int iFiducialWrapAroundDiffMin = 65536; 
+        if ( (uFiducialCur <= uFiducialPrev && uFiducialPrev < uFiducialCur+iFiducialWrapAroundDiffMin) || 
+          uFiducialCur > uFiducialPrev + 360 )
+        {
+          printf( "EvrL1Action::fire(): seq 0x%x followed 0x%x\n", uFiducialCur, uFiducialPrev );
+          out->datagram().xtc.damage.increase(Pds::Damage::UserDefined);      
+        }
+      }
+      l1xmitGlobal->uFiducialPrev = uFiducialCur;
+      
       if ( bDataFull )
       {
         printf( "EvrL1Action::fire(): Too many FIFO events recieved, so L1 data buffer is full and incomplete.\n" );
         printf( "  Please check the readout and terminator event settings.\n" );        
-        out->datagram().xtc.damage.increase(Pds::Damage::IncompleteContribution);      
+        out->datagram().xtc.damage.increase(Pds::Damage::UserDefined);      
       }
 
       if ( bDataInc )
       {
         printf( "EvrL1Action::fire(): Data incomplete, because disable action occurs before the terminator event comes\n" );        
         out->datagram().xtc.damage.increase(Pds::Damage::UserDefined);      
+        
+        if ( evrHasEvent(_er) )
+        {
+          printf( "EvrL1Action::fire(): Found unprocessed FIFO event\n" );
+          // mark the damage user bit 0 to indicate there are unprocessed FIFO events
+          out->datagram().xtc.damage.userBits(0x1);
+        }
       }
 
-      if ( iL1DataError != 0 && iL1DataError !=  L1Xmitter::GETL1DATA_OUT_OF_ORDER )
-        out->datagram().xtc.damage.increase(Pds::Damage::DroppedContribution);
+      if ( bNoL1Data )
+        out->datagram().xtc.damage.increase(Pds::Damage::UserDefined);
         
       /*
        * Set Evr object
@@ -863,7 +845,7 @@ public:
       //  printf( "EvrL1Action::fire() data dump end\n\n" );
       //}
       
-      if ( iL1DataError == 0 )
+      if ( !bNoL1Data )
         l1xmitGlobal->releaseL1Data();      
     } 
     while (false);
@@ -895,6 +877,9 @@ public:
     
   InDatagram* fire(InDatagram* tr) 
   {
+    // reset the fiducial checking counter
+    l1xmitGlobal->uFiducialPrev = 0; 
+    
     if (l1xmitGlobal->enable()) 
     {
       const EnableEnv& env = static_cast<const EnableEnv&>(tr->datagram().env);
@@ -921,9 +906,7 @@ public:
     EvrAction(er), _done(done) {}
     
   Transition* fire(Transition* tr) 
-  {
-    //l1xmitGlobal->waitForLastTerminator(); // !! under testing
-    
+  {       
     // switch to the "dummy" map ram so we can still get eventcodes 0x70,0x71,0x7d for timestamps
     unsigned dummyram=1;
     _er.MapRamEnable(dummyram,1);
@@ -931,11 +914,19 @@ public:
     _done.cancel();
 
     l1xmitGlobal->clear();
-
+    
     return tr;
   }
+  
+  virtual InDatagram* fire(InDatagram* in)     
+  {
+    InDatagram* out = in;        
+    return out;
+  }
+  
 private:
   DoneTimer & _done;
+  int         _bEvrHasRemainingEvent;
 };
 
 static unsigned int evrConfigSize(unsigned maxNumEventCodes, unsigned maxNumPulses, unsigned maxNumOutputMaps)
@@ -1317,6 +1308,18 @@ void EvrManager::sigintHandler(int)
     printf("evr not mapped\n");
   }
   exit(0);
+}
+
+// check if evr has any unprocessed fifo event
+bool evrHasEvent(Evr& er)
+{  
+  uint32_t& uIrqFlagOrg = *(uint32_t*) ((char*) &er + 8);  
+  uint32_t  uIrqFlagNew = be32_to_cpu(uIrqFlagOrg);
+  
+  if ( uIrqFlagNew & EVR_IRQFLAG_EVENT)
+    return true;
+  else
+    return false;
 }
 
 const int EvrManager::EVENT_CODE_BEAM;  // value is defined in the header file
