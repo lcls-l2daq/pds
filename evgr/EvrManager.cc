@@ -917,16 +917,9 @@ public:
     
     return tr;
   }
-  
-  virtual InDatagram* fire(InDatagram* in)     
-  {
-    InDatagram* out = in;        
-    return out;
-  }
-  
+    
 private:
   DoneTimer & _done;
-  int         _bEvrHasRemainingEvent;
 };
 
 static unsigned int evrConfigSize(unsigned maxNumEventCodes, unsigned maxNumPulses, unsigned maxNumOutputMaps)
@@ -1313,6 +1306,8 @@ void EvrManager::sigintHandler(int)
 // check if evr has any unprocessed fifo event
 bool evrHasEvent(Evr& er)
 {  
+  return false;
+  
   uint32_t& uIrqFlagOrg = *(uint32_t*) ((char*) &er + 8);  
   uint32_t  uIrqFlagNew = be32_to_cpu(uIrqFlagOrg);
   
