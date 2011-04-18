@@ -37,6 +37,7 @@ namespace Pds {
     MonEntryTH1F*     _post_size;
     unsigned          _tshift;
     unsigned          _sshift;
+    unsigned          _fshift;
   };
 
 };

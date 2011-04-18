@@ -16,6 +16,7 @@
 using namespace Pds;
 
 static const int tbins_pwr_max = 6; // maximum of 64 time bins
+static const int fetch_shift = 8;
 
 static int time_scale(unsigned  maxtime,
 		      unsigned& maxtime_q)
@@ -71,10 +72,16 @@ VmonEb::VmonEb(const Src& src,
   _post_time_log = new MonEntryTH1F(post_time_log);
   group->add(_post_time_log);
 
-  MonDescTH1F fetch_time("Fetch Time", "[us]", "",
-			 maxt>>_tshift, t0, t1);
-  _fetch_time = new MonEntryTH1F(fetch_time);
-  group->add(_fetch_time);
+  { unsigned maxf;
+    _fshift = time_scale(maxtime>>8, maxf);
+    
+    float ft0 = -0.5*1.e-3;
+    float ft1 = (float(maxf)-0.5)*1.e-3;
+    MonDescTH1F fetch_time("Fetch Time", "[us]", "",
+                           maxf>>_fshift,ft0,ft1);
+    _fetch_time = new MonEntryTH1F(fetch_time);
+    group->add(_fetch_time);
+  }
 
   MonDescTH1F damage_count("Damage", "bit #", "",
 			 32, -0.5, 31.5);
@@ -126,7 +133,7 @@ void VmonEb::post_time(unsigned t)
 
 void VmonEb::fetch_time(unsigned t)
 {
-  unsigned bin = t>>_tshift;
+  unsigned bin = t>>_fshift;
   if (bin < _fetch_time->desc().nbins())
     _fetch_time->addcontent(1, bin);
   else
