@@ -241,6 +241,14 @@ void PartitionControl::reconfigure()
   }
 }
 
+void PartitionControl::pause()
+{
+  if (_target_state > Disabled) {
+    _queued_target = _target_state;
+    set_target_state(Disabled);
+  }
+}
+
 void  PartitionControl::set_runAllocator (RunAllocator* ra) {
   _runAllocator = ra;
 }
@@ -312,6 +320,12 @@ void PartitionControl::message(const Node& hdr, const Message& msg)
 	  _reportTask->call(new ReportJob(*_runAllocator, dfo.expt, dfo.run, dfo.stream, dfo.chunk));
 	break;
       }
+      case OccurrenceId::RequestPause:
+	printf("Received RequestPause occurrence from %x/%d\n",
+	       hdr.procInfo().ipAddr(),
+	       hdr.procInfo().processId());
+        pause();
+	break;
       default:
 	break;
       }
@@ -381,7 +395,14 @@ void PartitionControl::_complete(TransitionId::Value id)
   case TransitionId::BeginRun       :
   case TransitionId::EndCalibCycle  : _current_state = Running   ; break;
   case TransitionId::BeginCalibCycle:
-  case TransitionId::Disable        : _current_state = Disabled  ; break;
+  case TransitionId::Disable        : 
+    _current_state = Disabled;
+    if (_target_state==Disabled && _queued_target>Disabled) {
+      set_target_state(_queued_target);
+      _queued_target=Disabled;
+      return;
+    }
+    break;
   case TransitionId::Enable         : 
     _current_state = Enabled   ; 
     if (_sequencer) _sequencer->start();

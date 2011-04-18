@@ -39,6 +39,7 @@ class OccurrenceId
       UserMessage,
       EvrCommand,
       DataFileError,
+      RequestPause,
       NumberOf
     };
   };

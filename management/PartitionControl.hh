@@ -43,6 +43,7 @@ namespace Pds {
     unsigned get_transition_env (TransitionId::Value) const;
 
     void  reconfigure      ();
+    void  pause            ();
     void  set_transition_env    (TransitionId::Value, unsigned);
     void  set_transition_payload(TransitionId::Value, Xtc*, void*);
     void  set_run          (unsigned run);
