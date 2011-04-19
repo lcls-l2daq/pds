@@ -128,7 +128,7 @@ bool evrHasEvent(Evr& er);
 class L1Xmitter {
 public:
   L1Xmitter(Evr & er, DoneTimer & done):
-    uFiducialPrev       (0),
+    //uFiducialPrev       (0),
     _er                 (er),
     _done               (done),
     _outlet             (sizeof(EvrDatagram), 0, Ins   (Route::interface())),
@@ -413,11 +413,11 @@ public:
 
   void clear()        
   { 
-    if ( evrHasEvent(_er) )
-    { // sleep for 1 millisecond to let signal handler process FIFO events
-      timeval timeSleepMicro = {0, 1000}; // 1 milliseconds  
-      select( 0, NULL, NULL, NULL, &timeSleepMicro);       
-    }
+    //if ( evrHasEvent(_er) )
+    //{ // sleep for 1 millisecond to let signal handler process FIFO events
+    //  timeval timeSleepMicro = {0, 1000}; // 1 milliseconds  
+    //  select( 0, NULL, NULL, NULL, &timeSleepMicro);       
+    //}
     
     if (_bReadout || _ncommands) 
     {
@@ -634,7 +634,7 @@ public:
     _evrL1Data.finishDataRead();     
   }
     
-  unsigned int          uFiducialPrev; // public data for checking fiducial increasing steps
+  //unsigned int          uFiducialPrev; // public data for checking fiducial increasing steps
   
 private:
   Evr &                 _er;
@@ -786,20 +786,20 @@ public:
        new ( &_poolEvrData ) CDatagram( in->datagram() ); 
       out->datagram().xtc.alloc( sizeof(Xtc) + evrData.size() );
       
-      unsigned int  uFiducialPrev = l1xmitGlobal->uFiducialPrev;
-      unsigned int  uFiducialCur  = out->datagram().seq.stamp().fiducials();  
+      //unsigned int  uFiducialPrev = l1xmitGlobal->uFiducialPrev;
+      //unsigned int  uFiducialCur  = out->datagram().seq.stamp().fiducials();  
       
-      if ( uFiducialPrev != 0 )
-      {
-        const int iFiducialWrapAroundDiffMin = 65536; 
-        if ( (uFiducialCur <= uFiducialPrev && uFiducialPrev < uFiducialCur+iFiducialWrapAroundDiffMin) || 
-          uFiducialCur > uFiducialPrev + 360 )
-        {
-          printf( "EvrL1Action::fire(): seq 0x%x followed 0x%x\n", uFiducialCur, uFiducialPrev );
-          out->datagram().xtc.damage.increase(Pds::Damage::UserDefined);      
-        }
-      }
-      l1xmitGlobal->uFiducialPrev = uFiducialCur;
+      //if ( uFiducialPrev != 0 )
+      //{
+      //  const int iFiducialWrapAroundDiffMin = 65536; 
+      //  if ( (uFiducialCur <= uFiducialPrev && uFiducialPrev < uFiducialCur+iFiducialWrapAroundDiffMin) || 
+      //    uFiducialCur > uFiducialPrev + 360 )
+      //  {
+      //    //printf( "EvrL1Action::fire(): seq 0x%x followed 0x%x\n", uFiducialCur, uFiducialPrev );
+      //    out->datagram().xtc.damage.increase(Pds::Damage::UserDefined);      
+      //  }
+      //}
+      //l1xmitGlobal->uFiducialPrev = uFiducialCur;
       
       if ( bDataFull )
       {
@@ -878,7 +878,7 @@ public:
   InDatagram* fire(InDatagram* tr) 
   {
     // reset the fiducial checking counter
-    l1xmitGlobal->uFiducialPrev = 0; 
+    //l1xmitGlobal->uFiducialPrev = 0; 
     
     if (l1xmitGlobal->enable()) 
     {
@@ -1305,9 +1305,7 @@ void EvrManager::sigintHandler(int)
 
 // check if evr has any unprocessed fifo event
 bool evrHasEvent(Evr& er)
-{  
-  return false;
-  
+{    
   uint32_t& uIrqFlagOrg = *(uint32_t*) ((char*) &er + 8);  
   uint32_t  uIrqFlagNew = be32_to_cpu(uIrqFlagOrg);
   
