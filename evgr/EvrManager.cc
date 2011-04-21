@@ -119,7 +119,7 @@ struct EventCodeState
  *  
  * bool evrHasEvent(): check if evr has any unprocessed fifo event
  */
-bool evrHasEvent(Evr& er);
+//bool evrHasEvent(Evr& er);
 
 /*
  * Signal handler, for processing the incoming event codes, and providing interfaces for
@@ -813,12 +813,12 @@ public:
         printf( "EvrL1Action::fire(): Data incomplete, because disable action occurs before the terminator event comes\n" );        
         out->datagram().xtc.damage.increase(Pds::Damage::UserDefined);      
         
-        if ( evrHasEvent(_er) )
-        {
-          printf( "EvrL1Action::fire(): Found unprocessed FIFO event\n" );
+        //if ( evrHasEvent(_er) )
+        //{
+          //printf( "EvrL1Action::fire(): Found unprocessed FIFO event\n" );
           // mark the damage user bit 0 to indicate there are unprocessed FIFO events
-          out->datagram().xtc.damage.userBits(0x1);
-        }
+          //out->datagram().xtc.damage.userBits(0x1);
+        //}
       }
 
       if ( bNoL1Data )
@@ -1304,16 +1304,16 @@ void EvrManager::sigintHandler(int)
 }
 
 // check if evr has any unprocessed fifo event
-bool evrHasEvent(Evr& er)
-{    
-  uint32_t& uIrqFlagOrg = *(uint32_t*) ((char*) &er + 8);  
-  uint32_t  uIrqFlagNew = be32_to_cpu(uIrqFlagOrg);
-  
-  if ( uIrqFlagNew & EVR_IRQFLAG_EVENT)
-    return true;
-  else
-    return false;
-}
+//bool evrHasEvent(Evr& er)
+//{    
+//  uint32_t& uIrqFlagOrg = *(uint32_t*) ((char*) &er + 8);  
+//  uint32_t  uIrqFlagNew = be32_to_cpu(uIrqFlagOrg);
+//  
+//  if ( uIrqFlagNew & EVR_IRQFLAG_EVENT)
+//    return true;
+//  else
+//    return false;
+//}
 
 const int EvrManager::EVENT_CODE_BEAM;  // value is defined in the header file
 const int EvrManager::EVENT_CODE_BYKIK; // value is defined in the header file
