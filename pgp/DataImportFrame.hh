@@ -23,18 +23,18 @@ namespace Pds {
 
     class FirstWordBits {
       public:
-        unsigned tid:     24;    //31:8
-        unsigned lane:     2;    // 7:6
-        unsigned z:        4;    // 5:2
         unsigned vc:       2;    // 1:0
+        unsigned z:        4;    // 5:2
+        unsigned lane:     2;    // 7:6
+        unsigned tid:     24;    //31:8
     };
 
     class SecondWordBits {
       public:
-        unsigned z:        6;    //31:26
-        unsigned quad:     2;    //25:24
-        unsigned opCode:   8;    //23:16
         unsigned acqCount:16;    //15:0
+        unsigned opCode:   8;    //23:16
+        unsigned quad:     2;    //25:24
+        unsigned z:        6;    //31:26
     };
 
     class DataImportFrame {

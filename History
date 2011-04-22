@@ -1,3 +1,4 @@
+2011-Apr-21 jackp	Added new version of cspad including ConfigV3
 2011-Apr-12 weaver	Changed EbC to always keep a full select mask.  Segment levels typically
 			don't have much buffering in front of the select, so the event-builder
 			should read pending data as quickly as possible.

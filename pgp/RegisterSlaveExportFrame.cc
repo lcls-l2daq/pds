@@ -8,6 +8,7 @@
 #include "pds/pgp/RegisterSlaveExportFrame.hh"
 #include "pds/pgp/PgpRSBits.hh"
 #include "pds/pgp/RegisterSlaveImportFrame.hh"
+#include "pds/pgp/Destination.hh"
 #include <sys/time.h>
 #include <sys/types.h>
 #include <unistd.h>
@@ -32,7 +33,7 @@ namespace Pds {
 
     RegisterSlaveExportFrame::RegisterSlaveExportFrame(
         PgpRSBits::opcode o,
-        FEdest dt,
+        Destination* dest,
         unsigned a,
         unsigned transID,
         uint32_t da,
@@ -40,47 +41,14 @@ namespace Pds {
     {
       bits._tid     = transID & ((1<<23)-1);
       bits._waiting = w;
-      bits._lane    = (dt & laneMask) ? 1 : 0;
+      bits._lane    = dest->lane() & 3;
       bits.mbz    = 0;
-      bits._vc      = dt & concentratorMask ? 0 : (dt & 1) + 1;
+      bits._vc      = dest->vc() & 3;
       bits.oc      = o;
       bits._addr    = a & addrMask;
       _data         = da;
       NotSupposedToCare = 0;
     }
-
-    RegisterSlaveExportFrame::RegisterSlaveExportFrame(
-        PgpRSBits::opcode o,
-        unsigned lane,
-        unsigned vc,
-        unsigned a,
-        unsigned transID,
-        uint32_t da,
-        PgpRSBits::waitState w)
-    {
-      bits._tid     = transID & ((1<<23)-1);
-      bits._waiting = w;
-      bits._lane    = lane & 3;
-      bits.mbz    = 0;
-      bits._vc      = vc & 3;
-      bits.oc      = o;
-      bits._addr    = a & addrMask;
-      _data         = da;
-      NotSupposedToCare = 0;
-    }
-
-//    RegisterSlaveExportFrame::FEdest RegisterSlaveExportFrame::dest() {
-//      unsigned ret = 0;
-//      if (bits._lane) ret |= RegisterSlaveExportFrame::laneMask;
-//      if (bits._vc & RegisterSlaveExportFrame::laneMask) ret |= 1;
-//      if (bits._vc==0) {
-//        ret = RegisterSlaveExportFrame::concentratorMask;
-//        if (bits._lane) {
-//          printf("ERROR ERROR bad dest lane(%u), vc(%u)\n", bits._lane, bits._vc);
-//        }
-//      }
-//      return (RegisterSlaveExportFrame::FEdest) ret;
-//    }
 
     // parameter is the size of the post in number of 32 bit words
     unsigned RegisterSlaveExportFrame::post(__u32 size) {

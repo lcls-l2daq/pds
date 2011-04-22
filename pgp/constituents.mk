@@ -32,4 +32,5 @@ libnames := pgp
 libsrcs_pgp := $(wildcard *.cc)
 #libsinc_pgp := 
 libincs_pgp := pgpcard
+CPPFLAGS += -fno-strict-aliasing
 

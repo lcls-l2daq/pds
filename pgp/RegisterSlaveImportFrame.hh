@@ -41,9 +41,7 @@ namespace Pds {
         unsigned failed()                             {return lbits.failed;}
         unsigned timeout(LastBits* l);
         unsigned failed(LastBits* l);
-//        RegisterSlaveExportFrame::FEdest   dest();
         void print(unsigned size=4);
-//        enum VcTypes {dataVC=3};
 
       public:
         PgpRSBits    bits;
