@@ -46,7 +46,7 @@ namespace Pds {
       bits._vc      = dest->vc() & 3;
       bits.oc      = o;
       bits._addr    = a & addrMask;
-      _data         = da;
+      _data         = da;  // NB, for read request size of block requested minus one is placed in data field
       NotSupposedToCare = 0;
     }
 

@@ -138,10 +138,10 @@ namespace Pds {
           dest,
           addr,
           tid,
-          size - sizeof(Pds::Pgp::RegisterSlaveExportFrame)/sizeof(uint32_t),
+          size - sizeof(Pds::Pgp::RegisterSlaveExportFrame)/sizeof(uint32_t),  // zero = one uint32_t, etc.
           Pds::Pgp::PgpRSBits::Waiting);
 //      if (size>4) {
-//        printf("CspadConfigurator::readRegister size %u\n", size);
+//        printf("Pgp::readRegister size %u\n", size);
 //        rsef.print();
 //      }
       if (pf) rsef.print();

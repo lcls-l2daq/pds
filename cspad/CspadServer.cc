@@ -187,7 +187,7 @@ int Pds::CspadServer::fetch( char* payload, int flags ) {
    if ((ret > 0) && (ret < (int)_payloadSize)) {
      printf("CspadServer::fetch() returning Ignore, ret was %d, looking for %u ", ret, _payloadSize);
      if (_debug & 4 || ret < 0) printf("\n\tquad(%u) opcode(0x%x) acqcount(0x%x) fiducials(0x%x) _count(%u) _quadsThisCount(%u) lane(%u) vc(%u)\n",
-         data->portNumber(), data->second.opCode, data->acqCount(), data->fiducials(), _count, _quadsThisCount, pgpCardRx.pgpLane, pgpCardRx.pgpVc);
+         data->elementId(), data->second.opCode, data->acqCount(), data->fiducials(), _count, _quadsThisCount, pgpCardRx.pgpLane, pgpCardRx.pgpVc);
      ret = Ignore;
    }
 
@@ -206,7 +206,7 @@ int Pds::CspadServer::fetch( char* payload, int flags ) {
      unsigned oldCount = _count;
      _count = data->frameNumber() - 1;  // cspad starts counting at 1, not zero
      if (_debug & 4 || ret < 0) printf("\n\tquad(%u) opcode(0x%x) acqcount(0x%x) fiducials(0x%x) _oldCount(%u) _count(%u) _quadsThisCount(%u) lane(%u) vc(%u)\n",
-         data->portNumber(), data->second.opCode, data->acqCount(), data->fiducials(), oldCount, _count, _quadsThisCount, pgpCardRx.pgpLane, pgpCardRx.pgpVc);
+         data->elementId(), data->second.opCode, data->acqCount(), data->fiducials(), oldCount, _count, _quadsThisCount, pgpCardRx.pgpLane, pgpCardRx.pgpVc);
      if ((_count != oldCount) && (_quadsThisCount)) {
        _quadsThisCount = 0;
        memcpy( payload, &_xtc, sizeof(Xtc) );

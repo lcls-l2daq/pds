@@ -35,10 +35,12 @@ namespace Pds {
                           Destination*,
                           unsigned,
                           uint32_t*,
-                          unsigned size = sizeof(RegisterSlaveExportFrame)/sizeof(uint32_t),
+                          unsigned size = 1,  // size of data to be written in uint32_t's
                           Pds::Pgp::PgpRSBits::waitState = Pds::Pgp::PgpRSBits::notWaiting,
                           bool pf=false);
-       unsigned      readRegister(
+
+        // NB for block read, size should be set to three plus the size of the block
+        unsigned      readRegister(
                           Destination*,
                           unsigned,
                           unsigned,

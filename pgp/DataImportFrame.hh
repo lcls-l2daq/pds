@@ -10,7 +10,7 @@
 
 //   Header = 8 x 32-bits
 //       Header[0] = Tid[23:0], Lane[1:0], Z[3:0], VC[1:0]
-//       Header[1] = Z[5:0], Quad[1:0], OpCode[7:0], acqCount[15:0]
+//       Header[1] = Z[3:0], Quad[3:0], OpCode[7:0], acqCount[15:0]
 //       Header[2] = BeamCode[31:0]
 //       Header[3] = Z[31:0]
 //       Header[4] = Z[31:0]
@@ -33,8 +33,8 @@ namespace Pds {
       public:
         unsigned acqCount:16;    //15:0
         unsigned opCode:   8;    //23:16
-        unsigned quad:     2;    //25:24
-        unsigned z:        6;    //31:26
+        unsigned elementID:4;    //27:24
+        unsigned z:        4;    //31:28
     };
 
     class DataImportFrame {
@@ -43,7 +43,9 @@ namespace Pds {
         ~DataImportFrame() {};
 
       public:
-        unsigned portNumber()        { return second.quad; }
+        unsigned vc()                { return first.vc; }
+        unsigned lane()              { return first.lane; }
+        unsigned elementId()         { return second.elementID; }
         unsigned frameNumber()       { return (unsigned) _frameNumber; }
         unsigned acqCount()          { return second.acqCount; }
         uint32_t ticks()             { return _ticks; }
