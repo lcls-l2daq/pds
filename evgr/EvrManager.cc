@@ -142,7 +142,6 @@ public:
     _L1DataLatchQ       ( *(EvrDataUtil*) new char[ EvrDataUtil::size( giMaxNumFifoEvent ) ]  ),
     _L1DataLatch        ( *(EvrDataUtil*) new char[ EvrDataUtil::size( giMaxNumFifoEvent ) ]  ),
     _bEvrDataFullUpdated(false),
-    _bEvrDataIncomplete (false),
     _ncommands          (0),
     _evrL1Data          (giMaxNumFifoEvent, giNumL1Buffers)
   {
@@ -162,6 +161,12 @@ public:
   
   void xmit(const FIFOEvent& fe)
   {      
+    if ( bEnabled == false ) //!debug
+    {
+      printf("L1Xmitter::xmit(): [%d] during Disabled, vector %d code %d fiducial 0x%x prev 0x%x last 0x%x timeLow 0x%x\n", 
+        uNumBeginCalibCycle, _evtCounter, fe.EventCode, fe.TimestampHigh, uFiducialPrev, _lastFiducial, fe.TimestampLow);
+    }
+    
     /*
      * Determine if we need to start L1Accept
      *
@@ -172,9 +177,11 @@ public:
     if (fe.EventCode == TERMINATOR) {            
       // TERMINATOR will not be stored in the event code list
       if (_bReadout || _ncommands) 
-      {
-        _evrL1Data.setDataWriteIncomplete(false);
-        startL1Accept(fe);
+      {        
+        if (fe.TimestampHigh == 0) //!!debug
+          printf("L1Xmitter::xmit(): [%d] Call startL1Accept() with vector %d fiducial 0x%x prev 0x%x last 0x%x timeLow 0x%x\n", 
+            uNumBeginCalibCycle, _evtCounter, fe.TimestampHigh, uFiducialPrev, _lastFiducial, fe.TimestampLow);
+        startL1Accept(fe, false);
       }
       
       return;
@@ -269,17 +276,43 @@ public:
     }
   }
 
-  void startL1Accept(const FIFOEvent& fe)
+  void startL1Accept(const FIFOEvent& fe, bool bEvrDataIncomplete)
   {    
-    static pthread_mutex_t mutex = PTHREAD_MUTEX_INITIALIZER; 
+    static pthread_t        tid   = -1;
+    static pthread_mutex_t  mutex   = PTHREAD_MUTEX_INITIALIZER; 
+    
+    if ( pthread_equal(tid, pthread_self()) )
+    {
+      printf("L1Xmitter::startL1Accept(): [%d] Re-entry call for vector %d fiducial 0x%x prev 0x%x Incomplete %c last 0x%x timeLow 0x%x code %d\n",
+        uNumBeginCalibCycle, _evtCounter, fe.TimestampHigh, uFiducialPrev, (bEvrDataIncomplete?'Y':'n'),
+        _lastFiducial, fe.TimestampLow, fe.EventCode );
+      return;
+    }
+    tid = pthread_self();        
+    
     if ( pthread_mutex_lock(&mutex) )
     {
       printf("L1Xmitter::startL1Accept(): pthread_mutex_lock() failed\n");
       return;
     }
-    if ( !(_bReadout || _ncommands) )
-      return;          
     
+    if ( !(_bReadout || _ncommands) )
+    {
+      if ( pthread_mutex_unlock(&mutex) )
+        printf( "L1Xmitter::startL1Accept(): pthread_mutex_unlock() failed\n" );
+            
+      printf("L1Xmitter::startL1Accept(): No readout/commands detected. Possibly called by two threads.\n"); //!!debug
+      tid = -1;
+      return;          
+    }
+    
+    if (fe.TimestampHigh == 0) //!!debug
+    {
+      printf("L1Xmitter::startL1Accept(): [%d] vector %d fiducial 0x%x prev 0x%x Incomplete %c last 0x%x timeLow 0x%x code %d\n",
+        uNumBeginCalibCycle, _evtCounter, fe.TimestampHigh, uFiducialPrev, (bEvrDataIncomplete?'Y':'n'),
+        _lastFiducial, fe.TimestampLow, fe.EventCode );
+    }
+      
     timespec ts;
     clock_gettime(CLOCK_REALTIME, &ts);
     ClockTime ctime(ts.tv_sec, ts.tv_nsec);
@@ -381,12 +414,11 @@ public:
           }                    
         
         _evrL1Data.setDataWriteFull       ( _bEvrDataFullUpdated );
-        _evrL1Data.setDataWriteIncomplete ( _bEvrDataIncomplete );
+        _evrL1Data.setDataWriteIncomplete ( bEvrDataIncomplete );
         _evrL1Data.finishDataWrite        ();
     
         _L1DataUpdated.clearFifoEvents();
         _bEvrDataFullUpdated = false;
-        _bEvrDataIncomplete  = false;
                     
       } // else ( ! _evrL1Data.isDataWriteReady() )
     
@@ -421,12 +453,16 @@ public:
     
     if ( pthread_mutex_unlock(&mutex) )
       printf( "L1Xmitter::startL1Accept(): pthread_mutex_unlock() failed\n" );
+      
+    tid = -1;
   } 
 
   void clear()        
   { 
-    while ( evrHasEvent(_er) )
-    { // sleep for 1 millisecond to let signal handler process FIFO events
+    const int iMaxCheck = 10;
+    int       iCheck    = 0;
+    while ( evrHasEvent(_er) && ++iCheck <= iMaxCheck )
+    { // sleep for 2 millisecond to let signal handler process FIFO events
       timeval timeSleepMicro = {0, 2000}; // 2 milliseconds  
       select( 0, NULL, NULL, NULL, &timeSleepMicro);       
     }
@@ -437,16 +473,57 @@ public:
       fe.TimestampHigh    = _lastFiducial;
       fe.TimestampLow     = 0;
       fe.EventCode        = TERMINATOR;      
-      _bEvrDataIncomplete = true;
-      startL1Accept(fe);      
+
+      if (fe.TimestampHigh == 0) //!!debug
+        printf("L1Xmitter::clear(): [%d] Call startL1Accept() with vector %d fiducial 0x%x prev 0x%x last 0x%x timeLow 0x%x\n", 
+          uNumBeginCalibCycle, _evtCounter, fe.TimestampHigh, uFiducialPrev, _lastFiducial, fe.TimestampLow);
+        
+      startL1Accept(fe, true);      
     }
-    _L1DataUpdated.clearFifoEvents();
-    _L1DataLatch  .clearFifoEvents();
-    _L1DataLatchQ .clearFifoEvents();    
+    //_L1DataUpdated.clearFifoEvents();
+    //_L1DataLatch  .clearFifoEvents();
+    //_L1DataLatchQ .clearFifoEvents();
         
     /**
-     * Note: Don't call _evrL1Data.reset() to clear the L1 Data buffer here
-     *   Because the un-processed L1 Data will be sent out in the Disable action
+     * Note: Don't call _evrL1Data.reset() to clear the L1 Data buffer here,
+     *   because the un-processed L1 Data will be sent out in the Disable action
+     */
+  }
+
+  void nextEnable()
+  { 
+    const int iMaxCheck = 10;
+    int       iCheck    = 0;
+    while ( evrHasEvent(_er) && ++iCheck <= iMaxCheck )
+    { // sleep for 2 millisecond to let signal handler process FIFO events
+      timeval timeSleepMicro = {0, 2000}; // 2 milliseconds  
+      select( 0, NULL, NULL, NULL, &timeSleepMicro);       
+    }
+    
+    if (_bReadout || _ncommands) 
+    {
+      FIFOEvent fe;
+      fe.TimestampHigh    = _lastFiducial;
+      fe.TimestampLow     = 0;
+      fe.EventCode        = TERMINATOR;      
+
+      printf("L1Xmitter::nextEnable(): [%d] Call startL1Accept() with vector %d fiducial 0x%x prev 0x%x last 0x%x timeLow 0x%x\n", 
+        uNumBeginCalibCycle, _evtCounter, fe.TimestampHigh, uFiducialPrev, _lastFiducial, fe.TimestampLow);
+        
+      startL1Accept(fe, true);
+    }
+    else
+    {
+      _evrL1Data.reset();
+    }
+    
+    _L1DataUpdated.clearFifoEvents();
+    _L1DataLatch  .clearFifoEvents();
+    _L1DataLatchQ .clearFifoEvents();
+        
+    /**
+     * Note: Don't call _evrL1Data.reset() to clear the L1 Data buffer here,
+     *   because the un-processed L1 Data will be sent out in the Disable action
      */
   }
   
@@ -647,6 +724,8 @@ public:
   unsigned int          uFiducialPrev; // public data for checking fiducial increasing steps
   bool                  bShowFirstFiducial;
   bool                  bShowFiducial;
+  unsigned int          uNumBeginCalibCycle;
+  bool                  bEnabled;
   
 private:
   Evr &                 _er;
@@ -664,11 +743,14 @@ private:
   EvrDataUtil&          _L1DataLatch;       // codes that contribute to later L1Accepts. Holding second-order transient events and first-order latch events
   EventCodeState        _lEventCodeState[guNumTypeEventCode];
   bool                  _bEvrDataFullUpdated;
-  bool                  _bEvrDataIncomplete;
-  unsigned              _lastFiducial;
+  //unsigned              _lastFiducial; //!!debug
   unsigned              _ncommands;
   char                  _commands[giMaxCommands];
   EvrL1Data             _evrL1Data;
+  
+
+  public:  unsigned              _lastFiducial; //!!debug
+  private: //!!debug
     
   // Add Fifo event to the evrData with boundary check
   int addFifoEventCheck( EvrDataUtil& evrData, const EvrDataType::FIFOEvent& fe )
@@ -785,13 +867,15 @@ public:
       
       l1xmitGlobal->getL1Data(iTriggerCounter, pEvrData, bOutOfOrder);
 
-      //if ( l1xmitGlobal->bShowFirstFiducial )// !! debug
-      //{
-      //  printf("Vector %3d Fiducial 0x%x\n", in->seq.stamp().vector(), in->seq.stamp().fiducials() );
-      //  l1xmitGlobal->bShowFirstFiducial = false;
-      //}
-      //else if ( l1xmitGlobal->bShowFiducial )// !! debug
-      //  printf("Vector %3d Fiducial 0x%x\n", in->seq.stamp().vector(), in->seq.stamp().fiducials() );
+      if ( l1xmitGlobal->bShowFirstFiducial )// !! debug
+      {
+        printf("Vector %3d Fiducial 0x%x prev 0x%x last 0x%x\n", 
+          in->seq.stamp().vector(), in->seq.stamp().fiducials(), l1xmitGlobal->uFiducialPrev, l1xmitGlobal->_lastFiducial );
+        l1xmitGlobal->bShowFirstFiducial = false;
+      }
+      else if ( l1xmitGlobal->bShowFiducial )// !! debug
+        printf("Vector %3d Fiducial 0x%x prev 0x%x last 0x%x\n", 
+          in->seq.stamp().vector(), in->seq.stamp().fiducials(), l1xmitGlobal->uFiducialPrev, l1xmitGlobal->_lastFiducial );
       
       bool bNoL1Data = ( pEvrData == NULL );
       if ( bNoL1Data )
@@ -811,7 +895,9 @@ public:
             
       if ( bDataInc )
       {
-        printf( "EvrL1Action::fire(): Incomplete data.\n" );
+        //printf( "EvrL1Action::fire(): Incomplete data.\n" );
+        printf( "EvrL1Action::fire(): [%d] Incomplete data with vector %d fiducial 0x%x prev 0x%x last 0x%x\n", 
+          l1xmitGlobal->uNumBeginCalibCycle, iTriggerCounter, uFiducialCur, uFiducialPrev, l1xmitGlobal->_lastFiducial );
         out->datagram().xtc.damage.increase(Pds::Damage::UserDefined);              
         out->datagram().xtc.damage.userBits(0x1);        
         
@@ -862,13 +948,15 @@ public:
       new (pcEvrData) EvrDataUtil(evrData);
 
       // !! debug print
-      //if (  evrData.numFifoEvents() > 1 )
-      //{
-      //  printf( "Shot id = 0x%x\n", in->datagram().seq.stamp().fiducials() );
-      //  printf( "EvrL1Action::fire() data dump start (size = %u bytes)\n", evrData.size() );
-      //  evrData.printFifoEvents();
-      //  printf( "EvrL1Action::fire() data dump end\n\n" );
-      //}
+      //if (  evrData.numFifoEvents() > 1 ) 
+      if ( uFiducialCur == 0 )
+      {
+        printf( "EvrL1Action::fire(): [%d] vector %d fiducial 0x%x prev 0x%x\n", 
+          l1xmitGlobal->uNumBeginCalibCycle, iTriggerCounter, uFiducialCur, uFiducialPrev );
+        printf( "EvrL1Action::fire() data dump start (size = %u bytes)\n", evrData.size() );
+        evrData.printFifoEvents();
+        printf( "EvrL1Action::fire() data dump end\n\n" );
+      }
       
       if (!bNoL1Data && !bOutOfOrder)
         l1xmitGlobal->releaseL1Data();      
@@ -904,8 +992,8 @@ public:
   {
     // reset the fiducial checking counter
     l1xmitGlobal->uFiducialPrev = 0; 
-    //l1xmitGlobal->bShowFirstFiducial  = true; //!!debug
-    //l1xmitGlobal->bShowFiducial       = false; //!!debug
+    l1xmitGlobal->bShowFirstFiducial  = true; //!!debug
+    l1xmitGlobal->bShowFiducial       = false; //!!debug
     
     if (l1xmitGlobal->enable()) 
     {
@@ -917,9 +1005,12 @@ public:
         _done.start();
       }
     }
+    
+    l1xmitGlobal->nextEnable(); // clear the unprocessed events from previous Enable-Disable    
+    l1xmitGlobal->bEnabled = true; //!!debug
 
     unsigned ram = 0;
-    _er.MapRamEnable(ram, 1);
+    _er.MapRamEnable(ram, 1);    
     return tr;
   }
 private:
@@ -934,9 +1025,9 @@ public:
     
   Transition* fire(Transition* tr) 
   { 
-    //// !! debug
-    //l1xmitGlobal->bShowFirstFiducial  = false;
-    //l1xmitGlobal->bShowFiducial       = true;
+    // !! debug
+    l1xmitGlobal->bShowFirstFiducial  = false;
+    l1xmitGlobal->bShowFiducial       = true;
 
     // switch to the "dummy" map ram so we can still get eventcodes 0x70,0x71,0x7d for timestamps
     unsigned dummyram=1;
@@ -945,6 +1036,8 @@ public:
     _done.cancel();
 
     l1xmitGlobal->clear();
+    
+    l1xmitGlobal->bEnabled = false; //!!debug
         
     return tr;
   }
@@ -1170,6 +1263,7 @@ public:
   { 
     _cfg.fetch(tr);
     l1xmitGlobal->reset();
+    l1xmitGlobal->uNumBeginCalibCycle = 0;
     return tr;
   }
   InDatagram* fire(InDatagram* dg) { _cfg.insert(dg); return dg; }
@@ -1181,7 +1275,15 @@ class EvrBeginCalibAction: public Action {
 public:
   EvrBeginCalibAction(EvrConfigManager& cfg) : _cfg(cfg) {}
 public:
-  Transition* fire(Transition* tr) { _cfg.configure(); _cfg.enable(); return tr; }
+  Transition* fire(Transition* tr) { 
+      _cfg.configure(); 
+      _cfg.enable(); 
+      
+      // sleep for 4 millisecond to update fiducial from MapRam 1
+      timeval timeSleepMicro = {0, 4000}; // 2 milliseconds  
+      select( 0, NULL, NULL, NULL, &timeSleepMicro);       
+      
+      return tr; }
   InDatagram* fire(InDatagram* dg) { _cfg.insert(dg); return dg; }
 private:
   EvrConfigManager& _cfg;
@@ -1192,7 +1294,11 @@ class EvrEndCalibAction: public Action
 public:
   EvrEndCalibAction(EvrConfigManager& cfg): _cfg(cfg) {}
 public:
-  Transition *fire(Transition * tr) { _cfg.disable(); return tr; }
+  Transition *fire(Transition * tr) { 
+    _cfg.disable(); 
+    ++l1xmitGlobal->uNumBeginCalibCycle;
+    return tr; 
+  }
   InDatagram *fire(InDatagram * dg) { _cfg.advance(); return dg; }
 private:
   EvrConfigManager& _cfg;
@@ -1299,9 +1405,16 @@ EvrManager::EvrManager(EvgrBoardInfo < Evr > &erInfo, CfgClientNfs & cfg, bool b
   int_action.sa_flags |= SA_RESTART;
 
   if (sigaction(SIGINT, &int_action, 0) > 0)
-  {
     printf("Couldn't set up SIGINT handler\n");
-  }  
+  if (sigaction(SIGKILL, &int_action, 0) > 0)
+    printf("Couldn't set up SIGKILL handler\n");
+  if (sigaction(SIGSEGV, &int_action, 0) > 0)
+    printf("Couldn't set up SIGSEGV handler\n");
+  if (sigaction(SIGABRT, &int_action, 0) > 0)
+    printf("Couldn't set up SIGABRT handler\n");
+  if (sigaction(SIGTERM, &int_action, 0) > 0)
+    printf("Couldn't set up SIGTERM handler\n");
+    
 }
 
 EvrManager::~EvrManager()
@@ -1314,9 +1427,9 @@ void EvrManager::drop_pulses(unsigned id)
   dropPulseMask = id;
 }
 
-void EvrManager::sigintHandler(int)
+void EvrManager::sigintHandler(int iSignal)
 {
-  printf("SIGINT received\n");
+  printf("signal %d received\n", iSignal);
 
   if (erInfoGlobal && erInfoGlobal->mapped())
   {
