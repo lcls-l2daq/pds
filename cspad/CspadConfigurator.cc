@@ -374,7 +374,7 @@ namespace Pds {
       if (result & Terminate) return Failure;
 
       ProtectionSystemThreshold pr[MaxQuadsPerSensor];
-      unsigned size = MaxQuadsPerSensor*sizeof(ProtectionSystemThreshold)/sizeof(uint32_t) + 3;  // !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+      unsigned size = MaxQuadsPerSensor*sizeof(ProtectionSystemThreshold)/sizeof(uint32_t);
       if (_pgp->readRegister(&_d, protThreshBase, 0xa004, (uint32_t*)pr, size)){
         printf("CspadConfigurator::writeRegs concentrator read back failed at protThreshBase\n");
         return Failure;
@@ -445,8 +445,8 @@ namespace Pds {
 
     unsigned CspadConfigurator::checkDigPots() {
       unsigned ret = Success;
-      // in uint32_ts, size of pots array minus the two in the header plus the NotSupposedToCare one past the end.
-      unsigned size = (sizeof(Pds::Pgp::RegisterSlaveExportFrame)/sizeof(uint32_t)) + Pds::CsPad::PotsPerQuad -2 + 1;
+      // in uint32_ts, size of pots array
+      unsigned size = Pds::CsPad::PotsPerQuad;
       uint32_t myArray[size];
       for (unsigned i=0; i<Pds::CsPad::MaxQuadsPerSensor; i++) {
         if ((1<<i) & _config->quadMask()) {

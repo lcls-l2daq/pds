@@ -138,9 +138,9 @@ namespace Pds {
           dest,
           addr,
           tid,
-          size - sizeof(Pds::Pgp::RegisterSlaveExportFrame)/sizeof(uint32_t),  // zero = one uint32_t, etc.
+          size - 1,  // zero = one uint32_t, etc.
           Pds::Pgp::PgpRSBits::Waiting);
-//      if (size>4) {
+//      if (size>1) {
 //        printf("Pgp::readRegister size %u\n", size);
 //        rsef.print();
 //      }
@@ -152,8 +152,8 @@ namespace Pds {
       }
       unsigned errorCount = 0;
       while (true) {
-        rsif = this->read(size);
-        if (pf) rsif->print(size);
+        rsif = this->read(size + 3);
+        if (pf) rsif->print(size + 3);
         if (rsif == 0) {
           printf("Pgp::readRegister _pgp->read failed!\n");
           return Failure;
@@ -161,10 +161,10 @@ namespace Pds {
         if (addr != rsif->addr()) {
           printf("Pds::Pgp::readRegister out of order response lane=%u, vc=%u, addr=0x%x, tid=%u, errorCount=%u\n",
               dest->lane(), dest->vc(), addr, tid, ++errorCount);
-          rsif->print(size);
+          rsif->print(size + 3);
           if (errorCount > 5) return Failure;
         } else {  // copy the data
-          memcpy(retp, rsif->array(), (size-4+1)*sizeof(uint32_t));
+          memcpy(retp, rsif->array(), size * sizeof(uint32_t));
           return Success;
         }
       }

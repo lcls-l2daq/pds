@@ -45,7 +45,7 @@ namespace Pds {
                           unsigned,
                           unsigned,
                           uint32_t*,
-                          unsigned size=(sizeof(Pds::Pgp::RegisterSlaveImportFrame)/sizeof(uint32_t)),
+                          unsigned size=1,
                           bool pf=false);
 
       private:
