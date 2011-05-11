@@ -11,7 +11,7 @@
 #include <sys/types.h>
 #include <time.h>
 
-#include "pdsdata/ipimb/ConfigV1.hh"
+#include "pdsdata/ipimb/ConfigV2.hh"
 
 #define BAUDRATE B115200
 #define DataPackets 16
@@ -53,7 +53,8 @@ namespace Pds {
       errors = 0x0d,
       cal_strobe = 0x0e,
       trig_delay = 0x0f,
-      trig_ps_delay = 0x10
+      trig_ps_delay = 0x10,
+      adc_delay = 0x11
     };
 
     void SetTriggerCounter(unsigned start0, unsigned start1);
@@ -76,7 +77,7 @@ namespace Pds {
     void WriteCommand(unsigned*);
     int inWaiting(IpimBoardPacketParser&);
     
-    bool configure(Ipimb::ConfigV1& config);
+    bool configure(Ipimb::ConfigV2& config);
     bool unconfigure();
     bool setReadable(bool);
     void setBaselineSubtraction(const int, const int);
@@ -98,6 +99,8 @@ namespace Pds {
     int _baselineSubtraction, _polarity;
     IpimBoardBaselineHistory* _history;
     int _dataDamage, _commandResponseDamage;
+
+    void _SetAdcDelay(uint32_t adcDelay);
   };
   
   
@@ -197,6 +200,10 @@ namespace Pds {
     float GetCh1_V();
     float GetCh2_V();
     float GetCh3_V();
+    float GetCh0_ps_V();
+    float GetCh1_ps_V();
+    float GetCh2_ps_V();
+    float GetCh3_ps_V();
     unsigned GetConfig0();
     unsigned GetConfig1();
     unsigned GetConfig2();
@@ -211,6 +218,10 @@ namespace Pds {
     uint16_t _ch1;
     uint16_t _ch2;
     uint16_t _ch3;
+    uint16_t _ch0_ps;
+    uint16_t _ch1_ps;
+    uint16_t _ch2_ps;
+    uint16_t _ch3_ps;
     uint16_t _checksum;
   };
   

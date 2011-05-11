@@ -16,8 +16,8 @@
 #include "IpimbManager.hh"
 #include "IpimbServer.hh"
 #include "IpimbFex.hh"
-#include "pdsdata/ipimb/DataV1.hh"
-#include "pdsdata/ipimb/ConfigV1.hh"
+#include "pdsdata/ipimb/DataV2.hh"
+#include "pdsdata/ipimb/ConfigV2.hh"
 #include "pds/config/CfgClientNfs.hh"
 
 using namespace Pds;

@@ -9,7 +9,7 @@
 #include "pdsdata/lusi/IpmFexConfigV1.hh"
 #include "pdsdata/lusi/IpmFexV1.hh"
 #include "pdsdata/lusi/DiodeFexV1.hh"
-#include "pdsdata/ipimb/DataV1.hh"
+#include "pdsdata/ipimb/DataV2.hh"
 #include "pdsdata/xtc/DetInfo.hh"
 
 #include <new>
@@ -55,7 +55,7 @@ static  Pds::TypeId _ipmFexType(Pds::TypeId::Id_IpmFex, IpmFexType::Version);
 typedef Pds::Lusi::DiodeFexV1 DiodeFexType;
 static  Pds::TypeId _diodeFexType(Pds::TypeId::Id_DiodeFex, DiodeFexType::Version);
 
-typedef Pds::Ipimb::DataV1 IpimbDataType;
+typedef Pds::Ipimb::DataV2 IpimbDataType;
 
 LusiDiagFex::LusiDiagFex() : 
   _pool(OutSize,OutEntries), 

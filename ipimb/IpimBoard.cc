@@ -20,11 +20,12 @@ const float INPUT_BIAS_MAX = 200;
 const unsigned INPUT_BIAS_STEPS = 65536;
 
 const int CLOCK_PERIOD = 8;
-const float ADC_RANGE = 3.3;
+const float ADC_RANGE = 5.0;
 const unsigned ADC_STEPS = 65536;
 
-static const int HardCodedPresampleDelay = 150000;
-static const int HardCodedADCTime = 100000;
+static const int HardCodedPresampleDelay = 15000;
+static const int HardCodedADCTime = 10000;
+static const int HardCodedAdcDelay = 1000;
 
 const bool DEBUG = false;
 
@@ -162,7 +163,7 @@ uint16_t IpimBoard::GetStatus() {
 }
 
 void IpimBoard::SetCalibrationMode(bool* channels) {
-  unsigned val = ReadRegister(rg_config);
+  unsigned val = ReadRegister(cal_rg_config);
   //  printf("have retrieved config val 0x%x\n", val);
   val &= 0x7777;
   int shift = 3;
@@ -172,21 +173,21 @@ void IpimBoard::SetCalibrationMode(bool* channels) {
       val |= 1<<shift;
     shift += 4;
   }
-  WriteRegister(rg_config, val);
+  WriteRegister(cal_rg_config, val);
 }
 
 void IpimBoard::SetCalibrationDivider(unsigned* channels) {
   unsigned val = ReadRegister(cal_rg_config);
-  val &= 0x8888;
+  val &= 0xcccc;
   int shift = 0;
   for (int i=0; i<4; i++) {
     unsigned setting = channels[i];
-    if (setting<=1)
-      val |= 1<<shift;
-    else if (setting<=100)
-      val |= 2<<shift;
-    else if (setting<=10000)
-      val |= 4<<shift;
+    if (setting>2) {
+      printf("IpimBoard error: Cal divider setting %d is illegal\n",setting);
+      _commandResponseDamage = true;
+    }
+    else 
+      val |= (setting+1)<<shift;
     shift+=4;
   }
   WriteRegister(cal_rg_config, val);
@@ -194,8 +195,8 @@ void IpimBoard::SetCalibrationDivider(unsigned* channels) {
 
 void IpimBoard::SetCalibrationPolarity(bool* channels) {
   unsigned val = ReadRegister(cal_rg_config);
-  val &= 0x7777;
-  int shift = 3;
+  val &= 0xbbbb;
+  int shift = 2;
   for (int i=0; i<4; i++) {
     bool b = channels[i];
     if (b)
@@ -234,18 +235,9 @@ void IpimBoard::SetCalibrationVoltage(float calibrationVoltage) {
 }
 
 void IpimBoard::SetChargeAmplifierMultiplier(unsigned* channels) {
-  unsigned val = ReadRegister(rg_config);
-  val &= 0x8888;
-  int shift = 0;
+  unsigned val = 0;
   for (int i=0; i<4; i++) {
-    unsigned setting = channels[i];
-    if (setting<=1)
-      val |= 4<<shift;
-    else if (setting<=100)
-      val |= 2<<shift;
-    else if (setting<=10000)
-      val |= 1<<shift;
-    shift+=4;
+    val |= channels[i]<<i*4;
   }
   WriteRegister(rg_config, val);
 }
@@ -294,6 +286,16 @@ void IpimBoard::SetTriggerDelay(uint32_t triggerDelay) {
     return;
   }
   WriteRegister(trig_delay, delay);
+}
+
+void IpimBoard::_SetAdcDelay(uint32_t adcDelay) {
+  unsigned delay = (adcDelay+CLOCK_PERIOD-1)/CLOCK_PERIOD;
+  if (delay > 0xffff) {
+    printf("IpimBoard warning: adc delay cannot be more than %dns\n", 0xffff*CLOCK_PERIOD);
+    _commandResponseDamage = true;
+    return;
+  }
+  WriteRegister(adc_delay, delay);
 }
 
 void IpimBoard::SetTriggerPreSampleDelay(uint32_t triggerPsDelay) {
@@ -448,7 +450,7 @@ void IpimBoard::flush() {
   tcflush(_fd, TCIOFLUSH);
 }
 
-bool IpimBoard::configure(Ipimb::ConfigV1& config) {
+bool IpimBoard::configure(Ipimb::ConfigV2& config) {
   flush();
   setReadable(true);
   printf("have set fd to readable in IpimBoard configure\n");
@@ -468,14 +470,13 @@ bool IpimBoard::configure(Ipimb::ConfigV1& config) {
   SetChargeAmplifierRef(config.chargeAmpRefVoltage());
   // only allow one charge amp capacitance setting
   unsigned multiplier = (unsigned) config.chargeAmpRange();
-  unsigned mapping[4] = {1, 100, 10000, 0};
-  unsigned mult_chan0 = mapping[multiplier&0x3];
-  unsigned mult_chan1 = mapping[(multiplier>>2)&0x3];
-  unsigned mult_chan2 = mapping[(multiplier>>4)&0x3];
-  unsigned mult_chan3 = mapping[(multiplier>>6)&0x3];
+  unsigned mult_chan0 = multiplier&0xf;
+  unsigned mult_chan1 = (multiplier>>4)&0xf;
+  unsigned mult_chan2 = (multiplier>>8)&0xf;
+  unsigned mult_chan3 = (multiplier>>12)&0xf;
   printf("Configuring gain with %d, %d, %d, %d\n", mult_chan0, mult_chan1, mult_chan2, mult_chan3);
   if(mult_chan0*mult_chan1*mult_chan2*mult_chan3 == 0) {
-    printf("Do not understand bit pattern of 0x%x gain configuration, only 0, 1, 2 allowed per 2 bits\n", multiplier);
+    printf("Do not understand gain configuration 0x%x, 0 is not a sensible byte value\n", multiplier);
     _commandResponseDamage = true;
   }
   unsigned inputAmplifier_pF[4] = {mult_chan0, mult_chan1, mult_chan2, mult_chan3};
@@ -491,7 +492,13 @@ bool IpimBoard::configure(Ipimb::ConfigV1& config) {
     _commandResponseDamage = true;
     printf("Sample delay %d is too short - must be at least %d earlier than %d\n", config.trigDelay(), HardCodedADCTime, HardCodedPresampleDelay);
   }
+  _SetAdcDelay(HardCodedAdcDelay);
+  printf("Have hardcoded adc delay to %d us\n", HardCodedAdcDelay/1000);
+
   //  CalibrationStart((unsigned) config.calStrobeLength());
+
+  config.setTriggerPreSampleDelay(HardCodedPresampleDelay);
+  config.setAdcDelay(HardCodedAdcDelay);
 
   config.setSerialID(GetSerialID());
   config.setErrors(GetErrors());
