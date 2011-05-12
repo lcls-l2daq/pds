@@ -6,7 +6,6 @@
 #include "pds/config/DiodeFexConfigType.hh"
 #include "pds/config/CfgClientNfs.hh"
 
-#include "pdsdata/lusi/IpmFexConfigV1.hh"
 #include "pdsdata/lusi/IpmFexV1.hh"
 #include "pdsdata/lusi/DiodeFexV1.hh"
 #include "pdsdata/ipimb/DataV2.hh"
@@ -27,17 +26,6 @@ using namespace Pds;
 const int OutSize = 0x400;
 const int OutEntries = 16;
 
-static const unsigned ipmMask = ( 1 << Pds::DetInfo::XppSb1Ipm) |
-			        ( 1 << Pds::DetInfo::XppSb2Ipm) |
-				( 1 << Pds::DetInfo::XppSb3Ipm);
-
-static const unsigned pimMask = ( 1 << Pds::DetInfo::XppSb1Pim) |
-				( 1 << Pds::DetInfo::XppMonPim) |
-				( 1 << Pds::DetInfo::XppSb3Pim) |
-				( 1 << Pds::DetInfo::XppSb4Pim);
-
-//#define IS_IPM(det) ((1<<det) & ipmMask)
-//#define IS_PIM(det) ((1<<det) & pimMask)
 #define IS_IPM(det) (_cap_config[det].ndiodes >1)
 #define IS_PIM(det) (_cap_config[det].ndiodes==1)
 #define SET_IPM(det) (_cap_config[det].ndiodes=4)
@@ -129,15 +117,15 @@ bool LusiDiagFex::configure(CfgClientNfs& cfg,
   if ( cfg.fetch(tr, _ipmFexConfigType, 
 		 &_ipm_config[ipmIndex(det)], sizeof(IpmFexConfigType)) > 0 ) {
     SET_IPM(det);
-    _cap_config[det].cap[0] = (ipimb_config.chargeAmpRange()>>0)&0x3;
-    _cap_config[det].cap[1] = (ipimb_config.chargeAmpRange()>>2)&0x3;
-    _cap_config[det].cap[2] = (ipimb_config.chargeAmpRange()>>4)&0x3;
-    _cap_config[det].cap[3] = (ipimb_config.chargeAmpRange()>>6)&0x3;
+    _cap_config[det].cap[0] = (ipimb_config.chargeAmpRange()>> 0)&0xf;
+    _cap_config[det].cap[1] = (ipimb_config.chargeAmpRange()>> 4)&0xf;
+    _cap_config[det].cap[2] = (ipimb_config.chargeAmpRange()>> 8)&0xf;
+    _cap_config[det].cap[3] = (ipimb_config.chargeAmpRange()>>12)&0xf;
   }
   else if ( cfg.fetch(tr, _diodeFexConfigType, 
 		      &_pim_config[pimIndex(det)], sizeof(DiodeFexConfigType)) > 0 ) {
     SET_PIM(det);
-    _cap_config[det].cap[0] = (ipimb_config.chargeAmpRange()>>0)&0x3;
+    _cap_config[det].cap[0] = (ipimb_config.chargeAmpRange()>>0)&0xf;
   }
   return true;
 }
