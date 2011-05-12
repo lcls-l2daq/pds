@@ -84,17 +84,21 @@ class CspadL1Action : public Action {
 
    InDatagram* fire(InDatagram* in);
 
+   enum {FiducialErrorCountLimit=4};
+
    CspadServer* server;
    unsigned _lastMatchedFiducial;
+   unsigned _lastMatchedFrameNumber;
+   unsigned _fiducialErrorCount;
    unsigned _ioIndex;
-   bool     _fiducialError;
 
 };
 
 CspadL1Action::CspadL1Action(CspadServer* svr) :
     server(svr),
     _lastMatchedFiducial(0xfffffff),
-    _fiducialError(false) {}
+    _lastMatchedFrameNumber(0xfffffff),
+    _fiducialErrorCount(0) {}
 
 InDatagram* CspadL1Action::fire(InDatagram* in) {
   if (server->debug() & 8) printf("CspadL1Action::fire!\n");
@@ -124,10 +128,14 @@ InDatagram* CspadL1Action::fire(InDatagram* in) {
       data = (Pds::Pgp::DataImportFrame*) ( payload + (i * server->payloadSize()) );
       if (evrFiducials != data->fiducials()) {
         error |= 1<<i;
-        printf("CspadL1Action::fire(in) fiducial mismatch evr(0x%x) cspad(0x%x) in quad %u, lastMatchedFiducial(0x%x), frameNumber(%u)\n",
-            evrFiducials, data->fiducials(), i, _lastMatchedFiducial, data->frameNumber());
+        if (_fiducialErrorCount < FiducialErrorCountLimit) {
+          printf("CspadL1Action::fire(in) fiducial mismatch evr(0x%x) cspad(0x%x) in quad %u, lastMatchedFiducial(0x%x), frameNumber(%u), lastMatchedFrameNumber(%u)\n",
+              evrFiducials, data->fiducials(), i, _lastMatchedFiducial, data->frameNumber(), _lastMatchedFrameNumber);
+        }
       } else {
         _lastMatchedFiducial = evrFiducials;
+        _lastMatchedFrameNumber = data->frameNumber();
+        _fiducialErrorCount = 0;
       }
       // Kludge test of sending nothing ....                  !!!!!!!!!!!!!!!!!!!!!!
 //      if (data->frameNumber()) {
@@ -142,10 +150,12 @@ InDatagram* CspadL1Action::fire(InDatagram* in) {
     if (error) {
       dg.xtc.damage.increase(Pds::Damage::UserDefined);
       dg.xtc.damage.userBits(0xf0 | (error&0xf));
-      printf("CspadL1Action setting user damage due to fiducial in quads(0x%x)\n", error);
-      if (!_fiducialError) server->printHisto(false);
-      else _fiducialError = true;
-    } else {
+      if (_fiducialErrorCount < FiducialErrorCountLimit) {
+        printf("CspadL1Action setting user damage due to fiducial in quads(0x%x)\n", error);
+        if (!_fiducialErrorCount++) server->printHisto(false);
+      }
+    }
+    if (!error) {
       server->process();
     }
   }
