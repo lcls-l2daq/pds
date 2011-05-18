@@ -26,6 +26,8 @@ const unsigned ADC_STEPS = 65536;
 static const int HardCodedPresampleDelay = 15000;
 static const int HardCodedADCTime = 10000;
 static const int HardCodedAdcDelay = 1000;
+static const int OldHardCodedPresampleDelay = 150000;
+static const int OldHardCodedADCTime = 100000;
 
 const bool DEBUG = false;
 
@@ -125,6 +127,8 @@ IpimBoard::IpimBoard(char* serialDevice) {
   _history = new IpimBoardBaselineHistory();
   _dataDamage = 0;
   _commandResponseDamage = 0;
+
+  _c01 = false; // hack to allow c02 code to read old boards during transition
 }
 
 IpimBoard::~IpimBoard() {
@@ -173,7 +177,11 @@ void IpimBoard::SetCalibrationMode(bool* channels) {
       val |= 1<<shift;
     shift += 4;
   }
-  WriteRegister(cal_rg_config, val);
+  if (!_c01) {
+    WriteRegister(cal_rg_config, val);
+  } else {
+    WriteRegister(rg_config, val);
+  }
 }
 
 void IpimBoard::SetCalibrationDivider(unsigned* channels) {
@@ -238,6 +246,23 @@ void IpimBoard::SetChargeAmplifierMultiplier(unsigned* channels) {
   unsigned val = 0;
   for (int i=0; i<4; i++) {
     val |= channels[i]<<i*4;
+  }
+  WriteRegister(rg_config, val);
+}
+
+void IpimBoard::oldSetChargeAmplifierMultiplier(unsigned* channels) {
+  unsigned val = ReadRegister(rg_config);
+  val &= 0x8888;
+  int shift = 0;
+  for (int i=0; i<4; i++) {
+    unsigned setting = channels[i];
+    if (setting<=1)
+      val |= 4<<shift;
+    else if (setting<=100)
+      val |= 2<<shift;
+    else if (setting<=10000)
+      val |= 1<<shift;
+    shift+=4;
   }
   WriteRegister(rg_config, val);
 }
@@ -469,19 +494,35 @@ bool IpimBoard::configure(Ipimb::ConfigV2& config) {
 
   SetChargeAmplifierRef(config.chargeAmpRefVoltage());
   // only allow one charge amp capacitance setting
-  unsigned multiplier = (unsigned) config.chargeAmpRange();
-  unsigned mult_chan0 = multiplier&0xf;
-  unsigned mult_chan1 = (multiplier>>4)&0xf;
-  unsigned mult_chan2 = (multiplier>>8)&0xf;
-  unsigned mult_chan3 = (multiplier>>12)&0xf;
-  printf("Configuring gain with %d, %d, %d, %d\n", mult_chan0, mult_chan1, mult_chan2, mult_chan3);
-  if(mult_chan0*mult_chan1*mult_chan2*mult_chan3 == 0) {
-    printf("Do not understand gain configuration 0x%x, 0 is not a sensible byte value\n", multiplier);
-    _commandResponseDamage = true;
-  }
-  unsigned inputAmplifier_pF[4] = {mult_chan0, mult_chan1, mult_chan2, mult_chan3};
 
-  SetChargeAmplifierMultiplier(inputAmplifier_pF);
+  if (!_c01) {// c02 is default
+    unsigned multiplier = (unsigned) config.chargeAmpRange();
+    unsigned mult_chan0 = ((multiplier&0xf)+1)%0xf;  // Board interprets 0 as no capacitor
+    unsigned mult_chan1 = (((multiplier>>4)&0xf)+1)%0xf;
+    unsigned mult_chan2 = (((multiplier>>8)&0xf)+1)%0xf;
+    unsigned mult_chan3 = (((multiplier>>12)&0xf)+1)%0xf;
+    printf("Configuring gain with %d, %d, %d, %d\n", mult_chan0, mult_chan1, mult_chan2, mult_chan3);
+    if(mult_chan0*mult_chan1*mult_chan2*mult_chan3 == 0) {
+      printf("Do not understand gain configuration 0x%x, byte values restricted to 0-14\n", multiplier);
+      _commandResponseDamage = true;
+    }
+    unsigned inputAmplifier_pF[4] = {mult_chan0, mult_chan1, mult_chan2, mult_chan3};
+    SetChargeAmplifierMultiplier(inputAmplifier_pF);
+  } else {
+      unsigned multiplier = (unsigned) config.chargeAmpRange();
+      unsigned mapping[16] = {1, 100, 10000, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,0, 0, 0};
+      unsigned mult_chan0 = mapping[multiplier&0xf];
+      unsigned mult_chan1 = mapping[(multiplier>>4)&0xf];
+      unsigned mult_chan2 = mapping[(multiplier>>8)&0xf];
+      unsigned mult_chan3 = mapping[(multiplier>>12)&0xf];
+      printf("Configuring gain with %d, %d, %d, %d\n", mult_chan0, mult_chan1, mult_chan2, mult_chan3);
+      if(mult_chan0*mult_chan1*mult_chan2*mult_chan3 == 0) {
+	printf("Do not understand bit pattern of 0x%x gain configuration, only 0, 1, 2 allowed per byte\n", multiplier);
+	_commandResponseDamage = true;
+      }
+      unsigned inputAmplifier_pF[4] = {mult_chan0, mult_chan1, mult_chan2, mult_chan3};
+      oldSetChargeAmplifierMultiplier(inputAmplifier_pF);
+  }
   //  SetCalibrationVoltage(float calibrationVoltage);
   SetInputBias(config.diodeBias());
   SetChannelAcquisitionWindow(config.resetLength(), config.resetDelay());
@@ -537,6 +578,8 @@ void IpimBoard::setBaselineSubtraction(const int baselineSubtraction, const int 
   _baselineSubtraction = baselineSubtraction;
   _polarity = polarity;
 }
+
+void IpimBoard::setOldVersion() {_c01 = true;}
 
 IpimBoardCommand::IpimBoardCommand(bool write, unsigned address, unsigned data) {
   _commandList[0] = address & 0xFF;
@@ -906,6 +949,7 @@ uint64_t IpimBoardData::GetTriggerCounter() {
 unsigned IpimBoardData::GetTriggerDelay_ns() {
   return _config2*CLOCK_PERIOD;
 }
+/*
 float IpimBoardData::GetCh0_V() {
   return (float(_ch0)*ADC_RANGE)/(ADC_STEPS-1);
 }
@@ -918,6 +962,7 @@ float IpimBoardData::GetCh2_V() {
 float IpimBoardData::GetCh3_V() {
   return (float(_ch3)*ADC_RANGE)/(ADC_STEPS-1);
 }
+*/
 unsigned IpimBoardData::GetConfig0() {
   return _config0;
 }

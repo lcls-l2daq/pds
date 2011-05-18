@@ -2,6 +2,7 @@
 #include "pds/xtc/CDatagram.hh"
 #include "pds/xtc/ZcpDatagram.hh"
 #include "pds/config/IpimbDataType.hh"
+#include "pdsdata/ipimb/DataV1.hh"
 
 #include <unistd.h>
 #include <sys/uio.h>
@@ -10,12 +11,13 @@
 
 using namespace Pds;
 
-IpimbServer::IpimbServer(const Src& client) :
-  _xtc(_ipimbDataType,client)
+IpimbServer::IpimbServer(const Src& client, const bool c01) :
+  _xtc(_ipimbDataType,client), _c01(c01)
 {
   _baselineSubtraction = 1;
   _polarity = -1;
   _xtc.extent = sizeof(IpimbDataType)+sizeof(Xtc);
+  if (_c01) _xtc.extent = sizeof(Ipimb::DataV1)+sizeof(Xtc);
 }
 
 unsigned IpimbServer::offset() const {
@@ -68,6 +70,7 @@ int IpimbServer::fetch(char* payload, int flags)
   //  printf("data from fd %d has e.g. ch0=%fV, ts=%llu\n", fd(), ch0, ts);
 
   int payloadSize = sizeof(IpimbDataType);
+  if (_c01) payloadSize = sizeof(Ipimb::DataV1);
   memcpy(payload, &_xtc, sizeof(Xtc));
   memcpy(payload+sizeof(Xtc), &data, payloadSize);
   _count = (unsigned) (0xFFFFFFFF&ts);
@@ -94,9 +97,9 @@ void IpimbServer::setIpimb(IpimBoard* ipimb, char* portName, const int baselineS
 
 unsigned IpimbServer::configure(IpimbConfigType& config) {
   printf("In IpimbServer, using baseline mode %d, polarity %d\n", _baselineSubtraction, _polarity);
+  if (_c01) _ipimBoard->setOldVersion();
   _ipimBoard->setBaselineSubtraction(_baselineSubtraction, _polarity); // avoid updating config class; caveat user
   return _ipimBoard->configure(config);
-  
 }
 
 unsigned IpimbServer::unconfigure() {

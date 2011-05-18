@@ -65,6 +65,7 @@ namespace Pds {
     void SetChargeAmplifierRef(float refVoltage);
     void SetCalibrationVoltage(float calibrationVoltage);
     void SetChargeAmplifierMultiplier(unsigned*);
+    void oldSetChargeAmplifierMultiplier(unsigned*);
     void SetInputBias(float biasVoltage);
     void SetChannelAcquisitionWindow(uint32_t acqLength, uint16_t acqDelay);
     void SetTriggerDelay(uint32_t triggerDelay);
@@ -81,6 +82,7 @@ namespace Pds {
     bool unconfigure();
     bool setReadable(bool);
     void setBaselineSubtraction(const int, const int);
+    void setOldVersion();
     int get_fd();
     void flush();
     int dataDamage();
@@ -97,6 +99,7 @@ namespace Pds {
     int _fd;
     char* _serialDevice;
     int _baselineSubtraction, _polarity;
+    bool _c01;
     IpimBoardBaselineHistory* _history;
     int _dataDamage, _commandResponseDamage;
 
@@ -196,6 +199,7 @@ namespace Pds {
     uint64_t GetTriggerCounter();
     unsigned GetTriggerDelay_ns();
     unsigned GetTriggerPreSampleDelay_ns();
+    /*
     float GetCh0_V();
     float GetCh1_V();
     float GetCh2_V();
@@ -204,6 +208,7 @@ namespace Pds {
     float GetCh1_ps_V();
     float GetCh2_ps_V();
     float GetCh3_ps_V();
+    */
     unsigned GetConfig0();
     unsigned GetConfig1();
     unsigned GetConfig2();
