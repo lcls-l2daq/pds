@@ -130,7 +130,7 @@ InDatagram* CspadL1Action::fire(InDatagram* in) {
         error |= 1<<i;
         if (_fiducialErrorCount < FiducialErrorCountLimit) {
           printf("CspadL1Action::fire(in) fiducial mismatch evr(0x%x) cspad(0x%x) in quad %u, lastMatchedFiducial(0x%x), frameNumber(%u), lastMatchedFrameNumber(%u)\n",
-              evrFiducials, data->fiducials(), i, _lastMatchedFiducial, data->frameNumber(), _lastMatchedFrameNumber);
+              evrFiducials, data->fiducials(), data->elementId(), _lastMatchedFiducial, data->frameNumber(), _lastMatchedFrameNumber);
         }
       } else {
         _lastMatchedFiducial = evrFiducials;
