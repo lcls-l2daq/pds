@@ -23,10 +23,9 @@ const int CLOCK_PERIOD = 8;
 const float ADC_RANGE = 5.0;
 const unsigned ADC_STEPS = 65536;
 
-static const int HardCodedPresampleDelay = 15000;
-static const int HardCodedADCTime = 10000;
-static const int HardCodedAdcDelay = 1000;
-static const int OldHardCodedPresampleDelay = 150000;
+static const int HardCodedPresampleDelay = 150000;  // settling before presamples
+static const int HardCodedAdcDelay = 4000; // time between presamples; this is the default on the board
+static const int HardCodedTotalPresampleTime = (8+2)*HardCodedAdcDelay; // 8 presamples plus a bit extra
 static const int OldHardCodedADCTime = 100000;
 
 const bool DEBUG = false;
@@ -529,13 +528,19 @@ bool IpimBoard::configure(Ipimb::ConfigV2& config) {
   SetTriggerDelay((unsigned) config.trigDelay());
   SetTriggerPreSampleDelay(HardCodedPresampleDelay);
   printf("Have hardcoded presample delay to %d us\n", HardCodedPresampleDelay/1000);
-  if (HardCodedPresampleDelay+HardCodedADCTime>config.trigDelay()) {
-    _commandResponseDamage = true;
-    printf("Sample delay %d is too short - must be at least %d earlier than %d\n", config.trigDelay(), HardCodedADCTime, HardCodedPresampleDelay);
+  if (!_c01) {
+    if ((HardCodedPresampleDelay+HardCodedTotalPresampleTime)>config.trigDelay()) {
+      _commandResponseDamage = true;
+      printf("Sample delay %d is too short - must be at least %d earlier than %d\n", config.trigDelay(), HardCodedTotalPresampleTime, HardCodedPresampleDelay);
+    }
+    _SetAdcDelay(HardCodedAdcDelay);
+    printf("Have hardcoded adc delay to %f us\n", float(HardCodedAdcDelay)/1000);
+  } else {
+    if ((HardCodedPresampleDelay+OldHardCodedADCTime)>config.trigDelay()) {
+      _commandResponseDamage = true;
+      printf("Sample delay %d is too short - must be at least %d earlier than %d\n", config.trigDelay(), OldHardCodedADCTime, HardCodedPresampleDelay);
+    }
   }
-  _SetAdcDelay(HardCodedAdcDelay);
-  printf("Have hardcoded adc delay to %d us\n", HardCodedAdcDelay/1000);
-
   //  CalibrationStart((unsigned) config.calStrobeLength());
 
   config.setTriggerPreSampleDelay(HardCodedPresampleDelay);
