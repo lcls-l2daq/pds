@@ -357,7 +357,7 @@ unsigned IpimBoard::ReadRegister(unsigned regAddr) {
   }
   IpimBoardResponse resp = IpimBoardResponse(_commandList);
   if (!resp.CheckCRC()) {
-    printf("IpimBoard warning: response CRC check failed\n");
+    printf("IpimBoard warning: response CRC check failed in reading register 0x%x\n", regAddr);
     _commandResponseDamage = true;
   }
   return resp.getData();
