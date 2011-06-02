@@ -125,7 +125,7 @@ IpimBoard::IpimBoard(char* serialDevice) {
 
   _history = new IpimBoardBaselineHistory();
   _dataDamage = 0;
-  _commandResponseDamage = 0;
+  _commandResponseDamage = false;
 
   _c01 = false; // hack to allow c02 code to read old boards during transition
 }
@@ -983,7 +983,7 @@ IpimBoardPacketParser::IpimBoardPacketParser(bool command, int* damage, unsigned
   _command(command), _damage(damage), _lst(lst),
   _nPackets(0), _allowedPackets(0), _leadHeaderNibble(0), _bodyHeaderNibble(0), _tailHeaderNibble(0) {
   _lastDamaged = *_damage;
-  *_damage = false;
+  //  *_damage = false;
   if (!command) {
     _allowedPackets = DataPackets;
     _leadHeaderNibble = 0xc;
