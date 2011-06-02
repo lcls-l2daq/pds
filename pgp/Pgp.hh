@@ -8,6 +8,7 @@
 #ifndef PGP_HH_
 #define PGP_HH_
 
+#include "pds/pgp/PgpRSBits.hh"
 #include "pds/pgp/RegisterSlaveImportFrame.hh"
 #include "pds/pgp/RegisterSlaveExportFrame.hh"
 #include "pds/pgp/Destination.hh"
@@ -31,15 +32,16 @@ namespace Pds {
                           uint32_t,
                           bool pf = false,
                           Pds::Pgp::PgpRSBits::waitState = Pds::Pgp::PgpRSBits::notWaiting);
+        // NB size should be the size of data to be written in uint32_t's
         unsigned       writeRegisterBlock(
                           Destination*,
                           unsigned,
                           uint32_t*,
-                          unsigned size = 1,  // size of data to be written in uint32_t's
+                          unsigned size = 1,
                           Pds::Pgp::PgpRSBits::waitState = Pds::Pgp::PgpRSBits::notWaiting,
                           bool pf=false);
 
-        // NB for block read, size should be set to three plus the size of the block
+        // NB size should be the size of the block requested in uint32_t's
         unsigned      readRegister(
                           Destination*,
                           unsigned,

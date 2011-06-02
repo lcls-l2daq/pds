@@ -8,7 +8,6 @@
 #ifndef CONFIGURATOR_HH_
 #define CONFIGURATOR_HH_
 
-#include "pds/pgp/RegisterSlaveImportFrame.hh"
 #include "pds/pgp/Pgp.hh"
 #include <time.h>
 
