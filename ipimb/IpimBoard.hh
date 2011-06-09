@@ -54,7 +54,8 @@ namespace Pds {
       cal_strobe = 0x0e,
       trig_delay = 0x0f,
       trig_ps_delay = 0x10,
-      adc_delay = 0x11
+      adc_delay = 0x11,
+      vhdl_version = 0x17
     };
 
     void SetTriggerCounter(unsigned start0, unsigned start1);

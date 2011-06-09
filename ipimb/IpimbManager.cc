@@ -84,7 +84,7 @@ public:
       _fex.recordConfigure(dg, _server[i]->client());
     }
     if (_nDamagedConfigures) {
-      printf("*** Found %d ipimb configuration errors\n",_nDamagedConfigures);
+      printf("*** Found %d ipimb configuration error(s)\n",_nDamagedConfigures);
       dg->datagram().xtc.damage.increase(Pds::Damage::UserDefined);
     }
     return dg;

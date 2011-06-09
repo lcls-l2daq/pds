@@ -27,6 +27,9 @@ static const int HardCodedPresampleDelay = 150000;  // settling before presample
 static const int HardCodedAdcDelay = 4000; // time between presamples; this is the default on the board
 static const int HardCodedTotalPresampleTime = (8+2)*HardCodedAdcDelay; // 8 presamples plus a bit extra
 static const int OldHardCodedADCTime = 100000;
+static const unsigned OldVhdlVersion = 0xDEADBEEF;
+static const unsigned NewVhdlVersion = 0x00010000;
+
 
 const bool DEBUG = false;
 
@@ -482,6 +485,8 @@ bool IpimBoard::configure(Ipimb::ConfigV2& config) {
   _commandResponseDamage = false;
   WriteRegister(errors, 0xffff);
 
+  unsigned vhdlVersion = ReadRegister(vhdl_version);
+
   // hope to never want to calibrate in the daq environment
   bool lstCalibrateChannels[4] = {false, false, false, false};
   SetCalibrationMode(lstCalibrateChannels);
@@ -493,8 +498,12 @@ bool IpimBoard::configure(Ipimb::ConfigV2& config) {
 
   SetChargeAmplifierRef(config.chargeAmpRefVoltage());
   // only allow one charge amp capacitance setting
-
+  
   if (!_c01) {// c02 is default
+    if (vhdlVersion != NewVhdlVersion) {
+      printf("Expected vhdl version 0x%x, found 0x%x, old version is 0x%x\n", NewVhdlVersion, vhdlVersion, OldVhdlVersion);
+      _commandResponseDamage = true;
+    }
     unsigned multiplier = (unsigned) config.chargeAmpRange();
     unsigned mult_chan0 = ((multiplier&0xf)+1)%0xf;  // Board interprets 0 as no capacitor
     unsigned mult_chan1 = (((multiplier>>4)&0xf)+1)%0xf;
@@ -508,19 +517,23 @@ bool IpimBoard::configure(Ipimb::ConfigV2& config) {
     unsigned inputAmplifier_pF[4] = {mult_chan0, mult_chan1, mult_chan2, mult_chan3};
     SetChargeAmplifierMultiplier(inputAmplifier_pF);
   } else {
-      unsigned multiplier = (unsigned) config.chargeAmpRange();
-      unsigned mapping[16] = {1, 100, 10000, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,0, 0, 0};
-      unsigned mult_chan0 = mapping[multiplier&0xf];
-      unsigned mult_chan1 = mapping[(multiplier>>4)&0xf];
-      unsigned mult_chan2 = mapping[(multiplier>>8)&0xf];
-      unsigned mult_chan3 = mapping[(multiplier>>12)&0xf];
-      printf("Configuring gain with %d, %d, %d, %d\n", mult_chan0, mult_chan1, mult_chan2, mult_chan3);
-      if(mult_chan0*mult_chan1*mult_chan2*mult_chan3 == 0) {
-	printf("Do not understand bit pattern of 0x%x gain configuration, only 0, 1, 2 allowed per byte\n", multiplier);
-	_commandResponseDamage = true;
-      }
-      unsigned inputAmplifier_pF[4] = {mult_chan0, mult_chan1, mult_chan2, mult_chan3};
-      oldSetChargeAmplifierMultiplier(inputAmplifier_pF);
+    if (vhdlVersion != OldVhdlVersion) {
+      printf("Expected vhdl version 0x%x, found 0x%x, new version is 0x%x\n", OldVhdlVersion, vhdlVersion, NewVhdlVersion);
+      _commandResponseDamage = true;
+    }
+    unsigned multiplier = (unsigned) config.chargeAmpRange();
+    unsigned mapping[16] = {1, 100, 10000, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,0, 0, 0};
+    unsigned mult_chan0 = mapping[multiplier&0xf];
+    unsigned mult_chan1 = mapping[(multiplier>>4)&0xf];
+    unsigned mult_chan2 = mapping[(multiplier>>8)&0xf];
+    unsigned mult_chan3 = mapping[(multiplier>>12)&0xf];
+    printf("Configuring gain with %d, %d, %d, %d\n", mult_chan0, mult_chan1, mult_chan2, mult_chan3);
+    if(mult_chan0*mult_chan1*mult_chan2*mult_chan3 == 0) {
+      printf("Do not understand bit pattern of 0x%x gain configuration, only 0, 1, 2 allowed per byte\n", multiplier);
+      _commandResponseDamage = true;
+    }
+    unsigned inputAmplifier_pF[4] = {mult_chan0, mult_chan1, mult_chan2, mult_chan3};
+    oldSetChargeAmplifierMultiplier(inputAmplifier_pF);
   }
   //  SetCalibrationVoltage(float calibrationVoltage);
   SetInputBias(config.diodeBias());
