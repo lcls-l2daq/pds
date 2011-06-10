@@ -161,7 +161,7 @@ public:
   
   void xmit(const FIFOEvent& fe)
   {      
-    if ( bEnabled == false ) //!debug
+    if ( bEnabled == false ) 
     {
       printf("L1Xmitter::xmit(): [%d] during Disabled, vector %d code %d fiducial 0x%x prev 0x%x last 0x%x timeLow 0x%x\n", 
         uNumBeginCalibCycle, _evtCounter, fe.EventCode, fe.TimestampHigh, uFiducialPrev, _lastFiducial, fe.TimestampLow);
@@ -178,7 +178,7 @@ public:
       // TERMINATOR will not be stored in the event code list
       if (_bReadout || _ncommands) 
       {        
-        if (fe.TimestampHigh == 0) //!!debug
+        if (fe.TimestampHigh == 0 && uFiducialPrev < 0x1fe00) // Illegal fiducial wrap-around
           printf("L1Xmitter::xmit(): [%d] Call startL1Accept() with vector %d fiducial 0x%x prev 0x%x last 0x%x timeLow 0x%x\n", 
             uNumBeginCalibCycle, _evtCounter, fe.TimestampHigh, uFiducialPrev, _lastFiducial, fe.TimestampLow);
         startL1Accept(fe, false);
@@ -301,12 +301,12 @@ public:
       if ( pthread_mutex_unlock(&mutex) )
         printf( "L1Xmitter::startL1Accept(): pthread_mutex_unlock() failed\n" );
             
-      printf("L1Xmitter::startL1Accept(): No readout/commands detected. Possibly called by two threads.\n"); //!!debug
+      printf("L1Xmitter::startL1Accept(): No readout/commands detected. Possibly called by two threads.\n");
       tid = -1;
       return;          
     }
     
-    if (fe.TimestampHigh == 0) //!!debug
+    if (fe.TimestampHigh == 0 && uFiducialPrev < 0x1fe00) // Illegal fiducial wrap-around
     {
       printf("L1Xmitter::startL1Accept(): [%d] vector %d fiducial 0x%x prev 0x%x Incomplete %c last 0x%x timeLow 0x%x code %d\n",
         uNumBeginCalibCycle, _evtCounter, fe.TimestampHigh, uFiducialPrev, (bEvrDataIncomplete?'Y':'n'),
@@ -474,7 +474,7 @@ public:
       fe.TimestampLow     = 0;
       fe.EventCode        = TERMINATOR;      
 
-      if (fe.TimestampHigh == 0) //!!debug
+      if (fe.TimestampHigh == 0 && uFiducialPrev < 0x1fe00) // Illegal fiducial wrap-around
         printf("L1Xmitter::clear(): [%d] Call startL1Accept() with vector %d fiducial 0x%x prev 0x%x last 0x%x timeLow 0x%x\n", 
           uNumBeginCalibCycle, _evtCounter, fe.TimestampHigh, uFiducialPrev, _lastFiducial, fe.TimestampLow);
         
@@ -743,14 +743,13 @@ private:
   EvrDataUtil&          _L1DataLatch;       // codes that contribute to later L1Accepts. Holding second-order transient events and first-order latch events
   EventCodeState        _lEventCodeState[guNumTypeEventCode];
   bool                  _bEvrDataFullUpdated;
-  //unsigned              _lastFiducial; //!!debug
   unsigned              _ncommands;
   char                  _commands[giMaxCommands];
   EvrL1Data             _evrL1Data;
   
 
-  public:  unsigned              _lastFiducial; //!!debug
-  private: //!!debug
+  public:  unsigned              _lastFiducial;
+  private:
     
   // Add Fifo event to the evrData with boundary check
   int addFifoEventCheck( EvrDataUtil& evrData, const EvrDataType::FIFOEvent& fe )
@@ -867,13 +866,13 @@ public:
       
       l1xmitGlobal->getL1Data(iTriggerCounter, pEvrData, bOutOfOrder);
 
-      if ( l1xmitGlobal->bShowFirstFiducial )// !! debug
+      if ( l1xmitGlobal->bShowFirstFiducial )
       {
         printf("Vector %3d Fiducial 0x%x prev 0x%x last 0x%x\n", 
           in->seq.stamp().vector(), in->seq.stamp().fiducials(), l1xmitGlobal->uFiducialPrev, l1xmitGlobal->_lastFiducial );
         l1xmitGlobal->bShowFirstFiducial = false;
       }
-      else if ( l1xmitGlobal->bShowFiducial )// !! debug
+      else if ( l1xmitGlobal->bShowFiducial )
         printf("Vector %3d Fiducial 0x%x prev 0x%x last 0x%x\n", 
           in->seq.stamp().vector(), in->seq.stamp().fiducials(), l1xmitGlobal->uFiducialPrev, l1xmitGlobal->_lastFiducial );
       
@@ -946,10 +945,9 @@ public:
 
       char*  pcEvrData = (char*) (pXtc + 1);  
       new (pcEvrData) EvrDataUtil(evrData);
-
-      // !! debug print
-      //if (  evrData.numFifoEvents() > 1 ) 
-      if ( uFiducialCur == 0 )
+      
+      //if (  evrData.numFifoEvents() > 1 ) // !! debug print
+      if ( uFiducialCur == 0 && uFiducialPrev < 0x1fe00) // Illegal fiducial wrap-around
       {
         printf( "EvrL1Action::fire(): [%d] vector %d fiducial 0x%x prev 0x%x\n", 
           l1xmitGlobal->uNumBeginCalibCycle, iTriggerCounter, uFiducialCur, uFiducialPrev );
@@ -992,8 +990,8 @@ public:
   {
     // reset the fiducial checking counter
     l1xmitGlobal->uFiducialPrev = 0; 
-    l1xmitGlobal->bShowFirstFiducial  = true; //!!debug
-    l1xmitGlobal->bShowFiducial       = false; //!!debug
+    l1xmitGlobal->bShowFirstFiducial  = true;
+    l1xmitGlobal->bShowFiducial       = false;
     
     if (l1xmitGlobal->enable()) 
     {
@@ -1007,7 +1005,7 @@ public:
     }
     
     l1xmitGlobal->nextEnable(); // clear the unprocessed events from previous Enable-Disable    
-    l1xmitGlobal->bEnabled = true; //!!debug
+    l1xmitGlobal->bEnabled = true; 
 
     unsigned ram = 0;
     _er.MapRamEnable(ram, 1);    
@@ -1025,7 +1023,6 @@ public:
     
   Transition* fire(Transition* tr) 
   { 
-    // !! debug
     l1xmitGlobal->bShowFirstFiducial  = false;
     l1xmitGlobal->bShowFiducial       = true;
 
@@ -1037,7 +1034,7 @@ public:
 
     l1xmitGlobal->clear();
     
-    l1xmitGlobal->bEnabled = false; //!!debug
+    l1xmitGlobal->bEnabled = false; 
         
     return tr;
   }
