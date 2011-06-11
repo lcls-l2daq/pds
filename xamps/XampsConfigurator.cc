@@ -38,14 +38,15 @@ namespace Pds {
 
      static uint32_t externalAddrs[XampsConfigType::NumberOfRegisters] = {
         // NB if these are to be included they should be uncommented ConfigV1.cc/hh and XampsConfigurator.cc
-//        0x00,
-//        0x01,
-//        0x02,
-//        0x03,
-//        0x04,
-//        0x05,
-//        0x06,
-////        0x07,
+        0x00,
+        0x01,
+        0x02,
+        0x03,
+        0x04,
+        0x05,
+        0x06,
+//        0x07,
+        0x0a,
         0x10,
         0x40,
         0x70,
@@ -61,7 +62,7 @@ namespace Pds {
 
     XampsConfigurator::XampsConfigurator( XampsConfigType* c, int f, unsigned d) :
                    Pds::Pgp::Configurator(f, d),
-                   _config(c), _rhisto(0) {
+                   _testModeState(0), _config(c), _rhisto(0) {
        printf("XampsConfigurator constructor _config(%p)\n", _config);
       //    printf("\tlocations _pool(%p), _config(%p)\n", _pool, &_config);
       //    _rhisto = (unsigned*) calloc(1000, 4);
@@ -130,6 +131,8 @@ namespace Pds {
       _flush();
       _d.dest(XampsDestination::Internal);
       ret |= _pgp->writeRegister(&_d, resetAddr, MasterResetMask);
+      _d.dest(XampsDestination::External);
+      ret |= _pgp->writeRegister(&_d, ClearFrameCountAddr, ClearFrameCountValue);
       nanosleep(&sleepTime, 0);
       ret <<= 1;
       if (printFlag) {
@@ -182,11 +185,18 @@ namespace Pds {
     unsigned XampsConfigurator::writeConfig() {
       _d.dest(XampsDestination::External);
       uint32_t* u = (uint32_t*)_config;
+      _testModeState = *u;
       unsigned ret = Success;
       for (unsigned i=0; i<XampsConfigType::NumberOfRegisters; i++) {
         if (_pgp->writeRegister(&_d, externalAddrs[i], u[i] & XampsConfigType::rangeHigh((XampsConfigType::Registers)i))) {
           printf("XampsConfigurator::writeConfig failed writing %u\n", i);
           ret = Failure;
+        }
+        if ((externalAddrs[i] < ReadoutTimingUpdateAddr) && (externalAddrs[i+1] > ReadoutTimingUpdateAddr)) {
+          if (_pgp->writeRegister(&_d, ReadoutTimingUpdateAddr, 1)) {
+            printf("XampsConfigurator::writeConfig failed writing on ReadoutTimingUpdateAddr\n");
+            ret = Failure;
+          }
         }
       }
       if (ret == Success) return checkWrittenConfig(true);
@@ -199,6 +209,9 @@ namespace Pds {
       unsigned ret = Success;
       unsigned size = XampsConfigType::NumberOfRegisters;
       uint32_t myBuffer[size];
+//      _pgp->readRegister(&_d, 0, 0x6969, myBuffer, 7); printf("\n");
+//      _pgp->readRegister(&_d, 10, 0x6969, myBuffer+10); printf("\n");
+//      for (unsigned i=0; i<7; i++) printf("0x%x (%u)\n", myBuffer[i], myBuffer[i]); printf("0x%x (%u)\n", myBuffer[10], myBuffer[10]);
       for (unsigned i=0; i<size; i++) {
         if (_pgp->readRegister(&_d, externalAddrs[i], 0x101, myBuffer+i)) {
           printf("XampsConfigurator::checkWrittenConfig failed reading %u\n", i);
@@ -235,7 +248,7 @@ namespace Pds {
         printf("XampsConfigurator::writeASICs failed on writing the trigger!\n");
         return Failure;
       }
-      return checkWrittenASICs(true);
+      return Success; //checkWrittenASICs(true);
     }
 
     unsigned XampsConfigurator::checkWrittenASICs(bool writeBack) {

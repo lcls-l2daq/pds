@@ -45,6 +45,11 @@ namespace Pds {
         };
 
         enum ExternalConsts {
+          ReadoutTimingUpdateAddr=0xf,
+          RunModeAddr = 0x10,
+          RunModeValue = 8,
+          ClearFrameCountAddr=0x12,
+          ClearFrameCountValue=1,
           SwitcherControlAddr = 0x50,
           SwitcherControlValue = 0xb
         };
@@ -61,6 +66,7 @@ namespace Pds {
         void                 print();
         void                 dumpFrontEnd();
         void                 printMe();
+        uint32_t             testModeState() { return _testModeState; };
 
       private:
         unsigned             writeConfig();
@@ -73,6 +79,7 @@ namespace Pds {
       private:
         typedef unsigned     LoopHisto[4][10000];
         enum {MicroSecondsSleepTime=50};
+        uint32_t                    _testModeState;
         XampsConfigType*            _config;
         XampsDestination                 _d;
         unsigned*                   _rhisto;

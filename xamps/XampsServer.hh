@@ -71,7 +71,7 @@ class Pds::XampsServer
 
  public:
    static XampsServer* instance() { return _instance; }
-   void                laneTest();
+//   void                laneTest();
 
  private:
    static XampsServer*            _instance;

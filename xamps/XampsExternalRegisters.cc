@@ -6,6 +6,7 @@
  */
 
 #include <stdio.h>
+#include <string.h>
 #include "pds/xamps/XampsExternalRegisters.hh"
 #include "pds/xamps/XampsConfigurator.hh"
 #include "pds/xamps/XampsDestination.hh"
@@ -67,7 +68,17 @@ namespace Pds {
     void XampsExternalRegisters::print() {
       printf("XampsExternalRegisters:\n");
       for (unsigned i=0; i<NumberOfExternalRegisters; i++) {
-        printf("\t%s(0x%x)\n", _names[i], values[i] & _xr[i].mask);
+        printf("\t%s(0x%03x)", _names[i], values[i] & _xr[i].mask);
+        if (!strncmp("Temp_", _names[i], 5)) {
+          unsigned raw = values[i] & _xr[i].mask;
+          if (raw & 0x100) raw |= 0xfffffe00;
+          int temp = (int) raw;
+          printf(" %5.1f degrees", temp/2.0);
+        }
+        if (!strncmp("Thermmistor", _names[i], 11)) printf(" %8.3f Volts", (3.0*(values[i] & _xr[i].mask)/4096.0*100.0));
+        if (!strncmp("HVV_ReadBack", _names[i], 12)) printf(" %8.3f Volts", (3.0*(values[i] & _xr[i].mask)/4096.0*200.0/2.048));
+        if (!strncmp("HVI_ReadBack", _names[i], 12)) printf(" %8.6f milliAmps", (3.0*(values[i] & _xr[i].mask)/4096.0/100.0));
+        printf("\n");
       }
     }
 

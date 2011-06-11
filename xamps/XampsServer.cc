@@ -19,7 +19,6 @@
 #include "pds/xamps/XampsDestination.hh"
 #include "pds/xamps/Processor.hh"
 #include "pdsdata/xtc/DetInfo.hh"
-#include "pdsdata/xamps/ElementV1.hh"
 #include "PgpCardMod.h"
 #include <unistd.h>
 #include <sys/uio.h>
@@ -40,7 +39,8 @@ class DetInfo;
 
 long long int timeDiff(timespec* end, timespec* start) {
   long long int diff;
-  diff =  (end->tv_sec - start->tv_sec) * 1000000000LL;
+  diff =  (end->tv_sec - start->tv_sec);
+  if (diff) diff *= 1000000000LL;
   diff += end->tv_nsec;
   diff -= start->tv_nsec;
   return diff;
@@ -61,44 +61,46 @@ XampsServer::XampsServer( const Pds::Src& client, unsigned configMask )
   _histo = (unsigned*)calloc(sizeOfHisto, sizeof(unsigned));
   _task = new Pds::Task(Pds::TaskObject("XAMPSprocessor"));
   instance(this);
+  printf("XampsServer::XampsServer() payload(%u)\n", _payloadSize);
 }
 
-void XampsServer::laneTest() {
-  uint32_t deviceId = static_cast<DetInfo&>(_xtc.src).devId();
-  uint32_t lanes[2] = { 0xff, 0xff };
-  unsigned ret = 0;
-  _d.dest(Pds::Xamps::XampsDestination::Internal);
-  if (_pgp->readRegister(&_d, Xamps::XampsConfigurator::LaneIdAddr, 0x11, lanes)) ret |= 1;
-  _d.dest(Pds::Xamps::XampsDestination::InternalLane1);
-  if (_pgp->readRegister(&_d, Xamps::XampsConfigurator::LaneIdAddr, 0x12, lanes+1)) ret |= 2;
-  if ((lanes[0] & 0xfffffff0) != Xamps::XampsConfigurator::LaneIdStuffing) ret |= 4;
-  if ((lanes[1] & 0xfffffff0) != Xamps::XampsConfigurator::LaneIdStuffing) ret |= 8;
-  if (!ret) {
-    lanes[0] &= 3; lanes[1] &=3;  // clear out the stuffing
-    if (deviceId & 1 == 0 ) {
-      if ((lanes[0] == 0) && (lanes[1] == 1)) {
-        _iHaveLaneZero = true;
-      } else {
-        printf("\nBAD LANES for Master Device ID %u, (%u,%u)\n", deviceId, lanes[0], lanes[1]);
-        ret = 0x10;
-      }
-    } else {
-      if ((lanes[0] == 2) && (lanes[1] == 3)) {
-        _iHaveLaneZero = false;
-      } else {
-        printf("\nBAD LANES for Slave Device ID %u, (%u,%u)\n", deviceId, lanes[0], lanes[1]);
-        ret = 0x20;
-      }
-    }
-  }
-  _iHaveLaneZero = true;                 // !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-//  if (ret) {
-//    printf("\nLANE TEST FAILED!!!!!, Good Bye !!!! laned0=%u, lane1=%u, ret=%u\n",
-//        (unsigned)lanes[0], (unsigned)lanes[1], ret);
-//    usleep(100000);
-//    _exit(16);
+//void XampsServer::laneTest() {
+//  uint32_t deviceId = static_cast<DetInfo&>(_xtc.src).devId();
+//  uint32_t lanes[2] = { 0xff, 0xff };
+//  unsigned ret = 0;
+//  _d.dest(Pds::Xamps::XampsDestination::Internal);
+//  if (_pgp->readRegister(&_d, Xamps::XampsConfigurator::LaneIdAddr, 0x11, lanes)) ret |= 1;
+//  _d.dest(Pds::Xamps::XampsDestination::InternalLane1);
+//  if (_pgp->readRegister(&_d, Xamps::XampsConfigurator::LaneIdAddr, 0x12, lanes+1)) ret |= 2;
+//  if ((lanes[0] & 0xfffffff0) != Xamps::XampsConfigurator::LaneIdStuffing) ret |= 4;
+//  else lanes[0] &= 3;
+//  if ((lanes[1] & 0xfffffff0) != Xamps::XampsConfigurator::LaneIdStuffing) ret |= 8;
+//  else lanes[1] &= 3;  // clear out the stuffing
+//  if (!ret) {
+//    if (deviceId & 1 == 0 ) {
+//      if ((lanes[0] == 0) && (lanes[1] == 1)) {
+//        _iHaveLaneZero = true;
+//      } else {
+//        printf("\nBAD LANES for Master Device ID %u, (%u,%u)\n", deviceId, lanes[0], lanes[1]);
+//        ret = 0x10;
+//      }
+//    } else {
+//      if ((lanes[0] == 2) && (lanes[1] == 3)) {
+//        _iHaveLaneZero = false;
+//      } else {
+//        printf("\nBAD LANES for Slave Device ID %u, (%u,%u)\n", deviceId, lanes[0], lanes[1]);
+//        ret = 0x20;
+//      }
+//    }
 //  }
-}
+//  _iHaveLaneZero = true;                 // !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+//  if (ret) {
+//    printf("\nLANE TEST FAILED laned0=%x, lane1=%x, ret=0x%x\n",
+//        (unsigned)lanes[0], (unsigned)lanes[1], ret);
+////    usleep(100000);
+////    _exit(16);
+//  }
+//}
 
 unsigned XampsServer::configure(XampsConfigType* config) {
   if (_cnfgrtr == 0) {
@@ -108,16 +110,20 @@ unsigned XampsServer::configure(XampsConfigType* config) {
   }
   unsigned c = flushInputQueue(fd());
   if (c) printf("XampsServer::configure flushed %u event%s before configuration\n", c, c>1 ? "s" : "");
-  if (_iHaveLaneZero) {
-    if ((_configureResult = _cnfgrtr->configure(_configMask))) {
-      printf("XampsServer::configure failed 0x%x\n", _configureResult);
-    }
-    _firstFetch = true;
-    _count = _elementsThisCount = 0;
-    _configured = _configureResult == 0;
-    c = this->flushInputQueue(fd());
-    if (c) printf("XampsServer::configure flushed %u event%s after confguration\n", c, c>1 ? "s" : "");
+  //  if (_iHaveLaneZero) {
+  if ((_configureResult = _cnfgrtr->configure(_configMask))) {
+    printf("XampsServer::configure failed 0x%x\n", _configureResult);
+  } else {
+    _xtc.extent = (_payloadSize * _elements) + sizeof(Xtc);
+    printf("CspadServer::configure _elements(%u) _payloadSize(%u) _xtc.extent(%u)\n",
+        _elements, _payloadSize, _xtc.extent);
   }
+  _firstFetch = true;
+  _count = _elementsThisCount = 0;
+  _configured = _configureResult == 0;
+  c = this->flushInputQueue(fd());
+  if (c) printf("XampsServer::configure flushed %u event%s after confguration\n", c, c>1 ? "s" : "");
+  //  }
   return _configureResult;
 }
 
@@ -139,23 +145,23 @@ void XampsServer::process() {
 }
 
 void Pds::XampsServer::enable() {
-//  _d.dest(Pds::Xamps::XampsDestination::CR);
-//  _pgp->writeRegister(
-//      &_d,
-//      Xamps::XampsConfigurator::RunModeAddr,
-//      _cnfgrtr->configuration().activeRunMode());
-//  ::usleep(10000);
-//  _firstFetch = true;
-//  flushInputQueue(fd());
+  _d.dest(Pds::Xamps::XampsDestination::External);
+  _pgp->writeRegister(
+      &_d,
+      Xamps::XampsConfigurator::RunModeAddr,
+      _cnfgrtr->testModeState() | Xamps::XampsConfigurator::RunModeValue);
+  ::usleep(10000);
+  _firstFetch = true;
+  flushInputQueue(fd());
   if (_debug & 0x20) printf("XampsServer::enable\n");
 }
 
 void Pds::XampsServer::disable() {
-//  _pgp->writeRegister(
-//      &_d,
-//      Xamps::XampsConfigurator::RunModeAddr,
-//      _cnfgrtr->configuration().inactiveRunMode());
-//  ::usleep(10000);
+  _pgp->writeRegister(
+      &_d,
+      Xamps::XampsConfigurator::RunModeAddr,
+      _cnfgrtr->testModeState());
+  ::usleep(10000);
   flushInputQueue(fd());
   if (_debug & 0x20) printf("XampsServer::disable\n");
 }
@@ -213,11 +219,15 @@ int Pds::XampsServer::fetch( char* payload, int flags ) {
    Pds::Pgp::DataImportFrame* data = (Pds::Pgp::DataImportFrame*)(payload + offset);
 
    if ((ret > 0) && (ret < (int)_payloadSize)) {
-     printf("XampsServer::fetch() returning Ignore, ret was %d, looking for %u ", ret, _payloadSize);
-     if (_debug & 4 || ret < 0) printf("\n\tquad(%u) opcode(0x%x) acqcount(0x%x) fiducials(0x%x) _count(%u) _elementsThisCount(%u) lane(%u) vc(%u)\n",
-         data->elementId(), data->second.opCode, data->acqCount(), data->fiducials(), _count, _elementsThisCount, pgpCardRx.pgpLane, pgpCardRx.pgpVc);
+     printf("XampsServer::fetch() returning Ignore, ret was %d, looking for %u\n", ret, _payloadSize);
+     if (_debug & 4 || ret < 0) printf("\telementId(%u) frameType(0x%x) acqcount(0x%x) raw_count(%u) _elementsThisCount(%u) lane(%u) vc(%u)\n",
+         data->elementId(), data->_frameType, data->acqCount(), data->frameNumber(), _elementsThisCount, pgpCardRx.pgpLane, pgpCardRx.pgpVc);
+     uint32_t* u = (uint32_t*)data;
+     printf("\tDataHeader: "); for (int i=0; i<16; i++) printf("0x%x ", u[i]); printf("\n");
      ret = Ignore;
    }
+
+   if (ret > (int) _payloadSize) printf("XampsServer::fetch pgp read returned too much _payloadSize(%u) ret(%d)\n", _payloadSize, ret);
 
    unsigned damageMask = 0;
    if (pgpCardRx.eofe)      damageMask |= 1;
@@ -228,13 +238,17 @@ int Pds::XampsServer::fetch( char* payload, int flags ) {
      _xtc.damage.increase(Pds::Damage::UserDefined);
      _xtc.damage.userBits(damageMask);
      printf("XampsServer::fetch setting user damage 0x%x", damageMask);
-     if (pgpCardRx.lengthErr) printf(", rxSize(%u)", (unsigned)pgpCardRx.rxSize);
+     if (pgpCardRx.lengthErr) printf(", rxSize(%u), maxSize(%u bytes)", (unsigned)pgpCardRx.rxSize*sizeof(uint32_t), _payloadSize);
      printf("\n");
    } else {
      unsigned oldCount = _count;
-     _count = data->frameNumber() - 1;  // xamps starts counting at 1, not zero
-     if (_debug & 4 || ret < 0) printf("\n\tquad(%u) opcode(0x%x) acqcount(0x%x) fiducials(0x%x) _oldCount(%u) _count(%u) _elementsThisCount(%u) lane(%u) vc(%u)\n",
-         data->elementId(), data->second.opCode, data->acqCount(), data->fiducials(), oldCount, _count, _elementsThisCount, pgpCardRx.pgpLane, pgpCardRx.pgpVc);
+     _count = data->frameNumber()/* - 1*/;  // cspad starts counting at 1, not zero, I wonder what xamps does
+     if (_debug & 4 || ret < 0) {
+       printf("\telementId(%u) frameType(0x%x) acqcount(0x%x) _oldCount(%u) _count(%u) _elementsThisCount(%u) lane(%u) vc(%u)\n",
+           data->elementId(), data->_frameType, data->acqCount(),  oldCount, _count, _elementsThisCount, pgpCardRx.pgpLane, pgpCardRx.pgpVc);
+       uint32_t* u = (uint32_t*)data;
+       printf("\tDataHeader: "); for (int i=0; i<16; i++) printf("0x%x ", u[i]); printf("\n");
+     }
      if ((_count != oldCount) && (_elementsThisCount)) {
        _elementsThisCount = 0;
        memcpy( payload, &_xtc, sizeof(Xtc) );
@@ -245,7 +259,7 @@ int Pds::XampsServer::fetch( char* payload, int flags ) {
      _elementsThisCount += 1;
      ret += offset;
    }
-   if (_debug & 1) printf(" returned %d\n", ret);
+   if (_debug & 5) printf(" returned %d\n", ret);
    return ret;
 }
 

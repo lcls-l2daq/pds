@@ -19,13 +19,13 @@ namespace Pds {
 
     class XampsDestination : public Pds::Pgp::Destination {
       public:
-        enum FEdest {External, Internal, InternalLane1, NumberOf};
+        enum FEdest {External, Internal, NumberOf};
 
         XampsDestination() {}
         ~XampsDestination() {}
 
       public:
-        unsigned            lane() { return _dest < InternalLane1 ? 0 : 1;}
+        unsigned            lane() { return  0; }
         unsigned            vc() {return _dest ? 2 : 1; }
         char*               name();
     };

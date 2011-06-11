@@ -15,7 +15,6 @@ using namespace Pds::Xamps;
         static char* _names[NumberOf + 1] = {
          "External Register",
          "Internal Register",
-         "Internal Register of lane 1"
          "--INVALID--"
        };
        return (_dest < NumberOf ? _names[_dest] : _names[NumberOf]);

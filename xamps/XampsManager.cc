@@ -363,7 +363,7 @@ XampsManager::XampsManager( XampsServer* server) :
    }
 
    server->setXamps( xamps );
-   server->laneTest();
+//   server->laneTest();
 
    _fsm.callback( TransitionId::Map, new XampsAllocAction( _cfg ) );
    _fsm.callback( TransitionId::Unmap, new XampsUnmapAction( server ) );
