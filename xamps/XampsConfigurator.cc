@@ -128,12 +128,10 @@ namespace Pds {
       unsigned ret = 0;
       mask = ~mask;
       clock_gettime(CLOCK_REALTIME, &start);
-      _flush();
       _d.dest(XampsDestination::Internal);
       ret |= _pgp->writeRegister(&_d, resetAddr, MasterResetMask);
-      _d.dest(XampsDestination::External);
-      ret |= _pgp->writeRegister(&_d, ClearFrameCountAddr, ClearFrameCountValue);
       nanosleep(&sleepTime, 0);
+      _flush();
       ret <<= 1;
       if (printFlag) {
         clock_gettime(CLOCK_REALTIME, &end);
@@ -162,6 +160,17 @@ namespace Pds {
         clock_gettime(CLOCK_REALTIME, &end);
         uint64_t diff = timeDiff(&end, &start) + 50000LL;
         printf("- 0x%x - so far %lld.%lld milliseconds\t", ret, diff/1000000LL, diff%1000000LL);
+      }
+      ret <<= 1;
+      _d.dest(XampsDestination::External);
+      if (_pgp->writeRegister(&_d, ClearFrameCountAddr, ClearFrameCountValue, true)) {
+        printf("XampsConfigurator::configure writing clear frame count failed!\n");
+        ret |= 1;
+      }
+      ret <<= 1;
+      if (_pgp->writeRegister(&_d, ClearFrameCountAddr, 0, true)) {
+        printf("XampsConfigurator::configure clearing clear frame count failed!\n");
+        ret |= 1;
       }
       ret <<= 1;
       _d.dest(XampsDestination::Internal);
