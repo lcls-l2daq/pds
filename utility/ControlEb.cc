@@ -35,7 +35,7 @@ void        ControlEb::reset(const Allocation& alloc)
 }
 
 Transition* ControlEb::build(const Node& hdr,
-			     const Transition& tr)
+           const Transition& tr)
 {
   cancel();
 

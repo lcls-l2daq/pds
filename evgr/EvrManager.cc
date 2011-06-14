@@ -910,8 +910,8 @@ public:
       if ( uFiducialPrev != 0 )
       {
         const int iFiducialWrapAroundDiffMin = 65536; 
-        if ( (uFiducialCur <= uFiducialPrev && uFiducialPrev < uFiducialCur+iFiducialWrapAroundDiffMin) || 
-          uFiducialCur > uFiducialPrev + 360 )
+        if ( (uFiducialCur <= uFiducialPrev && uFiducialPrev < uFiducialCur+iFiducialWrapAroundDiffMin)
+        )
         {
           printf( "EvrL1Action::fire(): seq 0x%x followed 0x%x\n", uFiducialCur, uFiducialPrev );
           out->datagram().xtc.damage.increase(Pds::Damage::UserDefined);      

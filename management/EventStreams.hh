@@ -20,9 +20,9 @@ namespace Pds {
     enum { MaxSize = 20*1024*1024 };
   public:
     EventStreams(PartitionMember& cmgr, 
-		 unsigned max_size      = MaxSize,
-		 unsigned net_buf_depth = netbufdepth,
-		 unsigned eb_depth      = EbDepth);
+     unsigned max_size      = MaxSize,
+     unsigned net_buf_depth = netbufdepth,
+     unsigned eb_depth      = EbDepth);
     virtual ~EventStreams();
   };
 
