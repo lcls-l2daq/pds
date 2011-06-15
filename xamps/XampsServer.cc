@@ -55,6 +55,7 @@ XampsServer::XampsServer( const Pds::Src& client, unsigned configMask )
      _configureResult(0),
      _debug(0),
      _offset(0),
+     _unconfiguredErrors(0),
      _configured(false),
      _firstFetch(true),
      _iHaveLaneZero(false) {
@@ -179,9 +180,9 @@ int Pds::XampsServer::fetch( char* payload, int flags ) {
    enum {Ignore=-1};
 
    if (_configured == false)  {
-     printf("XampsServer::fetch() called before configuration, configuration result 0x%x\n", _configureResult);
+     if (++_unconfiguredErrors<20) printf("XampsServer::fetch() called before configuration, configuration result 0x%x\n", _configureResult);
      unsigned c = this->flushInputQueue(fd());
-     printf("\tWe flushed %u input buffer%s\n", c, c>1 ? "s" : "");
+     if (_unconfiguredErrors<20 && c) printf("\tWe flushed %u input buffer%s\n", c, c>1 ? "s" : "");
      return Ignore;
    }
 

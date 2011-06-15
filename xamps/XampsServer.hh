@@ -96,6 +96,7 @@ class Pds::XampsServer
    unsigned                       _ioIndex;
    Pds::Xamps::XampsDestination   _d;
    Pds::Pgp::Pgp*                 _pgp;
+   unsigned                       _unconfiguredErrors;
    bool                           _configured;
    bool                           _firstFetch;
    bool                           _iHaveLaneZero;
