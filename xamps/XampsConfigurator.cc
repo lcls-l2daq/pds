@@ -163,12 +163,12 @@ namespace Pds {
       }
       ret <<= 1;
       _d.dest(XampsDestination::External);
-      if (_pgp->writeRegister(&_d, ClearFrameCountAddr, ClearFrameCountValue, true)) {
+      if (_pgp->writeRegister(&_d, ClearFrameCountAddr, ClearFrameCountValue)) {
         printf("XampsConfigurator::configure writing clear frame count failed!\n");
         ret |= 1;
       }
       ret <<= 1;
-      if (_pgp->writeRegister(&_d, ClearFrameCountAddr, 0, true)) {
+      if (_pgp->writeRegister(&_d, ClearFrameCountAddr, 0)) {
         printf("XampsConfigurator::configure clearing clear frame count failed!\n");
         ret |= 1;
       }
