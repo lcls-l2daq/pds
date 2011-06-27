@@ -8,6 +8,10 @@
 
 #include "pds/ipimb/IpimBoard.hh"
 
+#include "pdsdata/ipimb/DataV1.hh"
+typedef Pds::Ipimb::DataV1 OldIpimbDataType;
+static Pds::TypeId  oldIpimbDataType(Pds::TypeId::Id_IpimbData,
+                                  OldIpimbDataType::Version);
 
 namespace Pds {
 

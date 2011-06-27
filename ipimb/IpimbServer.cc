@@ -10,14 +10,19 @@
 #include <errno.h>
 
 using namespace Pds;
-
-IpimbServer::IpimbServer(const Src& client, const bool c01) :
-  _xtc(_ipimbDataType,client), _c01(c01)
+	
+IpimbServer::IpimbServer(const Src& client, const bool c01)
 {
+  _c01 = c01;
   _baselineSubtraction = 1;
   _polarity = -1;
-  _xtc.extent = sizeof(IpimbDataType)+sizeof(Xtc);
-  if (_c01) _xtc.extent = sizeof(Ipimb::DataV1)+sizeof(Xtc);
+  if (_c01) {
+    _xtc = Xtc(oldIpimbDataType, client);
+    _xtc.extent = sizeof(OldIpimbDataType)+sizeof(Xtc);
+  } else {
+    _xtc = Xtc(_ipimbDataType,client);
+    _xtc.extent = sizeof(IpimbDataType)+sizeof(Xtc);
+  }
 }
 
 unsigned IpimbServer::offset() const {
