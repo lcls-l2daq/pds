@@ -190,7 +190,6 @@ int FccdCamera::ShiftDataModulePhase(int moduleNum) {
 int FccdCamera::PicPortCameraInit() {
   char sendBuf[SENDBUF_MAXLEN];
   int ret = 0;
-  int ret1, ret2;
   int trace;
   char *initCmd[] = {
     // -- 
@@ -559,16 +558,6 @@ int FccdCamera::PicPortCameraInit() {
       ret = ShiftDataModulePhase(2);
       printf(">> Output mode 3: Skip remainder of %s\n", __PRETTY_FUNCTION__);
       return (ret);
-
-    case 4:
-      // shift clock phase of Data Modules 1 and 2
-      ret1 = ShiftDataModulePhase(1);
-      ret2 = ShiftDataModulePhase(2);
-      printf(">> Output mode 4: Skip remainder of %s\n", __PRETTY_FUNCTION__);
-      return (((ret1 >= 0) && (ret2 >= 0)) ? 0 : -1);
-
-    default:
-      break;
   }
 
   //
@@ -576,7 +565,9 @@ int FccdCamera::PicPortCameraInit() {
   //
 
   printf(">> Read FCCD version...\n");
-  (void) SendFccdCommand("ff");
+  if (SendFccdCommand("ff") < 0) {
+      printf(">> Failed to read FCCD version.  Is the FCCD powered on?\n");
+  }
 
   printf(">> Set wave form portion of FCCD configuration...\n");
 
@@ -800,6 +791,18 @@ int FccdCamera::PicPortCameraInit() {
       if (SendFccdCommand("09:00:00:00") < 0) {
         printf(">> Failed to set exposure cycle time\n");
       }
+    }
+  }
+
+  if ((!_inputConfig->ccdEnable()) || (_inputConfig->outputMode() == 4)) {
+    printf(">> Set camera link output source to test pattern 03 04...\n");
+    if (SendFccdCommand("03:04") < 0) {
+      printf(">> Failed to set camera link output source\n");
+    }
+  } else if (_inputConfig->outputMode() == 0) {
+    printf(">> Set camera link output source to CCD...\n");
+    if (SendFccdCommand("03:00") < 0) {
+      printf(">> Failed to set camera link output source\n");
     }
   }
 
