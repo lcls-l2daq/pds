@@ -24,14 +24,14 @@ static int      _disable_buffer = 10; // time [ms] inserted between flushed L1 a
 void ToEventWireScheduler::setMaximum(unsigned m) { _maxscheduled = m; }
 
 ToEventWireScheduler::ToEventWireScheduler(Outlet& outlet,
-					   CollectionManager& collection,
-					   int interface,
-					   int maxbuf,
-					   const Ins& occurrences) :
+             CollectionManager& collection,
+             int interface,
+             int maxbuf,
+             const Ins& occurrences) :
   OutletWire   (outlet),
   _collection  (collection),
   _client      (sizeof(OutletWireHeader), Mtu::Size, Ins(interface),
-		1 + maxbuf / Mtu::Size),
+    1 + maxbuf / Mtu::Size),
   _occurrences (occurrences),
   _scheduled   (0),
   _task        (new Task(TaskObject("TxScheduler")))
@@ -89,7 +89,7 @@ void ToEventWireScheduler::_flush()
 #endif
 
       if (!t->send_next(_client))
-	delete t->disconnect();
+  delete t->disconnect();
       t = n;
     } while( t != _list.empty());
     t = _list.forward();
@@ -115,39 +115,39 @@ void ToEventWireScheduler::routine()
     if (::poll(&pfd, nfd, _idol_timeout) > 0) {
       InDatagram* dg;
       if (::read(_schedfd[0], &dg, sizeof(dg)) == sizeof(dg)) {
-	//  Flush the set of events if
-	//    (1) we already have queued an event to the same destination
-	//    (2) we have reached the maximum number of queued events
-	//    [missing a timeout?]
-	const Sequence& seq = dg->datagram().seq;
-	if (seq.isEvent() && !_nodes.isempty()) {
-	  OutletWireIns* dst = _nodes.lookup(seq.stamp().vector());
-	  unsigned m = 1<<dst->id();
-	  if (m & _scheduled)
-	    _flush();
-	  TrafficDst* t = dg->traffic(dst->ins());
-	  _list.insert(t);
-	  _scheduled |= m;
-	  if (++_nscheduled >= _maxscheduled)
-	    _flush();
-	}
-	else {
-	  if (_nscheduled) {
-	    _flush();
-	    //
-	    //  Add some spacing to insure that the L1's and Transitions are not "coalesced"
-	    //
-	    timespec ts;
-	    ts.tv_sec = 0; ts.tv_nsec = _disable_buffer*1000000;
-	    nanosleep(&ts,0);
-	  }
-	  _flush(dg);
-	}
+  //  Flush the set of events if
+  //    (1) we already have queued an event to the same destination
+  //    (2) we have reached the maximum number of queued events
+  //    [missing a timeout?]
+  const Sequence& seq = dg->datagram().seq;
+  if (seq.isEvent() && !_nodes.isempty()) {
+    OutletWireIns* dst = _nodes.lookup(seq.stamp().vector());
+    unsigned m = 1<<dst->id();
+    if (m & _scheduled)
+      _flush();
+    TrafficDst* t = dg->traffic(dst->ins());
+    _list.insert(t);
+    _scheduled |= m;
+    if (++_nscheduled >= _maxscheduled)
+      _flush();
+  }
+  else {
+    if (_nscheduled) {
+      _flush();
+      //
+      //  Add some spacing to insure that the L1's and Transitions are not "coalesced"
+      //
+      timespec ts;
+      ts.tv_sec = 0; ts.tv_nsec = _disable_buffer*1000000;
+      nanosleep(&ts,0);
+    }
+    _flush(dg);
+  }
       }
       else {
-	printf("ToEventWireScheduler::routine error reading pipe : %s\n",
-	       strerror(errno));
-	break;
+  printf("ToEventWireScheduler::routine error reading pipe : %s\n",
+         strerror(errno));
+  break;
       }
     }
     else {  // timeout
