@@ -701,6 +701,10 @@ IpimBoardPsData::IpimBoardPsData(unsigned* packet, const int baselineSubtraction
   _ch1 = 0;
   _ch2 = 0;
   _ch3 = 0;
+  _ch0_ps = 0;
+  _ch1_ps = 0;
+  _ch2_ps = 0;
+  _ch3_ps = 0;
   _checksum = 0;
   _dataDamage = dataDamage;
   _history = history;
@@ -722,6 +726,10 @@ IpimBoardPsData::IpimBoardPsData() { // for IpimbServer setup
   _ch1 = 0;
   _ch2 = 0;
   _ch3 = 0;
+  _ch0_ps = 0;
+  _ch1_ps = 0;
+  _ch2_ps = 0;
+  _ch3_ps = 0;
   _checksum = 0;//12345;
 }
 
@@ -935,6 +943,10 @@ uint16_t IpimBoardPsData::GetCh(int i) {
   return (uint16_t) _sampleChannel[i];
 }
 
+uint16_t IpimBoardPsData::GetCh_ps(int i) {
+  return (uint16_t) _presampleChannel[i];
+}
+
 unsigned IpimBoardPsData::GetConfig0() {
   return _config0;
 }
@@ -958,6 +970,10 @@ IpimBoardData::IpimBoardData(IpimBoardPsData data) {
   _ch1 = data.GetCh(1);
   _ch2 = data.GetCh(2);
   _ch3 = data.GetCh(3);
+  _ch0 = data.GetCh_ps(0);
+  _ch1 = data.GetCh_ps(1);
+  _ch2 = data.GetCh_ps(2);
+  _ch3 = data.GetCh_ps(3);
   _checksum = data.GetChecksum();
  }
 

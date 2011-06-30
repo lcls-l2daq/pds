@@ -160,6 +160,7 @@ namespace Pds {
     unsigned GetTriggerDelay_ns();
     unsigned GetTriggerPreSampleDelay_ns();
     uint16_t GetCh(int channel);
+    uint16_t GetCh_ps(int channel);
     unsigned GetConfig0();
     unsigned GetConfig1();
     unsigned GetConfig2();
