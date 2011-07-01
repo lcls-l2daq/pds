@@ -970,10 +970,10 @@ IpimBoardData::IpimBoardData(IpimBoardPsData data) {
   _ch1 = data.GetCh(1);
   _ch2 = data.GetCh(2);
   _ch3 = data.GetCh(3);
-  _ch0 = data.GetCh_ps(0);
-  _ch1 = data.GetCh_ps(1);
-  _ch2 = data.GetCh_ps(2);
-  _ch3 = data.GetCh_ps(3);
+  _ch0_ps = data.GetCh_ps(0);
+  _ch1_ps = data.GetCh_ps(1);
+  _ch2_ps = data.GetCh_ps(2);
+  _ch3_ps = data.GetCh_ps(3);
   _checksum = data.GetChecksum();
  }
 
