@@ -91,6 +91,7 @@ public:
   }
   Transition* fire(Transition* tr) {
     _nDamagedConfigures = 0;
+    _fex.reset();
     for (unsigned i=0; i<_nServers; i++) {
       int len = (*_cfg[i]).fetch(*tr,_ipimbConfigType, &_config[i], sizeof(_config[i]));
       if (len <= 0) {

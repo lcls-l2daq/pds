@@ -13,6 +13,7 @@ namespace Pds {
   public:
     virtual ~IpimbFex() {}
   public:
+    virtual void        reset          () {}
     virtual bool        configure      (CfgClientNfs&, Transition&, const IpimbConfigType&) { return true; }
     virtual void        recordConfigure(InDatagram*, const Src&)    {}
     virtual InDatagram* process        (InDatagram* in)             { return in; }

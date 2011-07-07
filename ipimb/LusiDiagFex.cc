@@ -23,19 +23,17 @@ namespace Pds {
 
 using namespace Pds;
 
-const int OutSize = 0x400;
-const int OutEntries = 16;
+static const int OutSize = 0x400;
+static const int OutEntries = 16;
+static const int max_configs=32;
 
 #define IS_IPM(det) (_cap_config[det].ndiodes >1)
 #define IS_PIM(det) (_cap_config[det].ndiodes==1)
 #define SET_IPM(det) (_cap_config[det].ndiodes=4)
 #define SET_PIM(det) (_cap_config[det].ndiodes=1)
 
-static inline unsigned ipmIndex(DetInfo::Detector det) { return det; }
-static inline unsigned ipmIndexBound() { return DetInfo::NumDetector; }
-
-static inline unsigned pimIndex(DetInfo::Detector det) { return det; }
-static inline unsigned pimIndexBound() { return DetInfo::NumDetector; }
+static inline unsigned ipmIndex(unsigned det) { return det; }
+static inline unsigned pimIndex(unsigned det) { return det; }
 
 typedef Pds::Lusi::IpmFexV1 IpmFexType;
 static  Pds::TypeId _ipmFexType(Pds::TypeId::Id_IpmFex, IpmFexType::Version);
@@ -47,9 +45,9 @@ typedef Pds::Ipimb::DataV2 IpimbDataType;
 
 LusiDiagFex::LusiDiagFex() : 
   _pool(OutSize,OutEntries), 
-  _ipm_config(new IpmFexConfigType[ipmIndexBound()]),
-  _pim_config(new DiodeFexConfigType[pimIndexBound()]),
-  _cap_config(new IpimbCapSetting[DetInfo::NumDetector]),
+  _ipm_config(new IpmFexConfigType  [max_configs]),
+  _pim_config(new DiodeFexConfigType[max_configs]),
+  _cap_config(new IpimbCapSetting   [max_configs]),
   _odg(0) {}
 
 LusiDiagFex::~LusiDiagFex() 
@@ -58,6 +56,8 @@ LusiDiagFex::~LusiDiagFex()
   delete[] _ipm_config;
   delete[] _cap_config;
 }
+
+void LusiDiagFex::reset() { _map.clear(); }
 
 InDatagram* LusiDiagFex::process(InDatagram* in)
 {
@@ -69,7 +69,9 @@ InDatagram* LusiDiagFex::process(InDatagram* in)
 
 int LusiDiagFex::process(Xtc* xtc)
 {
-  DetInfo::Detector det = static_cast<const DetInfo&>(xtc->src).detector();
+  unsigned det=0;
+  while(_map[det] != xtc->src.phy()) det++;
+  
   if (IS_IPM(det)) {
     // keep a copy of the raw data
     _odg->insert(*xtc, xtc->payload());
@@ -113,7 +115,9 @@ bool LusiDiagFex::configure(CfgClientNfs& cfg,
 			    Transition& tr,
 			    const IpimbConfigType& ipimb_config)
 {
-  DetInfo::Detector det = static_cast<const DetInfo&>(cfg.src()).detector();
+  unsigned det = _map.size();
+  _map.push_back(cfg.src().phy());
+
   if ( cfg.fetch(tr, _ipmFexConfigType, 
 		 &_ipm_config[ipmIndex(det)], sizeof(IpmFexConfigType)) > 0 ) {
     SET_IPM(det);
@@ -132,7 +136,9 @@ bool LusiDiagFex::configure(CfgClientNfs& cfg,
 
 void LusiDiagFex::recordConfigure(InDatagram* dg, const Src& src)
 {
-  DetInfo::Detector det = static_cast<const DetInfo&>(src).detector();
+  unsigned det=0;
+  while(_map[det] != src.phy()) det++;
+
   if (IS_IPM(det)) {
     Xtc tc = Xtc(_ipmFexConfigType, src);
     tc.extent += sizeof(IpmFexConfigType);

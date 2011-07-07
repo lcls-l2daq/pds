@@ -10,6 +10,8 @@
 #include "pds/config/IpmFexConfigType.hh"
 #include "pds/config/DiodeFexConfigType.hh"
 
+#include <vector>
+
 namespace Pds {
   class InDatagram;
   class Src;
@@ -22,6 +24,7 @@ namespace Pds {
     LusiDiagFex();
     ~LusiDiagFex();
   public:
+    void        reset          ();
     bool        configure      (CfgClientNfs&, Transition&, const IpimbConfigType&);
     void        recordConfigure(InDatagram*, const Src&);
     InDatagram* process        (InDatagram*);
@@ -33,6 +36,7 @@ namespace Pds {
     DiodeFexConfigType*    _pim_config;
     IpimbCapSetting*       _cap_config;
     InDatagram*            _odg;
+    std::vector<unsigned>  _map;
   };
 };
 
