@@ -69,6 +69,10 @@ InDatagram* LusiDiagFex::process(InDatagram* in)
 
 int LusiDiagFex::process(Xtc* xtc)
 {
+  if (static_cast<const DetInfo&>(xtc->src).device()!=DetInfo::Ipimb) {
+    _odg->insert(*xtc, xtc->payload());
+	return 1; }
+
   unsigned det=0;
   while(_map[det] != xtc->src.phy()) det++;
   
