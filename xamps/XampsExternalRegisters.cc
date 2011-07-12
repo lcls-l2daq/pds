@@ -77,7 +77,7 @@ namespace Pds {
         }
         if (!strncmp("Thermmistor", _names[i], 11)) printf(" %8.3f Volts", (3.0*(values[i] & _xr[i].mask)/4096.0*100.0));
         if (!strncmp("HVV_ReadBack", _names[i], 12)) printf(" %8.3f Volts", (3.0*(values[i] & _xr[i].mask)/4096.0*200.0/2.048));
-        if (!strncmp("HVI_ReadBack", _names[i], 12)) printf(" %8.6f milliAmps", (3.0*(values[i] & _xr[i].mask)/4096.0/100.0));
+        if (!strncmp("HVI_ReadBack", _names[i], 12)) printf(" %8.6f microAmps", (3.0*(values[i] & _xr[i].mask)/409.6));
         printf("\n");
       }
     }
