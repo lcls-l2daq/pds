@@ -913,9 +913,10 @@ public:
         if ( (uFiducialCur <= uFiducialPrev && uFiducialPrev < uFiducialCur+iFiducialWrapAroundDiffMin)
         )
         {
+          // !! In burst mode, this is not a error, so we don't set the damage bit, but just print out the information
           printf( "EvrL1Action::fire(): seq 0x%x followed 0x%x\n", uFiducialCur, uFiducialPrev );
-          out->datagram().xtc.damage.increase(Pds::Damage::UserDefined);      
-          out->datagram().xtc.damage.userBits(out->datagram().xtc.damage.userBits() | 0x2);
+          //out->datagram().xtc.damage.increase(Pds::Damage::UserDefined);      
+          //out->datagram().xtc.damage.userBits(out->datagram().xtc.damage.userBits() | 0x2);
         }
       }
       l1xmitGlobal->uFiducialPrev = uFiducialCur;
