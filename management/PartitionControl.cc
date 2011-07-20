@@ -208,9 +208,10 @@ void PartitionControl::platform_rollcall(PlatformCallback* cb)
 bool PartitionControl::set_partition(const char* name,
 				     const char* dbpath,
 				     const Node* nodes,
-				     unsigned    nnodes)
+				     unsigned    nnodes,
+                                     unsigned    bldmask)
 {
-  _partition = Allocation(name,dbpath,partitionid());
+  _partition = Allocation(name,dbpath,partitionid(),bldmask);
   for(unsigned k=0; k<nnodes; k++)
     _partition.add(nodes[k]);
   return true;

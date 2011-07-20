@@ -31,7 +31,8 @@ namespace Pds {
     bool  set_partition    (const char* name,
 			    const char* db_path,
 			    const Node* nodes,
-			    unsigned    nnodes);
+			    unsigned    nnodes,
+                            unsigned    bld_mask);
     const Allocation& partition() const;
   public:
     virtual void  set_target_state (State);
