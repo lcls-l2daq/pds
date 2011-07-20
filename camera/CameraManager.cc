@@ -26,6 +26,7 @@
 #include <new>
 
 //#define SIMULATE_EVR
+#define DBUG
 
 #ifdef SIMULATE_EVR
 #include "pds/service/Ins.hh"
@@ -40,12 +41,17 @@ static Pds::Ins     _dst;
 
 
 
-Pds::CameraManager* signalHandlerArgs[64];
+static Pds::CameraManager* signalHandlerArgs[] = 
+{ 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+  0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+  0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+  0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 };
 
 static void cameraSignalHandler(int arg)
 {
   Pds::CameraManager* mgr = signalHandlerArgs[arg];
-  mgr->handle();
+  if (mgr)
+    mgr->handle();
 }
 
 namespace Pds {
@@ -113,8 +119,12 @@ CameraManager::CameraManager(const Src& src,
   _fsm     (new Fsm),
   _camConfig  (camConfig),
   _configured (false),
-  _occPool     (new GenericPool(sizeof(UserMessage),1))
+  _occPool     (new GenericPool(sizeof(UserMessage),1)),
+  _hsignal     ("CamSignal")
 {
+#ifdef DBUG
+  _tsignal.tv_sec = _tsignal.tv_nsec = 0;
+#endif
   _fsm->callback(TransitionId::Map            , new CameraMapAction       (*this));
   _fsm->callback(TransitionId::Configure      , new CameraConfigAction    (*this));
   _fsm->callback(TransitionId::Unconfigure    , new CameraUnconfigAction  (*this));
@@ -225,6 +235,14 @@ Appliance& CameraManager::appliance() { return *_fsm; }
 
 void CameraManager::handle()
 {
+#ifdef DBUG
+    timespec ts;
+    clock_gettime(CLOCK_REALTIME, &ts);
+    if (_tsignal.tv_sec)
+      _hsignal.accumulate(ts,_tsignal);
+    _tsignal=ts;
+#endif
+
 #ifdef SIMULATE_EVR
   // simulate an EVR for testing
     timespec ts;
@@ -245,6 +263,10 @@ void CameraManager::handle()
 
   server().post(msg);
   _nposts++;
+
+#ifdef DBUG
+  _hsignal.print(_nposts);
+#endif
 }
 
 void CameraManager::register_(int sig)
@@ -258,6 +280,8 @@ void CameraManager::register_(int sig)
 
   _sig    = sig;
   _nposts = 0;
+
+  printf("signal %d registered to cammgr %p\n", sig, this); 
 
   signalHandlerArgs[sig] = this;
   struct sigaction action;

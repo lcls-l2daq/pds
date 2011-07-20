@@ -18,14 +18,21 @@
 #include <sys/uio.h>
 #include <new>
 
+#define DBUG
+
 using namespace Pds;
 
 typedef unsigned short pixel_type;
 
 FexFrameServer::FexFrameServer(const Src& src, DmaSplice& splice) :
   FrameServer(src),
-  _splice(splice)
+  _splice(splice),
+  _hinput      ("CamInput"),
+  _hfetch      ("CamFetch")
 {
+#ifdef DBUG
+  _tinput.tv_sec = _tinput.tv_nsec = 0;
+#endif
 }
 
 FexFrameServer::~FexFrameServer()
@@ -49,6 +56,14 @@ void FexFrameServer::setCameraOffset(unsigned camera_offset)
 //
 int FexFrameServer::fetch(char* payload, int flags)
 {
+#ifdef DBUG
+  timespec ts;
+  clock_gettime(CLOCK_REALTIME, &ts);
+  if (_tinput.tv_sec)
+    _hinput.accumulate(ts,_tinput);
+  _tinput=ts;
+#endif
+  
   FrameServerMsg* msg;
   int length = ::read(_fd[0],&msg,sizeof(msg));
   if (length >= 0) {
@@ -83,11 +98,17 @@ int FexFrameServer::fetch(char* payload, int flags)
 
     delete fmsg->handle;
     delete fmsg;
-    return length;
   }
   else
     printf("FexFrameServer::fetch error: %s\n",strerror(errno));
 
+#ifdef DBUG
+  clock_gettime(CLOCK_REALTIME, &ts);
+  _hfetch.accumulate(ts,_tinput);
+
+  _hinput.print(_count+1);
+  _hfetch.print(_count+1);
+#endif
   return length;
 }
 

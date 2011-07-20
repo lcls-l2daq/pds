@@ -1,6 +1,7 @@
 #ifndef Pds_CameraManager_hh
 #define Pds_CameraManager_hh
 
+#include "pds/mon/THist.hh"
 #include "pdsdata/xtc/Xtc.hh"
 
 namespace PdsLeutron {
@@ -70,6 +71,9 @@ namespace Pds {
     GenericPool*    _occPool;
   protected:
     unsigned        _nposts;
+  private:
+    timespec        _tsignal;
+    THist           _hsignal;
   };
 };
 

@@ -29,7 +29,7 @@ tgtnames :=
 ifneq ($(findstring x86_64,$(tgt_arch)),)
 tgtnames := camsend camreceiver serialcmd fccdcmd
 else
-tgtnames := camsend camreceiver serialcmd fccdcmd
+tgtnames := camsend camreceiver serialcmd fccdcmd camsendm
 endif
 
 # ifeq ($(shell uname -m | egrep -c '(x86_|amd)64$$'),1)
@@ -55,6 +55,14 @@ tgtlibs_camsend += pdsdata/xtcdata pdsdata/camdata pdsdata/opal1kdata pdsdata/pu
 tgtincs_camsend := pds/zerocopy/kmemory pds/camera
 tgtlibs_camsend += $(leutron_libs)
 tgtincs_camsend += leutron/include
+
+tgtsrcs_camsendm := camsendm.cc
+tgtlibs_camsendm := pds/service pds/collection pds/utility pds/config pds/camera pds/client pds/xtc
+tgtlibs_camsendm += pds/vmon pds/mon
+tgtlibs_camsendm += pdsdata/xtcdata pdsdata/camdata pdsdata/opal1kdata pdsdata/pulnixdata pdsdata/fccddata
+tgtincs_camsendm := pds/zerocopy/kmemory pds/camera
+tgtlibs_camsendm += $(leutron_libs)
+tgtincs_camsendm += leutron/include
 
 tgtsrcs_camreceiver := camreceiver.c display.cc
 tgtincs_camreceiver := qt/include_${ARCHCODE}

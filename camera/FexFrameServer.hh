@@ -10,6 +10,7 @@
 #include "pds/camera/FrameServer.hh"
 #include "pds/camera/TwoDMoments.hh"
 #include "pds/config/FrameFexConfigType.hh"
+#include "pds/mon/THist.hh"
 
 namespace Pds {
 
@@ -52,6 +53,10 @@ namespace Pds {
     const FrameFexConfigType* _config;
     unsigned   _camera_offset;
     unsigned   _framefwd_count;
+
+    timespec        _tinput;
+    THist           _hinput;
+    THist           _hfetch;
   };
 }
 
