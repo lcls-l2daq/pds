@@ -51,11 +51,13 @@ namespace Pds {
     Allocation();
     Allocation(const char* partition,
 	       const char* dbpath,
-	       unsigned    partitionid);
+	       unsigned    partitionid,
+               unsigned    bld_mask=0);
     Allocation(const char* partition,
 	       const char* dbpath,
 	       unsigned    partitionid,
-	       const Sequence&);
+	       const Sequence&,
+               unsigned    bld_mask=0);
 
     bool add(const Node& node);
 
@@ -64,17 +66,18 @@ namespace Pds {
     const char* partition() const;
     const char* dbpath() const;
     unsigned    partitionid() const;
-
+    unsigned    bld_mask() const;
     unsigned    size() const;
   private:
     static const unsigned MaxNodes=128;
     static const unsigned MaxName=64;
     static const unsigned MaxDbPath=64;
-    char _partition[MaxName];
-    char _dbpath   [MaxDbPath];
+    char     _partition[MaxName];
+    char     _dbpath   [MaxDbPath];
     unsigned _partitionid;
+    unsigned _bld_mask;
     unsigned _nnodes;
-    Node _nodes[MaxNodes];
+    Node     _nodes[MaxNodes];
   };
 
   class Allocate : public Transition {
