@@ -18,7 +18,7 @@ namespace Pds {
     void       ready(bool);
   private:
     bool _ready;
-    enum { MAX_SOURCES=4 };
+    enum { MAX_SOURCES=32 };
     Src _sources[MAX_SOURCES];
   };
 };

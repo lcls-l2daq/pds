@@ -13,10 +13,14 @@ PingReply::PingReply(const std::list<Src>& sources) :
   _ready (false)
 {
   Src* p = _sources;
+  Src* end = p+MAX_SOURCES;
   for(std::list<Src>::const_iterator it = sources.begin();
       it != sources.end();
       it++)
-    *p++ = *it;
+    if (p < end)
+      *p++ = *it;
+    else
+      printf("PingReply exceeded MAX_SOURCES\n");
 }
 
 unsigned PingReply::nsources() const { return payload()/sizeof(Src); }
