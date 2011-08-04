@@ -12,7 +12,11 @@
 
 using namespace Pds;
 
+#ifdef BUILD_LARGE_STREAM_BUFFER
+static const unsigned MaxSize = 2<<23;
+#else
 static const unsigned MaxSize = 1<<23;
+#endif
 
 SegStreams::SegStreams(PartitionMember& cmgr) :
   WiredStreams(VmonSourceId(cmgr.header().level(), cmgr.header().ip()))
@@ -24,21 +28,21 @@ SegStreams::SegStreams(PartitionMember& cmgr) :
   for (int s = 0; s < StreamParams::NumberOfStreams; s++) {
 
     _outlets[s] = new ToEventWireScheduler(*stream(s)->outlet(), 
-					   //    _outlets[s] = new ToEventWire(*stream(s)->outlet(), 
-				  cmgr, 
-				  ipaddress, 
-				  MaxSize*ebdepth,
-				  cmgr.occurrences());
+             //    _outlets[s] = new ToEventWire(*stream(s)->outlet(), 
+          cmgr, 
+          ipaddress, 
+          MaxSize*ebdepth,
+          cmgr.occurrences());
 
     _inlet_wires[s] = new L1EventBuilder(src,
-					 _xtcType,
-					 level,
-					 *stream(s)->inlet(),
-					 *_outlets[s],
-					 s,
-					 ipaddress,
-					 MaxSize, ebdepth,
-					 new VmonEb(src,32,ebdepth,(1<<24),(1<<22)));
+           _xtcType,
+           level,
+           *stream(s)->inlet(),
+           *_outlets[s],
+           s,
+           ipaddress,
+           MaxSize, ebdepth,
+           new VmonEb(src,32,ebdepth,(1<<24),(1<<22)));
 
     (new VmonServerAppliance(src))->connect(stream(s)->inlet());
   }
