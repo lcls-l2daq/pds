@@ -201,7 +201,8 @@ namespace Pds {
       ret <<= 1;
       if (mask&16 && ret==0) {
         if (printFlag) printf("- 0x%x - \n\treading ", ret);
-        ret |= readRegs();
+//        ret |= readRegs();                    !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+        readRegs();
         if (printFlag) {
           clock_gettime(CLOCK_REALTIME, &end);
           uint64_t diff = timeDiff(&end, &start) + 50000LL;
@@ -280,29 +281,30 @@ namespace Pds {
     }
 
     unsigned CspadConfigurator::readRegs() {
+      unsigned ret = Success;
       _d.dest(CspadDestination::CR);
-      if (Failure == _pgp->readRegister(
-          &_d,
-          ConcentratorVersionAddr,
-          0x55000,
-          _config->concentratorVersionAddr())) {
-        return Failure;
-      }
-      if (_debug & 0x10) printf("\nCspadConfigurator concentrator version 0x%x\n", *_config->concentratorVersionAddr());
       for (unsigned i=0; i<Pds::CsPad::MaxQuadsPerSensor; i++) {
         if ((1<<i) & _config->quadMask()) {
           uint32_t* u = (uint32_t*) _config->quads()[i].readOnly();
           _d.dest(i);
           for (unsigned j=0; j<sizeOfQuadReadOnly; j++) {
             if (Failure == _pgp->readRegister(&_d, _quadReadOnlyAddrs[j], 0x55000 | (i<<4) | j, u+j)) {
-              return Failure;
+              ret = Failure;
             }
           }
           if (_debug & 0x10) printf("CspadConfigurator Quad %u read only 0x%x 0x%x %p %p\n",
               i, (unsigned)u[0], (unsigned)u[1], u, _config->quads()[i].readOnly());
         }
       }
-      return Success;
+      if (Failure == _pgp->readRegister(
+          &_d,
+          ConcentratorVersionAddr,
+          0x55000,
+          _config->concentratorVersionAddr())) {
+        ret = Failure;
+      }
+      if (_debug & 0x10) printf("\nCspadConfigurator concentrator version 0x%x\n", *_config->concentratorVersionAddr());
+      return ret;
     }
 
     unsigned CspadConfigurator::writeRegs() {

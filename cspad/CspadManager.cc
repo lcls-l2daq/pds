@@ -126,17 +126,20 @@ InDatagram* CspadL1Action::fire(InDatagram* in) {
 
     for (unsigned i=0; i<server->numberOfQuads(); i++) {
       data = (Pds::Pgp::DataImportFrame*) ( payload + (i * server->payloadSize()) );
-      if (evrFiducials != data->fiducials()) {
-        error |= 1<<data->elementId();
-        if (_fiducialErrorCount < FiducialErrorCountLimit) {
-          printf("CspadL1Action::fire(in) fiducial mismatch evr(0x%x) cspad(0x%x) in quad %u,%u lastMatchedFiducial(0x%x), frameNumber(%u), lastMatchedFrameNumber(%u)\n",
-              evrFiducials, data->fiducials(), data->elementId(), i, _lastMatchedFiducial, data->frameNumber(), _lastMatchedFrameNumber);
+      if (data->fiducials()) {
+        if (evrFiducials != data->fiducials()) {
+          error |= 1<<data->elementId();
+          if (_fiducialErrorCount < FiducialErrorCountLimit) {
+            printf("CspadL1Action::fire(in) fiducial mismatch evr(0x%x) cspad(0x%x) in quad %u,%u lastMatchedFiducial(0x%x), frameNumber(%u), lastMatchedFrameNumber(%u)\n",
+                evrFiducials, data->fiducials(), data->elementId(), i, _lastMatchedFiducial, data->frameNumber(), _lastMatchedFrameNumber);
+          }
+        } else {
+          _lastMatchedFiducial = evrFiducials;
+          _lastMatchedFrameNumber = data->frameNumber();
+          _fiducialErrorCount = 0;
         }
-      } else {
-        _lastMatchedFiducial = evrFiducials;
-        _lastMatchedFrameNumber = data->frameNumber();
-        _fiducialErrorCount = 0;
       }
+      if (server->debug() & 0x40) printf("L1 acq - frm# %d\n", data->acqCount() - data->frameNumber());
       // Kludge test of sending nothing ....                  !!!!!!!!!!!!!!!!!!!!!!
 //      if (data->frameNumber()) {
 //        if ((data->frameNumber() & 0xfff) == 0) {
