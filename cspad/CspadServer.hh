@@ -25,7 +25,7 @@ class Pds::CspadServer
      public EbCountSrv
 {
  public:
-   CspadServer( const Src& client, unsigned configMask=0 );
+   CspadServer( const Src&, Pds::TypeId&, unsigned configMask=0 );
    virtual ~CspadServer() {}
     
    //  Eb interface

@@ -17,7 +17,6 @@
 #include "pds/cspad/CspadConfigurator.hh"
 #include "pds/cspad/CspadDestination.hh"
 #include "pds/cspad/Processor.hh"
-#include "pdsdata/cspad/ElementV1.hh"
 #include "PgpCardMod.h"
 #include <unistd.h>
 #include <sys/uio.h>
@@ -25,6 +24,7 @@
 #include <errno.h>
 #include <string.h>
 #include <fcntl.h>
+#include <new>
 
 using namespace Pds;
 //using namespace Pds::CsPad;
@@ -35,9 +35,6 @@ class Task;
 class TaskObject;
 class Pds::CsPad::CspadDestination;
 
-static Pds::TypeId _CsPadDataType(Pds::TypeId::Id_CspadElement,
-                                    Pds::CsPad::ElementV1::Version);
-
 long long int timeDiff(timespec* end, timespec* start) {
   long long int diff;
   diff =  (end->tv_sec - start->tv_sec) * 1000000000LL;
@@ -46,8 +43,8 @@ long long int timeDiff(timespec* end, timespec* start) {
   return diff;
 }
 
-CspadServer::CspadServer( const Pds::Src& client, unsigned configMask )
-   : _xtc( _CsPadDataType, client ),
+CspadServer::CspadServer( const Pds::Src& client, Pds::TypeId& myDataType, unsigned configMask )
+   : _xtc( myDataType, client ),
      _cnfgrtr(0),
      _quads(0),
      _configMask(configMask),
