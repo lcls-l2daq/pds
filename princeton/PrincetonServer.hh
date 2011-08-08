@@ -9,7 +9,7 @@
 #include "pvcam/include/master.h"
 #include "pvcam/include/pvcam.h"
 #include "pdsdata/xtc/DetInfo.hh"
-#include "pdsdata/princeton/ConfigV1.hh"
+#include "pdsdata/princeton/ConfigV2.hh"
 #include "pds/xtc/InDatagram.hh"
 #include "pds/xtc/Datagram.hh"
 #include "pds/xtc/CDatagram.hh"
@@ -29,7 +29,7 @@ public:
   ~PrincetonServer();
   
   int   mapCamera();  
-  int   configCamera(Princeton::ConfigV1& config);
+  int   configCamera(Princeton::ConfigV2& config);
   int   unconfigCamera();
   int   beginRunCamera();
   int   endRunCamera();  
@@ -97,7 +97,7 @@ private:
 
   int   runCaptureTask();
   
-  int   initCameraSettings(Princeton::ConfigV1& config);
+  int   initCameraSettings(Princeton::ConfigV2& config);
 
   int   initTest();
   
@@ -143,7 +143,7 @@ private:
   /*
    * Config data
    */ 
-  Princeton::ConfigV1 _configCamera; 
+  Princeton::ConfigV2 _configCamera; 
   
   /*
    * Per-frame data

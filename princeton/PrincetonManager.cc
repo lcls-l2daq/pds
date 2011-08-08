@@ -76,7 +76,7 @@ public:
       if ( iConfigSize == 0 ) // no config data is found in the database.       
       {
         printf( "PrincetonConfigAction::fire(): No config data is loaded. Will use default values for configuring the camera.\n" );
-        _configCamera = Princeton::ConfigV1(
+        _configCamera = Princeton::ConfigV2(
           16, // Width
           16, // Height
           0,  // OrgX
@@ -85,6 +85,7 @@ public:
           1,  // BinX
           0.001,  // Exposure time
           25.0f,  // Cooling temperature
+          3,  // Gain index
           1,  // Readout speed index
           1   // Redout event code
         );
@@ -95,7 +96,7 @@ public:
         printf( "PrincetonConfigAction::fire(): Config data has incorrect size (%d B). Should be %d B.\n",
           iConfigSize, sizeof(_configCamera) );
           
-        _configCamera       = Princeton::ConfigV1();
+        _configCamera       = Princeton::ConfigV2();
         _iConfigCameraFail  = 1;
       }
                   
@@ -124,13 +125,13 @@ public:
                   
         if (_iDebugLevel>=2) printf( "Princeton Config data:\n"
           "  Width %d Height %d  Org X %d Y %d  Bin X %d Y %d\n"
-          "  Exposure time %gs  Coolg Temperature %.1f C  Readout Speed %d\n"
-          "  Readout Event %d\n",
+          "  Exposure time %gs  Cooling Temperature %.1f C  Gain Index %d\n"
+          "  Readout Speed %d  Readout Event %d\n",
           _configCamera.width(), _configCamera.height(),
           _configCamera.orgX(), _configCamera.orgY(),
           _configCamera.binX(), _configCamera.binY(),
-          _configCamera.exposureTime(), _configCamera.coolingTemp(), _configCamera.readoutSpeedIndex(), 
-          _configCamera.readoutEventCode()
+          _configCamera.exposureTime(), _configCamera.coolingTemp(), _configCamera.gainIndex(), 
+		  _configCamera.readoutSpeedIndex(), _configCamera.readoutEventCode()
           );
         if (_iDebugLevel>=1) printf( "\nOutput payload size = %d\n", in->datagram().xtc.sizeofPayload());
         
@@ -142,7 +143,7 @@ private:
     CfgClientNfs&       _cfg;
     const int           _iDebugLevel;
     Xtc                 _cfgtc;
-    Princeton::ConfigV1 _configCamera;    
+    Princeton::ConfigV2 _configCamera;    
     int                 _iConfigCameraFail;
     
     /*
@@ -154,7 +155,7 @@ private:
 /*
  * Definition of private static consts
  */
-const TypeId PrincetonConfigAction::_typePrincetonConfig = TypeId(TypeId::Id_PrincetonConfig, Princeton::ConfigV1::Version);
+const TypeId PrincetonConfigAction::_typePrincetonConfig = TypeId(TypeId::Id_PrincetonConfig, Princeton::ConfigV2::Version);
 
 class PrincetonUnconfigAction : public Action 
 {
@@ -493,7 +494,7 @@ int PrincetonManager::mapCamera(const Allocation& alloc)
   return _pServer->mapCamera();
 }
 
-int PrincetonManager::configCamera(Princeton::ConfigV1& config)
+int PrincetonManager::configCamera(Princeton::ConfigV2& config)
 {
   return _pServer->configCamera(config);
 }

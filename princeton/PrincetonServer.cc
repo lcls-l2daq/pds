@@ -1,7 +1,7 @@
 #include "PrincetonServer.hh" 
 #include "PrincetonUtils.hh"
 
-#include "pdsdata/princeton/ConfigV1.hh"
+#include "pdsdata/princeton/ConfigV2.hh"
 #include "pdsdata/princeton/FrameV1.hh"
 #include "pds/xtc/Datagram.hh"
 #include "pds/xtc/CDatagram.hh"
@@ -142,7 +142,7 @@ int PrincetonServer::mapCamera()
   return 0;
 }
 
-int PrincetonServer::configCamera(Princeton::ConfigV1& config)
+int PrincetonServer::configCamera(Princeton::ConfigV2& config)
 {  
   //if ( initCamera() != 0 ) 
   //  return ERROR_SERVER_INIT_FAIL;
@@ -157,6 +157,7 @@ int PrincetonServer::configCamera(Princeton::ConfigV1& config)
   _configCamera = config;
     
   //Note: We don't send error for cooling incomplete
+  setupCooling();
   //if ( setupCooling() != 0 )
     //return ERROR_SERVER_INIT_FAIL;  
   
@@ -367,7 +368,7 @@ int PrincetonServer::startCapture()
   return 0;
 }
 
-int PrincetonServer::initCameraSettings(Princeton::ConfigV1& config)
+int PrincetonServer::initCameraSettings(Princeton::ConfigV2& config)
 { 
   using PICAM::setAnyParam;
   using PICAM::displayParamIdInfo;
@@ -397,10 +398,17 @@ int PrincetonServer::initCameraSettings(Princeton::ConfigV1& config)
   
   displayParamIdInfo(_hCam, PARAM_READOUT_PORT, "Readout port");
   
+  displayParamIdInfo(_hCam, PARAM_SPDTAB_INDEX, "Speed Table Index *org*" );
   int16 iSpeedTableIndex = config.readoutSpeedIndex();
   setAnyParam(_hCam, PARAM_SPDTAB_INDEX, &iSpeedTableIndex );     
   displayParamIdInfo(_hCam, PARAM_SPDTAB_INDEX, "Speed Table Index" );
-  displayParamIdInfo(_hCam, PARAM_GAIN_INDEX  , "Gain Index");  
+
+  displayParamIdInfo(_hCam, PARAM_GAIN_INDEX  , "Gain Index *org*"); 
+  int16 iGainIndex = config.gainIndex();
+  setAnyParam(_hCam, PARAM_GAIN_INDEX, &iGainIndex );     
+  displayParamIdInfo(_hCam, PARAM_GAIN_INDEX  , "Gain Index *new*");
+
+
   displayParamIdInfo(_hCam, PARAM_PIX_TIME    , "Pixel Transfer Time");
   displayParamIdInfo(_hCam, PARAM_BIT_DEPTH   , "Bit Depth");  
 
@@ -697,6 +705,7 @@ int PrincetonServer::runCaptureTask()
    *   2. sequence error happened in the current run
    */
   // Note: Dont send damage when temperature is high
+  checkTemperature();
   //if ( checkTemperature() != 0 )
   //  _pDgOut->datagram().xtc.damage.increase(Pds::Damage::UserDefined);      
     

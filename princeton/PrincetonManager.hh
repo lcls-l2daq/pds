@@ -6,7 +6,7 @@
 
 #include "pdsdata/xtc/Src.hh"
 #include "pdsdata/xtc/TypeId.hh"
-#include "pdsdata/princeton/ConfigV1.hh"
+#include "pdsdata/princeton/ConfigV2.hh"
 #include "pds/client/Fsm.hh"
 
 namespace Pds 
@@ -30,7 +30,7 @@ public:
   
   // Camera control: Gateway functions for accessing PrincetonServer class
   int   mapCamera(const Allocation& alloc);
-  int   configCamera(Princeton::ConfigV1& config);
+  int   configCamera(Princeton::ConfigV2& config);
   int   unconfigCamera();
   int   beginRunCamera();
   int   endRunCamera();

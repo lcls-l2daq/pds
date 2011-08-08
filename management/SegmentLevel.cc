@@ -16,7 +16,11 @@
 
 using namespace Pds;
 
+#ifdef BUILD_LARGE_STREAM_BUFFER
+static const unsigned NetBufferDepth = 1024;
+#else
 static const unsigned NetBufferDepth = 32;
+#endif
 
 SegmentLevel::SegmentLevel(unsigned platform,
 			   SegWireSettings& settings,
