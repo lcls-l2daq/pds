@@ -112,7 +112,7 @@ InDatagram* CspadL1Action::fire(InDatagram* in) {
     if (xtc->contains.id() == Pds::TypeId::Id_Xtc) {
       xtc = (Xtc*) xtc->payload();
       if ((xtc->contains.id() == Pds::TypeId::Id_CspadElement) ||
-          (xtc->contains.id() == Pds::TypeId::ID_Cspad2x2Element)) {
+          (xtc->contains.id() == Pds::TypeId::Id_Cspad2x2Element)) {
         payload = xtc->payload();
       } else {
         printf("CspadLiAction::fire inner xtc not Id_CspadElement, but %s!\n",
