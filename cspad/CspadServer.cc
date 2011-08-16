@@ -205,6 +205,9 @@ int Pds::CspadServer::fetch( char* payload, int flags ) {
      if (_debug & 4 || ret < 0) printf("\n\tquad(%u) opcode(0x%x) acqcount(0x%x) fiducials(0x%x) _oldCount(%u) _count(%u) _quadsThisCount(%u) lane(%u) vc(%u)\n",
          data->elementId(), data->second.opCode, data->acqCount(), data->fiducials(), oldCount, _count, _quadsThisCount, pgpCardRx.pgpLane, pgpCardRx.pgpVc);
      if ((_count != oldCount) && (_quadsThisCount)) {
+       int missing = _quads - _quadsThisCount;
+       printf("CsPadServer::fetch detected missing %d quad%s in previous frame %u\n",
+           missing, missing > 1 ? "s" : "", oldCount);
        _quadsThisCount = 0;
        memcpy( payload, &_xtc, sizeof(Xtc) );
        ret = sizeof(Xtc);
