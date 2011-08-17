@@ -193,12 +193,14 @@ int Pds::CspadServer::fetch( char* payload, int flags ) {
    if (pgpCardRx.fifoErr)   damageMask |= 2;
    if (pgpCardRx.lengthErr) damageMask |= 4;
    if (damageMask) {
-     damageMask |= 0xe0;
-     _xtc.damage.increase(Pds::Damage::UserDefined);
-     _xtc.damage.userBits(damageMask);
-     printf("CsPadServer::fetch setting user damage 0x%x", damageMask);
+     printf("CsPadServer::fetch %ssetting user damage 0x%x", ret>0 ? "" : "not ", damageMask);
      if (pgpCardRx.lengthErr) printf(", rxSize(%u)", (unsigned)pgpCardRx.rxSize);
-     printf("\n");
+     printf(" frame %u\n", _count);
+     if (ret > 0) {
+       damageMask |= 0xe0;
+       _xtc.damage.increase(Pds::Damage::UserDefined);
+       _xtc.damage.userBits(damageMask);
+     }
    } else {
      unsigned oldCount = _count;
      _count = data->frameNumber() - 1;  // cspad starts counting at 1, not zero
