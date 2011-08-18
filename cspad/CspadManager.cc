@@ -83,22 +83,32 @@ class CspadL1Action : public Action {
    CspadL1Action(CspadServer* svr);
 
    InDatagram* fire(InDatagram* in);
+   void        reset(bool f=true);
 
-   enum {FiducialErrorCountLimit=4};
+   enum {FiducialErrorCountLimit=16};
 
    CspadServer* server;
    unsigned _lastMatchedFiducial;
    unsigned _lastMatchedFrameNumber;
-   unsigned _fiducialErrorCount;
+   unsigned _lastMatchedAcqCount;
+   unsigned _frameSyncErrorCount;
    unsigned _ioIndex;
+   unsigned _resetCount;
 
 };
 
+void CspadL1Action::reset(bool resetError) {
+  _lastMatchedFiducial = 0xffffffff;
+  _lastMatchedFrameNumber = 0xffffffff;
+  if (resetError) _frameSyncErrorCount = 0;
+}
+
 CspadL1Action::CspadL1Action(CspadServer* svr) :
     server(svr),
-    _lastMatchedFiducial(0xfffffff),
-    _lastMatchedFrameNumber(0xfffffff),
-    _fiducialErrorCount(0) {}
+    _lastMatchedFiducial(0xffffffff),
+    _lastMatchedFrameNumber(0xffffffff),
+    _frameSyncErrorCount(0),
+    _resetCount(0) {}
 
 InDatagram* CspadL1Action::fire(InDatagram* in) {
   if (server->debug() & 8) printf("CspadL1Action::fire!\n");
@@ -107,7 +117,7 @@ InDatagram* CspadL1Action::fire(InDatagram* in) {
     Datagram& dg = in->datagram();
     Xtc* xtc = &(dg.xtc);
     unsigned evrFiducials = dg.seq.stamp().fiducials();
-    unsigned error = 0;
+    unsigned frameError = 0;
     char*    payload;
     if (xtc->contains.id() == Pds::TypeId::Id_Xtc) {
       xtc = (Xtc*) xtc->payload();
@@ -127,18 +137,46 @@ InDatagram* CspadL1Action::fire(InDatagram* in) {
 
     for (unsigned i=0; i<server->numberOfQuads(); i++) {
       data = (Pds::Pgp::DataImportFrame*) ( payload + (i * server->payloadSize()) );
-      if (data->fiducials()) {
+      if (server->payloadSize() > 500000) {     // test if this is no the mini 2x2
         if (evrFiducials != data->fiducials()) {
-          error |= 1<<data->elementId();
-          if (_fiducialErrorCount < FiducialErrorCountLimit) {
-            printf("CspadL1Action::fire(in) fiducial mismatch evr(0x%x) cspad(0x%x) in quad %u,%u lastMatchedFiducial(0x%x), frameNumber(%u), lastMatchedFrameNumber(%u)\n",
+          frameError |= 1<<data->elementId();
+          if (_frameSyncErrorCount < FiducialErrorCountLimit) {
+            printf("CspadL1Action::fire(in) fiducial mismatch evr(0x%x) cspad(0x%x) in quad %u,%u lastMatchedFiducial(0x%x)\n\tframeNumber(0x%x), lastMatchedFrameNumber(0x%x), ",
                 evrFiducials, data->fiducials(), data->elementId(), i, _lastMatchedFiducial, data->frameNumber(), _lastMatchedFrameNumber);
+            printf("acqCount(0x%x), lastMatchedAcqCount(0x%x)\n", data->acqCount(), _lastMatchedAcqCount);
           }
-        } else {
-          _lastMatchedFiducial = evrFiducials;
-          _lastMatchedFrameNumber = data->frameNumber();
-          _fiducialErrorCount = 0;
         }
+      } else {
+        bool noWrap = true;
+        unsigned acq = data->acqCount();
+        if ((acq < _lastMatchedAcqCount) || (evrFiducials < _lastMatchedFiducial)) {
+          noWrap = false;
+          _resetCount += 1;
+        }
+        if (evrFiducials == _lastMatchedFiducial) _resetCount += 4;
+        if (_resetCount)  {
+          reset(false);
+          printf("CspadL1Action::reset(%u) evrFiducials(0x%x) acq(0x%x)\n", _resetCount, evrFiducials, acq);
+          _resetCount--;
+          noWrap = false;
+        }
+        if (noWrap && ((evrFiducials-_lastMatchedFiducial) != (3 * (acq-_lastMatchedAcqCount)))) {
+          frameError |= 1;
+          if (_frameSyncErrorCount < FiducialErrorCountLimit) {
+            printf("CspadL1Action::fire(in) frame mismatch!  evr(0x%x) lastMatchedFiducial(0x%x)\n\tframeNumber(0x%x), lastMatchedFrameNumber(0x%x), ",
+                evrFiducials, _lastMatchedFiducial, data->frameNumber(), _lastMatchedFrameNumber);
+            printf("acqCount(0x%x), lastMatchedAcqCount(0x%x)\n", acq, _lastMatchedAcqCount);
+          }
+        }
+        _lastMatchedFiducial = evrFiducials;
+        _lastMatchedAcqCount = acq;
+        if (_frameSyncErrorCount) frameError |= 1;
+      }
+      if (!frameError) {
+        _lastMatchedFiducial = evrFiducials;
+        _lastMatchedFrameNumber = data->frameNumber();
+        _lastMatchedAcqCount = data->acqCount();
+        _frameSyncErrorCount = 0;
       }
       if (server->debug() & 0x40) printf("L1 acq - frm# %d\n", data->acqCount() - data->frameNumber());
       // Kludge test of sending nothing ....                  !!!!!!!!!!!!!!!!!!!!!!
@@ -151,15 +189,19 @@ InDatagram* CspadL1Action::fire(InDatagram* in) {
 //        }
 //      }
     }
-    if (error) {
+    if (frameError) {
       dg.xtc.damage.increase(Pds::Damage::UserDefined);
-      dg.xtc.damage.userBits(0xf0 | (error&0xf));
-      if (_fiducialErrorCount < FiducialErrorCountLimit) {
-        printf("CspadL1Action setting user damage due to fiducial in quads(0x%x)\n", error);
-        if (!_fiducialErrorCount++) server->printHisto(false);
+      dg.xtc.damage.userBits(0xf0 | (frameError&0xf));
+      if (_frameSyncErrorCount++ < FiducialErrorCountLimit) {
+        printf("CspadL1Action setting user damage due to frame error in quads(0x%x)\n", frameError);
+        if (!_frameSyncErrorCount) server->printHisto(false);
+      } else {
+        if (_frameSyncErrorCount == FiducialErrorCountLimit) {
+          printf("CspadL1Action::fire(in) is turning of frame error reporting until we see a match\n");
+        }
       }
     }
-    if (!error) {
+    if (!frameError) {
       server->process();
     }
   }
@@ -169,8 +211,8 @@ InDatagram* CspadL1Action::fire(InDatagram* in) {
 class CspadConfigAction : public Action {
 
   public:
-    CspadConfigAction( Pds::CspadConfigCache& cfg, CspadServer* server)
-    : _cfg( cfg ), _server(server), _result(0)
+    CspadConfigAction( Pds::CspadConfigCache& cfg, CspadServer* server, CspadL1Action& l1)
+    : _cfg( cfg ), _server(server), _l1(l1), _result(0)
       {}
 
     ~CspadConfigAction() {}
@@ -180,6 +222,7 @@ class CspadConfigAction : public Action {
       int i = _cfg.fetch(tr);
       printf("CspadConfigAction::fire(Transition) fetched %d\n", i);
       _server->resetOffset();
+      _l1.reset();
       if (_cfg.scanning() == false) {
         unsigned count = 0;
         while ((_result = _server->configure( (CsPadConfigType*)_cfg.current())) && count++<10) {
@@ -207,6 +250,7 @@ class CspadConfigAction : public Action {
   private:
     CspadConfigCache&   _cfg;
     CspadServer*    _server;
+    CspadL1Action&  _l1;
   unsigned       _result;
 };
 
@@ -329,14 +373,16 @@ CspadManager::CspadManager( CspadServer* server) :
 
    server->setCspad( cspad );
 
+   CspadL1Action* l1 = new CspadL1Action( server );
+   _fsm.callback( TransitionId::L1Accept, l1 );
+
    _fsm.callback( TransitionId::Map, new CspadAllocAction( _cfg ) );
    _fsm.callback( TransitionId::Unmap, new CspadUnmapAction( server ) );
-   _fsm.callback( TransitionId::Configure, new CspadConfigAction(_cfg, server ) );
+   _fsm.callback( TransitionId::Configure, new CspadConfigAction(_cfg, server, *l1 ) );
    //   _fsm.callback( TransitionId::Enable, new CspadEnableAction( server ) );
    //   _fsm.callback( TransitionId::Disable, new CspadDisableAction( server ) );
    _fsm.callback( TransitionId::BeginCalibCycle, new CspadBeginCalibCycleAction( server, _cfg ) );
    _fsm.callback( TransitionId::EndCalibCycle, new CspadEndCalibCycleAction( server, _cfg ) );
-  _fsm.callback( TransitionId::L1Accept, new CspadL1Action( server ) );
    //   _fsm.callback( TransitionId::EndCalibCycle, new CspadEndCalibCycleAction( server ) );
    _fsm.callback( TransitionId::Unconfigure, new CspadUnconfigAction( server, _cfg ) );
    // _fsm.callback( TransitionId::BeginRun,
