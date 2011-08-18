@@ -404,6 +404,11 @@ IpimBoardData IpimBoard::WaitData() {
 }
 
 int IpimBoard::dataDamage() {
+  if (_dataDamage) {
+    int tmp = _dataDamage;
+    _dataDamage = 0;
+    return tmp;
+  }
   return _dataDamage;
 }
 
