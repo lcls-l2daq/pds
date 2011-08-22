@@ -320,7 +320,11 @@ public:
       _lastEvrClockNSec = evrClockNSec;
     }
 
-    _initFlag = 1;
+    //  EVR can miss the fiducial on the first event
+    //  Don't check out-of-order until we get a good fiducial
+    if (_initFlag==0 && evrfid!=0)
+      _initFlag = 1;
+
     return 0;
   }
 private:
