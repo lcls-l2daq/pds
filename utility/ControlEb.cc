@@ -21,6 +21,7 @@ ControlEb::~ControlEb()
 void        ControlEb::reset(const Allocation& alloc)
 {
   _alloc = &alloc;
+  _previous = _remaining;
   _remaining.clearAll();
   for(unsigned k=0; k<alloc.nnodes(); k++)
     if (alloc.node(k)->level() < Pds::Level::Observer)
@@ -79,4 +80,14 @@ Allocation ControlEb::remaining() const
       alloc.add(*_alloc->node(k));
   }
   return alloc;
+}
+
+Transition* ControlEb::recover()
+{
+  if (_pending) {
+    if ((_remaining &= _previous).isZero()) {
+      return _pending;
+    }
+  }
+  return 0;
 }

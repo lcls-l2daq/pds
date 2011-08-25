@@ -85,6 +85,10 @@ namespace Pds {
     unsigned   _pulse_id;
     Task*      _reportTask;
     friend class ControlAction;
+
+    friend class TimeoutRecovery;
+    void _eb_tmo_recovery();
+    Routine*   _tmo;
   };
 
 };

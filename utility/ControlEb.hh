@@ -26,6 +26,8 @@ namespace Pds {
     Task* task();
     unsigned duration() const;
     unsigned repetitive() const;
+  public:
+    Transition* recover();
   private:
     const Node&       _hdr;
     Node              _master;
@@ -36,6 +38,7 @@ namespace Pds {
     Transition*       _pending;
     enum { MAX_CONTRIBUTORS=128 };
     BitMaskArray<(MAX_CONTRIBUTORS>>5)> _remaining;
+    BitMaskArray<(MAX_CONTRIBUTORS>>5)> _previous;
   };
 
 };

@@ -165,6 +165,16 @@ namespace Pds {
     ControlCallback&   _cb;
   };
 
+  class TimeoutRecovery : public Routine {
+  public:
+    TimeoutRecovery(PartitionControl& control) : _control(control) {}
+  public:
+    void routine() {
+      _control._eb_tmo_recovery();
+    }
+  private:
+    PartitionControl& _control;
+  };
 };
 
 using namespace Pds;
@@ -177,7 +187,7 @@ PartitionControl::PartitionControl(unsigned platform,
   _current_state  (Unmapped),
   _target_state   (Unmapped),
   _queued_target  (Mapped),
-  _eb             (header(),tmo),
+  _eb             (header(),new TimeoutRecovery(*this)),
   _sequenceTask   (new Task(TaskObject("controlSeq"))),
   _sem            (Semaphore::EMPTY),
   _control_cb     (&cb),
@@ -185,7 +195,8 @@ PartitionControl::PartitionControl(unsigned platform,
   _sequencer      (0),
   _experiment     (0),
   _use_run_info   (true),
-  _reportTask     (new Task(TaskObject("controlRep")))
+  _reportTask     (new Task(TaskObject("controlRep"))),
+  _tmo            (tmo)
 {
   memset(_transition_env,0,TransitionId::NumberOf*sizeof(unsigned));
   memset(_transition_xtc,0,TransitionId::NumberOf*sizeof(Xtc*));
@@ -441,4 +452,17 @@ const char* PartitionControl::name(State s)
   static const char* names[] = {"Unmapped", "Mapped", "Configured", "Running",
 				"Disabled", "Enabled", NULL };
   return names[s];
+}
+
+void PartitionControl::_eb_tmo_recovery()
+{
+  Transition* out = _eb.recover();
+  if (out) {
+    PartitionMember::message(header(),*out);
+    delete out;
+    _sem.give();
+  }
+  else {
+    _tmo->routine();
+  }
 }
