@@ -84,6 +84,11 @@ Allocation ControlEb::remaining() const
 
 Transition* ControlEb::recover()
 {
+  printf("ControlEb::recover pending %s.%d  remaining/previous %08x/%08x\n",
+         _pending ? TransitionId::name(_pending->id()) : "None",
+         _pending ? int(_pending->phase()) : -1,
+         _remaining.value(),_previous.value());
+
   if (_pending) {
     if ((_remaining &= _previous).isZero()) {
       return _pending;
