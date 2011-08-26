@@ -9,7 +9,6 @@
 #include "pds/pgp/RegisterSlaveExportFrame.hh"
 #include "pds/pgp/PgpRSBits.hh"
 #include "pds/pgp/Destination.hh"
-#include "PgpCardMod.h"
 #include <unistd.h>
 #include <stdio.h>
 #include <string.h>
@@ -82,6 +81,15 @@ namespace Pds {
         }
       }
       return ret;
+    }
+
+    unsigned Pgp::readStatus(PgpCardStatus* s) {
+      PgpCardTx* p = (PgpCardTx*) s;
+
+      p->model = sizeof(p);
+      p->cmd   = IOCTL_Read_Status;
+      p->data  = (__u32*) s;
+      return(write(_fd, p, sizeof(PgpCardStatus)));
     }
 
     unsigned Pgp::writeRegister(

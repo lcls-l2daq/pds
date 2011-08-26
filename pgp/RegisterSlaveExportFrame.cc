@@ -17,7 +17,7 @@
 #include <time.h>
 #include <linux/types.h>
 //#include "pds/csPad/PgpCardMod.h"
-#include "PgpCardMod.h"
+//#include "PgpCardMod.h"
 
 namespace Pds {
   namespace Pgp {

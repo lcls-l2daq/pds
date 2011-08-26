@@ -36,10 +36,12 @@ namespace Pds {
         virtual void              print();
         virtual unsigned          configure(unsigned) = 0;
         virtual void              dumpFrontEnd() = 0;
+        void                      dumpPgpCard();
         int                       fd() { return _fd; }
         void                      microSpin(unsigned);
         long long int             timeDiff(timespec*, timespec*);
         Pds::Pgp::Pgp*            pgp() { return _pgp; }
+        unsigned                  checkPciNegotiatedBandwidth();
 
       protected:
         friend class ConfigSynch;

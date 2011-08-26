@@ -6,6 +6,7 @@
  */
 
 #include "pds/pgp/Configurator.hh"
+//#include "PgpCardMod.h"
 #include <time.h>
 #include <stdio.h>
 
@@ -36,6 +37,42 @@ namespace Pds {
         clock_gettime(CLOCK_REALTIME, &now);
         gap = timeDiff(&now, &start) / 1000LL;
       }
+    }
+
+    unsigned Configurator::checkPciNegotiatedBandwidth() {
+      PgpCardStatus status;
+      _pgp->readStatus(&status);
+      return (status.PciLStatus >> 4)  & 0x3f;
+    }
+
+    void Configurator::dumpPgpCard() {
+      PgpCardStatus status;
+      _pgp->readStatus(&status);
+      printf("PGP Card Status:\n");
+      printf("\tVersion(0x%x)\n", status.Version);
+      printf("\tNegotiated Link Width(0x%x)\n", (status.PciLStatus>>4)&0x3f);
+      printf("\tPgpLocLinkReady(%u %u %u %u)\n",
+          status.Pgp3LocLinkReady,
+          status.Pgp2LocLinkReady,
+          status.Pgp1LocLinkReady,
+          status.Pgp0LocLinkReady);
+      printf("\tPgpRemLinkReady(%u %u %u %u)\n",
+          status.Pgp3RemLinkReady,
+          status.Pgp2RemLinkReady,
+          status.Pgp1RemLinkReady,
+          status.Pgp0RemLinkReady);
+      printf("\tTxWrite(0x%x)\n", status.TxWrite);
+      printf("\tTxRead(0x%x)\n", status.TxRead);
+      printf("\tRxWrite(0x%x)\n", status.RxWrite);
+      printf("\tRxRead(0x%x)\n", status.RxRead);
+//      printf("\t(0x%x)\n", status.);
+//      printf("\t(0x%x)\n", status.);
+//      printf("\t(0x%x)\n", status.);
+//      printf("\t(0x%x)\n", status.);
+//      printf("\t(0x%x)\n", status.);
+//      printf("\t(0x%x)\n", status.);
+//      printf("\t(0x%x)\n", status.);
+//      printf("\t(0x%x)\n", status.);
     }
 
     unsigned ConfigSynch::_getOne() {

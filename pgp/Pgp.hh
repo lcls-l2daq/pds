@@ -12,6 +12,7 @@
 #include "pds/pgp/RegisterSlaveImportFrame.hh"
 #include "pds/pgp/RegisterSlaveExportFrame.hh"
 #include "pds/pgp/Destination.hh"
+//#include "PgpCardMod.h"
 
 namespace Pds {
   namespace Pgp {
@@ -49,6 +50,7 @@ namespace Pds {
                           uint32_t*,
                           unsigned size=1,
                           bool pf=false);
+        unsigned      readStatus( PgpCardStatus* );
 
       private:
         int        _fd;
