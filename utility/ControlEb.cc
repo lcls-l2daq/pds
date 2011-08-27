@@ -88,9 +88,12 @@ Transition* ControlEb::recover()
          _pending ? TransitionId::name(_pending->id()) : "None",
          _pending ? int(_pending->phase()) : -1,
          _remaining.value(),_previous.value());
+  for(unsigned k=0; k<_alloc->nnodes(); k++)
+    if (_remaining.hasBitSet(k))
+      printf("  %08x.%d\n",_alloc->node(k)->ip(), _alloc->node(k)->pid());
 
   if (_pending) {
-    if ((_remaining &= _previous).isZero()) {
+    if ((_remaining & _previous).isZero()) {
       return _pending;
     }
   }
