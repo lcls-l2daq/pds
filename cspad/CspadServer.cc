@@ -17,7 +17,7 @@
 #include "pds/cspad/CspadConfigurator.hh"
 #include "pds/cspad/CspadDestination.hh"
 #include "pds/cspad/Processor.hh"
-#include "PgpCardMod.h"
+#include "pgpcard/PgpCardMod.h"
 #include <unistd.h>
 #include <sys/uio.h>
 #include <string.h>

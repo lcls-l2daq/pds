@@ -12,7 +12,7 @@
 #include <unistd.h>
 #include <string.h>
 #include <mqueue.h>
-#include "PgpCardMod.h"
+//#include "pgpcard/PgpCardMod.h"
 #include <sys/types.h>
 #include <sys/stat.h>
 #include "pds/pgp/Configurator.hh"

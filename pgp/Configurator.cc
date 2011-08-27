@@ -62,9 +62,9 @@ namespace Pds {
           status.Pgp1RemLinkReady,
           status.Pgp0RemLinkReady);
       printf("\tTxWrite(0x%x)\n", status.TxWrite);
-      printf("\tTxRead(0x%x)\n", status.TxRead);
+      printf("\tTxRead (0x%x)\n", status.TxRead);
       printf("\tRxWrite(0x%x)\n", status.RxWrite);
-      printf("\tRxRead(0x%x)\n", status.RxRead);
+      printf("\tRxRead (0x%x)\n", status.RxRead);
 //      printf("\t(0x%x)\n", status.);
 //      printf("\t(0x%x)\n", status.);
 //      printf("\t(0x%x)\n", status.);

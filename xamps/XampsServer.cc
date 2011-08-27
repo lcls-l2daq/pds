@@ -19,7 +19,7 @@
 #include "pds/xamps/XampsDestination.hh"
 #include "pds/xamps/Processor.hh"
 #include "pdsdata/xtc/DetInfo.hh"
-#include "PgpCardMod.h"
+#include "pgpcard/PgpCardMod.h"
 #include <unistd.h>
 #include <sys/uio.h>
 #include <string.h>
