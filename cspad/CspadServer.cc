@@ -185,9 +185,14 @@ int Pds::CspadServer::fetch( char* payload, int flags ) {
    if ((ret > 0) && (ret < (int)_payloadSize)) {
      printf("CspadServer::fetch() returning Ignore, ret was %d, looking for %u, frame(%u) quad(%u) quadmask(%x) ",
          ret, _payloadSize, data->elementId() - 1, data->elementId(), _quadMask);
-     if (_debug & 4 || ret < 0) printf("\n\tquad(%u) opcode(0x%x) acqcount(0x%x) fiducials(0x%x) _count(%u) _quadsThisCount(%u) lane(%u) vc(%u)",
-         data->elementId(), data->second.opCode, data->acqCount(), data->fiducials(), _count, _quadsThisCount, pgpCardRx.pgpLane, pgpCardRx.pgpVc);
+     if (_debug & 4 || ret < 0) printf("\n\topcode(0x%x) acqcount(0x%x) fiducials(0x%x) _count(%u) _quadsThisCount(%u) lane(%u) vc(%u)",
+         data->second.opCode, data->acqCount(), data->fiducials(), _count, _quadsThisCount, pgpCardRx.pgpLane, pgpCardRx.pgpVc);
      ret = Ignore;
+     printf("\n\t ");
+     unsigned* u= (unsigned*)data;
+     for (unsigned j=0; j<(sizeof(Pds::Pgp::DataImportFrame)/sizeof(unsigned)); j++) {
+       printf(" 0x%x", u[j]);
+     }
      printf("\n");
    }
 
@@ -196,8 +201,10 @@ int Pds::CspadServer::fetch( char* payload, int flags ) {
    if (pgpCardRx.fifoErr)   damageMask |= 2;
    if (pgpCardRx.lengthErr) damageMask |= 4;
    if (damageMask) {
-     printf("CsPadServer::fetch %ssetting user damage 0x%x, quad(%u) quadmask(%x)", ret>0 ? "" : "not ", damageMask, data->elementId(), _quadMask);
-     if (pgpCardRx.lengthErr) printf(", rxSize(%u)", (unsigned)pgpCardRx.rxSize);
+     printf("CsPadServer::fetch %s damageMask 0x%x, quad(%u) quadmask(%x)", ret>0 ? "setting user damage" : "ignoring ", damageMask, data->elementId(), _quadMask);
+     if (pgpCardRx.lengthErr) printf(" LengthError rxSize(%u)", (unsigned)pgpCardRx.rxSize);
+     if (pgpCardRx.fifoErr) printf(" FIFOerror");
+     if (pgpCardRx.eofe) printf(" EOFE");
      printf(" frame %u\n", data->frameNumber() - 1);
      if (ret > 0) {
        damageMask |= 0xe0;
