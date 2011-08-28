@@ -81,6 +81,7 @@ class Pds::CspadServer
    Xtc                            _xtc;
    Pds::CsPad::CspadConfigurator* _cnfgrtr;
    unsigned                       _quads;
+   unsigned			  _quadMask;
    unsigned                       _count;
    unsigned                       _quadsThisCount;
    unsigned                       _payloadSize;
