@@ -208,10 +208,10 @@ int Pds::CspadServer::fetch( char* payload, int flags ) {
    if (pgpCardRx.fifoErr)   damageMask |= 2;
    if (pgpCardRx.lengthErr) damageMask |= 4;
    if (damageMask) {
-     printf("CsPadServer::fetch %s damageMask 0x%x, quad(%u) quadmask(%x)", ret>0 ? "setting user damage" : "ignoring ", damageMask, data->elementId(), _quadMask);
-     if (pgpCardRx.lengthErr) printf(" LengthError rxSize(%u)", (unsigned)pgpCardRx.rxSize);
-     if (pgpCardRx.fifoErr) printf(" FIFOerror");
-     if (pgpCardRx.eofe) printf(" EOFE");
+     printf("CsPadServer::fetch %s damageMask 0x%x, quad(%u) quadmask(%x)", ret>0 ? "setting user damage" : "ignoring wrong length", damageMask, data->elementId(), _quadMask);
+     if (pgpCardRx.lengthErr) printf(" LENGTH_ERROR rxSize(%u)", (unsigned)pgpCardRx.rxSize);
+     if (pgpCardRx.fifoErr) printf(" FIFO_ERROR");
+     if (pgpCardRx.eofe) printf(" EOFE_ERROR");
      printf(" frame %u\n", data->frameNumber() - 1);
      if (ret > 0) {
        damageMask |= 0xe0;
@@ -224,9 +224,10 @@ int Pds::CspadServer::fetch( char* payload, int flags ) {
      if (_debug & 4 || ret < 0) printf("\n\tquad(%u) opcode(0x%x) acqcount(0x%x) fiducials(0x%x) _oldCount(%u) _count(%u) _quadsThisCount(%u) lane(%u) vc(%u)\n",
          data->elementId(), data->second.opCode, data->acqCount(), data->fiducials(), oldCount, _count, _quadsThisCount, pgpCardRx.pgpLane, pgpCardRx.pgpVc);
      if ((_count != oldCount) && (_quadsThisCount)) {
-       int missing = _quads - _quadsThisCount;
-       printf("CsPadServer::fetch detected missing %d quad%s in frame(%u), quad %u, previous frame was %u,  quadMask %x\n",
-           missing, missing > 1 ? "s" : "", _count, data->elementId(), oldCount, _quadMask);
+       int missing = _quads;
+       for(unsigned k=0; k<4; k++) { if (_quadMask & 1<<k) missing -= 1; }
+       printf("CsPadServer::fetch detected missing %d quad%s in frame(%u) has %u quads,  quadMask %x, because quad %u,  frame %u arrived\n",
+           missing, missing > 1 ? "s" : "", oldCount, _quadsThisCount, _quadMask, data->elementId(), _count);
        _quadsThisCount = 0;
        _quadMask = 0;
        memcpy( payload, &_xtc, sizeof(Xtc) );
