@@ -68,6 +68,7 @@ class Pds::CspadServer
    void     dumpFrontEnd();
    void     printHisto(bool);
    void     process(void);
+   void     ignoreFetch(bool f) { _ignoreFetch = f; }
 
  public:
    static CspadServer* instance() { return _instance; }
@@ -81,7 +82,7 @@ class Pds::CspadServer
    Xtc                            _xtc;
    Pds::CsPad::CspadConfigurator* _cnfgrtr;
    unsigned                       _quads;
-   unsigned			  _quadMask;
+   unsigned			              _quadMask;
    unsigned                       _count;
    unsigned                       _quadsThisCount;
    unsigned                       _payloadSize;
@@ -98,6 +99,7 @@ class Pds::CspadServer
    Pds::Pgp::Pgp*                 _pgp;
    bool                           _configured;
    bool                           _firstFetch;
+   bool                           _ignoreFetch;
 };
 
 #endif

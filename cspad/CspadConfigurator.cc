@@ -489,7 +489,6 @@ namespace Pds {
         if ((1<<i) & _config->quadMask()) numberOfQuads += 1;
       }
       Pds::Pgp::ConfigSynch mySynch(_fd, 0, this, size + 3);  /// !!!!!!!!!!!!!!!!!!!!!!
-      Pds::Pgp::RegisterSlaveExportFrame* rsef = 0;
       for (unsigned i=0; i<Pds::CsPad::MaxQuadsPerSensor; i++) {
         if ((1<<i) & _config->quadMask()) {
           quadCount += 1;
@@ -509,8 +508,7 @@ namespace Pds {
             usleep(MicroSecondsSleepTime);
           }
           if (!mySynch.take()) {
-            printf("Write Test Data synchronization failed! \n");
-            rsef->print(row, sizeof(myArray)/sizeof(uint32_t));
+            printf("Write Test Data synchronization failed! i=%u, row=%u, quadCount=%u, numberOfQuads=%u\n", i, row, quadCount, numberOfQuads);
             ret = Failure;
           }
           //        printf(";");

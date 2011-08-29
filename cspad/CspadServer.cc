@@ -52,7 +52,8 @@ CspadServer::CspadServer( const Pds::Src& client, Pds::TypeId& myDataType, unsig
      _debug(0),
      _offset(0),
      _configured(false),
-     _firstFetch(true) {
+     _firstFetch(true),
+     _ignoreFetch(false) {
   _histo = (unsigned*)calloc(sizeOfHisto, sizeof(unsigned));
   _task = new Pds::Task(Pds::TaskObject("CSPADprocessor"));
   instance(this);
@@ -86,12 +87,13 @@ unsigned CspadServer::configure(CsPadConfigType* config) {
 
 void Pds::CspadServer::die() {
   _d.dest(Pds::CsPad::CspadDestination::CR);
+  printf("CspadServer::die has been called !!!!!!!\n");
   if (_pgp != 0) {
     _pgp->writeRegister(
           &_d,
           CsPad::CspadConfigurator::RunModeAddr,
           _cnfgrtr->configuration().inactiveRunMode());
-    printf("CspadServer::die has been called !!!!!!!\n");
+    printf("CspadServer::die has changed the run mode !!!!!!!\n");
    }
 }
 
@@ -149,6 +151,11 @@ int Pds::CspadServer::fetch( char* payload, int flags ) {
    }
 
    if (_debug & 1) printf("CspadServer::fetch called ");
+
+   if (_ignoreFetch) {
+//     printf("CspadServer::fetch() being ignored\n");
+     return Ignore;
+   }
 
    _xtc.damage = 0;
 
