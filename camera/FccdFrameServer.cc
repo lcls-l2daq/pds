@@ -26,10 +26,12 @@ FccdFrameServer::FccdFrameServer(const Src& src, DmaSplice& splice) :
   FrameServer(src),
   _splice(splice)
 {
+  _reorder_tmp = new char[FCCD_REORDER_BUFSIZE];
 }
 
 FccdFrameServer::~FccdFrameServer()
 {
+  delete[] _reorder_tmp;
 }
 
 #if 0
@@ -134,9 +136,6 @@ static void reverse_copy(uint32_t *dst, uint32_t *src, unsigned int count)
   }
 }
 
-// temporary buffer for _reorder_frame
-static uint16_t _reorder_tmp[576 * 500]; // FIXME avoid hardcoded size
-
 int FccdFrameServer::_reorder_frame(FrameServerMsg* fmsg)
 {
   Frame frame(*fmsg->handle, _camera_offset);
@@ -155,14 +154,14 @@ int FccdFrameServer::_reorder_frame(FrameServerMsg* fmsg)
 #ifdef FRAME_WIDTH_16_BIT_PIXELS
   // frame.width() expressed in 16 bit pixels
   if (!frame_data || !height || !width || (height % 2) || (width % 2) ||
-      ((width * height * sizeof(uint16_t)) > sizeof(_reorder_tmp))) {
+      ((width * height * sizeof(uint16_t)) > FCCD_REORDER_BUFSIZE)) {
 #else
   // frame.width() expressed in 8 bit pixels
   if (!frame_data || !height || !width || (height % 2) || (width % 2) ||
-      ((width * height * sizeof(uint8_t)) > sizeof(_reorder_tmp))) {
+      ((width * height * sizeof(uint8_t)) > FCCD_REORDER_BUFSIZE)) {
 #endif
-    printf(">> %s ERROR: frame_data=%p height=%u width=%u sizeof(_reorder_tmp)=%u\n", __FUNCTION__,
-            frame_data, height, width, sizeof(_reorder_tmp));
+    printf(">> %s ERROR: frame_data=%p height=%u width=%u FCCD_REORDER_BUFSIZE=%d\n", __FUNCTION__,
+            frame_data, height, width, FCCD_REORDER_BUFSIZE);
     return -1;  // error
   }
 
