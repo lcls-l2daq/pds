@@ -224,14 +224,20 @@ int Pds::CspadServer::fetch( char* payload, int flags ) {
      if (_debug & 4 || ret < 0) printf("\n\tquad(%u) opcode(0x%x) acqcount(0x%x) fiducials(0x%x) _oldCount(%u) _count(%u) _quadsThisCount(%u) lane(%u) vc(%u)\n",
          data->elementId(), data->second.opCode, data->acqCount(), data->fiducials(), oldCount, _count, _quadsThisCount, pgpCardRx.pgpLane, pgpCardRx.pgpVc);
      if ((_count != oldCount) && (_quadsThisCount)) {
-       int missing = _quads;
-       for(unsigned k=0; k<4; k++) { if (_quadMask & 1<<k) missing -= 1; }
-       printf("CsPadServer::fetch detected missing %d quad%s in frame(%u) has %u quads,  quadMask %x, because quad %u,  frame %u arrived\n",
-           missing, missing > 1 ? "s" : "", oldCount, _quadsThisCount, _quadMask, data->elementId(), _count);
-       _quadsThisCount = 0;
-       _quadMask = 0;
-       memcpy( payload, &_xtc, sizeof(Xtc) );
-       ret = sizeof(Xtc);
+       if (_count < oldCount) {
+         printf("CsPadServer::fetch detected decrementing frame numbers %u followed %u, quadMask 0x%x, quad %u\n", _count, oldCount, _quadMask, data->elementId());
+         ret = Ignore;
+         _count = oldCount;
+       } else {
+         int missing = _quads;
+         for(unsigned k=0; k<4; k++) { if (_quadMask & 1<<k) missing -= 1; }
+         printf("CsPadServer::fetch detected missing %d quad%s in frame(%u) has %u quads,  quadMask %x, because quad %u,  frame %u arrived\n",
+             missing, missing > 1 ? "s" : "", oldCount, _quadsThisCount, _quadMask, data->elementId(), _count);
+         _quadsThisCount = 0;
+         _quadMask = 1 << data->elementId();
+         memcpy( payload, &_xtc, sizeof(Xtc) );
+         ret = sizeof(Xtc);
+       }
      }
    }
    if (ret > 0) {
