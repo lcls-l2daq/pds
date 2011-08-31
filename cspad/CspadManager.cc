@@ -256,10 +256,11 @@ class CspadConfigAction : public Action {
 
 class CspadBeginCalibCycleAction : public Action {
   public:
-    CspadBeginCalibCycleAction(CspadServer* s, CspadConfigCache& cfg) : _server(s), _cfg(cfg), _result(0) {};
+    CspadBeginCalibCycleAction(CspadServer* s, CspadConfigCache& cfg, CspadL1Action& l1) : _server(s), _cfg(cfg), _l1(l1), _result(0) {};
 
     Transition* fire(Transition* tr) {
-      printf("CspadBeginCalibCycleAction:;fire(Transition) ");
+      printf("CspadBeginCalibCycleAction:;fire(Transition) payload size %u ", _server->payloadSize());
+      _l1.reset();
       if (_cfg.scanning()) {
         if (_cfg.changed()) {
           printf("configured and \n");
@@ -277,7 +278,7 @@ class CspadBeginCalibCycleAction : public Action {
     }
 
     InDatagram* fire(InDatagram* in) {
-      printf("CspadBeginCalibCycleAction:;fire(InDatagram)");
+      printf("CspadBeginCalibCycleAction:;fire(InDatagram) payload size %u ", _server->payloadSize());
       if (_cfg.scanning() && _cfg.changed()) {
         printf(" recorded\n");
         _cfg.record(in);
@@ -295,6 +296,7 @@ class CspadBeginCalibCycleAction : public Action {
   private:
     CspadServer*      _server;
     CspadConfigCache& _cfg;
+    CspadL1Action&    _l1;
     unsigned          _result;
 };
 
@@ -381,7 +383,7 @@ CspadManager::CspadManager( CspadServer* server) :
    _fsm.callback( TransitionId::Configure, new CspadConfigAction(_cfg, server, *l1 ) );
    //   _fsm.callback( TransitionId::Enable, new CspadEnableAction( server ) );
    //   _fsm.callback( TransitionId::Disable, new CspadDisableAction( server ) );
-   _fsm.callback( TransitionId::BeginCalibCycle, new CspadBeginCalibCycleAction( server, _cfg ) );
+   _fsm.callback( TransitionId::BeginCalibCycle, new CspadBeginCalibCycleAction( server, _cfg, *l1 ) );
    _fsm.callback( TransitionId::EndCalibCycle, new CspadEndCalibCycleAction( server, _cfg ) );
    //   _fsm.callback( TransitionId::EndCalibCycle, new CspadEndCalibCycleAction( server ) );
    _fsm.callback( TransitionId::Unconfigure, new CspadUnconfigAction( server, _cfg ) );
