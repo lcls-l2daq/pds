@@ -7,15 +7,20 @@ using namespace Pds;
 
 #ifdef BUILD_PRINCETON
 static const int framework_tmo = 1000;
+static const int occurence_tmo = 1000; // 200 ms
 #else
 static const int framework_tmo = 500;
+static const int occurence_tmo = 200; // 200 ms
 #endif
 
-static const int occurence_tmo = 200; // 200 ms
 
 EbTimeouts::EbTimeouts(const EbTimeouts& ebtimeouts) 
   : _duration(ebtimeouts._duration),
+#ifdef BUILD_PRINCETON
+    _tmos(60)
+#else
     _tmos(2)
+#endif
 {
 }
 

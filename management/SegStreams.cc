@@ -13,7 +13,7 @@
 using namespace Pds;
 
 #ifdef BUILD_LARGE_STREAM_BUFFER
-static const unsigned MaxSize = 2<<23;
+static const unsigned MaxSize = 3<<23;
 #else
 static const unsigned MaxSize = 1<<23;
 #endif
