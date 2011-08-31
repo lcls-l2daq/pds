@@ -156,7 +156,7 @@ InDatagram* CspadL1Action::fire(InDatagram* in) {
         if (evrFiducials == _lastMatchedFiducial) _resetCount += 4;
         if (_resetCount)  {
           reset(false);
-          printf("CspadL1Action::reset(%u) evrFiducials(0x%x) acq(0x%x)\n", _resetCount, evrFiducials, acq);
+          if (server->debug() & 0x80) printf("CspadL1Action::reset(%u) evrFiducials(0x%x) acq(0x%x)\n", _resetCount, evrFiducials, acq);
           _resetCount--;
           noWrap = false;
         }
