@@ -211,8 +211,8 @@ InDatagram* CspadL1Action::fire(InDatagram* in) {
 class CspadConfigAction : public Action {
 
   public:
-    CspadConfigAction( Pds::CspadConfigCache& cfg, CspadServer* server, CspadL1Action& l1)
-    : _cfg( cfg ), _server(server), _l1(l1), _result(0)
+    CspadConfigAction( Pds::CspadConfigCache& cfg, CspadServer* server)
+    : _cfg( cfg ), _server(server), _result(0)
       {}
 
     ~CspadConfigAction() {}
@@ -222,7 +222,6 @@ class CspadConfigAction : public Action {
       int i = _cfg.fetch(tr);
       printf("CspadConfigAction::fire(Transition) fetched %d\n", i);
       _server->resetOffset();
-      _l1.reset();
       if (_cfg.scanning() == false) {
         unsigned count = 0;
         while ((_result = _server->configure( (CsPadConfigType*)_cfg.current())) && count++<10) {
@@ -250,7 +249,6 @@ class CspadConfigAction : public Action {
   private:
     CspadConfigCache&   _cfg;
     CspadServer*    _server;
-    CspadL1Action&  _l1;
   unsigned       _result;
 };
 
@@ -380,7 +378,7 @@ CspadManager::CspadManager( CspadServer* server) :
 
    _fsm.callback( TransitionId::Map, new CspadAllocAction( _cfg ) );
    _fsm.callback( TransitionId::Unmap, new CspadUnmapAction( server ) );
-   _fsm.callback( TransitionId::Configure, new CspadConfigAction(_cfg, server, *l1 ) );
+   _fsm.callback( TransitionId::Configure, new CspadConfigAction(_cfg, server ) );
    //   _fsm.callback( TransitionId::Enable, new CspadEnableAction( server ) );
    //   _fsm.callback( TransitionId::Disable, new CspadDisableAction( server ) );
    _fsm.callback( TransitionId::BeginCalibCycle, new CspadBeginCalibCycleAction( server, _cfg, *l1 ) );
