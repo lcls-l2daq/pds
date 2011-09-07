@@ -26,6 +26,7 @@ static int      _idol_timeout  = 2100; // idol time [ms] which forces flush of q
 #endif
 
 static int      _disable_buffer = 10; // time [ms] inserted between flushed L1 and Disable transition
+static unsigned _phase = 0;
 
 void ToEventWireScheduler::setMaximum(unsigned m) { _maxscheduled = m; }
 void ToEventWireScheduler::setPhase  (unsigned m) { _phase = (1<<m); printf("ToEventWireScheduler phase = %d\n",m); }
