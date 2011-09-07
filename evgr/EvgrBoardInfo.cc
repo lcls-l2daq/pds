@@ -14,10 +14,13 @@ template <class T> EvgrBoardInfo<T>::EvgrBoardInfo(const char* dev) {
     {
       printf("Could not open %s\n", dev);
     }
+  printf("evr rd %d\n",_fd);
+
   void* ptr = mmap(0, sizeof(T), PROT_READ | PROT_WRITE,
                    MAP_SHARED, _fd, 0);
   if (ptr == MAP_FAILED) {
     printf("Failed to mmap %s\n",dev);
+    perror("mmap");
     _board=0;
   } else {
     _board = new(ptr) T;
