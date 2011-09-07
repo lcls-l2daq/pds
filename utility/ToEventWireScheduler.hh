@@ -38,6 +38,7 @@ namespace Pds {
     void routine();
   public:
     static void setMaximum(unsigned);
+    static void setPhase  (unsigned);
   private:
     void _flush(InDatagram*);
     void _flush();

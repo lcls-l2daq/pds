@@ -90,7 +90,15 @@ int EpicsArchMonitor::writeToXtc( Datagram& dg, UserMessage** msg )
         
         XtcEpicsPv* pXtcEpicsPvCur = new(&dg.xtc) XtcEpicsPv(typeIdXtc, detInfoEpics);
 
-        int iFail = pXtcEpicsPvCur->setValue( epicsPvCur, bCtrlValue );
+        int iFail;
+        for(unsigned nTries=0; nTries<3; nTries++) {
+          iFail = pXtcEpicsPvCur->setValue( epicsPvCur, bCtrlValue );
+          if (iFail==2)
+            printf("%s failed to connect (%d)",epicsPvCur.getPvName().c_str(),nTries);
+          else
+            break;
+        }
+
         if ( iFail == 0 ) 
           bAnyPvWriteOkay = true;
         else if ( iFail == 2 ) // Error code 2 means this PV has no connection

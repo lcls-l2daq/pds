@@ -28,6 +28,7 @@ static int      _idol_timeout  = 2100; // idol time [ms] which forces flush of q
 static int      _disable_buffer = 10; // time [ms] inserted between flushed L1 and Disable transition
 
 void ToEventWireScheduler::setMaximum(unsigned m) { _maxscheduled = m; }
+void ToEventWireScheduler::setPhase  (unsigned m) { _phase = (1<<m); printf("ToEventWireScheduler phase = %d\n",m); }
 
 ToEventWireScheduler::ToEventWireScheduler(Outlet& outlet,
              CollectionManager& collection,
@@ -39,7 +40,7 @@ ToEventWireScheduler::ToEventWireScheduler(Outlet& outlet,
   _client      (sizeof(OutletWireHeader), Mtu::Size, Ins(interface),
     1 + maxbuf / Mtu::Size),
   _occurrences (occurrences),
-  _scheduled   (0),
+  _scheduled   (_phase),
   _task        (new Task(TaskObject("TxScheduler")))
 {
   if (::pipe(_schedfd) < 0)
@@ -100,7 +101,7 @@ void ToEventWireScheduler::_flush()
     } while( t != _list.empty());
     t = _list.forward();
   }
-  _scheduled  = 0;
+  _scheduled  = _phase;
   _nscheduled = 0;
 }
 

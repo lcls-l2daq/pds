@@ -10,6 +10,7 @@
 #include "pds/utility/InletWireServer.hh"
 #include "pds/utility/InletWireIns.hh"
 #include "pds/utility/EvrServer.hh"
+#include "pds/utility/ToEventWireScheduler.hh"
 #include "pds/xtc/CDatagram.hh"
 #include "pds/management/EventCallback.hh"
 #include "pdsdata/xtc/DetInfo.hh"
@@ -110,10 +111,23 @@ void    SegmentLevel::allocated(const Allocation& alloc,
       vectorid++;
     }
   }
+
   OutletWire* owire = _streams->stream(StreamParams::FrameWork)->outlet()->wire();
   owire->bind(OutletWire::Bcast, StreamPorts::bcast(partition, 
 						    Level::Event,
 						    index));
+
+  //
+  //  Assign traffic shaping phase
+  //
+  const int pid = getpid();
+  for(unsigned n=0; n<nnodes; n++) {
+    const Node& node = *alloc.node(n);
+    if (node.level()==Level::Segment)
+      if (node.pid()==pid)
+        ToEventWireScheduler::setPhase(n % vectorid);
+    
+  }
 }
 
 void    SegmentLevel::dissolved()

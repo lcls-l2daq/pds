@@ -26,6 +26,8 @@
 #include <unistd.h>
 #include <errno.h>
 
+#define RECOVER_TMO
+
 static const unsigned MaxPayload = 0x1000;
 
 namespace Pds {
@@ -187,7 +189,11 @@ PartitionControl::PartitionControl(unsigned platform,
   _current_state  (Unmapped),
   _target_state   (Unmapped),
   _queued_target  (Mapped),
+#ifdef RECOVER_TMO
   _eb             (header(),new TimeoutRecovery(*this)),
+#else
+  _eb             (header(),tmo),
+#endif
   _sequenceTask   (new Task(TaskObject("controlSeq"))),
   _sem            (Semaphore::EMPTY),
   _control_cb     (&cb),
