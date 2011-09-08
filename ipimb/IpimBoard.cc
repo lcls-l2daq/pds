@@ -7,6 +7,8 @@
 #include <fcntl.h>
 #include <cmath>
 
+#include <stdlib.h>
+
 using namespace std;
 using namespace Pds;
 
@@ -352,11 +354,18 @@ unsigned IpimBoard::ReadRegister(unsigned regAddr) {
   IpimBoardPacketParser packetParser = IpimBoardPacketParser(true, &_commandResponseDamage, _commandList);
   struct timespec req = {0, 4000000}; // 4 ms - board takes a while to respond
   nanosleep(&req, NULL);
+  int nParses = 0;
   while (inWaiting(packetParser)) {
     if (!packetParser.packetIncomplete()) {
+      //      printf("while executes once regardless?\n");
       break;
     }
-    ;//timeout here?
+
+    nanosleep(&req, NULL);
+    if (nParses++ == 10 and inWaiting(packetParser)) {
+      _commandResponseDamage = true;
+      return 0xdead;
+    }
   }
   IpimBoardResponse resp = IpimBoardResponse(_commandList);
   if (!resp.CheckCRC()) {
@@ -402,7 +411,6 @@ IpimBoardData IpimBoard::WaitData() {
   }
   return IpimBoardData(data);
 }
-
 int IpimBoard::dataDamage() {
   if (_dataDamage) {
     int tmp = _dataDamage;
@@ -491,6 +499,11 @@ bool IpimBoard::configure(Ipimb::ConfigV2& config) {
   WriteRegister(errors, 0xffff);
 
   unsigned vhdlVersion = ReadRegister(vhdl_version);
+
+  if (_commandResponseDamage) {
+    printf("read of board failed - check serial and power connections of fd %d, device %s\nGiving up on configuration\n", _fd, _serialDevice);
+    return !_commandResponseDamage; // bail if can't read
+  }
 
   // hope to never want to calibrate in the daq environment
   bool lstCalibrateChannels[4] = {false, false, false, false};
@@ -1073,6 +1086,10 @@ void IpimBoardPacketParser::update(char* buff) {
       printf("IpimBoard error parsing type %d packet, have found %d packets, %d allowed\n", _command, _nPackets, _allowedPackets);
     }
   }
+  //  if (!_command && (rand()%1000)<1) {
+  //    printf("setting fake damage now\n");
+  //    *_damage = true;
+  //  }
 }
 
 bool IpimBoardPacketParser::packetIncomplete() {
