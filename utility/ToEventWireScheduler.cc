@@ -22,7 +22,7 @@ static unsigned _maxscheduled = 4;
 #ifdef BUILD_PRINCETON
 static int      _idol_timeout  = 2100; // idol time [ms] which forces flush of queued events
 #else
-static int      _idol_timeout  = 2100; // idol time [ms] which forces flush of queued events, to be sync at 0.5Hz
+static int      _idol_timeout  = 250;  // idol time [ms] which forces flush of queued events, to be sync at 0.5Hz
 #endif
 
 static int      _disable_buffer = 10; // time [ms] inserted between flushed L1 and Disable transition
