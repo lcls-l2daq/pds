@@ -9,6 +9,9 @@
 #include <string.h>
 #include <errno.h>
 
+static const int MaxPrints=20;
+static int nPrints;
+
 using namespace Pds;
 	
 IpimbServer::IpimbServer(const Src& client, const bool c01)
@@ -66,7 +69,11 @@ int IpimbServer::fetch(char* payload, int flags)
   IpimBoardData data = _ipimBoard->WaitData();
   _xtc.damage = 0;
   if (_ipimBoard->dataDamage()) {
-    printf("IpimBoard error: IpimbServer::fetch had problems getting data, fd %d, device %s or data had issues\n", fd(), _serialDevice);
+    if (nPrints) {
+      printf("IpimBoard error: IpimbServer::fetch had problems getting data, fd %d, device %s or data had issues\n", fd(), _serialDevice);
+      if ( --nPrints == 0 )
+        printf("...throttling error messages\n");
+    }
     //    data.dumpRaw(); // turned off for the moment for presampling
     _xtc.damage.increase(Pds::Damage::UserDefined);
   }
@@ -101,6 +108,7 @@ void IpimbServer::setIpimb(IpimBoard* ipimb, char* portName, const int baselineS
 }
 
 unsigned IpimbServer::configure(IpimbConfigType& config) {
+  nPrints = MaxPrints;
   printf("In IpimbServer, using baseline mode %d, polarity %d\n", _baselineSubtraction, _polarity);
   if (_c01) _ipimBoard->setOldVersion();
   _ipimBoard->setBaselineSubtraction(_baselineSubtraction, _polarity); // avoid updating config class; caveat user

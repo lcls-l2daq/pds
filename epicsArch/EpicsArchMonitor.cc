@@ -94,7 +94,7 @@ int EpicsArchMonitor::writeToXtc( Datagram& dg, UserMessage** msg )
         for(unsigned nTries=0; nTries<3; nTries++) {
           iFail = pXtcEpicsPvCur->setValue( epicsPvCur, bCtrlValue );
           if (iFail==2)
-            printf("%s failed to connect (%d)",epicsPvCur.getPvName().c_str(),nTries);
+            printf("%s failed to connect (%d)\n",epicsPvCur.getPvName().c_str(),nTries);
           else
             break;
         }
