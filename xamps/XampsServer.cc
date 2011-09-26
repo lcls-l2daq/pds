@@ -252,6 +252,7 @@ int Pds::XampsServer::fetch( char* payload, int flags ) {
        printf("\tDataHeader: "); for (int i=0; i<16; i++) printf("0x%x ", u[i]); printf("\n");
      }
      if ((_count != oldCount) && (_elementsThisCount)) {
+       printf("XampsServer::fetch found new frame %d when frame %d had only %u elements\n", _count, oldCount, _elementsThisCount);
        _elementsThisCount = 0;
        memcpy( payload, &_xtc, sizeof(Xtc) );
        ret = sizeof(Xtc);
