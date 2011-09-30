@@ -23,22 +23,18 @@ Gsc16aiOccurrence::~Gsc16aiOccurrence()
   delete _userMessagePool;
 }
 
-int Gsc16aiOccurrence::outOfOrder(void)
+void Gsc16aiOccurrence::outOfOrder(void)
 {
   // send occurrence: detector out-of-order
   Pds::Occurrence* occ = new (_outOfOrderPool)
   Pds::Occurrence(Pds::OccurrenceId::ClearReadout);
   _mgr->appliance().post(occ);
-
-  return (0);
 }
 
-int Gsc16aiOccurrence::userMessage(char *msgText)
+void Gsc16aiOccurrence::userMessage(char *msgText)
 {
   // send occurrence: user message
   UserMessage* msg = new (_userMessagePool) UserMessage;
   msg->append(msgText);
   _mgr->appliance().post(msg);
-
-  return (0);
 }

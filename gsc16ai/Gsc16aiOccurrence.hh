@@ -11,8 +11,8 @@ class Pds::Gsc16aiOccurrence {
   public:
     Gsc16aiOccurrence(Gsc16aiManager *mgr);
     ~Gsc16aiOccurrence();
-    int outOfOrder(void);
-    int userMessage(char *msgText);
+    void outOfOrder(void);
+    void userMessage(char *msgText);
 
   private:
     Gsc16aiManager* _mgr;
