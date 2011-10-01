@@ -123,8 +123,6 @@ int Pds::Gsc16aiServer::fetch( char* payload, int flags )
     return (-1);
   }
 
-  memcpy(payload, &_xtc, sizeof(Xtc));
-
   Gsc16aiDataType *frame = (Gsc16aiDataType *)(payload + sizeof(Xtc));
 
   // calculate extent assuming one channel configured
@@ -135,6 +133,8 @@ int Pds::Gsc16aiServer::fetch( char* payload, int flags )
     // maintain longword alignment
     _xtc.extent += ((extraChans * sizeof(int16_t)) + 3) & ~0x3; 
   }
+  
+  memcpy(payload, &_xtc, sizeof(Xtc));  // copy after adjusting extent
 
   // read from pipe
   int length = ::read(_pfd[0], &_cmd, sizeof(_cmd));
@@ -181,7 +181,7 @@ int Pds::Gsc16aiServer::fetch( char* payload, int flags )
 
       // if multiple channels are configured, relocate them
       if (extraChans > 0) {
-        for (int ii = 1; ii < extraChans; ii++) {
+        for (int ii = 1; ii <= extraChans; ii++) {
           frame->_channelValue[ii] = frame->_channelValue[(_firstChan + ii) * 2];
         }
       }
