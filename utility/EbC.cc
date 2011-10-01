@@ -53,7 +53,7 @@ EbEventBase* EbC::_new_event(const EbBitMask& serverId)
 
   if (_vmoneb) _vmoneb->depth(depth);
 
-  if (depth==1)
+  if (depth<=1)
     _postEvent(_pending.forward());
   //    arm(_postEvent(_pending.forward()));
 
