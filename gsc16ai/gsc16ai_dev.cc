@@ -359,3 +359,18 @@ int gsc16ai_dev::get_bufLevel(void) {
   }
   return (rv);
 }
+
+//
+// calibrate - initiate an auto-calibration cycle
+//
+// Returns O on success, otherwise -1.
+//
+int gsc16ai_dev::calibrate() {
+  int rv = -1;
+  if (_isOpen && (_fd > 0)) {
+    if (ai32ssc_dsl_ioctl(_fd, AI32SSC_IOCTL_AUTO_CALIBRATE, NULL) == 0) {
+      rv = 0;
+    }
+  }
+  return (rv);
+}

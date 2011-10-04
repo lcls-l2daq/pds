@@ -54,6 +54,8 @@ class Pds::Gsc16aiServer
     void setAdc(gsc16ai_dev* adc);
     void reset()  {_outOfOrder=0;}
     void setOccSend(Gsc16aiOccurrence* occSend);
+    bool get_autocalibEnable();
+    int calibrate();
     void withdraw();
     void reconnect();
 
@@ -76,6 +78,7 @@ class Pds::Gsc16aiServer
     uint16_t _firstChan;
     uint16_t _lastChan;
     bool     _timeTagEnable;
+    bool     _autocalibEnable;
 };
 
 #endif

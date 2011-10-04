@@ -170,6 +170,35 @@ private:
 };
 
 
+class Gsc16aiBeginCalibCycleAction : public Gsc16aiAction
+{
+ public:
+   Gsc16aiBeginCalibCycleAction( CfgClientNfs* cfg,
+                                 Gsc16aiServer* server )
+      : _cfg( cfg ),
+        _server( server )
+  {
+  }
+
+  ~Gsc16aiBeginCalibCycleAction() {}
+
+  InDatagram* fire(InDatagram* dg)
+  {
+    if (_server->get_autocalibEnable()) {
+      if (_server->calibrate()) {
+        printf( "*** gsc16ai BeginCalib error\n");
+        dg->datagram().xtc.damage.increase(Pds::Damage::UserDefined);
+      }
+    }
+    return dg;
+  }
+
+  private:
+    CfgClientNfs* _cfg;
+    Gsc16aiServer* _server;
+};
+
+
 Appliance& Gsc16aiManager::appliance()
 {
   return _fsm;
@@ -206,4 +235,6 @@ Gsc16aiManager::Gsc16aiManager( Gsc16aiServer* server,
  _fsm.callback( TransitionId::Map,
                 new Gsc16aiAllocAction( *cfg ) );
  _fsm.callback( TransitionId::L1Accept, &gsc16aiL1 );
+ _fsm.callback( TransitionId::BeginCalibCycle,
+                new Gsc16aiBeginCalibCycleAction( cfg, server ) );
 }

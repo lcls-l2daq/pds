@@ -86,6 +86,7 @@ unsigned Pds::Gsc16aiServer::configure(const Gsc16aiConfigType& config)
   _firstChan  = config.firstChan();
   _lastChan   = config.lastChan();
   _timeTagEnable = config.timeTagEnable();
+  _autocalibEnable = config.autocalibEnable();
 
   if (_adc->get_isOpen()) {
     numErrs = _adc->configure(config);
@@ -240,4 +241,23 @@ void Gsc16aiServer::setAdc(gsc16ai_dev* adc)
 void Gsc16aiServer::setOccSend(Gsc16aiOccurrence* occSend)
 {
   _occSend = occSend;
+}
+
+bool Gsc16aiServer::get_autocalibEnable()
+{
+  return (_autocalibEnable);
+}
+
+//
+// calibrate - initiate an auto-calibration cycle
+//
+int Gsc16aiServer::calibrate()
+{
+  int rv = -1;
+  if (_adc == NULL) {
+    fprintf(stderr, "Error: ADC is not open in %s\n", __FUNCTION__);
+  } else {
+    rv = _adc->calibrate();
+  }
+  return (rv);
 }

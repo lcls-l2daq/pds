@@ -30,6 +30,7 @@ class Pds::gsc16ai_dev {
     int configure(const Pds::Gsc16ai::ConfigV1& config);
     int unconfigure(void);
     int get_bufLevel();
+    int calibrate();
 
  private:
    const char * _devName;
