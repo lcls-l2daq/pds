@@ -31,6 +31,7 @@ private:
 
     int initMonitor();   
 
+    const Src&          _src;
     Fsm*                _pFsm;
     Action*             _pActionConfig;
     Action*             _pActionMap;

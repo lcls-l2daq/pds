@@ -14,7 +14,8 @@ namespace Pds
 class EpicsArchMonitor
 {
 public:
-    EpicsArchMonitor( const std::string& sFnConfig, 
+    EpicsArchMonitor( const Src& src,
+                      const std::string& sFnConfig, 
                       Pool& occPool,
                       int iDebugLevel );
     ~EpicsArchMonitor();
@@ -27,7 +28,7 @@ public:
     static const DetInfo&       detInfoEpics;
     
 private:        
-
+    const Src&          _src;
     std::string         _sFnConfig;
     Pool&               _occPool;
     int                 _iDebugLevel;

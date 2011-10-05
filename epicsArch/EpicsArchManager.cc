@@ -230,6 +230,7 @@ private:
 const Src EpicsArchManager::srcLevel = Src(Level::Reporter);
 
 EpicsArchManager::EpicsArchManager(CfgClientNfs& cfg, const std::string& sFnConfig, float fMinTriggerInterval, int iDebugLevel) :
+  _src(cfg.src()),
   _sFnConfig(sFnConfig), _fMinTriggerInterval(fMinTriggerInterval), _iDebugLevel(iDebugLevel),
   _pMonitor(NULL) // _pMonitor need to be initialized in the task thread
 {
@@ -275,7 +276,7 @@ int EpicsArchManager::initMonitor()
 
     try
     {
-      _pMonitor = new EpicsArchMonitor( _sFnConfig, *_occPool, _iDebugLevel );
+      _pMonitor = new EpicsArchMonitor( _src, _sFnConfig, *_occPool, _iDebugLevel );
     }
     catch (string& sError)
     {

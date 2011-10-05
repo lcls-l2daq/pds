@@ -14,13 +14,13 @@ namespace Pds
     
 using std::string;
 
-const DetInfo& EpicsArchMonitor::detInfoEpics = EpicsXtcSettings::detInfo;
 const char EpicsArchMonitor::sPvListSeparators[] = " ,;\t\r\n";
 
-EpicsArchMonitor::EpicsArchMonitor( const std::string& sFnConfig, 
+EpicsArchMonitor::EpicsArchMonitor( const Src& src,
+                                    const std::string& sFnConfig, 
                                     Pool& occPool,
                                     int iDebugLevel ) :
-  _sFnConfig(sFnConfig), _occPool(occPool), _iDebugLevel(iDebugLevel)
+  _src(src), _sFnConfig(sFnConfig), _occPool(occPool), _iDebugLevel(iDebugLevel)
 {
     if ( _sFnConfig == "" )
         throw string("EpicsArchMonitor::EpicsArchMonitor(): Invalid parameters");
@@ -88,7 +88,7 @@ int EpicsArchMonitor::writeToXtc( Datagram& dg, UserMessage** msg )
               
         if (_iDebugLevel >= 1 ) epicsPvCur.printPv();
         
-        XtcEpicsPv* pXtcEpicsPvCur = new(&dg.xtc) XtcEpicsPv(typeIdXtc, detInfoEpics);
+        XtcEpicsPv* pXtcEpicsPvCur = new(&dg.xtc) XtcEpicsPv(typeIdXtc, _src);
 
         int iFail;
         for(unsigned nTries=0; nTries<3; nTries++) {
