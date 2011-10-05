@@ -47,7 +47,7 @@ inline Pds::CDatagram::CDatagram(const Datagram& dg,
 				 const Xtc& tc) :
   InDatagram(dg)
 {
-  int size = xtc.sizeofPayload();
+  int size = tc.sizeofPayload();
   memcpy(xtc.alloc(size),tc.payload(),size);
 }
 
