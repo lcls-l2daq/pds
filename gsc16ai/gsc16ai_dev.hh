@@ -31,6 +31,8 @@ class Pds::gsc16ai_dev {
     int unconfigure(void);
     int get_bufLevel();
     int calibrate();
+    enum {waitEventReady = 1, waitEventTimeout = 2, waitEventError = 3};
+    int waitEventInBufThrL2H(int timeout_ms);
 
  private:
    const char * _devName;

@@ -42,14 +42,12 @@ int Pds::Gsc16aiServer::payloadComplete(void)
 
 void Pds::Gsc16aiServer::routine()
 {
-  int fdadc;
-  gsc_wait_t  gWait = {0, 0, AI32SSC_WAIT_GSC_IN_BUF_THR_L2H, 0, 0, 5000, 0};
   timespec sleepTime = {0, 100000000u};  // 0.1 sec
+  int waitResult;
 
   while (1) {
     // Wait for ADC to be opened
     if (_adc && _adc->get_isOpen()) {
-      fdadc = _adc->get_fd();
       break;
     }
     nanosleep(&sleepTime, NULL);
@@ -57,21 +55,17 @@ void Pds::Gsc16aiServer::routine()
 
   while (1) {
     // Wait for data
-    gWait.flags = 0;                              // must initially be zero
-    gWait.gsc = AI32SSC_WAIT_GSC_IN_BUF_THR_L2H;
-    gWait.timeout_ms = 2000;                      // 2 second timeout
-    if (ai32ssc_dsl_ioctl(fdadc, AI32SSC_IOCTL_WAIT_EVENT, &gWait)) {
-      fprintf(stderr, "Error: ioctl AI32SSC_IOCTL_WAIT_EVENT\n");
-    } else if (gWait.flags == GSC_WAIT_FLAG_TIMEOUT) {
-      // timed out: wait again
-      continue;
-    } else if (gWait.flags == GSC_WAIT_FLAG_DONE) {
+    waitResult = _adc->waitEventInBufThrL2H(2000);  // 2 second timeout
+    if (waitResult == gsc16ai_dev::waitEventReady) {
       // detected event: send notification
       payloadComplete();
       // ...then wait again
       continue;
+    } else if (waitResult == gsc16ai_dev::waitEventTimeout) {
+      // timed out: wait again
+      continue;
     } else {
-      // printf("ioctl AI32SSC_IOCTL_WAIT_EVENT returned, flags = 0x%08x\n", gWait.flags);
+      fprintf(stderr, "Error: waitEventInBufThrL2H() returned %d\n", waitResult);
     }
     // an error occured.  delay one second to avoid spinning too fast.
     sleep(1);
