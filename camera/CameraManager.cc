@@ -23,6 +23,7 @@
 #include <signal.h>
 #include <stdlib.h>
 #include <stdio.h>
+#include <errno.h>
 #include <new>
 
 //#define SIMULATE_EVR
@@ -179,11 +180,15 @@ void CameraManager::doConfigure(Transition* tr)
       register_(sig);
 
       if ((ret = camera().Init()) < 0) {
-	printf("Camera::Init: %s.\n", strerror(-ret));
-	UserMessage* msg = new(_occPool) UserMessage;
-	msg->append(DetInfo::name(static_cast<const DetInfo&>(_src)));
-	msg->append(":Failed to initialize.\nCheck camera power and connections");
-	appliance().post(msg);
+        printf("Camera::Init: %s.\n", strerror(-ret));
+        UserMessage* msg = new(_occPool) UserMessage;
+        msg->append(DetInfo::name(static_cast<const DetInfo&>(_src)));
+        if (ret == -ENODEV) {
+          msg->append(":Unable to find supported frame grabber.\nCheck PicPort driver");
+        } else {
+          msg->append(":Failed to initialize.\nCheck camera power and connections");
+        }
+        appliance().post(msg);
       }
       else {
 	if (_splice)

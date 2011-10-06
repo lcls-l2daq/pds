@@ -213,7 +213,7 @@ int PicPortCL::Init() {
   if( _seqDralConfig.hGrabber == HANDLE_INVALID )
   {
      printf( "ERROR: Unable to find supported frame grabber.\n" );
-     return -ENOTSUP;
+     return -ENODEV;
   }
 
   _seqDralConfig.Flags = SqFlg_AutoAdjustBuffer;
