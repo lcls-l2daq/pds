@@ -113,7 +113,7 @@ namespace Pds {
         Destination* dest,
         unsigned addr,
         uint32_t* data,
-        unsigned inSize,
+        unsigned inSize,  // the size of the block to be exported
         Pds::Pgp::PgpRSBits::waitState w,
         bool pf) {
       // the size of the export block plus the size of block to be exported minus the one that's already counted
