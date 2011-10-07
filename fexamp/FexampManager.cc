@@ -99,18 +99,21 @@ using namespace Pds;
 class FexampAllocAction : public Action {
 
   public:
-   FexampAllocAction(FexampConfigCache& cfg)
-      : _cfg(cfg) {}
+   FexampAllocAction(FexampConfigCache& cfg, FexampServer* svr)
+      : _cfg(cfg), _svr(svr) {
+   }
 
    Transition* fire(Transition* tr)
    {
       const Allocate& alloc = reinterpret_cast<const Allocate&>(*tr);
       _cfg.init(alloc.allocation());
+      _svr->allocated();
       return tr;
    }
 
  private:
    FexampConfigCache& _cfg;
+   FexampServer*      _svr;
 };
 
 class FexampUnmapAction : public Action {
@@ -195,7 +198,7 @@ InDatagram* FexampL1Action::fire(InDatagram* in) {
       if (!_fiducialError) server->printHisto(false);
       else _fiducialError = true;
     } else {
-      server->process();
+//      server->process();
     }
   }
   return in;
@@ -254,7 +257,7 @@ class FexampBeginCalibCycleAction : public Action {
       if (_cfg.scanning()) {
         if (_cfg.changed()) {
           printf("configured and \n");
-          _server->offset(_server->offset()+_server->myCount()+1);
+//          _server->offset(_server->offset()+_server->myCount()+1);
           unsigned count = 0;
           while ((_result = _server->configure( (FexampConfigType*)_cfg.current())) && count++<10) {
             printf("\nFexampBeginCalibCycleAction::fire(tr) retrying config %u\n", count);
@@ -365,7 +368,7 @@ FexampManager::FexampManager( FexampServer* server) :
    server->setFexamp( fexamp );
 //   server->laneTest();
 
-   _fsm.callback( TransitionId::Map, new FexampAllocAction( _cfg ) );
+   _fsm.callback( TransitionId::Map, new FexampAllocAction( _cfg, server ) );
    _fsm.callback( TransitionId::Unmap, new FexampUnmapAction( server ) );
    _fsm.callback( TransitionId::Configure, new FexampConfigAction(_cfg, server ) );
    //   _fsm.callback( TransitionId::Enable, new FexampEnableAction( server ) );

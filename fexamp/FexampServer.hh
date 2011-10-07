@@ -68,6 +68,7 @@ class Pds::FexampServer
    void     dumpFrontEnd();
    void     printHisto(bool);
    void     process(void);
+   void     allocated();
 
  public:
    static FexampServer* instance() { return _instance; }
@@ -78,7 +79,7 @@ class Pds::FexampServer
    static void instance(FexampServer* s) { _instance = s; }
 
  private:
-   enum     {sizeOfHisto=1000, ElementsPerSegmentLevel=4};
+   enum     {sizeOfHisto=1000, ElementsPerSegmentLevel=1};
    Xtc                            _xtc;
    Pds::Fexamp::FexampConfigurator* _cnfgrtr;
    unsigned                       _elements;
@@ -99,7 +100,6 @@ class Pds::FexampServer
    unsigned                       _unconfiguredErrors;
    bool                           _configured;
    bool                           _firstFetch;
-   bool                           _iHaveLaneZero;
 };
 
 #endif

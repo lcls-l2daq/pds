@@ -50,69 +50,35 @@ FexampServer::FexampServer( const Pds::Src& client, unsigned configMask )
    : _xtc( _FexampDataType, client ),
      _cnfgrtr(0),
      _elements(ElementsPerSegmentLevel),
-     _payloadSize(sizeof(FexampDataType)),
+     _payloadSize(0),
      _configMask(configMask),
      _configureResult(0),
      _debug(0),
      _offset(0),
      _unconfiguredErrors(0),
      _configured(false),
-     _firstFetch(true),
-     _iHaveLaneZero(false) {
+     _firstFetch(true) {
   _histo = (unsigned*)calloc(sizeOfHisto, sizeof(unsigned));
   _task = new Pds::Task(Pds::TaskObject("FEXAMPprocessor"));
   instance(this);
   printf("FexampServer::FexampServer() payload(%u)\n", _payloadSize);
 }
 
-//void FexampServer::laneTest() {
-//  uint32_t deviceId = static_cast<DetInfo&>(_xtc.src).devId();
-//  uint32_t lanes[2] = { 0xff, 0xff };
-//  unsigned ret = 0;
-//  _d.dest(Pds::Fexamp::FexampDestination::Internal);
-//  if (_pgp->readRegister(&_d, Fexamp::FexampConfigurator::LaneIdAddr, 0x11, lanes)) ret |= 1;
-//  _d.dest(Pds::Fexamp::FexampDestination::InternalLane1);
-//  if (_pgp->readRegister(&_d, Fexamp::FexampConfigurator::LaneIdAddr, 0x12, lanes+1)) ret |= 2;
-//  if ((lanes[0] & 0xfffffff0) != Fexamp::FexampConfigurator::LaneIdStuffing) ret |= 4;
-//  else lanes[0] &= 3;
-//  if ((lanes[1] & 0xfffffff0) != Fexamp::FexampConfigurator::LaneIdStuffing) ret |= 8;
-//  else lanes[1] &= 3;  // clear out the stuffing
-//  if (!ret) {
-//    if (deviceId & 1 == 0 ) {
-//      if ((lanes[0] == 0) && (lanes[1] == 1)) {
-//        _iHaveLaneZero = true;
-//      } else {
-//        printf("\nBAD LANES for Master Device ID %u, (%u,%u)\n", deviceId, lanes[0], lanes[1]);
-//        ret = 0x10;
-//      }
-//    } else {
-//      if ((lanes[0] == 2) && (lanes[1] == 3)) {
-//        _iHaveLaneZero = false;
-//      } else {
-//        printf("\nBAD LANES for Slave Device ID %u, (%u,%u)\n", deviceId, lanes[0], lanes[1]);
-//        ret = 0x20;
-//      }
-//    }
-//  }
-//  _iHaveLaneZero = true;                 // !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-//  if (ret) {
-//    printf("\nLANE TEST FAILED laned0=%x, lane1=%x, ret=0x%x\n",
-//        (unsigned)lanes[0], (unsigned)lanes[1], ret);
-////    usleep(100000);
-////    _exit(16);
-//  }
-//}
-
 unsigned FexampServer::configure(FexampConfigType* config) {
   if (_cnfgrtr == 0) {
-    _cnfgrtr = new Pds::Fexamp::FexampConfigurator::FexampConfigurator(config, fd(), _debug);
-  } else {
-    printf("FexampConfigurator already instantiated\n");
+    _cnfgrtr = new Pds::Fexamp::FexampConfigurator::FexampConfigurator(fd(), _debug);
   }
+  // first calculate payload size in uint32s
+  _payloadSize = FexampDataType::Uint32sPerSingleSampleArray;
+  _payloadSize *=  (config->get(FexampConfigType::PerMclkCount)+1)>>4;
+  _payloadSize +=  FexampDataType::Uint32sInLastWords;
+  // then convert to bytes and add the size of the element header
+  _payloadSize *= sizeof(uint32_t);
+  _payloadSize +=  sizeof(FexampDataType);
   unsigned c = flushInputQueue(fd());
   if (c) printf("FexampServer::configure flushed %u event%s before configuration\n", c, c>1 ? "s" : "");
-  //  if (_iHaveLaneZero) {
-  if ((_configureResult = _cnfgrtr->configure(_configMask))) {
+
+  if ((_configureResult = _cnfgrtr->configure(config, _configMask))) {
     printf("FexampServer::configure failed 0x%x\n", _configureResult);
   } else {
     _xtc.extent = (_payloadSize * _elements) + sizeof(Xtc);
@@ -124,7 +90,7 @@ unsigned FexampServer::configure(FexampConfigType* config) {
   _configured = _configureResult == 0;
   c = this->flushInputQueue(fd());
   if (c) printf("FexampServer::configure flushed %u event%s after confguration\n", c, c>1 ? "s" : "");
-  //  }
+
   return _configureResult;
 }
 
@@ -145,25 +111,23 @@ void FexampServer::process() {
 //  _task->call(r);
 }
 
+void FexampServer::allocated() {
+  _cnfgrtr->resetFrontEnd(Fexamp::MasterReset);
+}
+
 void Pds::FexampServer::enable() {
-  _d.dest(Pds::Fexamp::FexampDestination::External);
-  _pgp->writeRegister(
-      &_d,
-      Fexamp::FexampConfigurator::RunModeAddr,
-      _cnfgrtr->testModeState() | Fexamp::FexampConfigurator::RunModeValue);
-  ::usleep(10000);
+  if (usleep(10000)<0) perror("FexampServer::enable ulseep failed\n");
+  usleep(10000);
+  _cnfgrtr->enableExternalTrigger(true);
   _firstFetch = true;
   flushInputQueue(fd());
   if (_debug & 0x20) printf("FexampServer::enable\n");
 }
 
 void Pds::FexampServer::disable() {
-  _pgp->writeRegister(
-      &_d,
-      Fexamp::FexampConfigurator::RunModeAddr,
-      _cnfgrtr->testModeState());
-  ::usleep(10000);
+  _cnfgrtr->enableExternalTrigger(false);
   flushInputQueue(fd());
+  if (usleep(10000)<0) perror("FexampServer::disable ulseep failed\n");
   if (_debug & 0x20) printf("FexampServer::disable\n");
 }
 
@@ -312,8 +276,11 @@ void FexampServer::setFexamp( int f ) {
     printf("FexampServer::setFexamp read %u time%s after opening pgpcard driver\n", c, c==1 ? "" : "s");
   }
   fd( f );
-  _pgp = new Pds::Pgp::Pgp::Pgp(f);
+//  _pgp = new Pds::Pgp::Pgp::Pgp(f);
   Pds::Pgp::RegisterSlaveExportFrame::FileDescr(f);
+  if (_cnfgrtr == 0) {
+    _cnfgrtr = new Pds::Fexamp::FexampConfigurator::FexampConfigurator(fd(), _debug);
+  }
 }
 
 void FexampServer::printHisto(bool c) {

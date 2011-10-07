@@ -1,8 +1,7 @@
 libnames := fexamp
 
 libsrcs_fexamp := \
-		 FexampExternalRegisters.cc \
-                 FexampInternalRegisters.cc \
+                 FexampStatusRegisters.cc \
                  FexampDestination.cc \
 		 FexampConfigurator.cc \
 		 Processor.cc \

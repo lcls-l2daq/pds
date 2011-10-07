@@ -1,5 +1,5 @@
 /*
- * FexampInternalRegisters.hh
+ * FexampStatusRegisters.hh
  *
  *  Created on: Jan 21, 2011
  *      Author: jackp
@@ -14,15 +14,34 @@ namespace Pds {
 
   namespace Fexamp {
 
-    class InternalLane {
+//   <status>
+//    <register> <name>regStatus</name> <address>2</address> <lane>0</lane> <vc>2</vc> <size>1</size>
+//       <field> <bits>0</bits> <label>LocLinkReady</label> </field>
+//       <field> <bits>1</bits> <label>RemLinkReady</label> </field>
+//       <field> <bits>2</bits> <label>PibLinkReady</label> </field>
+//       <field> <bits>7:4</bits> <label>CntCellError</label> </field>
+//       <field> <bits>15:12</bits> <label>CntLinkError</label> </field>
+//       <field> <bits>19:16</bits> <label>CntLinkDown</label> </field>
+//       <field> <bits>27:24</bits> <label>CntOverFlow</label> </field>
+//    </register>
+//      <register> <name>txCount</name> <address>3</address> <lane>0</lane> <vc>2</vc> <size>1</size> </register>
+//      <register> <name>AdcChipIdReg</name> <address>49153</address> <lane>0</lane> <vc>1</vc> <size>1</size>
+//         <field> <bits>7:0</bits><label>AdcChipId</label></field>
+//      </register>
+//      <register> <name>AdcChipGradeReg</name> <address>49154</address> <lane>0</lane> <vc>1</vc> <size>1</size>
+//         <field> <bits>6:4</bits><label>AdcChipGrade</label></field>
+//      </register>
+//  </status>
+
+    class StatusLane {
       public:
-        InternalLane() {};
-        ~InternalLane() {};
+        StatusLane() {};
+        ~StatusLane() {};
         void print();
       public:
         unsigned locLinkReady:          1;  //0
         unsigned remLinkReady:          1;  //1
-        unsigned linked:                1;  //2
+        unsigned PibLinkReady:          1;  //2
         unsigned unused1:               1;  //3
         unsigned cellErrorCount:        4;  //7:4
         unsigned unused2:               4;  //11:8
@@ -34,10 +53,10 @@ namespace Pds {
         unsigned txCounter;
     };
 
-    class FexampInternalRegisters {
+    class FexampStatusRegisters {
       public:
-        FexampInternalRegisters() {};
-        ~FexampInternalRegisters() {};
+        FexampStatusRegisters() {};
+        ~FexampStatusRegisters() {};
 
         void     print();
         enum {NumberOfLanes=1};
@@ -45,7 +64,7 @@ namespace Pds {
       public:
         unsigned        version;
         unsigned        scratchPad;
-        InternalLane    lanes[NumberOfLanes];
+        StatusLane    lanes[NumberOfLanes];
     };
 
   }
