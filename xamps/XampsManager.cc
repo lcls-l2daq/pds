@@ -86,7 +86,7 @@ namespace Pds {
     public:
      void printCurrent() {
        XampsConfigType* cfg = (XampsConfigType*)current();
-       printf("XampsConfigCache::printCurrent current 0x%x\n", (unsigned) (unsigned long)cfg);
+       printf("XampsConfigCache::printCurrent current 0x%x\n", (unsigned)cfg);
      }
     private:
       int _size(void* tc) const { return sizeof(XampsConfigType); }

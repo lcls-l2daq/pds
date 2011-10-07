@@ -34,7 +34,6 @@ namespace Pds {
 
     class XampsDestination;
     class Pds::Pgp::AddressRange;
-    class ASIC;
 
      static uint32_t externalAddrs[XampsConfigType::NumberOfRegisters] = {
         // NB if these are to be included they should be uncommented ConfigV1.cc/hh and XampsConfigurator.cc
