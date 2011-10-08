@@ -115,13 +115,13 @@ unsigned FexampConfigurator::configure( FexampConfigType* c, unsigned mask) {
   unsigned ret = 0;
   mask = ~mask;
   clock_gettime(CLOCK_REALTIME, &start);
+  resetFrontEnd(Fexamp::MasterReset);
   _flush();
   if (printFlag) {
     clock_gettime(CLOCK_REALTIME, &end);
     uint64_t diff = timeDiff(&end, &start) + 50000LL;
     printf("- 0x%x - so far %lld.%lld milliseconds\t", ret, diff/1000000LL, diff%1000000LL);
   }
-  if (usleep(10000)<0) perror("FexampConfigurator::configure first ulseep failed\n");
   if (printFlag) printf("\n\twriting top level config");
   ret |= writeConfig();
   if (printFlag) {

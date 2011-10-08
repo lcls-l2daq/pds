@@ -127,7 +127,7 @@ void Pds::FexampServer::enable() {
 void Pds::FexampServer::disable() {
   _cnfgrtr->enableExternalTrigger(false);
   flushInputQueue(fd());
-  if (usleep(10000)<0) perror("FexampServer::disable ulseep failed\n");
+  if (usleep(10000)<0) perror("FexampServer::disable ulseep 1 failed\n");
   if (_debug & 0x20) printf("FexampServer::disable\n");
 }
 
@@ -208,7 +208,7 @@ int Pds::FexampServer::fetch( char* payload, int flags ) {
      printf("\n");
    } else {
      unsigned oldCount = _count;
-     _count = data->frameNumber()/* - 1*/;  // cspad starts counting at 1, not zero, I wonder what fexamp does
+     _count = data->frameNumber() - 1;  // cspad starts counting at 1, not zero, I wonder what fexamp does
      if (_debug & 4 || ret < 0) {
        printf("\telementId(%u) frameType(0x%x) acqcount(0x%x) _oldCount(%u) _count(%u) _elementsThisCount(%u) lane(%u) vc(%u)\n",
            data->elementId(), data->_frameType, data->acqCount(),  oldCount, _count, _elementsThisCount, pgpCardRx.pgpLane, pgpCardRx.pgpVc);
