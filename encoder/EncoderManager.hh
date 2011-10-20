@@ -3,10 +3,12 @@
 
 #include "pds/utility/Appliance.hh"
 #include "pds/client/Fsm.hh"
+#include "EncoderOccurrence.hh"
 
 namespace Pds {
    class EncoderServer;
    class EncoderManager;
+   class EncoderOccurrence;
    class CfgClientNfs;
 }
 
@@ -19,6 +21,7 @@ class Pds::EncoderManager {
  private:
    Fsm& _fsm;
    static const char* _calibPath;
+   EncoderOccurrence* _occSend;
 };
 
 #endif

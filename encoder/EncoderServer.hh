@@ -7,6 +7,7 @@
 #include "pds/config/EncoderConfigType.hh"
 
 #include "pds/encoder/pci3e_dev.hh"
+#include "EncoderOccurrence.hh"
 
 
 namespace Pds
@@ -42,6 +43,7 @@ class Pds::EncoderServer
 
    unsigned count() const;
    void setEncoder( PCI3E_dev* pci3e );
+   void setOccSend(EncoderOccurrence* occSend);
    void withdraw();
    void reconnect();
 
@@ -55,6 +57,7 @@ class Pds::EncoderServer
    unsigned _count;
    unsigned _fakeCount;
    PCI3E_dev* _encoder;
+   EncoderOccurrence *_occSend;
 };
 
 #endif

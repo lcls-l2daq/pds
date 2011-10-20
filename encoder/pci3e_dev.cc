@@ -1,5 +1,8 @@
 #include "pci3e_dev.hh"
 #include <stdint.h>
+#include <sys/types.h>
+#include <sys/stat.h>
+#include <fcntl.h>
 
 #include "pdsdata/encoder/ConfigV1.hh"
 #include "pdsdata/encoder/DataV2.hh"
@@ -19,8 +22,16 @@ int Pds::PCI3E_dev::open( void )
 {
    int ret;
 
-   BAIL_ON_FAIL( _pci3e.open() );
-   return 0;
+  ret = _pci3e.open();
+  if (!ret) {
+    _isOpen = true;
+    _fd = _pci3e.get_fd();
+  } else {
+    printf("Fail: _pci3e.open() = %d\n", ret);
+    // fail gracefully: open /dev/null to get a valid fd
+    _fd = ::open("/dev/null", O_RDWR);
+  }
+  return (ret);
 }
 
 int Pds::PCI3E_dev::configure( const Pds::Encoder::ConfigV1& config )

@@ -86,6 +86,9 @@ class PCI3E::dev
    int get_fd( void ) {
       return _fd;
    }
+   const char * get_dev_name( void ) {
+      return _dev_name;
+   }
 
    int reg_read(  int reg, uint32_t* val );
    int reg_write( int reg, uint32_t  val );

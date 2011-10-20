@@ -12,13 +12,22 @@
 using namespace Pds;
 
 Pds::EncoderServer::EncoderServer( const Src& client )
-   : _xtc( _encoderDataType, client )
+   : _xtc( _encoderDataType, client ),
+     _occSend(NULL)
 {
    _xtc.extent = sizeof(EncoderDataType) + sizeof(Xtc);
 }
 
 unsigned Pds::EncoderServer::configure(const EncoderConfigType& config)
 {
+  if (!_encoder->isOpen()) {
+    // ERROR
+    char msgBuf[80];
+    snprintf(msgBuf, 80, "Encoder: Failed to open %s.\n", _encoder->get_dev_name());
+    _occSend->userMessage(msgBuf);
+    return (1);
+  }
+
    _count = 0;
    return _encoder->configure(config);
 }
@@ -33,7 +42,15 @@ int Pds::EncoderServer::fetch( char* payload, int flags )
 {
    Pds::Encoder::DataV2 data;
    int ret;
+  static bool firstCall = true;
 
+  if (!_encoder->isOpen()) {
+    if (firstCall) {
+      fprintf(stderr, "PCI3E_dev error: device is not open...\n" );
+      firstCall = false;
+    }
+    return (-1);
+  }
    // Verify that there is indeed data to read.
 
    ret = _encoder->get_data( data );
@@ -69,4 +86,9 @@ void EncoderServer::setEncoder( PCI3E_dev* pci3e )
    _encoder = pci3e;
    fd( _encoder->get_fd() );
    _encoder->unconfigure();
+}
+
+void EncoderServer::setOccSend(EncoderOccurrence* occSend)
+{
+  _occSend = occSend;
 }

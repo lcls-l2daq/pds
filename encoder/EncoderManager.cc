@@ -253,11 +253,13 @@ class EncoderConfigAction : public EncoderAction
    EncoderConfigAction( const Src& src0,
                         CfgClientNfs* cfg,
                         EncoderServer* server,
-                        EncoderL1Action& L1 )
+                        EncoderL1Action& L1,
+                        EncoderOccurrence* occSend )
       : _cfgtc( _encoderConfigType, src0 ),
         _cfg( cfg ),
         _server( server ),
-        _L1( L1 )
+        _L1( L1 ),
+        _occSend( occSend )
   { _cfgtc.extent += sizeof(EncoderConfigType); }
 
    ~EncoderConfigAction() {}
@@ -269,7 +271,7 @@ class EncoderConfigAction : public EncoderAction
       dg->insert(_cfgtc, &_config);
       if( _nerror )
       {
-         printf( "*** Found %d ipimb configuration errors\n", _nerror );
+         printf( "*** Found %d encoder configuration errors\n", _nerror );
          dg->datagram().xtc.damage.increase(Pds::Damage::UserDefined);
       }
       return dg;
@@ -288,6 +290,7 @@ class EncoderConfigAction : public EncoderAction
                 ": (%d) %s.  Applying default.\n",
                 errno,
                 strerror(errno) );
+         _occSend->userMessage("Encoder: failed to retrieve configuration.\n");
          _nerror += 1;
       }
       else
@@ -310,6 +313,7 @@ class EncoderConfigAction : public EncoderAction
    EncoderServer* _server;
    unsigned _nerror;
    EncoderL1Action& _L1;
+   EncoderOccurrence* _occSend;
 };
 
 
@@ -346,6 +350,9 @@ EncoderManager::EncoderManager( EncoderServer* server,
 
    printf("EncoderManager being initialized...\n" );
 
+   _occSend = new EncoderOccurrence(this);
+   server->setOccSend(_occSend);
+
    PCI3E_dev* encoder = new PCI3E_dev( "/dev/pci3e0" );
    ret = encoder->open();
    // What to do if the open fails?
@@ -356,7 +363,7 @@ EncoderManager::EncoderManager( EncoderServer* server,
    const Src& src0 = server->client();
 
    _fsm.callback( TransitionId::Configure,
-                  new EncoderConfigAction( src0, cfg, server, encoderl1 ) );
+                  new EncoderConfigAction( src0, cfg, server, encoderl1, _occSend ) );
    _fsm.callback( TransitionId::Unconfigure,
                   new EncoderUnconfigAction( server ) );
    // _fsm.callback( TransitionId::BeginRun,
