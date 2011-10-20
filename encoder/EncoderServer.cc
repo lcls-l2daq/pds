@@ -34,8 +34,14 @@ unsigned Pds::EncoderServer::configure(const EncoderConfigType& config)
 
 unsigned Pds::EncoderServer::unconfigure(void)
 {
-   _count = 0;
-   return _encoder->unconfigure();
+  unsigned rv = 0;
+  _count = 0;
+
+  if (_encoder->isOpen()) {
+   rv = _encoder->unconfigure();
+  }
+  
+  return (rv);
 }
 
 int Pds::EncoderServer::fetch( char* payload, int flags )
