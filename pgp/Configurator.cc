@@ -6,9 +6,11 @@
  */
 
 #include "pds/pgp/Configurator.hh"
+#include "pds/pgp/Destination.hh"
 //#include "PgpCardMod.h"
 #include <time.h>
 #include <stdio.h>
+#include <stdlib.h>
 
 namespace Pds {
   namespace Pgp {
@@ -43,6 +45,34 @@ namespace Pds {
       PgpCardStatus status;
       _pgp->readStatus(&status);
       return (status.PciLStatus >> 4)  & 0x3f;
+    }
+
+    void Configurator::loadRunTimeConfigAdditions(char* name) {
+      FILE* f;
+      Destination _d;
+      unsigned maxCount = 32;
+      char path[240];
+      char* home = getenv("HOME"); //"/reg/lab2/home/jackp"; //getenv("HOME");
+      sprintf(path,"%s/%s",home, name);
+      f = fopen (path, "r");
+      if (!f) {
+        char s[200];
+        sprintf(s, "Could not open %s ", path);
+        perror(s);
+      } else {
+        unsigned myi = 0;
+        unsigned dest, addr, data;
+        while (fscanf(f, "%x %x %x", &dest, &addr, &data) && !feof(f) && myi++ < maxCount) {
+          printf("\n\tFound kludge dest 0x%x, addr 0x%x, data 0x%x ", dest, addr, data);
+          _d.dest(dest);
+          if(_pgp->writeRegister(&_d, addr, data)) {
+            printf("Configurator::loadRunTimeConfigAdditions failed on dest %u address 0x%x\n", dest, addr);
+          }
+        }
+        if (!feof(f)) {
+          perror("Error reading");
+        }
+      }
     }
 
     void Configurator::dumpPgpCard() {

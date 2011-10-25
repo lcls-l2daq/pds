@@ -199,6 +199,9 @@ namespace Pds {
         }
       }
       ret <<= 1;
+      //  NB KLUDGE STARTS HERE !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+      loadRunTimeConfigAdditions("RyansNewConfig");
+      // KLUDGE END HERE !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
       if (mask&16 && ret==0) {
         if (printFlag) printf("- 0x%x - \n\treading ", ret);
 //        ret |= readRegs();                    !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!

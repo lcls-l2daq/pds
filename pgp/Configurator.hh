@@ -42,6 +42,7 @@ namespace Pds {
         long long int             timeDiff(timespec*, timespec*);
         Pds::Pgp::Pgp*            pgp() { return _pgp; }
         unsigned                  checkPciNegotiatedBandwidth();
+        void                      loadRunTimeConfigAdditions(char *);
 
       protected:
         friend class ConfigSynch;
