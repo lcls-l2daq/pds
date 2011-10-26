@@ -3,7 +3,7 @@
 
 #include <unistd.h>
 
-#include "pdsdata/encoder/ConfigV1.hh"
+#include "pdsdata/encoder/ConfigV2.hh"
 #include "pdsdata/encoder/DataV2.hh"
 #include "driver/pci3e-wrapper.hh"
 
@@ -24,7 +24,7 @@ class Pds::PCI3E_dev
     
    int open( void );
    // Clears the FIFO and leaves interrupts disabled.
-   int configure( const Pds::Encoder::ConfigV1& config );
+   int configure( const Pds::Encoder::ConfigV2& config );
 
    // Clears FIFO and disables interrupts.
    int unconfigure();

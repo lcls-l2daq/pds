@@ -16,7 +16,7 @@
 #include "EncoderManager.hh"
 #include "EncoderServer.hh"
 #include "pdsdata/encoder/DataV2.hh"
-#include "pdsdata/encoder/ConfigV1.hh"
+#include "pdsdata/encoder/ConfigV2.hh"
 #include "pds/config/CfgClientNfs.hh"
 // FIXME: Only for initial bringup - when the configuration database
 // is in place, this isn't needed.

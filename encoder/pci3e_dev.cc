@@ -4,7 +4,7 @@
 #include <sys/stat.h>
 #include <fcntl.h>
 
-#include "pdsdata/encoder/ConfigV1.hh"
+#include "pdsdata/encoder/ConfigV2.hh"
 #include "pdsdata/encoder/DataV2.hh"
 #include "driver/pci3e-wrapper.hh"
 #include "driver/pci3e.h"
@@ -34,7 +34,7 @@ int Pds::PCI3E_dev::open( void )
   return (ret);
 }
 
-int Pds::PCI3E_dev::configure( const Pds::Encoder::ConfigV1& config )
+int Pds::PCI3E_dev::configure( const Pds::Encoder::ConfigV2& config )
 {
    int ret;
    uint32_t regval;
