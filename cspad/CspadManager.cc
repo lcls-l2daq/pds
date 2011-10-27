@@ -137,7 +137,7 @@ InDatagram* CspadL1Action::fire(InDatagram* in) {
 
     for (unsigned i=0; i<server->numberOfQuads(); i++) {
       data = (Pds::Pgp::DataImportFrame*) ( payload + (i * server->payloadSize()) );
-      if (server->payloadSize() > 500000) {     // test if this is no the mini 2x2
+      if (server->payloadSize() > 500000) {     // test if this is no the mini 2x2   !!!!!!!!!!!!!!!! KLUDGE ALERT
         if (evrFiducials != data->fiducials()) {
           frameError |= 1<<data->elementId();
           if (_frameSyncErrorCount < FiducialErrorCountLimit) {
@@ -358,15 +358,20 @@ class CspadEndCalibCycleAction : public Action {
     unsigned          _result;
 };
 
-CspadManager::CspadManager( CspadServer* server) :
+CspadManager::CspadManager( CspadServer* server, unsigned d) :
     _fsm(*new Fsm), _cfg(*new CspadConfigCache(server->client())) {
 
    printf("CspadManager being initialized... " );
 
-   int cspad = open( "/dev/pgpcard",  O_RDWR);
+   char devName[128];
+   char err[128];
+   sprintf(devName, "/dev/pgpcard%u", d);
+
+   int cspad = open( devName,  O_RDWR);
    printf("pgpcard file number %d\n", cspad);
    if (cspad < 0) {
-     perror("CspadManager::CspadManager() opening pgpcard failed");
+     sprintf(err, "CspadManager::CspadManager() opening %s failed", devName);
+     perror(err);
      // What else to do if the open fails?
      ::exit(-1);
    }

@@ -13,11 +13,11 @@ namespace Pds {
 
   class Pds::CspadManager {
     public:
-      CspadManager( CspadServer* server);
+      CspadManager( CspadServer* server, unsigned d);
       Appliance& appliance( void ) { return _fsm; }
 
     private:
-      Fsm& _fsm;
+      Fsm&              _fsm;
       CspadConfigCache& _cfg;
   };
 
