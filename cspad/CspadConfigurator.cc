@@ -12,13 +12,11 @@
 #include <unistd.h>
 #include <string.h>
 #include <mqueue.h>
-//#include "pgpcard/PgpCardMod.h"
 #include <sys/types.h>
 #include <sys/stat.h>
 #include "pds/pgp/Configurator.hh"
 #include "pds/cspad/CspadConfigurator.hh"
 #include "pds/cspad/CspadDestination.hh"
-//#include "cspad/CspadReadOnlyRegisters.hh"
 #include "pds/pgp/RegisterSlaveImportFrame.hh"
 #include "pds/pgp/RegisterSlaveExportFrame.hh"
 #include "pds/pgp/PgpRSBits.hh"
@@ -526,16 +524,16 @@ namespace Pds {
       //    printf(" quadMask(0x%x) ", (unsigned)_config->quadMask());
       unsigned numberOfQuads = 0;
       Pds::CsPad::CsPadGainMapCfg::GainMap* map[Pds::CsPad::MaxQuadsPerSensor];
-      // the first two are in the header, but we need one DNC for Ryan's logic
-      //    one plus the address of the last word minus the two in the header plus the dnc.
-      unsigned len = (((Pds::CsPad::RowsPerBank-1)<<3) + Pds::CsPad::BanksPerASIC-2 + 1) - 2 + 1;  // uint32_t's in the payload
-      unsigned size = (sizeof(Pds::Pgp::RegisterSlaveExportFrame)/sizeof(uint32_t)) + len;
+      unsigned len = (((Pds::CsPad::RowsPerBank-1)<<3) + Pds::CsPad::BanksPerASIC -1) ;  // there are only 6 banks in the last row
+      unsigned size = (sizeof(Pds::Pgp::RegisterSlaveExportFrame)/sizeof(uint32_t)) + len + 1 - 2; // last one for the DNC - the two already in the header
       uint32_t myArray[size];
+      for(unsigned i=0; i<size; i++) myArray[i]=0;
       for (int i=0; i<Pds::CsPad::MaxQuadsPerSensor; i++) {
         if ((1<<i) & _config->quadMask()) numberOfQuads += 1;
         map[i] = (Pds::CsPad::CsPadGainMapCfg::GainMap*)_config->quads()[i].gm()->map();
       }
       Pds::Pgp::ConfigSynch mySynch(_fd, numberOfQuads, this, sizeof(Pds::Pgp::RegisterSlaveExportFrame)/sizeof(uint32_t));
+//      printf("\n");
       for (unsigned col=0; col<Pds::CsPad::ColumnsPerASIC; col++) {
         for (unsigned i=0; i<Pds::CsPad::MaxQuadsPerSensor; i++) {
           if ((1<<i) & _config->quadMask()) {
@@ -552,18 +550,23 @@ namespace Pds {
                 (uint32_t)((*map[i])[col][0] & 0xffff),
                 Pds::Pgp::PgpRSBits::notWaiting);
             uint32_t* bulk = rsef->array();
+            unsigned length=0;
             for (unsigned row=0; row<Pds::CsPad::RowsPerBank; row++) {
               for (unsigned bank=0; bank<Pds::CsPad::BanksPerASIC; bank++) {
                 if ((row + bank*Pds::CsPad::RowsPerBank)<Pds::CsPad::MaxRowsPerASIC) {
+//                  if (!col) printf("GainMap row(%u) bank(%u) addr(%u)\n", row, bank, (row <<3 ) + bank);
                   bulk[(row <<3 ) + bank] = (uint32_t)((*map[i])[col][bank*Pds::CsPad::RowsPerBank + row] & 0xffff);
+                  length += 1;
                 }
               }
             }
-            bulk[len] = 0;
+            bulk[len] = 0;  // write the last word
             //          if ((col==0) && (i==0)) printf(" payload words %u, length %u ", len, len*4);
             rsef->post(size);
             microSpin(MicroSecondsSleepTime);
-
+//            printf("GainMap col(%u) quad(%u) len(%u) length(%u) size(%u)", col, i, len, length, size);
+//            for (unsigned m=0; m<len; m++) if (bulk[m] != 0xffff) printf("(%u:%x)", m, bulk[m]);
+//            printf("\n");
             if(_pgp->writeRegister(&_d, _gainMap.load, col, false, Pds::Pgp::PgpRSBits::Waiting)) {
               return Failure;
             }
