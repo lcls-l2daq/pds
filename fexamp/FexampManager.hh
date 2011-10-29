@@ -13,7 +13,7 @@ namespace Pds {
 
   class Pds::FexampManager {
     public:
-      FexampManager( FexampServer* server);
+      FexampManager( FexampServer* server, unsigned d);
       Appliance& appliance( void ) { return _fsm; }
 
     private:

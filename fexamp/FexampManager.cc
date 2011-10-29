@@ -352,15 +352,20 @@ class FexampEndCalibCycleAction : public Action {
     unsigned          _result;
 };
 
-FexampManager::FexampManager( FexampServer* server) :
+FexampManager::FexampManager( FexampServer* server, unsigned d) :
     _fsm(*new Fsm), _cfg(*new FexampConfigCache(server->client())) {
 
    printf("FexampManager being initialized... " );
 
-   int fexamp = open( "/dev/pgpcard",  O_RDWR);
+   char devName[128];
+   char err[128];
+   sprintf(devName, "/dev/pgpcard%u", d);
+
+   int fexamp = open( devName,  O_RDWR);
    printf("pgpcard file number %d\n", fexamp);
    if (fexamp < 0) {
-     perror("FexampManager::FexampManager() opening pgpcard failed");
+     sprintf(err, "FexampManager::FexampManager() opening %s failed", devName);
+     perror(err);
      // What else to do if the open fails?
      ::exit(-1);
    }
