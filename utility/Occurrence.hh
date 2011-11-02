@@ -27,19 +27,18 @@ namespace Pds {
     DataFileOpened(unsigned _expt,
 		   unsigned _run,
 		   unsigned _stream,
-		   unsigned _chunk) : 
-      Occurrence(OccurrenceId::DataFileOpened,
-		 sizeof(DataFileOpened)),
-      expt  (_expt  ),
-      run   (_run   ),
-      stream(_stream),
-      chunk (_chunk )
-    {}
+		   unsigned _chunk,
+		   char* _host,
+		   char* _path);
   public:
+    enum { MaxHostLength=40 };
+    enum { MaxPathLength=200 };
     unsigned expt;
     unsigned run;
     unsigned stream;
     unsigned chunk;
+    char host[MaxHostLength];
+    char path[MaxPathLength];
   };
 
   class DataFileError : public Occurrence

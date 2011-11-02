@@ -23,6 +23,7 @@
 #include <time.h> // Required for timespec struct and nanosleep()
 #include <stdlib.h> // Required for timespec struct and nanosleep()
 #include <string.h>
+#include <string> // Required for std::string
 #include <unistd.h>
 #include <errno.h>
 
@@ -51,17 +52,19 @@ namespace Pds {
   class ReportJob : public Routine {
   public:
     ReportJob(RunAllocator& allocator,
-	      int expt, int run, int stream, int chunk) :
+	      int expt, int run, int stream, int chunk, std::string& hostname, std::string& fname) :
       _allocator(allocator), 
-      _expt(expt), _run(run), _stream(stream), _chunk(chunk) {}
+      _expt(expt), _run(run), _stream(stream), _chunk(chunk), _host_name(hostname), _fname(fname) {}
   public:
     void routine() { 
-      _allocator.reportOpenFile(_expt,_run,_stream,_chunk); 
+      _allocator.reportOpenFile(_expt,_run,_stream,_chunk,_host_name,_fname); 
       delete this;
     }
   private:
     RunAllocator& _allocator;
     int _expt, _run, _stream, _chunk;
+    std::string _host_name;
+    std::string _fname;
   };
 
   class ControlAction : public Appliance {
@@ -330,12 +333,15 @@ void PartitionControl::message(const Node& hdr, const Message& msg)
 	break;
       case OccurrenceId::DataFileOpened: {
 	const DataFileOpened& dfo = reinterpret_cast<const DataFileOpened&>(occ);
-	printf("Received DataFileOpened occurrence from %x/%d [r%04d-s%02d-c%02d]\n",
+	printf("Received DataFileOpened occurrence from %x/%d [r%04d-s%02d-c%02d] host=%s path=%s\n",
 	       hdr.procInfo().ipAddr(),
 	       hdr.procInfo().processId(),
-	       dfo.run, dfo.stream, dfo.chunk);
-	if (_runAllocator)
-	  _reportTask->call(new ReportJob(*_runAllocator, dfo.expt, dfo.run, dfo.stream, dfo.chunk));
+	       dfo.run, dfo.stream, dfo.chunk, dfo.host, dfo.path);
+	if (_runAllocator) {
+    std::string hostname = dfo.host;
+    std::string fname = dfo.path;
+    _reportTask->call(new ReportJob(*_runAllocator, dfo.expt, dfo.run, dfo.stream, dfo.chunk, hostname, fname));
+  }
 	break;
       }
       case OccurrenceId::RequestPause:

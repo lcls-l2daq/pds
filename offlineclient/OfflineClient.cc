@@ -206,7 +206,7 @@ int OfflineClient::AllocateRunNumber(unsigned int *runNumber) {
   return (returnVal);
 }
 
-int OfflineClient::reportOpenFile (int expt, int run, int stream, int chunk) {
+int OfflineClient::reportOpenFile (int expt, int run, int stream, int chunk, std::string& host, std::string& dirpath) {
   LogBook::Connection * conn = NULL;
   int returnVal = -1;  // default return is ERROR
 
@@ -224,7 +224,7 @@ int OfflineClient::reportOpenFile (int expt, int run, int stream, int chunk) {
           // begin transaction
           conn->beginTransaction();
 
-	  conn->reportOpenFile(expt, run, stream, chunk);
+	  conn->reportOpenFile(expt, run, stream, chunk, host, dirpath);
           returnVal = 0; // OK
 
           // commit transaction

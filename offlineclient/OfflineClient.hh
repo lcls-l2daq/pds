@@ -11,7 +11,7 @@ namespace Pds {
     OfflineClient(const char *path, const char *instrument, const char *experiment);
     OfflineClient(const char *path, const char *instrument);
     int AllocateRunNumber(unsigned int *runNumber);
-    int reportOpenFile (int expt, int run, int stream, int chunk);
+    int reportOpenFile (int expt, int run, int stream, int chunk, std::string& host, std::string& dirpath);
     unsigned int GetExperimentNumber();
     const char * GetExperimentName();
     const char * GetInstrumentName();
