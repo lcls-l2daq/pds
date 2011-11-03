@@ -527,7 +527,7 @@ namespace Pds {
       unsigned len = (((Pds::CsPad::RowsPerBank-1)<<3) + Pds::CsPad::BanksPerASIC -1) ;  // there are only 6 banks in the last row
       unsigned size = (sizeof(Pds::Pgp::RegisterSlaveExportFrame)/sizeof(uint32_t)) + len + 1 - 2; // last one for the DNC - the two already in the header
       uint32_t myArray[size];
-      for(unsigned i=0; i<size; i++) myArray[i]=0;
+      memset(myArray, 0, size*sizeof(uint32_t));
       for (int i=0; i<Pds::CsPad::MaxQuadsPerSensor; i++) {
         if ((1<<i) & _config->quadMask()) numberOfQuads += 1;
         map[i] = (Pds::CsPad::CsPadGainMapCfg::GainMap*)_config->quads()[i].gm()->map();
