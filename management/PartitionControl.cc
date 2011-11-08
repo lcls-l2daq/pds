@@ -26,6 +26,7 @@
 #include <string> // Required for std::string
 #include <unistd.h>
 #include <errno.h>
+#include <vector>
 
 #define RECOVER_TMO
 
@@ -65,6 +66,22 @@ namespace Pds {
     int _expt, _run, _stream, _chunk;
     std::string _host_name;
     std::string _fname;
+  };
+
+  class ReportDetectors : public Routine {
+  public:
+    ReportDetectors(RunAllocator& allocator,
+	      int expt, int run, std::vector<std::string>& names) :
+      _allocator(allocator), _expt(expt), _run(run), _names(names) {}
+  public:
+    void routine() {
+      _allocator.reportDetectors(_expt,_run,_names);
+      delete this;
+    }
+  private:
+    RunAllocator& _allocator;
+    int _expt, _run, _stream, _chunk;
+    std::vector<std::string> _names;
   };
 
   class ControlAction : public Appliance {

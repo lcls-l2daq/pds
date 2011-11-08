@@ -2,6 +2,7 @@
 #ifndef OFFLINECLIENT_HH
 #define OFFLINECLIENT_HH
 
+#include <vector>
 #include "LogBook/Connection.h"
 
 namespace Pds {
@@ -11,7 +12,9 @@ namespace Pds {
     OfflineClient(const char *path, const char *instrument, const char *experiment);
     OfflineClient(const char *path, const char *instrument);
     int AllocateRunNumber(unsigned int *runNumber);
+    int BeginNewRun(int runNumber);
     int reportOpenFile (int expt, int run, int stream, int chunk, std::string& host, std::string& dirpath);
+    int reportDetectors (int expt, int run, std::vector<std::string>& names);
     unsigned int GetExperimentNumber();
     const char * GetExperimentName();
     const char * GetInstrumentName();

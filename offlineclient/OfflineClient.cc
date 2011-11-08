@@ -139,6 +139,11 @@ OfflineClient::OfflineClient(const char* path, const char* instrument_name) :
 // Allocate a new run number from the database.
 // If database is NULL then the run number is set to 0.
 //
+// NOTE: Allocating a run number won't result in any runs automatically
+// registered in LogBook or any other database.
+//
+// SEE ALSO: BeginNewRun()
+//
 // RETURNS: 0 if successful, otherwise -1
 //
 int OfflineClient::AllocateRunNumber(unsigned int *runNumber) {
@@ -206,6 +211,83 @@ int OfflineClient::AllocateRunNumber(unsigned int *runNumber) {
   return (returnVal);
 }
 
+//
+// BeginNewRun
+//
+// Begin new run: create a new run entry in the database.
+//
+// NOTE: Allocating a run number won't result in any runs automatically
+// registered in LogBook or any other database.
+//
+// SEE ALSO: AllocateRunNumber()
+//
+// RETURNS: 0 if successful, otherwise -1
+//
+int OfflineClient::BeginNewRun(int runNumber) {
+  LusiTime::Time now;
+  LogBook::Connection * conn = NULL;
+  int returnVal = -1;  // default return is ERROR
+
+  // sanity check
+  if (runNumber && _instrument_name && _experiment_name) {
+
+    // in case of NULL database, do nothing
+    if ((_path == (char *)NULL) || (strcmp(_path, "/dev/null") == 0)) {
+      returnVal = 0;  // OK
+    } else {
+      printf("Creating new run number %d database entry\n", runNumber);
+      try {
+        conn = LogBook::Connection::open(_path);
+
+        if (conn != NULL) {
+          // begin transaction
+          conn->beginTransaction();
+
+          // LogBook: begin run
+          now = LusiTime::Time::now();
+          conn->beginRun(_instrument_name,
+                         _experiment_name,
+                         runNumber, "DATA", now); // DATA/CALIB
+
+          returnVal = 0; // OK
+
+          // commit transaction
+          conn->commitTransaction();
+        } else {
+            printf("LogBook::Connection::connect() failed\n");
+        }
+
+      } catch (const LogBook::ValueTypeMismatch& e) {
+        printf ("Parameter type mismatch %s:\n", e.what());
+        returnVal = -1; // ERROR
+
+      } catch (const LogBook::WrongParams& e) {
+        printf ("Problem with parameters %s:\n", e.what());
+        returnVal = -1; // ERROR
+    
+      } catch (const LogBook::DatabaseError& e) {
+        printf ("Database operation failed: %s\n", e.what());
+        returnVal = -1; // ERROR
+      }
+
+      if (0 == returnVal) {
+        printf("Completed creating new run rumber %d database entry\n", runNumber);
+      }
+
+      if (conn != NULL) {
+        // close connection
+        delete conn ;
+      }
+    }
+  }
+
+  if (-1 == returnVal) {
+    printf("%s returning error\n", __FUNCTION__);
+  }
+
+  return (returnVal);
+}
+
 int OfflineClient::reportOpenFile (int expt, int run, int stream, int chunk, std::string& host, std::string& dirpath) {
   LogBook::Connection * conn = NULL;
   int returnVal = -1;  // default return is ERROR
@@ -258,6 +340,58 @@ int OfflineClient::reportOpenFile (int expt, int run, int stream, int chunk, std
 	   expt, run, stream, chunk);
   }
 
+  return (returnVal);
+}
+
+int OfflineClient::reportDetectors (int expt, int run, std::vector<std::string>& names) {
+  LogBook::Connection * conn = NULL;
+  int returnVal = -1;  // default return is ERROR
+
+  // sanity check
+  if ((names.size() > 0) && run && _instrument_name && _experiment_name) {
+    // in case of NULL database, report nothing
+    if ((_path == (char *)NULL) || (strcmp(_path, "/dev/null") == 0)) {
+      returnVal = 0;  // OK
+    } else {
+      try {
+        conn = LogBook::Connection::open(_path);
+
+        if (conn != NULL) {
+          // begin transaction
+          conn->beginTransaction();
+
+          std::vector<std::string>::iterator nn;
+          for (nn = names.begin(); nn != names.end(); nn++) {
+            conn->createRunAttr(_instrument_name, _experiment_name, run,
+                                "DAQ_Detectors", *nn, "", "");
+          }
+          returnVal = 0; // OK
+
+          // commit transaction
+          conn->commitTransaction();
+        } else {
+            printf("LogBook::Connection::connect() failed\n");
+        }
+
+      } catch (const LogBook::ValueTypeMismatch& e) {
+        printf ("Parameter type mismatch %s:\n", e.what());
+        returnVal = -1; // ERROR
+
+      } catch (const LogBook::WrongParams& e) {
+        printf ("Problem with parameters %s:\n", e.what());
+        returnVal = -1; // ERROR
+    
+      } catch (const LogBook::DatabaseError& e) {
+        printf ("Database operation failed: %s\n", e.what());
+        returnVal = -1; // ERROR
+      }
+
+      if (conn != NULL) {
+        // close connection
+        delete conn ;
+      }
+    }
+  }
   return (returnVal);
 }
 
