@@ -224,7 +224,7 @@ class CspadConfigAction : public Action {
       _server->resetOffset();
       if (_cfg.scanning() == false) {
         unsigned count = 0;
-        while ((_result = _server->configure( (CsPadConfigType*)_cfg.current())) && count++<10) {
+        while ((_result = _server->configure( (CsPadConfigType*)_cfg.current())) && count++<3) {
           printf("\nCspadConfigAction::fire(tr) retrying config %u\n", count);
         };
         if (_server->debug() & 0x10) _cfg.printRO();
@@ -264,7 +264,7 @@ class CspadBeginCalibCycleAction : public Action {
           printf("configured and \n");
           _server->offset(_server->offset()+_server->myCount()+1);
           unsigned count = 0;
-          while ((_result = _server->configure( (CsPadConfigType*)_cfg.current())) && count++<10) {
+          while ((_result = _server->configure( (CsPadConfigType*)_cfg.current())) && count++<3) {
             printf("\nCspadBeginCalibCycleAction::fire(tr) retrying config %u\n", count);
           };
           if (_server->debug() & 0x10) _cfg.printRO();
