@@ -64,8 +64,8 @@ private:
 class PrincetonConfigAction : public Action 
 {
 public:
-    PrincetonConfigAction(PrincetonManager& manager, CfgClientNfs& cfg, int iDebugLevel) :
-        _manager(manager), _cfg(cfg), _iDebugLevel(iDebugLevel),
+    PrincetonConfigAction(PrincetonManager& manager, CfgClientNfs& cfg, bool bDelayMode, int iDebugLevel) :
+        _manager(manager), _cfg(cfg), _bDelayMode(bDelayMode), _iDebugLevel(iDebugLevel),
         _cfgtc(_typePrincetonConfig, cfg.src()), _configCamera(), _iConfigCameraFail(0)
     {}
     
@@ -100,6 +100,7 @@ public:
         _iConfigCameraFail  = 1;
       }
                   
+      _configCamera.setDelayMode( _bDelayMode? 1: 0 );
       _iConfigCameraFail = _manager.configCamera(_configCamera);
       
       return tr;
@@ -126,12 +127,12 @@ public:
         if (_iDebugLevel>=2) printf( "Princeton Config data:\n"
           "  Width %d Height %d  Org X %d Y %d  Bin X %d Y %d\n"
           "  Exposure time %gs  Cooling Temperature %.1f C  Gain Index %d\n"
-          "  Readout Speed %d  Readout Event %d\n",
+          "  Readout Speed %d  Readout Event %d Delay Mode %d\n",
           _configCamera.width(), _configCamera.height(),
           _configCamera.orgX(), _configCamera.orgY(),
           _configCamera.binX(), _configCamera.binY(),
           _configCamera.exposureTime(), _configCamera.coolingTemp(), _configCamera.gainIndex(), 
-		  _configCamera.readoutSpeedIndex(), _configCamera.readoutEventCode()
+      _configCamera.readoutSpeedIndex(), _configCamera.readoutEventCode(), ( _configCamera.delayMode() ? 1: 0 )
           );
         if (_iDebugLevel>=1) printf( "\nOutput payload size = %d\n", in->datagram().xtc.sizeofPayload());
         
@@ -141,6 +142,7 @@ public:
 private:
     PrincetonManager&   _manager;    
     CfgClientNfs&       _cfg;
+    bool                _bDelayMode;
     const int           _iDebugLevel;
     Xtc                 _cfgtc;
     Princeton::ConfigV2 _configCamera;    
@@ -247,8 +249,8 @@ private:
 class PrincetonL1AcceptAction : public Action 
 {
 public:
-    PrincetonL1AcceptAction(PrincetonManager& manager, CfgClientNfs& cfg, int iDebugLevel) :
-        _manager(manager), _cfg(cfg), _iDebugLevel(iDebugLevel)
+    PrincetonL1AcceptAction(PrincetonManager& manager, CfgClientNfs& cfg, bool bDelayMode, int iDebugLevel) :
+        _manager(manager), _cfg(cfg), _bDelayMode(bDelayMode), _iDebugLevel(iDebugLevel)
         //, _poolFrameData(1024*1024*8 + 1024, 16) // pool for debug
     {
     }
@@ -273,8 +275,35 @@ public:
       int         iFail = 0;
       InDatagram* out   = in;
       
+/*!! recover from delay mode
+      int   iShotId     = in->datagram().seq.stamp().fiducials();   // shot ID 
+                        
+      iFail = _manager.checkReadoutEventCode(in);
+      //iFail = 0; // !! debug
+      
+      // Discard the evr data, for appending the detector data later
+      in->datagram().xtc.extent = sizeof(Xtc);            
+      
+      if ( iFail != 0 )
+      {
+        if (_iDebugLevel >= 1) 
+          printf( "No readout event code\n" );
+          
+        return in;
+      }      
+      
+      if ( _bDelayMode )
+      {
+        iFail =  _manager.getDelayData( in, out );        
+        iFail |= _manager.onEventReadoutDelay( iShotId, in );
+      }
+      else
+      { // prompt mode
+        iFail = _manager.onEventReadoutPrompt( iShotId, in, out );          
+      }        
+*/      
       iFail =  _manager.getDelayData( in, out );        
-                      
+                    
       if ( iFail != 0 )
       {
         // set damage bit
@@ -316,6 +345,7 @@ public:
 private:        
     PrincetonManager&   _manager;
     CfgClientNfs&       _cfg;
+    bool                _bDelayMode;    
     int                 _iDebugLevel;
     //GenericPool         _poolFrameData; // pool for debug
 };
@@ -373,6 +403,9 @@ public:
       if (_iDebugLevel>=2) printDataTime(in);
         
       InDatagram* out = in;
+      
+      // In either normal mode or delay mode, we will need to check if there is
+      // an un-reported data
       if ( true )
       {
         int iFail = _manager.getLastDelayData( in, out );
@@ -438,23 +471,23 @@ private:
   int               _iDebugLevel;
 };
 
-PrincetonManager::PrincetonManager(CfgClientNfs& cfg, int iCamera, bool bInitTest, int iDebugLevel) :
-  _iCamera(iCamera), _bInitTest(bInitTest),
+PrincetonManager::PrincetonManager(CfgClientNfs& cfg, int iCamera, bool bDelayMode, bool bInitTest, string sConfigDb, int iDebugLevel) :
+  _iCamera(iCamera), _bDelayMode(bDelayMode), _bInitTest(bInitTest), _sConfigDb(sConfigDb),
   _iDebugLevel(iDebugLevel), _pServer(NULL)
 {
     _pActionMap       = new PrincetonMapAction      (*this, cfg, _iDebugLevel);
-    _pActionConfig    = new PrincetonConfigAction   (*this, cfg, _iDebugLevel);
+    _pActionConfig    = new PrincetonConfigAction   (*this, cfg, _bDelayMode, _iDebugLevel);
     _pActionUnconfig  = new PrincetonUnconfigAction (*this, _iDebugLevel);  
     _pActionBeginRun  = new PrincetonBeginRunAction (*this, _iDebugLevel);
     _pActionEndRun    = new PrincetonEndRunAction   (*this, _iDebugLevel);  
     _pActionEnable    = new PrincetonEnableAction   (*this, _iDebugLevel);
     _pActionDisable   = new PrincetonDisableAction  (*this, _iDebugLevel);
-    _pActionL1Accept  = new PrincetonL1AcceptAction (*this, cfg, _iDebugLevel);
+    _pActionL1Accept  = new PrincetonL1AcceptAction (*this, cfg, _bDelayMode, _iDebugLevel);
     _pResponse        = new PrincetonResponse       (*this, _iDebugLevel);
 
     try
     {     
-    _pServer = new PrincetonServer(_iCamera, _bInitTest, cfg.src(), _iDebugLevel);    
+    _pServer = new PrincetonServer(_iCamera, _bDelayMode, _bInitTest, cfg.src(), _sConfigDb, _iDebugLevel);    
     }
     catch ( PrincetonServerException& eServer )
     {
@@ -528,6 +561,18 @@ int PrincetonManager::onEventReadout()
 {
   return _pServer->onEventReadout();
 }
+
+/* !! recover from delay mode
+int PrincetonManager::onEventReadoutPrompt(int iShotId, InDatagram* in, InDatagram*& out)
+{
+  return _pServer->onEventReadoutPrompt(iShotId, in, out);  
+}
+
+int PrincetonManager::onEventReadoutDelay(int iShotId, InDatagram* in)
+{
+  return _pServer->onEventReadoutDelay(iShotId, in);  
+}
+*/
 
 int PrincetonManager::getDelayData(InDatagram* in, InDatagram*& out)
 {

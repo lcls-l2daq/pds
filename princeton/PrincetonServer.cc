@@ -1,18 +1,23 @@
+#include <fcntl.h>
+#include <math.h>
+#include <errno.h>
+#include <pthread.h> 
+
 #include "PrincetonServer.hh" 
 #include "PrincetonUtils.hh"
 
 #include "pdsdata/princeton/ConfigV2.hh"
 #include "pdsdata/princeton/FrameV1.hh"
+#include "pdsdata/princeton/InfoV1.hh"
 #include "pds/xtc/Datagram.hh"
 #include "pds/xtc/CDatagram.hh"
 #include "pds/service/Task.hh"
 #include "pds/service/Routine.hh"
 #include "pds/config/EvrConfigType.hh"
-#include "pdsdata/princeton/InfoV1.hh"
-
-#include <math.h>
-#include <errno.h>
-#include <pthread.h> 
+#include "pds/config/CfgPath.hh"
+#include "pdsapp/config/Path.hh"
+#include "pdsapp/config/Experiment.hh"
+#include "pdsapp/config/Table.hh"
  
 using std::string;
 
@@ -21,21 +26,54 @@ using PICAM::printPvError;
 namespace Pds 
 {
 
-PrincetonServer::PrincetonServer(int iCamera, bool bInitTest, const Src& src, int iDebugLevel) :
- _iCamera(iCamera), _bInitTest(bInitTest), _src(src), _iDebugLevel(iDebugLevel),
+PrincetonServer::PrincetonServer(int iCamera, bool bDelayMode, bool bInitTest, const Src& src, string sConfigDb, int iDebugLevel) :
+ _iCamera(iCamera), _bDelayMode(bDelayMode), _bInitTest(bInitTest), _src(src), _sConfigDb(sConfigDb), _iDebugLevel(iDebugLevel),
  _hCam(-1), _bCameraInited(false), _bCaptureInited(false), _bClockSaving(false),
  _fPrevReadoutTime(0), _bSequenceError(false), _clockPrevDatagram(0,0), _iNumL1Event(0),
  _configCamera(), 
  _fReadoutTime(0),  
  _poolFrameData(_iMaxFrameDataSize, _iPoolDataCount), _pDgOut(NULL),
- _CaptureState(CAPTURE_STATE_IDLE)
+ _CaptureState(CAPTURE_STATE_IDLE), _pTaskCapture(NULL), _routineCapture(*this)
 {        
   if ( initCamera() != 0 )
     throw PrincetonServerException( "PrincetonServer::PrincetonServer(): initPrincetonCamera() failed" );    
+
+  /*
+   * Known issue:
+   *
+   * If initCaptureTask() is put here, occasionally we will miss some FRAME_COMPLETE event when we do the polling
+   * Possible reason is that this function (constructor) is called by a different thread other than the polling thread.
+   */    
 }
 
 PrincetonServer::~PrincetonServer()
 { 
+  if ( _pTaskCapture != NULL )
+    _pTaskCapture->destroy(); // task object will destroy the thread and release the object memory by itself
+
+  if (_bDelayMode)
+  {
+    /*
+     * Wait for capture thread (if exists) to terminate
+     */ 
+    while ( _CaptureState == CAPTURE_STATE_RUN_TASK )
+    {
+      static int        iTotalWaitTime  = 0;
+      static const int  iSleepTime      = 10000; // 10 ms
+      
+      timeval timeSleepMicro = {0, 10000}; 
+      // Use select() to simulate nanosleep(), because experimentally select() controls the sleeping time more precisely
+      select( 0, NULL, NULL, NULL, &timeSleepMicro);    
+      
+      iTotalWaitTime += iSleepTime / 1000;
+      if ( iTotalWaitTime >= _iMaxThreadEndTime )
+      {
+        printf( "PrincetonServer::~PrincetonServer(): timeout for waiting thread terminating\n" );
+        break;
+      }
+    }
+  }
+  
   deinitCamera();  
 }
 
@@ -95,10 +133,18 @@ int PrincetonServer::initCamera()
     return ERROR_PVCAM_FUNC_FAIL; 
   }    
   
+  
+  int iFail = initCameraBeforeConfig();
+  if (iFail != 0)
+  {
+    printPvError("PrincetonServer::initCamera(): initCameraBeforeConfig() failed!\n");
+    return ERROR_FUNCTION_FAILURE; 
+  }
+  
   printf( "Princeton Camera [%d] %s has been initialized\n", _iCamera, strCamera );
   _bCameraInited = true;    
   
-  int iFail = initClockSaving();  
+  iFail = initClockSaving();  
   if ( iFail != 0 )
   {
     deinitCamera();
@@ -139,6 +185,14 @@ int PrincetonServer::deinitCamera()
 
 int PrincetonServer::mapCamera()
 {
+  /*
+   * Thread Issue:
+   *
+   * initCaptureTask() need to be put here. See the comment in the constructor function.
+   */      
+  if ( initCaptureTask() != 0 )
+    return ERROR_SERVER_INIT_FAIL;
+  
   return 0;
 }
 
@@ -157,9 +211,16 @@ int PrincetonServer::configCamera(Princeton::ConfigV2& config)
   _configCamera = config;
     
   //Note: We don't send error for cooling incomplete
-  setupCooling();
+  setupCooling( _configCamera.coolingTemp() );
   //if ( setupCooling() != 0 )
     //return ERROR_SERVER_INIT_FAIL;  
+  
+  /*
+   * Record the delay mode parameter in the config data
+   *
+   * Note: The delay mode was selected from the command line
+   */
+  config.setDelayMode( _bDelayMode?1:0 );
   
   iFail = initClockSaving();  
   if ( iFail != 0 )
@@ -424,6 +485,58 @@ int PrincetonServer::initCameraSettings(Princeton::ConfigV2& config)
   return 0;
 }
 
+int PrincetonServer::initCameraBeforeConfig()
+{
+  if (_sConfigDb.empty())
+    return 0;
+    
+  size_t iIndexComma = _sConfigDb.find_first_of(',');
+  
+  string sConfigPath, sConfigType;
+  if (iIndexComma == string::npos)
+  {
+    sConfigPath = _sConfigDb;
+    sConfigType = "PRINCETON_BURST";
+  }
+  else
+  {
+    sConfigPath = _sConfigDb.substr(0, iIndexComma);
+    sConfigType = _sConfigDb.substr(iIndexComma+1, string::npos);
+  }
+  
+  // Setup ConfigDB and Run Key 
+  Pds_ConfigDb::Experiment expt((const Pds_ConfigDb::Path&)Pds_ConfigDb::Path(sConfigPath));
+  expt.read();
+  const Pds_ConfigDb::TableEntry* entry = expt.table().get_top_entry(sConfigType);
+  if (entry == NULL)
+  {
+    printf("PrincetonServer::initCameraBeforeConfig(): Invalid config db path [%s] type [%s]\n",sConfigPath.c_str(), sConfigType.c_str());
+    return 1;    
+  }
+  
+  int runKey = strtoul(entry->key().c_str(),NULL,16);        
+  
+  const TypeId typePrincetonConfig = TypeId(TypeId::Id_PrincetonConfig, Princeton::ConfigV2::Version);    
+  
+  char strConfigPath[128];
+  sprintf(strConfigPath,"%s/keys/%s",sConfigPath.c_str(),CfgPath::path(runKey,_src,typePrincetonConfig).c_str());
+  printf("Config Path: %s\n", strConfigPath);
+
+  int fdConfig = open(strConfigPath, O_RDONLY);
+  Princeton::ConfigV2 config;
+  int iSizeRead = read(fdConfig, &config, sizeof(config));
+  if (iSizeRead != sizeof(config))
+  {
+    printf("PrincetonServer::initCameraBeforeConfig(): Read config data of incorrect size. Read size = %d (should be %d) bytes\n",
+      iSizeRead, sizeof(config));
+    return 2;
+  }
+  
+  printf("Setting cooling temperature: %f\n", config.coolingTemp());
+  setupCooling( config.coolingTemp() );
+  return 0;
+}
+
 int PrincetonServer::initTest()
 {
   printf( "Running init test...\n" );
@@ -561,7 +674,7 @@ int PrincetonServer::deinitClockSaving()
   return 0;  
 }
 
-int PrincetonServer::setupCooling()
+int PrincetonServer::setupCooling(float fCoolingTemperature)
 {
   using namespace PICAM;
 
@@ -571,7 +684,7 @@ int PrincetonServer::setupCooling()
 
   //displayParamIdInfo(_hCam, PARAM_TEMP_SETPOINT, "Set Cooling Temperature *Org*");  
 
-  const int16 iCoolingTemp = (int)( _configCamera.coolingTemp() * 100 );
+  const int16 iCoolingTemp = (int)( fCoolingTemperature * 100 );
 
   //if ( iCoolingTemp == _iMaxCoolingTemp  )
   //{
@@ -646,6 +759,21 @@ int PrincetonServer::setupCooling()
   return 0;
 }
 
+int PrincetonServer::initCaptureTask()
+{
+  if ( _pTaskCapture != NULL )
+    return 0;
+    
+  _pTaskCapture = new Task(TaskObject("PrincetonServer"));
+    
+  if ( ! _bDelayMode )
+  { // Prompt mode doesn't need to initialize the capture task, because the task will be performed in the event handler
+    return 0;
+  }
+    
+  return 0;
+}
+
 int PrincetonServer::runCaptureTask()
 {
   if ( _CaptureState != CAPTURE_STATE_RUN_TASK )
@@ -707,8 +835,8 @@ int PrincetonServer::runCaptureTask()
   // Note: Dont send damage when temperature is high
   checkTemperature();
   //if ( checkTemperature() != 0 )
-  //  _pDgOut->datagram().xtc.damage.increase(Pds::Damage::UserDefined);      
-    
+  //  _pDgOut->datagram().xtc.damage.increase(Pds::Damage::UserDefined);           
+  
   _CaptureState = CAPTURE_STATE_DATA_READY;
   return 0;
 }
@@ -773,7 +901,12 @@ int PrincetonServer::onEventReadout()
   }    
     
   _CaptureState = CAPTURE_STATE_RUN_TASK;
-  runCaptureTask();
+  
+  if (_bDelayMode)
+    _pTaskCapture->call( &_routineCapture );
+  else
+    runCaptureTask();  
+  
   return 0;
 }
 
@@ -838,7 +971,7 @@ int PrincetonServer::getDelayData(InDatagram* in, InDatagram*& out)
   resetFrameData(false);  
 
   // Delayed data sending for multiple princeton cameras, to avoid creating a burst of traffic 
-  timeval timeSleepMicro = {0, 1000 * 10 * _iCamera }; // 10 milliseconds
+  timeval timeSleepMicro = {0, 1000 * 10 * _iCamera}; // 10 milliseconds
   select( 0, NULL, NULL, NULL, &timeSleepMicro);
 
   return 0;
@@ -978,7 +1111,7 @@ int PrincetonServer::processFrame()
     printf( "PrincetonServer::startCapture(): Datagram has not been allocated. No buffer to store the image data\n" );
     return ERROR_LOGICAL_FAILURE;
   }
-      
+        
   if ( _iNumL1Event <= _iMaxEventReport ||  _iDebugLevel >= 5 )
   {
     unsigned char*  pFrameHeader   = (unsigned char*) _pDgOut + sizeof(CDatagram) + sizeof(Xtc);  
@@ -1015,6 +1148,12 @@ int PrincetonServer::setupFrame()
 
   const int iFrameSize =_configCamera.frameSize();
   
+  /*
+   * Set the output datagram pointer
+   *
+   * Note: This pointer will be used in processFrame(). In the case of delay mode,
+   * processFrame() will be exectued in another thread.
+   */
   InDatagram*& out = _pDgOut;
   //
   //  Fake a datagram header.  The real header will come with the L1Accept.
@@ -1174,5 +1313,15 @@ const float     PrincetonServer::_fEventDeltaTimeFactor = 1.01f;
  * Definition of private static data
  */
 pthread_mutex_t PrincetonServer::_mutexPlFuncs = PTHREAD_MUTEX_INITIALIZER;    
+
+
+PrincetonServer::CaptureRoutine::CaptureRoutine(PrincetonServer& server) : _server(server)
+{
+}
+
+void PrincetonServer::CaptureRoutine::routine(void)
+{
+  _server.runCaptureTask();
+}
 
 } //namespace Pds 

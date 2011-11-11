@@ -23,7 +23,7 @@ class PrincetonServer;
 class PrincetonManager 
 {
 public:
-  PrincetonManager(CfgClientNfs& cfg, int iCamera, bool bInitTest, int iDebugLevel);
+  PrincetonManager(CfgClientNfs& cfg, int iCamera, bool bDelayMode, bool bInitTest, std::string sConfigDb, int iDebugLevel);
   ~PrincetonManager();
 
   Appliance&    appliance() { return *_pFsm; }
@@ -43,7 +43,9 @@ public:
   
 private:          
   const int           _iCamera;
+  const bool          _bDelayMode;          
   const bool          _bInitTest;
+  const std::string   _sConfigDb;
   const int           _iDebugLevel;
   
   Fsm*                _pFsm;
