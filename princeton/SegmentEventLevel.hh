@@ -1,6 +1,14 @@
 #ifndef PDS_SEGMENT_EVENT_LEVEL_HH
 #define PDS_SEGMENT_EVENT_LEVEL_HH
 
+/*
+ * Note: This file is no longer required for PrincetonServer.
+ *       Originally this was used to get EVR data for the princeton server,
+ *       but later it was changed to use Occurance. Now this file is 
+ *       deprecated, and only remain as a reference for segment level to
+ *       get the EVR data
+ */
+
 #include "pds/management/SegmentLevel.hh"
 #include "pds/utility/NetDgServer.hh"
 

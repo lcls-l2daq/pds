@@ -1,5 +1,13 @@
 #include "SegmentEventLevel.hh"
 
+/*
+ * Note: This file is no longer required for PrincetonServer.
+ *       Originally this was used to get EVR data for the princeton server,
+ *       but later it was changed to use Occurance. Now this file is 
+ *       deprecated, and only remain as a reference for segment level to
+ *       get the EVR data
+ */
+
 #include <string>
 #include <sstream>
 
@@ -28,6 +36,7 @@ SegmentEventLevel::~SegmentEventLevel()
 {
 }
 
+/*
 static std::string addressToStr( unsigned int uAddr )
 {
     unsigned int uNetworkAddr = htonl(uAddr);
@@ -41,6 +50,7 @@ static std::string addressToStr( unsigned int uAddr )
       
      return sstream.str();
 }
+*/
 
 void SegmentEventLevel::allocated(const Allocation & alloc, unsigned index)
 {
@@ -56,9 +66,9 @@ void SegmentEventLevel::allocated(const Allocation & alloc, unsigned index)
   //  if (node.level() == Level::Segment) {
       Ins ins = StreamPorts::event(partition, Level::Observer, 0, 0);
       _pEventServer = new NetDgServer(ins,
-				      header().procInfo(),
-				      EventStreams::netbufdepth *
-				      EventStreams::MaxSize);
+              header().procInfo(),
+              EventStreams::netbufdepth *
+              EventStreams::MaxSize);
 
       Ins mcastIns(ins.address());
       _pEventServer->server().join(mcastIns, Ins(header().ip()));
@@ -77,13 +87,13 @@ void SegmentEventLevel::allocated(const Allocation & alloc, unsigned index)
     {
       // Add vectored output clients on inlet
       Ins ins = StreamPorts::event(partition,
-				   Level::Event,
-				   vectorid,
-				   index);
+           Level::Event,
+           vectorid,
+           index);
       InletWireIns wireIns(vectorid, ins);
       inlet.add_output(wireIns);
       printf("SegmentLevel::allocated adding output %d to %x/%d\n",
-	     vectorid, ins.address(), ins.portId());
+       vectorid, ins.address(), ins.portId());
       
       vectorid++;
     }

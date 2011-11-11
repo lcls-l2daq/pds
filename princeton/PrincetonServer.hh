@@ -25,7 +25,7 @@ class PrincetonServer;
 class PrincetonServer
 {
 public:
-  PrincetonServer(int iCamera, bool bInitTest, const Src& src, int iDebugLevel);
+  PrincetonServer(int iCamera, bool bUseCaptureTask, bool bInitTest, const Src& src, std::string sConfigDb, int iDebugLevel);
   ~PrincetonServer();
   
   int   mapCamera();  
@@ -68,7 +68,6 @@ private:
   /*  
    * private static consts
    */    
-  // !! For XPP non-shutter mode
   static const int      _iMaxCoolingTime        = 100;        // in miliseconds
   //static const int      _iMaxCoolingTime        = 58000;        // in miliseconds
   static const int      _iTemperatureHiTol      = 100;          // 1 degree Celcius
@@ -86,6 +85,18 @@ private:
   static const float    _fEventDeltaTimeFactor;                 // Event delta time factor, for detecting sequence error  
 
   /*
+   * private classes
+   */
+  class CaptureRoutine : public Routine 
+  {
+  public:
+    CaptureRoutine(PrincetonServer& server);
+    void routine(void);
+  private:
+    PrincetonServer& _server;
+  };  
+  
+  /*
    * private functions
    */
   int   initCamera();
@@ -95,9 +106,11 @@ private:
   int   startCapture();
   int   deinitCapture();  
 
+  int   initCaptureTask(); // for delay mode use only
   int   runCaptureTask();
   
   int   initCameraSettings(Princeton::ConfigV2& config);
+  int   initCameraBeforeConfig();
 
   int   initTest();
   
@@ -107,11 +120,12 @@ private:
    * Frame handling functions
    */
   int   setupFrame();
+  //int   setupFrame(InDatagram* in, InDatagram*& out); //!!delay mode
   int   waitForNewFrameAvailable();
   int   processFrame();
   int   resetFrameData(bool bDelOutDatagram);
 
-  int   setupCooling();    
+  int   setupCooling(float fCoolingTemperature);    
   int   checkTemperature();  
   int   checkSequence( const Datagram& datagram );
   void  setupROI(rgn_type& region);
@@ -120,8 +134,10 @@ private:
    * Initial settings
    */
   const int           _iCamera;
+  const bool          _bDelayMode;
   const bool          _bInitTest;
   const Src           _src;
+  const std::string   _sConfigDb;
   const int           _iDebugLevel;
   
   /*
@@ -160,6 +176,8 @@ private:
    * Capture Task Control
    */
   CaptureStateEnum    _CaptureState;    // 0 -> idle, 1 -> start data polling/processing, 2 -> data ready  
+  Task*               _pTaskCapture;    // for delay mode use
+  CaptureRoutine      _routineCapture;  // for delay mode use
       
   /*
    * Thread syncronization (lock/unlock) functions

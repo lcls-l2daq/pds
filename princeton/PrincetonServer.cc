@@ -764,13 +764,11 @@ int PrincetonServer::initCaptureTask()
   if ( _pTaskCapture != NULL )
     return 0;
     
-  _pTaskCapture = new Task(TaskObject("PrincetonServer"));
-    
-  if ( ! _bDelayMode )
-  { // Prompt mode doesn't need to initialize the capture task, because the task will be performed in the event handler
+  if ( ! _bDelayMode ) // Prompt mode doesn't need to initialize the capture task, because the task will be performed in the event handler    
     return 0;
-  }
-    
+
+  _pTaskCapture = new Task(TaskObject("PrincetonServer"));
+  
   return 0;
 }
 
