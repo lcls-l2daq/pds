@@ -1,7 +1,14 @@
 # List of packages (low level first)
-packages := service collection xtc 
-packages += config mon vmon
-packages += utility management client offlineclient
-packages += ipimb encoder camera acqiris evgr epicsArch rceProxy \
-            princeton epicstools pgp cspad xamps fexamp gsc16ai
-
+ifneq ($(findstring x86_64-linux,$(tgt_arch)),)
+#  packages := service camera
+  packages := service collection xtc
+  packages += config mon vmon
+  packages += utility management client offlineclient
+  packages += camera
+else
+  packages := service collection xtc 
+  packages += config mon vmon
+  packages += utility management client offlineclient
+  packages += ipimb encoder camera acqiris evgr epicsArch rceProxy \
+              princeton epicstools pgp cspad xamps fexamp gsc16ai
+endif

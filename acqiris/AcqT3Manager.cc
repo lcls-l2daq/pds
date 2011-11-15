@@ -61,7 +61,7 @@
 
 using namespace Pds;
 
-static unsigned nprint =0;
+//static unsigned nprint =0;
 
 static void dumpStatus(ViSession instrumentId, ViStatus status, const char* ctxt)
 {
@@ -302,7 +302,7 @@ public:
 
     ViInt32 modeContinuous = 2;
     ViInt32 multipleAcqs   = 1;
-    ViInt32 singleAcq      = 0;
+    //    ViInt32 singleAcq      = 0;
     ViInt32 internalRefClk = 0;
     ViStatus status = AcqrsT3_configMode(_instrumentId, modeContinuous, multipleAcqs, internalRefClk);
     //    ViStatus status = AcqrsT3_configMode(_instrumentId, modeContinuous, singleAcq, internalRefClk);
