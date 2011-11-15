@@ -19,8 +19,8 @@ namespace Pds {
 using namespace Pds;
 
 
-PimManager::PimManager(const Src& src, unsigned grabberId) :
-  TM6740Manager(src, grabberId),
+PimManager::PimManager(const Src& src) :
+  TM6740Manager(src),
   _fexConfig    (new PimConfig(src))
 {
 }

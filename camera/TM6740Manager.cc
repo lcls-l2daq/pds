@@ -1,6 +1,7 @@
 #include "pds/camera/TM6740Manager.hh"
 
 #include "pds/camera/TM6740Camera.hh"
+#include "pds/camera/CameraDriver.hh"
 
 #include "pds/config/FrameFexConfigType.hh"
 #include "pds/config/TM6740ConfigType.hh"
@@ -36,12 +37,10 @@ namespace Pds {
 using namespace Pds;
 
 
-TM6740Manager::TM6740Manager(const Src& src, unsigned grabberId) :
+TM6740Manager::TM6740Manager(const Src& src) :
   CameraManager(src, new TM6740Config(src)),
   _fexConfig   (new FexConfig(src)),
-  _server      (new FexFrameServer(src,*_splice)),
-  _camera      (0),
-  _grabberId   (grabberId)
+  _server      (new FexFrameServer(src))
 {
 }
 
@@ -52,9 +51,6 @@ TM6740Manager::~TM6740Manager()
 }
 
 FrameServer& TM6740Manager::server() { return *_server; }
-
-void TM6740Manager::attach_camera() { _camera = new PdsLeutron::TM6740Camera(NULL,_grabberId); }
-void TM6740Manager::detach_camera() { delete _camera; }
 
 void TM6740Manager::allocate (Transition* tr)
 {
@@ -97,7 +93,7 @@ InDatagram* TM6740Manager::recordConfigure  (InDatagram* in)
 void TM6740Manager::_configure(const void* buff)
 {
   const TM6740ConfigType& c = *reinterpret_cast<const TM6740ConfigType*>(buff);
-  _camera->Config(c);
+  driver().camera().set_config_data(buff);
   _server->setCameraOffset(c.vref_a());
 }  
 
@@ -106,4 +102,4 @@ void TM6740Manager::unconfigure(Transition* tr)
   CameraManager::unconfigure(tr);
 }
 
-PdsLeutron::PicPortCL& TM6740Manager::camera() { return *_camera; }
+

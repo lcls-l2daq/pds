@@ -9,10 +9,7 @@
 
 #include "pds/xtc/InDatagram.hh"
 
-#include "pds/camera/DmaSplice.hh"
-#include "pds/camera/PicPortCL.hh"
-#include "pds/camera/FrameServer.hh"
-#include "pds/camera/FrameServerMsg.hh"
+#include "pds/camera/CameraDriver.hh"
 
 #include "pds/config/CfgCache.hh"
 #include "pds/config/CfgClientNfs.hh"
@@ -20,40 +17,12 @@
 #include "pds/utility/Occurrence.hh"
 #include "pds/service/GenericPool.hh"
 
+#include <string.h>
 #include <signal.h>
 #include <stdlib.h>
 #include <stdio.h>
 #include <errno.h>
 #include <new>
-
-//#define SIMULATE_EVR
-#define DBUG
-
-#ifdef SIMULATE_EVR
-#include "pds/service/Ins.hh"
-#include "pds/service/Client.hh"
-#include "pds/xtc/EvrDatagram.hh"
-#include "pds/utility/StreamPorts.hh"
-#include "pds/collection/Route.hh"
-
-static Pds::Client* _outlet = 0;
-static Pds::Ins     _dst;
-#endif
-
-
-
-static Pds::CameraManager* signalHandlerArgs[] = 
-{ 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-  0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-  0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-  0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 };
-
-static void cameraSignalHandler(int arg)
-{
-  Pds::CameraManager* mgr = signalHandlerArgs[arg];
-  if (mgr)
-    mgr->handle();
-}
 
 namespace Pds {
 
@@ -111,21 +80,18 @@ namespace Pds {
 
 using namespace Pds;
 
+static CameraManager* signalHandlerArg = 0;
 
-CameraManager::CameraManager(const Src& src,
-			     CfgCache*  camConfig) :
-  //  _splice  (new DmaSplice),
-  _splice  (0),
-  _src     (src),
-  _fsm     (new Fsm),
+
+CameraManager::CameraManager(const Src&    src,
+			     CfgCache*     camConfig) :
+  _src        (src),
+  _fsm        (new Fsm),
   _camConfig  (camConfig),
+  _driver     (0),
   _configured (false),
-  _occPool     (new GenericPool(sizeof(UserMessage),1)),
-  _hsignal     ("CamSignal")
+  _occPool    (new GenericPool(sizeof(UserMessage),1))
 {
-#ifdef DBUG
-  _tsignal.tv_sec = _tsignal.tv_nsec = 0;
-#endif
   _fsm->callback(TransitionId::Map            , new CameraMapAction       (*this));
   _fsm->callback(TransitionId::Configure      , new CameraConfigAction    (*this));
   _fsm->callback(TransitionId::Unconfigure    , new CameraUnconfigAction  (*this));
@@ -139,7 +105,7 @@ CameraManager::CameraManager(const Src& src,
   sigemptyset(&int_action.sa_mask);
   int_action.sa_flags = 0;
   int_action.sa_flags |= SA_RESTART;
-  signalHandlerArgs[SIGINT] = this;
+  signalHandlerArg = this;
 
   if (sigaction(SIGINT, &int_action, 0) > 0) {
     printf("Couldn't set up SIGINT handler\n");
@@ -149,10 +115,6 @@ CameraManager::CameraManager(const Src& src,
 CameraManager::~CameraManager()
 {
   delete   _fsm;
-  if (_splice) {
-    delete   _splice;
-    _splice = 0;
-  }
   delete   _camConfig;
 }
 
@@ -164,6 +126,9 @@ void CameraManager::allocate (Transition* tr)
 
 void CameraManager::doConfigure(Transition* tr)
 {
+  UserMessage* msg = new(_occPool) UserMessage;
+  msg->append(DetInfo::name(static_cast<const DetInfo&>(_src)));
+
   //
   //  retrieve the configuration
   //
@@ -172,46 +137,24 @@ void CameraManager::doConfigure(Transition* tr)
     _configure(_camConfig->current());
 
     int ret;
-    int sig;
-    if ((sig = camera().SetNotification(PdsLeutron::LvCamera::NOTIFYTYPE_SIGNAL)) < 0) 
-      printf("Camera::SetNotification: %s.\n", strerror(-sig));
-  
+    if ((ret = driver().initialize(msg)) < 0) {
+    }
     else {
-      register_(sig);
-
-      if ((ret = camera().Init()) < 0) {
-        printf("Camera::Init: %s.\n", strerror(-ret));
-        UserMessage* msg = new(_occPool) UserMessage;
-        msg->append(DetInfo::name(static_cast<const DetInfo&>(_src)));
-        if (ret == -ENODEV) {
-          msg->append(":Unable to find supported frame grabber.\nCheck PicPort driver");
-        } else {
-          msg->append(":Failed to initialize.\nCheck camera power and connections");
-        }
-        appliance().post(msg);
-      }
+      if ((ret = driver().start_acquisition(server(),appliance(),msg)) < 0)
+	;
       else {
-	if (_splice)
-	  _splice->initialize( camera().frameBufferBaseAddress(),
-			       camera().frameBufferEndAddress ()- 
-			       camera().frameBufferBaseAddress());
-      
-	if ((ret = camera().Start()) < 0)
-	  printf("Camera::Start: %s.\n", strerror(-ret));
-	else {
-	  _configured = true;
-	  return;
-	}
+        _configured = true;
+	delete msg;
+        return;
       }
     }
   }
   else {
     printf("Config::configure failed to retrieve camera configuration\n");
-    UserMessage* msg = new(_occPool) UserMessage;
-    msg->append(DetInfo::name(static_cast<const DetInfo&>(_src)));
     msg->append(":Failed to open config file");
-    appliance().post(msg);
   }
+
+  appliance().post(msg);
 
   _camConfig->damage().increase(Damage::UserDefined);
 }
@@ -220,8 +163,7 @@ void CameraManager::unconfigure(Transition* tr)
 {
   if (true == _configured) {
     _configured = false;
-    camera().Stop();
-    unregister();
+    driver().stop_acquisition();
   }
 }
 
@@ -238,104 +180,21 @@ InDatagram* CameraManager::recordConfigure  (InDatagram* in)
 
 Appliance& CameraManager::appliance() { return *_fsm; }
 
-void CameraManager::handle()
-{
-#ifdef DBUG
-    timespec ts;
-    clock_gettime(CLOCK_REALTIME, &ts);
-    if (_tsignal.tv_sec)
-      _hsignal.accumulate(ts,_tsignal);
-    _tsignal=ts;
-#endif
-
-#ifdef SIMULATE_EVR
-  // simulate an EVR for testing
-    timespec ts;
-    clock_gettime(CLOCK_REALTIME, &ts);
-    ClockTime ctime(ts.tv_sec,ts.tv_nsec);
-    Sequence seq(Sequence::Event,TransitionId::L1Accept,ctime,TimeStamp(0,_nposts));
-    EvrDatagram datagram(seq, _nposts);
-    _outlet->send((char*)&datagram,0,0,_dst);
-#endif
-
-  Pds::FrameServerMsg* msg = 
-    new Pds::FrameServerMsg(Pds::FrameServerMsg::NewFrame,
-			    camera().GetFrameHandle(),
-			    _nposts,
-			    0);
-
-  msg->damage.increase(_handle().value());
-
-  server().post(msg);
-  _nposts++;
-
-#ifdef DBUG
-  _hsignal.print(_nposts);
-#endif
-}
-
-void CameraManager::register_(int sig)
-{
-#ifdef SIMULATE_EVR
-  _outlet = new Client(sizeof(EvrDatagram),0,
-		       Ins(Route::interface())),
-#endif
-
-  _register();
-
-  _sig    = sig;
-  _nposts = 0;
-
-  printf("signal %d registered to cammgr %p\n", sig, this); 
-
-  signalHandlerArgs[sig] = this;
-  struct sigaction action;
-  sigemptyset(&action.sa_mask);
-  action.sa_handler  = cameraSignalHandler;
-  action.sa_flags    = SA_RESTART;
-  sigaction(sig,&action,NULL);
-}
-
-void CameraManager::unregister()
-{
-#ifdef SIMULATE_EVR
-  if (_outlet) {
-    delete _outlet;
-    _outlet = 0;
-  }
-#endif
-
-  if (_sig >= 0) {
-    struct sigaction action;
-    action.sa_handler = SIG_DFL;
-    sigaction(_sig,&action,NULL);
-    _sig = -1;
-  }
-
-  _unregister();
-}
-
 void CameraManager::sigintHandler(int)
 {
   printf("SIGINT received\n");
 
-  Pds::CameraManager* mgr = signalHandlerArgs[SIGINT];
+  Pds::CameraManager* mgr = signalHandlerArg;
 
   if (mgr) {
     if (true == mgr->_configured) {
       mgr->_configured = false;
-      printf("Calling camera().Stop()... ");
-      mgr->camera().Stop();
+      printf("Calling driver().Stop()... ");
+      mgr->driver().stop_acquisition();
       printf("done.\n");
-      // unregister();
     }
     else {
       printf("%s: not configured\n", __FUNCTION__);
-    }
-
-    if (mgr->_splice) {
-      delete mgr->_splice;
-      mgr->_splice = 0;
     }
   }
   else {
@@ -345,3 +204,17 @@ void CameraManager::sigintHandler(int)
   exit(0);
 }
 
+void CameraManager::attach(CameraDriver* d)
+{
+  _driver = d;
+}
+
+void CameraManager::detach()
+{
+  delete _driver; 
+}
+
+CameraDriver& CameraManager::driver() 
+{
+  return *_driver;
+}

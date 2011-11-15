@@ -1,11 +1,8 @@
 #include "pds/camera/FccdFrameServer.hh"
 
-#include "pds/camera/DmaSplice.hh"
 #include "pds/camera/Frame.hh"
-#include "pds/camera/FrameHandle.hh"
 #include "pds/camera/TwoDGaussian.hh"
 
-#include "pds/service/ZcpFragment.hh"
 #include "pds/xtc/XtcType.hh"
 #include "pds/camera/FrameServerMsg.hh"
 #include "pds/camera/FrameType.hh"
@@ -22,9 +19,8 @@ using namespace Pds;
 
 typedef unsigned short pixel_type;
 
-FccdFrameServer::FccdFrameServer(const Src& src, DmaSplice& splice) :
-  FrameServer(src),
-  _splice(splice)
+FccdFrameServer::FccdFrameServer(const Src& src) :
+  FrameServer(src)
 {
   _reorder_tmp = new char[FCCD_REORDER_BUFSIZE];
 }
@@ -74,7 +70,6 @@ int FccdFrameServer::fetch(char* payload, int flags)
     xtc->extent += _post_frame(xtc->next(), fmsg);
     length = xtc->extent;
 
-    delete fmsg->handle;
     delete fmsg;
     return length;
   }
@@ -94,9 +89,9 @@ int FccdFrameServer::fetch(ZcpFragment& zfo, int flags)
 
 unsigned FccdFrameServer::_post_frame(void* xtc, const FrameServerMsg* fmsg) const
 {
-  Frame frame(*fmsg->handle, _camera_offset);
+  Frame frame(fmsg->width, fmsg->height, fmsg->depth, _camera_offset);
   const unsigned short* frame_data = 
-    reinterpret_cast<const unsigned short*>(fmsg->handle->data);
+    reinterpret_cast<const unsigned short*>(fmsg->data);
 
   Xtc& frameXtc = *new((char*)xtc) Xtc(_frameType, _xtc.src, fmsg->damage);
   Frame* fp;
@@ -138,9 +133,9 @@ static void reverse_copy(uint32_t *dst, uint32_t *src, unsigned int count)
 
 int FccdFrameServer::_reorder_frame(FrameServerMsg* fmsg)
 {
-  Frame frame(*fmsg->handle, _camera_offset);
+  Frame frame(fmsg->width, fmsg->height, fmsg->depth, _camera_offset);
   unsigned short* frame_data = 
-    reinterpret_cast<unsigned short*>(fmsg->handle->data);
+    reinterpret_cast<unsigned short*>(fmsg->data);
   unsigned height = frame.height();
   unsigned width = frame.width();
 #ifdef FRAME_WIDTH_16_BIT_PIXELS

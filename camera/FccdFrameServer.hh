@@ -16,13 +16,12 @@
 
 namespace Pds {
 
-  class DmaSplice;
   class Frame;
   class TwoDMoments;
 
   class FccdFrameServer : public FrameServer {
   public:
-    FccdFrameServer (const Src&, DmaSplice&);
+    FccdFrameServer (const Src&);
     ~FccdFrameServer();
   public:
     void                            setFccdConfig(const FrameFccdConfigType&);
@@ -42,18 +41,7 @@ namespace Pds {
     TwoDMoments _feature_extract( const Frame&          frame,
 				  const unsigned short* frame_data ) const;
 
-    int _queue_frame( const Frame&    frame,
-		      FrameServerMsg* msg,
-		      ZcpFragment&    zfo );
-    int _queue_fccd  ( const TwoDMoments&,
-		      FrameServerMsg* msg,
-		      ZcpFragment&    zfo );
-    int _queue_fccd_and_frame( const TwoDMoments&,
-			      const Frame&    frame,
-			      FrameServerMsg* msg,
-			      ZcpFragment&    zfo );
   private:    
-    DmaSplice& _splice;
     const FrameFccdConfigType* _config;
     unsigned   _camera_offset;
     unsigned   _framefwd_count;

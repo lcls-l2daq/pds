@@ -244,7 +244,7 @@ int main(int argc, char *argv[])
       
       for(unsigned i=0; i<grabberid.size(); i++) {
         Opal1kCamera* oCamera = new Opal1kCamera( "OpalId0", grabberid[i] );
-        oCamera->Config(*Config);
+        oCamera->set_config_data(Config);
         pCamera.push_back(oCamera);
       }
       break;
@@ -292,7 +292,7 @@ int main(int argc, char *argv[])
                                     );
       for(unsigned i=0; i<grabberid.size(); i++) {
         FccdCamera* fCamera = new FccdCamera( "FccdId0", grabberid[i] );
-        fCamera->Config(*Config);
+        fCamera->set_config_data(Config);
         pCamera.push_back(fCamera);
       }
       break;
@@ -311,7 +311,7 @@ int main(int argc, char *argv[])
 						       TM6740ConfigType::Linear );
       for(unsigned i=0; i<grabberid.size(); i++) {
         TM6740Camera* tCamera = new TM6740Camera( "PulnixId0", grabberid[i] );
-        tCamera->Config(*Config);
+        tCamera->set_config_data(Config);
         pCamera.push_back(tCamera);
       }
       break;
@@ -466,8 +466,6 @@ int main(int argc, char *argv[])
 
   timespec tp;
   clock_gettime(CLOCK_REALTIME, &tp);
-
-  int nSkipped = 0, nFrames = 0;
 
   for(i=1; i != nimages+1; i++) {
     int signal;

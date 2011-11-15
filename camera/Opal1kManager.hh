@@ -4,10 +4,6 @@
 #include "pds/camera/CameraManager.hh"
 #include "pds/camera/FexFrameServer.hh"
 
-namespace PdsLeutron {
-  class Opal1kCamera;
-};
-
 namespace Pds {
 
   class Src;
@@ -16,21 +12,11 @@ namespace Pds {
 
   class Opal1kManager : public CameraManager {
   public:
-    Opal1kManager(const Src& src,
-		  unsigned   grabberId=0);
+    Opal1kManager(const Src& src);
     ~Opal1kManager();
 
   public:
     FrameServer& server();
-
-  private: // out of order checking
-    Pds::Damage _handle    ();
-    void        _register  ();
-    void        _unregister();
-
-  public:
-    void attach_camera();
-    void detach_camera();
 
   public:
     virtual void allocate      (Transition* tr);
@@ -42,16 +28,11 @@ namespace Pds {
   private:
     void _configure(const void*);
 
-    PdsLeutron::PicPortCL& camera();
-
   private:
     CfgCache*                  _fexConfig;
     FexFrameServer*            _server;
-    PdsLeutron::Opal1kCamera*  _camera;
-    //  buffer management
-    bool            _outOfOrder;
-    GenericPool*    _occPool;
-    unsigned        _grabberId;
+    GenericPool*               _occPool;
+    unsigned                   _grabberId;
   };
 };
 

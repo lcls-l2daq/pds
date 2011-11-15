@@ -1,35 +1,38 @@
-libnames := camera
+libnames := camera camleutron camedt
 
-libsrcs_camera := DmaSplice.cc \
+libsrcs_camera := CameraBase.cc \
+		  CameraManager.cc \
 		  FrameHandle.cc \
 		  Frame.cc \
-		  LvCamera.cc \
-		  PicPortCL.cc \
 		  TwoDMoments.cc \
 		  TwoDGaussian.cc \
 	          FrameServer.cc \
 	          FexFrameServer.cc \
 	          FccdFrameServer.cc \
 		  Opal1kCamera.cc \
-		  FccdCamera.cc \
-	          TM6740Camera.cc \
-		  CameraManager.cc \
 		  Opal1kManager.cc \
+		  TM6740Camera.cc \
+		  TM6740Manager.cc \
+		  FccdCamera.cc \
 		  FccdManager.cc \
-	          TM6740Manager.cc \
-	          PimManager.cc
+		  PimManager.cc
 
-libsinc_camera := /usr/include/lvsds
-libincs_camera := leutron/include
+libsrcs_camleutron := PicPortCL.cc
+libsinc_camleutron := /usr/include/lvsds
+libincs_camleutron := leutron/include
+
+libsrcs_camedt := EdtPdvCL.cc
+libincs_camedt := edt/include
 
 #tgtnames := camreceiver
 #tgtnames += camsend
 tgtnames :=
 
-ifneq ($(findstring x86_64,$(tgt_arch)),)
-tgtnames := camsend camreceiver serialcmd fccdcmd
+ifneq ($(findstring x86_64-linux,$(tgt_arch)),)
+tgtnames := pdvserialcmd pdvcamsend camreceiver
 else
-tgtnames := camsend camreceiver serialcmd fccdcmd camsendm
+#tgtnames := camsend camreceiver serialcmd fccdcmd pdvserialcmd pdvcamsend camsendm
+tgtnames := camsend camreceiver serialcmd fccdcmd pdvserialcmd pdvcamsend 
 endif
 
 # ifeq ($(shell uname -m | egrep -c '(x86_|amd)64$$'),1)
@@ -50,7 +53,7 @@ leutron_libs += leutron/LvSerialCommunication.34.${ARCHCODE}
 
 tgtsrcs_camsend := camsend.cc
 tgtlibs_camsend := pds/service pds/collection pds/utility pds/config pds/camera pds/client pds/xtc
-tgtlibs_camsend += pds/vmon pds/mon
+tgtlibs_camsend += pds/vmon pds/mon pds/camleutron
 tgtlibs_camsend += pdsdata/xtcdata pdsdata/camdata pdsdata/opal1kdata pdsdata/pulnixdata pdsdata/fccddata
 tgtincs_camsend := pds/zerocopy/kmemory pds/camera
 tgtlibs_camsend += $(leutron_libs)
@@ -58,7 +61,7 @@ tgtincs_camsend += leutron/include
 
 tgtsrcs_camsendm := camsendm.cc
 tgtlibs_camsendm := pds/service pds/collection pds/utility pds/config pds/camera pds/client pds/xtc
-tgtlibs_camsendm += pds/vmon pds/mon
+tgtlibs_camsendm += pds/vmon pds/mon pds/camleutron
 tgtlibs_camsendm += pdsdata/xtcdata pdsdata/camdata pdsdata/opal1kdata pdsdata/pulnixdata pdsdata/fccddata
 tgtincs_camsendm := pds/zerocopy/kmemory pds/camera
 tgtlibs_camsendm += $(leutron_libs)
@@ -75,4 +78,17 @@ tgtincs_serialcmd := leutron/include
 tgtsrcs_fccdcmd := fccdcmd.cc
 tgtlibs_fccdcmd := $(leutron_libs)
 tgtincs_fccdcmd := leutron/include
+
+tgtsrcs_pdvserialcmd := pdvserialcmd.cc
+tgtincs_pdvserialcmd := edt/include
+tgtlibs_pdvserialcmd := edt/pdv
+tgtslib_pdvserialcmd := $(USRLIBDIR)/rt dl
+
+tgtsrcs_pdvcamsend := pdvcamsend.cc
+tgtincs_pdvcamsend := edt/include
+tgtlibs_pdvcamsend := pds/service pds/collection pds/utility pds/config pds/client pds/xtc
+tgtlibs_pdvcamsend += pds/vmon pds/mon pds/camera pds/camedt
+tgtlibs_pdvcamsend += pdsdata/xtcdata pdsdata/camdata pdsdata/opal1kdata pdsdata/pulnixdata pdsdata/fccddata
+tgtlibs_pdvcamsend += edt/pdv
+tgtslib_pdvcamsend := $(USRLIBDIR)/rt dl
 

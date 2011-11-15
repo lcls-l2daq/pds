@@ -9,48 +9,46 @@
 #ifndef Pds_FccdCamera_hh
 #define Pds_FccdCamera_hh
 
-#include "pds/camera/PicPortCL.hh"
+#include "pds/camera/CameraBase.hh"
 #include "pds/config/FccdConfigType.hh"
 
 #define FCCD_NAME             "LBNL_FCCD"
 
-namespace PdsLeutron {
-
-  class FccdCamera : public PicPortCL {
+namespace Pds {
+  class FccdCamera : public CameraBase {
   public:
-    FccdCamera(char *id = NULL, unsigned grabberId=0, const char *grabberName = "Stereo");
+    FccdCamera();
     virtual ~FccdCamera();
 
-    void                    Config(const FccdConfigType&);
+    void                  set_config_data(const void*);
     const FccdConfigType& Config() const;
 
+  public:
+    int configure(CameraDriver&,
+		  UserMessage*);
+    bool validate(Pds::FrameServerMsg&);
   private:
     //  Serial command interface
     virtual int           baudRate() const { return 115200; }
-    virtual unsigned long parity  () const { return LvComm_ParityNone; }
-    virtual unsigned long byteSize() const { return LvComm_Data8; }
-    virtual unsigned long stopSize() const { return LvComm_Stop1; }
     virtual char          eotWrite() const { return 0x06; } // unused
     virtual char          eotRead () const { return 0x03; }
     virtual char          sof     () const { return '@'; }  // unused
     virtual char          eof     () const { return '\r'; } // unused
     virtual unsigned long timeout_ms() const { return 10000; }
   private:
-    virtual const char* Name() const;
-    virtual bool        trigger_CC1        () const;    // FALSE
-    virtual unsigned    trigger_duration_us() const;
-    virtual int PicPortCameraInit();
-    virtual FrameHandle *PicPortFrameProcess(FrameHandle *pFrame);
-    virtual unsigned output_resolution() const;
-    virtual unsigned    pixel_rows         () const;
-    virtual unsigned    pixel_columns      () const;
+    virtual const char* camera_name  () const;
+    virtual int         camera_depth () const;
+    virtual int         camera_width () const;
+    virtual int         camera_height() const;
+    virtual int         camera_taps  () const;
   private:
-    int SendFccdCommand(const char *cmd);
+    int SendFccdCommand(CameraDriver&, 
+			const char *cmd);
+    int ShiftDataModulePhase(CameraDriver&,
+			     int moduleNum);
+  private:
     unsigned long LastCount;
-    int ShiftDataModulePhase(int moduleNum);
-  public:
     unsigned long CurrentCount;
-  private:
     const FccdConfigType* _inputConfig;
     char* _outputBuffer;
   };

@@ -7,19 +7,47 @@
 //!
 
 #include "pds/camera/PicPortCL.hh"
+
+#include "pds/camera/CameraBase.hh"
+#include "pds/camera/FrameServer.hh"
+#include "pds/camera/FrameServerMsg.hh"
+
 #include "pds/mon/MonDescTH1F.hh"
 #include "pds/mon/MonEntryTH1F.hh"
 #include "pds/mon/MonGroup.hh"
 #include "pds/vmon/VmonServerManager.hh"
 #include "pds/service/SysClk.hh"
+
 #include "pdsdata/xtc/ClockTime.hh"
+#include "pdsdata/xtc/Damage.hh"
+
+#include "pds/utility/Appliance.hh"
+#include "pds/utility/Occurrence.hh"
+#include "pds/service/GenericPool.hh"
 
 #include <errno.h>
 #include <signal.h>
 
+#define DBUG
+
 // high = 1 means you want the highest priority signal avaliable, lowest otherwise
 extern "C" int __libc_allocate_rtsig (int high);
 static void _dumpConfig(const DaSeq32Cfg& cfg) __attribute__((unused));
+
+
+static PdsLeutron::PicPortCL* signalHandlerArgs[] = 
+{ 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+  0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+  0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+  0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 };
+
+static void cameraSignalHandler(int arg)
+{
+  PdsLeutron::PicPortCL* mgr = signalHandlerArgs[arg];
+  if (mgr)
+    mgr->handle();
+}
+
 
 namespace PdsLeutron {
 
@@ -76,16 +104,30 @@ static U16BIT FindConnIndex(HGRABBER hGrabber, U16BIT CameraId, const char* conn
 
 using namespace PdsLeutron;
 
-PicPortCL::PicPortCL(int grabberid, const char *grabberName) :
+
+PicPortCL::PicPortCL(Pds::CameraBase& camera,
+		     int         grabberid, 
+                     const char* grabberName) :
+  Pds::CameraDriver(camera),
+  _fsrv    (0),
+  _app     (0),
+  _occPool (new Pds::GenericPool(sizeof(Pds::Occurrence),1)),
+  _sig     (-1),
+  _hsignal ("CamSignal"), 
   _pSeqDral(NULL),
-  _queue(0)
+  //  _lvdev   (new LvCamera),
+  _queue   (0)
 {
+#ifdef DBUG
+  _tsignal.tv_sec = _tsignal.tv_nsec = 0;
+#endif
+
   DsyInit();
 
   _notifyMode   = NOTIFYTYPE_NONE;
   _notifySignal = 0;
-  _grabberId = grabberid;
-  _grabberName = grabberName;
+  _grabberId    = grabberid;
+  _grabberName  = grabberName;
 
   Pds::MonGroup* group = new Pds::MonGroup("Cam");
   Pds::VmonServerManager::instance()->cds().add(group);
@@ -114,6 +156,106 @@ PicPortCL::~PicPortCL() {
     delete _pSeqDral;
   DsyClose();
   if (_queue) delete _queue;
+  //  delete _lvdev;
+}
+
+int PicPortCL::initialize(Pds::UserMessage* msg) {
+
+  if ((_sig = SetNotification(NOTIFYTYPE_SIGNAL)) < 0) {
+    printf("PicPortCL::SetNotification: %s.\n", strerror(-_sig));
+    return _sig;
+  }
+
+  _nposts = 0;
+
+  printf("signal %d registered to PicPortCL %p\n", _sig, this); 
+
+  signalHandlerArgs[_sig] = this;
+  struct sigaction action;
+  sigemptyset(&action.sa_mask);
+  action.sa_handler  = cameraSignalHandler;
+  action.sa_flags    = SA_RESTART;
+  sigaction(_sig,&action,NULL);
+
+  int ret = Init(msg);
+  if (ret < 0) {
+    printf("PicPortCL::Init: %s.\n", strerror(-ret));
+    if (ret == -ENODEV)
+      msg->append(":Unable to find supported frame grabber.\nCheck PicPort driver");
+    else
+      msg->append(":Check camera power and connections.");
+    return ret;
+  }
+
+  return 0;
+}
+
+int PicPortCL::start_acquisition(Pds::FrameServer& fsrv,
+                                 Pds::Appliance&   app,
+				 Pds::UserMessage* msg)
+{
+  _outOfOrder = false;
+  _fsrv = &fsrv;
+  _app  = &app;
+
+  Start();
+
+  return 0;
+}
+
+int PicPortCL::stop_acquisition()
+{
+  if (_sig >= 0) {
+    struct sigaction action;
+    action.sa_handler = SIG_DFL;
+    sigaction(_sig,&action,NULL);
+    _sig = -1;
+  }
+  _fsrv = 0;
+  _app  = 0;
+  return 0;
+}
+
+void PicPortCL::handle()
+{
+#ifdef DBUG
+  timespec ts;
+  clock_gettime(CLOCK_REALTIME, &ts);
+  if (_tsignal.tv_sec)
+    _hsignal.accumulate(ts,_tsignal);
+  _tsignal=ts;
+#endif
+
+  FrameHandle* handle = GetFrameHandle();
+  Pds::FrameServerMsg* msg = 
+    new Pds::FrameServerMsg(Pds::FrameServerMsg::NewFrame,
+                            handle->data,
+                            handle->width,
+                            handle->height,
+                            handle->depth(),
+			    _nposts,
+			    0);
+
+  //  Test out-of-order
+  if (_outOfOrder)
+    msg->damage.increase(Pds::Damage::OutOfOrder);
+
+  else if (!camera().validate(*msg)) {
+    _outOfOrder = true;
+
+    Pds::Occurrence* occ = new (_occPool)
+      Pds::Occurrence(Pds::OccurrenceId::ClearReadout);
+    _app->post(occ);
+
+    msg->damage.increase(Pds::Damage::OutOfOrder);
+  }
+
+  _fsrv->post(msg);
+  _nposts++;
+
+#ifdef DBUG
+  _hsignal.print(_nposts);
+#endif
 }
 
 int PicPortCL::SetNotification(enum NotifyType mode) { 
@@ -154,7 +296,8 @@ static void _dumpConfig(const DaSeq32Cfg& cfg)
   }
 }
 
-int PicPortCL::Init() {
+int PicPortCL::Init(Pds::UserMessage* msg) 
+{
   LVSTATUS lvret;
   int ret;
   LvCameraNode *pCameraNode;
@@ -165,14 +308,11 @@ int PicPortCL::Init() {
   if (_pSeqDral != NULL)
     delete _pSeqDral;
 
+  //  Trigger on CC1?
 //   _pSeqDral = (DsyApp_Seq_AsyncReset*)Seq32_AR_CreateObject(const_cast<char*>(Name()),
 //  							   (char*)NULL,
 //  							   ARST_Mode_0);
-  _pSeqDral = trigger_CC1() ?
-    (DsyApp_Seq32*)Seq32_AR_CreateObject(const_cast<char*>(Name()),
-					 (char*)NULL,
-					 ARST_Mode_0) :
-    new DsyApp_Seq32;
+  _pSeqDral = new DsyApp_Seq32;
 
   // Configure the sequencer, since this part is very dependent 
   // on the Camera we call PicPortCameraConfig which cameras can 
@@ -183,7 +323,7 @@ int PicPortCL::Init() {
     return -DsyToErrno(lvret);
 
   // Set the framegrabber part of the config
-  U16BIT CameraId = DsyGetCameraId(const_cast<char*>(Name()));
+  U16BIT CameraId = DsyGetCameraId(const_cast<char*>(camera().camera_name()));
   _seqDralConfig.Size = sizeof(DaSeq32Cfg);
 
   _seqDralConfig.hGrabber = HANDLE_INVALID;
@@ -242,20 +382,20 @@ int PicPortCL::Init() {
   lvret = vga->GetConnectionInfo(vga->GetConnectedMonitor(0), 
   				 &LocalRoi);
 
-  if (LocalRoi.Height!=pixel_rows() ||
-      LocalRoi.Width !=pixel_columns()) {
+  if ((int)LocalRoi.Height!=camera().camera_height() ||
+      (int)LocalRoi.Width !=camera().camera_width ()) {
     printf("Resizing ROI from %d x %d to %d x %d\n",
 	   LocalRoi.Width,LocalRoi.Height,
-	   pixel_columns(),pixel_rows());
-    LocalRoi.Height=pixel_rows();
-    LocalRoi.Width =pixel_columns();
+	   camera().camera_width(),camera().camera_height());
+    LocalRoi.Height=camera().camera_height();
+    LocalRoi.Width =camera().camera_width ();
   }
   
   if (lvret != I_NoError)
     return -DsyToErrno(lvret);
   LocalRoi.SetTargetBuffer(TgtBuffer_CPU);
   LocalRoi.SetDIBMode(TRUE);
-  switch(output_resolution()) {
+  switch(camera().camera_depth()) {
   case  8: LocalRoi.SetColorFormat(ColF_Mono_8 ); break;
   case 10: LocalRoi.SetColorFormat(ColF_Mono_10); break;
   case 12: LocalRoi.SetColorFormat(ColF_Mono_12); break;
@@ -264,7 +404,8 @@ int PicPortCL::Init() {
   }
   _seqDralConfig.ConnectCamera.Roi = LocalRoi;
 
-  if (trigger_CC1()) {   //  Use the frame grabber to send the trigger down on CC1
+  //  if (trigger_CC1()) {   //  Use the frame grabber to send the trigger down on CC1
+  if (false) {   //  Use the frame grabber to send the trigger down on CC1
     _seqDralConfig.FlowType      = SqFlow_GoOnReq;
     _seqDralConfig.EventFunction = ExtEvFn_StartAcq;
     _seqDralConfig.EventSignal   = EventSignal_InOutCfg;
@@ -292,10 +433,10 @@ int PicPortCL::Init() {
     return -DsyToErrno(lvret);
   printf("PicPortCL::Activate() complete\n");
 
-  if (trigger_CC1()) {
-    ((DsyApp_Seq_AsyncReset*)_pSeqDral)->SetShutterTime(trigger_duration_us());
-    ((DsyApp_Seq_AsyncReset*)_pSeqDral)->SetExternalEvent(ExtEv_Immediate);
-  }
+  //  if (trigger_CC1()) {
+  //    ((DsyApp_Seq_AsyncReset*)_pSeqDral)->SetShutterTime(trigger_duration_us());
+  //    ((DsyApp_Seq_AsyncReset*)_pSeqDral)->SetExternalEvent(ExtEv_Immediate);
+  //  }
 
   if (_queue) { delete _queue; }
   _queue = new MyQueue(_seqDralConfig.NrImages);
@@ -324,16 +465,17 @@ int PicPortCL::Init() {
     printf("comm not open\n");
     return -DsyToErrno(lvret);
   }
-  lvret = pCameraNode->CommSetParam(baudRate(),
-				    parity(),
-				    byteSize(),
-				    stopSize());
+  Pds::CameraBase& c = camera();
+  lvret = pCameraNode->CommSetParam(c.baudRate(),
+				    LvComm_ParityNone,
+				    LvComm_Data8,
+				    LvComm_Stop1);
   if (lvret != I_NoError) {
     printf("comm set param\n");
     return -DsyToErrno(lvret);
   }
   // Now let the Camera configure itself
-  ret = PicPortCameraInit();
+  ret = c.configure(*this, msg);
   if (ret < 0)
     return ret;
   // Tell the frame grabber to be ready
@@ -342,9 +484,10 @@ int PicPortCL::Init() {
     return -DsyToErrno(lvret);
 
   _roi.SetROIInfo(&_seqDralConfig.ConnectCamera.Roi);
-  _frameBufferBase = frameBufferBaseAddress();
+  //  _frameBufferBase = frameBufferBaseAddress();
+  _frameBufferBase = _pSeqDral->GetBufferBaseAddress();
 
-  switch(output_resolution()) {
+  switch(c.camera_depth()) {
   case  8: _frameFormat = FrameHandle::FORMAT_GRAYSCALE_8 ; break;
   case 10: _frameFormat = FrameHandle::FORMAT_GRAYSCALE_10; break;
   case 12: _frameFormat = FrameHandle::FORMAT_GRAYSCALE_12; break;
@@ -356,6 +499,7 @@ int PicPortCL::Init() {
   return 0;
 }
 
+/*
 unsigned char* PicPortCL::frameBufferBaseAddress() const { return _pSeqDral->GetBufferBaseAddress(); }
 
 unsigned char* PicPortCL::frameBufferEndAddress () const 
@@ -363,6 +507,7 @@ unsigned char* PicPortCL::frameBufferEndAddress () const
   return _pSeqDral->GetBufferBaseAddress() +
     _pSeqDral->GetImageOffset(1) * _pSeqDral->GetNrImages();
 }
+*/
 
 int PicPortCL::Start() {
   LVSTATUS lvret;
@@ -394,6 +539,12 @@ int PicPortCL::Stop() {
   // Camera is now stopped 
   status.State = CAMERA_STOPPED;
   return 0; 
+}
+
+int PicPortCL::GetStatus(Status& _status)
+{
+  _status = status;
+  return 0;
 }
 
 FrameHandle *PicPortCL::GetFrameHandle() {
@@ -460,7 +611,7 @@ FrameHandle *PicPortCL::GetFrameHandle() {
 				       (void *)(_frameBufferBase + _roi.StartAddress), 
 				       &PicPortCL::ReleaseFrame, 
 				       this, (void *)current);
-  return PicPortFrameProcess(pFrame);
+  return pFrame;
 }
 
 // For PicPortCL framegrabbers, calling this API will send szCommand on
@@ -488,16 +639,18 @@ int PicPortCL::SendCommand(char *szCommand, char *pszResponse, int iResponseBuff
   if (pCameraNode == NULL)
     return -EIO;
   
-  sztx[0] = sof();
+  Pds::CameraBase& c = camera();
+  sztx[0] = c.sof();
   strcpy(sztx+1, szCommand);
-  sztx[strlen(szCommand)+1] = eof();
+  sztx[strlen(szCommand)+1] = c.eof();
   sztx[strlen(szCommand)+2] = 0;
 
   // Send the command and receive data
   lvret = pCameraNode->CommSend(sztx, strlen(sztx), pszResponse, 
-				iResponseBufferSize, timeout_ms(), 
-				iResponseBufferSize <= 1 ? eotWrite() : eotRead(), 
+				iResponseBufferSize, c.timeout_ms(), 
+				iResponseBufferSize <= 1 ? c.eotWrite() : c.eotRead(), 
 				&ulReceivedLength);
+  
   // Done: if any data was read we return them
   if ((lvret != I_NoError) && (ulReceivedLength == 0))
     return -DsyToErrno(lvret);
@@ -531,8 +684,8 @@ int PicPortCL::SendBinary(char *szBinary, int iBinarySize, char *pszResponse, in
   
   // Send the command and receive data
   lvret = pCameraNode->CommSend(szBinary, iBinarySize, pszResponse, 
-				iResponseBufferSize, timeout_ms(), 
-				iResponseBufferSize <= 1 ? eotWrite() : eotRead(), 
+				iResponseBufferSize, camera().timeout_ms(), 
+				iResponseBufferSize <= 1 ? camera().eotWrite() : camera().eotRead(), 
 				&ulReceivedLength);
   // Done: if any data was read we return them
   if ((lvret != I_NoError) && (ulReceivedLength == 0))
@@ -545,10 +698,6 @@ void PicPortCL::ReleaseFrame(void *obj, FrameHandle *pFrame, void *arg) {
   // Release last image locked (assume image was processed)
   pThis->_pSeqDral->UnlockImage((size_t)arg);
   pThis->_queue->push((size_t)arg);
-}
-
-FrameHandle *PicPortCL::PicPortFrameProcess(FrameHandle *pFrame) {
-  return pFrame;
 }
 
 // ========================================================

@@ -1,128 +1,95 @@
-//! Opal1kCamera.cc
-//! See Opal1kCamera.hh for a description of what the class can do
-//!
-//! Copyright 2008, SLAC
-//! Author: rmachet@slac.stanford.edu
-//! GPL license
-//!
-
 #include "pds/camera/Opal1kCamera.hh"
+#include "pds/camera/CameraDriver.hh"
+#include "pds/camera/FrameServerMsg.hh"
 #include "pdsdata/camera/FrameCoord.hh"
 
 #include <stdio.h>
-#include <errno.h>
-#include <string.h>
 #include <stdlib.h>
+#include <string.h>
+#include <errno.h>
 
-#include <new>
+//#define DBUG
 
 #define RESET_COUNT 0x80000000
+#define SZCOMMAND_MAXLEN  64
 
-using namespace PdsLeutron;
+using namespace Pds;
 
-Opal1kCamera::Opal1kCamera(char* id, unsigned grabberId, const char *grabberName) :
-  PicPortCL(grabberId, grabberName),
+Opal1kCamera::Opal1kCamera() :
   _inputConfig(0)
 {
-  if (id == NULL)
-    id = "";
-  status.CameraId = (char *)malloc(strlen(id)+1);
-  strcpy(status.CameraId, id);
-  status.CameraName = OPAL1000_NAME;
-  LastCount = 0;
 }
 
-Opal1kCamera::~Opal1kCamera() {
-  free(status.CameraId);
-}
-
-void Opal1kCamera::Config(const Opal1kConfigType& config)
+Opal1kCamera::~Opal1kCamera()
 {
-  _inputConfig = &config;
-  ConfigReset();
-}  
+}
 
-unsigned Opal1kCamera::output_resolution() const 
-{ return _inputConfig->output_resolution_bits(); }
-
-unsigned    Opal1kCamera::pixel_rows         () const
-{ return Pds::Opal1k::ConfigV1::Row_Pixels; }
-
-unsigned    Opal1kCamera::pixel_columns      () const
-{ return Pds::Opal1k::ConfigV1::Column_Pixels; }
-
-const char* Opal1kCamera::Name() const
+void Opal1kCamera::set_config_data(const void* p)
 {
-  if (!_inputConfig) {
-    printf("Opal1kCamera::Name() referenced before configuration known\n");
-    return 0;
+  _inputConfig = reinterpret_cast<const Opal1kConfigType*>(p);
+}
+
+#define SetCommand(title,cmd) {				\
+    snprintf(szCommand, SZCOMMAND_MAXLEN, cmd);		\
+    if ((ret = driver.SendCommand(szCommand, NULL, 0))<0) {	\
+      printf("Error on command %s (%s)\n",cmd,title);	\
+      return ret;					\
+    }							\
   }
-  const char* name(0);
-  switch(_inputConfig->output_resolution_bits()) {
-  case  8: name = OPAL1000_NAME_8bits; break;
-  case 10: name = OPAL1000_NAME_10bits; break;
-  case 12: name = OPAL1000_NAME_12bits; break;
-  default: name = 0; break;
+
+#define GetParameter(cmd,val1) {				\
+    snprintf(szCommand, SZCOMMAND_MAXLEN, "%s?", cmd);		\
+    ret = driver.SendCommand(szCommand, szResponse, SZCOMMAND_MAXLEN); \
+    sscanf(szResponse+2,"%u",&val1);				\
   }
-  return name;
-}
 
-bool Opal1kCamera::trigger_CC1() const { return false; }
+#define SetParameter(title,cmd,val1) {				\
+    unsigned nretry = 1;					\
+    unsigned rval;						\
+    unsigned val = val1;					\
+    do {							\
+      GetParameter(cmd,rval);					\
+      printf("Read %s = d%u\n", title, rval);			\
+      printf("Setting %s = d%u\n",title,val);			\
+      snprintf(szCommand, SZCOMMAND_MAXLEN, "%s%u", cmd, val);	\
+      ret = driver.SendCommand(szCommand, NULL, 0);			\
+      if (ret<0) return ret;					\
+      GetParameter(cmd,rval);					\
+      printf("Read %s = d%u\n", title, rval);			\
+    } while ( nretry-- && (rval != val) );			\
+    if (rval != val) return -EINVAL;				\
+  }
 
-unsigned Opal1kCamera::trigger_duration_us() const { return 0; }
+#define GetParameters(cmd,val1,val2) {				\
+    snprintf(szCommand, SZCOMMAND_MAXLEN, "%s?", cmd);		\
+    ret = driver.SendCommand(szCommand, szResponse, SZCOMMAND_MAXLEN); \
+    sscanf(szResponse+2,"%u;%u",&val1,&val2);			\
+  }
 
-#define SetCommand(title,cmd) { \
-  snprintf(szCommand, SZCOMMAND_MAXLEN, cmd); \
-  if ((ret = SendCommand(szCommand, NULL, 0))<0) { \
-    printf("Error on command %s (%s)\n",cmd,title); \
-    return ret; \
-  } \
-}
+#define SetParameters(title,cmd,val1,val2) {				\
+    unsigned nretry = 1;						\
+    unsigned v1 = val1;							\
+    unsigned v2 = val2;							\
+    unsigned rv1,rv2;							\
+    do {								\
+      printf("Setting %s = d%u;d%u\n",title,v1,v2);			\
+      snprintf(szCommand, SZCOMMAND_MAXLEN, "%s%u;%u",cmd,v1,v2);	\
+      ret = driver.SendCommand(szCommand, NULL, 0);				\
+      if (ret<0) return ret;						\
+      GetParameters(cmd,rv1,rv2);					\
+      printf("Read %s = d%u;d%u\n", title, rv1,rv2);			\
+    } while( nretry-- && (rv1!=v1 || rv2!=v2) );			\
+    if (rv1 != v1 || rv2 != v2) return -EINVAL;				\
+  }
 
-#define GetParameter(cmd,val1) { \
-  snprintf(szCommand, SZCOMMAND_MAXLEN, "%s?", cmd); \
-  ret = SendCommand(szCommand, szResponse, SZCOMMAND_MAXLEN); \
-  sscanf(szResponse+2,"%u",&val1); \
-}
-
-#define SetParameter(title,cmd,val1) { \
-  unsigned val = val1; \
-  unsigned rval; \
-  GetParameter(cmd,rval); \
-  printf("Read %s = d%u\n", title, rval); \
-  printf("Setting %s = d%u\n",title,val); \
-  snprintf(szCommand, SZCOMMAND_MAXLEN, "%s%u", cmd, val); \
-  ret = SendCommand(szCommand, NULL, 0); \
-  if (ret<0) return ret; \
-  GetParameter(cmd,rval); \
-  printf("Read %s = d%u\n", title, rval); \
-  if (rval != val) return -EINVAL; \
-}
-
-#define GetParameters(cmd,val1,val2) { \
-  snprintf(szCommand, SZCOMMAND_MAXLEN, "%s?", cmd); \
-  ret = SendCommand(szCommand, szResponse, SZCOMMAND_MAXLEN); \
-  sscanf(szResponse+2,"%u;%u",&val1,&val2); \
-}
-
-#define SetParameters(title,cmd,val1,val2) { \
-  unsigned v1 = val1; \
-  unsigned v2 = val2; \
-  printf("Setting %s = d%u;d%u\n",title,v1,v2); \
-  snprintf(szCommand, SZCOMMAND_MAXLEN, "%s%u;%u",cmd,v1,v2); \
-  ret = SendCommand(szCommand, NULL, 0); \
-  if (ret<0) return ret; \
-  unsigned rv1,rv2; \
-  GetParameters(cmd,rv1,rv2); \
-  printf("Read %s = d%u;d%u\n", title, rv1,rv2); \
-  if (rv1 != v1 || rv2 != v2) return -EINVAL; \
-}
-
-int Opal1kCamera::PicPortCameraInit() {
-  #define SZCOMMAND_MAXLEN  32
+int Opal1kCamera::configure(CameraDriver& driver,
+			    UserMessage*  msg)
+{
   char szCommand [SZCOMMAND_MAXLEN];
   char szResponse[SZCOMMAND_MAXLEN];
-  int val1, val2;
+  memset(szCommand ,0,SZCOMMAND_MAXLEN);
+  memset(szResponse,0,SZCOMMAND_MAXLEN);
+  int val1=-1, val2=-1;
   int ret;
   char *versionString;
   int versionMajor, versionMinor;
@@ -193,14 +160,15 @@ int Opal1kCamera::PicPortCameraInit() {
   GetParameter( "SN", val1 );
   printf( ">> Camera Serial #: '%s'\n", szResponse );
 
-  SetParameter("Black Level" ,"BL",_inputConfig->black_level());
+  unsigned bl = _inputConfig->black_level()<<(12-_inputConfig->output_resolution_bits());
+  SetParameter("Black Level" ,"BL",bl);
   SetParameter("Digital Gain","GA",_inputConfig->gain_percent());
   SetParameter("Vertical Binning","VBIN",_inputConfig->vertical_binning());
   SetParameter("Output Mirroring","MI",_inputConfig->output_mirroring());
   SetParameter("Vertical Remap"  ,"VR",_inputConfig->vertical_remapping());
   SetParameter("Output Resolution","OR",_inputConfig->output_resolution_bits());
 
-  setTestPattern( false );
+  setTestPattern( driver, false );
 
   if (_inputConfig->output_lookup_table_enabled()) {
     SetCommand("Output LUT Begin","OLUTBGN");
@@ -208,7 +176,7 @@ int Opal1kCamera::PicPortCameraInit() {
     const unsigned short* end = lut + 4096;
     while( lut < end ) {
       snprintf(szCommand, SZCOMMAND_MAXLEN, "OLUT%hu", *lut++);
-      if ((ret = SendCommand(szCommand, NULL, 0))<0)
+      if ((ret = driver.SendCommand(szCommand, NULL, 0))<0)
 	return ret;
     }
     SetCommand("Output LUT Begin","OLUTEND");
@@ -236,7 +204,7 @@ int Opal1kCamera::PicPortCameraInit() {
     SetParameter("Defect Pixel Correction","DPE",0);
   SetParameter("Overlay Function","OVL",1);
 
-#if 0  
+#if 0
   // Continuous Mode
   SetParameter ("Operating Mode","MO",0);
   SetParameter ("Frame Period","FP",
@@ -253,38 +221,43 @@ int Opal1kCamera::PicPortCameraInit() {
   return 0;
 }
 
-int 
-Opal1kCamera::setTestPattern( bool on ) {
-   char szCommand [SZCOMMAND_MAXLEN];
-   char szResponse[SZCOMMAND_MAXLEN];
-   int ret;
-   SetParameter( "Test Pattern", "TP", on ? 1 : 0 );
+int Opal1kCamera::setTestPattern( CameraDriver& driver, bool on )
+{
+  char szCommand [SZCOMMAND_MAXLEN];
+  char szResponse[SZCOMMAND_MAXLEN];
 
-   return 0;
+  int ret;
+  SetParameter( "Test Pattern", "TP", on ? 1 : 0 );
+  
+  return 0;
 }
 
+int Opal1kCamera::setContinuousMode( CameraDriver& driver, double fps )
+{
+  char szCommand [SZCOMMAND_MAXLEN];
+  char szResponse[SZCOMMAND_MAXLEN];
+  int ret;
 
-// We redefine this API to be able to detect dropped/repeated frames
-// because the frame grabber is not very good at that. To do that we 
-// read the 2 words signature embedded in the frame by the Opal 1000.
-FrameHandle* 
-Opal1kCamera::PicPortFrameProcess(FrameHandle *pFrame) {
-  unsigned long Count;
+  unsigned _mode=0, _fps=unsigned(100000/fps), _it=_fps-10;
+  SetParameter ("Operating Mode","MO",_mode);
+  SetParameter ("Frame Period","FP",_fps);
+  // SetParameter ("Frame Period","FP",813);
+  SetParameter ("Integration Time","IT", _it);
+  // SetParameter ("Integration Time","IT", 810);
+  return 0;
+}
 
-  switch (pFrame->elsize) {
-    case 1:
-    { unsigned char *data = (unsigned char *)pFrame->data;
-      Count = (data[0]<<24) | (data[1]<<16) | (data[2]<<8) | data[3];
-      break;
-    }
-    case 2:
-    { unsigned short *data = (unsigned short *)pFrame->data;
-      Count = (data[0]<<24) | (data[1]<<16) | (data[2]<<8) | data[3];
-      break;
-    }
-    default:
-      /* Not supported */
-      return pFrame;
+bool Opal1kCamera::validate(Pds::FrameServerMsg& msg)
+{
+  uint32_t Count;
+
+  if (camera_depth() <= 8) {
+    uint8_t* data = (uint8_t*)msg.data;
+    Count = (data[0]<<24) | (data[1]<<16) | (data[2]<<8) | data[3];
+  }
+  else {
+    uint16_t* data = (uint16_t*)msg.data;
+    Count = (data[0]<<24) | (data[1]<<16) | (data[2]<<8) | data[3];
   }
 
   if (CurrentCount==RESET_COUNT) {
@@ -294,6 +267,36 @@ Opal1kCamera::PicPortFrameProcess(FrameHandle *pFrame) {
   else
     CurrentCount = Count - LastCount;
 
-  return pFrame;
+#ifdef DBUG
+  printf("Camera frame number(%x). Server number(%x), Count(%x), Last count(%x)\n",
+	 CurrentCount, msg.count, Count, LastCount);
+#else
+  if (CurrentCount != msg.count) {
+    printf("Camera frame number(%d) != Server number(%d)\n",
+           CurrentCount, msg.count);
+    return false;
+  }
+#endif
+  return true;
 }
 
+int           Opal1kCamera::baudRate() const { return 57600; }
+char          Opal1kCamera::eotWrite() const { return 0x06; }
+char          Opal1kCamera::eotRead () const { return '\r'; }
+char          Opal1kCamera::sof     () const { return '@'; }
+char          Opal1kCamera::eof     () const { return '\r'; }
+unsigned long Opal1kCamera::timeout_ms() const { return 40; }
+
+int  Opal1kCamera::camera_width () const { return 1024; }
+int  Opal1kCamera::camera_height() const { return 1024; }
+int  Opal1kCamera::camera_depth () const { return _inputConfig ? _inputConfig->output_resolution_bits() : 8; }
+int  Opal1kCamera::camera_taps  () const { return 2; }
+const char* Opal1kCamera::camera_name() const 
+{
+  switch(camera_depth()) {
+  case 12: return "Adimec_Opal-1000m/Q";
+  case 10: return "Adimec_Opal-1000m/Q_F10bits";
+  case  8: 
+  default: return "Adimec_Opal-1000m/Q_F8bit";
+  }
+}

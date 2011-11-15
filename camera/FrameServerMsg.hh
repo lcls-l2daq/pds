@@ -4,28 +4,33 @@
 #include "pds/service/LinkedList.hh"
 #include "pdsdata/xtc/Damage.hh"
 
-namespace PdsLeutron {
-  class FrameHandle;
-};
-
 namespace Pds {
 
   class FrameServerMsg : public LinkedList<FrameServerMsg> {
   public:
     enum Type { NewFrame, Fragment };
 
-    FrameServerMsg(Type _type,
-		   PdsLeutron::FrameHandle* _handle,
+    FrameServerMsg(Type     _type,
+                   void*    _data,
+                   unsigned _width,
+                   unsigned _height,
+                   unsigned _depth,
 		   unsigned _count,
 		   unsigned _offset) :
       type  (_type),
-      handle(_handle),
+      data  (_data),
+      width (_width),
+      height(_height),
+      depth (_depth),
       count (_count),
       offset(_offset),
       damage(0) {}
     
-    Type type;
-    PdsLeutron::FrameHandle* handle;
+    Type     type;
+    void*    data;
+    unsigned width;
+    unsigned height;
+    unsigned depth;
     unsigned count;
     unsigned offset;
     unsigned extent;

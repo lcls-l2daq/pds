@@ -1,55 +1,38 @@
-//! TM6740Camera.hh
-//! TM6740Camera camera control class. This class inherits of PicPortCL, which
-//! means it assumes the Camera is connected to a Leutron frame grabber.
-//!
-//! Copyright 2008, SLAC
-//! Author: rmachet@slac.stanford.edu
-//! GPL license
-//!
-
 #ifndef Pds_TM6740Camera_hh
 #define Pds_TM6740Camera_hh
 
-#include "pds/camera/PicPortCL.hh"
+#include "pds/camera/CameraBase.hh"
 #include "pds/config/TM6740ConfigType.hh"
 
-#define TM6740_NAME             "Pulnix TM6740CL"
-#define TM6740_NAME_10bits      "Pulnix_TM6740CL_10bit"
-#define TM6740_NAME_8bits       "Pulnix_TM6740CL_8bit"
+namespace Pds {
 
-
-namespace PdsLeutron {
-
-  class TM6740Camera : public PicPortCL {
+  class TM6740Camera: public CameraBase {
   public:
-    TM6740Camera(char* id, unsigned grabberId=0, const char *grabberName = "Mono");
-    virtual ~TM6740Camera();
-
-    void                    Config(const TM6740ConfigType&);
-    //    const TM6740ConfigType& Config() const;
+    TM6740Camera();
+    ~TM6740Camera();
+  public:
+    void set_config_data  ( const void*);
+    int  setContinuousMode( CameraDriver&, double fps );
   private:
+    bool validate(Pds::FrameServerMsg&);
+    int  configure(CameraDriver&,
+		   UserMessage*);
+    int  camera_width () const;
+    int  camera_height() const;
+    int  camera_depth () const;
+    int  camera_taps  () const;
+    const char* camera_name() const;
+  protected:
     //  Serial command interface
-    virtual int           baudRate() const { return 9600; }
-    virtual unsigned long parity  () const { return LvComm_ParityNone; }
-    virtual unsigned long byteSize() const { return LvComm_Data8; }
-    virtual unsigned long stopSize() const { return LvComm_Stop1; }
-    virtual char          eotWrite() const { return '\r'; }
-    virtual char          eotRead () const { return '\r'; }
-    virtual char          sof     () const { return ':'; }
-    virtual char          eof     () const { return '\r'; }
-    virtual unsigned long timeout_ms() const { return 1000; }
-  private:
-    virtual const char* Name() const;
-    virtual bool        trigger_CC1        () const;
-    virtual unsigned    trigger_duration_us() const;
-    virtual int PicPortCameraInit();
-    virtual unsigned output_resolution() const;
-    virtual unsigned    pixel_rows         () const;
-    virtual unsigned    pixel_columns      () const;
+    int           baudRate() const;
+    char          eotWrite() const;
+    char          eotRead() const;
+    char          sof() const;
+    char          eof() const;
+    unsigned long timeout_ms() const;
   private:
     const TM6740ConfigType* _inputConfig;
   };
-
 }
 
 #endif

@@ -1,20 +1,15 @@
 #ifndef Pds_CameraManager_hh
 #define Pds_CameraManager_hh
 
-#include "pds/mon/THist.hh"
 #include "pdsdata/xtc/Xtc.hh"
-
-namespace PdsLeutron {
-  class PicPortCL;
-};
 
 namespace Pds {
 
   class Appliance;
 
+  class CameraDriver;
   class CfgCache;
   class Fsm;
-  class DmaSplice;
   class Transition;
   class InDatagram;
   class FrameServer;
@@ -41,39 +36,21 @@ namespace Pds {
 
     virtual InDatagram* recordConfigure  (InDatagram* in);
 
-  public:
-    void handle();
-  private:
-    void register_ (int);
-    void unregister();
-
   private:
     virtual void _configure   (const void* tc)=0;
 
-    virtual Pds::Damage _handle() { return 0; }
-    virtual void _register  () {}
-    virtual void _unregister() {}
-
   public:
-    virtual void attach_camera() = 0;
-    virtual void detach_camera() = 0;
-  private:
-    virtual PdsLeutron::PicPortCL& camera() = 0;
+    void          attach(CameraDriver* d);
+    void          detach();
+    CameraDriver& driver();
 
-  protected:
-    DmaSplice*      _splice;
   private:
     const Src&      _src;
     Fsm*            _fsm;
-    int             _sig;
     CfgCache*       _camConfig;
+    CameraDriver*   _driver;
     bool            _configured;
     GenericPool*    _occPool;
-  protected:
-    unsigned        _nposts;
-  private:
-    timespec        _tsignal;
-    THist           _hsignal;
   };
 };
 

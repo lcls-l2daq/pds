@@ -5,10 +5,6 @@
 
 #include <new>
 
-namespace PdsLeutron {
-  class FrameHandle;
-};
-
 namespace Pds {
 
   class DmaSplice;
@@ -23,27 +19,12 @@ namespace Pds {
     Frame(unsigned width, unsigned height, 
 	  unsigned depth, unsigned offset,
 	  const void* input);
-    //  Queue the frame's DMA buffer to "splice"
-    Frame(unsigned width, unsigned height, 
-	  unsigned depth, unsigned offset,
-	  PdsLeutron::FrameHandle&,
-	  DmaSplice&  splice);
     //  Copy frame contents from subsection of "input"
     Frame(unsigned startCol, unsigned endCol,
 	  unsigned startRow, unsigned endRow,
 	  unsigned width, unsigned height, 
 	  unsigned depth, unsigned offset,
 	  const void* input);
-    //  Queue the frame's ROI to "splice"
-    Frame(unsigned startCol, unsigned endCol,
-	  unsigned startRow, unsigned endRow,
-	  unsigned width, unsigned height, 
-	  unsigned depth, unsigned offset,
-	  PdsLeutron::FrameHandle&,
-	  DmaSplice&  splice);
-    //  Copy frame header from grabber (does not copy contents)
-    Frame(const PdsLeutron::FrameHandle&,
-	  unsigned offset);
     //  Copy constructor (does not copy contents)
     Frame(const Frame&);
   public:

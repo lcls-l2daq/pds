@@ -22,6 +22,7 @@ namespace Pds {
     ~FrameServer();
   public:
     void        post(FrameServerMsg*);
+    void        clear();
   public:
     //  Eb interface
     void        dump    (int detail)   const;

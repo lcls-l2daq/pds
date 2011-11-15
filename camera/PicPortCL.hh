@@ -15,7 +15,10 @@
 #include <daseq32.h>
 #include <daar.h>
 
-#include "pds/camera/LvCamera.hh"
+#include "pds/camera/CameraDriver.hh"
+//#include "pds/camera/LvCamera.hh"
+#include "pds/camera/FrameHandle.hh"
+#include "pds/mon/THist.hh"
 
 //#define PICPORTCL_NAME    "PicPortX CL Mono"
 //#define PICPORTCL_NAME    "PicPortExpress CL Mono"
@@ -26,6 +29,8 @@
 #define PICPORTCL_MEDIUM_CONNECTOR  "CamLink Medium Port 0"
 
 namespace Pds {
+  class FrameServerMsg;
+  class GenericPool;
   class MonEntryTH1F;
 };
 
@@ -37,47 +42,72 @@ namespace PdsLeutron {
   class FrameHandle;
   class MyQueue;
 
-  class PicPortCL: public LvCamera {
+  class PicPortCL: public Pds::CameraDriver {
   public:
-    PicPortCL(int grabberid = 0, const char *grabberName = (const char *)NULL);
+    enum Mode {
+      MODE_CONTINUOUS,
+      MODE_EXTTRIGGER,
+      MODE_EXTTRIGGER_SHUTTER,
+    };
+    enum State {
+      CAMERA_UNCONFIGURED,
+      CAMERA_READY,
+      CAMERA_RUNNING,
+      CAMERA_STOPPED,
+    };
+    enum NotifyType {
+      NOTIFYTYPE_NONE,    // GetFrameHandle will return NULL if no frame is ready.
+      NOTIFYTYPE_WAIT,    // GetFrame pause if no frame is ready.
+      NOTIFYTYPE_SIGNAL,  // A signal will be generated when a new frame is ready.
+      NOTIFYTYPE_POLL,    // Instead of a signal, uses a file descriptor poll method.
+    };
+    struct Status {
+      char *CameraId;
+      char *CameraName;
+      unsigned long CapturedFrames;
+      unsigned long DroppedFrames;
+      enum State State;
+    };
+  public:
+    PicPortCL(Pds::CameraBase& camera,
+	      int grabberid = 0, 
+              const char *grabberName = (const char *)NULL);
     virtual ~PicPortCL();
+  public:  // Camera interface
+    int initialize(Pds::UserMessage*);
+    int start_acquisition(Pds::FrameServer&,  // post frames here
+                          Pds::Appliance  &,  // post occurrences here
+			  Pds::UserMessage*);
+    int stop_acquisition();
+  public:
+    void handle();
   public:
     int SetNotification(enum NotifyType mode);
-    int Init();
+    int Init(Pds::UserMessage*);
     int Start();
     int Stop();
+    int GetStatus(Status&);
+  public:
     FrameHandle *GetFrameHandle();
-    int SendCommand(char *szCommand, char *pszResponse, int iResponseBufferSize);
+    int SendCommand(char *szCommand, 
+		    char *pszResponse, 
+		    int iResponseBufferSize);
     int SendBinary(char *szBinary, int iBinarySize, char *pszResponse, int iResponseBufferSize);
-    unsigned char* frameBufferBaseAddress() const;
-    unsigned char* frameBufferEndAddress () const;
+    //    unsigned char* frameBufferBaseAddress() const;
+    //    unsigned char* frameBufferEndAddress () const;
 
     void dump();
   private:
-    //  Serial command interface
-    virtual int           baudRate() const=0;
-    virtual unsigned long parity() const=0;
-    virtual unsigned long byteSize() const=0;
-    virtual unsigned long stopSize() const=0;
-    virtual char          eotWrite() const=0;
-    virtual char          eotRead() const=0;
-    virtual char          sof() const=0;
-    virtual char          eof() const=0;
-    virtual unsigned long timeout_ms() const=0;
-  private:
-    virtual const char* Name() const = 0;
-    virtual bool        trigger_CC1        () const = 0;
-    virtual unsigned    trigger_duration_us() const = 0;
-    virtual unsigned    output_resolution  () const = 0;
-    virtual unsigned    pixel_rows         () const = 0;
-    virtual unsigned    pixel_columns      () const = 0;
-    // PicPortCameraInit should if necessary initialize the camera.
-    virtual int PicPortCameraInit() = 0;
-    //  This API can be redefined by any driver that want to do processing
-    // on a frame before GetFrame returns it to the application.
-    virtual FrameHandle *PicPortFrameProcess(FrameHandle *pFrame);
-  private:
     static void ReleaseFrame(void *obj, FrameHandle *pFrame, void *arg);
+  private:
+    Pds::FrameServer*    _fsrv;
+    Pds::Appliance*      _app;
+    Pds::GenericPool*    _occPool;
+    bool                 _outOfOrder;
+    int                  _sig;
+    unsigned             _nposts;
+    timespec             _tsignal;
+    Pds::THist           _hsignal;
   private:
     DaSeq32Cfg             _seqDralConfig;
     LvROI                  _roi;
@@ -86,10 +116,13 @@ namespace PdsLeutron {
     const char *           GetConnectorName();
     //    DsyApp_Seq_AsyncReset* _pSeqDral;
     DsyApp_Seq32*          _pSeqDral;
+    //    LvCamera*              _lvdev;
     MyQueue*               _queue;
   private:
     enum NotifyType _notifyMode;
     int             _notifySignal;
+  protected:
+    Status status;
   private:
     unsigned char*      _frameBufferBase;
     FrameHandle::Format _frameFormat;

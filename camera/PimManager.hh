@@ -9,7 +9,7 @@ namespace Pds {
 
   class PimManager : public TM6740Manager {
   public:
-    PimManager(const Src& src, unsigned grabberId=0);
+    PimManager(const Src& src);
     ~PimManager();
 
   public:

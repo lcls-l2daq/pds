@@ -413,7 +413,7 @@ int main (int argc, char *argv[])
 		image->width = imgwidth;
 		image->height = imgheight;
 		image->data_off = ntohl(p->data_off);
-                char* data = (char *)((unsigned long)(&image->data_off) + ntohl((unsigned long)p->data_off));
+                //                char* data = (char *)((unsigned long)(&image->data_off) + ntohl((unsigned long)p->data_off));
 
 		/* Notify writing thread that an image is available */
 		pthread_mutex_lock(&images.lock);

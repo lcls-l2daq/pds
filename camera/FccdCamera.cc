@@ -7,6 +7,8 @@
 //!
 
 #include "pds/camera/FccdCamera.hh"
+#include "pds/camera/FrameServerMsg.hh"
+#include "pds/camera/CameraDriver.hh"
 #include "pdsdata/camera/FrameCoord.hh"
 
 #include <stdio.h>
@@ -20,50 +22,42 @@
 
 #define RESET_COUNT 0x80000000
 
-using namespace PdsLeutron;
+using namespace Pds;
 
-FccdCamera::FccdCamera(char *id, unsigned grabberId, const char *grabberName) :
-  PicPortCL(grabberId, grabberName),
+FccdCamera::FccdCamera() :
   _inputConfig(0)
 {
-  if (id == NULL)
-    id = "";
-  status.CameraId = (char *)malloc(strlen(id)+1);
-  strcpy(status.CameraId, id);
-  status.CameraName = FCCD_NAME;
   LastCount = 0;
 }
 
 FccdCamera::~FccdCamera() {
-  free(status.CameraId);
 }
 
-void FccdCamera::Config(const FccdConfigType& config)
+void FccdCamera::set_config_data(const void* p)
 {
-  _inputConfig = &config;
-  ConfigReset();
+  _inputConfig = reinterpret_cast<const FccdConfigType*>(p);
+  //  ConfigReset();
 }  
 
-unsigned FccdCamera::output_resolution() const 
+int FccdCamera::camera_depth() const 
 { return Pds::FCCD::FccdConfigV2::Eight_bit; }
 
-unsigned    FccdCamera::pixel_rows         () const
+int    FccdCamera::camera_width         () const
 { return Pds::FCCD::FccdConfigV2::Row_Pixels; }
 
-unsigned    FccdCamera::pixel_columns      () const
+int    FccdCamera::camera_height        () const
 { return Pds::FCCD::FccdConfigV2::Column_Pixels; }
+
+int    FccdCamera::camera_taps          () const
+{ return 2; }
 
 const FccdConfigType& FccdCamera::Config() const
 { return *reinterpret_cast<const FccdConfigType*>(_outputBuffer); }
 
-const char* FccdCamera::Name() const
+const char* FccdCamera::camera_name() const
 {
   return FCCD_NAME;
 }
-
-bool FccdCamera::trigger_CC1() const { return false; }
-
-unsigned FccdCamera::trigger_duration_us() const { return 0; }
 
 //
 // rstrip - strip white space from the end of a string
@@ -137,7 +131,8 @@ static int makeDACWriteCommand(int address, float volts, float beginVolts, float
 #define SZRESPONSE_MAXLEN  64
 #define SENDBUF_MAXLEN     40
 
-int FccdCamera::SendFccdCommand(const char *cmd)
+int FccdCamera::SendFccdCommand(CameraDriver& driver,
+				const char *cmd)
 {
   unsigned int ubuf;
   int sendLen, ii, ret;
@@ -154,7 +149,7 @@ int FccdCamera::SendFccdCommand(const char *cmd)
       return (-EINVAL);
     }
   }
-  ret = SendBinary(sendBuf, sendLen, szResponse, SZRESPONSE_MAXLEN);
+  ret = driver.SendBinary(sendBuf, sendLen, szResponse, SZRESPONSE_MAXLEN);
   rstrip(szResponse, ret, eotRead(), 'z');
   printf(">> %s: cmd: \"%s\" reply: \"%s\"\n", __FUNCTION__, cmd,
           (ret > 0) ? szResponse : "(null)");
@@ -162,19 +157,20 @@ int FccdCamera::SendFccdCommand(const char *cmd)
   return (ret);
 }
 
-int FccdCamera::ShiftDataModulePhase(int moduleNum) {
+int FccdCamera::ShiftDataModulePhase(CameraDriver& driver,
+				     int moduleNum) {
   int ret;
 
   switch (moduleNum) {
   case 1:
     printf(">> Shift clock phase of Data Module 1...\n");
-    if ((ret = SendFccdCommand("10:0a")) < 0) {
+    if ((ret = SendFccdCommand(driver,"10:0a")) < 0) {
       printf(">> Failed to shift clock phase of Data Module 1.\n");
     }
     break;
   case 2:
     printf(">> Shift clock phase of Data Module 2...\n");
-    if ((ret = SendFccdCommand("11:0a")) < 0) {
+    if ((ret = SendFccdCommand(driver,"11:0a")) < 0) {
       printf(">> Failed to shift clock phase of Data Module 2.\n");
     }
     break;
@@ -187,7 +183,8 @@ int FccdCamera::ShiftDataModulePhase(int moduleNum) {
   return (ret);
 }
 
-int FccdCamera::PicPortCameraInit() {
+int FccdCamera::configure(CameraDriver& driver,
+			  UserMessage* msg) {
   char sendBuf[SENDBUF_MAXLEN];
   int ret = 0;
   int trace;
@@ -549,13 +546,13 @@ int FccdCamera::PicPortCameraInit() {
 
     case 2:
       // shift clock phase of Data Module 1
-      ret = ShiftDataModulePhase(1);
+      ret = ShiftDataModulePhase(driver,1);
       printf(">> Output mode 2: Skip remainder of %s\n", __PRETTY_FUNCTION__);
       return (ret);
 
     case 3:
       // shift clock phase of Data Module 2
-      ret = ShiftDataModulePhase(2);
+      ret = ShiftDataModulePhase(driver,2);
       printf(">> Output mode 3: Skip remainder of %s\n", __PRETTY_FUNCTION__);
       return (ret);
   }
@@ -565,90 +562,90 @@ int FccdCamera::PicPortCameraInit() {
   //
 
   printf(">> Read FCCD version...\n");
-  if (SendFccdCommand("ff") < 0) {
+  if (SendFccdCommand(driver,"ff") < 0) {
       printf(">> Failed to read FCCD version.  Is the FCCD powered on?\n");
   }
 
   printf(">> Set wave form portion of FCCD configuration...\n");
 
   if ((makeWaveCommand(0, _inputConfig->waveform0(), sendBuf) != 0) ||
-      (SendFccdCommand(sendBuf) < 0)) {
+      (SendFccdCommand(driver,sendBuf) < 0)) {
       printf(">> Failed to configure wave form 0\n");
   }
 
   if ((makeWaveCommand(1, _inputConfig->waveform1(), sendBuf) != 0) ||
-      (SendFccdCommand(sendBuf) < 0)) {
+      (SendFccdCommand(driver,sendBuf) < 0)) {
       printf(">> Failed to configure wave form 1\n");
   }
 
   if ((makeWaveCommand(2, _inputConfig->waveform2(), sendBuf) != 0) ||
-      (SendFccdCommand(sendBuf) < 0)) {
+      (SendFccdCommand(driver,sendBuf) < 0)) {
       printf(">> Failed to configure wave form 2\n");
   }
 
   if ((makeWaveCommand(3, _inputConfig->waveform3(), sendBuf) != 0) ||
-      (SendFccdCommand(sendBuf) < 0)) {
+      (SendFccdCommand(driver,sendBuf) < 0)) {
       printf(">> Failed to configure wave form 3\n");
   }
 
   if ((makeWaveCommand(4, _inputConfig->waveform4(), sendBuf) != 0) ||
-      (SendFccdCommand(sendBuf) < 0)) {
+      (SendFccdCommand(driver,sendBuf) < 0)) {
       printf(">> Failed to configure wave form 4\n");
   }
 
   if ((makeWaveCommand(5, _inputConfig->waveform5(), sendBuf) != 0) ||
-      (SendFccdCommand(sendBuf) < 0)) {
+      (SendFccdCommand(driver,sendBuf) < 0)) {
       printf(">> Failed to configure wave form 5\n");
   }
 
   if ((makeWaveCommand(6, _inputConfig->waveform6(), sendBuf) != 0) ||
-      (SendFccdCommand(sendBuf) < 0)) {
+      (SendFccdCommand(driver,sendBuf) < 0)) {
       printf(">> Failed to configure wave form 6\n");
   }
 
   if ((makeWaveCommand(7, _inputConfig->waveform7(), sendBuf) != 0) ||
-      (SendFccdCommand(sendBuf) < 0)) {
+      (SendFccdCommand(driver,sendBuf) < 0)) {
       printf(">> Failed to configure wave form 7\n");
   }
 
   if ((makeWaveCommand(8, _inputConfig->waveform8(), sendBuf) != 0) ||
-      (SendFccdCommand(sendBuf) < 0)) {
+      (SendFccdCommand(driver,sendBuf) < 0)) {
       printf(">> Failed to configure wave form 8\n");
   }
 
   if ((makeWaveCommand(9, _inputConfig->waveform9(), sendBuf) != 0) ||
-      (SendFccdCommand(sendBuf) < 0)) {
+      (SendFccdCommand(driver,sendBuf) < 0)) {
       printf(">> Failed to configure wave form 9\n");
   }
 
   if ((makeWaveCommand(10, _inputConfig->waveform10(), sendBuf) != 0) ||
-      (SendFccdCommand(sendBuf) < 0)) {
+      (SendFccdCommand(driver,sendBuf) < 0)) {
       printf(">> Failed to configure wave form 10\n");
   }
 
   if ((makeWaveCommand(11, _inputConfig->waveform11(), sendBuf) != 0) ||
-      (SendFccdCommand(sendBuf) < 0)) {
+      (SendFccdCommand(driver,sendBuf) < 0)) {
       printf(">> Failed to configure wave form 11\n");
   }
 
   if ((makeWaveCommand(12, _inputConfig->waveform12(), sendBuf) != 0) ||
-      (SendFccdCommand(sendBuf) < 0)) {
+      (SendFccdCommand(driver,sendBuf) < 0)) {
       printf(">> Failed to configure wave form 12\n");
   }
 
   if ((makeWaveCommand(13, _inputConfig->waveform13(), sendBuf) != 0) ||
-      (SendFccdCommand(sendBuf) < 0)) {
+      (SendFccdCommand(driver,sendBuf) < 0)) {
       printf(">> Failed to configure wave form 13\n");
   }
 
   if ((makeWaveCommand(14, _inputConfig->waveform14(), sendBuf) != 0) ||
-      (SendFccdCommand(sendBuf) < 0)) {
+      (SendFccdCommand(driver,sendBuf) < 0)) {
       printf(">> Failed to configure wave form 14\n");
   }
 
   printf(">> Set fixed portion of FCCD configuration...\n");
   for (trace = 0; *initCmd[trace]; trace++) {
-    if ((ret = SendFccdCommand(initCmd[trace])) < 0) {
+    if ((ret = SendFccdCommand(driver,initCmd[trace])) < 0) {
       break;
     }
   }
@@ -660,113 +657,113 @@ int FccdCamera::PicPortCameraInit() {
       printf(" >> Set the voltages... \n");
 
       if ((makeDACWriteCommand(0x00, _inputConfig->dacVoltage1(), FCCD_DAC1_V_START, FCCD_DAC1_V_END, sendBuf) != 0) ||
-          (SendFccdCommand(sendBuf) < 0)) {
+          (SendFccdCommand(driver,sendBuf) < 0)) {
         printf(">> Failed to configure DAC 1\n");
       }
 
       if ((makeDACWriteCommand(0x02, _inputConfig->dacVoltage2(), FCCD_DAC2_V_START, FCCD_DAC2_V_END, sendBuf) != 0) ||
-          (SendFccdCommand(sendBuf) < 0)) {
+          (SendFccdCommand(driver,sendBuf) < 0)) {
         printf(">> Failed to configure DAC 2\n");
       }
 
       if ((makeDACWriteCommand(0x04, _inputConfig->dacVoltage3(), FCCD_DAC3_V_START, FCCD_DAC3_V_END, sendBuf) != 0) ||
-          (SendFccdCommand(sendBuf) < 0)) {
+          (SendFccdCommand(driver,sendBuf) < 0)) {
         printf(">> Failed to configure DAC 3\n");
       }
 
       if ((makeDACWriteCommand(0x06, _inputConfig->dacVoltage4(), FCCD_DAC4_V_START, FCCD_DAC4_V_END, sendBuf) != 0) ||
-          (SendFccdCommand(sendBuf) < 0)) {
+          (SendFccdCommand(driver,sendBuf) < 0)) {
         printf(">> Failed to configure DAC 4\n");
       }
 
       if ((makeDACWriteCommand(0x08, _inputConfig->dacVoltage5(), FCCD_DAC5_V_START, FCCD_DAC5_V_END, sendBuf) != 0) ||
-          (SendFccdCommand(sendBuf) < 0)) {
+          (SendFccdCommand(driver,sendBuf) < 0)) {
         printf(">> Failed to configure DAC 5\n");
       }
 
       if ((makeDACWriteCommand(0x0a, _inputConfig->dacVoltage6(), FCCD_DAC6_V_START, FCCD_DAC6_V_END, sendBuf) != 0) ||
-          (SendFccdCommand(sendBuf) < 0)) {
+          (SendFccdCommand(driver,sendBuf) < 0)) {
         printf(">> Failed to configure DAC 6\n");
       }
 
       if ((makeDACWriteCommand(0x0c, _inputConfig->dacVoltage7(), FCCD_DAC7_V_START, FCCD_DAC7_V_END, sendBuf) != 0) ||
-          (SendFccdCommand(sendBuf) < 0)) {
+          (SendFccdCommand(driver,sendBuf) < 0)) {
         printf(">> Failed to configure DAC 7\n");
       }
 
       if ((makeDACWriteCommand(0x0e, _inputConfig->dacVoltage8(), FCCD_DAC8_V_START, FCCD_DAC8_V_END, sendBuf) != 0) ||
-          (SendFccdCommand(sendBuf) < 0)) {
+          (SendFccdCommand(driver,sendBuf) < 0)) {
         printf(">> Failed to configure DAC 8\n");
       }
 
       if ((makeDACWriteCommand(0x10, _inputConfig->dacVoltage9(), FCCD_DAC9_V_START, FCCD_DAC9_V_END, sendBuf) != 0) ||
-          (SendFccdCommand(sendBuf) < 0)) {
+          (SendFccdCommand(driver,sendBuf) < 0)) {
         printf(">> Failed to configure DAC 9\n");
       }
 
       if ((makeDACWriteCommand(0x12, _inputConfig->dacVoltage10(), FCCD_DAC10_V_START, FCCD_DAC10_V_END, sendBuf) != 0) ||
-          (SendFccdCommand(sendBuf) < 0)) {
+          (SendFccdCommand(driver,sendBuf) < 0)) {
         printf(">> Failed to configure DAC 10\n");
       }
 
       if ((makeDACWriteCommand(0x14, _inputConfig->dacVoltage11(), FCCD_DAC11_V_START, FCCD_DAC11_V_END, sendBuf) != 0) ||
-          (SendFccdCommand(sendBuf) < 0)) {
+          (SendFccdCommand(driver,sendBuf) < 0)) {
         printf(">> Failed to configure DAC 11\n");
       }
 
       if ((makeDACWriteCommand(0x16, _inputConfig->dacVoltage12(), FCCD_DAC12_V_START, FCCD_DAC12_V_END, sendBuf) != 0) ||
-          (SendFccdCommand(sendBuf) < 0)) {
+          (SendFccdCommand(driver,sendBuf) < 0)) {
         printf(">> Failed to configure DAC 12\n");
       }
 
       if ((makeDACWriteCommand(0x18, _inputConfig->dacVoltage13(), FCCD_DAC13_V_START, FCCD_DAC13_V_END, sendBuf) != 0) ||
-          (SendFccdCommand(sendBuf) < 0)) {
+          (SendFccdCommand(driver,sendBuf) < 0)) {
         printf(">> Failed to configure DAC 13\n");
       }
 
       if ((makeDACWriteCommand(0x1a, _inputConfig->dacVoltage14(), FCCD_DAC14_V_START, FCCD_DAC14_V_END, sendBuf) != 0) ||
-          (SendFccdCommand(sendBuf) < 0)) {
+          (SendFccdCommand(driver,sendBuf) < 0)) {
         printf(">> Failed to configure DAC 14\n");
       }
 
       if ((makeDACWriteCommand(0x1c, _inputConfig->dacVoltage15(), FCCD_DAC15_V_START, FCCD_DAC15_V_END, sendBuf) != 0) ||
-          (SendFccdCommand(sendBuf) < 0)) {
+          (SendFccdCommand(driver,sendBuf) < 0)) {
         printf(">> Failed to configure DAC 15\n");
       }
 
       if ((makeDACWriteCommand(0x1e, _inputConfig->dacVoltage16(), FCCD_DAC16_V_START, FCCD_DAC16_V_END, sendBuf) != 0) ||
-          (SendFccdCommand(sendBuf) < 0)) {
+          (SendFccdCommand(driver,sendBuf) < 0)) {
         printf(">> Failed to configure DAC 16\n");
       }
 
       if ((makeDACWriteCommand(0x20, _inputConfig->dacVoltage17(), FCCD_DAC17_V_START, FCCD_DAC17_V_END, sendBuf) != 0) ||
-          (SendFccdCommand(sendBuf) < 0)) {
+          (SendFccdCommand(driver,sendBuf) < 0)) {
         printf(">> Failed to configure DAC 17\n");
       }
 
       printf(" >> Enable CCD... \n");
       for (trace = 0; *enableCcdCmd[trace]; trace++) {
-        if ((ret = SendFccdCommand(enableCcdCmd[trace])) < 0) {
+        if ((ret = SendFccdCommand(driver,enableCcdCmd[trace])) < 0) {
           break;
         }
       }
     } else {
       printf(">> Pulse reset_fCRIC_sync...\n");
       // one benefit is reseting the frame counters to 0
-      (void) SendFccdCommand("12");
+      (void) SendFccdCommand(driver,"12");
     }
 
     if (_inputConfig->focusMode()) {
       printf(">> Focus mode is enabled\n");
       for (trace = 0; *focusCmd[trace]; trace++) {
-        if ((ret = SendFccdCommand(focusCmd[trace])) < 0) {
+        if ((ret = SendFccdCommand(driver,focusCmd[trace])) < 0) {
           break;
         }
       }
     } else {
       printf(">> Focus mode is NOT enabled\n");
       for (trace = 0; *singleCmd[trace]; trace++) {
-        if ((ret = SendFccdCommand(singleCmd[trace])) < 0) {
+        if ((ret = SendFccdCommand(driver,singleCmd[trace])) < 0) {
           break;
         }
       }
@@ -777,18 +774,18 @@ int FccdCamera::PicPortCameraInit() {
             (_inputConfig->exposureTime() & 0xff0000) >> 16,
             (_inputConfig->exposureTime() & 0x00ff00) >> 8,
             (_inputConfig->exposureTime() & 0x0000ff));
-    if (SendFccdCommand(sendBuf) < 0) {
+    if (SendFccdCommand(driver,sendBuf) < 0) {
       printf(">> Failed to set internal exposure time\n");
     }
 
     if (_inputConfig->focusMode()) {
       printf(">> Set exposure cycle time to 512 ms...\n");
-      if (SendFccdCommand("09:00:02:00") < 0) {
+      if (SendFccdCommand(driver,"09:00:02:00") < 0) {
         printf(">> Failed to set exposure cycle time\n");
       }
     } else {
       printf(">> Set exposure cycle time to 0 ms...\n");
-      if (SendFccdCommand("09:00:00:00") < 0) {
+      if (SendFccdCommand(driver,"09:00:00:00") < 0) {
         printf(">> Failed to set exposure cycle time\n");
       }
     }
@@ -796,12 +793,12 @@ int FccdCamera::PicPortCameraInit() {
 
   if ((!_inputConfig->ccdEnable()) || (_inputConfig->outputMode() == 4)) {
     printf(">> Set camera link output source to test pattern 03 04...\n");
-    if (SendFccdCommand("03:04") < 0) {
+    if (SendFccdCommand(driver,"03:04") < 0) {
       printf(">> Failed to set camera link output source\n");
     }
   } else if (_inputConfig->outputMode() == 0) {
     printf(">> Set camera link output source to CCD...\n");
-    if (SendFccdCommand("03:00") < 0) {
+    if (SendFccdCommand(driver,"03:00") < 0) {
       printf(">> Failed to set camera link output source\n");
     }
   }
@@ -809,28 +806,23 @@ int FccdCamera::PicPortCameraInit() {
   return (ret);
 }
 
-// We redefine this API to be able to detect dropped/repeated frames
-// because the frame grabber is not very good at that. To do that we
-// read the 16 bit signature embedded in the frame by the FCCD.
-FrameHandle* 
-FccdCamera::PicPortFrameProcess(FrameHandle *pFrame) {
-  unsigned long Count;
-
-  if (pFrame && pFrame->data) {
-    unsigned short *data = (unsigned short *)pFrame->data;
-    Count = (unsigned long)data[0];
-
-    if (CurrentCount==RESET_COUNT) {
-      CurrentCount = 0;
-      LastCount = Count;
-    }
-    else {
-      CurrentCount = Count - LastCount;
-    }
-  } else {
-    printf("%s: NULL pFrame or pFrame->data\n", __PRETTY_FUNCTION__);
+bool FccdCamera::validate(Pds::FrameServerMsg& msg)
+{
+  unsigned short *data = (unsigned short *)msg.data;
+  uint32_t Count = (uint32_t)data[0];
+  
+  if (CurrentCount==RESET_COUNT) {
+    CurrentCount = 0;
+    LastCount = Count;
   }
-
-  return pFrame;
+  else {
+    CurrentCount = Count - LastCount;
+  }
+  
+  if ((CurrentCount&0xffff) != (msg.count&0xffff)) {
+    printf("Camera frame number(%ld) != Server number(%d)\n",
+           CurrentCount, msg.count);
+    return false;
+  }
+  return true;
 }
-
