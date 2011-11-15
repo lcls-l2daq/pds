@@ -96,7 +96,7 @@ void VmonReader::use(const Src& src, const MonUsage& usage)
 void VmonReader::process(VmonReaderCallback& callback)
 {
   ClockTime begin(0,0);
-  ClockTime end  (-1UL,-1UL);
+  ClockTime end  (-1U,-1U);
   process(callback,begin,end);
 }
 
