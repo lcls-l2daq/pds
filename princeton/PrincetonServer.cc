@@ -835,7 +835,7 @@ int PrincetonServer::runCaptureTask()
   //if ( checkTemperature() != 0 )
   //  _pDgOut->datagram().xtc.damage.increase(Pds::Damage::UserDefined);           
   
-  _CaptureState = CAPTURE_STATE_DATA_READY;
+  _CaptureState = CAPTURE_STATE_DATA_READY;  
   return 0;
 }
 
