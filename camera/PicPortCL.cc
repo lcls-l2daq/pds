@@ -216,6 +216,8 @@ int PicPortCL::stop_acquisition()
   return 0;
 }
 
+static void release_handle(void* h) { delete reinterpret_cast<FrameHandle*>(h); }
+
 void PicPortCL::handle()
 {
 #ifdef DBUG
@@ -234,7 +236,8 @@ void PicPortCL::handle()
                             handle->height,
                             handle->depth(),
 			    _nposts,
-			    0);
+			    0,
+                            &release_handle, handle);
 
   //  Test out-of-order
   if (_outOfOrder)

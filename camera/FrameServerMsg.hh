@@ -16,7 +16,9 @@ namespace Pds {
                    unsigned _height,
                    unsigned _depth,
 		   unsigned _count,
-		   unsigned _offset) :
+		   unsigned _offset,
+                   void(*_release)(void*)=0,
+                   void*    _arg=0) :
       type  (_type),
       data  (_data),
       width (_width),
@@ -24,8 +26,11 @@ namespace Pds {
       depth (_depth),
       count (_count),
       offset(_offset),
-      damage(0) {}
+      damage(0),
+      release(_release),
+      arg    (_arg) {}
     
+    ~FrameServerMsg() { if (release!=0) release(arg); }
     Type     type;
     void*    data;
     unsigned width;
@@ -35,6 +40,8 @@ namespace Pds {
     unsigned offset;
     unsigned extent;
     Damage   damage;
+    void   (*release)(void*);
+    void    *arg;
   };
   
 };
