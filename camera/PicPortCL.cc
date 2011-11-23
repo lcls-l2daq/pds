@@ -205,6 +205,7 @@ int PicPortCL::start_acquisition(Pds::FrameServer& fsrv,
 
 int PicPortCL::stop_acquisition()
 {
+  Stop();
   if (_sig >= 0) {
     struct sigaction action;
     action.sa_handler = SIG_DFL;
