@@ -67,6 +67,7 @@ namespace Pds {
       CspadConcentratorRegisters::configurator(this);
       CspadQuadRegisters::configurator(this);
       _initRanges();
+      strcpy(_runTimeConfigFileName, "");
        printf("CspadConfigurator constructor _config(%p), quadMask(0x%x)\n",
          _config, (unsigned)_config->quadMask());
       //    printf("\tlocations _pool(%p), _config(%p)\n", _pool, &_config);
@@ -85,6 +86,11 @@ namespace Pds {
       printf("Configurator: ");
       for (unsigned i=0; i<sizeof(*this)/sizeof(unsigned); i++) printf("\n\t%08x", ((unsigned*)this)[i]);
       printf("\n");
+    }
+
+    void CspadConfigurator::runTimeConfigName(char* name) {
+      if (name) strcpy(_runTimeConfigFileName, name);
+      printf("CspadConfigurator::runTimeConfigName(%s)\n", name);
     }
 
     void CspadConfigurator::_initRanges() {
@@ -197,9 +203,7 @@ namespace Pds {
         }
       }
       ret <<= 1;
-      //  NB KLUDGE STARTS HERE !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-      loadRunTimeConfigAdditions("RyansNewConfig");
-      // KLUDGE END HERE !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+      loadRunTimeConfigAdditions(_runTimeConfigFileName);
       if (mask&16 && ret==0) {
         if (printFlag) printf("- 0x%x - \n\treading ", ret);
 //        ret |= readRegs();                    !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!

@@ -73,6 +73,7 @@ namespace Pds {
         void                      print();
         void                      dumpFrontEnd();
         void                      printMe();
+        void                      runTimeConfigName(char*);
 
         static unsigned           _quadAddrs[];
         static unsigned           _quadReadOnlyAddrs[];
@@ -107,6 +108,7 @@ namespace Pds {
         unsigned*                   _rhisto;
         CspadConcentratorRegisters* _conRegs;
         CspadQuadRegisters*         _quadRegs;
+        char                        _runTimeConfigFileName[256];
         //      LoopHisto*                _lhisto;
     };
 

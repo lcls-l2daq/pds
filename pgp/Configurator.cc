@@ -11,6 +11,7 @@
 #include <time.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 
 namespace Pds {
   namespace Pgp {
@@ -48,29 +49,31 @@ namespace Pds {
     }
 
     void Configurator::loadRunTimeConfigAdditions(char* name) {
-      FILE* f;
-      Destination _d;
-      unsigned maxCount = 32;
-      char path[240];
-      char* home = getenv("HOME"); //"/reg/lab2/home/jackp"; //getenv("HOME");
-      sprintf(path,"%s/%s",home, name);
-      f = fopen (path, "r");
-      if (!f) {
-        char s[200];
-        sprintf(s, "Could not open %s ", path);
-        perror(s);
-      } else {
-        unsigned myi = 0;
-        unsigned dest, addr, data;
-        while (fscanf(f, "%x %x %x", &dest, &addr, &data) && !feof(f) && myi++ < maxCount) {
-          printf("\n\tFound kludge dest 0x%x, addr 0x%x, data 0x%x ", dest, addr, data);
-          _d.dest(dest);
-          if(_pgp->writeRegister(&_d, addr, data)) {
-            printf("Configurator::loadRunTimeConfigAdditions failed on dest %u address 0x%x\n", dest, addr);
+      if (name && strlen(name)) {
+        FILE* f;
+        Destination _d;
+        unsigned maxCount = 32;
+        char path[240];
+        char* home = getenv("HOME"); //"/reg/lab2/home/jackp"; //getenv("HOME");
+        sprintf(path,"%s/%s",home, name);
+        f = fopen (path, "r");
+        if (!f) {
+          char s[200];
+          sprintf(s, "Could not open %s ", path);
+          perror(s);
+        } else {
+          unsigned myi = 0;
+          unsigned dest, addr, data;
+          while (fscanf(f, "%x %x %x", &dest, &addr, &data) && !feof(f) && myi++ < maxCount) {
+            printf("\n\tFound run time config addtions: dest 0x%x, addr 0x%x, data 0x%x ", dest, addr, data);
+            _d.dest(dest);
+            if(_pgp->writeRegister(&_d, addr, data)) {
+              printf("\nConfigurator::loadRunTimeConfigAdditions failed on dest %u address 0x%x\n", dest, addr);
+            }
           }
-        }
-        if (!feof(f)) {
-          perror("Error reading");
+          if (!feof(f)) {
+            perror("Error reading");
+          }
         }
       }
     }

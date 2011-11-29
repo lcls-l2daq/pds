@@ -69,6 +69,7 @@ class Pds::CspadServer
    void     printHisto(bool);
    void     process(void);
    void     ignoreFetch(bool f) { _ignoreFetch = f; }
+   void     runTimeConfigName(char*);
 
  public:
    static CspadServer* instance() { return _instance; }
@@ -97,6 +98,7 @@ class Pds::CspadServer
    unsigned                       _ioIndex;
    Pds::CsPad::CspadDestination   _d;
    Pds::Pgp::Pgp*                 _pgp;
+   char                           _runTimeConfigName[256];
    bool                           _configured;
    bool                           _firstFetch;
    bool                           _ignoreFetch;

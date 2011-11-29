@@ -56,12 +56,14 @@ CspadServer::CspadServer( const Pds::Src& client, Pds::TypeId& myDataType, unsig
      _ignoreFetch(false) {
   _histo = (unsigned*)calloc(sizeOfHisto, sizeof(unsigned));
   _task = new Pds::Task(Pds::TaskObject("CSPADprocessor"));
+  strcpy(_runTimeConfigName, "");
   instance(this);
 }
 
 unsigned CspadServer::configure(CsPadConfigType* config) {
   if (_cnfgrtr == 0) {
     _cnfgrtr = new Pds::CsPad::CspadConfigurator::CspadConfigurator(config, fd(), _debug);
+    _cnfgrtr->runTimeConfigName(_runTimeConfigName);
   } else {
     printf("CspadConfigurator already instantiated\n");
   }
@@ -118,6 +120,11 @@ void Pds::CspadServer::enable() {
   _firstFetch = true;
   flushInputQueue(fd());
   if (_debug & 0x20) printf("CspadServer::enable\n");
+}
+
+void Pds::CspadServer::runTimeConfigName(char* name) {
+  if (name) strcpy(_runTimeConfigName, name);
+  printf("Pds::CspadServer::runTimeConfigName(%s)\n", name);
 }
 
 void Pds::CspadServer::disable() {
