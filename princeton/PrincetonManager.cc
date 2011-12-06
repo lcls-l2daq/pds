@@ -260,18 +260,6 @@ public:
         
     virtual InDatagram* fire(InDatagram* in)     
     {           
-      if (_iDebugLevel >= 1) 
-      {
-        printf( "\n\n===== Writing L1Accept Data =========\n" );          
-        if (_iDebugLevel>=2) printDataTime(in);
-        
-        if (_iDebugLevel >= 3) 
-        {
-          Xtc& xtcData = in->datagram().xtc;
-          printf( "\nInput payload size = %d\n", xtcData.sizeofPayload() );
-        }
-      }
-    
       int         iFail = 0;
       InDatagram* out   = in;
       
@@ -324,8 +312,17 @@ public:
       // new ((char*)pXtcHeader) Xtc(typePrincetonFrame, _cfg.src() );
       //pXtcFrame->alloc( iDataSize );      
                 
-      if (_iDebugLevel >= 1) 
+      if (_iDebugLevel >= 1 && out != in) 
       {
+        printf( "\n\n===== Writing L1Accept Data =========\n" );          
+        if (_iDebugLevel>=2) printDataTime(in);
+        
+        if (_iDebugLevel >= 3) 
+        {
+          Xtc& xtcData = in->datagram().xtc;
+          printf( "\nInput payload size = %d\n", xtcData.sizeofPayload() );
+        }
+        
         Xtc& xtcData = out->datagram().xtc;
         printf( "\nOutput payload size = %d  fail = %d\n", xtcData.sizeofPayload(), iFail);
         Xtc& xtcFrame = *(Xtc*) xtcData.payload();
@@ -387,7 +384,7 @@ class PrincetonDisableAction : public Action
 {
 public:
     PrincetonDisableAction(PrincetonManager& manager, int iDebugLevel) : 
-     _manager(manager), _iDebugLevel(iDebugLevel),
+     _manager(manager), _occPool(sizeof(UserMessage),2), _iDebugLevel(iDebugLevel), 
      _iDisableCameraFail(0)
     {}
         
@@ -406,38 +403,44 @@ public:
       
       // In either normal mode or delay mode, we will need to check if there is
       // an un-reported data
-      if ( true )
-      {
-        int iFail = _manager.getLastDelayData( in, out );
+      int iFail = _manager.getLastDelayData( in, out );
 
-        if ( iFail != 0 )
-          out->datagram().xtc.damage.increase(Pds::Damage::UserDefined); // set damage bit            
-          
-        if (_iDebugLevel >= 1) 
+      if ( iFail != 0 )
+        out->datagram().xtc.damage.increase(Pds::Damage::UserDefined); // set damage bit            
+        
+      if (_iDebugLevel >= 1) 
+      {
+        Xtc& xtcData = out->datagram().xtc;
+        printf( "\nOutput payload size = %d  fail = %d\n", xtcData.sizeofPayload(), iFail);
+        Xtc& xtcFrame = *(Xtc*) xtcData.payload();
+        
+        if ( xtcData.sizeofPayload() != 0 ) 
         {
-          Xtc& xtcData = out->datagram().xtc;
-          printf( "\nOutput payload size = %d  fail = %d\n", xtcData.sizeofPayload(), iFail);
-          Xtc& xtcFrame = *(Xtc*) xtcData.payload();
-          
-          if ( xtcData.sizeofPayload() != 0 ) 
-          {
-            printf( "Frame  payload size = %d\n", xtcFrame.sizeofPayload());
-            Princeton::FrameV1& frameData = *(Princeton::FrameV1*) xtcFrame.payload();
-            printf( "Frame Id Start %d ReadoutTime %f\n", frameData.shotIdStart(), 
-             frameData.readoutTime() );
-          }
-        }          
-      }      
+          printf( "Frame  payload size = %d\n", xtcFrame.sizeofPayload());
+          Princeton::FrameV1& frameData = *(Princeton::FrameV1*) xtcFrame.payload();
+          printf( "Frame Id Start %d ReadoutTime %f\n", frameData.shotIdStart(), 
+           frameData.readoutTime() );
+        }
+      }          
       
       _iDisableCameraFail = _manager.disableCamera();
       if ( _iDisableCameraFail != 0 )
         in->datagram().xtc.damage.increase(Pds::Damage::UserDefined);
+      
+    if (out != in)
+    {
+      UserMessage* msg = new(&_occPool) UserMessage();
+      msg->append("Run stopped before princeton data is sent out,\n");
+      msg->append("so the data is attached to the Disable event.");      
+      _manager.appliance().post(msg);
+    }
       
       return out;
     }
     
 private:
     PrincetonManager& _manager;
+    GenericPool       _occPool;
     int               _iDebugLevel;
     int               _iDisableCameraFail;    
 };
