@@ -20,7 +20,7 @@ using namespace Pds;
 static unsigned _maxscheduled = 4;
 
 #ifdef BUILD_PRINCETON
-static int      _idol_timeout  = 2100; // idol time [ms] which forces flush of queued events
+static int      _idol_timeout  = 60000; // idol time [ms] which forces flush of queued events
 #else
 static int      _idol_timeout  = 250;  // idol time [ms] which forces flush of queued events, to be sync at 0.5Hz
 #endif
