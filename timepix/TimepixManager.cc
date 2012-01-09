@@ -292,7 +292,7 @@ TimepixManager::TimepixManager( TimepixServer* server,
   // _occSend = new TimepixOccurrence(this);
   // server->setOccSend(_occSend);
 
-  int id = 0;   // FIXME id currently fixed at 0
+  int id = (int)server->moduleId();
 
   // ---------------------------
   // Relaxd module instantiation
@@ -300,8 +300,10 @@ TimepixManager::TimepixManager( TimepixServer* server,
   // parameter `id' determines IP-addr of the module: 192.168.33+id.175
   MpxModule *relaxd = new MpxModule( id );
 
-  // Set verbose writing to MpxModule's logfile (default = non-verbose)
-  relaxd->setLogVerbose(true);
+  if (server->verbosity() > 0) {
+    // Set verbose writing to MpxModule's logfile (default = non-verbose)
+    relaxd->setLogVerbose(true);
+  }
 
   // only start receiving frames if init succeeds and sanity check passes
   if ((relaxd->init() == 0) && (warmup(relaxd) == 0)) {

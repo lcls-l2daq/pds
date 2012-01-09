@@ -11,9 +11,11 @@
 
 using namespace Pds;
 
-Pds::TimepixServer::TimepixServer( const Src& client )
+Pds::TimepixServer::TimepixServer( const Src& client, unsigned moduleId, unsigned verbosity)
    : _xtc( _timepixDataType, client ),
 //   _occSend(NULL),
+     _moduleId(moduleId),
+     _verbosity(verbosity),
      _outOfOrder(0),
      _triggerConfigured(false),
      _timepix(NULL),
@@ -302,6 +304,16 @@ int Pds::TimepixServer::fetch( char* payload, int flags )
 unsigned TimepixServer::count() const
 {
   return (_count-1);
+}
+
+unsigned TimepixServer::verbosity() const
+{
+  return (_verbosity);
+}
+
+unsigned TimepixServer::moduleId() const
+{
+  return (_moduleId);
 }
 
 #if 0

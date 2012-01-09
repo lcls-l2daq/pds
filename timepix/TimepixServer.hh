@@ -26,7 +26,7 @@ class Pds::TimepixServer
      public Routine
 {
   public:
-    TimepixServer( const Src& client );
+    TimepixServer(const Src& client, unsigned moduleId, unsigned verbosity);
     virtual ~TimepixServer() {}
       
     //  Eb interface
@@ -52,6 +52,8 @@ class Pds::TimepixServer
 
     // Misc
     unsigned count() const;
+    unsigned moduleId() const;
+    unsigned verbosity() const;
 //  void setRelaxd(MpxModule *relaxd);
     void reset()  {_outOfOrder=0;}
     void withdraw();
@@ -72,6 +74,8 @@ class Pds::TimepixServer
     Xtc _xtc;
     unsigned short _count;
     // TimepixOccurrence *_occSend;
+    unsigned    _moduleId;
+    unsigned    _verbosity;
     int _outOfOrder;
     bool _triggerConfigured;
     timepix_dev *_timepix;
@@ -79,7 +83,6 @@ class Pds::TimepixServer
     // bool _goFlag;
     Command    _cmd;
     Task *_task;
-//  MpxModule *_relaxd;
     int8_t      _readoutSpeed, _triggerMode;
     int32_t     _shutterTimeout;
     int32_t     _dac0[TPX_DACS];
