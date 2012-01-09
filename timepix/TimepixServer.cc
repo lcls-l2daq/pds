@@ -15,8 +15,9 @@ Pds::TimepixServer::TimepixServer( const Src& client )
    : _xtc( _timepixDataType, client ),
 //   _occSend(NULL),
      _outOfOrder(0),
-     _task(new Task(TaskObject("waitframe"))),
-     _relaxd(NULL)
+     _triggerConfigured(false),
+     _timepix(NULL),
+     _task(new Task(TaskObject("waitframe")))
 {
   // calculate xtc extent
   _xtc.extent = sizeof(TimepixDataType) + sizeof(Xtc) + TIMEPIX_RAW_DATA_BYTES;
@@ -43,21 +44,35 @@ int Pds::TimepixServer::payloadComplete(void)
   return (rv);
 }
 
-void Pds::TimepixServer::routine()
+static int decisleep(int count)
 {
+  int rv = 0;
   timespec sleepTime = {0, 100000000u};  // 0.1 sec
 
-  // Wait for _relaxd to be set
-  while (_relaxd == NULL) {
-    nanosleep(&sleepTime, NULL);
+  while (count-- > 0) {
+    if (nanosleep(&sleepTime, NULL)) {
+      perror("nanosleep");
+      rv = -1;  // ERROR
+    }
+  }
+  return (rv);
+}
+
+void Pds::TimepixServer::routine()
+{
+  // Wait for _timepix to be set
+  while (_timepix == NULL) {
+    decisleep(1);
   }
 
-  // clear the new frame indicator
-  // _relaxd->newFrame(false, true);
-
   while (1) {
+    if (!_triggerConfigured) {
+      decisleep(1);
+      continue;
+    }
+
     // check for new frame
-    if (_relaxd->newFrame()) {
+    if (_timepix->newFrame()) {
       // new frame is available...
       // send notification
       payloadComplete();
@@ -77,9 +92,14 @@ unsigned Pds::TimepixServer::configure(const TimepixConfigType& config)
 
   _count = 0;
 
-  if (_relaxd == NULL) {
-    fprintf(stderr, "Error: _relaxd is NULL in %s\n", __PRETTY_FUNCTION__);
+  if (_timepix == NULL) {
+    fprintf(stderr, "Error: _timepix is NULL in %s\n", __PRETTY_FUNCTION__);
     return (1);
+  }
+
+  if (_timepix->resetFrameCounter()) {
+    fprintf(stderr, "Error: resetFrameCounter() failed in %s\n", __FUNCTION__);
+    ++numErrs;
   }
 
   _readoutSpeed = config.readoutSpeed();
@@ -146,35 +166,25 @@ unsigned Pds::TimepixServer::configure(const TimepixConfigType& config)
   _dac3[12] = config.dac3BiasLvds();
   _dac3[13] = config.dac3RefLvds();
 
-  // _readoutSpeed = config.readoutSpeed();
-  // _triggerMode = config.triggerMode();
-  // _shutterTimeout = config.shutterTimeout();
-
-  // Reset Medipix devices and load onboard configuration (if any) to the devices
-  if (_relaxd->init()) {
-    fprintf(stderr, "Error: relaxed init() failed in %s\n", __FUNCTION__);
-    ++numErrs;
-  }
-
   // Medipix device DACs configuration
-  if (_relaxd->setFsr(0, _dac0) ) {
+  if (_timepix->setFsr(0, _dac0) ) {
     fprintf(stderr, "Error: setFsr() chip 0 failed\n");
     ++numErrs;
   }
-  if (_relaxd->setFsr(1, _dac1) ) {
+  if (_timepix->setFsr(1, _dac1) ) {
     fprintf(stderr, "Error: setFsr() chip 1 failed\n");
     ++numErrs;
   }
-  if (_relaxd->setFsr(2, _dac2) ) {
+  if (_timepix->setFsr(2, _dac2) ) {
     fprintf(stderr, "Error: setFsr() chip 2 failed\n");
     ++numErrs;
   }
-  if (_relaxd->setFsr(3, _dac3) ) {
+  if (_timepix->setFsr(3, _dac3) ) {
     fprintf(stderr, "Error: setFsr() chip 3 failed\n");
     ++numErrs;
   }
 
-  if (_relaxd->readReg(MPIX2_CONF_REG_OFFSET, &configReg) == 0) {
+  if (_timepix->readReg(MPIX2_CONF_REG_OFFSET, &configReg) == 0) {
     configReg &= ~MPIX2_CONF_TIMER_USED;      // Reset 'use Timer'
 
     configReg |= MPIX2_CONF_EXT_TRIG_ENABLE;  // Enable external trigger
@@ -187,7 +197,7 @@ unsigned Pds::TimepixServer::configure(const TimepixConfigType& config)
       configReg |= MPIX2_CONF_RO_CLOCK_125MHZ;  // Enable high speed chip readout
     }
 
-    if (_relaxd->writeReg(MPIX2_CONF_REG_OFFSET, configReg)) {
+    if (_timepix->writeReg(MPIX2_CONF_REG_OFFSET, configReg)) {
       fprintf(stderr, "Error: writeReg(MPIX2_CONF_REG_OFFSET) failed\n");
       ++numErrs;
     }
@@ -196,31 +206,25 @@ unsigned Pds::TimepixServer::configure(const TimepixConfigType& config)
     ++numErrs;
   }
 
-  if (_relaxd->readReg(MPIX2_CONF_REG_OFFSET, &configReg) == 0) {
-    printf("configuration register: 0x%08x\n", configReg);
+  if (_timepix->readReg(MPIX2_CONF_REG_OFFSET, &configReg) == 0) {
+    printf("Timepix configuration register: 0x%08x\n", configReg);
   }
 
-  unsigned int version;
-  // Note: readSwVersion() was renamed getFirmwareVersion()
-  if (_relaxd->getFirmwareVersion(&version) ) {
-    fprintf(stderr, "Error: getFirmwareVersion() failed\n");
-    ++numErrs;
+  // verify that chipCount() returns 4
+  int ndevs = _timepix->chipCount();
+  if (ndevs == 4) {
+    fprintf(stdout, "Timepix chip count = 4\n");
   } else {
-    unsigned int major = version / 100;
-    unsigned int minor = (version - (major * 100)) / 10;
-    unsigned int patch = version - (major * 100) - (minor * 10);
-    printf("Firmware Version: %d.%d.%d\n", major, minor, patch);
+    fprintf(stderr, "Error: Timepix chip count = %d\n", ndevs);
+    ++numErrs;
   }
-
-  version = _relaxd->getDriverVersion();
-  unsigned int major = version / 100;
-  unsigned int minor = (version - (major * 100)) / 10;
-  unsigned int patch = version - (major * 100) - (minor * 10);
-  printf("Driver Version: %d.%d.%d\n", major, minor, patch);
 
   if (numErrs > 0) {
       fprintf(stderr, "Timepix: Failed to configure.\n");
       // send occurrence TODO
+  } else {
+    // enable polling for new frames
+    _triggerConfigured = true;
   }
 
   return (numErrs);
@@ -228,15 +232,11 @@ unsigned Pds::TimepixServer::configure(const TimepixConfigType& config)
 
 unsigned Pds::TimepixServer::unconfigure(void)
 {
-  unsigned rv = 0;
   _count = 0;
-
-  // Reset Medipix devices and load onboard configuration (if any) to the devices
-  if (_relaxd->init()) {
-    fprintf(stderr, "Error: relaxed init() failed in %s\n", __FUNCTION__);
-    rv = 1;
-  }
-  return (rv);
+  printf("Entered %s\n", __PRETTY_FUNCTION__);  // FIXME temp
+  // disable polling for new frames
+  _triggerConfigured = false;
+  return (0);
 }
 
 int Pds::TimepixServer::fetch( char* payload, int flags )
@@ -261,9 +261,9 @@ int Pds::TimepixServer::fetch( char* payload, int flags )
     return (-1);    // ERROR
   } else if (_cmd == FrameAvailable) {
     // read the data from Timepix
-    if (_relaxd) {
+    if (_timepix) {
       // get raw frame
-      if (_relaxd->readMatrixRaw((unsigned char *)(frame+1), &sizeBuf, &lostRowBuf) ) {
+      if (_timepix->readMatrixRaw((unsigned char *)(frame+1), &sizeBuf, &lostRowBuf) ) {
         fprintf(stderr, "Error: readMatrixRaw() failed\n");
         lostRowBuf = 512;
         // TODO damage
@@ -273,8 +273,8 @@ int Pds::TimepixServer::fetch( char* payload, int flags )
         // TODO damage
       }
       frame->_lostRows = (uint16_t)lostRowBuf;
-      frame->_frameCounter = _relaxd->lastFrameCount();
-      frame->_timestamp = _relaxd->lastClockTick();
+      frame->_frameCounter = _timepix->lastFrameCount();
+      frame->_timestamp = _timepix->lastClockTick();
       ++_count;
 
       // check for out-of-order condition
@@ -287,7 +287,7 @@ int Pds::TimepixServer::fetch( char* payload, int flags )
       return (_xtc.extent);
 
     } else {
-      fprintf(stderr, "Error: _relaxd is NULL in %s\n", __FUNCTION__);
+      fprintf(stderr, "Error: _timepix is NULL in %s\n", __FUNCTION__);
       return (-1);
     }
 
@@ -304,14 +304,14 @@ unsigned TimepixServer::count() const
   return (_count-1);
 }
 
-void TimepixServer::setRelaxd(MpxModule* relaxd)
-{
-  _relaxd = relaxd;
-}
-
 #if 0
 void TimepixServer::setOccSend(TimepixOccurrence* occSend)
 {
   _occSend = occSend;
 }
 #endif
+
+void TimepixServer::setTimepix(timepix_dev* timepix)
+{
+  _timepix = timepix;
+}

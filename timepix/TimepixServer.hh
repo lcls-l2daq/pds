@@ -11,6 +11,8 @@
 #include "pds/service/Task.hh"
 #include "pds/service/Routine.hh"
 
+#include "timepix_dev.hh"
+
 #include "mpxmodule.h"
 
 namespace Pds
@@ -50,7 +52,7 @@ class Pds::TimepixServer
 
     // Misc
     unsigned count() const;
-    void setRelaxd(MpxModule *relaxd);
+//  void setRelaxd(MpxModule *relaxd);
     void reset()  {_outOfOrder=0;}
     void withdraw();
     void reconnect();
@@ -63,17 +65,21 @@ class Pds::TimepixServer
       { return (_task); }
 
     // void go()   {_goFlag=true;}
+    void setTimepix(timepix_dev *timepix);
+//  void setOccSend(TimepixOccurrence* occSend);
 
   private:
     Xtc _xtc;
     unsigned short _count;
     // TimepixOccurrence *_occSend;
     int _outOfOrder;
+    bool _triggerConfigured;
+    timepix_dev *_timepix;
     int _pfd[2];
     // bool _goFlag;
     Command    _cmd;
     Task *_task;
-    MpxModule *_relaxd;
+//  MpxModule *_relaxd;
     int8_t      _readoutSpeed, _triggerMode;
     int32_t     _shutterTimeout;
     int32_t     _dac0[TPX_DACS];
