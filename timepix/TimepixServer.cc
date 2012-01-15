@@ -4,42 +4,96 @@
 #include <unistd.h>
 #include <sys/uio.h>
 #include <string.h>
-#include <time.h>
 #include <errno.h>
 
 #include "mpxmodule.h"
 
 using namespace Pds;
 
-Pds::TimepixServer::TimepixServer( const Src& client, unsigned moduleId, unsigned verbosity)
+#define PROFILE_MAX (USHRT_MAX+1)
+
+timespec _profile1[PROFILE_MAX];
+timespec _profile2[PROFILE_MAX];
+timespec _profile3[PROFILE_MAX];
+timespec _profile4[PROFILE_MAX];
+timespec _profile5[PROFILE_MAX];
+timespec _profile6[PROFILE_MAX];
+
+static int setFdFlag(int fd, int flag);   // forward declaration
+
+Pds::TimepixServer::TimepixServer( const Src& client, unsigned moduleId, unsigned verbosity, unsigned debug)
    : _xtc( _timepixDataType, client ),
 //   _occSend(NULL),
      _moduleId(moduleId),
      _verbosity(verbosity),
+     _debug(debug),
      _outOfOrder(0),
      _triggerConfigured(false),
      _timepix(NULL),
-     _task(new Task(TaskObject("waitframe")))
+     _buffer(new vector<BufferElement>(BufferDepth)),
+     _readTask(new Task(TaskObject("readframe"))),
+     _decodeTask(new Task(TaskObject("decodeframe")))
 {
   // calculate xtc extent
-  _xtc.extent = sizeof(TimepixDataType) + sizeof(Xtc) + TIMEPIX_RAW_DATA_BYTES;
+  _xtc.extent = sizeof(TimepixDataType) + sizeof(Xtc) + TIMEPIX_DECODED_DATA_BYTES;
 
-  // create pipe
-  int err = ::pipe(_pfd);
+  // create completed pipe
+  int err = ::pipe(_completedPipeFd);
   if (err) {
     fprintf(stderr, "%s pipe error: %s\n", __FUNCTION__, strerror(errno));
   } else {
     // setup to read from pipe
-    fd(_pfd[0]);
-    // call routine() in separate task
-    _task->call(this);
+    fd(_completedPipeFd[0]);
+
+    if (_debug & TIMEPIX_DEBUG_NONBLOCK) {
+      // make writes to completed pipe non-blocking
+      if (setFdFlag(_completedPipeFd[1], O_NONBLOCK) == -1) {
+        fprintf(stderr, "%s pipe error\n", __FUNCTION__);
+      }
+    }
+  }
+  // create raw pipe
+  err = ::pipe(_rawPipeFd);
+  if (err) {
+    fprintf(stderr, "%s pipe error: %s\n", __FUNCTION__, strerror(errno));
+  } else {
+    if (_debug & TIMEPIX_DEBUG_NONBLOCK) {
+      // make writes to raw pipe non-blocking
+      if (setFdFlag(_rawPipeFd[1], O_NONBLOCK) == -1) {
+        fprintf(stderr, "%s pipe error\n", __FUNCTION__);
+      }
+    }
+    // create routines
+   _readRoutine = new ReadRoutine(this, _rawPipeFd[1]);
+   _decodeRoutine = new DecodeRoutine(this, _rawPipeFd[0]);
+    // call routines in separate tasks
+    _readTask->call(_readRoutine);
+    _decodeTask->call(_decodeRoutine);
+  }
+
+  if (_debug & TIMEPIX_DEBUG_PROFILE) {
+    printf("%s: TIMEPIX_DEBUG_PROFILE (0x%x) is set\n",
+           __FUNCTION__, TIMEPIX_DEBUG_PROFILE);
+  }
+  if (_debug & TIMEPIX_DEBUG_NONBLOCK) {
+    printf("%s: TIMEPIX_DEBUG_NONBLOCK (0x%x) is set\n",
+           __FUNCTION__, TIMEPIX_DEBUG_NONBLOCK);
+  }
+  if (_debug & TIMEPIX_DEBUG_CONVERT) {
+    printf("%s: TIMEPIX_DEBUG_CONVERT (0x%x) is set\n",
+           __FUNCTION__, TIMEPIX_DEBUG_CONVERT);
   }
 }
 
-int Pds::TimepixServer::payloadComplete(void)
+int Pds::TimepixServer::payloadComplete(vector<BufferElement>::iterator buf_iter)
 {
-  const Command cmd = FrameAvailable;
-  int rv = ::write(_pfd[1],&cmd,sizeof(cmd));
+  int rv;
+  command_t sendCommand;
+
+  sendCommand.cmd = FrameAvailable;
+  sendCommand.buf_iter = buf_iter;
+
+  rv = ::write(_completedPipeFd[1], &sendCommand, sizeof(sendCommand));
   if (rv == -1) {
     fprintf(stderr, "%s write error: %s\n", __FUNCTION__, strerror(errno));
   }
@@ -60,30 +114,132 @@ static int decisleep(int count)
   return (rv);
 }
 
-void Pds::TimepixServer::routine()
+void Pds::TimepixServer::ReadRoutine::routine()
 {
+  uint32_t ss;
+  int lostRowBuf;
+  vector<BufferElement>::iterator buf_iter;
+  command_t sendCommand;
+  timespec time1, time2;
+
   // Wait for _timepix to be set
-  while (_timepix == NULL) {
+  while (_server->_timepix == NULL) {
     decisleep(1);
   }
 
   while (1) {
-    if (!_triggerConfigured) {
-      decisleep(1);
+    for (buf_iter = _server->_buffer->begin(); buf_iter != _server->_buffer->end(); buf_iter++) {
+
+do_over:
+      // wait for trigger to be configured
+      while (!_server->_triggerConfigured) {
+        decisleep(1);
+      }
+
+      // trigger is configured
+      // wait for new frame
+      while (!_server->_timepix->newFrame()) {
+        if (!_server->_triggerConfigured) {
+          goto do_over;
+        }
+      }
+
+      // new frame is available...
+      if (buf_iter->_full) {      // is this buffer already full?
+        fprintf(stderr, "Error: buffer overflow in %s\n", __PRETTY_FUNCTION__);
+        return;                   // yes: exit
+      } else {
+        buf_iter->_full = true;   // no: mark this buffer as full
+      }
+
+      if (_server->_debug & TIMEPIX_DEBUG_PROFILE) {
+        clock_gettime(CLOCK_REALTIME, &time1);          // TIMESTAMP 1
+      }
+
+      // read frame
+      int rv = _server->_timepix->readMatrixRaw(buf_iter->_rawData, &ss, &lostRowBuf);
+      if (rv) {
+        fprintf(stderr, "Error: readMatrixRaw() failed\n");
+      } else if ((ss != TIMEPIX_RAW_DATA_BYTES) || (lostRowBuf != 0)) {
+        fprintf(stderr, "Error: readMatrixRaw: sz=%u lost_rows=%d\n", ss, lostRowBuf);
+      }
+
+      if (_server->_debug & TIMEPIX_DEBUG_PROFILE) {
+        clock_gettime(CLOCK_REALTIME, &time2);          // TIMESTAMP 2
+      }
+
+      buf_iter->_header._frameCounter = _server->_timepix->lastFrameCount();
+
+      // fill in timestamps
+      _profile1[buf_iter->_header._frameCounter] = time1;
+      _profile2[buf_iter->_header._frameCounter] = time2;
+
+  // FIXME
+  //  buf_iter->_header._timestamp = _server->_timepix->lastClockTick();
+      buf_iter->_header._lostRows = lostRowBuf;
+
+      // send notification
+      sendCommand.cmd = FrameAvailable;
+      sendCommand.buf_iter = buf_iter;
+      if (::write(_writeFd, &sendCommand, sizeof(sendCommand)) == -1) {
+        fprintf(stderr, "%s write error: %s\n", __PRETTY_FUNCTION__, strerror(errno));
+      }
+    } // end of for
+  } // end of while
+}
+
+void Pds::TimepixServer::DecodeRoutine::routine()
+{
+  // vector<BufferElement>::iterator bb;
+  command_t     receiveCommand;
+
+  // Wait for _timepix to be set
+  while (_server->_timepix == NULL) {
+    decisleep(1);
+  }
+  // wait for trigger to be configured
+  while (!_server->_triggerConfigured) {
+    decisleep(1);
+  }
+  // trigger is configured
+  while (1) {
+    // read from pipe
+    int length = ::read(_readFd, &receiveCommand, sizeof(receiveCommand));
+    if (length != sizeof(receiveCommand)) {
+      fprintf(stderr, "Error: read() returned %d in %s\n", length, __PRETTY_FUNCTION__);
+    }
+
+    if (receiveCommand.cmd == FrameAvailable) {
+      vector<BufferElement>::iterator buf_iter = receiveCommand.buf_iter;
+
+      // validate buffer
+      if (!buf_iter->_full) {
+        fprintf(stderr, "Error: buffer underflow in %s\n", __PRETTY_FUNCTION__);
+        return;                   // yes: exit
+      }
+
+      if (_server->_debug & TIMEPIX_DEBUG_PROFILE) {
+        clock_gettime(CLOCK_REALTIME, &_profile3[buf_iter->_header._frameCounter]);    // TIMESTAMP 3
+      }
+
+      if (_server->_debug & TIMEPIX_DEBUG_CONVERT) {
+        // decode to pixels
+        _server->_timepix->decode2Pixels(buf_iter->_rawData, buf_iter->_pixelData);
+      }
+
+      if (_server->_debug & TIMEPIX_DEBUG_PROFILE) {
+        clock_gettime(CLOCK_REALTIME, &_profile4[buf_iter->_header._frameCounter]);    // TIMESTAMP 4
+      }
+
+    } else {
+      fprintf(stderr, "Error: unrecognized cmd (%d) in %s\n",
+              (int)receiveCommand.cmd, __PRETTY_FUNCTION__);
       continue;
     }
 
-    // check for new frame
-    if (_timepix->newFrame()) {
-      // new frame is available...
-      // send notification
-      payloadComplete();
-      // don't need to clear it 'cause it already has
-    } else {
-      // no new frame is available
-      continue;
-    }
-  } // end of while(1)
+    // send notification
+    _server->payloadComplete(receiveCommand.buf_iter);
+  }
 }
 
 unsigned Pds::TimepixServer::configure(const TimepixConfigType& config)
@@ -235,20 +391,24 @@ unsigned Pds::TimepixServer::configure(const TimepixConfigType& config)
 unsigned Pds::TimepixServer::unconfigure(void)
 {
   _count = 0;
-  printf("Entered %s\n", __PRETTY_FUNCTION__);  // FIXME temp
   // disable polling for new frames
   _triggerConfigured = false;
+
   return (0);
 }
 
 int Pds::TimepixServer::fetch( char* payload, int flags )
 {
-  unsigned int  sizeBuf;
-  int           lostRowBuf;
+  command_t     receiveCommand;
+  timespec time5;
 
   if (_outOfOrder) {
     // error condition is latched
     return (-1);
+  }
+
+  if (_debug & TIMEPIX_DEBUG_PROFILE) {
+    clock_gettime(CLOCK_REALTIME, &time5);    // TIMESTAMP 5
   }
 
   TimepixDataType *frame = (TimepixDataType *)(payload + sizeof(Xtc));
@@ -256,45 +416,48 @@ int Pds::TimepixServer::fetch( char* payload, int flags )
   memcpy(payload, &_xtc, sizeof(Xtc));  // xtc extent calculated in TimepixServer constructor
 
   // read from pipe
-  int length = ::read(_pfd[0], &_cmd, sizeof(_cmd));
+  int length = ::read(_completedPipeFd[0], &receiveCommand, sizeof(receiveCommand));
 
-  if (length != sizeof(_cmd)) {
+  if (length != sizeof(receiveCommand)) {
     fprintf(stderr, "Error: read() returned %d in %s\n", length, __FUNCTION__);
     return (-1);    // ERROR
-  } else if (_cmd == FrameAvailable) {
-    // read the data from Timepix
-    if (_timepix) {
-      // get raw frame
-      if (_timepix->readMatrixRaw((unsigned char *)(frame+1), &sizeBuf, &lostRowBuf) ) {
-        fprintf(stderr, "Error: readMatrixRaw() failed\n");
-        lostRowBuf = 512;
-        // TODO damage
-      } else if ((sizeBuf != TIMEPIX_RAW_DATA_BYTES) || (lostRowBuf != 0)) {
-        fprintf(stderr, "Error: readMatrixRaw: sz=%u lost_rows=%d\n",
-                sizeBuf, lostRowBuf);
-        // TODO damage
-      }
-      frame->_lostRows = (uint16_t)lostRowBuf;
-      frame->_frameCounter = _timepix->lastFrameCount();
-      frame->_timestamp = _timepix->lastClockTick();
-      ++_count;
+  } else if (receiveCommand.cmd == FrameAvailable) {
 
-      // check for out-of-order condition
-      if (_count != frame->_frameCounter) {
-        fprintf(stderr, "Error: sw count=%hu does not match hw frameCounter=%hu\n",
-                _count, frame->_frameCounter);
-        // TODO damage
-      }
-
-      return (_xtc.extent);
-
-    } else {
-      fprintf(stderr, "Error: _timepix is NULL in %s\n", __FUNCTION__);
-      return (-1);
+    if (!receiveCommand.buf_iter->_full) {     // is this buffer empty?
+      fprintf(stderr, "Error: buffer underflow in %s\n", __PRETTY_FUNCTION__);
+      // TODO damage
     }
 
+    frame->_lostRows = receiveCommand.buf_iter->_header._lostRows;
+    frame->_frameCounter = receiveCommand.buf_iter->_header._frameCounter;
+    frame->_timestamp = receiveCommand.buf_iter->_header._timestamp;
+
+    ++_count;
+
+    // check for out-of-order condition
+    uint16_t count16 = _count & 0xffff;
+    if (count16 != frame->_frameCounter) {
+      fprintf(stderr, "Error: sw count=%hu does not match hw frameCounter=%hu\n",
+              count16, frame->_frameCounter);
+      // TODO damage
+    }
+
+    // FIXME copy pixels to payload (message queue?)
+
+    // mark buffer as empty
+    receiveCommand.buf_iter->_full = false;
+
+    if (_debug & TIMEPIX_DEBUG_PROFILE) {
+      // TIMESTAMP 6
+      clock_gettime(CLOCK_REALTIME, &_profile6[receiveCommand.buf_iter->_header._frameCounter]);
+      // fill in timestamp 5
+      _profile5[receiveCommand.buf_iter->_header._frameCounter] = time5;
+    }
+
+    return (_xtc.extent);
+
   } else {
-    printf("Unknown command (0x%x) in %s\n", _cmd, __FUNCTION__);
+    printf("Unknown command (0x%x) in %s\n", (int)receiveCommand.cmd, __FUNCTION__);
     return (-1);
   }
 
@@ -316,6 +479,11 @@ unsigned TimepixServer::moduleId() const
   return (_moduleId);
 }
 
+unsigned TimepixServer::debug() const
+{
+  return (_debug);
+}
+
 #if 0
 void TimepixServer::setOccSend(TimepixOccurrence* occSend)
 {
@@ -326,4 +494,22 @@ void TimepixServer::setOccSend(TimepixOccurrence* occSend)
 void TimepixServer::setTimepix(timepix_dev* timepix)
 {
   _timepix = timepix;
+}
+
+static int setFdFlag(int fd, int flag)
+{
+  int fdflags;
+  int rv = -1;
+
+  fdflags = ::fcntl(fd, F_GETFL);
+  if (fdflags == -1) {
+    perror("fcntl");
+  } else {
+    if (::fcntl(fd, F_SETFL, fdflags | flag) == -1) {
+      perror("fcntl");
+    } else {
+      rv = 0;
+    }
+  }
+  return (rv);
 }

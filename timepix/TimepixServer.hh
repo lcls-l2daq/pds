@@ -1,7 +1,9 @@
-#ifndef __GSC16AISERVER_HH
-#define __GSC16AISERVER_HH
+#ifndef __TIMEPIXSERVER_HH
+#define __TIMEPIXSERVER_HH
 
 #include <stdio.h>
+#include <time.h>
+#include <vector>
 
 #include "pds/utility/EbServer.hh"
 #include "pds/utility/EbCountSrv.hh"
@@ -15,6 +17,10 @@
 
 #include "mpxmodule.h"
 
+#define TIMEPIX_DEBUG_PROFILE         0x00000001
+#define TIMEPIX_DEBUG_NONBLOCK        0x00000002
+#define TIMEPIX_DEBUG_CONVERT         0x00000004
+
 namespace Pds
 {
    class TimepixServer;
@@ -22,11 +28,10 @@ namespace Pds
 
 class Pds::TimepixServer
    : public EbServer,
-     public EbCountSrv,
-     public Routine
+     public EbCountSrv
 {
   public:
-    TimepixServer(const Src& client, unsigned moduleId, unsigned verbosity);
+    TimepixServer(const Src& client, unsigned moduleId, unsigned verbosity, unsigned debug);
     virtual ~TimepixServer() {}
       
     //  Eb interface
@@ -47,42 +52,104 @@ class Pds::TimepixServer
     int fetch( ZcpFragment& , int flags ) { return 0; }
     int fetch( char* payload, int flags );
 
-    // Routine interface
-    void routine();
-
     // Misc
     unsigned count() const;
     unsigned moduleId() const;
     unsigned verbosity() const;
-//  void setRelaxd(MpxModule *relaxd);
+    unsigned debug() const;
     void reset()  {_outOfOrder=0;}
     void withdraw();
     void reconnect();
 
     unsigned configure(const TimepixConfigType& config);
     unsigned unconfigure(void);
-    enum Command {FrameAvailable=0};
-    int  payloadComplete(void);
-    Task* task()
-      { return (_task); }
+    enum Command {FrameAvailable=0, TriggerConfigured, TriggerNotConfigured};
+    enum {BufferDepth=64};
 
-    // void go()   {_goFlag=true;}
     void setTimepix(timepix_dev *timepix);
 //  void setOccSend(TimepixOccurrence* occSend);
 
   private:
+
+    //
+    // private classes
+    //
+
+    class BufferElement
+    {
+    public:
+      BufferElement() :
+        _full(false)
+      {}
+
+      bool                  _full;
+      unsigned char         _rawData[TIMEPIX_RAW_DATA_BYTES];
+      Pds::Timepix::DataV1  _header;
+   // unsigned char         _pixelData[TIMEPIX_DECODED_DATA_BYTES];
+      int16_t               _pixelData[TIMEPIX_DECODED_DATA_BYTES / sizeof(int16_t)];
+    };
+
+    int payloadComplete(vector<BufferElement>::iterator buf_iter);
+
+    //
+    // command_t is used for intertask communication via pipes
+    //
+    typedef struct {
+      Command cmd;
+      uint16_t frameCounter;
+      vector<BufferElement>::iterator buf_iter;
+    } command_t;
+
+    class ReadRoutine : public Routine
+    {
+    public:
+      ReadRoutine(TimepixServer *server, int writeFd) :
+        _server(server),
+        _writeFd(writeFd)   {}
+      ~ReadRoutine()        {}
+      // Routine interface
+      void routine(void);
+
+    private:
+      TimepixServer *_server;
+      int _writeFd;
+    };
+
+    class DecodeRoutine : public Routine
+    {
+    public:
+      DecodeRoutine(TimepixServer *server, int readFd) :
+        _server(server),
+        _readFd(readFd)     {}
+      ~DecodeRoutine()      {}
+      // Routine interface
+      void routine(void);
+
+    private:
+      TimepixServer *_server;
+      int _readFd;
+    };
+
+    //
+    // private variables
+    //
+
     Xtc _xtc;
-    unsigned short _count;
+    unsigned    _count;
     // TimepixOccurrence *_occSend;
     unsigned    _moduleId;
     unsigned    _verbosity;
+    unsigned    _debug;
     int _outOfOrder;
     bool _triggerConfigured;
     timepix_dev *_timepix;
-    int _pfd[2];
-    // bool _goFlag;
-    Command    _cmd;
-    Task *_task;
+    int _rawPipeFd[2];
+    int _completedPipeFd[2];
+    vector<BufferElement>*   _buffer;
+    Task *_readTask;
+    ReadRoutine *_readRoutine;
+    Task *_decodeTask;
+    DecodeRoutine *_decodeRoutine;
     int8_t      _readoutSpeed, _triggerMode;
     int32_t     _shutterTimeout;
     int32_t     _dac0[TPX_DACS];
