@@ -1,4 +1,4 @@
-// timepix_dev.hh
+// $Id$
 // Author: Chris Ford <caf@slac.stanford.edu>
 
 #ifndef __TIMEPIX_DEV_HH
@@ -30,6 +30,7 @@ public:
   int readReg(uint32_t offset, uint32_t *value);
   int writeReg(uint32_t offset, uint32_t value);
   int setFsr(int chipnr, int *dac, uint32_t col_testpulse_reg=0);
+  void decode2Pixels(uint8_t *bytes, int16_t *pixels);
 
 private:
   int          _moduleId;

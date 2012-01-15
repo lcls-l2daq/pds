@@ -1,4 +1,4 @@
-// timepix_dev.cc
+// $Id$
 // Author: Chris Ford <caf@slac.stanford.edu>
 
 #include <stdlib.h>
@@ -123,4 +123,9 @@ int timepix_dev::setFsr(int chipnr, int *dac, uint32_t col_testpulse_reg)
   _mutex->give();
 
   return (rv);
+}
+
+void timepix_dev::decode2Pixels(uint8_t *bytes, int16_t *pixels)
+{
+  _relaxd->decode2Pixels(bytes, pixels);  // no mutex needed
 }
