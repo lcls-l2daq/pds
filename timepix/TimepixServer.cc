@@ -157,25 +157,22 @@ do_over:
       }
 
       // read frame
-      int rv = _server->_timepix->readMatrixRaw(buf_iter->_rawData, &ss, &lostRowBuf);
+      int rv = _server->_timepix->readMatrixRawPlus(buf_iter->_rawData, &ss, &lostRowBuf,
+                                                    &buf_iter->_header._frameCounter,
+                                                    &buf_iter->_header._timestamp);
       if (rv) {
-        fprintf(stderr, "Error: readMatrixRaw() failed\n");
+        fprintf(stderr, "Error: readMatrixRawPlus() failed\n");
       } else if ((ss != TIMEPIX_RAW_DATA_BYTES) || (lostRowBuf != 0)) {
-        fprintf(stderr, "Error: readMatrixRaw: sz=%u lost_rows=%d\n", ss, lostRowBuf);
+        fprintf(stderr, "Error: readMatrixRawPlus: sz=%u lost_rows=%d\n", ss, lostRowBuf);
       }
 
       if (_server->_debug & TIMEPIX_DEBUG_PROFILE) {
         clock_gettime(CLOCK_REALTIME, &time2);          // TIMESTAMP 2
+        _profile1[buf_iter->_header._frameCounter] = time1;
+        _profile2[buf_iter->_header._frameCounter] = time2;
       }
 
-      buf_iter->_header._frameCounter = _server->_timepix->lastFrameCount();
-
-      // fill in timestamps
-      _profile1[buf_iter->_header._frameCounter] = time1;
-      _profile2[buf_iter->_header._frameCounter] = time2;
-
-  // FIXME
-  //  buf_iter->_header._timestamp = _server->_timepix->lastClockTick();
+      // fill in lost_rows
       buf_iter->_header._lostRows = lostRowBuf;
 
       // send notification
@@ -393,6 +390,11 @@ unsigned Pds::TimepixServer::unconfigure(void)
   _count = 0;
   // disable polling for new frames
   _triggerConfigured = false;
+
+  // reinitialize Timepix
+  if (_timepix->warmup(true)) {
+    fprintf(stderr, "Error: warmup() failed in %s\n", __FUNCTION__);
+  }
 
   return (0);
 }

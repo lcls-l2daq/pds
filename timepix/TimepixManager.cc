@@ -199,94 +199,11 @@ Appliance& TimepixManager::appliance()
   return _fsm;
 }
 
-static unsigned char testbuf[500000]; // FIXME new/delete
-
-//
-// warmup - Timepix initialization required for reliable startup
-//
-static int warmup(MpxModule *relaxd)
-{
-  unsigned int confReg;
-
-  if (relaxd->readReg(MPIX2_CONF_REG_OFFSET, &confReg)) {
-    fprintf(stderr, "Error: readReg(MPIX2_CONF_REG_OFFSET) failed\n");
-    return (1); // ERROR
-  }
-
-  // set low clock frequency (2.5 MHz)
-  confReg &= ~MPIX2_CONF_TPX_CLOCK_MASK;
-  confReg |= MPIX2_CONF_TPX_CLOCK_2MHZ5;
-
-  if (relaxd->writeReg(MPIX2_CONF_REG_OFFSET, confReg)) {
-    fprintf(stderr, "Error: writeReg(MPIX2_CONF_REG_OFFSET) failed\n");
-    return (1); // ERROR
-  }
-
-  // Use the shutter timer, at 100 microseconds
-  // (note that the Relaxd timer has a resolution of 10 us)
-  // ### Due to a bug(?) in Relaxd we need to repeat enableTimer()
-  //     after each call to setDacs() (renamed setFsr())
-  relaxd->enableTimer(true, 100);
-
-  // do a couple of frame read-outs with a delay (1 sec)
-  unsigned int  sz;
-  int           lost_rows;
-
-  // Open the shutter: starts the timer
-  relaxd->openShutter();
-
-  // Wait for the Relaxd timer to close the shutter
-  while( !relaxd->timerExpired() ) {
-    usleep(10);
-  }
-
-  // readMatrixRaw: sz=458752  lost_rows=0
-  if (relaxd->readMatrixRaw(testbuf, &sz, &lost_rows) ) {
-    fprintf(stderr, "Error: readMatrixRaw() failed\n");
-    return (1); // ERROR
-  } else if ((sz != 458752) || (lost_rows != 0)) {
-    fprintf(stderr, "Error: readMatrixRaw: sz=%u  lost_rows=%d\n", sz, lost_rows);
-  }
-
-  sleep(1);   // delay 1 sec
-
-  // Open the shutter: starts the timer
-  relaxd->openShutter();
-
-  // Wait for the Relaxd timer to close the shutter
-  while( !relaxd->timerExpired() ) {
-    usleep(10);
-  }
-
-  // readMatrixRaw: sz=458752  lost_rows=0
-  if (relaxd->readMatrixRaw(testbuf, &sz, &lost_rows) ) {
-    fprintf(stderr, "Error: readMatrixRaw() failed\n");
-    return (1); // ERROR
-  } else if ((sz != 458752) || (lost_rows != 0)) {
-    fprintf(stderr, "Error: readMatrixRaw: sz=%u  lost_rows=%d\n", sz, lost_rows);
-  }
-
-  if (relaxd->readReg(MPIX2_CONF_REG_OFFSET, &confReg)) {
-    fprintf(stderr, "Error: readReg(MPIX2_CONF_REG_OFFSET) failed\n");
-    return (1); // ERROR
-  }
-
-  // set high clock frequency (100 MHz)
-  confReg &= ~MPIX2_CONF_TPX_CLOCK_MASK;
-  confReg |= MPIX2_CONF_TPX_CLOCK_100MHZ;
-
-  if (relaxd->writeReg(MPIX2_CONF_REG_OFFSET, confReg)) {
-    fprintf(stderr, "Error: writeReg(MPIX2_CONF_REG_OFFSET) failed\n");
-    return (1); // ERROR
-  }
-
-  return (0);
-}
-
 TimepixManager::TimepixManager( TimepixServer* server,
                                 CfgClientNfs* cfg )
    : _fsm(*new Fsm)
 {
+  int ndevs;
   printf("%s being initialized...\n", __FUNCTION__);
 
   // _occSend = new TimepixOccurrence(this);
@@ -306,17 +223,21 @@ TimepixManager::TimepixManager( TimepixServer* server,
   }
 
   // only start receiving frames if init succeeds and sanity check passes
-  if ((relaxd->init() == 0) && (warmup(relaxd) == 0)) {
-    int ndevs = relaxd->chipCount();
-    if (ndevs != Timepix::ConfigV1::ChipCount) {
-      fprintf(stderr, "Error: relaxd chipCount() returned %d (expected %d)\n",
-             ndevs, Timepix::ConfigV1::ChipCount);
+  if (relaxd->init() == 0) {
+    // create timepix device
+    _timepix = new timepix_dev(id, relaxd);
+    if (_timepix->warmup(false) != 0) {
+      fprintf(stderr, "Error: Timepix warmup failed\n");
     } else {
-      // FIXME temporary printf
-      printf("%s counted %d devices for module %d\n", __FUNCTION__, ndevs, id);
-      // create timepix device and share with TimepixServer
-      _timepix = new timepix_dev(id, relaxd);
-      server->setTimepix(_timepix);
+      ndevs = relaxd->chipCount();
+      if (ndevs != Timepix::ConfigV1::ChipCount) {
+        fprintf(stderr, "Error: relaxd chipCount() returned %d (expected %d)\n",
+                ndevs, Timepix::ConfigV1::ChipCount);
+      } else {
+        // successful initialization
+        // share timepix device with TimepixServer
+        server->setTimepix(_timepix);
+      }
     }
   } else {
     fprintf(stderr, "Error: relaxd initialization failed\n");
@@ -336,5 +257,5 @@ TimepixManager::TimepixManager( TimepixServer* server,
  _fsm.callback( TransitionId::L1Accept, &timepixL1 );
  _fsm.callback( TransitionId::BeginCalibCycle,
                 new TimepixBeginCalibCycleAction( cfg, server ) );
-  printf("%s initialization complete\n", __FUNCTION__);
+  printf("...%s initialization complete\n", __FUNCTION__);
 }
