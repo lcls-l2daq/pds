@@ -18,8 +18,8 @@
 #include "mpxmodule.h"
 
 #define TIMEPIX_DEBUG_PROFILE         0x00000001
-#define TIMEPIX_DEBUG_NONBLOCK        0x00000002
-#define TIMEPIX_DEBUG_CONVERT         0x00000004
+#define TIMEPIX_DEBUG_TIMECHECK       0x00000002
+#define TIMEPIX_DEBUG_NOCONVERT       0x00000004
 
 namespace Pds
 {
@@ -63,6 +63,7 @@ class Pds::TimepixServer
 
     unsigned configure(const TimepixConfigType& config);
     unsigned unconfigure(void);
+    unsigned endrun(void);
     enum Command {FrameAvailable=0, TriggerConfigured, TriggerNotConfigured};
     enum {BufferDepth=64};
 
@@ -89,7 +90,7 @@ class Pds::TimepixServer
       int16_t               _pixelData[TIMEPIX_DECODED_DATA_BYTES / sizeof(int16_t)];
     };
 
-    int payloadComplete(vector<BufferElement>::iterator buf_iter);
+    int payloadComplete(vector<BufferElement>::iterator buf_iter, bool misssedTrigger);
 
     //
     // command_t is used for intertask communication via pipes
@@ -97,6 +98,7 @@ class Pds::TimepixServer
     typedef struct {
       Command cmd;
       uint16_t frameCounter;
+      bool missedTrigger;
       vector<BufferElement>::iterator buf_iter;
     } command_t;
 
@@ -135,13 +137,20 @@ class Pds::TimepixServer
     //
 
     Xtc _xtc;
+    Xtc _xtcDamaged;
     unsigned    _count;
+    unsigned    _missedTriggerCount;
+    unsigned    _expectedDiff;
+    int         _resetTimestampCount;
     // TimepixOccurrence *_occSend;
     unsigned    _moduleId;
     unsigned    _verbosity;
     unsigned    _debug;
-    int _outOfOrder;
+    int         _outOfOrder;
+    uint16_t    _badFrame;
+    uint16_t    _uglyFrame;
     bool _triggerConfigured;
+    bool _profileCollected;
     timepix_dev *_timepix;
     int _rawPipeFd[2];
     int _completedPipeFd[2];

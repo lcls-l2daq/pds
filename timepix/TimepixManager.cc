@@ -171,6 +171,31 @@ private:
 };
 
 
+class TimepixEndrunAction : public TimepixAction {
+ public:
+   TimepixEndrunAction( TimepixServer* server ) : _server( server ) {}
+   ~TimepixEndrunAction() {}
+
+   InDatagram* fire(InDatagram* dg) {
+      if( _nerror ) {
+         printf( "*** Found %d timepix Endrun errors\n", _nerror );
+         dg->datagram().xtc.damage.increase(Pds::Damage::UserDefined);
+      }
+      return dg;
+   }
+
+   Transition* fire(Transition* tr) {
+      _nerror = 0;
+      _nerror += _server->endrun();
+      return tr;
+   }
+
+private:
+  TimepixServer* _server;
+  unsigned _nerror;
+};
+
+
 class TimepixBeginCalibCycleAction : public TimepixAction
 {
  public:
@@ -252,6 +277,8 @@ TimepixManager::TimepixManager( TimepixServer* server,
                 new TimepixConfigAction( src0, cfg, server, timepixL1 ) );
  _fsm.callback( TransitionId::Unconfigure,
                 new TimepixUnconfigAction( server ) );
+ _fsm.callback( TransitionId::EndRun,
+                new TimepixEndrunAction( server ) );
  _fsm.callback( TransitionId::Map,
                 new TimepixAllocAction( *cfg ) );
  _fsm.callback( TransitionId::L1Accept, &timepixL1 );

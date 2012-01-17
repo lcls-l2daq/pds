@@ -18,17 +18,22 @@ timespec _profile3[PROFILE_MAX];
 timespec _profile4[PROFILE_MAX];
 timespec _profile5[PROFILE_MAX];
 timespec _profile6[PROFILE_MAX];
-
-static int setFdFlag(int fd, int flag);   // forward declaration
+uint32_t _profileHwTimestamp[PROFILE_MAX];
 
 Pds::TimepixServer::TimepixServer( const Src& client, unsigned moduleId, unsigned verbosity, unsigned debug)
    : _xtc( _timepixDataType, client ),
+     _xtcDamaged( _timepixDataType, client ),
 //   _occSend(NULL),
+     _expectedDiff(0),
+     _resetTimestampCount(4),
      _moduleId(moduleId),
      _verbosity(verbosity),
      _debug(debug),
      _outOfOrder(0),
+     _badFrame(0),
+     _uglyFrame(0),
      _triggerConfigured(false),
+     _profileCollected(false),
      _timepix(NULL),
      _buffer(new vector<BufferElement>(BufferDepth)),
      _readTask(new Task(TaskObject("readframe"))),
@@ -37,6 +42,10 @@ Pds::TimepixServer::TimepixServer( const Src& client, unsigned moduleId, unsigne
   // calculate xtc extent
   _xtc.extent = sizeof(TimepixDataType) + sizeof(Xtc) + TIMEPIX_DECODED_DATA_BYTES;
 
+  // alternate xtc is used for damaged events
+  _xtcDamaged.extent = sizeof(TimepixDataType) + sizeof(Xtc) + TIMEPIX_DECODED_DATA_BYTES;
+  _xtcDamaged.damage.increase(Pds::Damage::UserDefined);
+
   // create completed pipe
   int err = ::pipe(_completedPipeFd);
   if (err) {
@@ -44,25 +53,12 @@ Pds::TimepixServer::TimepixServer( const Src& client, unsigned moduleId, unsigne
   } else {
     // setup to read from pipe
     fd(_completedPipeFd[0]);
-
-    if (_debug & TIMEPIX_DEBUG_NONBLOCK) {
-      // make writes to completed pipe non-blocking
-      if (setFdFlag(_completedPipeFd[1], O_NONBLOCK) == -1) {
-        fprintf(stderr, "%s pipe error\n", __FUNCTION__);
-      }
-    }
   }
   // create raw pipe
   err = ::pipe(_rawPipeFd);
   if (err) {
     fprintf(stderr, "%s pipe error: %s\n", __FUNCTION__, strerror(errno));
   } else {
-    if (_debug & TIMEPIX_DEBUG_NONBLOCK) {
-      // make writes to raw pipe non-blocking
-      if (setFdFlag(_rawPipeFd[1], O_NONBLOCK) == -1) {
-        fprintf(stderr, "%s pipe error\n", __FUNCTION__);
-      }
-    }
     // create routines
    _readRoutine = new ReadRoutine(this, _rawPipeFd[1]);
    _decodeRoutine = new DecodeRoutine(this, _rawPipeFd[0]);
@@ -75,28 +71,30 @@ Pds::TimepixServer::TimepixServer( const Src& client, unsigned moduleId, unsigne
     printf("%s: TIMEPIX_DEBUG_PROFILE (0x%x) is set\n",
            __FUNCTION__, TIMEPIX_DEBUG_PROFILE);
   }
-  if (_debug & TIMEPIX_DEBUG_NONBLOCK) {
-    printf("%s: TIMEPIX_DEBUG_NONBLOCK (0x%x) is set\n",
-           __FUNCTION__, TIMEPIX_DEBUG_NONBLOCK);
+  if (_debug & TIMEPIX_DEBUG_TIMECHECK) {
+    printf("%s: TIMEPIX_DEBUG_TIMECHECK (0x%x) is set\n",
+           __FUNCTION__, TIMEPIX_DEBUG_TIMECHECK);
   }
-  if (_debug & TIMEPIX_DEBUG_CONVERT) {
-    printf("%s: TIMEPIX_DEBUG_CONVERT (0x%x) is set\n",
-           __FUNCTION__, TIMEPIX_DEBUG_CONVERT);
+  if (_debug & TIMEPIX_DEBUG_NOCONVERT) {
+    printf("%s: TIMEPIX_DEBUG_NOCONVERT (0x%x) is set\n",
+           __FUNCTION__, TIMEPIX_DEBUG_NOCONVERT);
   }
 }
 
-int Pds::TimepixServer::payloadComplete(vector<BufferElement>::iterator buf_iter)
+int Pds::TimepixServer::payloadComplete(vector<BufferElement>::iterator buf_iter, bool missedTrigger)
 {
   int rv;
   command_t sendCommand;
 
   sendCommand.cmd = FrameAvailable;
   sendCommand.buf_iter = buf_iter;
+  sendCommand.missedTrigger = missedTrigger;
 
   rv = ::write(_completedPipeFd[1], &sendCommand, sizeof(sendCommand));
   if (rv == -1) {
     fprintf(stderr, "%s write error: %s\n", __FUNCTION__, strerror(errno));
   }
+
   return (rv);
 }
 
@@ -147,6 +145,7 @@ do_over:
       // new frame is available...
       if (buf_iter->_full) {      // is this buffer already full?
         fprintf(stderr, "Error: buffer overflow in %s\n", __PRETTY_FUNCTION__);
+        // FIXME _server->setReadDamage(BufferError);
         return;                   // yes: exit
       } else {
         buf_iter->_full = true;   // no: mark this buffer as full
@@ -157,15 +156,19 @@ do_over:
       }
 
       // read frame
+      bool timestampRepeat;
       int rv = _server->_timepix->readMatrixRawPlus(buf_iter->_rawData, &ss, &lostRowBuf,
                                                     &buf_iter->_header._frameCounter,
-                                                    &buf_iter->_header._timestamp);
+                                                    &buf_iter->_header._timestamp, &timestampRepeat);
       if (rv) {
         fprintf(stderr, "Error: readMatrixRawPlus() failed\n");
+        // FIXME _server->setReadDamage(DeviceError);
       } else if ((ss != TIMEPIX_RAW_DATA_BYTES) || (lostRowBuf != 0)) {
         fprintf(stderr, "Error: readMatrixRawPlus: sz=%u lost_rows=%d\n", ss, lostRowBuf);
       }
-
+      if (timestampRepeat) {
+        fprintf(stderr, "Error: readMatrixRawPlus: timestamp %u repeated\n", buf_iter->_header._timestamp);
+      }
       if (_server->_debug & TIMEPIX_DEBUG_PROFILE) {
         clock_gettime(CLOCK_REALTIME, &time2);          // TIMESTAMP 2
         _profile1[buf_iter->_header._frameCounter] = time1;
@@ -187,8 +190,10 @@ do_over:
 
 void Pds::TimepixServer::DecodeRoutine::routine()
 {
-  // vector<BufferElement>::iterator bb;
   command_t     receiveCommand;
+  unsigned      latestDiff;
+  uint32_t      previousTimestamp = 0;  // for TIMEPIX_DEBUG_TIMECHECK
+  bool          missedTrigger;
 
   // Wait for _timepix to be set
   while (_server->_timepix == NULL) {
@@ -200,6 +205,9 @@ void Pds::TimepixServer::DecodeRoutine::routine()
   }
   // trigger is configured
   while (1) {
+    // reset missed trigger flag
+    missedTrigger = false;
+
     // read from pipe
     int length = ::read(_readFd, &receiveCommand, sizeof(receiveCommand));
     if (length != sizeof(receiveCommand)) {
@@ -212,14 +220,48 @@ void Pds::TimepixServer::DecodeRoutine::routine()
       // validate buffer
       if (!buf_iter->_full) {
         fprintf(stderr, "Error: buffer underflow in %s\n", __PRETTY_FUNCTION__);
-        return;                   // yes: exit
+        // FIXME _server->setDecodeDamage(BufferError);
+        return;
       }
 
       if (_server->_debug & TIMEPIX_DEBUG_PROFILE) {
         clock_gettime(CLOCK_REALTIME, &_profile3[buf_iter->_header._frameCounter]);    // TIMESTAMP 3
+        _profileHwTimestamp[buf_iter->_header._frameCounter] = buf_iter->_header._timestamp;
+        _server->_profileCollected = true;
       }
 
-      if (_server->_debug & TIMEPIX_DEBUG_CONVERT) {
+      if (_server->_debug & TIMEPIX_DEBUG_TIMECHECK) {
+        if (_server->_resetTimestampCount > 0) {
+          --_server->_resetTimestampCount;
+        } else {
+          // inspect HW timestamp to detect missing triggers
+          if (_server->_expectedDiff == 0) {
+            _server->_expectedDiff = buf_iter->_header._timestamp - previousTimestamp;
+            printf("DecodeRoutine: Expected Timestamp Diff = %g msec\n", _server->_expectedDiff / 100.);
+          } else {
+            latestDiff = buf_iter->_header._timestamp - previousTimestamp;
+            if ((4 * latestDiff > _server->_expectedDiff * 3) && (4 * latestDiff < _server->_expectedDiff * 5)) {
+              // good: HW timestamp falls within expected range
+              ;
+            } else if ((4 * latestDiff > _server->_expectedDiff * 7) && (4 * latestDiff < _server->_expectedDiff * 9)) {
+              // bad: detected missing trigger
+              printf("Frame #%d: Missing Trigger Detected (period %g msec)\n", buf_iter->_header._frameCounter, latestDiff / 100.);
+              _server->_badFrame = buf_iter->_header._frameCounter;
+              missedTrigger = true;
+            } else {
+              // ugly: detected bad HW timestamp
+              printf("Frame #%d: HW Timestamp error (period %g msec)\n", buf_iter->_header._frameCounter, latestDiff / 100.);
+              printf("  Previous Timestamp: %u   Latest Timestamp: %u\n", previousTimestamp, buf_iter->_header._timestamp);
+              _server->_uglyFrame = buf_iter->_header._frameCounter;
+              // FIXME _server->setDecodeDamage(TimestampError);
+              _server->_outOfOrder = 1;
+            }
+          }
+        }
+        previousTimestamp = buf_iter->_header._timestamp;
+      }
+
+      if (!(_server->_debug & TIMEPIX_DEBUG_NOCONVERT)) {
         // decode to pixels
         _server->_timepix->decode2Pixels(buf_iter->_rawData, buf_iter->_pixelData);
       }
@@ -234,8 +276,12 @@ void Pds::TimepixServer::DecodeRoutine::routine()
       continue;
     }
 
-    // send notification
-    _server->payloadComplete(receiveCommand.buf_iter);
+    if ((_server->_debug & TIMEPIX_DEBUG_TIMECHECK) && missedTrigger) {
+      // send payload to make up for missed trigger
+      _server->payloadComplete(receiveCommand.buf_iter, true);
+    }
+    // send regular payload
+    _server->payloadComplete(receiveCommand.buf_iter, false);
   }
 }
 
@@ -246,6 +292,7 @@ unsigned Pds::TimepixServer::configure(const TimepixConfigType& config)
   unsigned numErrs = 0;
 
   _count = 0;
+  _missedTriggerCount = 0;
 
   if (_timepix == NULL) {
     fprintf(stderr, "Error: _timepix is NULL in %s\n", __PRETTY_FUNCTION__);
@@ -387,7 +434,7 @@ unsigned Pds::TimepixServer::configure(const TimepixConfigType& config)
 
 unsigned Pds::TimepixServer::unconfigure(void)
 {
-  _count = 0;
+  _expectedDiff = 0;
   // disable polling for new frames
   _triggerConfigured = false;
 
@@ -396,6 +443,61 @@ unsigned Pds::TimepixServer::unconfigure(void)
     fprintf(stderr, "Error: warmup() failed in %s\n", __FUNCTION__);
   }
 
+  // profiling report
+  if (_profileCollected) {
+    printf("Profiling Report: \n");
+
+    long long diff1, diff2, diff3, diff4, diff5;
+    diff1 = (_profile2[1].tv_nsec - _profile1[1].tv_nsec) / 1000;
+    diff2 = (_profile3[1].tv_nsec - _profile2[1].tv_nsec) / 1000;
+    diff3 = (_profile4[1].tv_nsec - _profile3[1].tv_nsec) / 1000;
+    diff4 = (_profile5[1].tv_nsec - _profile4[1].tv_nsec) / 1000;
+    diff5 = (_profile6[1].tv_nsec - _profile5[1].tv_nsec) / 1000;
+    printf("Profile time 1: %ld.%09ld\n", _profile1[1].tv_sec, _profile1[1].tv_nsec);
+    printf("Profile time 2: %ld.%09ld (diff %lld usec)\n", _profile2[1].tv_sec, _profile1[1].tv_nsec, diff1);
+    printf("Profile time 3: %ld.%09ld (diff %lld usec)\n", _profile3[1].tv_sec, _profile2[1].tv_nsec, diff2);
+    printf("Profile time 4: %ld.%09ld (diff %lld usec)\n", _profile4[1].tv_sec, _profile3[1].tv_nsec, diff3);
+    printf("Profile time 5: %ld.%09ld (diff %lld usec)\n", _profile5[1].tv_sec, _profile4[1].tv_nsec, diff4);
+    printf("Profile time 6: %ld.%09ld (diff %lld usec)\n", _profile6[1].tv_sec, _profile5[1].tv_nsec, diff5);
+//  printf("HW Tick 1: %u\n", _profileHwTimestamp[1]);
+    for (int ii = 1; ii <= 6; ii++) {
+      // hw ticks are 10us
+      printf("HW Tick %d: %u ", ii, _profileHwTimestamp[ii]);
+      if (ii > 1) {
+        printf("(diff %g msec)", (_profileHwTimestamp[ii] - _profileHwTimestamp[ii-1]) / 100.);
+      }
+      printf("\n");
+    }
+    if (_badFrame > 6) {
+      printf(" ...\n");
+      for (unsigned uu = _badFrame - 9 ; uu <= _badFrame; uu++) {
+          printf("HW Tick %u: %u (diff %g msec)\n", uu, _profileHwTimestamp[uu],
+                 (_profileHwTimestamp[uu] - _profileHwTimestamp[uu-1]) / 100.);
+      }
+    }
+    if (_uglyFrame > 6) {
+      printf(" ...\n");
+      for (unsigned uu = _uglyFrame - 9 ; uu <= _uglyFrame; uu++) {
+          printf("HW Tick %u: %u (diff %g msec)\n", uu, _profileHwTimestamp[uu],
+                 (_profileHwTimestamp[uu] - _profileHwTimestamp[uu-1]) / 100.);
+      }
+    }
+  }
+
+  _count = 0;
+  _missedTriggerCount = 0;
+  _badFrame = 0;
+  _uglyFrame = 0;
+
+  return (0);
+}
+
+unsigned Pds::TimepixServer::endrun(void)
+{
+  if (_debug & TIMEPIX_DEBUG_TIMECHECK) {
+    // reset timestamp check
+    _resetTimestampCount = 4;
+  }
   return (0);
 }
 
@@ -415,8 +517,6 @@ int Pds::TimepixServer::fetch( char* payload, int flags )
 
   TimepixDataType *frame = (TimepixDataType *)(payload + sizeof(Xtc));
 
-  memcpy(payload, &_xtc, sizeof(Xtc));  // xtc extent calculated in TimepixServer constructor
-
   // read from pipe
   int length = ::read(_completedPipeFd[0], &receiveCommand, sizeof(receiveCommand));
 
@@ -425,29 +525,52 @@ int Pds::TimepixServer::fetch( char* payload, int flags )
     return (-1);    // ERROR
   } else if (receiveCommand.cmd == FrameAvailable) {
 
-    if (!receiveCommand.buf_iter->_full) {     // is this buffer empty?
+    if (!receiveCommand.buf_iter->_full) {  // is this buffer empty?
       fprintf(stderr, "Error: buffer underflow in %s\n", __PRETTY_FUNCTION__);
-      // TODO damage
+      _outOfOrder = 1;
+      return (-1);
     }
 
-    frame->_lostRows = receiveCommand.buf_iter->_header._lostRows;
-    frame->_frameCounter = receiveCommand.buf_iter->_header._frameCounter;
-    frame->_timestamp = receiveCommand.buf_iter->_header._timestamp;
+    if (receiveCommand.missedTrigger) {     // missed trigger?
+      frame->_lostRows = 256;
+      ++_missedTriggerCount;
+      frame->_frameCounter = receiveCommand.buf_iter->_header._frameCounter - 1;
+      frame->_timestamp = 0;
+    } else {
+      frame->_lostRows = receiveCommand.buf_iter->_header._lostRows;
+      frame->_frameCounter = receiveCommand.buf_iter->_header._frameCounter;
+      frame->_timestamp = receiveCommand.buf_iter->_header._timestamp;
+    }
 
     ++_count;
 
     // check for out-of-order condition
-    uint16_t count16 = _count & 0xffff;
-    if (count16 != frame->_frameCounter) {
-      fprintf(stderr, "Error: sw count=%hu does not match hw frameCounter=%hu\n",
-              count16, frame->_frameCounter);
-      // TODO damage
+    uint16_t count16 = (uint16_t)_count;
+    uint16_t sum16 = (uint16_t)(frame->_frameCounter + _missedTriggerCount);
+    if (count16 != sum16) {
+      fprintf(stderr, "Error: sw count (%hu) != hw frameCounter + missed trigger count (%hu)\n",
+              count16, sum16);
+      _outOfOrder = 1;
+      return (-1);
     }
 
-    // FIXME copy pixels to payload (message queue?)
+    // copy xtc to payload
+    if (frame->_lostRows == 0) {
+      // ...undamaged
+      memcpy(payload, &_xtc, sizeof(Xtc));
+    } else {
+      // ...damaged
+      memcpy(payload, &_xtcDamaged, sizeof(Xtc));
+    }
 
-    // mark buffer as empty
-    receiveCommand.buf_iter->_full = false;
+    // copy pixels to payload
+    memcpy((void *)frame->data(), (void *)receiveCommand.buf_iter->_pixelData,
+           frame->data_size());
+
+    if (!receiveCommand.missedTrigger) {
+      // mark buffer as empty
+      receiveCommand.buf_iter->_full = false;
+    }
 
     if (_debug & TIMEPIX_DEBUG_PROFILE) {
       // TIMESTAMP 6
@@ -496,22 +619,4 @@ void TimepixServer::setOccSend(TimepixOccurrence* occSend)
 void TimepixServer::setTimepix(timepix_dev* timepix)
 {
   _timepix = timepix;
-}
-
-static int setFdFlag(int fd, int flag)
-{
-  int fdflags;
-  int rv = -1;
-
-  fdflags = ::fcntl(fd, F_GETFL);
-  if (fdflags == -1) {
-    perror("fcntl");
-  } else {
-    if (::fcntl(fd, F_SETFL, fdflags | flag) == -1) {
-      perror("fcntl");
-    } else {
-      rv = 0;
-    }
-  }
-  return (rv);
 }
