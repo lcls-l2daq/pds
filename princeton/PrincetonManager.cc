@@ -259,7 +259,7 @@ public:
     {}
         
     virtual InDatagram* fire(InDatagram* in)     
-    {           
+    {               
       int         iFail = 0;
       InDatagram* out   = in;
       
@@ -334,6 +334,17 @@ public:
           printf( "Frame  Id 0x%05x  ReadoutTime %.2fs\n", frameData.shotIdStart(), 
            frameData.readoutTime() );
         }
+      }
+
+      if ( out == in && !_bDelayMode )
+      {
+        printf("\r");
+        fflush(NULL);
+        printf("\r");
+        fflush(NULL);
+        //timeval timeSleepMicro = {0, 500}; // 0.5 ms
+        // Use select() to simulate nanosleep(), because experimentally select() controls the sleeping time more precisely
+        //select( 0, NULL, NULL, NULL, &timeSleepMicro);
       }
       
       return out;
