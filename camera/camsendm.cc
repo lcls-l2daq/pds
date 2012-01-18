@@ -41,10 +41,10 @@ using std::vector;
 using namespace PdsLeutron;
 
 static unsigned long long gettime(void)
-{	struct timeval t;
+{ struct timeval t;
 
-	gettimeofday(&t, NULL);
-	return t.tv_sec*1000000+t.tv_usec;
+  gettimeofday(&t, NULL);
+  return t.tv_sec*1000000+t.tv_usec;
 }
 
 // If we use select we have a signal handler that
@@ -235,12 +235,12 @@ int main(int argc, char *argv[])
   case 0:
     {
       Opal1kConfigType* Config = new Opal1kConfigType( 32, 100, 
-						       bitsperpixel==8 ? Opal1kConfigType::Eight_bit : 
-						       bitsperpixel==10 ? Opal1kConfigType::Ten_bit :
-						       Opal1kConfigType::Twelve_bit,
-						       Opal1kConfigType::x1,
-						       Opal1kConfigType::None,
-						       true, false);
+                   bitsperpixel==8 ? Opal1kConfigType::Eight_bit : 
+                   bitsperpixel==10 ? Opal1kConfigType::Ten_bit :
+                   Opal1kConfigType::Twelve_bit,
+                   Opal1kConfigType::x1,
+                   Opal1kConfigType::None,
+                   true, false);
       
       for(unsigned i=0; i<grabberid.size(); i++) {
         Opal1kCamera* oCamera = new Opal1kCamera( "OpalId0", grabberid[i] );
@@ -301,14 +301,14 @@ int main(int argc, char *argv[])
   default:
     {
       TM6740ConfigType* Config = new TM6740ConfigType( 0x28,  // black-level-a
-						       0x28,  // black-level-b
-						       0xde,  // gain-tap-a
-						       0xe9,  // gain-tap-b
-						       false, // gain-balance
-						       TM6740ConfigType::Eight_bit,
-						       TM6740ConfigType::x1,
-						       TM6740ConfigType::x1,
-						       TM6740ConfigType::Linear );
+                   0x28,  // black-level-b
+                   0xde,  // gain-tap-a
+                   0xe9,  // gain-tap-b
+                   false, // gain-balance
+                   TM6740ConfigType::Eight_bit,
+                   TM6740ConfigType::x1,
+                   TM6740ConfigType::x1,
+                   TM6740ConfigType::Linear );
       for(unsigned i=0; i<grabberid.size(); i++) {
         TM6740Camera* tCamera = new TM6740Camera( "PulnixId0", grabberid[i] );
         tCamera->set_config_data(Config);
@@ -523,7 +523,7 @@ int main(int argc, char *argv[])
       sndimg.size = htonl(pFrame->width*pFrame->height*pFrame->elsize);
       sndimg.width = htons(pFrame->width);
       sndimg.height = htons(pFrame->height);
-      sndimg.data_off = htonl(4);	/* Delta between ptr address and data */
+      sndimg.data_off = htonl(4); /* Delta between ptr address and data */
 
       ret = send(sockfd, (char *)&sndimg, sizeof(sndimg), 0);
       if (ret < 0) {
