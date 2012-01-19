@@ -305,11 +305,6 @@ unsigned Pds::TimepixServer::configure(const TimepixConfigType& config)
     return (1);
   }
 
-  if (_timepix->resetFrameCounter()) {
-    fprintf(stderr, "Error: resetFrameCounter() failed in %s\n", __FUNCTION__);
-    ++numErrs;
-  }
-
   _readoutSpeed = config.readoutSpeed();
   _triggerMode = config.triggerMode();
   _shutterTimeout = config.shutterTimeout();
@@ -373,6 +368,26 @@ unsigned Pds::TimepixServer::configure(const TimepixConfigType& config)
   _dac3[11] = config.dac3Ths();
   _dac3[12] = config.dac3BiasLvds();
   _dac3[13] = config.dac3RefLvds();
+
+  // clear the shutter flag before setFsr()
+
+  if (_timepix->readReg(MPIX2_CONF_REG_OFFSET, &configReg) == 0) {
+
+     configReg &= ~(MPIX2_CONF_EXT_TRIG_ENABLE| MPIX2_CONF_TIMER_USED);
+
+      configReg |= MPIX2_CONF_TIMER_USED;
+      configReg |= MPIX2_CONF_SHUTTER_CLOSED;
+
+    if (_timepix->writeReg(MPIX2_CONF_REG_OFFSET, configReg)) {
+      fprintf(stderr, "Error: writeReg(MPIX2_CONF_REG_OFFSET) failed\n");
+      ++numErrs;
+    }
+  }
+
+  if (_timepix->resetFrameCounter()) {
+    fprintf(stderr, "Error: resetFrameCounter() failed in %s\n", __FUNCTION__);
+    ++numErrs;
+  }
 
   // Medipix device DACs configuration
   if (_timepix->setFsr(0, _dac0) ) {
@@ -562,8 +577,8 @@ int Pds::TimepixServer::fetch( char* payload, int flags )
     uint16_t count16 = (uint16_t)_count;
     uint16_t sum16 = (uint16_t)(frame->_frameCounter + _missedTriggerCount);
     if (count16 != sum16) {
-      fprintf(stderr, "Error: sw count (%hu) != hw frameCounter + missed trigger count (%hu)\n",
-              count16, sum16);
+      fprintf(stderr, "Error: sw count (%hu) != hw frameCounter (%hu) + missed trigger count (%u) == (%hu)\n",
+              count16, frame->_frameCounter, _missedTriggerCount, sum16);
       // latch error
       _outOfOrder = 1;
       if (_occSend) {
