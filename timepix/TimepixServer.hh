@@ -14,6 +14,7 @@
 #include "pds/service/Routine.hh"
 
 #include "timepix_dev.hh"
+#include "TimepixOccurrence.hh"
 
 #include "mpxmodule.h"
 
@@ -68,7 +69,7 @@ class Pds::TimepixServer
     enum {BufferDepth=64};
 
     void setTimepix(timepix_dev *timepix);
-//  void setOccSend(TimepixOccurrence* occSend);
+    void setOccSend(TimepixOccurrence* occSend);
 
   private:
 
@@ -140,9 +141,9 @@ class Pds::TimepixServer
     Xtc _xtcDamaged;
     unsigned    _count;
     unsigned    _missedTriggerCount;
+    TimepixOccurrence *_occSend;
     unsigned    _expectedDiff;
     int         _resetTimestampCount;
-    // TimepixOccurrence *_occSend;
     unsigned    _moduleId;
     unsigned    _verbosity;
     unsigned    _debug;

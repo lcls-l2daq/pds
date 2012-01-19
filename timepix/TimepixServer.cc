@@ -23,7 +23,7 @@ uint32_t _profileHwTimestamp[PROFILE_MAX];
 Pds::TimepixServer::TimepixServer( const Src& client, unsigned moduleId, unsigned verbosity, unsigned debug)
    : _xtc( _timepixDataType, client ),
      _xtcDamaged( _timepixDataType, client ),
-//   _occSend(NULL),
+     _occSend(NULL),
      _expectedDiff(0),
      _resetTimestampCount(4),
      _moduleId(moduleId),
@@ -295,7 +295,13 @@ unsigned Pds::TimepixServer::configure(const TimepixConfigType& config)
   _missedTriggerCount = 0;
 
   if (_timepix == NULL) {
-    fprintf(stderr, "Error: _timepix is NULL in %s\n", __PRETTY_FUNCTION__);
+    char msgBuf[80];
+    sprintf(msgBuf, "Timepix module %u (192.168.%d.175) init failed\n", moduleId(), 33+moduleId());
+    fprintf(stderr, "%s: %s", __PRETTY_FUNCTION__, msgBuf);
+    if (_occSend != NULL) {
+      // send occurrence
+      _occSend->userMessage(msgBuf);
+    }
     return (1);
   }
 
@@ -422,8 +428,11 @@ unsigned Pds::TimepixServer::configure(const TimepixConfigType& config)
   }
 
   if (numErrs > 0) {
-      fprintf(stderr, "Timepix: Failed to configure.\n");
-      // send occurrence TODO
+    fprintf(stderr, "Timepix: Failed to configure.\n");
+    if (_occSend != NULL) {
+      // send occurrence
+      _occSend->userMessage("Timepix: Failed to configure.\n");
+    }
   } else {
     // enable polling for new frames
     _triggerConfigured = true;
@@ -438,8 +447,8 @@ unsigned Pds::TimepixServer::unconfigure(void)
   // disable polling for new frames
   _triggerConfigured = false;
 
-  // reinitialize Timepix
-  if (_timepix->warmup(true)) {
+  // reinitialize Timepix (if _timepix has been set)
+  if (_timepix && _timepix->warmup(true)) {
     fprintf(stderr, "Error: warmup() failed in %s\n", __FUNCTION__);
   }
 
@@ -609,12 +618,10 @@ unsigned TimepixServer::debug() const
   return (_debug);
 }
 
-#if 0
 void TimepixServer::setOccSend(TimepixOccurrence* occSend)
 {
   _occSend = occSend;
 }
-#endif
 
 void TimepixServer::setTimepix(timepix_dev* timepix)
 {

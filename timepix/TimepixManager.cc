@@ -16,8 +16,6 @@
 #include "TimepixServer.hh"
 #include "pdsdata/timepix/ConfigV1.hh"
 #include "pds/config/CfgClientNfs.hh"
-// #include "TimepixOccurrence.hh"
-#include "timepix_dev.hh"
 
 #include "mpxmodule.h"
 
@@ -83,11 +81,13 @@ class TimepixConfigAction : public TimepixAction
    TimepixConfigAction( const Src& src0,
                         CfgClientNfs* cfg,
                         TimepixServer* server,
-                        TimepixL1Action& L1 )
+                        TimepixL1Action& L1,
+                        TimepixOccurrence* occSend )
       : _cfgtc( _timepixConfigType, src0 ),
         _cfg( cfg ),
         _server( server ),
-        _L1( L1 )
+        _L1( L1 ),
+        _occSend( occSend )
   {
   _cfgtc.extent += sizeof(TimepixConfigType);
   }
@@ -119,8 +119,7 @@ class TimepixConfigAction : public TimepixAction
            ": (%d) %s.  Applying default.\n",
            errno,
            strerror(errno) );
-    // FIXME
-    // _occSend->userMessage("Timepix: failed to retrieve configuration.\n");
+    _occSend->userMessage("Timepix: failed to retrieve configuration.\n");
     _nerror += 1;
   } else {
     _config.dump();
@@ -142,7 +141,7 @@ class TimepixConfigAction : public TimepixAction
     TimepixServer* _server;
     unsigned _nerror;
     TimepixL1Action& _L1;
-    // TimepixOccurrence* _occSend;
+    TimepixOccurrence* _occSend;
 };
 
 
@@ -231,8 +230,8 @@ TimepixManager::TimepixManager( TimepixServer* server,
   int ndevs;
   printf("%s being initialized...\n", __FUNCTION__);
 
-  // _occSend = new TimepixOccurrence(this);
-  // server->setOccSend(_occSend);
+  _occSend = new TimepixOccurrence(this);
+  server->setOccSend(_occSend);
 
   int id = (int)server->moduleId();
 
@@ -273,8 +272,7 @@ TimepixManager::TimepixManager( TimepixServer* server,
   const Src& src0 = server->client();
 
  _fsm.callback( TransitionId::Configure,
-                // new TimepixConfigAction( src0, cfg, server, timepixL1, _occSend) );
-                new TimepixConfigAction( src0, cfg, server, timepixL1 ) );
+                new TimepixConfigAction( src0, cfg, server, timepixL1, _occSend) );
  _fsm.callback( TransitionId::Unconfigure,
                 new TimepixUnconfigAction( server ) );
  _fsm.callback( TransitionId::EndRun,

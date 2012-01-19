@@ -3,7 +3,7 @@
 
 #include "pds/utility/Appliance.hh"
 #include "pds/client/Fsm.hh"
-// #include "TimepixOccurrence.hh"
+#include "TimepixOccurrence.hh"
 #include "timepix_dev.hh"
 
 namespace Pds {
@@ -18,13 +18,13 @@ class Pds::TimepixManager {
     TimepixManager(TimepixServer* server,
                    CfgClientNfs* cfg);
     Appliance& appliance(void);
-//  void setOccSend(Gsc16aiOccurrence* occSend);
+    void setOccSend(TimepixOccurrence* occSend);
     void setTimepix(timepix_dev* timepix);
 
   private:
     Fsm&                _fsm;
     static const char*  _calibPath;
-    // TimepixOccurrence*  _occSend;
+    TimepixOccurrence*  _occSend;
     timepix_dev*        _timepix;
 };
 
