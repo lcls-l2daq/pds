@@ -965,6 +965,7 @@ public:
     //
     //  Special software trigger service to L1 nodes
     //
+    if (l1xmitGlobal->enable())
     {
       out->send(_swtrig_out, _swtrig_dst);
     }
