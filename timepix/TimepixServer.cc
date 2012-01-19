@@ -382,6 +382,9 @@ unsigned Pds::TimepixServer::configure(const TimepixConfigType& config)
       fprintf(stderr, "Error: writeReg(MPIX2_CONF_REG_OFFSET) failed\n");
       ++numErrs;
     }
+  } else {
+    fprintf(stderr, "Error: readReg(MPIX2_CONF_REG_OFFSET) failed\n");
+    ++numErrs;
   }
 
   if (_timepix->resetFrameCounter()) {
