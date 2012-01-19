@@ -536,7 +536,12 @@ int Pds::TimepixServer::fetch( char* payload, int flags )
 
     if (!receiveCommand.buf_iter->_full) {  // is this buffer empty?
       fprintf(stderr, "Error: buffer underflow in %s\n", __PRETTY_FUNCTION__);
+      // latch error
       _outOfOrder = 1;
+      if (_occSend) {
+        // send occurrence
+        _occSend->outOfOrder();
+      }
       return (-1);
     }
 
@@ -559,7 +564,12 @@ int Pds::TimepixServer::fetch( char* payload, int flags )
     if (count16 != sum16) {
       fprintf(stderr, "Error: sw count (%hu) != hw frameCounter + missed trigger count (%hu)\n",
               count16, sum16);
+      // latch error
       _outOfOrder = 1;
+      if (_occSend) {
+        // send occurrence
+        _occSend->outOfOrder();
+      }
       return (-1);
     }
 
