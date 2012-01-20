@@ -132,11 +132,17 @@ do_over:
       // wait for trigger to be configured
       while (!_server->_triggerConfigured) {
         decisleep(1);
+        if (_server->_outOfOrder) {
+          return;
+        }
       }
 
       // trigger is configured
       // wait for new frame
       while (!_server->_timepix->newFrame()) {
+        if (_server->_outOfOrder) {
+          return;
+        }
         if (!_server->_triggerConfigured) {
           goto do_over;
         }
@@ -146,6 +152,7 @@ do_over:
       if (buf_iter->_full) {      // is this buffer already full?
         fprintf(stderr, "Error: buffer overflow in %s\n", __PRETTY_FUNCTION__);
         // FIXME _server->setReadDamage(BufferError);
+        _server->_outOfOrder = 1;
         return;                   // yes: exit
       } else {
         buf_iter->_full = true;   // no: mark this buffer as full
@@ -221,6 +228,7 @@ void Pds::TimepixServer::DecodeRoutine::routine()
       if (!buf_iter->_full) {
         fprintf(stderr, "Error: buffer underflow in %s\n", __PRETTY_FUNCTION__);
         // FIXME _server->setDecodeDamage(BufferError);
+        _server->_outOfOrder = 1;
         return;
       }
 
