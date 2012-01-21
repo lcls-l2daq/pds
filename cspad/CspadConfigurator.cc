@@ -288,7 +288,6 @@ namespace Pds {
 
     unsigned CspadConfigurator::readRegs() {
       unsigned ret = Success;
-      _d.dest(CspadDestination::CR);
       for (unsigned i=0; i<Pds::CsPad::MaxQuadsPerSensor; i++) {
         if ((1<<i) & _config->quadMask()) {
           uint32_t* u = (uint32_t*) _config->quads()[i].readOnly();
@@ -302,6 +301,7 @@ namespace Pds {
               i, (unsigned)u[0], (unsigned)u[1], u, _config->quads()[i].readOnly());
         }
       }
+      _d.dest(CspadDestination::CR);
       if (Failure == _pgp->readRegister(
           &_d,
           ConcentratorVersionAddr,
