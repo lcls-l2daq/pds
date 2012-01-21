@@ -70,6 +70,8 @@ class Pds::TimepixServer
 
     void setTimepix(timepix_dev *timepix);
     void setOccSend(TimepixOccurrence* occSend);
+    Task *readTask();
+    Task *decodeTask();
 
   private:
 

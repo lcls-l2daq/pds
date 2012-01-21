@@ -663,3 +663,13 @@ void TimepixServer::setTimepix(timepix_dev* timepix)
 {
   _timepix = timepix;
 }
+
+Task *TimepixServer::readTask()
+{
+  return (_readTask);
+}
+
+Task *TimepixServer::decodeTask()
+{
+  return (_decodeTask);
+}
