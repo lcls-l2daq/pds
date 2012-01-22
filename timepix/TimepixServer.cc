@@ -418,6 +418,15 @@ unsigned Pds::TimepixServer::configure(const TimepixConfigType& config)
   _dac3[12] = config.dac3BiasLvds();
   _dac3[13] = config.dac3RefLvds();
 
+  // set TOT mode
+
+  if (_timepix->setPixelsCfgTOT()) {
+    fprintf(stderr, "Error: setPixelsCfgTOT() failed\n");
+    ++numErrs;
+  } else {
+    printf("Mode: Time Over Threshold (TOT)\n");
+  }
+
   // clear the shutter flag before setFsr()
 
   if (_timepix->readReg(MPIX2_CONF_REG_OFFSET, &configReg) == 0) {

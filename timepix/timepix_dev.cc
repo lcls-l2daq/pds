@@ -92,6 +92,19 @@ int timepix_dev::readMatrixRaw(uint8_t *bytes, uint32_t *sz, int *lost_rows)
   return (rv);
 }
 
+int timepix_dev::setPixelsCfgTOT(void)
+{
+  int rv1, rv2;
+
+  _mutex->take();
+  rv1 = _relaxd->setPixelsCfg(TPX_MODE_TOT, 0, 0);
+  // this is required after every call to setPixelsCfg()
+  rv2 = _relaxd->resetMatrix();
+  _mutex->give();
+
+  return (rv1+rv2);
+}
+
 int timepix_dev::readMatrixRawPlus(uint8_t *bytes, uint32_t *sz, int *lost_rows,
                                    uint16_t *lastFrameCount, uint32_t *lastClockTick)
 {
