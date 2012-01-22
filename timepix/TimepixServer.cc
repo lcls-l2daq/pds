@@ -10,6 +10,8 @@
 
 using namespace Pds;
 
+#define RESET_COUNT 0x80000000
+
 #define PROFILE_MAX (USHRT_MAX+1)
 
 timespec _profile1[PROFILE_MAX];
@@ -79,6 +81,14 @@ Pds::TimepixServer::TimepixServer( const Src& client, unsigned moduleId, unsigne
   if (_debug & TIMEPIX_DEBUG_NOCONVERT) {
     printf("%s: TIMEPIX_DEBUG_NOCONVERT (0x%x) is set\n",
            __FUNCTION__, TIMEPIX_DEBUG_NOCONVERT);
+  }
+  if (_debug & TIMEPIX_DEBUG_CLEAR_ERR_PIXELS) {
+    printf("%s: TIMEPIX_DEBUG_CLEAR_ERR_PIXELS (0x%x) is set\n",
+           __FUNCTION__, TIMEPIX_DEBUG_CLEAR_ERR_PIXELS);
+  }
+  if (_debug & TIMEPIX_DEBUG_IGNORE_FRAMECOUNT) {
+    printf("%s: TIMEPIX_DEBUG_IGNORE_FRAMECOUNT (0x%x) is set\n",
+           __FUNCTION__, TIMEPIX_DEBUG_IGNORE_FRAMECOUNT);
   }
 }
 
@@ -289,6 +299,15 @@ void Pds::TimepixServer::DecodeRoutine::routine()
       if (!(_server->_debug & TIMEPIX_DEBUG_NOCONVERT)) {
         // decode to pixels
         _server->_timepix->decode2Pixels(buf_iter->_rawData, buf_iter->_pixelData);
+
+        if (_server->_debug & TIMEPIX_DEBUG_CLEAR_ERR_PIXELS) {
+          // clear error pixels
+          for (int ii=0; ii < 512 * 512; ii++) {    // FIXME constants
+            if ((buf_iter->_pixelData[ii] & 0x8000) != 0) {
+              buf_iter->_pixelData[ii] = 0;
+            }
+          }
+        }
       }
 
       if (_server->_debug & TIMEPIX_DEBUG_PROFILE) {
@@ -604,19 +623,21 @@ int Pds::TimepixServer::fetch( char* payload, int flags )
 
     ++_count;
 
-    // check for out-of-order condition
-    uint16_t count16 = (uint16_t)_count;
-    uint16_t sum16 = (uint16_t)(frame->_frameCounter + _missedTriggerCount);
-    if (count16 != sum16) {
-      fprintf(stderr, "Error: sw count (%hu) != hw frameCounter (%hu) + missed trigger count (%u) == (%hu)\n",
-              count16, frame->_frameCounter, _missedTriggerCount, sum16);
-      // latch error
-      _outOfOrder = 1;
-      if (_occSend) {
-        // send occurrence
-        _occSend->outOfOrder();
+    if (!(_debug & TIMEPIX_DEBUG_IGNORE_FRAMECOUNT)) {
+      // check for out-of-order condition
+      uint16_t count16 = (uint16_t)_count;
+      uint16_t sum16 = (uint16_t)(frame->_frameCounter + _missedTriggerCount);
+      if (count16 != sum16) {
+        fprintf(stderr, "Error: sw count (%hu) != hw frameCounter (%hu) + missed trigger count (%u) == (%hu)\n",
+                count16, frame->_frameCounter, _missedTriggerCount, sum16);
+        // latch error
+        _outOfOrder = 1;
+        if (_occSend) {
+          // send occurrence
+          _occSend->outOfOrder();
+        }
+        return (-1);
       }
-      return (-1);
     }
 
     // copy xtc to payload

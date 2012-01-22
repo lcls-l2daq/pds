@@ -18,9 +18,11 @@
 
 #include "mpxmodule.h"
 
-#define TIMEPIX_DEBUG_PROFILE         0x00000001
-#define TIMEPIX_DEBUG_TIMECHECK       0x00000002
-#define TIMEPIX_DEBUG_NOCONVERT       0x00000004
+#define TIMEPIX_DEBUG_PROFILE             0x00000001
+#define TIMEPIX_DEBUG_TIMECHECK           0x00000002
+#define TIMEPIX_DEBUG_NOCONVERT           0x00000004
+#define TIMEPIX_DEBUG_CLEAR_ERR_PIXELS    0x00000008
+#define TIMEPIX_DEBUG_IGNORE_FRAMECOUNT   0x00000010
 
 namespace Pds
 {
@@ -164,7 +166,6 @@ class Pds::TimepixServer
     Task *_decodeTask;
     DecodeRoutine *_decodeRoutine;
     int _shutdownFlag;
-    // TODO add Timepix clock speed
     int8_t      _readoutSpeed, _triggerMode;
     int32_t     _shutterTimeout;
     int32_t     _dac0[TPX_DACS];
