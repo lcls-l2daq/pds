@@ -65,13 +65,14 @@ class Pds::TimepixServer
     unsigned configure(const TimepixConfigType& config);
     unsigned unconfigure(void);
     unsigned endrun(void);
-    enum Command {FrameAvailable=0, TriggerConfigured, TriggerNotConfigured};
+    enum Command {FrameAvailable=0, TriggerConfigured, TriggerNotConfigured, TaskShutdown};
     enum {BufferDepth=64};
 
     void setTimepix(timepix_dev *timepix);
     void setOccSend(TimepixOccurrence* occSend);
     Task *readTask();
     Task *decodeTask();
+    void shutdown();
 
   private:
 
@@ -162,6 +163,8 @@ class Pds::TimepixServer
     ReadRoutine *_readRoutine;
     Task *_decodeTask;
     DecodeRoutine *_decodeRoutine;
+    int _shutdownFlag;
+    // TODO add Timepix clock speed
     int8_t      _readoutSpeed, _triggerMode;
     int32_t     _shutterTimeout;
     int32_t     _dac0[TPX_DACS];

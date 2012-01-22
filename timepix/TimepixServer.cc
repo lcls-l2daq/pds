@@ -37,7 +37,8 @@ Pds::TimepixServer::TimepixServer( const Src& client, unsigned moduleId, unsigne
      _timepix(NULL),
      _buffer(new vector<BufferElement>(BufferDepth)),
      _readTask(new Task(TaskObject("readframe"))),
-     _decodeTask(new Task(TaskObject("decodeframe")))
+     _decodeTask(new Task(TaskObject("decodeframe"))),
+     _shutdownFlag(0)
 {
   // calculate xtc extent
   _xtc.extent = sizeof(TimepixDataType) + sizeof(Xtc) + TIMEPIX_DECODED_DATA_BYTES;
@@ -122,6 +123,9 @@ void Pds::TimepixServer::ReadRoutine::routine()
 
   // Wait for _timepix to be set
   while (_server->_timepix == NULL) {
+    if (_server->_outOfOrder || _server->_shutdownFlag) {
+      goto read_shutdown;
+    }
     decisleep(1);
   }
 
@@ -132,16 +136,16 @@ do_over:
       // wait for trigger to be configured
       while (!_server->_triggerConfigured) {
         decisleep(1);
-        if (_server->_outOfOrder) {
-          return;
+        if (_server->_outOfOrder || _server->_shutdownFlag) {
+          goto read_shutdown;
         }
       }
 
       // trigger is configured
       // wait for new frame
       while (!_server->_timepix->newFrame()) {
-        if (_server->_outOfOrder) {
-          return;
+        if (_server->_outOfOrder || _server->_shutdownFlag) {
+          goto read_shutdown;
         }
         if (!_server->_triggerConfigured) {
           goto do_over;
@@ -153,7 +157,7 @@ do_over:
         fprintf(stderr, "Error: buffer overflow in %s\n", __PRETTY_FUNCTION__);
         // FIXME _server->setReadDamage(BufferError);
         _server->_outOfOrder = 1;
-        return;                   // yes: exit
+        goto read_shutdown;       // yes: shutdown
       } else {
         buf_iter->_full = true;   // no: mark this buffer as full
       }
@@ -163,18 +167,14 @@ do_over:
       }
 
       // read frame
-      bool timestampRepeat;
       int rv = _server->_timepix->readMatrixRawPlus(buf_iter->_rawData, &ss, &lostRowBuf,
                                                     &buf_iter->_header._frameCounter,
-                                                    &buf_iter->_header._timestamp, &timestampRepeat);
+                                                    &buf_iter->_header._timestamp);
       if (rv) {
         fprintf(stderr, "Error: readMatrixRawPlus() failed\n");
         // FIXME _server->setReadDamage(DeviceError);
       } else if ((ss != TIMEPIX_RAW_DATA_BYTES) || (lostRowBuf != 0)) {
         fprintf(stderr, "Error: readMatrixRawPlus: sz=%u lost_rows=%d\n", ss, lostRowBuf);
-      }
-      if (timestampRepeat) {
-        fprintf(stderr, "Error: readMatrixRawPlus: timestamp %u repeated\n", buf_iter->_header._timestamp);
       }
       if (_server->_debug & TIMEPIX_DEBUG_PROFILE) {
         clock_gettime(CLOCK_REALTIME, &time2);          // TIMESTAMP 2
@@ -193,6 +193,14 @@ do_over:
       }
     } // end of for
   } // end of while
+
+read_shutdown:
+  printf("\n ** read task shutdown **\n");
+  // send shutdown command to decode task
+  sendCommand.cmd = TaskShutdown;
+  if (::write(_writeFd, &sendCommand, sizeof(sendCommand)) == -1) {
+    fprintf(stderr, "%s write error: %s\n", __PRETTY_FUNCTION__, strerror(errno));
+  }
 }
 
 void Pds::TimepixServer::DecodeRoutine::routine()
@@ -204,14 +212,23 @@ void Pds::TimepixServer::DecodeRoutine::routine()
 
   // Wait for _timepix to be set
   while (_server->_timepix == NULL) {
+    if (_server->_outOfOrder || _server->_shutdownFlag) {
+      goto decode_shutdown;
+    }
     decisleep(1);
   }
   // wait for trigger to be configured
   while (!_server->_triggerConfigured) {
+    if (_server->_shutdownFlag) {
+      goto decode_shutdown;
+    }
     decisleep(1);
   }
   // trigger is configured
   while (1) {
+    if (_server->_shutdownFlag) {
+      goto decode_shutdown;
+    }
     // reset missed trigger flag
     missedTrigger = false;
 
@@ -278,6 +295,8 @@ void Pds::TimepixServer::DecodeRoutine::routine()
         clock_gettime(CLOCK_REALTIME, &_profile4[buf_iter->_header._frameCounter]);    // TIMESTAMP 4
       }
 
+    } else if (receiveCommand.cmd == TaskShutdown) {
+      goto decode_shutdown;
     } else {
       fprintf(stderr, "Error: unrecognized cmd (%d) in %s\n",
               (int)receiveCommand.cmd, __PRETTY_FUNCTION__);
@@ -291,6 +310,9 @@ void Pds::TimepixServer::DecodeRoutine::routine()
     // send regular payload
     _server->payloadComplete(receiveCommand.buf_iter, false);
   }
+
+decode_shutdown:
+  printf("\n ** decode task shutdown **\n");
 }
 
 unsigned Pds::TimepixServer::configure(const TimepixConfigType& config)
@@ -422,8 +444,6 @@ unsigned Pds::TimepixServer::configure(const TimepixConfigType& config)
     configReg &= ~MPIX2_CONF_TIMER_USED;      // Reset 'use Timer'
 
     configReg |= MPIX2_CONF_EXT_TRIG_ENABLE;  // Enable external trigger
-
-    configReg &= ~MPIX2_CONF_EXT_TRIG_FALLING_EDGE; // Trigger on rising edge
 
     configReg &= ~MPIX2_CONF_EXT_TRIG_INHIBIT; // Ready for next (external) trigger
 
@@ -672,4 +692,10 @@ Task *TimepixServer::readTask()
 Task *TimepixServer::decodeTask()
 {
   return (_decodeTask);
+}
+
+void TimepixServer::shutdown()
+{
+  printf("\n ** TimepixServer shutdown **\n");
+  _shutdownFlag = 1;
 }

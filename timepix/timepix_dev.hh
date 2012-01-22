@@ -28,7 +28,7 @@ public:
   bool newFrame(bool check=true, bool clear=true);
   int readMatrixRaw(uint8_t *bytes, uint32_t *sz, int *lost_rows);
   int readMatrixRawPlus(uint8_t *bytes, uint32_t *sz, int *lost_rows,
-                        uint16_t *lastFrameCount, uint32_t *lastClockTick, bool *timestampRepeated);
+                        uint16_t *lastFrameCount, uint32_t *lastClockTick);
   int readReg(uint32_t offset, uint32_t *value);
   int writeReg(uint32_t offset, uint32_t value);
   int setFsr(int chipnr, int *dac, uint32_t col_testpulse_reg=0);

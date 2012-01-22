@@ -93,10 +93,9 @@ int timepix_dev::readMatrixRaw(uint8_t *bytes, uint32_t *sz, int *lost_rows)
 }
 
 int timepix_dev::readMatrixRawPlus(uint8_t *bytes, uint32_t *sz, int *lost_rows,
-                                   uint16_t *lastFrameCount, uint32_t *lastClockTick, bool *timestampRepeated)
+                                   uint16_t *lastFrameCount, uint32_t *lastClockTick)
 {
   int rv;
-  static uint32_t prevClockTick = 0;
 
   _mutex->take();
   // read raw data
@@ -112,15 +111,6 @@ int timepix_dev::readMatrixRawPlus(uint8_t *bytes, uint32_t *sz, int *lost_rows,
     *lastClockTick = _relaxd->lastClockTick();
   }
   _mutex->give();
-
-  if (lastClockTick && timestampRepeated) {
-    if  (prevClockTick == *lastClockTick) {
-      *timestampRepeated = true;
-    } else {
-      *timestampRepeated = false;
-      prevClockTick = *lastClockTick;
-    }
-  }
 
   return (rv);
 }
