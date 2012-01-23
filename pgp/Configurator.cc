@@ -54,7 +54,7 @@ namespace Pds {
         Destination _d;
         unsigned maxCount = 32;
         char path[240];
-        char* home = getenv("HOME"); //"/reg/lab2/home/jackp"; //getenv("HOME");
+        char* home = getenv("HOME");
         sprintf(path,"%s/%s",home, name);
         f = fopen (path, "r");
         if (!f) {
@@ -65,8 +65,8 @@ namespace Pds {
           unsigned myi = 0;
           unsigned dest, addr, data;
           while (fscanf(f, "%x %x %x", &dest, &addr, &data) && !feof(f) && myi++ < maxCount) {
-            printf("\n\tFound run time config addtions: dest 0x%x, addr 0x%x, data 0x%x ", dest, addr, data);
             _d.dest(dest);
+            printf("\n\tFound run time config addtions: dest %s, addr 0x%x, data 0x%x ", _d.name(), addr, data);
             if(_pgp->writeRegister(&_d, addr, data)) {
               printf("\nConfigurator::loadRunTimeConfigAdditions failed on dest %u address 0x%x\n", dest, addr);
             }
