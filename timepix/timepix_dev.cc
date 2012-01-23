@@ -94,15 +94,21 @@ int timepix_dev::readMatrixRaw(uint8_t *bytes, uint32_t *sz, int *lost_rows)
 
 int timepix_dev::setPixelsCfgTOT(void)
 {
-  int rv1, rv2;
+  int rv2, rv3;
 
   _mutex->take();
-  rv1 = _relaxd->setPixelsCfg(TPX_MODE_TOT, 0, 0);
+
+  // this is required before setPixelsCfg()
+  _relaxd->setParReadout(true);
+
+  rv2 = _relaxd->setPixelsCfg(TPX_MODE_TOT, 0, 0);
+
   // this is required after every call to setPixelsCfg()
-  rv2 = _relaxd->resetMatrix();
+  rv3 = _relaxd->resetMatrix();
+
   _mutex->give();
 
-  return (rv1+rv2);
+  return (rv2+rv3);
 }
 
 int timepix_dev::readMatrixRawPlus(uint8_t *bytes, uint32_t *sz, int *lost_rows,
@@ -164,6 +170,47 @@ int timepix_dev::setFsr(int chipnr, int *dac, uint32_t col_testpulse_reg)
 void timepix_dev::decode2Pixels(uint8_t *bytes, int16_t *pixels)
 {
   _relaxd->decode2Pixels(bytes, pixels);  // no mutex needed
+}
+
+int timepix_dev::enableExtTrigger(bool enable)
+{
+  int rv;
+
+  _mutex->take();
+  rv = _relaxd->enableExtTrigger(enable);
+  _mutex->give();
+
+  return (rv);
+}
+
+int timepix_dev::setPixelsCfg(uint8_t *bytes)
+{
+  int rv1, rv2;
+
+  _mutex->take();
+  rv1 = _relaxd->setPixelsCfg(bytes);
+
+  // this is required after every call to setPixelsCfg()
+  rv2 = _relaxd->resetMatrix();
+  _mutex->give();
+
+  return rv1+rv2;
+}
+
+int timepix_dev::setTimepixSpeed(int32_t speed)
+{
+  int rv = 1;
+
+  if (speed >=0 && speed <= 4) {
+    _mutex->take();
+    _relaxd->rmwReg( MPIX2_CONF_REG_OFFSET,
+                 speed << MPIX2_CONF_TPX_CLOCK_SHIFT,
+                 MPIX2_CONF_TPX_CLOCK_MASK );
+    _mutex->give();
+    rv = 0; // return success
+  }
+
+  return rv;
 }
 
 //

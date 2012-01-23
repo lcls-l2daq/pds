@@ -22,7 +22,7 @@ timespec _profile5[PROFILE_MAX];
 timespec _profile6[PROFILE_MAX];
 uint32_t _profileHwTimestamp[PROFILE_MAX];
 
-Pds::TimepixServer::TimepixServer( const Src& client, unsigned moduleId, unsigned verbosity, unsigned debug)
+Pds::TimepixServer::TimepixServer( const Src& client, unsigned moduleId, unsigned verbosity, unsigned debug, char *threshFile)
    : _xtc( _timepixDataType, client ),
      _xtcDamaged( _timepixDataType, client ),
      _occSend(NULL),
@@ -40,7 +40,9 @@ Pds::TimepixServer::TimepixServer( const Src& client, unsigned moduleId, unsigne
      _buffer(new vector<BufferElement>(BufferDepth)),
      _readTask(new Task(TaskObject("readframe"))),
      _decodeTask(new Task(TaskObject("decodeframe"))),
-     _shutdownFlag(0)
+     _shutdownFlag(0),
+     _pixelsCfg(NULL),
+     _threshFile(threshFile)
 {
   // calculate xtc extent
   _xtc.extent = sizeof(TimepixDataType) + sizeof(Xtc) + TIMEPIX_DECODED_DATA_BYTES;
@@ -82,14 +84,41 @@ Pds::TimepixServer::TimepixServer( const Src& client, unsigned moduleId, unsigne
     printf("%s: TIMEPIX_DEBUG_NOCONVERT (0x%x) is set\n",
            __FUNCTION__, TIMEPIX_DEBUG_NOCONVERT);
   }
-  if (_debug & TIMEPIX_DEBUG_CLEAR_ERR_PIXELS) {
-    printf("%s: TIMEPIX_DEBUG_CLEAR_ERR_PIXELS (0x%x) is set\n",
-           __FUNCTION__, TIMEPIX_DEBUG_CLEAR_ERR_PIXELS);
+  if (_debug & TIMEPIX_DEBUG_KEEP_ERR_PIXELS) {
+    printf("%s: TIMEPIX_DEBUG_KEEP_ERR_PIXELS (0x%x) is set\n",
+           __FUNCTION__, TIMEPIX_DEBUG_KEEP_ERR_PIXELS);
   }
   if (_debug & TIMEPIX_DEBUG_IGNORE_FRAMECOUNT) {
     printf("%s: TIMEPIX_DEBUG_IGNORE_FRAMECOUNT (0x%x) is set\n",
            __FUNCTION__, TIMEPIX_DEBUG_IGNORE_FRAMECOUNT);
   }
+
+  // TODO avoid hardcoded values and move to another function
+  if (threshFile) {
+    FILE* fp = fopen(threshFile, "r");
+    if (fp == NULL) {
+      perror("fopen");
+    } else {
+      _pixelsCfg = new uint8_t[4*256*256];
+      if (fread(_pixelsCfg, 256*256, 4, fp) != 4) {
+        perror("fread");
+        delete[] _pixelsCfg;
+        _pixelsCfg = NULL;
+      } else {
+        for (int jj=0; jj < 4*256*256; jj++) {
+          // ensure that TOT mode is set
+          _pixelsCfg[jj] &= ~TPX_CFG8_MODE_MASK;
+          _pixelsCfg[jj] |= (TPX_MODE_TOT << TPX_CFG8_MODE_MASK_SHIFT);
+        }
+      }
+      fclose(fp);
+    }
+  }
+}
+
+uint8_t *Pds::TimepixServer::pixelsCfg()
+{
+  return _pixelsCfg;
 }
 
 int Pds::TimepixServer::payloadComplete(vector<BufferElement>::iterator buf_iter, bool missedTrigger)
@@ -300,7 +329,7 @@ void Pds::TimepixServer::DecodeRoutine::routine()
         // decode to pixels
         _server->_timepix->decode2Pixels(buf_iter->_rawData, buf_iter->_pixelData);
 
-        if (_server->_debug & TIMEPIX_DEBUG_CLEAR_ERR_PIXELS) {
+        if (!(_server->_debug & TIMEPIX_DEBUG_KEEP_ERR_PIXELS)) {
           // clear error pixels
           for (int ii=0; ii < 512 * 512; ii++) {    // FIXME constants
             if ((buf_iter->_pixelData[ii] & 0x8000) != 0) {
@@ -356,7 +385,7 @@ unsigned Pds::TimepixServer::configure(const TimepixConfigType& config)
 
   _readoutSpeed = config.readoutSpeed();
   _triggerMode = config.triggerMode();
-  _shutterTimeout = config.shutterTimeout();
+  _timepixSpeed = config.shutterTimeout();  // replaced shutter timeout
 
   _dac0[0]  = config.dac0Ikrum();
   _dac0[1]  = config.dac0Disc();
@@ -418,13 +447,20 @@ unsigned Pds::TimepixServer::configure(const TimepixConfigType& config)
   _dac3[12] = config.dac3BiasLvds();
   _dac3[13] = config.dac3RefLvds();
 
-  // set TOT mode
+  // set pixels configuration
 
-  if (_timepix->setPixelsCfgTOT()) {
-    fprintf(stderr, "Error: setPixelsCfgTOT() failed\n");
+  printf("Mode: Time Over Threshold (TOT)\n");
+  if (pixelsCfg()) {
+    if (_timepix->setPixelsCfg(pixelsCfg())) {
+      fprintf(stderr, "Error: failed to set pixels configuraton (individual thresholds)\n");
+      ++numErrs;
+    }
+    printf("Pixels configuraton successful (individual thresholds)\n");
+  } else if (_timepix->setPixelsCfgTOT()) {
+    fprintf(stderr, "Error: failed to set pixels configuraton (common thresholds)\n");
     ++numErrs;
   } else {
-    printf("Mode: Time Over Threshold (TOT)\n");
+    printf("Pixels configuraton successful (common thresholds)\n");
   }
 
   // clear the shutter flag before setFsr()
@@ -487,6 +523,12 @@ unsigned Pds::TimepixServer::configure(const TimepixConfigType& config)
     fprintf(stderr, "Error: readReg(MPIX2_CONF_REG_OFFSET) failed\n");
     ++numErrs;
   }
+
+  if (_timepix->setTimepixSpeed(_timepixSpeed) ) {
+    fprintf(stderr, "Error: setTimepixSpeed(%d) failed\n", _timepixSpeed);
+    ++numErrs;
+  }
+
 
   if (_timepix->readReg(MPIX2_CONF_REG_OFFSET, &configReg) == 0) {
     printf("Timepix configuration register: 0x%08x\n", configReg);

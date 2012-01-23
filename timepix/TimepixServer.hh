@@ -21,7 +21,7 @@
 #define TIMEPIX_DEBUG_PROFILE             0x00000001
 #define TIMEPIX_DEBUG_TIMECHECK           0x00000002
 #define TIMEPIX_DEBUG_NOCONVERT           0x00000004
-#define TIMEPIX_DEBUG_CLEAR_ERR_PIXELS    0x00000008
+#define TIMEPIX_DEBUG_KEEP_ERR_PIXELS     0x00000008
 #define TIMEPIX_DEBUG_IGNORE_FRAMECOUNT   0x00000010
 
 namespace Pds
@@ -34,7 +34,7 @@ class Pds::TimepixServer
      public EbCountSrv
 {
   public:
-    TimepixServer(const Src& client, unsigned moduleId, unsigned verbosity, unsigned debug);
+    TimepixServer(const Src& client, unsigned moduleId, unsigned verbosity, unsigned debug, char *threshFile);
     virtual ~TimepixServer() {}
       
     //  Eb interface
@@ -60,6 +60,7 @@ class Pds::TimepixServer
     unsigned moduleId() const;
     unsigned verbosity() const;
     unsigned debug() const;
+    uint8_t* pixelsCfg();
     void reset()  {_outOfOrder=0;}
     void withdraw();
     void reconnect();
@@ -92,7 +93,7 @@ class Pds::TimepixServer
       bool                  _full;
       unsigned char         _rawData[TIMEPIX_RAW_DATA_BYTES];
       Pds::Timepix::DataV1  _header;
-   // unsigned char         _pixelData[TIMEPIX_DECODED_DATA_BYTES];
+      int16_t               _middleData[TIMEPIX_DECODED_DATA_BYTES / sizeof(int16_t)];
       int16_t               _pixelData[TIMEPIX_DECODED_DATA_BYTES / sizeof(int16_t)];
     };
 
@@ -166,12 +167,14 @@ class Pds::TimepixServer
     Task *_decodeTask;
     DecodeRoutine *_decodeRoutine;
     int _shutdownFlag;
+    uint8_t *   _pixelsCfg;
     int8_t      _readoutSpeed, _triggerMode;
-    int32_t     _shutterTimeout;
+    int32_t     _timepixSpeed;  // replaced _shutterTimeout
     int32_t     _dac0[TPX_DACS];
     int32_t     _dac1[TPX_DACS];
     int32_t     _dac2[TPX_DACS];
     int32_t     _dac3[TPX_DACS];
+    char *      _threshFile;
 };
 
 #endif

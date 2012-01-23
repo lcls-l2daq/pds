@@ -33,7 +33,10 @@ public:
   int writeReg(uint32_t offset, uint32_t value);
   int setFsr(int chipnr, int *dac, uint32_t col_testpulse_reg=0);
   void decode2Pixels(uint8_t *bytes, int16_t *pixels);
+  int enableExtTrigger(bool enable);
   int setPixelsCfgTOT(void);
+  int setPixelsCfg(uint8_t *bytes);
+  int setTimepixSpeed(int32_t speed);
 
   // Timepix warmup
   int warmup(bool init);
