@@ -118,16 +118,16 @@ namespace Pds {
       unsigned version = 0;
       unsigned failCount = 0;
       bool ret = false;
-      printf("--flush-%u-", index);
+      printf("\n--flush-%u-", index);
       _d.dest(Cspad2x2Destination::CR);
       while ((Failure == _pgp->readRegister(
           &_d,
           ConcentratorVersionAddr,
           0x55000,
           &version)) && failCount++<numberOfTries ) {
-        printf("%s(%u)-", _d.name(), failCount);
+        printf("%s(%u)\n", _d.name(), failCount);
       }
-      if (failCount<numberOfTries) printf("%s(0x%x)\n", _d.name(), version);
+      if (failCount<numberOfTries) printf("\t%s(0x%x)\n", _d.name(), version);
       else ret = true;
       version = 0;
       failCount = 0;
@@ -137,13 +137,10 @@ namespace Pds {
           0x500000,  // version address
           0x50000,
           &version)) && failCount++<numberOfTries ) {
-        printf("[%s:%u]-", _d.name(), failCount);
+        printf("[%s:%u]\n", _d.name(), failCount);
       }
-      if (failCount<numberOfTries) printf("%s[0x%x]\n", _d.name(), version);
+      if (failCount<numberOfTries) printf("\t%s[0x%x]\n", _d.name(), version);
       else ret = true;
-
-
-      printf("\n");
       return ret;
     }
 
@@ -216,11 +213,11 @@ namespace Pds {
         }
       }
       ret <<= 1;
+      if (_flush(1)) printf("Cspad2x2Configurator::configure _flush(1) FAILED\n");
       loadRunTimeConfigAdditions(_runTimeConfigFileName);
       if (mask&16 && ret==0) {
         if (printFlag) printf("- 0x%x - \n\treading ", ret);
-//        ret |= readRegs();                    !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-        readRegs();
+        ret |= readRegs();
         if (printFlag) {
           clock_gettime(CLOCK_REALTIME, &end);
           uint64_t diff = timeDiff(&end, &start) + 50000LL;
@@ -291,17 +288,17 @@ namespace Pds {
 
     unsigned Cspad2x2Configurator::readRegs() {
       unsigned ret = Success;
-      _d.dest(Cspad2x2Destination::CR);
-      uint32_t* u = (uint32_t*) _config->quad()->readOnly();
       _d.dest(Cspad2x2Destination::Q0);
-      for (unsigned j=0; j<sizeOfQuadReadOnly; j++) {
+      uint32_t* u = (uint32_t*) _config->quad()->readOnly();
+       for (unsigned j=0; j<sizeOfQuadReadOnly; j++) {
         if (Failure == _pgp->readRegister(&_d, _quadReadOnlyAddrs[j], 0x55000 | j, u+j)) {
           ret = Failure;
         }
       }
       if (_debug & 0x10) printf("Cspad2x2Configurator Quad read only 0x%x 0x%x %p %p\n",
           (unsigned)u[0], (unsigned)u[1], u, _config->quad()->readOnly());
-      if (Failure == _pgp->readRegister(
+      _d.dest(Cspad2x2Destination::CR);
+     if (Failure == _pgp->readRegister(
           &_d,
           ConcentratorVersionAddr,
           0x55000,
