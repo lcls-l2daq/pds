@@ -30,8 +30,12 @@ class Pds::PhasicsReceiver : public Pds::Routine {
   public:
   void routine(void);
   void printError(char*);
-  void camera(dc1394camera_t* c) { _camera = c; }
-  void die()      { runFlag = false; }
+  void camera(dc1394camera_t* c) { _camera = c;     }
+  void die()                     { runFlag = false; }
+  static void resetCount()       { count = 0;       }
+  static void resetFirst()       { first = true;    }
+  static unsigned             count;
+  static bool                first;
   dc1394camera_t*            _camera;
   int*                       in;
   int*                       out;

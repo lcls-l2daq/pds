@@ -229,10 +229,10 @@ unsigned PhasicsConfigurator::configure( PhasicsConfigType* c) {
   err=dc1394_video_set_framerate(_camera, framerate);
   printError( "Could not set framerate", &ret);
 
-  err=dc1394_feature_set_power(_camera, DC1394_FEATURE_EXPOSURE, DC1394_OFF);
+  err=dc1394_feature_set_power(_camera, DC1394_FEATURE_EXPOSURE, DC1394_ON);
   printError( "Could turn off DC1394_FEATURE_EXPOSURE", &ret);
 
-  err=dc1394_feature_set_power(_camera, DC1394_FEATURE_GAMMA, DC1394_OFF);
+  err=dc1394_feature_set_power(_camera, DC1394_FEATURE_GAMMA, DC1394_ON);
   printError( "Could turn off DC1394_FEATURE_GAMMA", &ret);
 
   err=dc1394_feature_set_power(_camera, DC1394_FEATURE_TRIGGER_DELAY, DC1394_OFF);
@@ -241,21 +241,35 @@ unsigned PhasicsConfigurator::configure( PhasicsConfigType* c) {
   err=dc1394_external_trigger_set_mode(_camera, DC1394_TRIGGER_MODE_1);
   printError( "Could not set DC1394_TRIGGER_MODE_1", &ret);
 
-  err=dc1394_external_trigger_set_polarity(_camera, DC1394_TRIGGER_ACTIVE_LOW);
-  printError( "Could not set DC1394_TRIGGER_ACTIVE_LOW", &ret);
+  err=dc1394_external_trigger_set_polarity(_camera, DC1394_TRIGGER_ACTIVE_HIGH);
+  printError( "Could not set DC1394_TRIGGER_ACTIVE_HIGH", &ret);
 
-  err=dc1394_external_trigger_set_power(_camera, DC1394_ON);
-  printError( "Could not set trigger to DC1394_ON", &ret);
+//  err=dc1394_external_trigger_set_power(_camera, DC1394_ON);
+//  printError( "Could not set trigger to DC1394_ON", &ret);
 
   err=dc1394_feature_set_value(_camera, DC1394_FEATURE_BRIGHTNESS, _config->get(ConfigV1::Brightness));
   printError( "Could not set DC1394_FEATURE_BRIGHTNESS", &ret);
 
-  err=dc1394_feature_set_value(_camera, DC1394_FEATURE_GAIN, _config->get(ConfigV1::Gain));
-  printError( "Could not set DC1394_FEATURE_GAIN", &ret);
+  err=dc1394_feature_set_value(_camera, DC1394_FEATURE_EXPOSURE, _config->get(ConfigV1::Exposure));
+  printError( "Could not set DC1394_FEATURE_EXPOSURE", &ret);
 
   err=dc1394_feature_set_value(_camera, DC1394_FEATURE_SHARPNESS, _config->get(ConfigV1::Sharpness));
   printError( "Could not set DC1394_FEATURE_SHARPNESS", &ret);
 
+  err=dc1394_feature_set_value(_camera, DC1394_FEATURE_GAMMA, _config->get(ConfigV1::Gamma));
+  printError( "Could not set DC1394_FEATURE_GAMMA", &ret);
+
+  err=dc1394_feature_set_value(_camera, DC1394_FEATURE_SHUTTER, _config->get(ConfigV1::Shutter));
+  printError( "Could not set DC1394_FEATURE_SHUTTER", &ret);
+
+  err=dc1394_feature_set_value(_camera, DC1394_FEATURE_GAIN, _config->get(ConfigV1::Gain));
+  printError( "Could not set DC1394_FEATURE_GAIN", &ret);
+
+  err=dc1394_feature_set_value(_camera, DC1394_FEATURE_PAN, _config->get(ConfigV1::Pan));
+  printError( "Could not set DC1394_FEATURE_PAN", &ret);
+
+  err=dc1394_feature_set_value(_camera, DC1394_FEATURE_TILT, _config->get(ConfigV1::Tilt));
+  printError( "Could not set DC1394_FEATURE_TILT", &ret);
 
   clock_gettime(CLOCK_REALTIME, &end);
   uint64_t diff = timeDiff(&end, &start) + 50000LL;

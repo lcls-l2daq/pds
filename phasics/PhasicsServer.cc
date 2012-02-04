@@ -58,6 +58,9 @@ long long int timeDiff(timespec* end, timespec* start) {
 
 enum {PreadPipe=0, PwritePipe=1};
 
+unsigned PhasicsReceiver::count = 0;
+bool     PhasicsReceiver::first = true;
+
 void PhasicsReceiver::printError(char* m) {
   if ((_err>0)||(_err<=-DC1394_ERROR_NUM))
     _err=DC1394_INVALID_ERROR_CODE;
@@ -70,14 +73,11 @@ void PhasicsReceiver::printError(char* m) {
 
 void PhasicsReceiver::routine(void) {
   enum {SelectSleepTimeUSec=2000};
-  unsigned count = 0;
   unsigned mod = 1000;
   _err = DC1394_SUCCESS;
   runFlag = true;
   int             fd = 0;
   int             f;
-//  fd_set          fds;
-//  int             sret = 0;
   struct timeval  timeout;
   timeout.tv_sec  = 0;
   timeout.tv_usec = SelectSleepTimeUSec;
@@ -88,32 +88,28 @@ void PhasicsReceiver::routine(void) {
     f = dc1394_capture_get_fileno(_camera);
     if (f!=fd) {
       fd = f;
-//      FD_ZERO(&fds);
-//      FD_SET(fd,&fds);
       printf("PhasicsReceiver::routine got camera fileno %d\n", fd);
     }
-//    if ((sret = select(fd+1,&fds,&fds,&fds,&timeout)) > 0) {
       frame = 0;
       _err = dc1394_capture_dequeue(_camera, DC1394_CAPTURE_POLICY_POLL, &frame);
       printError("PhasicsReceiver::routine dequeue failed");
       if (_err != DC1394_SUCCESS) runFlag = false;
       if (frame) {
-        if ((count++ % mod) == 0) {
-          printf("PhasicsReceiver::routine dequeued frame(%u)\n", count-1);
+        if (first==false) {
+          if ((count % mod) == 0) {
+            printf("PhasicsReceiver::routine dequeued frame(%u) timestamp(%llu)\n", count, (long long unsigned) frame->timestamp);
+          }
+          count++;
+          write(out[PwritePipe], &frame, sizeof(frame));
+          read(in[PreadPipe], &frame, sizeof(frame));
+        } else {
+          printf("PhasicsReceiver::routine threw away frame(%u) timestamp(%llu)\n", count, (long long unsigned) frame->timestamp);
+          first = false;
         }
-        write(out[PwritePipe], &frame, sizeof(frame));
-        read(in[PreadPipe], &frame, sizeof(frame));
         _err = dc1394_capture_enqueue(_camera, frame);
         printError("PhasicsReceiver::routine enqueue failed");
       }
-//    } else {
-//      if (sret < 0) {
-//        perror("PhasicsReceiver::routine select error ");
-//        printf("\tcount(%u)\n", count);
-//      } else {
       usleep(2000);
-//      }
-//    }
   }
   printf("PhasicsReceiver::routine exiting\n");
 }
@@ -173,6 +169,8 @@ unsigned PhasicsServer::configure(PhasicsConfigType* config) {
         _payloadSize, _xtc.extent);
   }
   _firstFetch = true;
+  _count = 0;
+  PhasicsReceiver::resetCount();
   _configured = _configureResult == 0;
   return _configureResult;
 }
@@ -206,9 +204,14 @@ void Pds::PhasicsServer::enable() {
     _receiver = new PhasicsReceiver(_camera, _s2rFd, _r2sFd);
   }
   _receiver->camera(_camera);
+  PhasicsReceiver::resetFirst();
   _task->call(_receiver);
   _err=dc1394_video_set_transmission(_camera, DC1394_ON);
   printError( "Could not start camera iso transmission");
+
+
+  _err=dc1394_external_trigger_set_power(_camera, DC1394_ON);
+  printError( "Could not set trigger to DC1394_ON");
 
   _firstFetch = true;
 }
@@ -216,6 +219,10 @@ void Pds::PhasicsServer::enable() {
 void Pds::PhasicsServer::disable() {
   if (_debug & 0x20) printf("PhasicsServer::disable\n");
   _receiver->die();
+
+  _err=dc1394_external_trigger_set_power(_camera, DC1394_OFF);
+  printError( "Could not set trigger to DC1394_ON");
+
   _err=dc1394_video_set_transmission(_camera, DC1394_OFF);
   printError( "Could not stop camera iso transmission");
   _err=dc1394_capture_stop(_camera);
@@ -270,9 +277,10 @@ int Pds::PhasicsServer::fetch( char* payload, int flags ) {
      }
      ret = _payloadSize;
    }
+
+   if (_debug & 5) printf(" returned %d frame %d\n", ret, _count);
    _count++;
 
-   if (_debug & 5) printf(" returned %d\n", ret);
    return ret;
 }
 

@@ -14,6 +14,7 @@
 #include <new>
 #include <errno.h>
 #include <math.h>
+#include <time.h>
 
 #include "pds/xtc/CDatagram.hh"
 #include "pds/client/Fsm.hh"
@@ -147,12 +148,18 @@ PhasicsL1Action::PhasicsL1Action(PhasicsServer* svr) :
     _fiducialError(false) {}
 
 InDatagram* PhasicsL1Action::fire(InDatagram* in) {
-  if (server->debug() & 8) printf("PhasicsL1Action::fire!\n");
+  timespec now;
+  clock_gettime(CLOCK_REALTIME, &now);
+    if (server->debug() & 8) printf("PhasicsL1Action::fire! sec(%u) nsec(%u)\n", (unsigned)now.tv_sec, (unsigned)now.tv_nsec);
   if (in->datagram().xtc.damage.value() == 0) {
-//    Pds::Pgp::DataImportFrame* data;
     Datagram& dg = in->datagram();
+    unsigned secs  = dg.seq.clock().seconds();
+    unsigned nano  = dg.seq.clock().nanoseconds();
     Xtc* xtc = &(dg.xtc);
-//    unsigned evrFiducials = dg.seq.stamp().fiducials();
+    unsigned evrFiducials = dg.seq.stamp().fiducials();
+    if (server->debug() & 8) {
+      printf("\tsecs(%u) nano(%u) fiducials(0x%x)\n", secs, nano, evrFiducials);
+    }
     unsigned error = 0;
     char*    payload;
     if (xtc->contains.id() == Pds::TypeId::Id_Xtc) {
@@ -233,7 +240,9 @@ class PhasicsBeginCalibCycleAction : public Action {
     PhasicsBeginCalibCycleAction(PhasicsServer* s, PhasicsConfigCache& cfg) : _server(s), _cfg(cfg), _result(0) {};
 
     Transition* fire(Transition* tr) {
-      printf("PhasicsBeginCalibCycleAction::fire(Transition) ");
+      timespec now;
+      clock_gettime(CLOCK_REALTIME, &now);
+      printf("PhasicsBeginCalibCycleAction::fire(Transition) sec(%u) nsec(%u) ", (unsigned)now.tv_sec, (unsigned)now.tv_nsec);
       if (_cfg.scanning()) {
         if (_cfg.changed()) {
           printf("configured and \n");
@@ -251,7 +260,9 @@ class PhasicsBeginCalibCycleAction : public Action {
     }
 
     InDatagram* fire(InDatagram* in) {
-      printf("PhasicsBeginCalibCycleAction::fire(InDatagram)");
+      timespec now;
+      clock_gettime(CLOCK_REALTIME, &now);
+      printf("PhasicsBeginCalibCycleAction::fire(InDatagram) sec(%u) nsec(%u)", (unsigned)now.tv_sec, (unsigned)now.tv_nsec);
       if (_cfg.scanning() && _cfg.changed()) {
         printf(" recorded\n");
         _cfg.record(in);
