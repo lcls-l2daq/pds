@@ -27,7 +27,7 @@ Pds::CsPad2x2::Cspad2x2Destination::FEdest Pds::CsPad2x2::Cspad2x2Destination::g
 char* Pds::CsPad2x2::Cspad2x2Destination::name()
 {
   static char* _names[NumberOf + 1] = {
-      "Quad_0",
+      "Quad",
       "Concentrator",
       "--INVALID--"
   };

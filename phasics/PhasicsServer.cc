@@ -71,6 +71,12 @@ void PhasicsReceiver::printError(char* m) {
   }
 }
 
+void PhasicsReceiver::waitForNotFirst() {
+  while (first) {
+    usleep(1000);
+  }
+}
+
 void PhasicsReceiver::routine(void) {
   enum {SelectSleepTimeUSec=2000};
   unsigned mod = 1000;
@@ -212,7 +218,7 @@ void Pds::PhasicsServer::enable() {
 
   _err=dc1394_external_trigger_set_power(_camera, DC1394_ON);
   printError( "Could not set trigger to DC1394_ON");
-
+  _receiver->waitForNotFirst();
   _firstFetch = true;
 }
 

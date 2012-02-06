@@ -34,6 +34,7 @@ class Pds::PhasicsReceiver : public Pds::Routine {
   void die()                     { runFlag = false; }
   static void resetCount()       { count = 0;       }
   static void resetFirst()       { first = true;    }
+  void waitForNotFirst();
   static unsigned             count;
   static bool                first;
   dc1394camera_t*            _camera;

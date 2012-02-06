@@ -339,11 +339,11 @@ namespace Pds {
         uint32_t     expected) {
       uint32_t readBack;
       if (_pgp->readRegister(d, addr, tid, &readBack)) {
-        printf("Cspad2x2Configurator::_checkRegs read back failed at %s %u\n", d->name(), addr);
+        printf("Cspad2x2Configurator::_checkReg read back failed at %s address %u\n", d->name(), addr);
         return Terminate;
       }
       if (readBack != expected) {
-        printf("Cspad2x2Configurator::_checkRegs read back wrong value %u!=%u at %s %u\n",
+        printf("Cspad2x2Configurator::_checkReg read back wrong value %u!=%u at %s address 0x%x\n",
             expected, readBack, d->name(), addr);
         return Failure;
       }
@@ -368,13 +368,14 @@ namespace Pds {
       for (unsigned i=0; i<QuadsPerSensor; i++) {
         if ((pw->adcThreshold != pr.adcThreshold) | (pw->pixelCountThreshold != pr.pixelCountThreshold)) {
           ret = Failure;
-          printf("Cspad2x2Configurator::writeRegs concentrator read back Protection tresholds (%u,%u) != (%u,%u) for quad %u\n",
-              pw->adcThreshold, pw->pixelCountThreshold, pr.adcThreshold, pr.pixelCountThreshold, i);
+          printf("Cspad2x2Configurator::writeRegs concentrator read back Protection threshold (%u,%u) != (%u,%u)\n",
+              pw->adcThreshold, pw->pixelCountThreshold, pr.adcThreshold, pr.pixelCountThreshold);
         }
       }
       _d.dest(Cspad2x2Destination::Q0);
       u = (uint32_t*)(_config->quad());
       for (unsigned j=0; j<sizeOfQuadWrite; j++) {
+//        printf("checkWrittenRegs reguesting address 0x%x from %s at index %u\n", _quadAddrs[j], _d.name(), j);
         result |= _checkReg(&_d, _quadAddrs[j], 0xb000+j, u[j]);
       }
       return ret;
