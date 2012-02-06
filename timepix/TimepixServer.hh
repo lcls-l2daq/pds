@@ -91,13 +91,13 @@ class Pds::TimepixServer
       {}
 
       bool                  _full;
-      unsigned char         _rawData[TIMEPIX_RAW_DATA_BYTES];
+      unsigned char         _rawData[Pds::Timepix::DataV1::RawDataBytes];
       Pds::Timepix::DataV1  _header;
-      int16_t               _middleData[TIMEPIX_DECODED_DATA_BYTES / sizeof(int16_t)];
-      int16_t               _pixelData[TIMEPIX_DECODED_DATA_BYTES / sizeof(int16_t)];
+      int16_t               _middleData[Pds::Timepix::DataV1::DecodedDataBytes / sizeof(int16_t)];
+      int16_t               _pixelData[Pds::Timepix::DataV1::DecodedDataBytes / sizeof(int16_t)];
     };
 
-    int payloadComplete(vector<BufferElement>::iterator buf_iter, bool misssedTrigger);
+    int payloadComplete(vector<BufferElement>::iterator buf_iter, bool missedTrigger);
 
     //
     // command_t is used for intertask communication via pipes

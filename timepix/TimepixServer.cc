@@ -44,11 +44,11 @@ Pds::TimepixServer::TimepixServer( const Src& client, unsigned moduleId, unsigne
      _pixelsCfg(NULL),
      _threshFile(threshFile)
 {
-  // calculate xtc extent
-  _xtc.extent = sizeof(TimepixDataType) + sizeof(Xtc) + TIMEPIX_DECODED_DATA_BYTES;
+  // calculate aux data xtc extent
+  _xtc.extent = sizeof(TimepixDataType) + sizeof(Xtc) + Pds::Timepix::DataV1::DecodedDataBytes;
 
-  // alternate xtc is used for damaged events
-  _xtcDamaged.extent = sizeof(TimepixDataType) + sizeof(Xtc) + TIMEPIX_DECODED_DATA_BYTES;
+  // alternate aux data xtc is used for damaged events
+  _xtcDamaged.extent = sizeof(TimepixDataType) + sizeof(Xtc) + Pds::Timepix::DataV1::DecodedDataBytes;
   _xtcDamaged.damage.increase(Pds::Damage::UserDefined);
 
   // create completed pipe
@@ -59,6 +59,7 @@ Pds::TimepixServer::TimepixServer( const Src& client, unsigned moduleId, unsigne
     // setup to read from pipe
     fd(_completedPipeFd[0]);
   }
+
   // create raw pipe
   err = ::pipe(_rawPipeFd);
   if (err) {
@@ -212,7 +213,7 @@ do_over:
       if (rv) {
         fprintf(stderr, "Error: readMatrixRawPlus() failed\n");
         // FIXME _server->setReadDamage(DeviceError);
-      } else if ((ss != TIMEPIX_RAW_DATA_BYTES) || (lostRowBuf != 0)) {
+      } else if ((ss != Pds::Timepix::DataV1::RawDataBytes) || (lostRowBuf != 0)) {
         fprintf(stderr, "Error: readMatrixRawPlus: sz=%u lost_rows=%d\n", ss, lostRowBuf);
       }
       if (_server->_debug & TIMEPIX_DEBUG_PROFILE) {
@@ -704,6 +705,12 @@ int Pds::TimepixServer::fetch( char* payload, int flags )
     memcpy((void *)frame->data(), (void *)receiveCommand.buf_iter->_pixelData,
            frame->data_size());
 
+// #define DUAL_XTC
+#ifdef  DUAL_XTC
+    // copy frameV1 xtc to payload FIXME
+    memcpy((void *)(frame->data() + frame->data_size()), &_xtcFrame, sizeof(Xtc));
+#endif
+
     if (!receiveCommand.missedTrigger) {
       // mark buffer as empty
       receiveCommand.buf_iter->_full = false;
@@ -716,7 +723,11 @@ int Pds::TimepixServer::fetch( char* payload, int flags )
       _profile5[receiveCommand.buf_iter->_header._frameCounter] = time5;
     }
 
+#ifdef  DUAL_XTC
+    return (_xtc.extent + _xtcFrame.extent);
+#else
     return (_xtc.extent);
+#endif
 
   } else {
     printf("Unknown command (0x%x) in %s\n", (int)receiveCommand.cmd, __FUNCTION__);
