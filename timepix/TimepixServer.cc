@@ -705,12 +705,6 @@ int Pds::TimepixServer::fetch( char* payload, int flags )
     memcpy((void *)frame->data(), (void *)receiveCommand.buf_iter->_pixelData,
            frame->data_size());
 
-// #define DUAL_XTC
-#ifdef  DUAL_XTC
-    // copy frameV1 xtc to payload FIXME
-    memcpy((void *)(frame->data() + frame->data_size()), &_xtcFrame, sizeof(Xtc));
-#endif
-
     if (!receiveCommand.missedTrigger) {
       // mark buffer as empty
       receiveCommand.buf_iter->_full = false;
@@ -723,11 +717,7 @@ int Pds::TimepixServer::fetch( char* payload, int flags )
       _profile5[receiveCommand.buf_iter->_header._frameCounter] = time5;
     }
 
-#ifdef  DUAL_XTC
-    return (_xtc.extent + _xtcFrame.extent);
-#else
     return (_xtc.extent);
-#endif
 
   } else {
     printf("Unknown command (0x%x) in %s\n", (int)receiveCommand.cmd, __FUNCTION__);
