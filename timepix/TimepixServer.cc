@@ -386,7 +386,7 @@ unsigned Pds::TimepixServer::configure(const TimepixConfigType& config)
 
   _readoutSpeed = config.readoutSpeed();
   _triggerMode = config.triggerMode();
-  _timepixSpeed = config.shutterTimeout();  // replaced shutter timeout
+  _timepixSpeed = config.timepixSpeed();
 
   _dac0[0]  = config.dac0Ikrum();
   _dac0[1]  = config.dac0Disc();
