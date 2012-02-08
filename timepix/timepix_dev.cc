@@ -213,6 +213,27 @@ int timepix_dev::setTimepixSpeed(int32_t speed)
   return rv;
 }
 
+int timepix_dev::getFirmwareVersion(uint32_t *ver)
+{
+  _mutex->take();
+  int rv = _relaxd->getFirmwareVersion(ver);
+  _mutex->give();
+  return rv;
+}
+
+int timepix_dev::readFirmware(int page, uint8_t *bytes)
+{
+  int rv = 1;
+
+  if (page >=0 && page < 4096 && bytes != NULL) {
+    _mutex->take();
+    rv = _relaxd->readFirmware(page, bytes);
+    _mutex->give();
+  }
+
+  return rv;
+}
+
 //
 // warmup - Timepix initialization required for reliable startup
 //

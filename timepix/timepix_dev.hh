@@ -37,6 +37,8 @@ public:
   int setPixelsCfgTOT(void);
   int setPixelsCfg(uint8_t *bytes);
   int setTimepixSpeed(int32_t speed);
+  int getFirmwareVersion(uint32_t *ver);
+  int readFirmware(int page, uint8_t *bytes);
 
   // Timepix warmup
   int warmup(bool init);
