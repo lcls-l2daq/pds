@@ -19,7 +19,24 @@ namespace Pds
    class Task;
    class Routine;
    class PhasicsReceiver;
+   class PhasicsImageHisto;
 }
+
+class Pds::PhasicsImageHisto {
+  public:
+    PhasicsImageHisto(unsigned char* p) : next(0), ptr(p), count(1) {};
+    ~PhasicsImageHisto() {};
+
+  public:
+    void print();
+    bool operator==(PhasicsImageHisto&);
+    bool isNew(PhasicsImageHisto&);
+
+  public:
+    Pds::PhasicsImageHisto*  next;
+    unsigned char*           ptr;
+    unsigned                 count;
+};
 
 class Pds::PhasicsReceiver : public Pds::Routine {
   public:
@@ -33,7 +50,7 @@ class Pds::PhasicsReceiver : public Pds::Routine {
   void camera(dc1394camera_t* c) { _camera = c;     }
   void die()                     { runFlag = false; }
   static void resetCount()       { count = 0;       }
-  static void resetFirst()       { first = true;    }
+  static void resetFirst(bool f)       { first = f;    }
   void waitForNotFirst();
   static unsigned             count;
   static bool                first;
@@ -92,6 +109,10 @@ class Pds::PhasicsServer
    void            camera(dc1394camera_t* c) { _camera = c; }
    dc1394camera_t* camera() { return _camera; }
 
+   bool            dropTheFirst() { return _dropTheFirst; }
+   void            dropTheFirst(bool d)  { _dropTheFirst = d; }
+   void            printHisto()   { if (_iHisto) {printf("\t----IHisto---\n"); _iHisto->print(); }}
+
  public:
    static PhasicsServer* instance() { return _instance; }
 
@@ -118,10 +139,14 @@ class Pds::PhasicsServer
    unsigned*                      _histo;
    Task*                          _task;
    PhasicsReceiver*               _receiver;
+   PhasicsImageHisto*             _iHisto;
+   unsigned                       _iHistoEntries;
+   unsigned                       _iHistoEntriesMax;
    unsigned                       _unconfiguredErrors;
    bool                           _configured;
    bool                           _firstFetch;
    bool                           _enabled;
+   bool                           _dropTheFirst;
 };
 
 #endif

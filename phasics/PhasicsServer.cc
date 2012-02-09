@@ -35,11 +35,34 @@ void sigHandler( int signal ) {
     dc1394_capture_stop(camera);
     dc1394_camera_free(camera);
   } else printf("No camera found!\n");
-  exit(signal);
+  printf("handler not exiting\n");
+//  exit(signal);
 }
 
 using namespace Pds;
 //using namespace Pds::Phasics;
+
+void PhasicsImageHisto::print() {
+  printf("\tIH %16p -- %4u\n", ptr, count);
+  if (next) next->print();
+  else printf("\t----End of IHisto--\n");
+};
+
+bool PhasicsImageHisto::operator==(PhasicsImageHisto& i) {
+  return this->ptr == i.ptr;
+}
+
+bool PhasicsImageHisto::isNew(PhasicsImageHisto& i) {
+  if (*this==i) {
+    count++;
+    return false;
+  } else if (this->next){
+    return next->isNew(i);
+  } else {
+    next = &i;
+    return true;
+  }
+}
 
 PhasicsServer* PhasicsServer::_instance = 0;
 
@@ -72,9 +95,14 @@ void PhasicsReceiver::printError(char* m) {
 }
 
 void PhasicsReceiver::waitForNotFirst() {
-  while (first) {
+  unsigned count = 0;
+  while (first && (count++ < 100)) {
     usleep(1000);
   }
+  if (count >= 100) {
+    printf("PhasicsReceiver::waitForNotFirst ... it never came!!\n");
+  }
+  first = false;
 }
 
 void PhasicsReceiver::routine(void) {
@@ -104,6 +132,7 @@ void PhasicsReceiver::routine(void) {
         if (first==false) {
           if ((count % mod) == 0) {
             printf("PhasicsReceiver::routine dequeued frame(%u) timestamp(%llu)\n", count, (long long unsigned) frame->timestamp);
+            PhasicsServer::instance()->printHisto();
           }
           count++;
           write(out[PwritePipe], &frame, sizeof(frame));
@@ -130,10 +159,14 @@ PhasicsServer::PhasicsServer( const Pds::Src& client )
      _debug(0),
      _task(0),
      _receiver(0),
+     _iHisto(0),
+     _iHistoEntries(0),
+     _iHistoEntriesMax(10),
      _unconfiguredErrors(0),
      _configured(false),
      _firstFetch(true),
-     _enabled(false) {
+     _enabled(false),
+     _dropTheFirst(false) {
   _histo = (unsigned*)calloc(sizeOfHisto, sizeof(unsigned));
   instance(this);
   if (pipe(_s2rFd) == -1) { perror("Server to Receiver pipe"); exit(EXIT_FAILURE); }
@@ -210,7 +243,7 @@ void Pds::PhasicsServer::enable() {
     _receiver = new PhasicsReceiver(_camera, _s2rFd, _r2sFd);
   }
   _receiver->camera(_camera);
-  PhasicsReceiver::resetFirst();
+  PhasicsReceiver::resetFirst(_dropTheFirst);
   _task->call(_receiver);
   _err=dc1394_video_set_transmission(_camera, DC1394_ON);
   printError( "Could not start camera iso transmission");
@@ -218,8 +251,11 @@ void Pds::PhasicsServer::enable() {
 
   _err=dc1394_external_trigger_set_power(_camera, DC1394_ON);
   printError( "Could not set trigger to DC1394_ON");
-  _receiver->waitForNotFirst();
+  if (_dropTheFirst) _receiver->waitForNotFirst();
   _firstFetch = true;
+//  int i;    // generate a seg fault
+//  int* ip = 0;
+//  i = *ip;
 }
 
 void Pds::PhasicsServer::disable() {
@@ -234,6 +270,7 @@ void Pds::PhasicsServer::disable() {
   _err=dc1394_capture_stop(_camera);
   printError( "Could not stop capture");
   dc1394_camera_free(_camera);
+ printHisto();
 }
 
 unsigned Pds::PhasicsServer::unconfigure(void) {
@@ -277,14 +314,33 @@ int Pds::PhasicsServer::fetch( char* payload, int flags ) {
          Pds::Phasics::ConfigV1::Depth,
          0);
      offset += sizeof(Pds::Camera::FrameV1);
-     swab(_frame->image, payload + offset, _imageSize);
-     if ((ret = write(_s2rFd[PwritePipe], &_frame, sizeof(_frame))) < 0) {
-       perror ("PhasicsServer::fetch write error");
+     PhasicsImageHisto* foo = new PhasicsImageHisto(_frame->image);
+     if (_iHisto) {
+       if (!_iHisto->isNew(*foo)) {
+         delete foo;
+       } else {
+         _iHistoEntries += 1;
+       }
+     } else {
+       _iHisto = foo;
+       _iHistoEntries += 1;
      }
-     ret = _payloadSize;
+     if (_iHistoEntries > _iHistoEntriesMax) {
+       printf("Danger! Danger! detected %u iHisto entries\n", _iHistoEntries);
+       _iHistoEntriesMax = _iHistoEntries;
+       printHisto();
+       ret = Ignore;
+     } else {
+       swab(_frame->image, payload + offset, _imageSize);
+     }
+     if (write(_s2rFd[PwritePipe], &_frame, sizeof(_frame)) < 0) {
+       perror ("PhasicsServer::fetch write error");
+       ret = Ignore;
+     }
+     if (ret != Ignore) ret = _payloadSize;
    }
 
-   if (_debug & 5) printf(" returned %d frame %d\n", ret, _count);
+   if ((_debug & 5) || (ret == Ignore)) printf(" PhasicsServer::fetch returned %d frame %d\n", ret, _count);
    _count++;
 
    return ret;
