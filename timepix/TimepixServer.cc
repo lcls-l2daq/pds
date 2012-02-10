@@ -455,8 +455,9 @@ unsigned Pds::TimepixServer::configure(const TimepixConfigType& config)
     if (_timepix->setPixelsCfg(pixelsCfg())) {
       fprintf(stderr, "Error: failed to set pixels configuraton (individual thresholds)\n");
       ++numErrs;
+    } else {
+      printf("Pixels configuraton successful (individual thresholds)\n");
     }
-    printf("Pixels configuraton successful (individual thresholds)\n");
   } else if (_timepix->setPixelsCfgTOT()) {
     fprintf(stderr, "Error: failed to set pixels configuraton (common thresholds)\n");
     ++numErrs;
