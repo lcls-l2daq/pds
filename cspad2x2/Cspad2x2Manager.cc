@@ -92,7 +92,6 @@ class Cspad2x2L1Action : public Action {
    unsigned _lastMatchedFrameNumber;
    unsigned _lastMatchedAcqCount;
    unsigned _frameSyncErrorCount;
-   unsigned _ioIndex;
 };
 
 void Cspad2x2L1Action::reset(bool resetError) {
@@ -150,7 +149,7 @@ InDatagram* Cspad2x2L1Action::fire(InDatagram* in) {
     }
     _lastMatchedFiducial = evrFiducials;
     _lastMatchedAcqCount = acq;
-    if (_frameSyncErrorCount) frameError |= 1;
+    if (_frameSyncErrorCount) frameError |= 1;  // make sure we don't reset the synchronization test
 
     if (!frameError) {
       _lastMatchedFiducial = evrFiducials;
@@ -163,7 +162,7 @@ InDatagram* Cspad2x2L1Action::fire(InDatagram* in) {
       dg.xtc.damage.increase(Pds::Damage::UserDefined);
       dg.xtc.damage.userBits(0xf0 | (frameError&0xf));
       if (_frameSyncErrorCount++ < FiducialErrorCountLimit) {
-        printf("Cspad2x2L1Action setting user damage due to frame error in quads(0x%x)\n", frameError);
+        printf("Cspad2x2L1Action setting user damage due to frame error in frame 0x%x, fiducials 0x%x\n", data->frameNumber(), evrFiducials);
         if (!_frameSyncErrorCount) server->printHisto(false);
       } else {
         if (_frameSyncErrorCount == FiducialErrorCountLimit) {

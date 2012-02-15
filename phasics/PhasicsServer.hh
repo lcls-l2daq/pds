@@ -112,6 +112,7 @@ class Pds::PhasicsServer
    bool            dropTheFirst() { return _dropTheFirst; }
    void            dropTheFirst(bool d)  { _dropTheFirst = d; }
    void            printHisto()   { if (_iHisto) {printf("\t----IHisto---\n"); _iHisto->print(); }}
+   timespec&       timeStamp() { return _frameTimeStamp; }
 
  public:
    static PhasicsServer* instance() { return _instance; }
@@ -132,6 +133,7 @@ class Pds::PhasicsServer
    int                            _r2sFd[2];
    dc1394camera_t*                _camera;
    dc1394video_frame_t*           _frame;
+   timespec                       _frameTimeStamp;
    dc1394error_t                  _err;
    unsigned                       _debug;
    timespec                       _thisTime;

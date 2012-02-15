@@ -220,7 +220,7 @@ int Pds::Cspad2x2Server::fetch( char* payload, int flags ) {
      if (_debug & 4 || ret < 0) printf("\n\tquad(%u) opcode(0x%x) acqcount(0x%x) fiducials(0x%x) _oldCount(%u) _count(%u)lane(%u) vc(%u)\n",
          data->elementId(), data->second.opCode, data->acqCount(), data->fiducials(), oldCount, _count, pgpCardRx.pgpLane, pgpCardRx.pgpVc);
      if ((_count < oldCount) || (_count - oldCount > 1)) {
-       printf("CsPadServer::fetch ignoring unreasonable frame number, %u came after %u\n", _count, oldCount);
+       printf("CsPadServer::fetch ignoring unreasonable frame number, 0x%x came after 0x%x\n", _count, oldCount);
        ret = Ignore;
      }
    }

@@ -31,6 +31,8 @@
 #include "pdsdata/xtc/Xtc.hh"
 #include "pdsdata/xtc/Damage.hh"
 #include "pds/config/CfgCache.hh"
+#include "pds/service/GenericPool.hh"
+#include "pds/utility/Occurrence.hh"
 
 namespace Pds {
   class Allocation;
@@ -131,21 +133,47 @@ class PhasicsUnmapAction : public Action {
 
 class PhasicsL1Action : public Action {
  public:
-   PhasicsL1Action(PhasicsServer* svr);
+   PhasicsL1Action(PhasicsServer*, PhasicsManager*);
 
    InDatagram* fire(InDatagram* in);
+   void        restart(bool r=false) {
+     _restart = true;
+     if (r) {
+       _frameSyncError = false;
+       _frameSyncErrorCount = 0;
+     }
+   }
+   long long int timeDiff(timespec*, timespec*);
+   bool        _restart;
 
-   PhasicsServer* server;
-   unsigned _lastMatchedFiducial;
-   unsigned _ioIndex;
-   bool     _fiducialError;
-
+   PhasicsServer*  server;
+   PhasicsManager* _mgr;
+   unsigned        _lastMatchedFiducial;
+   bool            _frameSyncError;
+   unsigned        _frameSyncErrorCount;
+   timespec        _lastFrameTime;
+   timespec        _lastEvrTime;
+   GenericPool*    _occPool;
 };
 
-PhasicsL1Action::PhasicsL1Action(PhasicsServer* svr) :
+long long int PhasicsL1Action::timeDiff(timespec* end, timespec* start) {
+  long long int diff;
+  diff =  (end->tv_sec - start->tv_sec);
+  if (diff) diff *= 1000000000LL;
+  diff += end->tv_nsec;
+  diff -= start->tv_nsec;
+  return diff;
+}
+
+PhasicsL1Action::PhasicsL1Action(PhasicsServer* svr, PhasicsManager* mgr) :
+    _restart(true),
     server(svr),
+    _mgr(mgr),
     _lastMatchedFiducial(0xfffffff),
-    _fiducialError(false) {}
+    _frameSyncError(false),
+    _frameSyncErrorCount(0),
+    _occPool(new GenericPool(sizeof(Occurrence),1))
+{}
 
 InDatagram* PhasicsL1Action::fire(InDatagram* in) {
   timespec now;
@@ -153,14 +181,14 @@ InDatagram* PhasicsL1Action::fire(InDatagram* in) {
     if (server->debug() & 8) printf("PhasicsL1Action::fire! sec(%u) nsec(%u)\n", (unsigned)now.tv_sec, (unsigned)now.tv_nsec);
   if (in->datagram().xtc.damage.value() == 0) {
     Datagram& dg = in->datagram();
-    unsigned secs  = dg.seq.clock().seconds();
-    unsigned nano  = dg.seq.clock().nanoseconds();
+    timespec evrt;
+    evrt.tv_sec   = dg.seq.clock().seconds();
+    evrt.tv_nsec  = dg.seq.clock().nanoseconds();
     Xtc* xtc = &(dg.xtc);
     unsigned evrFiducials = dg.seq.stamp().fiducials();
     if (server->debug() & 8) {
-      printf("\tsecs(%u) nano(%u) fiducials(0x%x)\n", secs, nano, evrFiducials);
+      printf("\tsecs(%u) nano(%u) fiducials(0x%x)\n", (unsigned)evrt.tv_sec, (unsigned)evrt.tv_nsec, evrFiducials);
     }
-    unsigned error = 0;
     char*    payload;
     if (xtc->contains.id() == Pds::TypeId::Id_Xtc) {
       xtc = (Xtc*) xtc->payload();
@@ -177,15 +205,26 @@ InDatagram* PhasicsL1Action::fire(InDatagram* in) {
       return in;
     }
 
-    if (error) {
-      dg.xtc.damage.increase(Pds::Damage::UserDefined);
-      dg.xtc.damage.userBits(0xf0 | (error&0xf));
-      printf("PhasicsL1Action setting user damage due to fiducial in quads(0x%x)\n", error);
-      if (!_fiducialError) server->printHisto(false);
-      else _fiducialError = true;
+    if (_restart) {
+      _restart = false;
     } else {
-//      server->process();
+      long long int f = timeDiff(&server->timeStamp(), &_lastFrameTime);
+      long long int e = timeDiff(&evrt, &_lastEvrTime);
+      long long int d = llabs(f-e);
+      if (d > 500000LL || _frameSyncError) {
+        dg.xtc.damage.increase(Pds::Damage::UserDefined);
+        dg.xtc.damage.userBits(0xb1);
+        if (_frameSyncErrorCount++ < 10) printf("PhasicsL1Action::fire setting user damage due to off-by-one delta(%lld) frame(%lld) evr(%lld) nanoseconds\n", d, f, e);
+        if (!_frameSyncError) server->printHisto(false);
+        else _frameSyncError = true;
+        Pds::Occurrence* occ = new (_occPool)
+        Pds::Occurrence(Pds::OccurrenceId::ClearReadout);
+        _mgr->appliance().post(occ);
+      }
     }
+
+    memcpy(&_lastFrameTime, &server->timeStamp(), sizeof(timespec));
+    memcpy(&_lastEvrTime, &evrt, sizeof(timespec));
   }
   return in;
 }
@@ -237,12 +276,13 @@ class PhasicsConfigAction : public Action {
 
 class PhasicsBeginCalibCycleAction : public Action {
   public:
-    PhasicsBeginCalibCycleAction(PhasicsServer* s, PhasicsConfigCache& cfg) : _server(s), _cfg(cfg), _result(0) {};
+    PhasicsBeginCalibCycleAction(PhasicsServer* s, PhasicsConfigCache& cfg, PhasicsL1Action& l1) : _server(s), _cfg(cfg), _l1(l1), _result(0) {};
 
     Transition* fire(Transition* tr) {
       timespec now;
       clock_gettime(CLOCK_REALTIME, &now);
       printf("PhasicsBeginCalibCycleAction::fire(Transition) sec(%u) nsec(%u) ", (unsigned)now.tv_sec, (unsigned)now.tv_nsec);
+      _l1.restart();
       if (_cfg.scanning()) {
         if (_cfg.changed()) {
           printf("configured and \n");
@@ -280,6 +320,7 @@ class PhasicsBeginCalibCycleAction : public Action {
   private:
     PhasicsServer*      _server;
     PhasicsConfigCache& _cfg;
+    PhasicsL1Action&  _l1;
     unsigned          _result;
 };
 
@@ -348,16 +389,16 @@ PhasicsManager::PhasicsManager( PhasicsServer* server) :
     _fsm(*new Fsm), _cfg(*new PhasicsConfigCache(server->client())) {
 
    printf("PhasicsManager being initialized... " );
-
+   PhasicsL1Action* l1 = new PhasicsL1Action( server, this );
+   _fsm.callback( TransitionId::L1Accept, l1 );
 
    _fsm.callback( TransitionId::Map, new PhasicsAllocAction( _cfg, server ) );
    _fsm.callback( TransitionId::Unmap, new PhasicsUnmapAction( server ) );
    _fsm.callback( TransitionId::Configure, new PhasicsConfigAction(_cfg, server ) );
    //   _fsm.callback( TransitionId::Enable, new PhasicsEnableAction( server ) );
    //   _fsm.callback( TransitionId::Disable, new PhasicsDisableAction( server ) );
-   _fsm.callback( TransitionId::BeginCalibCycle, new PhasicsBeginCalibCycleAction( server, _cfg ) );
+   _fsm.callback( TransitionId::BeginCalibCycle, new PhasicsBeginCalibCycleAction( server, _cfg, *l1 ) );
    _fsm.callback( TransitionId::EndCalibCycle, new PhasicsEndCalibCycleAction( server, _cfg ) );
-  _fsm.callback( TransitionId::L1Accept, new PhasicsL1Action( server ) );
    //   _fsm.callback( TransitionId::EndCalibCycle, new PhasicsEndCalibCycleAction( server ) );
    _fsm.callback( TransitionId::Unconfigure, new PhasicsUnconfigAction( server, _cfg ) );
    // _fsm.callback( TransitionId::BeginRun,

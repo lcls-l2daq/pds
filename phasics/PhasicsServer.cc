@@ -132,7 +132,7 @@ void PhasicsReceiver::routine(void) {
         if (first==false) {
           if ((count % mod) == 0) {
             printf("PhasicsReceiver::routine dequeued frame(%u) timestamp(%llu)\n", count, (long long unsigned) frame->timestamp);
-            PhasicsServer::instance()->printHisto();
+//            PhasicsServer::instance()->printHisto();
           }
           count++;
           write(out[PwritePipe], &frame, sizeof(frame));
@@ -333,6 +333,8 @@ int Pds::PhasicsServer::fetch( char* payload, int flags ) {
      } else {
        swab(_frame->image, payload + offset, _imageSize);
      }
+     _frameTimeStamp.tv_sec = _frame->timestamp / 1000000LL;              // microseconds to seconds  ( have the compiler tell me what casting to use )
+     _frameTimeStamp.tv_nsec = (_frame->timestamp % 1000000LL) * 1000LL;  // microseconds to nanoseconds
      if (write(_s2rFd[PwritePipe], &_frame, sizeof(_frame)) < 0) {
        perror ("PhasicsServer::fetch write error");
        ret = Ignore;
