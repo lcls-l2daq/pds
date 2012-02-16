@@ -214,7 +214,10 @@ InDatagram* PhasicsL1Action::fire(InDatagram* in) {
       if (d > 500000LL || _frameSyncError) {
         dg.xtc.damage.increase(Pds::Damage::UserDefined);
         dg.xtc.damage.userBits(0xb1);
-        if (_frameSyncErrorCount++ < 10) printf("PhasicsL1Action::fire setting user damage due to off-by-one delta(%lld) frame(%lld) evr(%lld) nanoseconds\n", d, f, e);
+        if (_frameSyncErrorCount++ < 10) {
+          printf("PhasicsL1Action::fire setting user damage to frame %d due to off-by-one delta(%lld) frame(%lld) evr(%lld) nanoseconds\n",
+              server->myCount(), d, f, e);
+        }
         if (!_frameSyncError) server->printHisto(false);
         else _frameSyncError = true;
         Pds::Occurrence* occ = new (_occPool)

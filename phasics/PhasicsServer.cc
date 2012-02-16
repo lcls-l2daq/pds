@@ -270,7 +270,7 @@ void Pds::PhasicsServer::disable() {
   _err=dc1394_capture_stop(_camera);
   printError( "Could not stop capture");
   dc1394_camera_free(_camera);
- printHisto();
+//  printHisto();
 }
 
 unsigned Pds::PhasicsServer::unconfigure(void) {
