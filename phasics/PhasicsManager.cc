@@ -220,8 +220,7 @@ InDatagram* PhasicsL1Action::fire(InDatagram* in) {
         }
         if (!_frameSyncError) server->printHisto(false);
         else _frameSyncError = true;
-        Pds::Occurrence* occ = new (_occPool)
-        Pds::Occurrence(Pds::OccurrenceId::ClearReadout);
+        Pds::Occurrence* occ = new (_occPool) Pds::Occurrence(Pds::OccurrenceId::ClearReadout);
         _mgr->appliance().post(occ);
       }
     }
