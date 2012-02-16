@@ -147,6 +147,8 @@ class Pds::TimepixServer
     Xtc _xtcDamaged;
     unsigned    _count;
     unsigned    _missedTriggerCount;
+    bool        _resetHwCount;
+    unsigned    _countOffset;
     TimepixOccurrence *_occSend;
     unsigned    _expectedDiff;
     int         _resetTimestampCount;

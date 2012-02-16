@@ -22,9 +22,6 @@ public:
 
   // relaxd wrapper functions
   int chipCount();
-  uint32_t lastClockTick();   // use readMatrixRawPlus()
-  uint16_t lastFrameCount();  // use readMatrixRawPlus()
-  int resetFrameCounter();
   bool newFrame(bool check=true, bool clear=true);
   int readMatrixRaw(uint8_t *bytes, uint32_t *sz, int *lost_rows);
   int readMatrixRawPlus(uint8_t *bytes, uint32_t *sz, int *lost_rows,
@@ -47,6 +44,10 @@ private:
   int          _moduleId;
   MpxModule*   _relaxd;
   Semaphore*   _mutex;
+  uint16_t    _adjustFrameCount;
+  uint16_t    _localCount;
+  int         _frameCountOffset;
+  bool        _firstRead;
 };
   
 #endif

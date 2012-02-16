@@ -25,6 +25,9 @@ uint32_t _profileHwTimestamp[PROFILE_MAX];
 Pds::TimepixServer::TimepixServer( const Src& client, unsigned moduleId, unsigned verbosity, unsigned debug, char *threshFile)
    : _xtc( _timepixDataType, client ),
      _xtcDamaged( _timepixDataType, client ),
+     _count(0),
+     _resetHwCount(true),
+     _countOffset(0),
      _occSend(NULL),
      _expectedDiff(0),
      _resetTimestampCount(4),
@@ -78,16 +81,12 @@ Pds::TimepixServer::TimepixServer( const Src& client, unsigned moduleId, unsigne
            __FUNCTION__, TIMEPIX_DEBUG_PROFILE);
   }
   if (_debug & TIMEPIX_DEBUG_TIMECHECK) {
-    printf("%s: TIMEPIX_DEBUG_TIMECHECK (0x%x) is set\n",
+    printf("%s: TIMEPIX_DEBUG_TIMECHECK (0x%x) is set (ignored)\n",
            __FUNCTION__, TIMEPIX_DEBUG_TIMECHECK);
   }
   if (_debug & TIMEPIX_DEBUG_NOCONVERT) {
     printf("%s: TIMEPIX_DEBUG_NOCONVERT (0x%x) is set\n",
            __FUNCTION__, TIMEPIX_DEBUG_NOCONVERT);
-  }
-  if (_debug & TIMEPIX_DEBUG_KEEP_ERR_PIXELS) {
-    printf("%s: TIMEPIX_DEBUG_KEEP_ERR_PIXELS (0x%x) is set\n",
-           __FUNCTION__, TIMEPIX_DEBUG_KEEP_ERR_PIXELS);
   }
   if (_debug & TIMEPIX_DEBUG_IGNORE_FRAMECOUNT) {
     printf("%s: TIMEPIX_DEBUG_IGNORE_FRAMECOUNT (0x%x) is set\n",
@@ -246,8 +245,6 @@ read_shutdown:
 void Pds::TimepixServer::DecodeRoutine::routine()
 {
   command_t     receiveCommand;
-  unsigned      latestDiff;
-  uint32_t      previousTimestamp = 0;  // for TIMEPIX_DEBUG_TIMECHECK
   bool          missedTrigger;
 
   // Wait for _timepix to be set
@@ -295,49 +292,9 @@ void Pds::TimepixServer::DecodeRoutine::routine()
         _server->_profileCollected = true;
       }
 
-      if (_server->_debug & TIMEPIX_DEBUG_TIMECHECK) {
-        if (_server->_resetTimestampCount > 0) {
-          --_server->_resetTimestampCount;
-        } else {
-          // inspect HW timestamp to detect missing triggers
-          if (_server->_expectedDiff == 0) {
-            _server->_expectedDiff = buf_iter->_header._timestamp - previousTimestamp;
-            printf("DecodeRoutine: Expected Timestamp Diff = %g msec\n", _server->_expectedDiff / 100.);
-          } else {
-            latestDiff = buf_iter->_header._timestamp - previousTimestamp;
-            if ((4 * latestDiff > _server->_expectedDiff * 3) && (4 * latestDiff < _server->_expectedDiff * 5)) {
-              // good: HW timestamp falls within expected range
-              ;
-            } else if ((4 * latestDiff > _server->_expectedDiff * 7) && (4 * latestDiff < _server->_expectedDiff * 9)) {
-              // bad: detected missing trigger
-              printf("Frame #%d: Missing Trigger Detected (period %g msec)\n", buf_iter->_header._frameCounter, latestDiff / 100.);
-              _server->_badFrame = buf_iter->_header._frameCounter;
-              missedTrigger = true;
-            } else {
-              // ugly: detected bad HW timestamp
-              printf("Frame #%d: HW Timestamp error (period %g msec)\n", buf_iter->_header._frameCounter, latestDiff / 100.);
-              printf("  Previous Timestamp: %u   Latest Timestamp: %u\n", previousTimestamp, buf_iter->_header._timestamp);
-              _server->_uglyFrame = buf_iter->_header._frameCounter;
-              // FIXME _server->setDecodeDamage(TimestampError);
-              _server->_outOfOrder = 1;
-            }
-          }
-        }
-        previousTimestamp = buf_iter->_header._timestamp;
-      }
-
       if (!(_server->_debug & TIMEPIX_DEBUG_NOCONVERT)) {
         // decode to pixels
         _server->_timepix->decode2Pixels(buf_iter->_rawData, buf_iter->_pixelData);
-
-        if (!(_server->_debug & TIMEPIX_DEBUG_KEEP_ERR_PIXELS)) {
-          // clear error pixels
-          for (int ii=0; ii < 512 * 512; ii++) {    // FIXME constants
-            if ((buf_iter->_pixelData[ii] & 0x8000) != 0) {
-              buf_iter->_pixelData[ii] = 0;
-            }
-          }
-        }
       }
 
       if (_server->_debug & TIMEPIX_DEBUG_PROFILE) {
@@ -352,10 +309,6 @@ void Pds::TimepixServer::DecodeRoutine::routine()
       continue;
     }
 
-    if ((_server->_debug & TIMEPIX_DEBUG_TIMECHECK) && missedTrigger) {
-      // send payload to make up for missed trigger
-      _server->payloadComplete(receiveCommand.buf_iter, true);
-    }
     // send regular payload
     _server->payloadComplete(receiveCommand.buf_iter, false);
   }
@@ -371,6 +324,8 @@ unsigned Pds::TimepixServer::configure(const TimepixConfigType& config)
   unsigned numErrs = 0;
 
   _count = 0;
+  _countOffset = 0;
+  _resetHwCount = true;
   _missedTriggerCount = 0;
 
   if (_timepix == NULL) {
@@ -382,6 +337,14 @@ unsigned Pds::TimepixServer::configure(const TimepixConfigType& config)
       _occSend->userMessage(msgBuf);
     }
     return (1);
+  }
+
+  printf("Disable external trigger... ");
+  if (_timepix->enableExtTrigger(false)) {
+    printf("ERROR\n");
+    ++numErrs;
+  } else {
+    printf("done\n");
   }
 
   _readoutSpeed = config.readoutSpeed();
@@ -483,11 +446,6 @@ unsigned Pds::TimepixServer::configure(const TimepixConfigType& config)
     ++numErrs;
   }
 
-  if (_timepix->resetFrameCounter()) {
-    fprintf(stderr, "Error: resetFrameCounter() failed in %s\n", __FUNCTION__);
-    ++numErrs;
-  }
-
   // Medipix device DACs configuration
   if (_timepix->setFsr(0, _dac0) ) {
     fprintf(stderr, "Error: setFsr() chip 0 failed\n");
@@ -509,6 +467,7 @@ unsigned Pds::TimepixServer::configure(const TimepixConfigType& config)
   if (_timepix->readReg(MPIX2_CONF_REG_OFFSET, &configReg) == 0) {
     configReg &= ~MPIX2_CONF_TIMER_USED;      // Reset 'use Timer'
 
+    // FIXME enable trigger later
     configReg |= MPIX2_CONF_EXT_TRIG_ENABLE;  // Enable external trigger
 
     configReg &= ~MPIX2_CONF_EXT_TRIG_INHIBIT; // Ready for next (external) trigger
@@ -621,10 +580,6 @@ unsigned Pds::TimepixServer::unconfigure(void)
 
 unsigned Pds::TimepixServer::endrun(void)
 {
-  if (_debug & TIMEPIX_DEBUG_TIMECHECK) {
-    // reset timestamp check
-    _resetTimestampCount = 4;
-  }
   return (0);
 }
 
@@ -663,26 +618,24 @@ int Pds::TimepixServer::fetch( char* payload, int flags )
       return (-1);
     }
 
-    if (receiveCommand.missedTrigger) {     // missed trigger?
-      frame->_lostRows = 256;
-      ++_missedTriggerCount;
-      frame->_frameCounter = receiveCommand.buf_iter->_header._frameCounter - 1;
-      frame->_timestamp = 0;
-    } else {
       frame->_lostRows = receiveCommand.buf_iter->_header._lostRows;
       frame->_frameCounter = receiveCommand.buf_iter->_header._frameCounter;
       frame->_timestamp = receiveCommand.buf_iter->_header._timestamp;
+
+    if (_resetHwCount) {
+      _count = 0;
+      _countOffset = frame->_frameCounter - 1;
+      _resetHwCount = false;
     }
 
     ++_count;
 
     if (!(_debug & TIMEPIX_DEBUG_IGNORE_FRAMECOUNT)) {
       // check for out-of-order condition
-      uint16_t count16 = (uint16_t)_count;
-      uint16_t sum16 = (uint16_t)(frame->_frameCounter + _missedTriggerCount);
-      if (count16 != sum16) {
-        fprintf(stderr, "Error: sw count (%hu) != hw frameCounter (%hu) + missed trigger count (%u) == (%hu)\n",
-                count16, frame->_frameCounter, _missedTriggerCount, sum16);
+      uint16_t sum16 = (uint16_t)(_count + _countOffset);
+      if (frame->_frameCounter != sum16) {
+        fprintf(stderr, "Error: hw framecounter (%hu) != sw count (%hu) + count offset (%u) == (%hu)\n",
+                frame->_frameCounter, _count, _countOffset, sum16);
         // latch error
         _outOfOrder = 1;
         if (_occSend) {

@@ -16,7 +16,11 @@ using namespace Pds;
 
 timepix_dev::timepix_dev(int moduleId, MpxModule *relaxd) :
   _moduleId(moduleId),
-  _relaxd(relaxd)
+  _relaxd(relaxd),
+  _adjustFrameCount(0),
+  _localCount(0),
+  _frameCountOffset(0),
+  _firstRead(true)
 {
   _mutex = new Semaphore(Semaphore::FULL);
 }
@@ -32,39 +36,6 @@ int timepix_dev::chipCount()
 
   _mutex->take();
   rv = _relaxd->chipCount();
-  _mutex->give();
-
-  return (rv);
-}
-
-uint32_t timepix_dev::lastClockTick()
-{
-  uint32_t rv;
-
-  _mutex->take();
-  rv = _relaxd->lastClockTick();
-  _mutex->give();
-
-  return (rv);
-}
-
-uint16_t timepix_dev::lastFrameCount()
-{
-  uint16_t rv;
-
-  _mutex->take();
-  rv = _relaxd->lastFrameCount();
-  _mutex->give();
-
-  return (rv);
-}
-
-int timepix_dev::resetFrameCounter()
-{
-  int rv;
-
-  _mutex->take();
-  rv = _relaxd->resetFrameCounter();
   _mutex->give();
 
   return (rv);
@@ -115,14 +86,33 @@ int timepix_dev::readMatrixRawPlus(uint8_t *bytes, uint32_t *sz, int *lost_rows,
                                    uint16_t *lastFrameCount, uint32_t *lastClockTick)
 {
   int rv;
+  uint16_t hwFrameCount;
 
   _mutex->take();
   // read raw data
   rv = _relaxd->readMatrixRaw(bytes, sz, lost_rows);
 
   // read frame counter
+  hwFrameCount = _relaxd->lastFrameCount();
+
+  // adjust frame counter
+  if (_firstRead) {
+    _localCount = hwFrameCount;
+    _frameCountOffset = 0;
+    _firstRead = false;
+  } else {
+    ++ _localCount;
+  }
+
+  int off = _localCount - (uint16_t)(hwFrameCount + _frameCountOffset);
+
+  if (off == 1) {
+    // workaround for repeating frame counter behavior
+    ++_frameCountOffset;
+  }
+
   if (lastFrameCount) {
-    *lastFrameCount = _relaxd->lastFrameCount();
+    *lastFrameCount = hwFrameCount + _frameCountOffset;
   }
 
   // read timestamp
