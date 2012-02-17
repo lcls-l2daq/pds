@@ -55,8 +55,8 @@ class Pds::Cspad2x2Server
 
    unsigned payloadSize(void)   { return _payloadSize; }
    unsigned flushInputQueue(int);
-   void     enable();
-   void     disable();
+   unsigned enable();
+   unsigned disable();
    void     die();
    void     debug(unsigned d) { _debug = d; }
    unsigned debug() { return _debug; }

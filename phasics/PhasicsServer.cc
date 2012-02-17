@@ -217,19 +217,22 @@ unsigned PhasicsServer::configure(PhasicsConfigType* config) {
 void PhasicsServer::allocated() {
 }
 
-void Pds::PhasicsServer::enable() {
+unsigned Pds::PhasicsServer::enable() {
+  unsigned ret = 0;
   dc1394camera_list_t *      list;
   if (_debug & 0x20) printf("PhasicsServer::enable\n");
   _err=dc1394_camera_enumerate (_cnfgrtr->getD(), &list);
   printError("Failed to enumerate cameras");
   if (list->num == 0) {
     printf("PhasicsServer::enable no cameras found");
+    ret = 1;
   }
   // assume we are using the first camera we found.
   // if there are more than one, we'll have to qualify the one we want
   _camera = dc1394_camera_new (_cnfgrtr->getD(), list->ids[0].guid);
   if (!_camera) {
     printf("Failed to initialize camera with guid %llx\n", (long long unsigned)list->ids[0].guid);
+    ret |= 2;
   }
   dc1394_camera_free_list (list);
 
@@ -247,30 +250,35 @@ void Pds::PhasicsServer::enable() {
   _task->call(_receiver);
   _err=dc1394_video_set_transmission(_camera, DC1394_ON);
   printError( "Could not start camera iso transmission");
+  if (_err) ret |= 4;
 
 
   _err=dc1394_external_trigger_set_power(_camera, DC1394_ON);
   printError( "Could not set trigger to DC1394_ON");
+  if (_err) ret |= 8;
   if (_dropTheFirst) _receiver->waitForNotFirst();
   _firstFetch = true;
-//  int i;    // generate a seg fault
-//  int* ip = 0;
-//  i = *ip;
+  return ret;
 }
 
-void Pds::PhasicsServer::disable() {
+unsigned Pds::PhasicsServer::disable() {
+  unsigned ret = 0;
   if (_debug & 0x20) printf("PhasicsServer::disable\n");
   _receiver->die();
 
   _err=dc1394_external_trigger_set_power(_camera, DC1394_OFF);
   printError( "Could not set trigger to DC1394_ON");
+  if (_err) ret = 1;
 
   _err=dc1394_video_set_transmission(_camera, DC1394_OFF);
   printError( "Could not stop camera iso transmission");
+  if (_err) ret |= 2;
   _err=dc1394_capture_stop(_camera);
   printError( "Could not stop capture");
+  if (_err) ret |= 4;
   dc1394_camera_free(_camera);
 //  printHisto();
+  return ret;
 }
 
 unsigned Pds::PhasicsServer::unconfigure(void) {

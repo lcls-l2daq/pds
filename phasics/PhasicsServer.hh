@@ -96,8 +96,8 @@ class Pds::PhasicsServer
    unsigned        unconfigure(void);
 
    unsigned        payloadSize(void)   { return _payloadSize; }
-   void            enable();
-   void            disable();
+   unsigned        enable();
+   unsigned        disable();
    void            debug(unsigned d) { _debug = d; }
    unsigned        debug() { return _debug; }
    void            resetCount() {_count = 0; }

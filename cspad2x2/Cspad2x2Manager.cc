@@ -240,7 +240,9 @@ class Cspad2x2BeginCalibCycleAction : public Action {
         }
       }
       printf("enabled\n");
-      _server->enable();
+     if(_server->enable()) {
+       _result = 0xcf;
+     }
       return tr;
     }
 
@@ -297,15 +299,17 @@ class Cspad2x2UnconfigAction : public Action {
 
 class Cspad2x2EndCalibCycleAction : public Action {
   public:
-    Cspad2x2EndCalibCycleAction(Cspad2x2Server* s, Cspad2x2ConfigCache& cfg) : _server(s), _cfg(cfg), _result(0) {};
+    Cspad2x2EndCalibCycleAction(Cspad2x2Server* s, Cspad2x2ConfigCache& cfg) : _server(s), _cfg(cfg), _result(0), _bits(0) {};
 
     Transition* fire(Transition* tr) {
       printf("Cspad2x2EndCalibCycleAction:;fire(Transition) %p", _cfg.current());
       _cfg.next();
       printf(" %p\n", _cfg.current());
-      _result = _server->unconfigure();
+      unsigned result = _server->unconfigure();
+      result |= _server->disable();
       _server->dumpFrontEnd();
       _server->printHisto(true);
+      if (result) _result = 0xcf;
       return tr;
     }
 
@@ -325,6 +329,7 @@ class Cspad2x2EndCalibCycleAction : public Action {
     Cspad2x2Server*      _server;
     Cspad2x2ConfigCache& _cfg;
     unsigned          _result;
+    unsigned          _bits;
 };
 
 Cspad2x2Manager::Cspad2x2Manager( Cspad2x2Server* server, unsigned d) :

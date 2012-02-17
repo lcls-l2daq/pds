@@ -94,7 +94,6 @@ void Pds::Cspad2x2Server::die() {
 }
 
 void Pds::Cspad2x2Server::dumpFrontEnd() {
-  disable();
   _cnfgrtr->dumpFrontEnd();
 }
 
@@ -104,16 +103,17 @@ void Cspad2x2Server::process() {
 //  _task->call(r);
 }
 
-void Pds::Cspad2x2Server::enable() {
+unsigned Pds::Cspad2x2Server::enable() {
   _d.dest(Pds::CsPad2x2::Cspad2x2Destination::CR);
-  _pgp->writeRegister(
+  unsigned ret = _pgp->writeRegister(
       &_d,
       CsPad2x2::Cspad2x2Configurator::RunModeAddr,
       _cnfgrtr->configuration().activeRunMode());
   ::usleep(10000);
   _firstFetch = true;
   flushInputQueue(fd());
-  if (_debug & 0x20) printf("Cspad2x2Server::enable\n");
+  if (_debug & 0x20) printf("Cspad2x2Server::enable %s\n", ret ? "FAILED!" : "SUCCEEDED");
+  return ret;
 }
 
 void Pds::Cspad2x2Server::runTimeConfigName(char* name) {
@@ -121,15 +121,16 @@ void Pds::Cspad2x2Server::runTimeConfigName(char* name) {
   printf("Pds::Cspad2x2Server::runTimeConfigName(%s)\n", name);
 }
 
-void Pds::Cspad2x2Server::disable() {
+unsigned Pds::Cspad2x2Server::disable() {
   _d.dest(Pds::CsPad2x2::Cspad2x2Destination::CR);
-  _pgp->writeRegister(
+  unsigned ret = _pgp->writeRegister(
       &_d,
       CsPad2x2::Cspad2x2Configurator::RunModeAddr,
       _cnfgrtr->configuration().inactiveRunMode());
   ::usleep(10000);
   flushInputQueue(fd());
-  if (_debug & 0x20) printf("Cspad2x2Server::disable\n");
+  if (_debug & 0x20) printf("Cspad2x2Server::disable %s\n", ret ? "FAILED!" : "SUCCEEDED");
+  return ret;
 }
 
 unsigned Pds::Cspad2x2Server::unconfigure(void) {

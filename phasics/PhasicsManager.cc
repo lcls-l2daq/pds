@@ -296,8 +296,11 @@ class PhasicsBeginCalibCycleAction : public Action {
           if (_server->debug() & 0x10) _cfg.printCurrent();
         }
       }
-      printf("enabled\n");
-      _server->enable();
+      if (_result == 0) {
+        printf("enabled\n");
+        unsigned ret = _server->enable();
+        if (ret) _result = 0xc | (ret & 0xf);
+      }
       return tr;
     }
 
@@ -363,8 +366,10 @@ class PhasicsEndCalibCycleAction : public Action {
       _cfg.next();
       printf(" %p\n", _cfg.current());
       printf("\tdisabling front end\n");
-      _server->disable();
-      _result = _server->unconfigure();
+      unsigned ret;
+      if (ret = _server->disable()) {
+        _result = 0xc | (ret & 0xf);
+      }
       _server->printHisto(true);
       return tr;
     }
