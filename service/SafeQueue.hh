@@ -11,16 +11,19 @@ namespace Pds {
   private:
     bool _stop;
     std::queue<T> _queue;
-    sem_t _sem;
+    pthread_cond_t _condition;
+    pthread_mutex_t _mutex;
 
   public:
     SafeQueue() :
       _stop(false) {
-      sem_init(&_sem, 0, 0);
+      pthread_cond_init(&_condition, NULL);
+      pthread_mutex_init(&_mutex, NULL);
     }
 
     ~SafeQueue() {
-      sem_destroy(&_sem);
+      pthread_mutex_lock(&_mutex);
+      _stop = true;
       while(!_queue.empty()) {
         T item = _queue.front();
         if (item != NULL) {
@@ -32,25 +35,40 @@ namespace Pds {
         }
         _queue.pop();
       }
+      pthread_cond_broadcast(&_condition);
+      pthread_mutex_unlock(&_mutex);
     }
 
     void unblock() {
+      pthread_mutex_lock(&_mutex);
       _stop = true;
-      sem_post(&_sem);
+      pthread_cond_broadcast(&_condition);
+      pthread_mutex_unlock(&_mutex);
     }  
 
     void push(T item) {
+      pthread_mutex_lock(&_mutex);
       _queue.push(item);
-      sem_post(&_sem);
+      pthread_cond_signal(&_condition);
+      pthread_mutex_unlock(&_mutex);
     }
 
     T pop() {
-      while (sem_wait(&_sem)); // keep running sem_wait(), if it is interrupted by signal
-      if (_stop) {
-        return NULL;
+      pthread_mutex_lock(&_mutex);
+      for (;;) {
+        if (_stop) {
+          pthread_cond_signal(&_condition);
+          pthread_mutex_unlock(&_mutex);
+          return NULL;
+        }
+        if (! _queue.empty()) {
+          break;
+        }
+        pthread_cond_wait(&_condition, &_mutex);
       }
       T item = _queue.front();
       _queue.pop();
+      pthread_mutex_unlock(&_mutex);
       return item;
     }
   };
