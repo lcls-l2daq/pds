@@ -18,7 +18,7 @@ namespace Pds
 class Pds::timepix_dev {
 public:
   timepix_dev(int moduleId, MpxModule *relaxd);
-  ~timepix_dev() {}
+  ~timepix_dev();
 
   // relaxd wrapper functions
   int chipCount();

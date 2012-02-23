@@ -3,6 +3,7 @@
 
 #include <stdio.h>
 #include <time.h>
+#include <sys/ioctl.h>
 #include <vector>
 
 #include "pds/utility/EbServer.hh"
@@ -68,7 +69,9 @@ class Pds::TimepixServer
     unsigned configure(const TimepixConfigType& config);
     unsigned unconfigure(void);
     unsigned endrun(void);
-    enum Command {FrameAvailable=0, TriggerConfigured, TriggerNotConfigured, TaskShutdown};
+    enum Command {FrameAvailable=0, TriggerConfigured, TriggerNotConfigured, CommandShutdown};
+    enum TaskState {TaskShutdown=0, TaskInit, TaskWaitFrame, TaskReadFrame, TaskWaitConfigure, TaskReadPipe};
+
     enum {BufferDepth=64};
 
     void setTimepix(timepix_dev *timepix);
@@ -76,6 +79,11 @@ class Pds::TimepixServer
     Task *readTask();
     Task *decodeTask();
     void shutdown();
+    int readTaskState(int state);
+    int readTaskState();
+    int decodeTaskState(int state);
+    int decodeTaskState();
+
 
   private:
 
@@ -93,7 +101,6 @@ class Pds::TimepixServer
       bool                  _full;
       unsigned char         _rawData[Pds::Timepix::DataV1::RawDataBytes];
       Pds::Timepix::DataV1  _header;
-      int16_t               _middleData[Pds::Timepix::DataV1::DecodedDataBytes / sizeof(int16_t)];
       int16_t               _pixelData[Pds::Timepix::DataV1::DecodedDataBytes / sizeof(int16_t)];
     };
 
@@ -177,6 +184,9 @@ class Pds::TimepixServer
     int32_t     _dac2[TPX_DACS];
     int32_t     _dac3[TPX_DACS];
     char *      _threshFile;
+    int         _readTaskState;
+    int         _decodeTaskState;
+    MpxModule * _relaxd;
 };
 
 #endif

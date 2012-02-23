@@ -17,8 +17,6 @@
 #include "pdsdata/timepix/ConfigV1.hh"
 #include "pds/config/CfgClientNfs.hh"
 
-#include "mpxmodule.h"
-
 using namespace Pds;
 
 class TimepixAction : public Action
@@ -227,45 +225,10 @@ TimepixManager::TimepixManager( TimepixServer* server,
                                 CfgClientNfs* cfg )
    : _fsm(*new Fsm)
 {
-  int ndevs;
   printf("%s being initialized...\n", __FUNCTION__);
 
   _occSend = new TimepixOccurrence(this);
   server->setOccSend(_occSend);
-
-  int id = (int)server->moduleId();
-
-  // ---------------------------
-  // Relaxd module instantiation
-  // Access to a Relaxd module using an MpxModule class object:
-  // parameter `id' determines IP-addr of the module: 192.168.33+id.175
-  MpxModule *relaxd = new MpxModule( id );
-
-  if (server->verbosity() > 0) {
-    // Set verbose writing to MpxModule's logfile (default = non-verbose)
-    relaxd->setLogVerbose(true);
-  }
-
-  // only start receiving frames if init succeeds and sanity check passes
-  if (relaxd->init() == 0) {
-    // create timepix device
-    _timepix = new timepix_dev(id, relaxd);
-    if (_timepix->warmup(false) != 0) {
-      fprintf(stderr, "Error: Timepix warmup failed\n");
-    } else {
-      ndevs = relaxd->chipCount();
-      if (ndevs != Timepix::ConfigV1::ChipCount) {
-        fprintf(stderr, "Error: relaxd chipCount() returned %d (expected %d)\n",
-                ndevs, Timepix::ConfigV1::ChipCount);
-      } else {
-        // successful initialization
-        // share timepix device with TimepixServer
-        server->setTimepix(_timepix);
-      }
-    }
-  } else {
-    fprintf(stderr, "Error: relaxd initialization failed\n");
-  }
 
   TimepixL1Action& timepixL1 = * new TimepixL1Action();
 

@@ -25,6 +25,11 @@ timepix_dev::timepix_dev(int moduleId, MpxModule *relaxd) :
   _mutex = new Semaphore(Semaphore::FULL);
 }
 
+timepix_dev::~timepix_dev()
+{
+  delete _mutex;
+}
+
 // relaxd wrapper functions
 
 // Using a semaphore, we ensure that no two threads enter
@@ -233,7 +238,7 @@ int timepix_dev::warmup(bool init)
   char *       errString = (char *)NULL;
   uint8_t *    warmupbuf = new uint8_t[500000]; // readMatrixRaw()
 
-  printf("Starting Timepix warmup...\n");
+  printf("Timepix warmup... ");
 
   _mutex->take();
 
@@ -313,7 +318,7 @@ int timepix_dev::warmup(bool init)
   // Successful return
   _mutex->give();
   delete[] warmupbuf;
-  printf("...Timepix warmup done\n");
+  printf("done\n");
   return (0);
 
 warmup_error:
@@ -321,7 +326,7 @@ warmup_error:
   _mutex->give();
   delete[] warmupbuf;
   if (errString) {
-    printf("...Timepix warmup error: %s\n", errString);
+    printf("ERROR: %s\n", errString);
   }
   return (1);
 }

@@ -45,7 +45,9 @@ Pds::TimepixServer::TimepixServer( const Src& client, unsigned moduleId, unsigne
      _decodeTask(new Task(TaskObject("decodeframe"))),
      _shutdownFlag(0),
      _pixelsCfg(NULL),
-     _threshFile(threshFile)
+     _threshFile(threshFile),
+     _readTaskState(TaskShutdown),
+     _decodeTaskState(TaskShutdown)
 {
   // calculate aux data xtc extent
   _xtc.extent = sizeof(TimepixDataType) + sizeof(Xtc) + Pds::Timepix::DataV1::DecodedDataBytes;
@@ -68,12 +70,9 @@ Pds::TimepixServer::TimepixServer( const Src& client, unsigned moduleId, unsigne
   if (err) {
     fprintf(stderr, "%s pipe error: %s\n", __FUNCTION__, strerror(errno));
   } else {
-    // create routines
+    // create routines (but do not yet call them)
    _readRoutine = new ReadRoutine(this, _rawPipeFd[1]);
    _decodeRoutine = new DecodeRoutine(this, _rawPipeFd[0]);
-    // call routines in separate tasks
-    _readTask->call(_readRoutine);
-    _decodeTask->call(_decodeRoutine);
   }
 
   if (_debug & TIMEPIX_DEBUG_PROFILE) {
@@ -161,6 +160,8 @@ void Pds::TimepixServer::ReadRoutine::routine()
   timespec time1, time2;
 
   // Wait for _timepix to be set
+  _server->readTaskState(TaskInit);
+  printf(" ** read task init **\n");
   while (_server->_timepix == NULL) {
     if (_server->_outOfOrder || _server->_shutdownFlag) {
       goto read_shutdown;
@@ -168,26 +169,23 @@ void Pds::TimepixServer::ReadRoutine::routine()
     decisleep(1);
   }
 
+  // wait for trigger to be configured
+  _server->readTaskState(TaskWaitConfigure);
+  while (!_server->_triggerConfigured) {
+    decisleep(1);
+    if (_server->_outOfOrder || _server->_shutdownFlag) {
+      goto read_shutdown;
+    }
+  }
+
   while (1) {
     for (buf_iter = _server->_buffer->begin(); buf_iter != _server->_buffer->end(); buf_iter++) {
 
-do_over:
-      // wait for trigger to be configured
-      while (!_server->_triggerConfigured) {
-        decisleep(1);
-        if (_server->_outOfOrder || _server->_shutdownFlag) {
-          goto read_shutdown;
-        }
-      }
-
-      // trigger is configured
       // wait for new frame
+      _server->readTaskState(TaskWaitFrame);
       while (!_server->_timepix->newFrame()) {
-        if (_server->_outOfOrder || _server->_shutdownFlag) {
+        if (_server->_outOfOrder || _server->_shutdownFlag || !_server->_triggerConfigured) {
           goto read_shutdown;
-        }
-        if (!_server->_triggerConfigured) {
-          goto do_over;
         }
       }
 
@@ -206,6 +204,7 @@ do_over:
       }
 
       // read frame
+      _server->readTaskState(TaskReadFrame);
       int rv = _server->_timepix->readMatrixRawPlus(buf_iter->_rawData, &ss, &lostRowBuf,
                                                     &buf_iter->_header._frameCounter,
                                                     &buf_iter->_header._timestamp);
@@ -229,14 +228,16 @@ do_over:
       sendCommand.buf_iter = buf_iter;
       if (::write(_writeFd, &sendCommand, sizeof(sendCommand)) == -1) {
         fprintf(stderr, "%s write error: %s\n", __PRETTY_FUNCTION__, strerror(errno));
+        // FIXME _server->setReadDamage(PipeError);
       }
     } // end of for
   } // end of while
 
 read_shutdown:
-  printf("\n ** read task shutdown **\n");
+  _server->readTaskState(TaskShutdown);
+  printf(" ** read task shutdown **\n");
   // send shutdown command to decode task
-  sendCommand.cmd = TaskShutdown;
+  sendCommand.cmd = CommandShutdown;
   if (::write(_writeFd, &sendCommand, sizeof(sendCommand)) == -1) {
     fprintf(stderr, "%s write error: %s\n", __PRETTY_FUNCTION__, strerror(errno));
   }
@@ -248,6 +249,8 @@ void Pds::TimepixServer::DecodeRoutine::routine()
   bool          missedTrigger;
 
   // Wait for _timepix to be set
+  _server->decodeTaskState(TaskInit);
+  printf(" ** decode task init **\n");
   while (_server->_timepix == NULL) {
     if (_server->_outOfOrder || _server->_shutdownFlag) {
       goto decode_shutdown;
@@ -255,6 +258,7 @@ void Pds::TimepixServer::DecodeRoutine::routine()
     decisleep(1);
   }
   // wait for trigger to be configured
+  _server->decodeTaskState(TaskWaitConfigure);
   while (!_server->_triggerConfigured) {
     if (_server->_shutdownFlag) {
       goto decode_shutdown;
@@ -263,16 +267,18 @@ void Pds::TimepixServer::DecodeRoutine::routine()
   }
   // trigger is configured
   while (1) {
-    if (_server->_shutdownFlag) {
+    if (_server->_shutdownFlag || !_server->_triggerConfigured) {
       goto decode_shutdown;
     }
     // reset missed trigger flag
     missedTrigger = false;
 
     // read from pipe
+    _server->decodeTaskState(TaskReadPipe);
     int length = ::read(_readFd, &receiveCommand, sizeof(receiveCommand));
     if (length != sizeof(receiveCommand)) {
       fprintf(stderr, "Error: read() returned %d in %s\n", length, __PRETTY_FUNCTION__);
+      // FIXME _server->setDecodeDamage(PipeError);
     }
 
     if (receiveCommand.cmd == FrameAvailable) {
@@ -301,7 +307,7 @@ void Pds::TimepixServer::DecodeRoutine::routine()
         clock_gettime(CLOCK_REALTIME, &_profile4[buf_iter->_header._frameCounter]);    // TIMESTAMP 4
       }
 
-    } else if (receiveCommand.cmd == TaskShutdown) {
+    } else if (receiveCommand.cmd == CommandShutdown) {
       goto decode_shutdown;
     } else {
       fprintf(stderr, "Error: unrecognized cmd (%d) in %s\n",
@@ -314,22 +320,102 @@ void Pds::TimepixServer::DecodeRoutine::routine()
   }
 
 decode_shutdown:
-  printf("\n ** decode task shutdown **\n");
+  _server->decodeTaskState(TaskShutdown);
+  printf(" ** decode task shutdown **\n");
 }
 
 unsigned Pds::TimepixServer::configure(const TimepixConfigType& config)
 {
+  char msgBuf[80];
   // int rv;
   unsigned int configReg;
   unsigned numErrs = 0;
+  int id = (int)moduleId();
+  timepix_dev *tpx = (timepix_dev *)NULL;
 
   _count = 0;
   _countOffset = 0;
   _resetHwCount = true;
   _missedTriggerCount = 0;
 
-  if (_timepix == NULL) {
-    char msgBuf[80];
+  if (_relaxd == NULL) {
+    // ---------------------------
+    // Relaxd module instantiation
+    // Access to a Relaxd module using an MpxModule class object:
+    // parameter `id' determines IP-addr of the module: 192.168.33+id.175
+    _relaxd = new MpxModule( id );
+
+    if (verbosity() > 0) {
+      // Set verbose writing to MpxModule's logfile (default = non-verbose)
+      _relaxd->setLogVerbose(true);
+    }
+  }
+
+  // only start receiving frames if init succeeds and sanity check passes
+
+  if (_relaxd->init() != 0) {
+    sprintf(msgBuf, "Relaxd module %d (192.168.%d.175) init failed\n", id, 33+id);
+    fprintf(stderr, "%s: %s", __PRETTY_FUNCTION__, msgBuf);
+    if (_occSend != NULL) {
+      // send occurrence
+      _occSend->userMessage(msgBuf);
+    }
+    return (1);
+  }
+
+  if (_triggerConfigured) {
+    fprintf(stderr, "Error: _triggerConfigured is true at beginning of %s\n", __PRETTY_FUNCTION__);
+  }
+
+  if (_timepix != NULL) {
+    fprintf(stderr, "Error: _timepix not NULL at beginning of %s\n", __PRETTY_FUNCTION__);
+  }
+
+  int state = readTaskState();
+  if (state != TaskShutdown) {
+    fprintf(stderr, "Error: read task is in state %d (not shutdown) at %s line %d\n", state, __FILE__, __LINE__);
+  }
+
+  state = decodeTaskState();
+  if (state != TaskShutdown) {
+    fprintf(stderr, "Error: decode task is in state %d (not shutdown) at %s line %d\n", state, __FILE__, __LINE__);
+  }
+
+  // create timepix device
+  tpx = new timepix_dev(id, _relaxd);
+
+  // timepix warmup
+  if (tpx->warmup(false) != 0) {
+    // failed warmup
+    delete tpx;
+    sprintf(msgBuf, "Timepix module %d (192.168.%d.175) warmup failed\n", id, 33+id);
+    fprintf(stderr, "%s: %s", __PRETTY_FUNCTION__, msgBuf);
+    if (_occSend != NULL) {
+      // send occurrence
+      _occSend->userMessage(msgBuf);
+    }
+    return (1);
+  }
+
+  // timepix sanity test: count the chips, disable the trigger
+  int ndevs = tpx->chipCount();
+  if (ndevs != Timepix::ConfigV1::ChipCount) {
+    fprintf(stderr, "Error: chipCount() returned %d (expected %d)\n",
+            ndevs, Timepix::ConfigV1::ChipCount);
+    ++numErrs;
+  }
+  printf("Disable external trigger... ");
+  _triggerConfigured = false;
+  if (tpx->enableExtTrigger(false)) {
+    printf("ERROR\n");
+    ++numErrs;
+  } else {
+    printf("done\n");
+  }
+
+  if (numErrs > 0) {
+    // failed initialization
+    delete tpx;
     sprintf(msgBuf, "Timepix module %u (192.168.%d.175) init failed\n", moduleId(), 33+moduleId());
     fprintf(stderr, "%s: %s", __PRETTY_FUNCTION__, msgBuf);
     if (_occSend != NULL) {
@@ -339,12 +425,21 @@ unsigned Pds::TimepixServer::configure(const TimepixConfigType& config)
     return (1);
   }
 
-  printf("Disable external trigger... ");
-  if (_timepix->enableExtTrigger(false)) {
-    printf("ERROR\n");
-    ++numErrs;
-  } else {
-    printf("done\n");
+  // successful initialization
+  // ...after _timepix is set, rely on unconfigure to delete _timepix
+  _timepix = tpx;
+
+  // call routines in separate tasks
+  _readTask->call(_readRoutine);
+  _decodeTask->call(_decodeRoutine);
+  decisleep(1);
+  state = readTaskState();
+  if (state != TaskWaitConfigure) {
+    fprintf(stderr, "Error: read task is in state %d (not WaitConfigure) at %s line %d\n", state, __FILE__, __LINE__);
+  }
+  state = decodeTaskState();
+  if (state != TaskWaitConfigure) {
+    fprintf(stderr, "Error: decode task is in state %d (not WaitConfigure (state %d) at %s line %d\n", state, __FILE__, __LINE__);
   }
 
   _readoutSpeed = config.readoutSpeed();
@@ -467,11 +562,6 @@ unsigned Pds::TimepixServer::configure(const TimepixConfigType& config)
   if (_timepix->readReg(MPIX2_CONF_REG_OFFSET, &configReg) == 0) {
     configReg &= ~MPIX2_CONF_TIMER_USED;      // Reset 'use Timer'
 
-    // FIXME enable trigger later
-    configReg |= MPIX2_CONF_EXT_TRIG_ENABLE;  // Enable external trigger
-
-    configReg &= ~MPIX2_CONF_EXT_TRIG_INHIBIT; // Ready for next (external) trigger
-
     if (_readoutSpeed == Timepix::ConfigV1::ReadoutSpeed_Fast) {
       configReg |= MPIX2_CONF_RO_CLOCK_125MHZ;  // Enable high speed chip readout
     }
@@ -490,18 +580,39 @@ unsigned Pds::TimepixServer::configure(const TimepixConfigType& config)
     ++numErrs;
   }
 
-
   if (_timepix->readReg(MPIX2_CONF_REG_OFFSET, &configReg) == 0) {
     printf("Timepix configuration register: 0x%08x\n", configReg);
   }
 
-  // verify that chipCount() returns 4
-  int ndevs = _timepix->chipCount();
-  if (ndevs == 4) {
-    fprintf(stdout, "Timepix chip count = 4\n");
-  } else {
-    fprintf(stderr, "Error: Timepix chip count = %d\n", ndevs);
-    ++numErrs;
+  // ensure that pipes are empty
+  // TODO drain(x); drain(y)
+  int nbytes;
+  char bucket;
+  if (_completedPipeFd[0]) {
+    if (ioctl(_completedPipeFd[0], FIONREAD, &nbytes) == -1) {
+      perror("ioctl");
+    } else if (nbytes > 0) {
+      printf("%s: draining %d bytes from completed pipe\n", __FUNCTION__, nbytes);
+      while (nbytes-- > 0) {
+        ::read(_completedPipeFd[0], &bucket, 1);
+      }
+    }
+  }
+  if (_rawPipeFd[0]) {
+    if (ioctl(_rawPipeFd[0], FIONREAD, &nbytes) == -1) {
+      perror("ioctl");
+    } else if (nbytes > 0) {
+      printf("%s: draining %d bytes from raw pipe\n", __FUNCTION__, nbytes);
+      while (nbytes-- > 0) {
+        ::read(_rawPipeFd[0], &bucket, 1);
+      }
+    }
+  }
+
+  // ensure that command buffer is cleared
+  vector<BufferElement>::iterator buf_iter;
+  for (buf_iter = _buffer->begin(); buf_iter != _buffer->end(); buf_iter++) {
+    buf_iter->_full = false;
   }
 
   if (numErrs > 0) {
@@ -512,7 +623,15 @@ unsigned Pds::TimepixServer::configure(const TimepixConfigType& config)
     }
   } else {
     // enable polling for new frames
-    _triggerConfigured = true;
+    printf("Enable external trigger... ");
+    if (_timepix->enableExtTrigger(true)) {
+      printf("ERROR\n");
+      ++numErrs;
+    } else {
+      printf("done\n");
+      // setting _triggerConfigured allows read and decode tasks to proceed
+      _triggerConfigured = true;
+    }
   }
 
   return (numErrs);
@@ -520,13 +639,39 @@ unsigned Pds::TimepixServer::configure(const TimepixConfigType& config)
 
 unsigned Pds::TimepixServer::unconfigure(void)
 {
-  _expectedDiff = 0;
-  // disable polling for new frames
-  _triggerConfigured = false;
+  unsigned numErrs = 0;
 
-  // reinitialize Timepix (if _timepix has been set)
-  if (_timepix && _timepix->warmup(true)) {
-    fprintf(stderr, "Error: warmup() failed in %s\n", __FUNCTION__);
+  _expectedDiff = 0;
+
+  // disable polling for new frames
+  if (_timepix) {
+    printf("Disable external trigger... ");
+    if (_timepix->enableExtTrigger(false)) {
+      printf("ERROR\n");
+      ++numErrs;
+    } else {
+      printf("done\n");
+    }
+  }
+
+  // set _triggerConfigured to false and give tasks a bit of time to shutdown
+  _triggerConfigured = false;
+  decisleep(2);
+
+  int state = readTaskState();
+  if (state != TaskShutdown) {
+    fprintf(stderr, "Error: read task is in state %d (not shutdown) at %s line %d\n", state, __FILE__, __LINE__);
+  } else {
+    // delete timepix object
+    if (_timepix) {
+      delete _timepix;
+      _timepix = (timepix_dev *)NULL;
+    }
+  }
+
+  state = decodeTaskState();
+  if (state != TaskShutdown) {
+    fprintf(stderr, "Error: decode task is in state %d (not shutdown) at %s line %d\n", state, __FILE__, __LINE__);
   }
 
   // profiling report
@@ -575,7 +720,7 @@ unsigned Pds::TimepixServer::unconfigure(void)
   _badFrame = 0;
   _uglyFrame = 0;
 
-  return (0);
+  return (numErrs);
 }
 
 unsigned Pds::TimepixServer::endrun(void)
@@ -725,4 +870,26 @@ void TimepixServer::shutdown()
 {
   printf("\n ** TimepixServer shutdown **\n");
   _shutdownFlag = 1;
+}
+
+int TimepixServer::readTaskState(int state)
+{
+  _readTaskState = state;
+  return (_readTaskState);
+}
+
+int TimepixServer::readTaskState()
+{
+  return (_readTaskState);
+}
+
+int TimepixServer::decodeTaskState(int state)
+{
+  _decodeTaskState = state;
+  return (_decodeTaskState);
+}
+
+int TimepixServer::decodeTaskState()
+{
+  return (_decodeTaskState);
 }
