@@ -22,7 +22,10 @@ timespec _profile5[PROFILE_MAX];
 timespec _profile6[PROFILE_MAX];
 uint32_t _profileHwTimestamp[PROFILE_MAX];
 
-Pds::TimepixServer::TimepixServer( const Src& client, unsigned moduleId, unsigned verbosity, unsigned debug, char *threshFile)
+static void shuffleTimepixQuad(int16_t *dst, int16_t *src);
+
+Pds::TimepixServer::TimepixServer( const Src& client, unsigned moduleId, unsigned verbosity, unsigned debug, char *threshFile,
+                                   char *testImageFile, int readCpu, int decodeCpu)
    : _xtc( _timepixDataType, client ),
      _xtcDamaged( _timepixDataType, client ),
      _count(0),
@@ -46,8 +49,11 @@ Pds::TimepixServer::TimepixServer( const Src& client, unsigned moduleId, unsigne
      _shutdownFlag(0),
      _pixelsCfg(NULL),
      _threshFile(threshFile),
+     _testData(NULL),
      _readTaskState(TaskShutdown),
-     _decodeTaskState(TaskShutdown)
+     _decodeTaskState(TaskShutdown),
+     _readCpu(readCpu),
+     _decodeCpu(decodeCpu)
 {
   // calculate aux data xtc extent
   _xtc.extent = sizeof(TimepixDataType) + sizeof(Xtc) + Pds::Timepix::DataV1::DecodedDataBytes;
@@ -113,6 +119,27 @@ Pds::TimepixServer::TimepixServer( const Src& client, unsigned moduleId, unsigne
       fclose(fp);
     }
   }
+#if 0
+  if (testImageFile) {
+    FILE* fp = fopen(testImageFile, "r");
+    if (fp == NULL) {
+      perror("fopen");
+    } else {
+      _testData = new int16_t[512*512];
+      // discard 3 words of header, keep 512*512 words of test data
+      if ((fread(_testData, 2, 3, fp) != 3) ||
+          (fread(_testData, 2, 512*512, fp) != 512*512)) {
+        perror("fread");
+        delete[] _testData;
+        _testData = NULL;
+        printf("Error: Reading test image from %s failed\n", testImageFile);
+      } else {
+        printf("Reading test image from %s complete\n", testImageFile);
+      }
+      fclose(fp);
+    }
+  }
+#endif
 }
 
 uint8_t *Pds::TimepixServer::pixelsCfg()
@@ -216,8 +243,8 @@ void Pds::TimepixServer::ReadRoutine::routine()
       }
       if (_server->_debug & TIMEPIX_DEBUG_PROFILE) {
         clock_gettime(CLOCK_REALTIME, &time2);          // TIMESTAMP 2
-        _profile1[buf_iter->_header._frameCounter] = time1;
-        _profile2[buf_iter->_header._frameCounter] = time2;
+        _profile1[buf_iter->_header.frameCounter()] = time1;
+        _profile2[buf_iter->_header.frameCounter()] = time2;
       }
 
       // fill in lost_rows
@@ -293,18 +320,21 @@ void Pds::TimepixServer::DecodeRoutine::routine()
       }
 
       if (_server->_debug & TIMEPIX_DEBUG_PROFILE) {
-        clock_gettime(CLOCK_REALTIME, &_profile3[buf_iter->_header._frameCounter]);    // TIMESTAMP 3
-        _profileHwTimestamp[buf_iter->_header._frameCounter] = buf_iter->_header._timestamp;
+        clock_gettime(CLOCK_REALTIME, &_profile3[buf_iter->_header.frameCounter()]);    // TIMESTAMP 3
+        _profileHwTimestamp[buf_iter->_header.frameCounter()] = buf_iter->_header._timestamp;
         _server->_profileCollected = true;
       }
 
-      if (!(_server->_debug & TIMEPIX_DEBUG_NOCONVERT)) {
+      if (_server->_testData) {
+        // use test image in place of real data
+        memcpy(buf_iter->_pixelData, _server->_testData, Pds::Timepix::DataV1::DecodedDataBytes);
+      } else if (!(_server->_debug & TIMEPIX_DEBUG_NOCONVERT)) {
         // decode to pixels
         _server->_timepix->decode2Pixels(buf_iter->_rawData, buf_iter->_pixelData);
       }
 
       if (_server->_debug & TIMEPIX_DEBUG_PROFILE) {
-        clock_gettime(CLOCK_REALTIME, &_profile4[buf_iter->_header._frameCounter]);    // TIMESTAMP 4
+        clock_gettime(CLOCK_REALTIME, &_profile4[buf_iter->_header.frameCounter()]);    // TIMESTAMP 4
       }
 
     } else if (receiveCommand.cmd == CommandShutdown) {
@@ -439,7 +469,7 @@ unsigned Pds::TimepixServer::configure(const TimepixConfigType& config)
   }
   state = decodeTaskState();
   if (state != TaskWaitConfigure) {
-    fprintf(stderr, "Error: decode task is in state %d (not WaitConfigure (state %d) at %s line %d\n", state, __FILE__, __LINE__);
+    fprintf(stderr, "Error: decode task is in state %d (not WaitConfigure) at %s line %d\n", state, __FILE__, __LINE__);
   }
 
   _readoutSpeed = config.readoutSpeed();
@@ -763,13 +793,15 @@ int Pds::TimepixServer::fetch( char* payload, int flags )
       return (-1);
     }
 
+      frame->_width = Pds::Timepix::DataV1::Width;
+      frame->_height = Pds::Timepix::DataV1::Height;
       frame->_lostRows = receiveCommand.buf_iter->_header._lostRows;
       frame->_frameCounter = receiveCommand.buf_iter->_header._frameCounter;
       frame->_timestamp = receiveCommand.buf_iter->_header._timestamp;
 
     if (_resetHwCount) {
       _count = 0;
-      _countOffset = frame->_frameCounter - 1;
+      _countOffset = frame->frameCounter() - 1;
       _resetHwCount = false;
     }
 
@@ -778,9 +810,9 @@ int Pds::TimepixServer::fetch( char* payload, int flags )
     if (!(_debug & TIMEPIX_DEBUG_IGNORE_FRAMECOUNT)) {
       // check for out-of-order condition
       uint16_t sum16 = (uint16_t)(_count + _countOffset);
-      if (frame->_frameCounter != sum16) {
+      if (frame->frameCounter() != sum16) {
         fprintf(stderr, "Error: hw framecounter (%hu) != sw count (%hu) + count offset (%u) == (%hu)\n",
-                frame->_frameCounter, _count, _countOffset, sum16);
+                frame->frameCounter(), _count, _countOffset, sum16);
         // latch error
         _outOfOrder = 1;
         if (_occSend) {
@@ -800,9 +832,11 @@ int Pds::TimepixServer::fetch( char* payload, int flags )
       memcpy(payload, &_xtcDamaged, sizeof(Xtc));
     }
 
-    // copy pixels to payload
-    memcpy((void *)frame->data(), (void *)receiveCommand.buf_iter->_pixelData,
-           frame->data_size());
+    // shuffle and copy pixels to payload
+    shuffleTimepixQuad((int16_t *)frame->data(), receiveCommand.buf_iter->_pixelData);
+
+//  memcpy((void *)frame->data(), (void *)receiveCommand.buf_iter->_pixelData,
+//         frame->data_size());
 
     if (!receiveCommand.missedTrigger) {
       // mark buffer as empty
@@ -811,9 +845,9 @@ int Pds::TimepixServer::fetch( char* payload, int flags )
 
     if (_debug & TIMEPIX_DEBUG_PROFILE) {
       // TIMESTAMP 6
-      clock_gettime(CLOCK_REALTIME, &_profile6[receiveCommand.buf_iter->_header._frameCounter]);
+      clock_gettime(CLOCK_REALTIME, &_profile6[receiveCommand.buf_iter->_header.frameCounter()]);
       // fill in timestamp 5
-      _profile5[receiveCommand.buf_iter->_header._frameCounter] = time5;
+      _profile5[receiveCommand.buf_iter->_header.frameCounter()] = time5;
     }
 
     return (_xtc.extent);
@@ -892,4 +926,37 @@ int TimepixServer::decodeTaskState(int state)
 int TimepixServer::decodeTaskState()
 {
   return (_decodeTaskState);
+}
+
+static void shuffleTimepixQuad(int16_t *dst, int16_t *src)
+{
+  unsigned destX, destY;
+  for(unsigned iy=0; iy<2*512; iy++) {
+    for(unsigned k=0; k<512/2; k++, src++) {
+      // map pixels from 256x1024 to 512x512
+      switch (iy / 256) {
+        case 0:
+          destX = iy;
+          destY = 511 - k;
+          break;
+        case 1:
+          destX = iy - 256;
+          destY = 255 - k;
+          break;
+        case 2:
+          destX = 1023 - iy;
+          destY = k;
+          break;
+        case 3:
+          destX = 1023 + 256 - iy;
+          destY = k + 256;
+          break;
+        default:
+          // error
+          destX = destY = 0;  // suppress warning
+          break;
+      }
+      dst[destX + (destY * 512)] = *src;
+    }
+  }
 }

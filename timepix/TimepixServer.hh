@@ -35,7 +35,8 @@ class Pds::TimepixServer
      public EbCountSrv
 {
   public:
-    TimepixServer(const Src& client, unsigned moduleId, unsigned verbosity, unsigned debug, char *threshFile);
+    TimepixServer(const Src& client, unsigned moduleId, unsigned verbosity, unsigned debug, char *threshFile,
+                  char *imageFileName, int readCpu, int decodeCpu);
     virtual ~TimepixServer() {}
       
     //  Eb interface
@@ -184,9 +185,12 @@ class Pds::TimepixServer
     int32_t     _dac2[TPX_DACS];
     int32_t     _dac3[TPX_DACS];
     char *      _threshFile;
+    int16_t *   _testData;
     int         _readTaskState;
     int         _decodeTaskState;
     MpxModule * _relaxd;
+    int         _readCpu;
+    int         _decodeCpu;
 };
 
 #endif
