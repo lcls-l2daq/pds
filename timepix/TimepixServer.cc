@@ -52,6 +52,7 @@ Pds::TimepixServer::TimepixServer( const Src& client, unsigned moduleId, unsigne
      _testData(NULL),
      _readTaskState(TaskShutdown),
      _decodeTaskState(TaskShutdown),
+     _relaxd(NULL),
      _readCpu(readCpu),
      _decodeCpu(decodeCpu)
 {
@@ -367,6 +368,7 @@ unsigned Pds::TimepixServer::configure(const TimepixConfigType& config)
   _countOffset = 0;
   _resetHwCount = true;
   _missedTriggerCount = 0;
+  _shutdownFlag = 0;
 
   if (_relaxd == NULL) {
     // ---------------------------
@@ -684,9 +686,10 @@ unsigned Pds::TimepixServer::unconfigure(void)
     }
   }
 
-  // set _triggerConfigured to false and give tasks a bit of time to shutdown
   _triggerConfigured = false;
-  decisleep(2);
+  shutdown();
+  // give tasks a bit of time to shutdown
+  decisleep(3);
 
   int state = readTaskState();
   if (state != TaskShutdown) {
