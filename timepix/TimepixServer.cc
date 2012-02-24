@@ -222,6 +222,10 @@ void Pds::TimepixServer::ReadRoutine::routine()
         fprintf(stderr, "Error: buffer overflow in %s\n", __PRETTY_FUNCTION__);
         // FIXME _server->setReadDamage(BufferError);
         _server->_outOfOrder = 1;
+        if (_server->_occSend != NULL) {
+          // send occurrence
+          _server->_occSend->userMessage("Timepix: Buffer overflow in reader task\n");
+        }
         goto read_shutdown;       // yes: shutdown
       } else {
         buf_iter->_full = true;   // no: mark this buffer as full
