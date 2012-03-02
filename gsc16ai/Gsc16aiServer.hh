@@ -2,6 +2,7 @@
 #define __GSC16AISERVER_HH
 
 #include <stdio.h>
+#include <vector>
 
 #include "pds/utility/EbServer.hh"
 #include "pds/utility/EbCountSrv.hh"
@@ -13,6 +14,8 @@
 
 #include "gsc16ai_dev.hh"
 #include "Gsc16aiOccurrence.hh"
+
+using namespace std;
 
 namespace Pds
 {
@@ -62,18 +65,47 @@ class Pds::Gsc16aiServer
     unsigned configure(const Gsc16aiConfigType& config);
     unsigned unconfigure(void);
     enum Command {Payload=0};
-    int  payloadComplete(void);
+    enum {BufferDepth=64};
     Task* task()
       { return (_task); }
 
   private:
+
+    //
+    // private classes
+    //
+
+    class BufferElement
+    {
+    public:
+      BufferElement() :
+        _full(false)
+      {}
+      bool     _full;
+      uint16_t _timestamp[3];
+      uint16_t _channelValue[Gsc16ai::NumChannels * 2];
+    };
+
+    int payloadComplete(vector<BufferElement>::iterator buf_iter);
+
+    //
+    // command_t is used for intertask communication via pipes
+    //
+    typedef struct {
+      Command cmd;
+      vector<BufferElement>::iterator buf_iter;
+    } command_t;
+
+
     Xtc _xtc;
     unsigned _count;
     gsc16ai_dev *_adc;
     Gsc16aiOccurrence *_occSend;
     int _outOfOrder;
     int _pfd[2];
-    Command    _cmd;
+    // Command    _cmd;
+    vector<BufferElement>*   _buffer;
+    bool     _shutdownFlag;
     Task *_task;
     uint16_t _firstChan;
     uint16_t _lastChan;
