@@ -165,8 +165,8 @@ void Pds::Gsc16aiServer::routine()
       }
       // an error occured.  delay to avoid spinning too fast.
       nanosleep(&sleepTime, NULL);
-    }   // end of while(1)
-  }
+    }   // end of for(...)
+  }   // end of while(1)
 
 routine_shutdown:
   printf("\n ** %s shutdown **\n", __PRETTY_FUNCTION__);
