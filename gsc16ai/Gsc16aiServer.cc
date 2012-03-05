@@ -80,6 +80,7 @@ void Pds::Gsc16aiServer::routine()
           if (_occSend) {
             // send occurrence
             _occSend->outOfOrder();
+            _occSend->userMessage("Gsc16ai: Buffer overrun\n");
           }
           // exit the task
           goto routine_shutdown;
@@ -116,6 +117,7 @@ void Pds::Gsc16aiServer::routine()
             if (_occSend) {
               // send occurrence
               _occSend->outOfOrder();
+              _occSend->userMessage("Gsc16ai: First channel flag not set\n");
             }
           }
           // exit the task
@@ -131,6 +133,7 @@ void Pds::Gsc16aiServer::routine()
             if (_occSend) {
               // send occurrence
               _occSend->outOfOrder();
+              _occSend->userMessage("Gsc16ai: FIFO not empty after read\n");
             }
             fprintf(stderr, "Error: FIFO level nonzero (%d) after read; data could be out-of-order\n",
                     bufLevel);
