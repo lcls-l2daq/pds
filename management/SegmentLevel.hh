@@ -26,8 +26,10 @@ namespace Pds {
   private:
     // Implements PartitionMember
     Message& reply     (Message::Type);
+  protected:
     void     allocated (const Allocation&, unsigned);
     void     dissolved ();
+  private:
     void     post      (const Transition&);
     void     post      (const Occurrence&);
     void     post      (const InDatagram&);

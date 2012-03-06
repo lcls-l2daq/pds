@@ -89,7 +89,7 @@ static const int      giMaxNumFifoEvent = 32;
 static const int      giMaxEventCodes   = 64; // max number of event code configurations
 static const int      giNumL1Buffers    = 32; // number of L1 data buffers
 static const int      giMaxPulses       = 10; 
-static const int      giMaxOutputMaps   = 16; 
+static const int      giMaxOutputMaps   = 80; 
 static const int      giMaxCalibCycles  = 500;
 static const unsigned giMaxCommands     = 32;
 static const unsigned TERMINATOR        = 1;
@@ -1118,27 +1118,39 @@ public:
         1  // Enable pulse
         );
         
-      _er.SetPulseParams(pc.pulseId(), pc.prescale(), pc.delay(), pc.width());
+      unsigned prescale=pc.prescale();
+      unsigned delay   =pc.delay()*prescale;
+      unsigned width   =pc.width()*prescale;
+
+      _er.SetPulseParams(pc.pulseId(), prescale, delay, width);
 
       printf("pulse %d :%d %c %d/%d/%d\n",
-       k, pc.pulseId(), pc.polarity() ? '-':'+', 
-       pc.prescale(), pc.delay(), pc.width());
+             k, pc.pulseId(), pc.polarity() ? '-':'+', 
+             prescale, delay, width);
     }
+
+    _er.DumpPulses(cfg.npulses());
 
     for (unsigned k = 0; k < cfg.noutputs(); k++)
     {
       const EvrConfigType::OutputMapType & map = cfg.output_map(k);
+
+      unsigned dev_id  = map.conn_id()/EvrConfigType::EvrOutputs;
+      unsigned conn_id = map.conn_id()%EvrConfigType::EvrOutputs;
+      if (dev_id != reinterpret_cast<const Pds::DetInfo&>(_cfg.src()).devId())
+        continue;
+
       switch (map.conn())
       {
       case EvrConfigType::OutputMapType::FrontPanel:
-        _er.SetFPOutMap(map.conn_id(), map.map());
+        _er.SetFPOutMap(conn_id, map.map());
         break;
       case EvrConfigType::OutputMapType::UnivIO:
-        _er.SetUnivOutMap(map.conn_id(), map.map());
+        _er.SetUnivOutMap(conn_id, map.map());
         break;
       }
 
-      printf("output %d : %d %x\n", k, map.conn_id(), map.map());
+      printf("output %d : %d %x\n", k, conn_id, map.map());
     }
     
     /*
