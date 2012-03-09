@@ -212,7 +212,7 @@ public:
     {
       _lastFiducial = fe.TimestampHigh;
       addCommand( fe );            
-      return;
+      //      return;
     }
     
     // for testing
@@ -565,6 +565,14 @@ public:
         codeState.iDefReportWidth = -eventCode.releaseCode();             
       else
         codeState.iDefReportWidth = eventCode.reportWidth ();             
+
+      printf("EventCode %d  readout %c  command %c  latch %c  delay %d  width %d\n",
+             eventCode.code(),
+             eventCode.isReadout() ? 't':'f',
+             eventCode.isCommand() ? 't':'f',
+             eventCode.isLatch  () ? 't':'f',
+             eventCode.reportDelay(),
+             eventCode.reportWidth());
     }    
   }  
   
