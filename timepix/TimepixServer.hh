@@ -67,7 +67,7 @@ class Pds::TimepixServer
     void withdraw();
     void reconnect();
 
-    unsigned configure(const TimepixConfigType& config);
+    unsigned configure(TimepixConfigType& config);
     unsigned unconfigure(void);
     unsigned endrun(void);
     enum Command {FrameAvailable=0, TriggerConfigured, TriggerNotConfigured, CommandShutdown};

@@ -9,6 +9,7 @@
 #include <sys/stat.h>
 #include <fcntl.h>
 #include <errno.h>
+#include <string.h>
 
 #include "timepix_dev.hh"
 
@@ -208,10 +209,36 @@ int timepix_dev::setTimepixSpeed(int32_t speed)
   return rv;
 }
 
+int timepix_dev::getDriverVersion()
+{
+  _mutex->take();
+  int rv = _relaxd->getDriverVersion();
+  _mutex->give();
+  return rv;
+}
+
 int timepix_dev::getFirmwareVersion(uint32_t *ver)
 {
   _mutex->take();
   int rv = _relaxd->getFirmwareVersion(ver);
+  _mutex->give();
+  return rv;
+}
+
+std::string timepix_dev::getChipName(int chipnr)
+{
+
+  _mutex->take();
+  std::string buf = _relaxd->chipName(chipnr);
+  _mutex->give();
+  
+  return buf;
+}
+
+int timepix_dev::getChipID(int chipnr, uint32_t *id)
+{
+  _mutex->take();
+  int rv = _relaxd->readChipId(chipnr, id);
   _mutex->give();
   return rv;
 }

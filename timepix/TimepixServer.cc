@@ -99,19 +99,18 @@ Pds::TimepixServer::TimepixServer( const Src& client, unsigned moduleId, unsigne
            __FUNCTION__, TIMEPIX_DEBUG_IGNORE_FRAMECOUNT);
   }
 
-  // TODO avoid hardcoded values and move to another function
   if (threshFile) {
     FILE* fp = fopen(threshFile, "r");
     if (fp == NULL) {
       perror("fopen");
     } else {
-      _pixelsCfg = new uint8_t[4*256*256];
-      if (fread(_pixelsCfg, 256*256, 4, fp) != 4) {
+      _pixelsCfg = new uint8_t[TimepixConfigType::PixelThreshMax];
+      if (fread(_pixelsCfg, TimepixConfigType::PixelThreshMax, 1, fp) != 1) {
         perror("fread");
         delete[] _pixelsCfg;
         _pixelsCfg = NULL;
       } else {
-        for (int jj=0; jj < 4*256*256; jj++) {
+        for (int jj=0; jj < TimepixConfigType::PixelThreshMax; jj++) {
           // ensure that TOT mode is set
           _pixelsCfg[jj] &= ~TPX_CFG8_MODE_MASK;
           _pixelsCfg[jj] |= (TPX_MODE_TOT << TPX_CFG8_MODE_MASK_SHIFT);
@@ -359,7 +358,7 @@ decode_shutdown:
   printf(" ** decode task shutdown **\n");
 }
 
-unsigned Pds::TimepixServer::configure(const TimepixConfigType& config)
+unsigned Pds::TimepixServer::configure(TimepixConfigType& config)
 {
   char msgBuf[80];
   // int rv;
@@ -435,9 +434,9 @@ unsigned Pds::TimepixServer::configure(const TimepixConfigType& config)
 
   // timepix sanity test: count the chips, disable the trigger
   int ndevs = tpx->chipCount();
-  if (ndevs != Timepix::ConfigV1::ChipCount) {
+  if (ndevs != TimepixConfigType::ChipCount) {
     fprintf(stderr, "Error: chipCount() returned %d (expected %d)\n",
-            ndevs, Timepix::ConfigV1::ChipCount);
+            ndevs, TimepixConfigType::ChipCount);
     ++numErrs;
   }
   printf("Disable external trigger... ");
@@ -447,6 +446,49 @@ unsigned Pds::TimepixServer::configure(const TimepixConfigType& config)
     ++numErrs;
   } else {
     printf("done\n");
+  }
+
+  // fill in configuration values which come from device
+
+  config.chip0Name(tpx->getChipName(0).c_str());
+  config.chip1Name(tpx->getChipName(1).c_str());
+  config.chip2Name(tpx->getChipName(2).c_str());
+  config.chip3Name(tpx->getChipName(3).c_str());
+
+  uint32_t uu;
+  if (tpx->getChipID(0, &uu) == 0) {
+    config.chip0ID(uu);
+  } else {
+    printf("Error: failed to read Timepix chip 0 ID\n");
+    ++numErrs;
+  }
+  if (tpx->getChipID(1, &uu) == 0) {
+    config.chip1ID(uu);
+  } else {
+    printf("Error: failed to read Timepix chip 1 ID\n");
+    ++numErrs;
+  }
+  if (tpx->getChipID(2, &uu) == 0) {
+    config.chip2ID(uu);
+  } else {
+    printf("Error: failed to read Timepix chip 2 ID\n");
+    ++numErrs;
+  }
+  if (tpx->getChipID(3, &uu) == 0) {
+    config.chip3ID(uu);
+  } else {
+    printf("Error: failed to read Timepix chip 3 ID\n");
+    ++numErrs;
+  }
+
+  config.driverVersion(tpx->getDriverVersion());
+
+  uint32_t firm;
+  if (tpx->getFirmwareVersion(&firm) == 0) {
+    config.firmwareVersion(firm);
+  } else {
+    printf("Error: failed to read Timepix firmware version\n");
+    ++numErrs;
   }
 
   if (numErrs > 0) {
@@ -480,7 +522,7 @@ unsigned Pds::TimepixServer::configure(const TimepixConfigType& config)
 
   _readoutSpeed = config.readoutSpeed();
   _triggerMode = config.triggerMode();
-  _timepixSpeed = config.shutterTimeout();
+  _timepixSpeed = config.timepixSpeed();
 
   _dac0[0]  = config.dac0Ikrum();
   _dac0[1]  = config.dac0Disc();
@@ -544,12 +586,15 @@ unsigned Pds::TimepixServer::configure(const TimepixConfigType& config)
 
   // set pixels configuration
 
+  config.pixelThresh(0, NULL);  // default: empty pixel configuration
   printf("Mode: Time Over Threshold (TOT)\n");
   if (pixelsCfg()) {
     if (_timepix->setPixelsCfg(pixelsCfg())) {
       fprintf(stderr, "Error: failed to set pixels configuraton (individual thresholds)\n");
       ++numErrs;
     } else {
+      // success: store pixel configuration
+      config.pixelThresh(TimepixConfigType::PixelThreshMax, pixelsCfg());
       printf("Pixels configuraton successful (individual thresholds)\n");
     }
   } else if (_timepix->setPixelsCfgTOT()) {

@@ -120,8 +120,8 @@ class TimepixConfigAction : public TimepixAction
     _occSend->userMessage("Timepix: failed to retrieve configuration.\n");
     _nerror += 1;
   } else {
-    _config.dump();
     _nerror += _server->configure( _config );
+    _config.dump();
     if (!_nerror) {
       _server->reset();   // clears out-of-order flag
     }

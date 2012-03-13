@@ -34,7 +34,10 @@ public:
   int setPixelsCfgTOT(void);
   int setPixelsCfg(uint8_t *bytes);
   int setTimepixSpeed(int32_t speed);
+  int getDriverVersion();
   int getFirmwareVersion(uint32_t *ver);
+  std::string getChipName(int chipnr);
+  int getChipID(int chipnr, uint32_t *id);
   int readFirmware(int page, uint8_t *bytes);
 
   // Timepix warmup
