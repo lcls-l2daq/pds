@@ -152,7 +152,7 @@ int EvrServer::fetch(char* payload, int flags)
 
   const char* cmd = payload;
   for(unsigned i=0; i<dg.ncmds; i++, cmd++)
-    _inlet.post(*new(&_occPool) EvrCommand(dg.seq,*cmd));
+    _inlet.post(*new(&_occPool) EvrCommand(*cmd));
 
   return (dg.seq.isEvent()) ? 0 : -1;
 }
