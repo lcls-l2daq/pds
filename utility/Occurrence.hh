@@ -3,6 +3,7 @@
 
 #include "pds/collection/Message.hh"
 #include "pds/utility/OccurrenceId.hh"
+#include "pdsdata/xtc/Sequence.hh"
 
 namespace Pds {
   class Pool;
@@ -78,11 +79,13 @@ namespace Pds {
   class EvrCommand : public Occurrence
   {
   public:
-    EvrCommand(unsigned char _code) : 
+    EvrCommand(const Sequence& _seq, unsigned char _code) : 
       Occurrence(OccurrenceId::EvrCommand,sizeof(EvrCommand)), 
+      seq (_seq ),
       code(_code) 
     {}
   public:
+    Sequence seq;
     unsigned code;
   };
 }

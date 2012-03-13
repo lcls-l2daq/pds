@@ -102,7 +102,12 @@ namespace Pds {
           //
           timespec tv;
           //          tv.tv_sec = 0; tv.tv_nsec = 200000000;
-          tv.tv_sec = 0; tv.tv_nsec = 20000000;
+          //
+          //  Cspad + Opal1k seems to need more time?
+          //
+          tv.tv_sec = 0; tv.tv_nsec = 300000000;
+          //  20 milliseconds is apparently not long enough
+          //          tv.tv_sec = 0; tv.tv_nsec = 20000000;
           nanosleep(&tv, 0);
 	}
 	else if (i->id()==TransitionId::Map) {
