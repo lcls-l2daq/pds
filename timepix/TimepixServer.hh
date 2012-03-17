@@ -13,6 +13,7 @@
 #include "pds/config/TimepixDataType.hh"
 #include "pds/service/Task.hh"
 #include "pds/service/Routine.hh"
+#include "pds/service/Semaphore.hh"
 
 #include "timepix_dev.hh"
 #include "TimepixOccurrence.hh"
@@ -36,7 +37,7 @@ class Pds::TimepixServer
 {
   public:
     TimepixServer(const Src& client, unsigned moduleId, unsigned verbosity, unsigned debug, char *threshFile,
-                  char *imageFileName, int readCpu, int decodeCpu);
+                  char *imageFileName, int cpu0, int cpu1);
     virtual ~TimepixServer() {}
       
     //  Eb interface
@@ -56,7 +57,6 @@ class Pds::TimepixServer
     int pend( int flag = 0 ) { return -1; }
     int fetch( ZcpFragment& , int flags ) { return 0; }
     int fetch( char* payload, int flags );
-
     // Misc
     unsigned count() const;
     unsigned moduleId() const;
@@ -74,17 +74,11 @@ class Pds::TimepixServer
     enum TaskState {TaskShutdown=0, TaskInit, TaskWaitFrame, TaskReadFrame, TaskWaitConfigure, TaskReadPipe};
 
     enum {BufferDepth=64};
+    enum {ReadThreads=2};
 
     void setTimepix(timepix_dev *timepix);
     void setOccSend(TimepixOccurrence* occSend);
-    Task *readTask();
-    Task *decodeTask();
     void shutdown();
-    int readTaskState(int state);
-    int readTaskState();
-    int decodeTaskState(int state);
-    int decodeTaskState();
-
 
   private:
 
@@ -120,31 +114,18 @@ class Pds::TimepixServer
     class ReadRoutine : public Routine
     {
     public:
-      ReadRoutine(TimepixServer *server, int writeFd) :
+      ReadRoutine(TimepixServer *server, int taskNum, int cpuAffinity) :
         _server(server),
-        _writeFd(writeFd)   {}
+        _taskNum(taskNum),
+        _cpuAffinity(cpuAffinity)   {}
       ~ReadRoutine()        {}
       // Routine interface
       void routine(void);
 
     private:
       TimepixServer *_server;
-      int _writeFd;
-    };
-
-    class DecodeRoutine : public Routine
-    {
-    public:
-      DecodeRoutine(TimepixServer *server, int readFd) :
-        _server(server),
-        _readFd(readFd)     {}
-      ~DecodeRoutine()      {}
-      // Routine interface
-      void routine(void);
-
-    private:
-      TimepixServer *_server;
-      int _readFd;
+      int _taskNum;
+      int _cpuAffinity;
     };
 
     //
@@ -169,13 +150,10 @@ class Pds::TimepixServer
     bool _triggerConfigured;
     bool _profileCollected;
     timepix_dev *_timepix;
-    int _rawPipeFd[2];
     int _completedPipeFd[2];
-    vector<BufferElement>*   _buffer;
-    Task *_readTask;
-    ReadRoutine *_readRoutine;
-    Task *_decodeTask;
-    DecodeRoutine *_decodeRoutine;
+    vector<BufferElement>*   _buffer[ReadThreads];
+    ReadRoutine *            _readRoutine[ReadThreads];
+    Task *                   _readTask[ReadThreads];
     int _shutdownFlag;
     uint8_t *   _pixelsCfg;
     int8_t      _readoutSpeed, _triggerMode;
@@ -186,11 +164,10 @@ class Pds::TimepixServer
     int32_t     _dac3[TPX_DACS];
     char *      _threshFile;
     int16_t *   _testData;
-    int         _readTaskState;
-    int         _decodeTaskState;
     MpxModule * _relaxd;
-    int         _readCpu;
-    int         _decodeCpu;
+    int         _cpu0;
+    int         _cpu1;
+    Semaphore * _readTaskMutex;
 };
 
 #endif

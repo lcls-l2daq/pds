@@ -23,9 +23,10 @@ timespec _profile6[PROFILE_MAX];
 uint32_t _profileHwTimestamp[PROFILE_MAX];
 
 static void shuffleTimepixQuad(int16_t *dst, int16_t *src);
+static int set_cpu_affinity(int cpu_id);
 
 Pds::TimepixServer::TimepixServer( const Src& client, unsigned moduleId, unsigned verbosity, unsigned debug, char *threshFile,
-                                   char *testImageFile, int readCpu, int decodeCpu)
+                                   char *testImageFile, int cpu0, int cpu1)
    : _xtc( _timepixDataType, client ),
      _xtcDamaged( _timepixDataType, client ),
      _count(0),
@@ -43,19 +44,21 @@ Pds::TimepixServer::TimepixServer( const Src& client, unsigned moduleId, unsigne
      _triggerConfigured(false),
      _profileCollected(false),
      _timepix(NULL),
-     _buffer(new vector<BufferElement>(BufferDepth)),
-     _readTask(new Task(TaskObject("readframe"))),
-     _decodeTask(new Task(TaskObject("decodeframe"))),
      _shutdownFlag(0),
      _pixelsCfg(NULL),
      _threshFile(threshFile),
      _testData(NULL),
-     _readTaskState(TaskShutdown),
-     _decodeTaskState(TaskShutdown),
      _relaxd(NULL),
-     _readCpu(readCpu),
-     _decodeCpu(decodeCpu)
+     _cpu0(cpu0),
+     _cpu1(cpu1),
+     _readTaskMutex(new Semaphore(Semaphore::FULL))
 {
+  // allocate read tasks and buffers
+  for (int ii = 0; ii < ReadThreads; ii++) {
+    _readTask[ii] = new Task(TaskObject("read"));
+    _buffer[ii] = new vector<BufferElement>(BufferDepth);
+  }
+
   // calculate aux data xtc extent
   _xtc.extent = sizeof(TimepixDataType) + sizeof(Xtc) + Pds::Timepix::DataV1::DecodedDataBytes;
 
@@ -72,15 +75,9 @@ Pds::TimepixServer::TimepixServer( const Src& client, unsigned moduleId, unsigne
     fd(_completedPipeFd[0]);
   }
 
-  // create raw pipe
-  err = ::pipe(_rawPipeFd);
-  if (err) {
-    fprintf(stderr, "%s pipe error: %s\n", __FUNCTION__, strerror(errno));
-  } else {
-    // create routines (but do not yet call them)
-   _readRoutine = new ReadRoutine(this, _rawPipeFd[1]);
-   _decodeRoutine = new DecodeRoutine(this, _rawPipeFd[0]);
-  }
+  // create routines (but do not yet call them)
+  _readRoutine[0] = new ReadRoutine(this, 0, _cpu0);
+  _readRoutine[1] = new ReadRoutine(this, 1, _cpu1);
 
   if (_debug & TIMEPIX_DEBUG_PROFILE) {
     printf("%s: TIMEPIX_DEBUG_PROFILE (0x%x) is set\n",
@@ -184,11 +181,21 @@ void Pds::TimepixServer::ReadRoutine::routine()
   int lostRowBuf;
   vector<BufferElement>::iterator buf_iter;
   command_t sendCommand;
-  timespec time1, time2;
+
+  if ((_taskNum < 0) || (_taskNum >= ReadThreads)) {
+    printf("Error: _taskNum = %d in %s\n", _taskNum, __PRETTY_FUNCTION__);
+    return;
+  }
+
+  vector<BufferElement>* buffer = _server->_buffer[_taskNum];
+
+  if ((_cpuAffinity >= 0) && (set_cpu_affinity(_cpuAffinity) != 0)) {
+      printf(" ** read task %d set_cpu_affinity(%d) failed **\n",
+             _taskNum, _cpuAffinity);
+  }
 
   // Wait for _timepix to be set
-  _server->readTaskState(TaskInit);
-  printf(" ** read task init **\n");
+  printf(" ** read task %d init **\n", _taskNum);
   while (_server->_timepix == NULL) {
     if (_server->_outOfOrder || _server->_shutdownFlag) {
       goto read_shutdown;
@@ -197,7 +204,6 @@ void Pds::TimepixServer::ReadRoutine::routine()
   }
 
   // wait for trigger to be configured
-  _server->readTaskState(TaskWaitConfigure);
   while (!_server->_triggerConfigured) {
     decisleep(1);
     if (_server->_outOfOrder || _server->_shutdownFlag) {
@@ -205,21 +211,28 @@ void Pds::TimepixServer::ReadRoutine::routine()
     }
   }
 
+  printf(" ** read task %d waiting for frame **\n", _taskNum);
+
   while (1) {
-    for (buf_iter = _server->_buffer->begin(); buf_iter != _server->_buffer->end(); buf_iter++) {
+    for (buf_iter = buffer->begin(); buf_iter != buffer->end(); buf_iter++) {
+      // ------------ BEGIN CRITICAL SECTION -------------------
+      // take semaphore to protect critical section (wait...read)
+      _server->_readTaskMutex->take();
 
       // wait for new frame
-      _server->readTaskState(TaskWaitFrame);
       while (!_server->_timepix->newFrame()) {
         if (_server->_outOfOrder || _server->_shutdownFlag || !_server->_triggerConfigured) {
+          // give semaphore
+          _server->_readTaskMutex->give();
           goto read_shutdown;
         }
       }
 
       // new frame is available...
       if (buf_iter->_full) {      // is this buffer already full?
+        // give semaphore
+        _server->_readTaskMutex->give();
         fprintf(stderr, "Error: buffer overflow in %s\n", __PRETTY_FUNCTION__);
-        // FIXME _server->setReadDamage(BufferError);
         _server->_outOfOrder = 1;
         if (_server->_occSend != NULL) {
           // send occurrence
@@ -230,105 +243,26 @@ void Pds::TimepixServer::ReadRoutine::routine()
         buf_iter->_full = true;   // no: mark this buffer as full
       }
 
-      if (_server->_debug & TIMEPIX_DEBUG_PROFILE) {
-        clock_gettime(CLOCK_REALTIME, &time1);          // TIMESTAMP 1
-      }
-
       // read frame
-      _server->readTaskState(TaskReadFrame);
       int rv = _server->_timepix->readMatrixRawPlus(buf_iter->_rawData, &ss, &lostRowBuf,
                                                     &buf_iter->_header._frameCounter,
                                                     &buf_iter->_header._timestamp);
+      // give semaphore
+      _server->_readTaskMutex->give();
+      // ------------ END CRITICAL SECTION -------------------
+
       if (rv) {
-        fprintf(stderr, "Error: readMatrixRawPlus() failed\n");
+        fprintf(stderr, "Error: readMatrixRawPlus() failed (read task %d)\n", _taskNum);
         // FIXME _server->setReadDamage(DeviceError);
       } else if ((ss != Pds::Timepix::DataV1::RawDataBytes) || (lostRowBuf != 0)) {
-        fprintf(stderr, "Error: readMatrixRawPlus: sz=%u lost_rows=%d\n", ss, lostRowBuf);
-      }
-      if (_server->_debug & TIMEPIX_DEBUG_PROFILE) {
-        clock_gettime(CLOCK_REALTIME, &time2);          // TIMESTAMP 2
-        _profile1[buf_iter->_header.frameCounter()] = time1;
-        _profile2[buf_iter->_header.frameCounter()] = time2;
+        fprintf(stderr, "Error: readMatrixRawPlus: sz=%u lost_rows=%d (read task %d)\n",
+                ss, lostRowBuf, _taskNum);
       }
 
       // fill in lost_rows
       buf_iter->_header._lostRows = lostRowBuf;
 
-      // send notification
-      sendCommand.cmd = FrameAvailable;
-      sendCommand.buf_iter = buf_iter;
-      if (::write(_writeFd, &sendCommand, sizeof(sendCommand)) == -1) {
-        fprintf(stderr, "%s write error: %s\n", __PRETTY_FUNCTION__, strerror(errno));
-        // FIXME _server->setReadDamage(PipeError);
-      }
-    } // end of for
-  } // end of while
-
-read_shutdown:
-  _server->readTaskState(TaskShutdown);
-  printf(" ** read task shutdown **\n");
-  // send shutdown command to decode task
-  sendCommand.cmd = CommandShutdown;
-  if (::write(_writeFd, &sendCommand, sizeof(sendCommand)) == -1) {
-    fprintf(stderr, "%s write error: %s\n", __PRETTY_FUNCTION__, strerror(errno));
-  }
-}
-
-void Pds::TimepixServer::DecodeRoutine::routine()
-{
-  command_t     receiveCommand;
-  bool          missedTrigger;
-
-  // Wait for _timepix to be set
-  _server->decodeTaskState(TaskInit);
-  printf(" ** decode task init **\n");
-  while (_server->_timepix == NULL) {
-    if (_server->_outOfOrder || _server->_shutdownFlag) {
-      goto decode_shutdown;
-    }
-    decisleep(1);
-  }
-  // wait for trigger to be configured
-  _server->decodeTaskState(TaskWaitConfigure);
-  while (!_server->_triggerConfigured) {
-    if (_server->_shutdownFlag) {
-      goto decode_shutdown;
-    }
-    decisleep(1);
-  }
-  // trigger is configured
-  while (1) {
-    if (_server->_shutdownFlag || !_server->_triggerConfigured) {
-      goto decode_shutdown;
-    }
-    // reset missed trigger flag
-    missedTrigger = false;
-
-    // read from pipe
-    _server->decodeTaskState(TaskReadPipe);
-    int length = ::read(_readFd, &receiveCommand, sizeof(receiveCommand));
-    if (length != sizeof(receiveCommand)) {
-      fprintf(stderr, "Error: read() returned %d in %s\n", length, __PRETTY_FUNCTION__);
-      // FIXME _server->setDecodeDamage(PipeError);
-    }
-
-    if (receiveCommand.cmd == FrameAvailable) {
-      vector<BufferElement>::iterator buf_iter = receiveCommand.buf_iter;
-
-      // validate buffer
-      if (!buf_iter->_full) {
-        fprintf(stderr, "Error: buffer underflow in %s\n", __PRETTY_FUNCTION__);
-        // FIXME _server->setDecodeDamage(BufferError);
-        _server->_outOfOrder = 1;
-        return;
-      }
-
-      if (_server->_debug & TIMEPIX_DEBUG_PROFILE) {
-        clock_gettime(CLOCK_REALTIME, &_profile3[buf_iter->_header.frameCounter()]);    // TIMESTAMP 3
-        _profileHwTimestamp[buf_iter->_header.frameCounter()] = buf_iter->_header._timestamp;
-        _server->_profileCollected = true;
-      }
-
+      // decode frame
       if (_server->_testData) {
         // use test image in place of real data
         memcpy(buf_iter->_pixelData, _server->_testData, Pds::Timepix::DataV1::DecodedDataBytes);
@@ -337,25 +271,14 @@ void Pds::TimepixServer::DecodeRoutine::routine()
         _server->_timepix->decode2Pixels(buf_iter->_rawData, buf_iter->_pixelData);
       }
 
-      if (_server->_debug & TIMEPIX_DEBUG_PROFILE) {
-        clock_gettime(CLOCK_REALTIME, &_profile4[buf_iter->_header.frameCounter()]);    // TIMESTAMP 4
-      }
+      // send regular payload
+      _server->payloadComplete(buf_iter, false);
 
-    } else if (receiveCommand.cmd == CommandShutdown) {
-      goto decode_shutdown;
-    } else {
-      fprintf(stderr, "Error: unrecognized cmd (%d) in %s\n",
-              (int)receiveCommand.cmd, __PRETTY_FUNCTION__);
-      continue;
-    }
+    } // end of for
+  } // end of while
 
-    // send regular payload
-    _server->payloadComplete(receiveCommand.buf_iter, false);
-  }
-
-decode_shutdown:
-  _server->decodeTaskState(TaskShutdown);
-  printf(" ** decode task shutdown **\n");
+read_shutdown:
+  printf(" ** read task %d shutdown **\n", _taskNum);
 }
 
 unsigned Pds::TimepixServer::configure(TimepixConfigType& config)
@@ -404,16 +327,6 @@ unsigned Pds::TimepixServer::configure(TimepixConfigType& config)
 
   if (_timepix != NULL) {
     fprintf(stderr, "Error: _timepix not NULL at beginning of %s\n", __PRETTY_FUNCTION__);
-  }
-
-  int state = readTaskState();
-  if (state != TaskShutdown) {
-    fprintf(stderr, "Error: read task is in state %d (not shutdown) at %s line %d\n", state, __FILE__, __LINE__);
-  }
-
-  state = decodeTaskState();
-  if (state != TaskShutdown) {
-    fprintf(stderr, "Error: decode task is in state %d (not shutdown) at %s line %d\n", state, __FILE__, __LINE__);
   }
 
   // create timepix device
@@ -507,18 +420,12 @@ unsigned Pds::TimepixServer::configure(TimepixConfigType& config)
   // ...after _timepix is set, rely on unconfigure to delete _timepix
   _timepix = tpx;
 
-  // call routines in separate tasks
-  _readTask->call(_readRoutine);
-  _decodeTask->call(_decodeRoutine);
+  // create reader threads
+  for (int ii = 0; ii < ReadThreads; ii++) {
+    _readTask[ii]->call(_readRoutine[ii]);
+  }
+
   decisleep(1);
-  state = readTaskState();
-  if (state != TaskWaitConfigure) {
-    fprintf(stderr, "Error: read task is in state %d (not WaitConfigure) at %s line %d\n", state, __FILE__, __LINE__);
-  }
-  state = decodeTaskState();
-  if (state != TaskWaitConfigure) {
-    fprintf(stderr, "Error: decode task is in state %d (not WaitConfigure) at %s line %d\n", state, __FILE__, __LINE__);
-  }
 
   _readoutSpeed = config.readoutSpeed();
   _triggerMode = config.triggerMode();
@@ -666,7 +573,6 @@ unsigned Pds::TimepixServer::configure(TimepixConfigType& config)
   }
 
   // ensure that pipes are empty
-  // TODO drain(x); drain(y)
   int nbytes;
   char bucket;
   if (_completedPipeFd[0]) {
@@ -679,21 +585,13 @@ unsigned Pds::TimepixServer::configure(TimepixConfigType& config)
       }
     }
   }
-  if (_rawPipeFd[0]) {
-    if (ioctl(_rawPipeFd[0], FIONREAD, &nbytes) == -1) {
-      perror("ioctl");
-    } else if (nbytes > 0) {
-      printf("%s: draining %d bytes from raw pipe\n", __FUNCTION__, nbytes);
-      while (nbytes-- > 0) {
-        ::read(_rawPipeFd[0], &bucket, 1);
-      }
-    }
-  }
 
   // ensure that command buffer is cleared
   vector<BufferElement>::iterator buf_iter;
-  for (buf_iter = _buffer->begin(); buf_iter != _buffer->end(); buf_iter++) {
-    buf_iter->_full = false;
+  for (int ii = 0; ii < ReadThreads; ii++) {
+    for (buf_iter = _buffer[ii]->begin(); buf_iter != _buffer[ii]->end(); buf_iter++) {
+      buf_iter->_full = false;
+    }
   }
 
   if (numErrs > 0) {
@@ -710,7 +608,7 @@ unsigned Pds::TimepixServer::configure(TimepixConfigType& config)
       ++numErrs;
     } else {
       printf("done\n");
-      // setting _triggerConfigured allows read and decode tasks to proceed
+      // setting _triggerConfigured allows read tasks to proceed
       _triggerConfigured = true;
     }
   }
@@ -740,20 +638,12 @@ unsigned Pds::TimepixServer::unconfigure(void)
   // give tasks a bit of time to shutdown
   decisleep(3);
 
-  int state = readTaskState();
-  if (state != TaskShutdown) {
-    fprintf(stderr, "Error: read task is in state %d (not shutdown) at %s line %d\n", state, __FILE__, __LINE__);
-  } else {
-    // delete timepix object
-    if (_timepix) {
-      delete _timepix;
-      _timepix = (timepix_dev *)NULL;
-    }
-  }
+  // FIXME confirm that tasks are shutdown before delete
 
-  state = decodeTaskState();
-  if (state != TaskShutdown) {
-    fprintf(stderr, "Error: decode task is in state %d (not shutdown) at %s line %d\n", state, __FILE__, __LINE__);
+  // delete timepix object
+  if (_timepix) {
+    delete _timepix;
+    _timepix = (timepix_dev *)NULL;
   }
 
   // profiling report
@@ -942,42 +832,10 @@ void TimepixServer::setTimepix(timepix_dev* timepix)
   _timepix = timepix;
 }
 
-Task *TimepixServer::readTask()
-{
-  return (_readTask);
-}
-
-Task *TimepixServer::decodeTask()
-{
-  return (_decodeTask);
-}
-
 void TimepixServer::shutdown()
 {
   printf("\n ** TimepixServer shutdown **\n");
   _shutdownFlag = 1;
-}
-
-int TimepixServer::readTaskState(int state)
-{
-  _readTaskState = state;
-  return (_readTaskState);
-}
-
-int TimepixServer::readTaskState()
-{
-  return (_readTaskState);
-}
-
-int TimepixServer::decodeTaskState(int state)
-{
-  _decodeTaskState = state;
-  return (_decodeTaskState);
-}
-
-int TimepixServer::decodeTaskState()
-{
-  return (_decodeTaskState);
 }
 
 static void shuffleTimepixQuad(int16_t *dst, int16_t *src)
@@ -1012,3 +870,21 @@ static void shuffleTimepixQuad(int16_t *dst, int16_t *src)
     }
   }
 }
+
+#include <pthread.h>
+
+static int set_cpu_affinity(int cpu_id)
+{
+  int rv;
+  cpu_set_t cpuset;
+
+  CPU_ZERO(&cpuset);
+  CPU_SET(cpu_id, &cpuset);
+
+  rv = pthread_setaffinity_np(pthread_self(), sizeof(cpu_set_t), &cpuset);
+  if (rv != 0) {
+    perror("pthread_setaffinity_np");
+  }
+  return (rv);
+}
+
