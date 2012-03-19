@@ -3,12 +3,12 @@
 
 #include "pds/camera/CameraBase.hh"
 #include "pds/config/Opal1kConfigType.hh"
+#include "pdsdata/xtc/DetInfo.hh"
 
 namespace Pds {
-
   class Opal1kCamera: public CameraBase {
   public:
-    Opal1kCamera();
+    Opal1kCamera(const DetInfo& src);  // identifies Opal model (1k,2k,4k)
     ~Opal1kCamera();
   public:
     void set_config_data  ( const void*);
@@ -36,6 +36,7 @@ namespace Pds {
   public:
     uint32_t CurrentCount;
   private:
+    const DetInfo _src;
     const Opal1kConfigType* _inputConfig;
   };
 }

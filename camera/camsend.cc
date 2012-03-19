@@ -232,7 +232,8 @@ int main(int argc, char *argv[])
   switch(camera_choice) {
   case 0:
     {
-      Opal1kCamera* oCamera = new Opal1kCamera();
+      DetInfo info(0,DetInfo::NoDetector,0,DetInfo::Opal1000,0);
+      Opal1kCamera* oCamera = new Opal1kCamera(info);
       Opal1kConfigType* Config = new Opal1kConfigType( 32, 100, 
 						       bitsperpixel==8 ? Opal1kConfigType::Eight_bit : 
 						       bitsperpixel==10 ? Opal1kConfigType::Ten_bit :

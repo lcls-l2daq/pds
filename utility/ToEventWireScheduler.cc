@@ -39,7 +39,7 @@ ToEventWireScheduler::ToEventWireScheduler(Outlet& outlet,
   OutletWire   (outlet),
   _collection  (collection),
   _client      (sizeof(OutletWireHeader), Mtu::Size, Ins(interface),
-    1 + maxbuf / Mtu::Size),
+                (1 + maxbuf / Mtu::Size)*_maxscheduled),
   _occurrences (occurrences),
   _scheduled   (_phase),
   _task        (new Task(TaskObject("TxScheduler")))

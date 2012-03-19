@@ -2,6 +2,7 @@
 #include "pds/camera/CameraDriver.hh"
 #include "pds/camera/FrameServerMsg.hh"
 #include "pdsdata/camera/FrameCoord.hh"
+#include "pdsdata/xtc/DetInfo.hh"
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -15,7 +16,8 @@
 
 using namespace Pds;
 
-Opal1kCamera::Opal1kCamera() :
+Opal1kCamera::Opal1kCamera(const DetInfo& src) :
+  _src        (src),
   _inputConfig(0)
 {
 }
@@ -287,16 +289,40 @@ char          Opal1kCamera::sof     () const { return '@'; }
 char          Opal1kCamera::eof     () const { return '\r'; }
 unsigned long Opal1kCamera::timeout_ms() const { return 40; }
 
-int  Opal1kCamera::camera_width () const { return 1024; }
-int  Opal1kCamera::camera_height() const { return 1024; }
+int  Opal1kCamera::camera_width () const { return Opal1kConfigType::max_column_pixels(_src); }
+int  Opal1kCamera::camera_height() const { return Opal1kConfigType::max_row_pixels   (_src); }
 int  Opal1kCamera::camera_depth () const { return _inputConfig ? _inputConfig->output_resolution_bits() : 8; }
 int  Opal1kCamera::camera_taps  () const { return 2; }
+
 const char* Opal1kCamera::camera_name() const 
 {
-  switch(camera_depth()) {
-  case 12: return "Adimec_Opal-1000m/Q";
-  case 10: return "Adimec_Opal-1000m/Q_F10bits";
-  case  8: 
-  default: return "Adimec_Opal-1000m/Q_F8bit";
+  switch(_src.device()) {
+  case DetInfo::Opal1000:
+    switch(camera_depth()) {
+    case 12: return "Adimec_Opal-1000m/Q";
+    case 10: return "Adimec_Opal-1000m/Q_F10bits";
+    case  8: 
+    default: return "Adimec_Opal-1000m/Q_F8bit";
+    } break;
+  case DetInfo::Opal2000:
+    switch(camera_depth()) {
+    case 12: return "Adimec_Opal-2000m/Q";
+    case 10: return "Adimec_Opal-2000m/Q_F10bits";
+    case  8: 
+    default: return "Adimec_Opal-2000m/Q_F8bit";
+    } break;
+  case DetInfo::Opal4000:
+    switch(camera_depth()) {
+    case 12: return "Adimec_Opal-4000m/Q";
+    case 10: return "Adimec_Opal-4000m/Q_F10bits";
+    case  8: 
+    default: return "Adimec_Opal-4000m/Q_F8bit";
+    } break;
+  default:
+    printf("Opal1kCamera::camera_name illegal type %s\n",
+           DetInfo::name(_src.device()));
+    exit(-1);
+    break;
   }
+  return 0;
 }
