@@ -73,7 +73,7 @@ class Pds::TimepixServer
     enum Command {FrameAvailable=0, TriggerConfigured, TriggerNotConfigured, CommandShutdown};
     enum TaskState {TaskShutdown=0, TaskInit, TaskWaitFrame, TaskReadFrame, TaskWaitConfigure, TaskReadPipe};
 
-    enum {BufferDepth=64};
+    enum {BufferDepth=8};
     enum {ReadThreads=2};
 
     void setTimepix(timepix_dev *timepix);
