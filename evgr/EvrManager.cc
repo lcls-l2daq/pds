@@ -1142,11 +1142,7 @@ public:
     for (unsigned k = 0; k < cfg.noutputs(); k++)
     {
       const EvrConfigType::OutputMapType & map = cfg.output_map(k);
-
-      unsigned dev_id  = map.conn_id()/EvrConfigType::EvrOutputs;
       unsigned conn_id = map.conn_id()%EvrConfigType::EvrOutputs;
-      if (dev_id != reinterpret_cast<const Pds::DetInfo&>(_cfg.src()).devId())
-        continue;
 
       switch (map.conn())
       {
@@ -1285,7 +1281,10 @@ public:
     l1xmitGlobal->uNumBeginCalibCycle = 0;
     return tr;
   }
-  InDatagram* fire(InDatagram* dg) { _cfg.insert(dg); return dg; }
+  InDatagram* fire(InDatagram* dg) { 
+    _cfg.insert(dg); 
+    return dg; 
+  }
 private:
   EvrConfigManager& _cfg;
 };
@@ -1345,28 +1344,26 @@ public:
     //
     //  Test if we own the primary EVR for this partition
     //
-#if 1
     unsigned nnodes = alloc.allocation().nnodes();
     int pid = getpid();
     for (unsigned n = 0; n < nnodes; n++)
     {
       const Node *node = alloc.allocation().node(n);
-      if (node->pid() == pid)
+      if (node->level() == Level::Segment) 
       {
-        printf("Found our EVR\n");
-        l1xmitGlobal->enable(true);
-        break;
-      }
-      else if (node->level() == Level::Segment)
-      {
-        printf("Found other EVR\n");
-        l1xmitGlobal->enable(false);
+        if (node->pid() == pid)
+        {
+          printf("Found our EVR\n");
+          l1xmitGlobal->enable(true);
+        }
+        else
+        {
+          printf("Found other EVR\n");
+          l1xmitGlobal->enable(false);
+        }
         break;
       }
     }
-#else
-    l1xmitGlobal->enable(true);
-#endif
     l1xmitGlobal->dst(StreamPorts::event(alloc.allocation().partitionid(),
            Level::Segment));
     _l1action.set_dst(StreamPorts::event(alloc.allocation().partitionid(),
