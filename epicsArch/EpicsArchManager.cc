@@ -25,7 +25,7 @@ using std::string;
 class EpicsArchAllocAction:public Action
 {
 public:
-  EpicsArchAllocAction(EpicsArchManager & manager, CfgClientNfs & cfg):_manager(manager), _cfg(cfg)
+  EpicsArchAllocAction(EpicsArchManager & manager, CfgClientNfs & cfg):_manager(manager), _cfg(cfg), _iMapError(0)
   {
   }
 
@@ -39,12 +39,25 @@ public:
       if (alloc.node(i)->level() == Level::Event)
         iNumEventNode++;
     _manager.setNumEventNode(iNumEventNode);
-    _manager.onActionMap();
+    
+    UserMessage* msg = NULL;
+    _iMapError = _manager.onActionMap(msg);
+    
+    if (msg != NULL)
+      _manager.appliance().post(msg);
     return tr;
+  }
+  
+  virtual InDatagram* fire(InDatagram* in) 
+  {
+    if ( _iMapError != 0 )
+      in->datagram().xtc.damage.increase(Pds::Damage::UserDefined);
+    return in;
   }
 private:
   EpicsArchManager & _manager;
   CfgClientNfs & _cfg;
+  int            _iMapError;
 };
 
 class EpicsArchConfigAction:public Action
@@ -77,9 +90,9 @@ public:
     //dg->insert(_cfgtc, &_config);
     //if (_nerror) dg->datagram().xtc.damage.increase(Pds::Damage::UserDefined);
 
-    UserMessage *msg = 0;
+    UserMessage*msg = NULL;
     InDatagram *out = new(_manager.getPool())Pds::CDatagram(in->datagram());
-    int iFail = _manager.writeMonitoredContent(out->datagram(), &msg, (struct timespec) {0,0}, 0);
+    int iFail       = _manager.writeMonitoredContent(out->datagram(), &msg, (struct timespec) {0,0}, 0);
 
     /*
      * Possible failure modes for _manager.writeMonitoredConfigContent()
@@ -98,10 +111,8 @@ public:
       out->datagram().xtc.damage.increase(Pds::Damage::UserDefined);
     }
 
-    if (msg != 0)
-    {
+    if (msg != NULL)
       _manager.appliance().post(msg);
-    }
 
     if (_iDebugLevel >= 1)
       printf("\nOutput payload size = %d\n", out->datagram().xtc.sizeofPayload());
@@ -241,13 +252,30 @@ void EpicsArchManager::setNumEventNode(int iNumEventNode)
   _iNumEventNode = iNumEventNode;  
 }
 
-int EpicsArchManager::onActionMap()
+int EpicsArchManager::onActionMap(UserMessage*& pMsg)
 {
-  // initialize thread-specific data
-  return initMonitor();
+  // initialize thread-specific data  
+  string sConfigFileWarning;
+  int iError = initMonitor(sConfigFileWarning);
+  
+  if (!sConfigFileWarning.empty() && pMsg == NULL)
+  {
+    /*
+     * Note: The UserMessage will only contains the first PV that doesn't have formal description
+     * 
+     * For full list of problematic PVs, users need to check the epicsArch output (logfile).
+     */
+    pMsg = new(_occPool) UserMessage();
+    
+    UserMessage& msg = *pMsg;
+    msg.append("EpicsArch: PV Title Error.\n");
+    msg.append(sConfigFileWarning.c_str());    
+  }
+
+  return iError;
 }
 
-int EpicsArchManager::initMonitor()
+int EpicsArchManager::initMonitor(string& sConfigFileWarning)
 {
   delete _pMonitor;
 
@@ -255,7 +283,7 @@ int EpicsArchManager::initMonitor()
   {
     _pMonitor =
       new EpicsArchMonitor(_src, _sFnConfig, _fMinTriggerInterval, _iNumEventNode,
-        *_occPool, _iDebugLevel);
+        *_occPool, _iDebugLevel, sConfigFileWarning);            
   }
   catch(string & sError)
   {

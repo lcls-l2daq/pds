@@ -16,7 +16,7 @@ namespace Pds
   {
   public:
     EpicsArchMonitor(const Src & src, const std::string & sFnConfig,
-      float fDefaultInterval, int iNumEventNode, Pool & occPool, int iDebugLevel);
+      float fDefaultInterval, int iNumEventNode, Pool & occPool, int iDebugLevel, std::string& sConfigFileWarning);
     ~EpicsArchMonitor();
     int writeToXtc(Datagram & dg, UserMessage ** msg, const struct timespec& tsCurrent, unsigned int uVectorCur);
 
@@ -55,12 +55,16 @@ namespace Pds
     typedef std::vector < PvInfo >      TPvList;
     typedef std::vector < std::string > TFileList;
 
-    int _addPv            (const std::string & sPvList, const std::string & sPvDescription, TPvList & vPvList, bool & bPvAdd);
-    int _readConfigFile   (const std::string & sFnConfig, TPvList & vPvList);    
+    int _addPv            (const std::string & sPvList, std::string & sPvDescription, 
+      TPvList & vPvList, bool & bPvAdd, 
+      const std::string& sFnConfig, int iLineNumber, std::string& sConfigFileWarning);
+    int _readConfigFile   (const std::string & sFnConfig, TPvList & vPvList, std::string& sConfigFileWarning);    
     int _setupPvList      (const TPvList & vPvList, TEpicsMonitorPvList & lpvPvList);
     int _getPvDescription (const std::string & sLine, std::string & sPvDescription);
+    int _updatePvDescription(const std::string& sPvName, const std::string& sFnConfig, int iLineNumber, std::string& sPvDescription, std::string& sConfigFileWarning);
     
     static int _splitFileList   (const std::string & sFileList, TFileList & vsFileList);    
+    
 
     // Class usage control: Value semantics is disabled
     EpicsArchMonitor(const EpicsArchMonitor &);

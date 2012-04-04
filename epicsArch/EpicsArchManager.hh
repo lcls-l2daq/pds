@@ -34,12 +34,12 @@ namespace Pds
     void setNumEventNode(int iNumEventNode);
     
     // event handlers
-    int onActionMap();
+    int onActionMap(UserMessage*& pMsg);
 
   private:
     static const Src srcLevel;  // Src for Epics Archiver
 
-    int initMonitor();
+    int initMonitor(std::string& sErrorMessage);
 
     const Src & _src;
     Fsm *_pFsm;

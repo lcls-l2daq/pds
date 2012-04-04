@@ -18,7 +18,7 @@ using std::string;
 using std::stringstream;
 
 EpicsArchMonitor::EpicsArchMonitor(const Src & src, const std::string & sFnConfig,
-  float fDefaultInterval, int iNumEventNode, Pool & occPool, int iDebugLevel):
+  float fDefaultInterval, int iNumEventNode, Pool & occPool, int iDebugLevel, std::string& sConfigFileWarning):
   _src(src), _sFnConfig(sFnConfig), _fDefaultInterval(fDefaultInterval), _iNumEventNode(iNumEventNode),
   _occPool(occPool), _iDebugLevel(iDebugLevel)
 {
@@ -26,12 +26,12 @@ EpicsArchMonitor::EpicsArchMonitor(const Src & src, const std::string & sFnConfi
     throw string("EpicsArchMonitor::EpicsArchMonitor(): Invalid parameters");
 
   TPvList vPvList;
-  int iFail = _readConfigFile(sFnConfig, vPvList);
+  int iFail = _readConfigFile(sFnConfig, vPvList, sConfigFileWarning);
   if (iFail != 0)
       throw "EpicsArchMonitor::EpicsArchMonitor()::readConfigFile(" +
         _sFnConfig + ") failed\n";
 
-  if (vPvList.size() == 0)
+  if (vPvList.empty())
     throw
       "EpicsArchMonitor::EpicsArchMonitor(): No Pv Name is specified in the config file "
       + _sFnConfig;
@@ -236,7 +236,7 @@ int EpicsArchMonitor::writeToXtc(Datagram & dg, UserMessage ** msg, const struct
 */
 
 int EpicsArchMonitor::_readConfigFile(const std::string & sFnConfig,
-        TPvList & vPvList)
+        TPvList & vPvList, std::string& sConfigFileWarning)
 {
   std::ifstream ifsConfig(sFnConfig.c_str());
   if (!ifsConfig)
@@ -272,7 +272,7 @@ int EpicsArchMonitor::_readConfigFile(const std::string & sFnConfig,
         string sFnRef = vsFileLst[iPvFile];
         if (sFnRef[0] != '/')
           sFnRef = sFnPath + sFnRef;
-        int iFail = _readConfigFile(sFnRef, vPvList);
+        int iFail = _readConfigFile(sFnRef, vPvList, sConfigFileWarning);
         if (iFail != 0)
         {
           printf("EpicsArchMonitor::_readConfigFile(): Invalid file reference \"%s\", in file \"%s\":line %d\n",
@@ -283,7 +283,11 @@ int EpicsArchMonitor::_readConfigFile(const std::string & sFnConfig,
     }
 
     bool bAddPv;
-    _addPv(sLine, sPvDescription, vPvList, bAddPv);
+    int iError = _addPv(sLine, sPvDescription, vPvList, bAddPv, sFnConfig, iLineNumber, sConfigFileWarning);
+    
+    if (iError != 0)
+      return 1;    
+    
     if (!bAddPv)
       sPvDescription.clear();
   }
@@ -294,7 +298,7 @@ int EpicsArchMonitor::_readConfigFile(const std::string & sFnConfig,
 int EpicsArchMonitor::_setupPvList(const TPvList & vPvList,
            TEpicsMonitorPvList & lpvPvList)
 {
-  if (vPvList.size() == 0)
+  if (vPvList.empty())
     return 0;
   if ((int) vPvList.size() >= iMaxNumPv)
     printf(
@@ -326,9 +330,9 @@ int EpicsArchMonitor::_setupPvList(const TPvList & vPvList,
   return 0;
 }
 
-int EpicsArchMonitor::_addPv(const string & sPvLine,
-           const string & sPvDescription,
-           TPvList & vPvList, bool & bPvAdd)
+int EpicsArchMonitor::_addPv(const string & sPvLine, string & sPvDescription,
+           TPvList & vPvList, bool & bPvAdd, 
+           const std::string& sFnConfig, int iLineNumber, std::string& sConfigFileWarning)
 {
   bPvAdd = false;
 
@@ -347,29 +351,31 @@ int EpicsArchMonitor::_addPv(const string & sPvLine,
     return 1;
   }
 
+  string  sPvName;
+  float   fInterval = _fDefaultInterval;
+  
   size_t uOffsetSeparator =
     sPvLine.find_first_of(sPvLineSeparators, uOffsetPv + 1);
   if (uOffsetSeparator == string::npos)
   {
-    vPvList.
-    push_back(PvInfo
-        (sPvLine.substr(uOffsetPv, string::npos), sPvDescription,
-         _fDefaultInterval));
-    bPvAdd = true;
-    return 0;
+    sPvName   = sPvLine.substr(uOffsetPv, string::npos);    
+  }
+  else
+  {
+    sPvName   = sPvLine.substr(uOffsetPv, uOffsetSeparator - uOffsetPv);
+    size_t uOffsetInterval =
+      sPvLine.find_first_not_of(sPvLineSeparators, uOffsetSeparator + 1);
+    if (uOffsetInterval != string::npos)
+      fInterval = strtof(sPvLine.c_str() + uOffsetInterval, NULL);    
   }
 
-  string sPvName = sPvLine.substr(uOffsetPv, uOffsetSeparator - uOffsetPv);
-  float fInterval = _fDefaultInterval;
-
-  size_t uOffsetInterval =
-    sPvLine.find_first_not_of(sPvLineSeparators, uOffsetSeparator + 1);
-  if (uOffsetInterval != string::npos)
-    fInterval = strtof(sPvLine.c_str() + uOffsetInterval, NULL);
-
-  vPvList.push_back(PvInfo(sPvName, sPvDescription, fInterval));
+  string sPvDescriptionUpdate = sPvDescription;
+  int iError = _updatePvDescription(sPvName, sFnConfig, iLineNumber, sPvDescriptionUpdate, sConfigFileWarning); 
+  
+  vPvList.push_back(PvInfo(sPvName, sPvDescriptionUpdate, fInterval));
   bPvAdd = true;
-  return 0;
+  
+  return iError;
 }
 
 int EpicsArchMonitor::_splitFileList(const std::string & sFileList,
@@ -416,33 +422,75 @@ int EpicsArchMonitor::_getPvDescription(const std::string & sLine, std::string &
   size_t uOffsetEnd = sLine.find("#", uOffsetStart+1);    
   size_t uOffsetTrail = sLine.find_last_not_of(" \t#", uOffsetEnd );
   if (uOffsetTrail == string::npos)
-    sPvDescription = "";
+    sPvDescription.clear();
   else
     sPvDescription = sLine.substr(uOffsetStart, uOffsetTrail - uOffsetStart + 1);
         
-  if ( _setPv.find(sPvDescription) == _setPv.end() )
+  return 0;    
+}
+
+int EpicsArchMonitor::_updatePvDescription(const std::string& sPvName, const std::string& sFnConfig, int iLineNumber, std::string& sPvDescription, std::string& sConfigFileWarning)
+{
+  char strMessage [256];
+  char strMessage2[256];
+  if (!sPvDescription.empty())
   {
+    if ( _setPv.find(sPvDescription) == _setPv.end() )
+    {      
+      _setPv.insert(sPvDescription);
+      return 0;
+    }    
+    sprintf( strMessage, "%s has duplicated title \"%s\".", sPvName.c_str(), sPvDescription.c_str());    
+    sPvDescription  += '-' + sPvName;
+  }
+  else
+  {
+    sPvDescription = sPvName; 
+    sprintf( strMessage, "%s has no title.", sPvName.c_str());
+  }
+    
+  if ( _setPv.find(sPvDescription) == _setPv.end() )
+  {    
+    sprintf(strMessage2, "%s\nUse \"%s\"\n", strMessage, sPvDescription.c_str() );
+    printf("EpicsArchMonitor::_getPvDescription(): %s", strMessage2);    
+    if (sConfigFileWarning.empty())
+      sConfigFileWarning = strMessage2;
+    
     _setPv.insert(sPvDescription);
     return 0;
-  }
+  }    
   
   static const int iMaxPvSerial = 10000;
   for (int iPvSerial = 2; iPvSerial < iMaxPvSerial; ++iPvSerial)
   {      
     stringstream sNumber;
     sNumber << iPvSerial;
-    string sPvDesecriptionNew = sPvDescription + '-' + sNumber.str();
+    
+    string sPvDesecriptionNew;
+    sPvDesecriptionNew = sPvDescription + '-' + sNumber.str();
+      
     if ( _setPv.find(sPvDesecriptionNew) == _setPv.end() )
-    {
+    {      
       sPvDescription = sPvDesecriptionNew;
+      
+      sprintf(strMessage2, " %s Use %s\n", strMessage, sPvDescription.c_str() );
+      printf("EpicsArchMonitor::_getPvDescription(): %s", strMessage2);    
+      if (sConfigFileWarning.empty())
+        sConfigFileWarning = strMessage2;
+      
       _setPv.insert(sPvDescription);
       return 0;
     }      
   }    
+      
+  printf("EpicsArchMonitor::_getPvDescription(): Cannot generate proper PV name for %s (%s).", 
+    sPvDescription.c_str(), sPvName.c_str());  
     
-  printf("EpicsArchMonitor::_getPvDescription(): Cannot generate proper PV name for %s. Use %s.", 
-    sLine.c_str(), sPvDescription.c_str());
-  return 1;    
+  sprintf(strMessage2, "%s No proper title found.\n", strMessage);
+  printf("EpicsArchMonitor::_getPvDescription(): %s", strMessage2);      
+  sConfigFileWarning = strMessage2;
+    
+  return 1;
 }
 
 }       // namespace Pds
