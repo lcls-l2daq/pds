@@ -1,46 +1,47 @@
-2012-Jan-05 caf		Added Timepix detector.
-2011-Nov-08 caf		Tag V03-00-01.
-2011-Nov-02 caf		Tag V03-00-00.  Added reporting of full pathname to db.  Now offlinedb-1.3.0 is required.
-2011-Oct-03 caf		Added Gsc16ai detector.
-2011-Sep-07 weaver	Added phase to ToEventWireScheduler,SegmentLevel.
-2011-Apr-21 jackp	Added new version of cspad including ConfigV3
-2011-Apr-12 weaver	Changed EbC to always keep a full select mask.  Segment levels typically
-			don't have much buffering in front of the select, so the event-builder
-			should read pending data as quickly as possible.
-2011-Mar-31 weaver	Fixed recording of EncoderConfig.  Fixed 0.5s deadtime in AcqReader.  Added semaphore
-			around Acqiris DMA routine calls to avoid driver bug that uses global mapping of
-			DMA target memory pages.
-2010-Dec-06 weaver	Tag V02-10-00.  Added software commands onto EvrDatagram.  Results in Command occurrence posted
-			to segment-level appliance stream.  Changed Princeton to use new software command (rather than
-			extra L1Accept) - only one readout mode now.
-			Added sequencer to Evr configuration object (pdsdata/evr/ConfigV5).
-			Sequencer can now be controlled by PartitionControl.
-			Evr configuration object now describes EVR system configuration.  Each EVR parses its
-			configuration from this object (using evgr/EvrCfgClient object).
-			Added epicstools package for common channel access classes/methods.
+2012-Apr-03 tomytsai Added Ocean Optics spectrometer and EpicsConfig
+2012-Jan-05 caf   Added Timepix detector.
+2011-Nov-08 caf   Tag V03-00-01.
+2011-Nov-02 caf   Tag V03-00-00.  Added reporting of full pathname to db.  Now offlinedb-1.3.0 is required.
+2011-Oct-03 caf   Added Gsc16ai detector.
+2011-Sep-07 weaver  Added phase to ToEventWireScheduler,SegmentLevel.
+2011-Apr-21 jackp Added new version of cspad including ConfigV3
+2011-Apr-12 weaver  Changed EbC to always keep a full select mask.  Segment levels typically
+      don't have much buffering in front of the select, so the event-builder
+      should read pending data as quickly as possible.
+2011-Mar-31 weaver  Fixed recording of EncoderConfig.  Fixed 0.5s deadtime in AcqReader.  Added semaphore
+      around Acqiris DMA routine calls to avoid driver bug that uses global mapping of
+      DMA target memory pages.
+2010-Dec-06 weaver  Tag V02-10-00.  Added software commands onto EvrDatagram.  Results in Command occurrence posted
+      to segment-level appliance stream.  Changed Princeton to use new software command (rather than
+      extra L1Accept) - only one readout mode now.
+      Added sequencer to Evr configuration object (pdsdata/evr/ConfigV5).
+      Sequencer can now be controlled by PartitionControl.
+      Evr configuration object now describes EVR system configuration.  Each EVR parses its
+      configuration from this object (using evgr/EvrCfgClient object).
+      Added epicstools package for common channel access classes/methods.
 2010-Nov-04 caf         Tag V02-08-05.  Inverted polarity of Opal trigger for newer cameras (FPGA firmware rev >= 1.20).
-2010-Sep-20 weaver	Tag V02-08-00.  	
-2010-Sep-7  weaver	Changes to get single-source timestamps: 
-			  utility/ControEb,Transition, 
-			  management/PartitionControl
-			Added DataFileOpened occurrence type.
-			Added broadcast mechanism to EpicsArchManager.
+2010-Sep-20 weaver  Tag V02-08-00.    
+2010-Sep-7  weaver  Changes to get single-source timestamps: 
+        utility/ControEb,Transition, 
+        management/PartitionControl
+      Added DataFileOpened occurrence type.
+      Added broadcast mechanism to EpicsArchManager.
 2010-Aug-11 caf  Added camsend flag --opalexp: integration time (0.01 - 320.00 ms, default frame period minus 0.1) (Opal only).
-2010-Aug-10 weaver	Tag V02-06-00.  Added FEX algorithm to IpimbManager and non-default LusiDiagFex instance.
-2010-Jun-08 weaver	Added separate a/b tap reference voltages for TM6740 camera.  Fixed payload size of Ipimb config.
-2010-Jun-06 weaver	Tag V02-02-02.  Changed pds/encoder/pci3e_dev to clear_fifo on unconfigure to cleanup
-			after a messy shutdown.  Added ENABLE bit to pci3e_dev configure to enable capture of
-			encoder values.
-2010-May-25 weaver	Changed PartitionControl delay for Disable to 0.2s (greater than camera shutter width).
-			Changed EbTimeouts to be hierarchical to clarify where the timeout occurs.
-			Added 10ms delay in ToEventWireScheduler between flush of L1A and Disable to
-			alleviate coalescing of the two.
-2010-Apr-27 weaver	evgr/EvrManager now reconfigures on BeginCalibCycle.  Changed acqiris/AcqManager
-			to generate ClearReadout occurrence only once until cleared.
-2010-Apr-14 weaver	Changed InDatagram/Datagram relationship to inheritance rather than contains.
-			Protected EbBase from crashing on late L1Accepts (after Unmap).
-2010-Mar-15 weaver	Tag V01-09-00.  Added traffic shaping to segment levels.
-2010-Mar-12 weaver	Refactor pds/camera classes for FCCD implementation.
+2010-Aug-10 weaver  Tag V02-06-00.  Added FEX algorithm to IpimbManager and non-default LusiDiagFex instance.
+2010-Jun-08 weaver  Added separate a/b tap reference voltages for TM6740 camera.  Fixed payload size of Ipimb config.
+2010-Jun-06 weaver  Tag V02-02-02.  Changed pds/encoder/pci3e_dev to clear_fifo on unconfigure to cleanup
+      after a messy shutdown.  Added ENABLE bit to pci3e_dev configure to enable capture of
+      encoder values.
+2010-May-25 weaver  Changed PartitionControl delay for Disable to 0.2s (greater than camera shutter width).
+      Changed EbTimeouts to be hierarchical to clarify where the timeout occurs.
+      Added 10ms delay in ToEventWireScheduler between flush of L1A and Disable to
+      alleviate coalescing of the two.
+2010-Apr-27 weaver  evgr/EvrManager now reconfigures on BeginCalibCycle.  Changed acqiris/AcqManager
+      to generate ClearReadout occurrence only once until cleared.
+2010-Apr-14 weaver  Changed InDatagram/Datagram relationship to inheritance rather than contains.
+      Protected EbBase from crashing on late L1Accepts (after Unmap).
+2010-Mar-15 weaver  Tag V01-09-00.  Added traffic shaping to segment levels.
+2010-Mar-12 weaver  Refactor pds/camera classes for FCCD implementation.
 2009-Dec-03 tomytsai    Update epicsArch classes to skip missing PVs and report damage, and also limit on the number of 
       no-connection errors reported to the console (or log file)
 2009-Dec-03 weaver  Tag V01-08-01.  Enabled select mask in the event builder.  Fixed data

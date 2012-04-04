@@ -5,6 +5,19 @@
  *      Author: jackp
  */
 
+/*
+ *
+ * Note by Tomy:
+ *  
+ * This CspadManager has support for Cspad Compression, but the function is turned off now.
+ *
+ * To enable the compression, find the following two lines in this file (at two places):
+ *   //_bUseCompressor(server->xtc().contains.id() == TypeId::Id_CspadElement)
+ *   _bUseCompressor(false)
+ *
+ *  Uncomment the first line, and comment the second line to enable the compression
+ *
+ */
 #include <sys/mman.h>
 #include <fcntl.h>
 #include <stdio.h>
