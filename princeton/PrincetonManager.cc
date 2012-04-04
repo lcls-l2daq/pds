@@ -254,10 +254,7 @@ public:
         //, _poolFrameData(1024*1024*8 + 1024, 16) // pool for debug
     {
     }
-    
-    ~PrincetonL1AcceptAction()
-    {}
-        
+            
     virtual InDatagram* fire(InDatagram* in)     
     {               
       int         iFail = 0;
@@ -526,6 +523,7 @@ PrincetonManager::~PrincetonManager()
     
     delete _pServer;
     
+    delete _pResponse;
     delete _pActionL1Accept;
     delete _pActionDisable;
     delete _pActionEnable;

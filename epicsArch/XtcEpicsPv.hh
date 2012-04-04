@@ -8,37 +8,36 @@
 
 namespace Pds
 {
-    
-class XtcEpicsPv : public Xtc
-{
-public:
-    XtcEpicsPv(const TypeId& typeId, const Src& src) : Xtc(typeId,src)
+
+  class XtcEpicsPv:public Xtc
+  {
+  public:
+    XtcEpicsPv(const TypeId & typeId, const Src & src):Xtc(typeId, src)
     {
-        // Standard adjustment: Update the Xtc size field
-        alloc( sizeof(*this) - sizeof(Xtc) );
-    }  
+      // Standard adjustment: Update the Xtc size field
+      alloc(sizeof(*this) - sizeof(Xtc));
+    }
 
     // only support new operator with Xtc pointer, to be used for Xtc writing
-    static void* operator new(size_t size, Xtc* pXtc)
-    { 
-        _pGlobalXtc = pXtc;
-        return Xtc::operator new(size, pXtc);
+    static void *operator  new(size_t size, Xtc * pXtc)
+    {
+      _pGlobalXtc = pXtc;
+      return Xtc::operator  new(size, pXtc);
     }
-    
-    int setValue(EpicsMonitorPv& epicsPv, bool bCtrlValue );
-    
-private:
-    static Xtc* _pGlobalXtc; // global Xtc that contains ALL epics pv xtcs
-    
+
+    int setValue(EpicsMonitorPv & epicsPv, bool bCtrlValue);
+
+  private:
+    static Xtc *_pGlobalXtc;	// global Xtc that contains ALL epics pv xtcs
+
     // Class usage control: Value semantics is disabled
-    XtcEpicsPv( const XtcEpicsPv& );
-    XtcEpicsPv& operator=(const XtcEpicsPv& );    
-};
+    XtcEpicsPv(const XtcEpicsPv &);
+    XtcEpicsPv & operator=(const XtcEpicsPv &);
+  };
 
 
 
-} // namespace Pds
+}				// namespace Pds
 
 
 #endif
-

@@ -22,281 +22,261 @@
 using namespace Pds;
 using std::string;
 
-//
-//  After a call to 'reset()', one set of data goes to each receiving node.
-//  This behavior emulates the broadcast of a transition.
-//
-class DestinationFilter {
-public:
-    DestinationFilter() : _numberOfDst(0) {}
-
-    void reset() 
-    {
-        _remainingDst = (1<<_numberOfDst)-1;
-    }
-  
-    bool accept(const InDatagram& in) 
-    {
-        unsigned dst = 1 << (in.datagram().seq.stamp().vector()%_numberOfDst);
-	if ( (_remainingDst & dst) ) 
-	{
-	    _remainingDst ^= dst;
-	    return true;
-	}
-	return false;
-    }
-
-    void map(const Allocation& alloc)
-    {
-        _numberOfDst = 0;
-        for(unsigned i=0; i<alloc.nnodes(); i++)
-	    if (alloc.node(i)->level() == Level::Event)
-	        _numberOfDst++;
-    }  
-
-private:
-    unsigned _numberOfDst;
-    unsigned _remainingDst;
-};
-
-class EpicsArchAllocAction : public Action 
+class EpicsArchAllocAction:public Action
 {
 public:
-  EpicsArchAllocAction(EpicsArchManager& manager, DestinationFilter& filter, CfgClientNfs& cfg) : 
-    _manager(manager), _filter(filter), _cfg(cfg) {}
-    
-    virtual Transition* fire(Transition* tr)     
-    {
-        const Allocate& alloc = reinterpret_cast<const Allocate&>(*tr);
-        _cfg.initialize(alloc.allocation());  
-	_filter.map(alloc.allocation());
-        _manager.onActionMap();
-        return tr;
-    }
+  EpicsArchAllocAction(EpicsArchManager & manager, CfgClientNfs & cfg):_manager(manager), _cfg(cfg)
+  {
+  }
+
+  virtual Transition *fire(Transition * tr)
+  {
+    const Allocation & alloc = ((const Allocate &) *tr).allocation();
+    _cfg.initialize(alloc);
+            
+    int iNumEventNode = 0;
+    for (unsigned i = 0; i < alloc.nnodes(); i++)
+      if (alloc.node(i)->level() == Level::Event)
+        iNumEventNode++;
+    _manager.setNumEventNode(iNumEventNode);
+    _manager.onActionMap();
+    return tr;
+  }
 private:
-    EpicsArchManager&  _manager;
-    DestinationFilter& _filter;
-    CfgClientNfs&      _cfg;
+  EpicsArchManager & _manager;
+  CfgClientNfs & _cfg;
 };
 
-class EpicsArchConfigAction : public Action 
+class EpicsArchConfigAction:public Action
 {
 public:
-    EpicsArchConfigAction(EpicsArchManager& manager, const Src& src, CfgClientNfs& cfg, int iDebugLevel) :
-        //_cfgtc(_epicsArchConfigType,src),
-      _manager(manager), _src(src), _cfg(cfg), _iDebugLevel(iDebugLevel)
-    {}
-    
-    // this is the first "phase" of a transition where
-    // all CPUs configure in parallel.
-    virtual Transition* fire(Transition* tr) 
+  EpicsArchConfigAction(EpicsArchManager & manager, const Src & src,
+      CfgClientNfs & cfg, int iDebugLevel):
+    //_cfgtc(_epicsArchConfigType,src),
+  _manager(manager), _src(src), _cfg(cfg), _iDebugLevel(iDebugLevel)
+  {
+  }
+
+  // this is the first "phase" of a transition where
+  // all CPUs configure in parallel.
+  virtual Transition *fire(Transition * tr)
+  {
+    //_cfg.fetch(*tr,_epicsArchConfigType, &_config);
+    return tr;
+  }
+
+  // this is the second "phase" of a transition where everybody
+  // records the results of configure (which will typically be
+  // archived in the xtc file).
+  virtual InDatagram *fire(InDatagram * in)
+  {
+    if (_iDebugLevel >= 1)
+      printf("\n\n===== Writing Configs =====\n");
+
+    // insert assumes we have enough space in the input datagram
+    //dg->insert(_cfgtc, &_config);
+    //if (_nerror) dg->datagram().xtc.damage.increase(Pds::Damage::UserDefined);
+
+    UserMessage *msg = 0;
+    InDatagram *out = new(_manager.getPool())Pds::CDatagram(in->datagram());
+    int iFail = _manager.writeMonitoredContent(out->datagram(), &msg, (struct timespec) {0,0}, 0);
+
+    /*
+     * Possible failure modes for _manager.writeMonitoredConfigContent()
+     *   cf. EpicsArchMonitor::writeToXtc() return codes
+     * 
+     * Error Code     Reason
+     * 
+     * 2              Memory pool size is not enough for storing PV data
+     * 3              All PV write failed. No PV value is outputted
+     * 4              Some PV values have been outputted, but some has write error
+     * 5              Some PV values have been outputted, but some has not been connected
+     */
+    if (iFail != 0)
     {
-        //_cfg.fetch(*tr,_epicsArchConfigType, &_config);
-        return tr;
+      // set damage bit          
+      out->datagram().xtc.damage.increase(Pds::Damage::UserDefined);
     }
 
-    // this is the second "phase" of a transition where everybody
-    // records the results of configure (which will typically be
-    // archived in the xtc file).
-    virtual InDatagram* fire(InDatagram* in) 
+    if (msg != 0)
     {
-        if (_iDebugLevel>=1) printf( "\n\n===== Writing Configs =====\n" );
-
-        // insert assumes we have enough space in the input datagram
-        //dg->insert(_cfgtc, &_config);
-        //if (_nerror) dg->datagram().xtc.damage.increase(Pds::Damage::UserDefined);
-
-        UserMessage* msg = 0;
-        InDatagram* out = new ( _manager.getPool() ) Pds::CDatagram( in->datagram() );
-        int iFail = _manager.writeMonitoredContent( out->datagram(), &msg );
-        
-        /*
-         * Possible failure modes for _manager.writeMonitoredConfigContent()
-         *   cf. EpicsArchMonitor::writeToXtc() return codes
-         * 
-         * Error Code     Reason
-         * 
-         * 2              Memory pool size is not enough for storing PV data
-         * 3              All PV write failed. No PV value is outputted
-         * 4              Some PV values have been outputted, but some has write error
-         * 5              Some PV values have been outputted, but some has not been connected
-         */
-        if ( iFail != 0 )
-        {
-          // set damage bit          
-          out->datagram().xtc.damage.increase(Pds::Damage::UserDefined);
-        }                
-
-        if ( msg != 0 )
-        {
-          _manager.appliance().post(msg);
-        }
-
-        if (_iDebugLevel>=1) printf( "\nOutput payload size = %d\n", out->datagram().xtc.sizeofPayload());
-        
-        return out;
+      _manager.appliance().post(msg);
     }
+
+    if (_iDebugLevel >= 1)
+      printf("\nOutput payload size = %d\n", out->datagram().xtc.sizeofPayload());
+
+    return out;
+  }
 
 private:
-    //EpicsArchConfigType _config;
-    //Xtc _cfgtc;
-    EpicsArchManager&   _manager;
-    Src                 _src;
-    CfgClientNfs&       _cfg;
-    int                 _iDebugLevel;
+  //EpicsArchConfigType _config;
+  //Xtc _cfgtc;
+  EpicsArchManager & _manager;
+  Src _src;
+  CfgClientNfs & _cfg;
+  int _iDebugLevel;
 };
 
-class EpicsArchL1AcceptAction : public Action 
+class EpicsArchL1AcceptAction:public Action
 {
 public:
-    EpicsArchL1AcceptAction(EpicsArchManager& manager, float fMinTriggerInterval, DestinationFilter* filter, int iDebugLevel) :
-        _manager(manager) , _fMinTriggerInterval(fMinTriggerInterval), _filter(filter), _iDebugLevel(iDebugLevel)
+  EpicsArchL1AcceptAction(EpicsArchManager & manager,
+        float fMinTriggerInterval,
+        int iDebugLevel):_manager(manager),
+    _fMinTriggerInterval(fMinTriggerInterval),
+    _iDebugLevel(iDebugLevel)
+  {
+    tsPrev.tv_sec = tsPrev.tv_nsec = 0;
+  }
+
+  ~EpicsArchL1AcceptAction()
+  {
+  }
+
+  virtual InDatagram *fire(InDatagram * in)
+  {
+    // Check delta time
+    timespec tsCurrent;
+    int iStatus = clock_gettime(CLOCK_REALTIME, &tsCurrent);
+    if (iStatus)
     {
-        tsPrev.tv_sec = tsPrev.tv_nsec = 0;   
+      printf("EpicsArchL1AcceptAction::fire():clock_gettime() Failed: %s\n",
+       strerror(iStatus));
     }
     
-    ~EpicsArchL1AcceptAction()
-    { delete _filter; }
+    unsigned int uVectorCur = in->seq.stamp().vector();  
     
-    virtual InDatagram* fire(InDatagram* in)     
-    {
-        // Check delta time
-        timespec tsCurrent;
-        int iStatus = clock_gettime (CLOCK_REALTIME, &tsCurrent);
-        if (iStatus)
-        {
-            printf( "EpicsArchL1AcceptAction::fire():clock_gettime() Failed: %s\n", strerror(iStatus) );               
-        }
-        // check if delta time < (_fMinTriggerInterval) second => do nothing
-        else if ( (tsCurrent.tv_sec-tsPrev.tv_sec) + (tsCurrent.tv_nsec-tsPrev.tv_nsec)/1.0e9f >= _fMinTriggerInterval )
-	{
-	    _filter->reset();
-        }
-    
-	if (!_filter->accept(*in))
-	{
-  	    return in;
-	}
+    if (_iDebugLevel >= 1)
+      printf("\n\n===== Writing L1 Data =====\n");
+    InDatagram *out = new(_manager.getPool())Pds::CDatagram(in->datagram());
+    int iFail = _manager.writeMonitoredContent(out->datagram(), NULL, tsCurrent, uVectorCur);
 
-        if (_iDebugLevel >= 1) printf( "\n\n===== Writing L1 Data =====\n" );
-        InDatagram* out = new ( _manager.getPool() ) Pds::CDatagram( in->datagram() );
-        int iFail = _manager.writeMonitoredContent( out->datagram() );
-        
-        /*
-         * Possible failure modes for _manager.writeMonitoredConfigContent()
-         *   cf. EpicsArchMonitor::writeToXtc() return codes
-         * 
-         * Error Code     Reason
-         * 
-         * 2              Memory pool size is not enough for storing PV data
-         * 3              All PV write failed. No PV value is outputted
-         * 4              Some PV values have been outputted, but some has write error
-         * 5              Some PV values have been outputted, but some has not been connected
-         */
-        if ( iFail != 0 )
-        {
-          // set damage bit
-          out->datagram().xtc.damage.increase(Pds::Damage::UserDefined);
-        }                
-                  
-        if (_iDebugLevel >= 1) printf( "\nOutput payload size = %d\n", out->datagram().xtc.sizeofPayload());
-        
-        tsPrev = tsCurrent;  
-        return out;
+    /*
+     * Possible failure modes for _manager.writeMonitoredConfigContent()
+     *   cf. EpicsArchMonitor::writeToXtc() return codes
+     * 
+     * Error Code     Reason
+     * 
+     * 2              Memory pool size is not enough for storing PV data
+     * 3              All PV write failed. No PV value is outputted
+     * 4              Some PV values have been outputted, but some has write error
+     * 5              Some PV values have been outputted, but some has not been connected
+     */
+    if (iFail != 0)
+    {
+      // set damage bit
+      out->datagram().xtc.damage.increase(Pds::Damage::UserDefined);
     }
 
-private:        
-    EpicsArchManager&   _manager;
-    float               _fMinTriggerInterval;
-    DestinationFilter*  _filter;
-    int                 _iDebugLevel;
-    timespec            tsPrev;    
-};
+    if (_iDebugLevel >= 1)
+      printf("\nOutput payload size = %d\n",
+       out->datagram().xtc.sizeofPayload());
 
-class EpicsArchDisableAction : public Action 
-{
-public:
-    EpicsArchDisableAction(EpicsArchManager& manager) : _manager(manager)
-    {}
-        
-    virtual Transition* fire(Transition* in) 
-    {
-        return in;
-    }
+    tsPrev = tsCurrent;
+    return out;
+  }
+
 private:
-    EpicsArchManager& _manager;
+  EpicsArchManager & _manager;
+  float _fMinTriggerInterval;
+  int _iDebugLevel;
+  timespec tsPrev;
+};
+
+class EpicsArchDisableAction:public Action
+{
+public:
+  EpicsArchDisableAction(EpicsArchManager & manager):_manager(manager)
+  {
+  }
+
+  virtual Transition *fire(Transition * in)
+  {
+    return in;
+  }
+private:
+  EpicsArchManager & _manager;
 };
 
 const Src EpicsArchManager::srcLevel = Src(Level::Reporter);
 
-EpicsArchManager::EpicsArchManager(CfgClientNfs& cfg, const std::string& sFnConfig, float fMinTriggerInterval, int iDebugLevel) :
-  _src(cfg.src()),
-  _sFnConfig(sFnConfig), _fMinTriggerInterval(fMinTriggerInterval), _iDebugLevel(iDebugLevel),
+EpicsArchManager::EpicsArchManager(CfgClientNfs & cfg, const std::string & sFnConfig, float fMinTriggerInterval, int iDebugLevel):
+  _src(cfg.src()), _sFnConfig(sFnConfig), 
+  _fMinTriggerInterval(fMinTriggerInterval), _iDebugLevel(iDebugLevel), _iNumEventNode(0),
   _pMonitor(NULL) // _pMonitor need to be initialized in the task thread
 {
-    DestinationFilter* filter = new DestinationFilter;
-    _pFsm            = new Fsm();    
-    _pActionMap      = new EpicsArchAllocAction(*this, *filter, cfg);
-    _pActionConfig   = new EpicsArchConfigAction(*this, EpicsArchManager::srcLevel, cfg, _iDebugLevel);  // Level::Reporter for Epics Archiver
-    _pActionL1Accept = new EpicsArchL1AcceptAction(*this, _fMinTriggerInterval, filter, _iDebugLevel);
-    _pActionDisable  = new EpicsArchDisableAction(*this);
-    
-    _pFsm->callback(TransitionId::Map,        _pActionMap);
-    _pFsm->callback(TransitionId::Configure,  _pActionConfig);
-    _pFsm->callback(TransitionId::L1Accept,   _pActionL1Accept);
-    _pFsm->callback(TransitionId::Disable,    _pActionDisable);    
-    
-    _pPool   = new GenericPool(EpicsArchMonitor::iMaxXtcSize, 8);
-    _occPool = new GenericPool(sizeof(UserMessage), 1);
+  _pFsm = new Fsm();
+  _pActionMap = new EpicsArchAllocAction(*this, cfg);
+  _pActionConfig = new EpicsArchConfigAction(*this, EpicsArchManager::srcLevel, cfg, _iDebugLevel); // Level::Reporter for Epics Archiver
+  _pActionL1Accept =
+    new EpicsArchL1AcceptAction(*this, _fMinTriggerInterval, _iDebugLevel);
+  _pActionDisable = new EpicsArchDisableAction(*this);
+
+  _pFsm->callback(TransitionId::Map, _pActionMap);
+  _pFsm->callback(TransitionId::Configure, _pActionConfig);
+  _pFsm->callback(TransitionId::L1Accept, _pActionL1Accept);
+  _pFsm->callback(TransitionId::Disable, _pActionDisable);
+
+  _pPool    = new GenericPool(EpicsArchMonitor::iMaxXtcSize, 8);
+  _occPool  = new GenericPool(sizeof(UserMessage), 1);
 }
 
 EpicsArchManager::~EpicsArchManager()
 {
-    delete _occPool;     
-    delete _pPool;     
-    delete _pMonitor;
-    
-    delete _pActionDisable;
-    delete _pActionL1Accept;
-    delete _pActionConfig;
-    delete _pActionMap; 
-    
-    delete _pFsm;    
+  delete _occPool;
+  delete _pPool;
+  delete _pMonitor;
+
+  delete _pActionDisable;
+  delete _pActionL1Accept;
+  delete _pActionConfig;
+  delete _pActionMap;
+
+  delete _pFsm;
+}
+
+void EpicsArchManager::setNumEventNode(int iNumEventNode)
+{
+  _iNumEventNode = iNumEventNode;  
 }
 
 int EpicsArchManager::onActionMap()
 {
-    // initialize thread-specific data
-    return initMonitor();
+  // initialize thread-specific data
+  return initMonitor();
 }
 
 int EpicsArchManager::initMonitor()
 {
-    delete _pMonitor;
+  delete _pMonitor;
 
-    try
-    {
-      _pMonitor = new EpicsArchMonitor( _src, _sFnConfig, *_occPool, _iDebugLevel );
-    }
-    catch (string& sError)
-    {
-        printf( "EpicsArchManager::initMonitor(): new EpicsArchMonitor( %s )failed: %s\n",
-            _sFnConfig.c_str(), sError.c_str() );
-        _pMonitor = NULL;
-        return 1;
-    }    
-    
-    return 0;
+  try
+  {
+    _pMonitor =
+      new EpicsArchMonitor(_src, _sFnConfig, _fMinTriggerInterval, _iNumEventNode,
+        *_occPool, _iDebugLevel);
+  }
+  catch(string & sError)
+  {
+    printf
+      ("EpicsArchManager::initMonitor(): new EpicsArchMonitor( %s )failed: %s\n",
+       _sFnConfig.c_str(), sError.c_str());
+    _pMonitor = NULL;
+    return 1;
+  }
+
+  return 0;
 }
 
-int EpicsArchManager::writeMonitoredContent( Datagram& dg, UserMessage** msg )
+int EpicsArchManager::writeMonitoredContent(Datagram & dg, UserMessage ** msg, const struct timespec& tsCurrent, unsigned int uVectorCur)
 {
-    if ( _pMonitor == NULL )
-    {
-        printf( "EpicsArchManager::writeMonitoredConfigContent(): Epics Monitor has not been init-ed\n" );
-        return 100;
-    }        
+  if (_pMonitor == NULL)
+  {
+    printf
+      ("EpicsArchManager::writeMonitoredConfigContent(): Epics Monitor has not been init-ed\n");
+    return 100;
+  }
 
-    return _pMonitor->writeToXtc( dg, msg );
+  return _pMonitor->writeToXtc(dg, msg, tsCurrent, uVectorCur);
 }
-

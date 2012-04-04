@@ -2,264 +2,447 @@
 #include <string>
 #include <vector>
 #include <fstream>
+#include <sstream>
+#include "pdsdata/xtc/TypeId.hh"
 #include "pds/xtc/Datagram.hh"
 #include "pds/service/GenericPool.hh"
-#include "pdsdata/xtc/TypeId.hh"
 #include "pds/utility/Occurrence.hh"
+#include "pds/config/EpicsConfigType.hh"
 #include "XtcEpicsPv.hh"
 #include "EpicsArchMonitor.hh"
 
 namespace Pds
 {
-    
+
 using std::string;
+using std::stringstream;
 
-const char EpicsArchMonitor::sPvListSeparators[] = " ,;\t\r\n";
-
-EpicsArchMonitor::EpicsArchMonitor( const Src& src,
-                                    const std::string& sFnConfig, 
-                                    Pool& occPool,
-                                    int iDebugLevel ) :
-  _src(src), _sFnConfig(sFnConfig), _occPool(occPool), _iDebugLevel(iDebugLevel)
+EpicsArchMonitor::EpicsArchMonitor(const Src & src, const std::string & sFnConfig,
+  float fDefaultInterval, int iNumEventNode, Pool & occPool, int iDebugLevel):
+  _src(src), _sFnConfig(sFnConfig), _fDefaultInterval(fDefaultInterval), _iNumEventNode(iNumEventNode),
+  _occPool(occPool), _iDebugLevel(iDebugLevel)
 {
-    if ( _sFnConfig == "" )
-        throw string("EpicsArchMonitor::EpicsArchMonitor(): Invalid parameters");
-        
-    TPvList vsPvNameList;
-    int iFail = _readConfigFile( sFnConfig, vsPvNameList );
-    if ( iFail != 0 )
-        throw "EpicsArchMonitor::EpicsArchMonitor()::readConfigFile(" + _sFnConfig + ") failed\n";
-        
-    if ( vsPvNameList.size() == 0 )
-        throw "EpicsArchMonitor::EpicsArchMonitor(): No Pv Name is specified in the config file " + _sFnConfig;                
-       
-    // initialize Channel Access        
-    if (ECA_NORMAL != ca_task_initialize()) 
-    {
-        throw "EpicsArchMonitor::EpicsArchMonitor(): ca_task_initialize() failed" + _sFnConfig;                
-    };
-        
-    printf( "Monitoring Pv: " );
-    for ( int iPv = 0; iPv < (int) vsPvNameList.size(); iPv++ )
-    {
-        if ( iPv != 0 ) printf( ", " );
-        printf( "[%d] %s", iPv, vsPvNameList[iPv].c_str() );
-    }
-    printf( "\n" );
-        
-    iFail = _setupPvList( vsPvNameList, _lpvPvList );
-    if (iFail != 0)
-        throw string("EpicsArchMonitor::EpicsArchMonitor()::setupPvList() Failed");        
+  if (_sFnConfig == "")
+    throw string("EpicsArchMonitor::EpicsArchMonitor(): Invalid parameters");
+
+  TPvList vPvList;
+  int iFail = _readConfigFile(sFnConfig, vPvList);
+  if (iFail != 0)
+      throw "EpicsArchMonitor::EpicsArchMonitor()::readConfigFile(" +
+        _sFnConfig + ") failed\n";
+
+  if (vPvList.size() == 0)
+    throw
+      "EpicsArchMonitor::EpicsArchMonitor(): No Pv Name is specified in the config file "
+      + _sFnConfig;
+
+  // initialize Channel Access        
+  if (ECA_NORMAL != ca_task_initialize())
+  {
+    throw
+      "EpicsArchMonitor::EpicsArchMonitor(): ca_task_initialize() failed" +
+      _sFnConfig;
+  };
+
+  printf("Monitoring Pv:\n");
+  for (int iPv = 0; iPv < (int) vPvList.size(); iPv++)
+    printf("  [%d] %-32s PV %-32s Interval %g s\n", iPv, 
+    vPvList[iPv].sPvDescription.c_str(), vPvList[iPv].sPvName.c_str(), 
+    vPvList[iPv].fUpdateInterval);
+  printf("\n");
+
+  iFail = _setupPvList(vPvList, _lpvPvList);
+  if (iFail != 0)
+    throw string("EpicsArchMonitor::EpicsArchMonitor()::setupPvList() Failed");
 }
 
 EpicsArchMonitor::~EpicsArchMonitor()
-{    
-    for ( int iPvName = 0; iPvName < (int) _lpvPvList.size(); iPvName++ )
-    {           
-        EpicsMonitorPv& epicsPvCur = _lpvPvList[iPvName];
-        int iFail = epicsPvCur.release();
-        
-        if (iFail != 0)
-            printf( "xtcEpicsTest()::EpicsMonitorPv::release(%s) failed\n", epicsPvCur.getPvName().c_str());
-    }    
-    
-    int iFail = ca_task_exit();
-    if (ECA_NORMAL != iFail ) 
-      SEVCHK( iFail, "EpicsArchMonitor::~EpicsArchMonitor(): ca_task_exit() failed" );    
+{
+  for (int iPvName = 0; iPvName < (int) _lpvPvList.size(); iPvName++)
+  {
+    EpicsMonitorPv & epicsPvCur = _lpvPvList[iPvName];
+    int iFail = epicsPvCur.release();
+
+    if (iFail != 0)
+      printf("xtcEpicsTest()::EpicsMonitorPv::release(%s (%s)) failed\n",
+             epicsPvCur.getPvDescription().c_str(), epicsPvCur.getPvName().c_str());
+  }
+
+  int iFail = ca_task_exit();
+  if (ECA_NORMAL != iFail)
+    SEVCHK(iFail,
+     "EpicsArchMonitor::~EpicsArchMonitor(): ca_task_exit() failed");
 }
 
-int EpicsArchMonitor::writeToXtc( Datagram& dg, UserMessage** msg )
+
+//static int getLocalTime( const timespec& ts, char* sTime )
+//{
+//  static const char timeFormatStr[40] = "%04Y-%02m-%02d %02H:%02M:%02S"; /* Time format string */
+//  static char sTimeText[64];
+
+//  struct tm tmTimeStamp;
+//  time_t    tOrg = ts.tv_sec;
+//  localtime_r( (const time_t*) (void*) &tOrg, &tmTimeStamp );
+//  strftime(sTimeText, sizeof(sTimeText), timeFormatStr, &tmTimeStamp );
+
+//  strncpy(sTime, sTimeText, sizeof(sTimeText));
+//  return 0;
+//}
+
+int EpicsArchMonitor::writeToXtc(Datagram & dg, UserMessage ** msg, const struct timespec& tsCurrent, unsigned int uVectorCur)
 {
-    bool bCtrlValue = (msg != 0);
+  bool bCtrlValue = (msg != 0);
 
-    const int iNumPv = _lpvPvList.size();
-    
-    ca_poll();
-    
-    TypeId typeIdXtc(EpicsArchMonitor::typeXtc, EpicsArchMonitor::iXtcVersion);
-    char* pPoolBufferOverflowWarning = (char*) &dg + (int)(0.9*EpicsArchMonitor::iMaxXtcSize);    
-    
-    bool bAnyPvWriteOkay      = false;
-    bool bSomePvWriteError    = false; 
-    bool bSomePvNotConnected  = false; // PV not connected: Less serious than the "Write Error"
-    for ( int iPvName = 0; iPvName < iNumPv; iPvName++ )
+  const int iNumPv = _lpvPvList.size();
+  
+  if (!bCtrlValue)
+  {
+    bool bAnyPvWantsWrite = false;
+
+    for (int iPvName = 0; iPvName < iNumPv; iPvName++)
     {
-        EpicsMonitorPv& epicsPvCur = _lpvPvList[iPvName];
-              
-        if (_iDebugLevel >= 1 ) epicsPvCur.printPv();
-        
-        XtcEpicsPv* pXtcEpicsPvCur = new(&dg.xtc) XtcEpicsPv(typeIdXtc, _src);
-
-        int iFail;
-        for(unsigned nTries=0; nTries<3; nTries++) {
-          iFail = pXtcEpicsPvCur->setValue( epicsPvCur, bCtrlValue );
-          if (iFail==2)
-            printf("%s failed to connect (%d)\n",epicsPvCur.getPvName().c_str(),nTries);
-          else
-            break;
-        }
-
-        if ( iFail == 0 ) 
-          bAnyPvWriteOkay = true;
-        else if ( iFail == 2 ) // Error code 2 means this PV has no connection
-        {
-          if ( bCtrlValue ) { // If this happens in the "config" action (ctrl value is about to be written)
-            epicsPvCur.release(); // release this PV and never update it again
-            
-            if ( (*msg)==0 )
-            {
-              /*
-               * Note: The UserMessage will only contains the first non-connected PV
-               * 
-               * For full list of problematic PVs, users need to check the epicsArch output (logfile).
-               */
-              (*msg) = new(&_occPool) UserMessage;
-              (*msg)->append("EpicsArch: Some PVs not connected\n");
-
-              (*msg)->append(epicsPvCur.getPvName().c_str());
-              (*msg)->append("\n...\n");              
-            }
-          }
-
-          bSomePvNotConnected = true;
-        }
-        else
-          bSomePvWriteError = true;
-            
-        char* pCurBufferPointer = (char*) dg.xtc.next();                
-        if ( pCurBufferPointer > pPoolBufferOverflowWarning  )
-        {
-            printf( "EpicsArchMonitor::writeToXtc(): Pool buffer size is too small.\n" );
-            printf( "EpicsArchMonitor::writeToXtc(): %d Pvs are stored in 90%% of the pool buffer (size = %d bytes)\n", 
-              iPvName+1, EpicsArchMonitor::iMaxXtcSize );              
-            if ( (*msg)==0 )
-            {
-              (*msg) = new(&_occPool) UserMessage;
-              (*msg)->append("EpicsArch:PV data size too large\n");
-            }
-            return 2;
-        }
+      EpicsMonitorPv & epicsPvCur = _lpvPvList[iPvName];
+      
+      if (epicsPvCur.checkWriteEvent(tsCurrent, uVectorCur) )
+        bAnyPvWantsWrite = true;
     }
     
-    /// ca_pend For debug print
-    //printf("Size of Data: Xtc %d Datagram %d Payload %d Total %d\n", 
-    //    sizeof(Xtc), sizeof(Datagram), pDatagram->xtc.sizeofPayload(), 
-    //    sizeof(Datagram) + pDatagram->xtc.sizeofPayload() );
+    if (!bAnyPvWantsWrite)
+      return 0;      
+  }
+  else
+  {
+    Xtc*              pXtcConfig  = new (&dg.xtc) Xtc(_epicsConfigType, _src);
+    
+    new (pXtcConfig->alloc(sizeof(EpicsConfigType)) ) EpicsConfigType(iNumPv);
+        
+    for (int iPvName = 0; iPvName < iNumPv; iPvName++)
+    {
+      EpicsMonitorPv & epicsPvCur = _lpvPvList[iPvName];      
+      new  (pXtcConfig->alloc(sizeof(EpicsConfigType::PvConfig)) )
+        EpicsConfigType::PvConfig( epicsPvCur.getPvId(), epicsPvCur.getPvDescription().c_str(),
+          epicsPvCur.getUpdateInterval() );
+    }    
+        
+    dg.xtc.alloc(pXtcConfig->sizeofPayload());    
+  }
 
-    // checking errors, from the most serious one to the less serious one
-    if ( !bAnyPvWriteOkay )     return 3; // No PV has been outputted    
-    if ( bSomePvWriteError )    return 4; // Some PV values have been outputted, but some has write error    
-    if ( bSomePvNotConnected )  return 5; // Some PV values have been outputted, but some has not been connected
+  ca_poll();
 
-    return 0; // All PV values are outputted successfully
+  TypeId typeIdXtc(EpicsArchMonitor::typeXtc, EpicsArchMonitor::iXtcVersion);
+  char *pPoolBufferOverflowWarning =
+    (char *) &dg + (int) (0.9 * EpicsArchMonitor::iMaxXtcSize);
+    
+  ////!!!debug  
+  //char sTimeText[64];
+  //getLocalTime(tsCurrent, sTimeText);
+  //printf("\nEpicsArchMonitor::writeToXtc() %s.%09u\n", sTimeText, (unsigned) tsCurrent.tv_nsec);
+
+  bool bAnyPvWriteOkay      = false;
+  bool bSomePvWriteError    = false;
+  bool bSomePvNotConnected  = false; // PV not connected: Less serious than the "Write Error"
+  for (int iPvName = 0; iPvName < iNumPv; iPvName++)
+  {
+    EpicsMonitorPv & epicsPvCur = _lpvPvList[iPvName];
+    
+    if (! (bCtrlValue || epicsPvCur.isWriteEvent() ) )
+      continue;
+
+    if (_iDebugLevel >= 1)
+      epicsPvCur.printPv();
+      
+    ////!!!debug
+    //printf("Writing PV [%d] %s (%s) C %d\n", epicsPvCur.getPvId(), epicsPvCur.getPvDescription().c_str(), 
+    //  epicsPvCur.getPvName().c_str(), (int) (bCtrlValue) );
+
+    XtcEpicsPv *pXtcEpicsPvCur = new(&dg.xtc) XtcEpicsPv(typeIdXtc, _src);
+
+    int iFail;
+    for (unsigned nTries = 0; nTries < 3; nTries++)
+    {
+      iFail = pXtcEpicsPvCur->setValue(epicsPvCur, bCtrlValue);
+      if (iFail == 2)
+        printf("%s (%s) failed to connect (%d)\n", 
+          epicsPvCur.getPvDescription().c_str(), epicsPvCur.getPvName().c_str(), nTries);
+      else
+        break;
+    }
+
+    if (iFail == 0)
+      bAnyPvWriteOkay = true;
+    else if (iFail == 2)  // Error code 2 means this PV has no connection
+    {
+      if (bCtrlValue)
+      {     // If this happens in the "config" action (ctrl value is about to be written)
+        epicsPvCur.release(); // release this PV and never update it again
+
+        if ((*msg) == 0)
+        {
+          /*
+           * Note: The UserMessage will only contains the first non-connected PV
+           * 
+           * For full list of problematic PVs, users need to check the epicsArch output (logfile).
+           */
+          (*msg) = new(&_occPool) UserMessage;
+          (*msg)->append("EpicsArch: Some PVs not connected\n");
+          (*msg)->append(epicsPvCur.getPvDescription().c_str());
+          (*msg)->append(" (");
+          (*msg)->append(epicsPvCur.getPvName().c_str());
+          (*msg)->append(")");
+          (*msg)->append("\n...\n");
+        }
+      }
+
+      bSomePvNotConnected = true;
+    }
+    else
+      bSomePvWriteError = true;
+
+    char *pCurBufferPointer = (char *) dg.xtc.next();
+    if (pCurBufferPointer > pPoolBufferOverflowWarning)
+    {
+      printf
+        ("EpicsArchMonitor::writeToXtc(): Pool buffer size is too small.\n");
+      printf
+        ("EpicsArchMonitor::writeToXtc(): %d Pvs are stored in 90%% of the pool buffer (size = %d bytes)\n",
+         iPvName + 1, EpicsArchMonitor::iMaxXtcSize);
+      if ((*msg) == 0)
+      {
+        (*msg) = new(&_occPool) UserMessage;
+        (*msg)->append("EpicsArch:PV data size too large\n");
+      }
+      return 2;
+    }
+  }
+
+  /// ca_pend For debug print
+  //printf("Size of Data: Xtc %d Datagram %d Payload %d Total %d\n", 
+  //    sizeof(Xtc), sizeof(Datagram), pDatagram->xtc.sizeofPayload(), 
+  //    sizeof(Datagram) + pDatagram->xtc.sizeofPayload() );
+
+  // checking errors, from the most serious one to the less serious one
+  if (!bAnyPvWriteOkay)
+    return 3;     // No PV has been outputted    
+  if (bSomePvWriteError)
+    return 4;     // Some PV values have been outputted, but some has write error    
+  if (bSomePvNotConnected)
+    return 5;     // Some PV values have been outputted, but some has not been connected
+
+  return 0;     // All PV values are outputted successfully
 }
 
 /*
- * private static member functions
- */
+* private static member functions
+*/
 
-int EpicsArchMonitor::_readConfigFile( const std::string& sFnConfig, TPvList& vsPvNameList )
+int EpicsArchMonitor::_readConfigFile(const std::string & sFnConfig,
+        TPvList & vPvList)
 {
-        
-    std::ifstream ifsConfig( sFnConfig.c_str() );    
-    if ( !ifsConfig ) return 1; // Cannot open file
-    
-    std::string sFnPath;
-    size_t uOffsetPathEnd = sFnConfig.find_last_of( '/' );
-    if ( uOffsetPathEnd != string::npos )      
-      sFnPath.assign( sFnConfig, 0, uOffsetPathEnd+1 );
-      
-    int iLineNumber = 0;
-    
-    while ( !ifsConfig.eof() )
-    {
-        ++iLineNumber;
-        string sLine;        
-        std::getline( ifsConfig, sLine );    
-        if ( sLine[0] == '#' ) continue; // skip comment lines that begin with '#'        
-        if ( sLine[0] == '<' ) 
-        {
-          sLine[0] = ' ';
-          TPvList vsPvFileLst;
-          _splitPvList( sLine, vsPvFileLst );
-          
-          for ( int iPvFile = 0; iPvFile < (int) vsPvFileLst.size(); iPvFile++ )
-          {
-            string sFnRef = vsPvFileLst[iPvFile];
-            if ( sFnRef[0] != '/' )
-              sFnRef = sFnPath + sFnRef;
-            int iFail     = _readConfigFile( sFnRef, vsPvNameList );
-            if ( iFail != 0 )
-            {
-              printf( "EpicsArchMonitor::_readConfigFile(): Invalid file reference \"%s\", in file \"%s\":line %d\n",
-                sFnRef.c_str(), sFnConfig.c_str(), iLineNumber );                
-            }
-          }
-          continue;
-        }
-        
-        _splitPvList( sLine, vsPvNameList );
-    }
-        
-    return 0;
-}
+  std::ifstream ifsConfig(sFnConfig.c_str());
+  if (!ifsConfig)
+    return 1;     // Cannot open file
 
-int EpicsArchMonitor::_setupPvList(const TPvList& vsPvList, TEpicsMonitorPvList& lpvPvList)
-{   
-    if ( vsPvList.size() == 0 ) 
-      return 0;
-    if ( (int) vsPvList.size() >= iMaxNumPv )
-      printf( "EpicsArchMonitor::_setupPvList(): Number of PVs (%d) has reached the system capacity (%d), "
-        "some PVs in the list may have been skipped.\n",
-        vsPvList.size(), iMaxNumPv );
-        
-        
-    lpvPvList.resize(vsPvList.size());
-    for ( int iPvName = 0; iPvName < (int) vsPvList.size(); iPvName++ )
-    {                
-        EpicsMonitorPv& epicsPvCur = lpvPvList[iPvName];
-        
-        string sPvName( vsPvList[iPvName] );
-        int iFail = epicsPvCur.init( iPvName, sPvName.c_str() );
-        
+  string sFnPath;
+  size_t uOffsetPathEnd = sFnConfig.find_last_of('/');
+  if (uOffsetPathEnd != string::npos)
+    sFnPath.assign(sFnConfig, 0, uOffsetPathEnd + 1);
+
+  _setPv.clear();
+  int iLineNumber = 0;
+
+  string sPvDescription;
+  while (!ifsConfig.eof())
+  {
+    ++iLineNumber;
+    string sLine;
+    std::getline(ifsConfig, sLine);
+    if (sLine[0] == '#')
+    {
+      _getPvDescription(sLine, sPvDescription);
+      continue;   // skip comment lines that begin with '#'        
+    }
+    if (sLine[0] == '<')
+    {
+      sLine[0] = ' ';
+      TFileList vsFileLst;
+      _splitFileList(sLine, vsFileLst);
+
+      for (int iPvFile = 0; iPvFile < (int) vsFileLst.size(); iPvFile++)
+      {
+        string sFnRef = vsFileLst[iPvFile];
+        if (sFnRef[0] != '/')
+          sFnRef = sFnPath + sFnRef;
+        int iFail = _readConfigFile(sFnRef, vPvList);
         if (iFail != 0)
         {
-            printf( "EpicsArchMonitor::setupPvList()::EpicsMonitorPv::init(%s) failed\n", epicsPvCur.getPvName().c_str());
-            return 1;
-        }       
-    }    
-    
-    /* flush all CA monitor requests*/
-    ca_flush_io();
-    ca_pend_event(0.5); // empirically, 0.5s is enough for 1000 PVs to be updated 
-    return 0;
-}
-
-int EpicsArchMonitor::_splitPvList( const string& sPvList, TPvList& vsPvList )
-{       
-    size_t uOffsetStart = sPvList.find_first_not_of( EpicsArchMonitor::sPvListSeparators, 0 );
-    while ( uOffsetStart != string::npos )      
-    {     
-        if ( sPvList[uOffsetStart] == '#' ) break; // skip the remaining characters
-      
-        size_t uOffsetEnd = sPvList.find_first_of( EpicsArchMonitor::sPvListSeparators, uOffsetStart+1 );
-        
-        if ( uOffsetEnd == string::npos )        
-        {
-            if ( (int) vsPvList.size() < iMaxNumPv )
-              vsPvList.push_back( sPvList.substr( uOffsetStart, string::npos ) );
-              
-            break;
+          printf("EpicsArchMonitor::_readConfigFile(): Invalid file reference \"%s\", in file \"%s\":line %d\n",
+             sFnRef.c_str(), sFnConfig.c_str(), iLineNumber);
         }
-        
-        if ( (int) vsPvList.size() < iMaxNumPv )
-          vsPvList.push_back( sPvList.substr( uOffsetStart, uOffsetEnd - uOffsetStart ) );
-        else
-          break;
-                  
-        uOffsetStart = sPvList.find_first_not_of( sPvListSeparators, uOffsetEnd+1 );        
+      }
+      continue;
     }
-    return 0;
+
+    bool bAddPv;
+    _addPv(sLine, sPvDescription, vPvList, bAddPv);
+    if (!bAddPv)
+      sPvDescription.clear();
+  }
+
+  return 0;
 }
 
-} // namespace Pds
+int EpicsArchMonitor::_setupPvList(const TPvList & vPvList,
+           TEpicsMonitorPvList & lpvPvList)
+{
+  if (vPvList.size() == 0)
+    return 0;
+  if ((int) vPvList.size() >= iMaxNumPv)
+    printf(
+      "EpicsArchMonitor::_setupPvList(): Number of PVs (%d) has reached the system capacity (%d), "
+      "some PVs in the list may have been skipped.\n", vPvList.size(),
+      iMaxNumPv);
+
+
+  lpvPvList.resize(vPvList.size());
+  for (int iPvName = 0; iPvName < (int) vPvList.size(); iPvName++)
+  {
+    EpicsMonitorPv & epicsPvCur = lpvPvList[iPvName];
+
+    int iFail = epicsPvCur.init(iPvName, vPvList[iPvName].sPvName,
+      vPvList[iPvName].sPvDescription, vPvList[iPvName].fUpdateInterval,
+      _iNumEventNode);
+
+    if (iFail != 0)
+    {
+      printf("EpicsArchMonitor::setupPvList()::EpicsMonitorPv::init(%s (%s)) failed\n",
+        epicsPvCur.getPvDescription().c_str(), epicsPvCur.getPvName().c_str());
+      return 1;
+    }
+  }
+
+  /* flush all CA monitor requests */
+  ca_flush_io();
+  ca_pend_event(0.5);   // empirically, 0.5s is enough for 1000 PVs to be updated 
+  return 0;
+}
+
+int EpicsArchMonitor::_addPv(const string & sPvLine,
+           const string & sPvDescription,
+           TPvList & vPvList, bool & bPvAdd)
+{
+  bPvAdd = false;
+
+  const char sPvLineSeparators[] = " ,;\t\r\n";
+  size_t uOffsetPv = sPvLine.find_first_not_of(sPvLineSeparators, 0);
+  if (uOffsetPv == string::npos)
+    return 0;
+
+  if (sPvLine[uOffsetPv] == '#')
+    return 0;
+
+  if ((int) vPvList.size() >= iMaxNumPv)
+  {
+    printf("EpicsArchMonitor::_addPv(): Pv number > maimal allowable value (%d)\n",
+     iMaxNumPv);
+    return 1;
+  }
+
+  size_t uOffsetSeparator =
+    sPvLine.find_first_of(sPvLineSeparators, uOffsetPv + 1);
+  if (uOffsetSeparator == string::npos)
+  {
+    vPvList.
+    push_back(PvInfo
+        (sPvLine.substr(uOffsetPv, string::npos), sPvDescription,
+         _fDefaultInterval));
+    bPvAdd = true;
+    return 0;
+  }
+
+  string sPvName = sPvLine.substr(uOffsetPv, uOffsetSeparator - uOffsetPv);
+  float fInterval = _fDefaultInterval;
+
+  size_t uOffsetInterval =
+    sPvLine.find_first_not_of(sPvLineSeparators, uOffsetSeparator + 1);
+  if (uOffsetInterval != string::npos)
+    fInterval = strtof(sPvLine.c_str() + uOffsetInterval, NULL);
+
+  vPvList.push_back(PvInfo(sPvName, sPvDescription, fInterval));
+  bPvAdd = true;
+  return 0;
+}
+
+int EpicsArchMonitor::_splitFileList(const std::string & sFileList,
+             TFileList & vsFileList)
+{
+  static const char sFileListSeparators[] = " ,;\t\r\n";
+  size_t uOffsetStart = sFileList.find_first_not_of(sFileListSeparators, 0);
+  while (uOffsetStart != string::npos)
+  {
+    if (sFileList[uOffsetStart] == '#')
+      break;      // skip the remaining characters
+
+    size_t uOffsetEnd =
+      sFileList.find_first_of(sFileListSeparators, uOffsetStart + 1);
+
+    if (uOffsetEnd == string::npos)
+    {
+      if ((int) vsFileList.size() < iMaxNumPv)
+        vsFileList.push_back(sFileList.substr(uOffsetStart, string::npos));
+
+      break;
+    }
+
+    if ((int) vsFileList.size() < iMaxNumPv)
+      vsFileList.push_back(sFileList.substr(uOffsetStart, uOffsetEnd - uOffsetStart));
+    else
+      break;
+
+    uOffsetStart = sFileList.find_first_not_of(sFileListSeparators, uOffsetEnd + 1);
+  }
+  return 0;
+}
+
+int EpicsArchMonitor::_getPvDescription(const std::string & sLine, std::string & sPvDescription)
+{
+  const char sPvDecriptionSeparators[] = " \t#";
+  size_t uOffsetStart = sLine.find_first_not_of(sPvDecriptionSeparators, 0);
+  if (uOffsetStart == string::npos)
+  {
+    sPvDescription.clear();
+    return 0;
+  }
+
+  size_t uOffsetEnd = sLine.find("#", uOffsetStart+1);    
+  size_t uOffsetTrail = sLine.find_last_not_of(" \t#", uOffsetEnd );
+  if (uOffsetTrail == string::npos)
+    sPvDescription = "";
+  else
+    sPvDescription = sLine.substr(uOffsetStart, uOffsetTrail - uOffsetStart + 1);
+        
+  if ( _setPv.find(sPvDescription) == _setPv.end() )
+  {
+    _setPv.insert(sPvDescription);
+    return 0;
+  }
+  
+  static const int iMaxPvSerial = 10000;
+  for (int iPvSerial = 2; iPvSerial < iMaxPvSerial; ++iPvSerial)
+  {      
+    stringstream sNumber;
+    sNumber << iPvSerial;
+    string sPvDesecriptionNew = sPvDescription + '-' + sNumber.str();
+    if ( _setPv.find(sPvDesecriptionNew) == _setPv.end() )
+    {
+      sPvDescription = sPvDesecriptionNew;
+      _setPv.insert(sPvDescription);
+      return 0;
+    }      
+  }    
+    
+  printf("EpicsArchMonitor::_getPvDescription(): Cannot generate proper PV name for %s. Use %s.", 
+    sLine.c_str(), sPvDescription.c_str());
+  return 1;    
+}
+
+}       // namespace Pds
