@@ -16,10 +16,12 @@ using namespace Pds;
 
 EventLevel::EventLevel(unsigned platform,
 		       EventCallback& callback,
-		       Arp* arp) :
+		       Arp* arp,
+                       unsigned max_eventsize) :
   PartitionMember(platform, Level::Event, arp),
   _callback   (callback),
-  _streams    (0)
+  _streams    (0),
+  _max_eventsize(max_eventsize)
 {
 }
 
@@ -32,7 +34,11 @@ bool EventLevel::attach()
 {
   start();
   if (connect()) {
-    _streams = new EventStreams(*this);
+    if (_max_eventsize)
+      _streams = new EventStreams(*this, _max_eventsize);
+    else
+      _streams = new EventStreams(*this);
+
     _streams->connect();
 
     _callback.attached(*_streams);

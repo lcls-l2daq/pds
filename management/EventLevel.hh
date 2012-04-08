@@ -14,7 +14,8 @@ class EventLevel: public PartitionMember {
 public:
   EventLevel(unsigned       platform,
 	     EventCallback& callback,
-	     Arp*           arp);
+	     Arp*           arp,
+             unsigned       max_eventsize = 0);
   virtual ~EventLevel();
   
   bool attach();
@@ -32,6 +33,7 @@ private:
   EventCallback& _callback;         // object to notify
   EventStreams*  _streams;          // appliance streams
   PingReply      _reply;
+  unsigned       _max_eventsize;
 };
 
 }
