@@ -13,7 +13,8 @@
 
 using namespace Pds;
 
-ObserverStreams::ObserverStreams(CollectionObserver& cmgr) :
+ObserverStreams::ObserverStreams(CollectionObserver& cmgr,
+                                 unsigned max_size) :
   WiredStreams(VmonSourceId(cmgr.header().level(), cmgr.header().ip()))
 {
   const Node& node = cmgr.header();
@@ -31,7 +32,7 @@ ObserverStreams::ObserverStreams(CollectionObserver& cmgr) :
        _xtcType,
        level,
        *stream(s)->inlet(), *_outlets[s], s, ipaddress,
-       MaxSize, ebdepth);
+       max_size, ebdepth);
     
     _inlet_wires[s] = eb;
   }

@@ -16,7 +16,8 @@ namespace Pds {
     ObserverLevel(unsigned    platform,
 		  const char* partition,
 		  unsigned    nodes,
-		  EventCallback& callback);
+		  EventCallback& callback,
+                  unsigned       max_eventsize=0);
     virtual ~ObserverLevel();
   
     bool attach();
@@ -32,6 +33,7 @@ namespace Pds {
     unsigned          _nodes;
     EventCallback&    _callback;         // object to notify
     ObserverStreams * _streams;          // appliance streams
+    unsigned          _max_eventsize;
     OutletWire*       _outlets[StreamParams::NumberOfStreams];
 };
 

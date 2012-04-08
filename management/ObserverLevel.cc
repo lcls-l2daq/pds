@@ -17,11 +17,13 @@ using namespace Pds;
 ObserverLevel::ObserverLevel(unsigned platform,
 			     const char* partition,
 			     unsigned nodes,
-			     EventCallback& callback) :
+			     EventCallback& callback,
+                             unsigned       max_eventsize) :
   CollectionObserver(platform, partition),
   _nodes            (nodes),
   _callback         (callback),
-  _streams          (0)
+  _streams          (0),
+  _max_eventsize    (max_eventsize)
 {
 }
 
@@ -37,7 +39,11 @@ bool ObserverLevel::attach()
 {
   start();
   if (connect()) {
-    _streams = new ObserverStreams(*this);
+    if (_max_eventsize)
+      _streams = new ObserverStreams(*this,_max_eventsize);
+    else
+      _streams = new ObserverStreams(*this);
+
     for (int s = 0; s < StreamParams::NumberOfStreams; s++) {
       delete _streams->stream(s)->outlet()->wire();
       _outlets[s] = new OpenOutlet(*_streams->stream(s)->outlet());
