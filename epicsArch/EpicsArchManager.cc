@@ -258,7 +258,8 @@ int EpicsArchManager::onActionMap(UserMessage*& pMsg)
   string sConfigFileWarning;
   int iError = initMonitor(sConfigFileWarning);
   
-  if (!sConfigFileWarning.empty() && pMsg == NULL)
+  //if (!sConfigFileWarning.empty() && pMsg == NULL)
+  if (false) // Do not show the PV title error message, as it is too verbose
   {
     /*
      * Note: The UserMessage will only contains the first PV that doesn't have formal description
