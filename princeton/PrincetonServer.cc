@@ -26,8 +26,9 @@ using PICAM::printPvError;
 namespace Pds 
 {
 
-PrincetonServer::PrincetonServer(int iCamera, bool bDelayMode, bool bInitTest, const Src& src, string sConfigDb, int iDebugLevel) :
- _iCamera(iCamera), _bDelayMode(bDelayMode), _bInitTest(bInitTest), _src(src), _sConfigDb(sConfigDb), _iDebugLevel(iDebugLevel),
+PrincetonServer::PrincetonServer(int iCamera, bool bDelayMode, bool bInitTest, const Src& src, string sConfigDb, int iSleepInt, int iDebugLevel) :
+ _iCamera(iCamera), _bDelayMode(bDelayMode), _bInitTest(bInitTest), _src(src), 
+ _sConfigDb(sConfigDb), _iSleepInt(iSleepInt), _iDebugLevel(iDebugLevel),
  _hCam(-1), _bCameraInited(false), _bCaptureInited(false), _bClockSaving(false),
  _fPrevReadoutTime(0), _bSequenceError(false), _clockPrevDatagram(0,0), _iNumL1Event(0),
  _configCamera(), 
@@ -114,11 +115,6 @@ int PrincetonServer::initCamera()
   
   double fOpenTime = (timeVal1.tv_nsec - timeVal0.tv_nsec) * 1.e-6 + ( timeVal1.tv_sec - timeVal0.tv_sec ) * 1.e3;    
   printf("Camera Open Time = %6.1lf ms\n", fOpenTime);    
-
-  int iCcdWidth = 0, iCcdHeight = 0;
-  PICAM::getAnyParam(_hCam, PARAM_SER_SIZE, &iCcdWidth );
-  PICAM::getAnyParam(_hCam, PARAM_PAR_SIZE, &iCcdHeight );
-  printf( "CCD Width %d Height %d\n", iCcdWidth, iCcdHeight );
     
   if (_bInitTest)
   {
@@ -140,6 +136,12 @@ int PrincetonServer::initCamera()
     printPvError("PrincetonServer::initCamera(): initCameraBeforeConfig() failed!\n");
     return ERROR_FUNCTION_FAILURE; 
   }
+  
+  int iCcdWidth = 0, iCcdHeight = 0;
+  PICAM::getAnyParam(_hCam, PARAM_SER_SIZE, &iCcdWidth );
+  PICAM::getAnyParam(_hCam, PARAM_PAR_SIZE, &iCcdHeight );
+  printf( "\nCCD Width %d Height %d\n", iCcdWidth, iCcdHeight );
+  PICAM::displayParamIdInfo(_hCam, PARAM_SPDTAB_INDEX, "Speed Table Index");  
   
   printf( "Princeton Camera [%d] %s has been initialized\n", _iCamera, strCamera );
   _bCameraInited = true;    
@@ -534,6 +536,7 @@ int PrincetonServer::initCameraBeforeConfig()
   
   printf("Setting cooling temperature: %f\n", config.coolingTemp());
   setupCooling( config.coolingTemp() );
+  
   return 0;
 }
 
@@ -969,7 +972,7 @@ int PrincetonServer::getDelayData(InDatagram* in, InDatagram*& out)
   resetFrameData(false);  
 
   // Delayed data sending for multiple princeton cameras, to avoid creating a burst of traffic 
-  timeval timeSleepMicro = {0, 1000 * 10 * _iCamera}; // 10 milliseconds
+  timeval timeSleepMicro = {0, 1000 * _iSleepInt * _iCamera}; // (_iSleepInt) milliseconds
   select( 0, NULL, NULL, NULL, &timeSleepMicro);
 
   return 0;

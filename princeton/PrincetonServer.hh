@@ -25,7 +25,7 @@ class PrincetonServer;
 class PrincetonServer
 {
 public:
-  PrincetonServer(int iCamera, bool bUseCaptureTask, bool bInitTest, const Src& src, std::string sConfigDb, int iDebugLevel);
+  PrincetonServer(int iCamera, bool bUseCaptureTask, bool bInitTest, const Src& src, std::string sConfigDb, int iSleepInt, int iDebugLevel);
   ~PrincetonServer();
   
   int   mapCamera();  
@@ -138,6 +138,7 @@ private:
   const bool          _bInitTest;
   const Src           _src;
   const std::string   _sConfigDb;
+  const int           _iSleepInt;
   const int           _iDebugLevel;
   
   /*
