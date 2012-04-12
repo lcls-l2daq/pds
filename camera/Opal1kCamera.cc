@@ -304,6 +304,13 @@ const char* Opal1kCamera::camera_name() const
     case  8: 
     default: return "Adimec_Opal-1000m/Q_F8bit";
     } break;
+  case DetInfo::Opal1600:
+    switch(camera_depth()) {
+    case 12: return "Adimec_Opal-1600m/Q";
+    case 10: return "Adimec_Opal-1600m/Q_F10bits";
+    case  8: 
+    default: return "Adimec_Opal-1600m/Q_F8bit";
+    } break;
   case DetInfo::Opal2000:
     switch(camera_depth()) {
     case 12: return "Adimec_Opal-2000m/Q";
@@ -317,6 +324,13 @@ const char* Opal1kCamera::camera_name() const
     case 10: return "Adimec_Opal-4000m/Q_F10bits";
     case  8: 
     default: return "Adimec_Opal-4000m/Q_F8bit";
+    } break;
+  case DetInfo::Opal8000:
+    switch(camera_depth()) {
+    case 12: return "Adimec_Opal-8000m/Q";
+    case 10: return "Adimec_Opal-8000m/Q_F10bits";
+    case  8: 
+    default: return "Adimec_Opal-8000m/Q_F8bit";
     } break;
   default:
     printf("Opal1kCamera::camera_name illegal type %s\n",
