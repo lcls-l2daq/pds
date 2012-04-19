@@ -300,7 +300,7 @@ void displayParamIdInfo(int16 hCam, uns32 uParamId,
   }
 }                             /* end of function displayParamIdInfo */
 
-int getAnyParam(int16 hCam, uns32 uParamId, void *pParamValue)
+int getAnyParam(int16 hCam, uns32 uParamId, void *pParamValue, EnumGetParam eumGetParam)
 {
   if (pParamValue == NULL)
   {
@@ -339,13 +339,53 @@ int getAnyParam(int16 hCam, uns32 uParamId, void *pParamValue)
     return 5;
   }
 
-  bStatus = pl_get_param(hCam, uParamId, ATTR_CURRENT, pParamValue);
-  if (!bStatus)
+  switch (eumGetParam)
   {
-    printf("getAnyParam(): pl_get_param(param id = %lu, ATTR_CURRENT) failed\n", uParamId);
-    return 6;
-  }
-
+  case GET_PARAM_CURRENT:
+    bStatus = pl_get_param(hCam, uParamId, ATTR_CURRENT, pParamValue);
+    if (!bStatus)
+    {
+      printf("getAnyParam(): pl_get_param(param id = %lu, ATTR_CURRENT) failed\n", uParamId);
+      return 6;
+    }
+    break;
+  case GET_PARAM_MIN:
+    bStatus = pl_get_param(hCam, uParamId, ATTR_MIN, pParamValue);
+    if (!bStatus)
+    {
+      printf("getAnyParam(): pl_get_param(param id = %lu, ATTR_MIN) failed\n", uParamId);
+      return 6;
+    }
+    break;
+  case GET_PARAM_MAX:
+    bStatus = pl_get_param(hCam, uParamId, ATTR_MAX, pParamValue);
+    if (!bStatus)
+    {
+      printf("getAnyParam(): pl_get_param(param id = %lu, ATTR_MAX) failed\n", uParamId);
+      return 6;
+    }
+    break;
+  case GET_PARAM_DEFAULT:
+    bStatus = pl_get_param(hCam, uParamId, ATTR_DEFAULT, pParamValue);
+    if (!bStatus)
+    {
+      printf("getAnyParam(): pl_get_param(param id = %lu, ATTR_DEFAULT) failed\n", uParamId);
+      return 6;
+    }
+    break;
+  case GET_PARAM_INC:
+    bStatus = pl_get_param(hCam, uParamId, ATTR_INCREMENT, pParamValue);
+    if (!bStatus)
+    {
+      printf("getAnyParam(): pl_get_param(param id = %lu, ATTR_INCREMENT) failed\n", uParamId);
+      return 6;
+    }
+    break;
+  default:
+    printf("getAnyParam(): Invalid ENUM for GetParam : %d\n", eumGetParam);
+    return 7;
+  };
+  
   return 0;
 }
 

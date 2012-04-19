@@ -30,6 +30,7 @@ PrincetonServer::PrincetonServer(int iCamera, bool bDelayMode, bool bInitTest, c
  _iCamera(iCamera), _bDelayMode(bDelayMode), _bInitTest(bInitTest), _src(src), 
  _sConfigDb(sConfigDb), _iSleepInt(iSleepInt), _iDebugLevel(iDebugLevel),
  _hCam(-1), _bCameraInited(false), _bCaptureInited(false), _bClockSaving(false),
+ _iCcdWidth(-1), _iCcdHeight(-1), _i16MaxSpeedTableIndex(-1),
  _fPrevReadoutTime(0), _bSequenceError(false), _clockPrevDatagram(0,0), _iNumL1Event(0),
  _configCamera(), 
  _fReadoutTime(0),  
@@ -137,11 +138,13 @@ int PrincetonServer::initCamera()
     return ERROR_FUNCTION_FAILURE; 
   }
   
-  int iCcdWidth = 0, iCcdHeight = 0;
-  PICAM::getAnyParam(_hCam, PARAM_SER_SIZE, &iCcdWidth );
-  PICAM::getAnyParam(_hCam, PARAM_PAR_SIZE, &iCcdHeight );
-  printf( "\nCCD Width %d Height %d\n", iCcdWidth, iCcdHeight );
-  PICAM::displayParamIdInfo(_hCam, PARAM_SPDTAB_INDEX, "Speed Table Index");  
+  PICAM::getAnyParam(_hCam, PARAM_SER_SIZE, &_iCcdWidth );
+  PICAM::getAnyParam(_hCam, PARAM_PAR_SIZE, &_iCcdHeight );
+  PICAM::getAnyParam(_hCam, PARAM_SPDTAB_INDEX, &_i16MaxSpeedTableIndex, PICAM::GET_PARAM_MAX);
+  int16 i16TemperatureCurrent = -1;  
+  PICAM::getAnyParam(_hCam, PARAM_TEMP, &i16TemperatureCurrent );
+  
+  printf( "\nCCD Width %d Height %d Max Speed %d Temperature %d\n", _iCcdWidth, _iCcdHeight, _i16MaxSpeedTableIndex, i16TemperatureCurrent  );  
   
   printf( "Princeton Camera [%d] %s has been initialized\n", _iCamera, strCamera );
   _bCameraInited = true;    
@@ -210,6 +213,14 @@ int PrincetonServer::configCamera(Princeton::ConfigV2& config)
   if ( initCameraSettings(config) != 0 ) 
     return ERROR_SERVER_INIT_FAIL;
   
+  if ( (int) config.width() > _iCcdWidth || (int) config.height() > _iCcdHeight)
+  {
+    printf( "!!! Config with %d height %d is larger than ccd width %d height %d. Force it to be the max window size\n",
+      config.width(), config.height(), _iCcdWidth, _iCcdHeight);
+    config.setWidth (_iCcdWidth);
+    config.setHeight(_iCcdHeight);
+  }
+    
   _configCamera = config;
     
   //Note: We don't send error for cooling incomplete
@@ -463,6 +474,18 @@ int PrincetonServer::initCameraSettings(Princeton::ConfigV2& config)
   
   displayParamIdInfo(_hCam, PARAM_SPDTAB_INDEX, "Speed Table Index *org*" );
   int16 iSpeedTableIndex = config.readoutSpeedIndex();
+  
+  if ( iSpeedTableIndex > _i16MaxSpeedTableIndex )
+  {
+    printf( "!!! Speed Table Index from Config %d > Max Supported Speed Table Index %d\n", 
+      iSpeedTableIndex, _i16MaxSpeedTableIndex );
+    iSpeedTableIndex = _i16MaxSpeedTableIndex;
+    config.setReadoutSpeedIndex(iSpeedTableIndex);
+  }
+  else if ( iSpeedTableIndex < _i16MaxSpeedTableIndex-2 )
+    printf( "*** Note: Speed Table Index from Config %d < Max Supported Speed Table Index %d - 2. Might be too slow.\n", 
+      iSpeedTableIndex, _i16MaxSpeedTableIndex );
+  
   setAnyParam(_hCam, PARAM_SPDTAB_INDEX, &iSpeedTableIndex );     
   displayParamIdInfo(_hCam, PARAM_SPDTAB_INDEX, "Speed Table Index" );
 
@@ -479,7 +502,7 @@ int PrincetonServer::initCameraSettings(Princeton::ConfigV2& config)
   uns32 u32LogicOutput = (uns32) OUTPUT_NOT_SCAN;
   PICAM::setAnyParam(_hCam, PARAM_LOGIC_OUTPUT, &u32LogicOutput ); 
   displayParamIdInfo(_hCam, PARAM_LOGIC_OUTPUT, "Logic Output *new*");    
-  
+    
   //uns32 uTriggerEdge = EDGE_TRIG_POS;
   //PICAM::setAnyParam(_hCam, PARAM_EDGE_TRIGGER, &uTriggerEdge );    
   //displayParamIdInfo(_hCam, PARAM_EDGE_TRIGGER,     "Edge Trigger" );

@@ -150,6 +150,13 @@ private:
   bool                _bClockSaving;
   
   /*
+   * Camera hardware settings
+   */
+  int                 _iCcdWidth;
+  int                 _iCcdHeight; 
+  int16               _i16MaxSpeedTableIndex; 
+  
+  /*
    * Event sequence/traffic control
    */
   float               _fPrevReadoutTime;// in seconds. Used to filter out events that are coming too fast

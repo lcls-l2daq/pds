@@ -100,7 +100,6 @@ public:
         _iConfigCameraFail  = 1;
       }
                   
-      _configCamera.setDelayMode( _bDelayMode? 1: 0 );
       _iConfigCameraFail = _manager.configCamera(_configCamera);
       
       return tr;
@@ -132,7 +131,7 @@ public:
           _configCamera.orgX(), _configCamera.orgY(),
           _configCamera.binX(), _configCamera.binY(),
           _configCamera.exposureTime(), _configCamera.coolingTemp(), _configCamera.gainIndex(), 
-      _configCamera.readoutSpeedIndex(), _configCamera.readoutEventCode(), ( _configCamera.delayMode() ? 1: 0 )
+          _configCamera.readoutSpeedIndex(), _configCamera.readoutEventCode(), ( _configCamera.delayMode() ? 1: 0 )
           );
         if (_iDebugLevel>=1) printf( "\nOutput payload size = %d\n", in->datagram().xtc.sizeofPayload());
         
