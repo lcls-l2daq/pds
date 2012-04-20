@@ -109,7 +109,7 @@ static void displayParamValueInfo(int16 hCam, uns32 uParamId)
       printf(" current value = %c\n", currentVal.bval);
       printf(" default value = %c\n", defaultVal.bval);
       printf(" min = %c, max = %c\n", minVal.bval, maxVal.bval);
-      printf(" increment = %c\n", incrementVal.bval);
+      printf(" increment = %c, type = i8\n", incrementVal.bval);
       break;
     case TYPE_UNS8:
       status = pl_get_param(hCam, uParamId, ATTR_CURRENT,
@@ -125,7 +125,7 @@ static void displayParamValueInfo(int16 hCam, uns32 uParamId)
       printf(" current value = %uc\n", currentVal.ubval);
       printf(" default value = %uc\n", defaultVal.ubval);
       printf(" min = %uc, max = %uc\n", minVal.ubval, maxVal.ubval);
-      printf(" increment = %uc\n", incrementVal.ubval);
+      printf(" increment = %uc, type = u8\n", incrementVal.ubval);
       break;
     case TYPE_INT16:
       status = pl_get_param(hCam, uParamId, ATTR_CURRENT,
@@ -141,7 +141,7 @@ static void displayParamValueInfo(int16 hCam, uns32 uParamId)
       printf(" current value = %i\n", currentVal.sval);
       printf(" default value = %i\n", defaultVal.sval);
       printf(" min = %i, max = %i\n", minVal.sval, maxVal.sval);
-      printf(" increment = %i\n", incrementVal.sval);
+      printf(" increment = %i, type = i16\n", incrementVal.sval);
       break;
     case TYPE_UNS16:
       status = pl_get_param(hCam, uParamId, ATTR_CURRENT,
@@ -157,7 +157,7 @@ static void displayParamValueInfo(int16 hCam, uns32 uParamId)
       printf(" current value = %u\n", currentVal.usval);
       printf(" default value = %u\n", defaultVal.usval);
       printf(" min = %u, max = %u\n", minVal.usval, maxVal.usval);
-      printf(" increment = %u\n", incrementVal.usval);
+      printf(" increment = %u, type = u16\n", incrementVal.usval);
       break;
     case TYPE_INT32:
       status = pl_get_param(hCam, uParamId, ATTR_CURRENT,
@@ -173,7 +173,7 @@ static void displayParamValueInfo(int16 hCam, uns32 uParamId)
       printf(" current value = %ld\n", currentVal.lval);
       printf(" default value = %ld\n", defaultVal.lval);
       printf(" min = %ld, max = %ld\n", minVal.lval, maxVal.lval);
-      printf(" increment = %ld\n", incrementVal.lval);
+      printf(" increment = %ld, type = i32\n", incrementVal.lval);
       break;
     case TYPE_UNS32:
       status = pl_get_param(hCam, uParamId, ATTR_CURRENT,
@@ -189,7 +189,7 @@ static void displayParamValueInfo(int16 hCam, uns32 uParamId)
       printf(" current value = %ld\n", currentVal.ulval);
       printf(" default value = %ld\n", defaultVal.ulval);
       printf(" min = %ld, max = %ld\n", minVal.ulval, maxVal.ulval);
-      printf(" increment = %ld\n", incrementVal.ulval);
+      printf(" increment = %ld, type = u32\n", incrementVal.ulval);
       break;
     case TYPE_FLT64:
       status = pl_get_param(hCam, uParamId, ATTR_CURRENT,
@@ -205,7 +205,7 @@ static void displayParamValueInfo(int16 hCam, uns32 uParamId)
       printf(" current value = %g\n", currentVal.dval);
       printf(" default value = %g\n", defaultVal.dval);
       printf(" min = %g, max = %g\n", minVal.dval, maxVal.dval);
-      printf(" increment = %g\n", incrementVal.dval);
+      printf(" increment = %g, type = f64\n", incrementVal.dval);
       break;
     case TYPE_BOOLEAN:
       status = pl_get_param(hCam, uParamId, ATTR_CURRENT,
@@ -213,7 +213,7 @@ static void displayParamValueInfo(int16 hCam, uns32 uParamId)
       status2 = pl_get_param(hCam, uParamId, ATTR_DEFAULT,
                              (void *) &defaultVal.bval);
       printf(" current value = %d\n", (int) currentVal.bval);
-      printf(" default value = %d\n", (int) defaultVal.bval);
+      printf(" default value = %d, type = bool\n", (int) defaultVal.bval);
       break;
     default:
       printf(" data type %d not supported in this functions\n", type );      

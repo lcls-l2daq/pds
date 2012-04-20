@@ -65,7 +65,7 @@ class PrincetonConfigAction : public Action
 {
 public:
     PrincetonConfigAction(PrincetonManager& manager, CfgClientNfs& cfg, bool bDelayMode, int iDebugLevel) :
-        _manager(manager), _cfg(cfg), _bDelayMode(bDelayMode), _iDebugLevel(iDebugLevel),
+        _manager(manager), _cfg(cfg), _occPool(sizeof(UserMessage),2), _bDelayMode(bDelayMode), _iDebugLevel(iDebugLevel),
         _cfgtc(_typePrincetonConfig, cfg.src()), _configCamera(), _iConfigCameraFail(0)
     {}
     
@@ -100,8 +100,14 @@ public:
         _iConfigCameraFail  = 1;
       }
                   
-      _iConfigCameraFail = _manager.configCamera(_configCamera);
-      
+      string sConfigWarning;
+      _iConfigCameraFail = _manager.configCamera(_configCamera, sConfigWarning);
+      if (sConfigWarning.size() != 0)
+      {
+        UserMessage* msg = new(&_occPool) UserMessage();
+        msg->append(sConfigWarning.c_str());
+        _manager.appliance().post(msg);        
+      }      
       return tr;
     }
 
@@ -141,6 +147,7 @@ public:
 private:
     PrincetonManager&   _manager;    
     CfgClientNfs&       _cfg;
+    GenericPool         _occPool;
     bool                _bDelayMode;
     const int           _iDebugLevel;
     Xtc                 _cfgtc;
@@ -540,9 +547,9 @@ int PrincetonManager::mapCamera(const Allocation& alloc)
   return _pServer->mapCamera();
 }
 
-int PrincetonManager::configCamera(Princeton::ConfigV2& config)
+int PrincetonManager::configCamera(Princeton::ConfigV2& config, std::string& sConfigWarning)
 {
-  return _pServer->configCamera(config);
+  return _pServer->configCamera(config, sConfigWarning);
 }
 
 int PrincetonManager::unconfigCamera()

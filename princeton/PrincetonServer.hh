@@ -29,7 +29,7 @@ public:
   ~PrincetonServer();
   
   int   mapCamera();  
-  int   configCamera(Princeton::ConfigV2& config);
+  int   configCamera(Princeton::ConfigV2& config, std::string& sConfigWarning);
   int   unconfigCamera();
   int   beginRunCamera();
   int   endRunCamera();  
@@ -109,7 +109,7 @@ private:
   int   initCaptureTask(); // for delay mode use only
   int   runCaptureTask();
   
-  int   initCameraSettings(Princeton::ConfigV2& config);
+  int   initCameraSettings(Princeton::ConfigV2& config, std::string& sConfigWarning);
   int   initCameraBeforeConfig();
 
   int   initTest();
@@ -152,8 +152,8 @@ private:
   /*
    * Camera hardware settings
    */
-  int                 _iCcdWidth;
-  int                 _iCcdHeight; 
+  int16               _i16CcdWidth;
+  int16               _i16CcdHeight; 
   int16               _i16MaxSpeedTableIndex; 
   
   /*

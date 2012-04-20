@@ -30,7 +30,7 @@ PrincetonServer::PrincetonServer(int iCamera, bool bDelayMode, bool bInitTest, c
  _iCamera(iCamera), _bDelayMode(bDelayMode), _bInitTest(bInitTest), _src(src), 
  _sConfigDb(sConfigDb), _iSleepInt(iSleepInt), _iDebugLevel(iDebugLevel),
  _hCam(-1), _bCameraInited(false), _bCaptureInited(false), _bClockSaving(false),
- _iCcdWidth(-1), _iCcdHeight(-1), _i16MaxSpeedTableIndex(-1),
+ _i16CcdWidth(-1), _i16CcdHeight(-1), _i16MaxSpeedTableIndex(-1),
  _fPrevReadoutTime(0), _bSequenceError(false), _clockPrevDatagram(0,0), _iNumL1Event(0),
  _configCamera(), 
  _fReadoutTime(0),  
@@ -138,13 +138,13 @@ int PrincetonServer::initCamera()
     return ERROR_FUNCTION_FAILURE; 
   }
   
-  PICAM::getAnyParam(_hCam, PARAM_SER_SIZE, &_iCcdWidth );
-  PICAM::getAnyParam(_hCam, PARAM_PAR_SIZE, &_iCcdHeight );
+  PICAM::getAnyParam(_hCam, PARAM_SER_SIZE, &_i16CcdWidth );
+  PICAM::getAnyParam(_hCam, PARAM_PAR_SIZE, &_i16CcdHeight );
   PICAM::getAnyParam(_hCam, PARAM_SPDTAB_INDEX, &_i16MaxSpeedTableIndex, PICAM::GET_PARAM_MAX);
   int16 i16TemperatureCurrent = -1;  
   PICAM::getAnyParam(_hCam, PARAM_TEMP, &i16TemperatureCurrent );
   
-  printf( "\nCCD Width %d Height %d Max Speed %d Temperature %d\n", _iCcdWidth, _iCcdHeight, _i16MaxSpeedTableIndex, i16TemperatureCurrent  );  
+  printf( "\nCCD Width %d Height %d Max Speed %d Temperature %d\n", _i16CcdWidth, _i16CcdHeight, _i16MaxSpeedTableIndex, i16TemperatureCurrent  );  
   
   printf( "Princeton Camera [%d] %s has been initialized\n", _iCamera, strCamera );
   _bCameraInited = true;    
@@ -201,7 +201,7 @@ int PrincetonServer::mapCamera()
   return 0;
 }
 
-int PrincetonServer::configCamera(Princeton::ConfigV2& config)
+int PrincetonServer::configCamera(Princeton::ConfigV2& config, std::string& sConfigWarning)
 {  
   //if ( initCamera() != 0 ) 
   //  return ERROR_SERVER_INIT_FAIL;
@@ -210,15 +210,17 @@ int PrincetonServer::configCamera(Princeton::ConfigV2& config)
   if ( iFail != 0 )
     return ERROR_FUNCTION_FAILURE;  
     
-  if ( initCameraSettings(config) != 0 ) 
+  if ( initCameraSettings(config, sConfigWarning) != 0 ) 
     return ERROR_SERVER_INIT_FAIL;
   
-  if ( (int) config.width() > _iCcdWidth || (int) config.height() > _iCcdHeight)
+  if ( (int) config.width() > _i16CcdWidth || (int) config.height() > _i16CcdHeight)
   {
-    printf( "!!! Config with %d height %d is larger than ccd width %d height %d. Force it to be the max window size\n",
-      config.width(), config.height(), _iCcdWidth, _iCcdHeight);
-    config.setWidth (_iCcdWidth);
-    config.setHeight(_iCcdHeight);
+    char sMessage[128];    
+    sprintf( sMessage, "!!! ConfigSize (%d,%d) > CcdSize(%d,%d)\n", config.width(), config.height(), _i16CcdWidth, _i16CcdHeight);
+    printf(sMessage);
+    sConfigWarning += sMessage;
+    config.setWidth (_i16CcdWidth);
+    config.setHeight(_i16CcdHeight);
   }
     
   _configCamera = config;
@@ -442,7 +444,7 @@ int PrincetonServer::startCapture()
   return 0;
 }
 
-int PrincetonServer::initCameraSettings(Princeton::ConfigV2& config)
+int PrincetonServer::initCameraSettings(Princeton::ConfigV2& config, std::string& sConfigWarning)
 { 
   using PICAM::setAnyParam;
   using PICAM::displayParamIdInfo;
@@ -475,16 +477,21 @@ int PrincetonServer::initCameraSettings(Princeton::ConfigV2& config)
   displayParamIdInfo(_hCam, PARAM_SPDTAB_INDEX, "Speed Table Index *org*" );
   int16 iSpeedTableIndex = config.readoutSpeedIndex();
   
+  char sMessage[128];
   if ( iSpeedTableIndex > _i16MaxSpeedTableIndex )
   {
-    printf( "!!! Speed Table Index from Config %d > Max Supported Speed Table Index %d\n", 
-      iSpeedTableIndex, _i16MaxSpeedTableIndex );
+    sprintf( sMessage, "!!! ConfigSpeed %d > Max(%d)\n", iSpeedTableIndex, _i16MaxSpeedTableIndex );
+    printf(sMessage);
+    sConfigWarning += sMessage;
     iSpeedTableIndex = _i16MaxSpeedTableIndex;
-    config.setReadoutSpeedIndex(iSpeedTableIndex);
+    config.setReadoutSpeedIndex(iSpeedTableIndex);    
   }
   else if ( iSpeedTableIndex < _i16MaxSpeedTableIndex-2 )
-    printf( "*** Note: Speed Table Index from Config %d < Max Supported Speed Table Index %d - 2. Might be too slow.\n", 
-      iSpeedTableIndex, _i16MaxSpeedTableIndex );
+  {
+    sprintf( sMessage, "*** ConfigSpeed %d < Max(%d)-2. Slow readout\n", iSpeedTableIndex, _i16MaxSpeedTableIndex );
+    printf(sMessage);
+    sConfigWarning += sMessage;
+  }
   
   setAnyParam(_hCam, PARAM_SPDTAB_INDEX, &iSpeedTableIndex );     
   displayParamIdInfo(_hCam, PARAM_SPDTAB_INDEX, "Speed Table Index" );

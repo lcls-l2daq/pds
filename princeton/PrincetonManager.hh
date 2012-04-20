@@ -30,7 +30,7 @@ public:
   
   // Camera control: Gateway functions for accessing PrincetonServer class
   int   mapCamera(const Allocation& alloc);
-  int   configCamera(Princeton::ConfigV2& config);
+  int   configCamera(Princeton::ConfigV2& config, std::string& sConfigWarning);
   int   unconfigCamera();
   int   beginRunCamera();
   int   endRunCamera();
