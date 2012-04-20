@@ -1002,7 +1002,7 @@ int PrincetonServer::getDelayData(InDatagram* in, InDatagram*& out)
   resetFrameData(false);  
 
   // Delayed data sending for multiple princeton cameras, to avoid creating a burst of traffic 
-  timeval timeSleepMicro = {0, 1000 * _iSleepInt * _iCamera}; // (_iSleepInt) milliseconds
+  timeval timeSleepMicro = {0, 1000 * _iSleepInt}; // (_iSleepInt) milliseconds
   select( 0, NULL, NULL, NULL, &timeSleepMicro);
 
   return 0;
