@@ -116,6 +116,13 @@ int PrincetonServer::initCamera()
   
   double fOpenTime = (timeVal1.tv_nsec - timeVal0.tv_nsec) * 1.e-6 + ( timeVal1.tv_sec - timeVal0.tv_sec ) * 1.e3;    
   printf("Camera Open Time = %6.1lf ms\n", fOpenTime);    
+  
+  PICAM::getAnyParam(_hCam, PARAM_SER_SIZE, &_i16CcdWidth );
+  PICAM::getAnyParam(_hCam, PARAM_PAR_SIZE, &_i16CcdHeight );
+  PICAM::getAnyParam(_hCam, PARAM_SPDTAB_INDEX, &_i16MaxSpeedTableIndex, PICAM::GET_PARAM_MAX);
+  int16 i16TemperatureCurrent = -1;  
+  PICAM::getAnyParam(_hCam, PARAM_TEMP, &i16TemperatureCurrent );  
+  printf( "\nCCD Width %d Height %d Max Speed %d Temperature %.1f C\n", _i16CcdWidth, _i16CcdHeight, _i16MaxSpeedTableIndex, i16TemperatureCurrent/100.f );  
     
   if (_bInitTest)
   {
@@ -138,13 +145,9 @@ int PrincetonServer::initCamera()
     return ERROR_FUNCTION_FAILURE; 
   }
   
-  PICAM::getAnyParam(_hCam, PARAM_SER_SIZE, &_i16CcdWidth );
-  PICAM::getAnyParam(_hCam, PARAM_PAR_SIZE, &_i16CcdHeight );
-  PICAM::getAnyParam(_hCam, PARAM_SPDTAB_INDEX, &_i16MaxSpeedTableIndex, PICAM::GET_PARAM_MAX);
-  int16 i16TemperatureCurrent = -1;  
-  PICAM::getAnyParam(_hCam, PARAM_TEMP, &i16TemperatureCurrent );
-  
-  printf( "\nCCD Width %d Height %d Max Speed %d Temperature %d\n", _i16CcdWidth, _i16CcdHeight, _i16MaxSpeedTableIndex, i16TemperatureCurrent  );  
+  i16TemperatureCurrent = -1;  
+  PICAM::getAnyParam(_hCam, PARAM_TEMP, &i16TemperatureCurrent );  
+  printf( "\nCCD Width %d Height %d Max Speed %d Temperature %.1f C\n", _i16CcdWidth, _i16CcdHeight, _i16MaxSpeedTableIndex, i16TemperatureCurrent/100.f  );  
   
   printf( "Princeton Camera [%d] %s has been initialized\n", _iCamera, strCamera );
   _bCameraInited = true;    
@@ -222,9 +225,7 @@ int PrincetonServer::configCamera(Princeton::ConfigV2& config, std::string& sCon
     config.setWidth (_i16CcdWidth);
     config.setHeight(_i16CcdHeight);
   }
-    
-  _configCamera = config;
-    
+        
   //Note: We don't send error for cooling incomplete
   setupCooling( _configCamera.coolingTemp() );
   //if ( setupCooling() != 0 )
@@ -237,9 +238,16 @@ int PrincetonServer::configCamera(Princeton::ConfigV2& config, std::string& sCon
    */
   config.setDelayMode( _bDelayMode?1:0 );
   
+  _configCamera = config;  
+  
   iFail = initClockSaving();  
   if ( iFail != 0 )
     return ERROR_FUNCTION_FAILURE;  
+  
+  int16 i16TemperatureCurrent = -1;  
+  PICAM::getAnyParam(_hCam, PARAM_TEMP, &i16TemperatureCurrent );    
+  printf( "\nROI (%d,%d) CCD (%d,%d) Speed %d/%d Temperature %.1f C\n", 
+    _configCamera.width(), _configCamera.height(), _i16CcdWidth, _i16CcdHeight, _configCamera.readoutSpeedIndex(), _i16MaxSpeedTableIndex, i16TemperatureCurrent/100.f );
   
   return 0;
 }
@@ -317,7 +325,7 @@ int PrincetonServer::disableCamera()
   
   if ( iFail != 0 )
     return ERROR_FUNCTION_FAILURE;
-  
+      
   return 0;
 }
 
