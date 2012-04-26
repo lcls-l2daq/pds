@@ -78,8 +78,14 @@ void ToEventWireScheduler::_flush(InDatagram* dg)
   while (n->send_next(_client)) 
   {
 #ifdef BUILD_PACKAGE_SPACE
-    const struct timespec timeSleep = { 0, 1000000 };
-    nanosleep(&timeSleep, NULL);
+    static int iDgCount = 0;
+    if (++iDgCount > 100)
+    {
+      timeval timeSleepMicro = {0, 1000}; 
+      // Use select() to simulate nanosleep(), because experimentally select() controls the sleeping time more precisely
+      select( 0, NULL, NULL, NULL, &timeSleepMicro);
+      iDgCount = 0; 
+    }
 #endif
   }
   delete n;
@@ -93,8 +99,14 @@ void ToEventWireScheduler::_flush()
       TrafficDst* n = t->forward();
 
 #ifdef BUILD_PACKAGE_SPACE
-      const struct timespec timeSleep = { 0, 1000000 };
-      nanosleep(&timeSleep, NULL);
+      static int iDgCount = 0;
+      if (++iDgCount > 100)
+      {
+        timeval timeSleepMicro = {0, 1000};
+        // Use select() to simulate nanosleep(), because experimentally select() controls the sleeping time more precisely
+        select( 0, NULL, NULL, NULL, &timeSleepMicro);
+        iDgCount = 0;
+      }
 #endif
 
       if (!t->send_next(_client))

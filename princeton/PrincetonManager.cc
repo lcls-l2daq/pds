@@ -314,7 +314,11 @@ public:
       //Xtc* pXtcFrame = 
       // new ((char*)pXtcHeader) Xtc(typePrincetonFrame, _cfg.src() );
       //pXtcFrame->alloc( iDataSize );      
-                
+
+      //!!debug
+      //uint32_t        uVector           = out->datagram().seq.stamp().vector();
+      //printf("sending out L1 with vector %d\n", uVector);
+          
       if (_iDebugLevel >= 1 && out != in) 
       {
         printf( "\n\n===== Writing L1Accept Data =========\n" );          
@@ -345,6 +349,11 @@ public:
         fflush(NULL);
         printf("\r");
         fflush(NULL);
+
+        timeval timeSleepMicro = {0, 1000};
+      // Use select() to simulate nanosleep(), because experimentally select() controls the sleeping time more precisely
+        select( 0, NULL, NULL, NULL, &timeSleepMicro);
+
         //timeval timeSleepMicro = {0, 500}; // 0.5 ms
         // Use select() to simulate nanosleep(), because experimentally select() controls the sleeping time more precisely
         //select( 0, NULL, NULL, NULL, &timeSleepMicro);
@@ -629,9 +638,10 @@ static int printDataTime(const InDatagram* in)
   
   const ClockTime clockCurDatagram  = in->datagram().seq.clock();
   uint32_t        uFiducial         = in->datagram().seq.stamp().fiducials();
+  uint32_t        uVector           = in->datagram().seq.stamp().vector();
   timeCurrent                       = clockCurDatagram.seconds();
   strftime(sTimeText, sizeof(sTimeText), sTimeFormat, localtime(&timeCurrent));
-  printf("Data  Time: %s  Fiducial: 0x%05x\n", sTimeText, uFiducial);
+  printf("Data  Time: %s  Fiducial: 0x%05x Vector: %d\n", sTimeText, uFiducial, uVector);
   return 0;
 }
 
