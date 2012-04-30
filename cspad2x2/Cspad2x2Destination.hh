@@ -29,7 +29,7 @@ namespace Pds {
         unsigned            lane() {return 0;}
         unsigned            vc() {return (_dest  ? 0 : 1); }
         char*               name();
-        Cspad2x2Destination::FEdest getDest(Pds::Pgp::RegisterSlaveImportFrame*);
+//        Cspad2x2Destination::FEdest getDest(Pds::Pgp::RegisterSlaveImportFrame*);
     };
   }
 }

@@ -18,7 +18,11 @@ namespace Pds {
 
   namespace Pgp {
 
-    Pgp::Pgp(int f) : _fd(f) {}
+    unsigned Pgp::Pgp::_portOffset = 0;
+
+    Pgp::Pgp(int f) : _fd(f) {
+      printf("Pgp::Pgp(fd(%d)), offset(%u)\n", f, _portOffset);
+    }
 
     Pgp::~Pgp() {}
 
@@ -35,39 +39,44 @@ namespace Pds {
       fd_set          fds;
       FD_ZERO(&fds);
       FD_SET(_fd,&fds);
-      unsigned readRet = 0;
+      int readRet = 0;
       bool   found  = false;
       while (found == false) {
         if ((sret = select(_fd+1,&fds,NULL,NULL,&timeout)) > 0) {
-          readRet = ::read(_fd, &pgpCardRx, sizeof(PgpCardRx));
-          if ((ret->waiting() == Pds::Pgp::PgpRSBits::Waiting) || (ret->opcode() == Pds::Pgp::PgpRSBits::read)) {
-            found = true;
-            if (pgpCardRx.eofe || pgpCardRx.fifoErr || pgpCardRx.lengthErr) {
-              printf("Pgp::read error eofe(%u), fifoErr(%u), lengthErr(%u)\n",
-                  pgpCardRx.eofe, pgpCardRx.fifoErr, pgpCardRx.lengthErr);
-              printf("\tpgpLane(%u), pgpVc(%u)\n", pgpCardRx.pgpLane, pgpCardRx.pgpVc);
-              ret = 0;
-            } else {
-              if (readRet != size) {
-                printf("Pgp::read read returned %u, we were looking for %u\n", readRet, size);
-                ret->print(readRet);
+          if ((readRet = ::read(_fd, &pgpCardRx, sizeof(PgpCardRx))) >= 0) {
+            if ((ret->waiting() == Pds::Pgp::PgpRSBits::Waiting) || (ret->opcode() == Pds::Pgp::PgpRSBits::read)) {
+              found = true;
+              if (pgpCardRx.eofe || pgpCardRx.fifoErr || pgpCardRx.lengthErr) {
+                printf("Pgp::read error eofe(%u), fifoErr(%u), lengthErr(%u)\n",
+                    pgpCardRx.eofe, pgpCardRx.fifoErr, pgpCardRx.lengthErr);
+                printf("\tpgpLane(%u), pgpVc(%u)\n", pgpCardRx.pgpLane, pgpCardRx.pgpVc);
                 ret = 0;
               } else {
-                bool hardwareFailure = false;
-                uint32_t* u = (uint32_t*)ret;
-                if (ret->failed((Pds::Pgp::LastBits*)(u+size-1))) {
-                  printf("Pgp::read received HW failure\n");
-                  ret->print();
-                  hardwareFailure = true;
+                if (readRet != (int)size) {
+                  printf("Pgp::read read returned %u, we were looking for %u\n", readRet, size);
+                  ret->print(readRet);
+                  ret = 0;
+                } else {
+                  bool hardwareFailure = false;
+                  uint32_t* u = (uint32_t*)ret;
+                  if (ret->failed((Pds::Pgp::LastBits*)(u+size-1))) {
+                    printf("Pgp::read received HW failure\n");
+                    ret->print();
+                    hardwareFailure = true;
+                  }
+                  if (ret->timeout((Pds::Pgp::LastBits*)(u+size-1))) {
+                    printf("Pgp::read received HW timed out\n");
+                    ret->print();
+                    hardwareFailure = true;
+                  }
+                  if (hardwareFailure) ret = 0;
                 }
-                if (ret->timeout((Pds::Pgp::LastBits*)(u+size-1))) {
-                  printf("Pgp::read received HW timed out\n");
-                  ret->print();
-                  hardwareFailure = true;
-                }
-                if (hardwareFailure) ret = 0;
               }
             }
+          } else {
+            perror("Pgp::read() ERROR ! ");
+            ret = 0;
+            found = true;
           }
         } else {
           found = true;  // we might as well give up!
@@ -90,6 +99,15 @@ namespace Pds {
       p->cmd   = IOCTL_Read_Status;
       p->data  = (__u32*) s;
       return(write(_fd, p, sizeof(PgpCardStatus)));
+    }
+
+    unsigned Pgp::stopPolling() {
+      PgpCardTx p;
+
+      p.model = sizeof(p);
+      p.cmd   = IOCTL_Clear_Polling;
+      p.data  = 0;
+      return(write(_fd, &p, sizeof(PgpCardTx)));
     }
 
     unsigned Pgp::writeRegister(

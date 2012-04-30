@@ -5,19 +5,6 @@
  *      Author: jackp
  */
 
-/*
- *
- * Note by Tomy:
- *  
- * This CspadManager has support for Cspad Compression, but the function is turned off now.
- *
- * To enable the compression, find the following two lines in this file (at two places):
- *   //_bUseCompressor(server->xtc().contains.id() == TypeId::Id_CspadElement)
- *   _bUseCompressor(false)
- *
- *  Uncomment the first line, and comment the second line to enable the compression
- *
- */
 #include <sys/mman.h>
 #include <fcntl.h>
 #include <stdio.h>
@@ -92,26 +79,22 @@ class CspadUnmapAction : public Action {
 };
 
 class CspadL1Action : public Action {
-public:
-   CspadL1Action(CspadServer* svr, CspadCompressionProcessor& processor);
+ public:
+   CspadL1Action(CspadServer* svr);
 
    InDatagram* fire(InDatagram* in);
    void        reset(bool f=true);
 
    enum {FiducialErrorCountLimit=16};
 
-private:
-   inline InDatagram* postData(InDatagram* in);
-   
    CspadServer* server;
-   CspadCompressionProcessor& _processor;
    unsigned _lastMatchedFiducial;
    unsigned _lastMatchedFrameNumber;
    unsigned _lastMatchedAcqCount;
    unsigned _frameSyncErrorCount;
    unsigned _ioIndex;
    unsigned _resetCount;
-   bool     _bUseCompressor;   
+
 };
 
 void CspadL1Action::reset(bool resetError) {
@@ -120,27 +103,12 @@ void CspadL1Action::reset(bool resetError) {
   if (resetError) _frameSyncErrorCount = 0;
 }
 
-CspadL1Action::CspadL1Action(CspadServer* svr, CspadCompressionProcessor& processor) :
+CspadL1Action::CspadL1Action(CspadServer* svr) :
     server(svr),
-    _processor(processor),
     _lastMatchedFiducial(0xffffffff),
     _lastMatchedFrameNumber(0xffffffff),
     _frameSyncErrorCount(0),
-    _resetCount(0),
-    //_bUseCompressor(server->xtc().contains.id() == TypeId::Id_CspadElement)
-    _bUseCompressor(false)
-    {}
-
-inline InDatagram* CspadL1Action::postData(InDatagram* in)
-{
-  if (_bUseCompressor)
-  {
-    _processor.postData(*in); 
-    return (InDatagram*) Appliance::DontDelete;            
-  }
-  
-  return in;    
-}
+    _resetCount(0) {}
 
 InDatagram* CspadL1Action::fire(InDatagram* in) {
   if (server->debug() & 8) printf("CspadL1Action::fire!\n");
@@ -157,15 +125,14 @@ InDatagram* CspadL1Action::fire(InDatagram* in) {
           (xtc->contains.id() == Pds::TypeId::Id_Cspad2x2Element)) {
         payload = xtc->payload();
       } else {
-        printf("CspadL1Action::fire inner xtc not Id_Cspad[2x2]Element, but %s!\n",
+        printf("CspadLiAction::fire inner xtc not Id_Cspad[2x2]Element, but %s!\n",
             xtc->contains.name(xtc->contains.id()));
-            
-        return postData(in);
+        return in;
       }
     } else {
-      printf("CspadL1Action::fire outer xtc not Id_Xtc, but %s!\n",
+      printf("CspadLiAction::fire outer xtc not Id_Xtc, but %s!\n",
           xtc->contains.name(xtc->contains.id()));
-      return postData(in);
+      return in;
     }
 
     for (unsigned i=0; i<server->numberOfQuads(); i++) {
@@ -235,36 +202,17 @@ InDatagram* CspadL1Action::fire(InDatagram* in) {
       }
     }
     if (!frameError) {
-      server->process();      
-      
-      if (xtc->contains.id() != Pds::TypeId::Id_CspadElement)
-      {
-        printf("CspadL1Action::fire(): Unsupported type: %s\n",
-            TypeId::name(xtc->contains.id()));
-      }
-      else
-      {
-        if (!_bUseCompressor)
-          return postData(in);           
-
-        _processor.compressData(*in);
-        
-        // processor thread will post the compressed datagram
-        return (InDatagram*) Appliance::DontDelete;
-      }
+      server->process();
     }
-  } // if (in->datagram().xtc.damage.value() == 0)
-  
-  return postData(in);  
+  }
+  return in;
 }
 
 class CspadConfigAction : public Action {
 
   public:
-    CspadConfigAction( Pds::CspadConfigCache& cfg, CspadServer* server, CspadCompressionProcessor& processor)
-    : _cfg( cfg ), _server(server), _processor(processor), _result(0), 
-      //_bUseCompressor(_server->xtc().contains.id() == TypeId::Id_CspadElement)
-      _bUseCompressor(false)
+    CspadConfigAction( Pds::CspadConfigCache& cfg, CspadServer* server)
+    : _cfg( cfg ), _server(server), _result(0)
       {}
 
     ~CspadConfigAction() {}
@@ -295,19 +243,13 @@ class CspadConfigAction : public Action {
           in->datagram().xtc.damage.userBits(_result);
         }
       }
-      
-      if (in->datagram().xtc.damage.value() == 0 && _bUseCompressor) {
-        _processor.readConfig(&(in->datagram().xtc));
-      }
       return in;
     }
 
   private:
-    CspadConfigCache&           _cfg;
-    CspadServer*                _server;
-    CspadCompressionProcessor&  _processor;
-    unsigned                    _result;
-    bool                        _bUseCompressor;    
+    CspadConfigCache&   _cfg;
+    CspadServer*    _server;
+  unsigned       _result;
 };
 
 class CspadBeginCalibCycleAction : public Action {
@@ -416,24 +358,20 @@ class CspadEndCalibCycleAction : public Action {
     unsigned          _result;
 };
 
-class AppProcessor : public Appliance
-{
-public:  
-  AppProcessor() {}
-  virtual Transition* transitions(Transition* tr) {return tr;}
-  virtual InDatagram* events     (InDatagram* in) {return in;}
-};
-
 CspadManager::CspadManager( CspadServer* server, unsigned d) :
-    _fsm(*new Fsm), _cfg(*new CspadConfigCache(server->client())),
-    _appProcessor(*new AppProcessor()), _compressionProcessor(_appProcessor, 14, 32)
-{
+    _fsm(*new Fsm), _cfg(*new CspadConfigCache(server->client())) {
 
    printf("CspadManager being initialized... " );
 
+   unsigned ports = (d >> 4) & 0xf;
    char devName[128];
    char err[128];
-   sprintf(devName, "/dev/pgpcard%u", d);
+   if (ports == 0) {
+     ports = 15;
+     sprintf(devName, "/dev/pgpcard%u", d);
+   } else {
+     sprintf(devName, "/dev/pgpcard_%u_%u", d & 0xf, ports);
+   }
 
    int cspad = open( devName,  O_RDWR);
    printf("pgpcard file number %d\n", cspad);
@@ -444,14 +382,25 @@ CspadManager::CspadManager( CspadServer* server, unsigned d) :
      ::exit(-1);
    }
 
+   unsigned offset = 0;
+   while ((((ports>>offset) & 1) == 0) && (offset < 5)) {
+     offset += 1;
+   }
+
+   Pgp::Pgp::portOffset(offset);
+
+   if (offset >= 4) {
+     printf("CspadManager::CspadManager() illegal port mask!! 0x%x\n", ports);
+   }
+
    server->setCspad( cspad );
 
-   CspadL1Action* l1 = new CspadL1Action( server, _compressionProcessor );
+   CspadL1Action* l1 = new CspadL1Action( server );
    _fsm.callback( TransitionId::L1Accept, l1 );
 
    _fsm.callback( TransitionId::Map, new CspadAllocAction( _cfg ) );
    _fsm.callback( TransitionId::Unmap, new CspadUnmapAction( server ) );
-   _fsm.callback( TransitionId::Configure, new CspadConfigAction(_cfg, server, _compressionProcessor ) );
+   _fsm.callback( TransitionId::Configure, new CspadConfigAction(_cfg, server ) );
    //   _fsm.callback( TransitionId::Enable, new CspadEnableAction( server ) );
    //   _fsm.callback( TransitionId::Disable, new CspadDisableAction( server ) );
    _fsm.callback( TransitionId::BeginCalibCycle, new CspadBeginCalibCycleAction( server, _cfg, *l1 ) );
@@ -461,5 +410,5 @@ CspadManager::CspadManager( CspadServer* server, unsigned d) :
    // _fsm.callback( TransitionId::BeginRun,
    //                new CspadBeginRunAction( server ) );
    // _fsm.callback( TransitionId::EndRun,
-   //                new CspadEndRunAction( server ) );   
+   //                new CspadEndRunAction( server ) );
 }

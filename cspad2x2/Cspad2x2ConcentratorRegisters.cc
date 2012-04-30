@@ -69,8 +69,7 @@ unsigned Cspad2x2ConcentratorRegisters::foo[][2] = {
     {0x00002d, 1},  //   dsFlowCntrl
     {0x00002e, 1},  //   usFlowCntrl
     {0x00002f, 1},  //   ds00DataCount
-    {0x000031, 1},  //   us0DataCount
-    {0x000035, 2}   //   evrErrors
+    {0x000031, 2}   //   us0DataCount
     // readFlag > 1 marks the last read
 };
 
@@ -114,16 +113,13 @@ void Cspad2x2ConcentratorRegisters::print() {
       ds[i].print();
       printf("\n");
     }
-    printf("\tdsFlowControl(0x%x)\n\tds00DataCount(%u), ds01DataCount(%u), ds10DataCount(%u), ds11DataCount(%u)\n\n",
-        (unsigned) dsFlowCntrl, (unsigned)ds00DataCount, (unsigned)ds01DataCount, (unsigned)ds10DataCount, (unsigned)ds11DataCount);
+    printf("\tdsFlowControl(0x%x)\tdsDataCount(%u)\n\n", (unsigned) dsFlowCntrl, (unsigned)ds00DataCount);
     for (unsigned i=0; i<numUSLinks; i++) {
       printf("\tLink US%u: ", i);
       us[i].print();
       printf("\n");
     }
-    printf("\tusFlowControl(0x%x), us0DataCount(%u), us1DataCount(%u)\n",
-        (unsigned) usFlowCntrl, (unsigned)us0DataCount, (unsigned)us1DataCount);
-    printf("\tevrErrors(%u)\n", (unsigned)evrErrors);
+    printf("\tusFlowControl(0x%x), usDataCount(%u)\n", (unsigned) usFlowCntrl, (unsigned)us0DataCount);
     hasBeenRead = false;
   } else printf("\thave not been read.\n");
 }

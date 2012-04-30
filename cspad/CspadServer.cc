@@ -56,6 +56,7 @@ CspadServer::CspadServer( const Pds::Src& client, Pds::TypeId& myDataType, unsig
      _ignoreFetch(false) {
   _histo = (unsigned*)calloc(sizeOfHisto, sizeof(unsigned));
   _task = new Pds::Task(Pds::TaskObject("CSPADprocessor"));
+  _dummy = (unsigned*)malloc(DummySize);
   strcpy(_runTimeConfigName, "");
   instance(this);
 }
@@ -278,21 +279,27 @@ unsigned CspadServer::flushInputQueue(int f) {
   timeout.tv_sec  = 0;
   timeout.tv_usec = 2500;
   int ret;
-  unsigned dummy[5];
   unsigned count = 0;
   PgpCardRx       pgpCardRx;
   pgpCardRx.model   = sizeof(&pgpCardRx);
-  pgpCardRx.maxSize = 5;
-  pgpCardRx.data    = dummy;
+  pgpCardRx.maxSize = DummySize;
+  pgpCardRx.data    = _dummy;
   do {
     FD_ZERO(&fds);
     FD_SET(f,&fds);
     ret = select( f+1, &fds, NULL, NULL, &timeout);
     if (ret>0) {
+      if (!count) {
+        printf("\n\tflushed lanes ");
+      }
       count += 1;
       ::read(f, &pgpCardRx, sizeof(PgpCardRx));
+      printf("-%u-", pgpCardRx.pgpLane);
     }
   } while (ret > 0);
+  if (count) {
+    printf("\n");
+  }
   return count;
 }
 

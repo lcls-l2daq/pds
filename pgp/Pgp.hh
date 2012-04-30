@@ -51,10 +51,15 @@ namespace Pds {
                           unsigned size=1,
                           bool pf=false);
         unsigned      readStatus( PgpCardStatus* );
+        unsigned      stopPolling();
+
+        static void          portOffset(unsigned p) { _portOffset = p;    }
+        static unsigned      portOffset()           { return _portOffset; }
 
       private:
         int        _fd;
         unsigned   _readBuffer[BufferWords];
+        static unsigned   _portOffset;
     };
   }
 }

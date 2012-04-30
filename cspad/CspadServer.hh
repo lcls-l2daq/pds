@@ -79,11 +79,11 @@ class Pds::CspadServer
    static void instance(CspadServer* s) { _instance = s; }
 
  private:
-   enum     {sizeOfHisto=1000};
+   enum     {sizeOfHisto=1000, DummySize=(1<<19)};
    Xtc                            _xtc;
    Pds::CsPad::CspadConfigurator* _cnfgrtr;
    unsigned                       _quads;
-   unsigned                   _quadMask;
+   unsigned			              _quadMask;
    unsigned                       _count;
    unsigned                       _quadsThisCount;
    unsigned                       _payloadSize;
@@ -98,6 +98,7 @@ class Pds::CspadServer
    unsigned                       _ioIndex;
    Pds::CsPad::CspadDestination   _d;
    Pds::Pgp::Pgp*                 _pgp;
+   unsigned*                      _dummy;
    char                           _runTimeConfigName[256];
    bool                           _configured;
    bool                           _firstFetch;

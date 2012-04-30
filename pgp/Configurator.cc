@@ -7,7 +7,7 @@
 
 #include "pds/pgp/Configurator.hh"
 #include "pds/pgp/Destination.hh"
-//#include "PgpCardMod.h"
+#include "pgpcard/PgpCardMod.h"
 #include <time.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -78,46 +78,64 @@ namespace Pds {
       }
     }
 
+#ifndef NUMBER_OF_LANES
+#define NUMBER_OF_LANES (4)
+#endif
+
     void Configurator::dumpPgpCard() {
       PgpCardStatus status;
       _pgp->readStatus(&status);
       printf("PGP Card Status:\n");
-      printf("\tVersion(0x%x)\n", status.Version);
-      printf("\tNegotiated Link Width(0x%x)\n", (status.PciLStatus>>4)&0x3f);
-      printf("\tPgpLocLinkReady(%u %u %u %u)\n",
-          status.Pgp3LocLinkReady,
-          status.Pgp2LocLinkReady,
-          status.Pgp1LocLinkReady,
-          status.Pgp0LocLinkReady);
-      printf("\tPgpRemLinkReady(%u %u %u %u)\n",
-          status.Pgp3RemLinkReady,
-          status.Pgp2RemLinkReady,
-          status.Pgp1RemLinkReady,
-          status.Pgp0RemLinkReady);
-      printf("\tTxWrite(0x%x)\n", status.TxWrite);
-      printf("\tTxRead (0x%x)\n", status.TxRead);
-      printf("\tRxWrite(0x%x)\n", status.RxWrite);
-      printf("\tRxRead (0x%x)\n", status.RxRead);
-//      printf("\t(0x%x)\n", status.);
-//      printf("\t(0x%x)\n", status.);
-//      printf("\t(0x%x)\n", status.);
-//      printf("\t(0x%x)\n", status.);
-//      printf("\t(0x%x)\n", status.);
-//      printf("\t(0x%x)\n", status.);
-//      printf("\t(0x%x)\n", status.);
-//      printf("\t(0x%x)\n", status.);
+      printf("\tVersion               0x%x\n", status.Version);
+      printf("\tNegotiated Link Width 0x%x\n", (status.PciLStatus>>4)&0x3f);
+      printf("\tPgpLocLinkReady       ");
+      for (int i=0; i<NUMBER_OF_LANES; i++) {
+        printf("%2u%s", status.PgpLink[i].PgpLocLinkReady, i < NUMBER_OF_LANES - 1 ? ", " : "\n");
+      }
+      printf("\tPgpRemLinkReady       ");
+      for (int i=0; i<NUMBER_OF_LANES; i++) {
+        printf("%2u%s", status.PgpLink[i].PgpRemLinkReady, i < NUMBER_OF_LANES - 1 ? ", " : "\n");
+      }
+      printf("\tPgpCellErrCnt         ");
+      for (int i=0; i<NUMBER_OF_LANES; i++) {
+        printf("%2u%s", status.PgpLink[i].PgpCellErrCnt, i < NUMBER_OF_LANES - 1 ? ", " : "\n");
+      }
+      printf("\tPgpLinkDownCnt        ");
+      for (int i=0; i<NUMBER_OF_LANES; i++) {
+        printf("%2u%s", status.PgpLink[i].PgpLinkDownCnt, i < NUMBER_OF_LANES - 1 ? ", " : "\n");
+      }
+      printf("\tPgpLinkErrCnt         ");
+      for (int i=0; i<NUMBER_OF_LANES; i++) {
+        printf("%2u%s", status.PgpLink[i].PgpLinkErrCnt, i < NUMBER_OF_LANES - 1 ? ", " : "\n");
+      }
+      printf("\tPgpFifoErr            ");
+      for (int i=0; i<NUMBER_OF_LANES; i++) {
+        printf("%2u%s", status.PgpLink[i].PgpFifoErr, i < NUMBER_OF_LANES - 1 ? ", " : "\n");
+      }
+      printf("\tTxBufferCount         0x%x\n", status.TxBufferCount);
+      printf("\tTxRead                0x%x\n", status.TxRead);
+      printf("\tRxWrite[client]       ");
+      for (int i=0; i<NUMBER_OF_LANES; i++) {
+        printf("0x%02x%s", status.RxWrite[i], i < NUMBER_OF_LANES - 1 ? ", " : "\n");
+      }
+      printf("\tRxRead[client]        ");
+      for (int i=0; i<NUMBER_OF_LANES; i++) {
+        printf("0x%02x%s", status.RxRead[i], i < NUMBER_OF_LANES - 1 ? ", " : "\n");
+      }
     }
 
     unsigned ConfigSynch::_getOne() {
        Pds::Pgp::RegisterSlaveImportFrame* rsif;
        unsigned             count = 0;
-       while ((rsif = _cfgrt->pgp()->read(_size)) != 0) {
+       while ((count < 6) && (rsif = _cfgrt->pgp()->read(_size)) != 0) {
          if (rsif->waiting() == Pds::Pgp::PgpRSBits::Waiting) {
            return Success;
          }
          count += 1;;
        }
-       printf("CspadConfigSynch::_getOne _pgp->read failed after skipping %u\n", count);
+       printf("CspadConfigSynch::_getOne _pgp->read failed");
+       if (count) printf(" after skipping %u\n", count);
+       else printf("\n");
        return Failure;
      }
 

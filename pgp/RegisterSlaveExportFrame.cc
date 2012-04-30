@@ -9,6 +9,7 @@
 #include "pds/pgp/PgpRSBits.hh"
 #include "pds/pgp/RegisterSlaveImportFrame.hh"
 #include "pds/pgp/Destination.hh"
+#include "pds/pgp/Pgp.hh"
 #include <sys/time.h>
 #include <sys/types.h>
 #include <unistd.h>
@@ -40,7 +41,8 @@ namespace Pds {
     {
       bits._tid     = transID & ((1<<23)-1);
       bits._waiting = w;
-      bits._lane    = dest->lane() & 3;
+//      printf("RegisterSlaveExportFrame::RegisterSlaveExportFrame() lane %u offset %u\n", dest->lane(), Pgp::portOffset());
+      bits._lane    = (dest->lane() & 3) + Pgp::portOffset();
       bits.mbz    = 0;
       bits._vc      = dest->vc() & 3;
       bits.oc      = o;

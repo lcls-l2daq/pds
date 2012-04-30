@@ -193,7 +193,7 @@ class Cspad2x2ConfigAction : public Action {
       _server->resetOffset();
       if (_cfg.scanning() == false) {
         unsigned count = 0;
-        while ((_result = _server->configure( (CsPad2x2ConfigType*)_cfg.current())) && count++<3) {
+        while ((_result = _server->configure( (CsPad2x2ConfigType*)_cfg.current())) && count++<1) {
           printf("\nCspad2x2ConfigAction::fire(tr) retrying config %u\n", count);
         };
         if (_server->debug() & 0x10) _cfg.printRO();
@@ -233,7 +233,7 @@ class Cspad2x2BeginCalibCycleAction : public Action {
           printf("configured and \n");
           _server->offset(_server->offset()+_server->myCount()+1);
           unsigned count = 0;
-          while ((_result = _server->configure( (CsPad2x2ConfigType*)_cfg.current())) && count++<3) {
+          while ((_result = _server->configure( (CsPad2x2ConfigType*)_cfg.current())) && count++<1) {
             printf("\nCspad2x2BeginCalibCycleAction::fire(tr) retrying config %u\n", count);
           };
           if (_server->debug() & 0x10) _cfg.printRO();
@@ -337,9 +337,15 @@ Cspad2x2Manager::Cspad2x2Manager( Cspad2x2Server* server, unsigned d) :
 
    printf("Cspad2x2Manager being initialized... " );
 
+   unsigned ports = (d >> 4) & 0xf;
    char devName[128];
    char err[128];
-   sprintf(devName, "/dev/pgpcard%u", d);
+   if (ports == 0) {
+     ports = 15;
+     sprintf(devName, "/dev/pgpcard%u", d);
+   } else {
+     sprintf(devName, "/dev/pgpcard_%u_%u", d & 0xf, ports);
+   }
 
    int cspad2x2 = open( devName,  O_RDWR);
    printf("pgpcard file number %d\n", cspad2x2);
@@ -348,7 +354,22 @@ Cspad2x2Manager::Cspad2x2Manager( Cspad2x2Server* server, unsigned d) :
      perror(err);
      // What else to do if the open fails?
      ::exit(-1);
+   } else {
+     printf("pgpcard file number %d\n", cspad2x2);
    }
+
+   unsigned offset = 0;
+   while ((((ports>>offset) & 1) == 0) && (offset < 5)) {
+     offset += 1;
+   }
+
+   Pgp::Pgp::portOffset(offset);
+
+   if (offset >= 4) {
+     printf("Cspad2x2Manager::Cspad2x2Manager() illegal port mask!! 0x%x\n", ports);
+   }
+
+   usleep(25000);
 
    server->setCspad2x2( cspad2x2 );
 

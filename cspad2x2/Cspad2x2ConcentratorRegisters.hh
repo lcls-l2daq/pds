@@ -46,12 +46,7 @@ namespace Pds {
         uint32_t               dsFlowCntrl;
         uint32_t               usFlowCntrl;
         uint32_t               ds00DataCount;
-        uint32_t               ds01DataCount;
         uint32_t               us0DataCount;
-        uint32_t               ds10DataCount;
-        uint32_t               ds11DataCount;
-        uint32_t               us1DataCount;
-        uint32_t               evrErrors;
     };
 
   }

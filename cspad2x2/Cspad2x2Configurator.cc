@@ -242,7 +242,7 @@ namespace Pds {
         printf("- 0x%x - \n\tdone \n", ret);
         printf(" it took %lld.%lld milliseconds with mask 0x%x\n", diff/1000000LL, diff%1000000LL, mask&0x1f);
         //    print();
-        if (ret) dumpFrontEnd();
+//        if (ret) dumpFrontEnd();
       }
       return ret;
     }
@@ -256,16 +256,16 @@ namespace Pds {
         ret = _conRegs->read();
         if (ret == Success) {
           _conRegs->print();
-          if ((_debug & 0x200)) {
-            printf("Cspad2x2Configurator::dumpFrontEnd: Quad\n");
-            ret = _quadRegs->read();
-            if (ret == Success) {
-              _quadRegs->print();
-            }
-          }
-        } if (ret != Success) {
-          printf("\tCould not be read!\n");
         }
+      }
+      if ((_debug & 0x200) && (ret == Success)) {
+        printf("Cspad2x2Configurator::dumpFrontEnd: Quad\n");
+        ret = _quadRegs->read();
+        if (ret == Success) {
+          _quadRegs->print();
+        }
+      } if (ret != Success) {
+        printf("\tCould not be read!\n");
       }
       if ((_debug & 0x400) && (ret == Success)) {
         printf("Checking Configuration, no news is good news ...\n");
@@ -276,7 +276,9 @@ namespace Pds {
           printf("Cspad2x2Configurator::checkDigPots() FAILED !!!!\n");
         }
       }
-      dumpPgpCard();
+      if ((_debug & 0x800) && (ret == Success)) {
+        dumpPgpCard();
+      }
       clock_gettime(CLOCK_REALTIME, &end);
       uint64_t diff = timeDiff(&end, &start) + 50000LL;
       if (_debug & 0x700) {

@@ -23,6 +23,7 @@
 #include <errno.h>
 #include <string.h>
 #include <fcntl.h>
+#include <stdlib.h>
 #include <new>
 
 using namespace Pds;
@@ -53,6 +54,7 @@ Cspad2x2Server::Cspad2x2Server( const Pds::Src& client, Pds::TypeId& myDataType,
      _ignoreFetch(false) {
   _histo = (unsigned*)calloc(sizeOfHisto, sizeof(unsigned));
   _task = new Pds::Task(Pds::TaskObject("CSPADprocessor"));
+  _dummy = (unsigned*)malloc(DummySize);
   strcpy(_runTimeConfigName, "");
   instance(this);
 }
@@ -82,6 +84,7 @@ unsigned Cspad2x2Server::configure(CsPad2x2ConfigType* config) {
 }
 
 void Pds::Cspad2x2Server::die() {
+  printf("Pds::Cspad2x2Server::die() Goodbye cruel world, but we are not doing anything about it\n");
   _d.dest(Pds::CsPad2x2::Cspad2x2Destination::CR);
   printf("Cspad2x2Server::die has been called !!!!!!!\n");
   if (_pgp != 0) {
@@ -220,7 +223,7 @@ int Pds::Cspad2x2Server::fetch( char* payload, int flags ) {
      _count = data->frameNumber() - 1;  // cspad2x2 starts counting at 1, not zero
      if (_debug & 4 || ret < 0) printf("\n\tquad(%u) opcode(0x%x) acqcount(0x%x) fiducials(0x%x) _oldCount(%u) _count(%u)lane(%u) vc(%u)\n",
          data->elementId(), data->second.opCode, data->acqCount(), data->fiducials(), oldCount, _count, pgpCardRx.pgpLane, pgpCardRx.pgpVc);
-     if ((_count < oldCount) || (_count - oldCount > 1)) {
+     if ((_count < oldCount) || (_count - oldCount > 2)) {
        printf("CsPadServer::fetch ignoring unreasonable frame number, 0x%x came after 0x%x\n", _count, oldCount);
        ret = Ignore;
      }
@@ -255,21 +258,27 @@ unsigned Cspad2x2Server::flushInputQueue(int f) {
   timeout.tv_sec  = 0;
   timeout.tv_usec = 2500;
   int ret;
-  unsigned dummy[5];
   unsigned count = 0;
   PgpCardRx       pgpCardRx;
   pgpCardRx.model   = sizeof(&pgpCardRx);
-  pgpCardRx.maxSize = 5;
-  pgpCardRx.data    = dummy;
+  pgpCardRx.maxSize = DummySize;
+  pgpCardRx.data    = _dummy;
   do {
     FD_ZERO(&fds);
     FD_SET(f,&fds);
     ret = select( f+1, &fds, NULL, NULL, &timeout);
     if (ret>0) {
+      if (!count) {
+        printf("\n\tflushed lanes ");
+      }
       count += 1;
       ::read(f, &pgpCardRx, sizeof(PgpCardRx));
+      printf("-%u-", pgpCardRx.pgpLane);
     }
   } while (ret > 0);
+  if (count) {
+    printf("\n");
+  }
   return count;
 }
 

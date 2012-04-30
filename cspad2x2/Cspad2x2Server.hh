@@ -78,7 +78,7 @@ class Pds::Cspad2x2Server
    static void instance(Cspad2x2Server* s) { _instance = s; }
 
  private:
-   enum     {sizeOfHisto=1000};
+   enum     {sizeOfHisto=1000, DummySize=(1<<19)};
    Xtc                            _xtc;
    Pds::CsPad2x2::Cspad2x2Configurator* _cnfgrtr;
    unsigned                       _count;
@@ -94,6 +94,7 @@ class Pds::Cspad2x2Server
    unsigned                       _ioIndex;
    Pds::CsPad2x2::Cspad2x2Destination   _d;
    Pds::Pgp::Pgp*                 _pgp;
+   unsigned*                      _dummy;
    char                           _runTimeConfigName[256];
    bool                           _configured;
    bool                           _firstFetch;
