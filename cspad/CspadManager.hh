@@ -16,13 +16,13 @@ namespace Pds {
     public:
       CspadManager( CspadServer* server, unsigned d);
       Appliance& appliance( void ) { return _fsm; }
-      Appliance& appProcessor( void ) { return _appProcessor; }
+//      Appliance& appProcessor( void ) { return _appProcessor; }
 
     private:
       Fsm&              _fsm;
       CspadConfigCache& _cfg;
-      Appliance&        _appProcessor;
-      Pds::CspadCompressionProcessor _compressionProcessor;
+//      Appliance&        _appProcessor;
+//      Pds::CspadCompressionProcessor _compressionProcessor;
   };
 
 #endif
