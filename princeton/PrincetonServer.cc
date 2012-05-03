@@ -6,8 +6,7 @@
 #include "PrincetonServer.hh" 
 #include "PrincetonUtils.hh"
 
-#include "pdsdata/princeton/ConfigV2.hh"
-#include "pdsdata/princeton/FrameV1.hh"
+#include "pds/config/PrincetonDataType.hh"
 #include "pdsdata/princeton/InfoV1.hh"
 #include "pds/xtc/Datagram.hh"
 #include "pds/xtc/CDatagram.hh"
@@ -32,13 +31,13 @@ PrincetonServer::PrincetonServer(int iCamera, bool bDelayMode, bool bInitTest, c
  _hCam(-1), _bCameraInited(false), _bCaptureInited(false), _bClockSaving(false),
  _i16CcdWidth(-1), _i16CcdHeight(-1), _i16MaxSpeedTableIndex(-1),
  _fPrevReadoutTime(0), _bSequenceError(false), _clockPrevDatagram(0,0), _iNumL1Event(0),
- _configCamera(), 
+ _config(), 
  _fReadoutTime(0),  
  _poolFrameData(_iMaxFrameDataSize, _iPoolDataCount), _pDgOut(NULL),
  _CaptureState(CAPTURE_STATE_IDLE), _pTaskCapture(NULL), _routineCapture(*this)
 {        
-  if ( initCamera() != 0 )
-    throw PrincetonServerException( "PrincetonServer::PrincetonServer(): initPrincetonCamera() failed" );    
+  if ( init() != 0 )
+    throw PrincetonServerException( "PrincetonServer::PrincetonServer(): initPrinceton() failed" );    
 
   /*
    * Known issue:
@@ -60,6 +59,8 @@ PrincetonServer::~PrincetonServer()
      */ 
     while ( _CaptureState == CAPTURE_STATE_RUN_TASK )
     {
+      printf( "PrincetonServer::~PrincetonServer(): Catpure task is running. Wait for it to terminate...\n" );
+      
       static int        iTotalWaitTime  = 0;
       static const int  iSleepTime      = 10000; // 10 ms
       
@@ -76,10 +77,10 @@ PrincetonServer::~PrincetonServer()
     }
   }
   
-  deinitCamera();  
+  deinit();  
 }
 
-int PrincetonServer::initCamera()
+int PrincetonServer::init()
 {
   if ( _bCameraInited )
     return 0;
@@ -90,7 +91,7 @@ int PrincetonServer::initCamera()
   /* Initialize the PVCam Library */
   if (!pl_pvcam_init())
   {
-    printPvError("PrincetonServer::initCamera(): pl_pvcam_init() failed");
+    printPvError("PrincetonServer::init(): pl_pvcam_init() failed");
     return ERROR_PVCAM_FUNC_FAIL;
   }
 
@@ -99,7 +100,7 @@ int PrincetonServer::initCamera()
   /* Assume each machine only control one camera */
   if (!pl_cam_get_name(_iCamera, strCamera))
   {
-    printPvError("PrincetonServer::initCamera(): pl_cam_get_name() failed");
+    printPvError("PrincetonServer::init(): pl_cam_get_name() failed");
     return ERROR_PVCAM_FUNC_FAIL;
   }
   
@@ -107,7 +108,7 @@ int PrincetonServer::initCamera()
   
   if (!pl_cam_open(strCamera, &_hCam, OPEN_EXCLUSIVE))
   {
-    printPvError("PrincetonServer::initCamera(): pl_cam_open() failed");
+    printPvError("PrincetonServer::init(): pl_cam_open() failed");
     return ERROR_PVCAM_FUNC_FAIL;
   }
     
@@ -133,7 +134,7 @@ int PrincetonServer::initCamera()
   /* Initialize capture related functions */    
   if (!pl_exp_init_seq())
   {
-    printPvError("PrincetonServer::initCamera(): pl_exp_init_seq() failed!\n");
+    printPvError("PrincetonServer::init(): pl_exp_init_seq() failed!\n");
     return ERROR_PVCAM_FUNC_FAIL; 
   }    
   
@@ -141,7 +142,7 @@ int PrincetonServer::initCamera()
   int iFail = initCameraBeforeConfig();
   if (iFail != 0)
   {
-    printPvError("PrincetonServer::initCamera(): initCameraBeforeConfig() failed!\n");
+    printPvError("PrincetonServer::init(): initCameraBeforeConfig() failed!\n");
     return ERROR_FUNCTION_FAILURE; 
   }
   
@@ -155,14 +156,14 @@ int PrincetonServer::initCamera()
   iFail = initClockSaving();  
   if ( iFail != 0 )
   {
-    deinitCamera();
+    deinit();
     return ERROR_FUNCTION_FAILURE;  
   }
   
   return 0;
 }
 
-int PrincetonServer::deinitCamera()
+int PrincetonServer::deinit()
 {  
   // If the camera has been init-ed before, and not deinit-ed yet  
   if ( _bCaptureInited )
@@ -173,16 +174,16 @@ int PrincetonServer::deinitCamera()
   /* Uninit capture related functions */  
   if (!pl_exp_uninit_seq() ) 
   {
-    printPvError("PrincetonServer::deinitCamera():pl_exp_uninit_seq() failed");
+    printPvError("PrincetonServer::deinit():pl_exp_uninit_seq() failed");
     return ERROR_PVCAM_FUNC_FAIL;
   }
     
   if (!pl_cam_close(_hCam))
-    printPvError("PrincetonServer::deinitCamera(): pl_cam_close() failed"); // Don't return here; continue to uninit the library
+    printPvError("PrincetonServer::deinit(): pl_cam_close() failed"); // Don't return here; continue to uninit the library
 
   if (!pl_pvcam_uninit())
   {
-    printPvError("PrincetonServer::deinitCamera(): pl_pvcam_uninit() failed");
+    printPvError("PrincetonServer::deinit(): pl_pvcam_uninit() failed");
     return ERROR_PVCAM_FUNC_FAIL;
   }
     
@@ -191,7 +192,7 @@ int PrincetonServer::deinitCamera()
   return 0;
 }
 
-int PrincetonServer::mapCamera()
+int PrincetonServer::map()
 {
   /*
    * Thread Issue:
@@ -204,9 +205,9 @@ int PrincetonServer::mapCamera()
   return 0;
 }
 
-int PrincetonServer::configCamera(Princeton::ConfigV2& config, std::string& sConfigWarning)
+int PrincetonServer::config(PrincetonConfigType& config, std::string& sConfigWarning)
 {  
-  //if ( initCamera() != 0 ) 
+  //if ( init() != 0 ) 
   //  return ERROR_SERVER_INIT_FAIL;
   
   int iFail = deinitClockSaving();
@@ -219,7 +220,7 @@ int PrincetonServer::configCamera(Princeton::ConfigV2& config, std::string& sCon
   if ( (int) config.width() > _i16CcdWidth || (int) config.height() > _i16CcdHeight)
   {
     char sMessage[128];    
-    sprintf( sMessage, "!!! ConfigSize (%d,%d) > CcdSize(%d,%d)\n", config.width(), config.height(), _i16CcdWidth, _i16CcdHeight);
+    sprintf( sMessage, "!!! PI %d ConfigSize (%d,%d) > CcdSize(%d,%d)\n", _iCamera, config.width(), config.height(), _i16CcdWidth, _i16CcdHeight);
     printf(sMessage);
     sConfigWarning += sMessage;
     config.setWidth (_i16CcdWidth);
@@ -227,18 +228,11 @@ int PrincetonServer::configCamera(Princeton::ConfigV2& config, std::string& sCon
   }
         
   //Note: We don't send error for cooling incomplete
-  setupCooling( _configCamera.coolingTemp() );
+  setupCooling( _config.coolingTemp() );
   //if ( setupCooling() != 0 )
     //return ERROR_SERVER_INIT_FAIL;  
   
-  /*
-   * Record the delay mode parameter in the config data
-   *
-   * Note: The delay mode was selected from the command line
-   */
-  config.setDelayMode( _bDelayMode?1:0 );
-  
-  _configCamera = config;  
+  _config = config;  
   
   iFail = initClockSaving();  
   if ( iFail != 0 )
@@ -247,23 +241,23 @@ int PrincetonServer::configCamera(Princeton::ConfigV2& config, std::string& sCon
   int16 i16TemperatureCurrent = -1;  
   PICAM::getAnyParam(_hCam, PARAM_TEMP, &i16TemperatureCurrent );    
   printf( "\nROI (%d,%d) CCD (%d,%d) Speed %d/%d Temperature %.1f C\n", 
-    _configCamera.width(), _configCamera.height(), _i16CcdWidth, _i16CcdHeight, _configCamera.readoutSpeedIndex(), _i16MaxSpeedTableIndex, i16TemperatureCurrent/100.f );
+    _config.width(), _config.height(), _i16CcdWidth, _i16CcdHeight, _config.readoutSpeedIndex(), _i16MaxSpeedTableIndex, i16TemperatureCurrent/100.f );
   
   return 0;
 }
 
-int PrincetonServer::unconfigCamera()
+int PrincetonServer::unconfig()
 {
   return 0;
 }
 
-int PrincetonServer::beginRunCamera()
+int PrincetonServer::beginRun()
 {
   /*
    * Check data pool status
    */  
   if ( _poolFrameData.numberOfAllocatedObjects() > 0 )
-    printf( "PrincetonServer::enableCamera(): Memory usage issue. Data Pool is not empty (%d/%d allocated).\n",
+    printf( "PrincetonServer::enable(): Memory usage issue. Data Pool is not empty (%d/%d allocated).\n",
       _poolFrameData.numberOfAllocatedObjects(), _poolFrameData.numberofObjects() );
   else if ( _iDebugLevel >= 3 )
     printf( "BeginRun Pool status: %d/%d allocated.\n", _poolFrameData.numberOfAllocatedObjects(), _poolFrameData.numberofObjects() );
@@ -278,13 +272,13 @@ int PrincetonServer::beginRunCamera()
   return 0;
 }
 
-int PrincetonServer::endRunCamera()
+int PrincetonServer::endRun()
 {  
   /*
    * Check data pool status
    */  
   if ( _poolFrameData.numberOfAllocatedObjects() > 0 )
-    printf( "PrincetonServer::enableCamera(): Memory usage issue. Data Pool is not empty (%d/%d allocated).\n",
+    printf( "PrincetonServer::enable(): Memory usage issue. Data Pool is not empty (%d/%d allocated).\n",
       _poolFrameData.numberOfAllocatedObjects(), _poolFrameData.numberofObjects() );
   else if ( _iDebugLevel >= 3 )
     printf( "EndRun Pool status: %d/%d allocated.\n", _poolFrameData.numberOfAllocatedObjects(), _poolFrameData.numberofObjects() );
@@ -292,13 +286,23 @@ int PrincetonServer::endRunCamera()
   return 0;
 }
 
-int PrincetonServer::enableCamera()
+int PrincetonServer::beginCalibCycle()
+{
+  return 0;
+}
+
+int PrincetonServer::endCalibCycle()
+{
+  return 0;
+}
+
+int PrincetonServer::enable()
 {
   /*
    * Check data pool status
    */  
   if ( _poolFrameData.numberOfAllocatedObjects() > 0 )
-    printf( "PrincetonServer::enableCamera(): Memory usage issue. Data Pool is not empty (%d/%d allocated).\n",
+    printf( "PrincetonServer::enable(): Memory usage issue. Data Pool is not empty (%d/%d allocated).\n",
       _poolFrameData.numberOfAllocatedObjects(), _poolFrameData.numberofObjects() );
   else if ( _iDebugLevel >= 3 )
     printf( "Enable Pool status: %d/%d allocated.\n", _poolFrameData.numberOfAllocatedObjects(), _poolFrameData.numberofObjects() );
@@ -313,7 +317,7 @@ int PrincetonServer::enableCamera()
   return 0;
 }
 
-int PrincetonServer::disableCamera()
+int PrincetonServer::disable()
 {
   // Note: Here we don't worry if the data pool is not free, because the 
   //       traffic shaping thead may still holding the L1 Data
@@ -355,10 +359,10 @@ int PrincetonServer::initCapture()
   const int16 iExposureMode = 0; // set exposure mode to TIMED_MODE, avoid using external TTL trigger
   
   /*
-   * _configCamera.exposureTime() time is measured in seconds,
+   * _config.exposureTime() time is measured in seconds,
    *  while iExposureTime for pl_exp_setup() is measured in milliseconds
    */
-  const uns32 iExposureTime = (int) ( _configCamera.exposureTime() * 1000 ); 
+  const uns32 iExposureTime = (int) ( _config.exposureTime() * 1000 ); 
 
   uns32 uFrameSize;
   rs_bool bStatus = 
@@ -452,7 +456,7 @@ int PrincetonServer::startCapture()
   return 0;
 }
 
-int PrincetonServer::initCameraSettings(Princeton::ConfigV2& config, std::string& sConfigWarning)
+int PrincetonServer::initCameraSettings(PrincetonConfigType& config, std::string& sConfigWarning)
 { 
   using PICAM::setAnyParam;
   using PICAM::displayParamIdInfo;
@@ -488,7 +492,7 @@ int PrincetonServer::initCameraSettings(Princeton::ConfigV2& config, std::string
   char sMessage[128];
   if ( iSpeedTableIndex > _i16MaxSpeedTableIndex )
   {
-    sprintf( sMessage, "!!! ConfigSpeed %d > Max(%d)\n", iSpeedTableIndex, _i16MaxSpeedTableIndex );
+    sprintf( sMessage, "!!! PI %d ConfigSpeed %d > Max(%d)\n", _iCamera, iSpeedTableIndex, _i16MaxSpeedTableIndex );
     printf(sMessage);
     sConfigWarning += sMessage;
     iSpeedTableIndex = _i16MaxSpeedTableIndex;
@@ -556,14 +560,14 @@ int PrincetonServer::initCameraBeforeConfig()
   
   int runKey = strtoul(entry->key().c_str(),NULL,16);        
   
-  const TypeId typePrincetonConfig = TypeId(TypeId::Id_PrincetonConfig, Princeton::ConfigV2::Version);    
+  const TypeId typePrincetonConfig = TypeId(TypeId::Id_PrincetonConfig, PrincetonConfigType::Version);    
   
   char strConfigPath[128];
   sprintf(strConfigPath,"%s/keys/%s",sConfigPath.c_str(),CfgPath::path(runKey,_src,typePrincetonConfig).c_str());
   printf("Config Path: %s\n", strConfigPath);
 
   int fdConfig = open(strConfigPath, O_RDONLY);
-  Princeton::ConfigV2 config;
+  PrincetonConfigType config;
   int iSizeRead = read(fdConfig, &config, sizeof(config));
   if (iSizeRead != sizeof(config))
   {
@@ -880,7 +884,7 @@ int PrincetonServer::runCaptureTask()
   return 0;
 }
 
-int PrincetonServer::onEventReadout()
+int PrincetonServer::startExposure()
 {
   ++_iNumL1Event; // update event counter
   
@@ -899,7 +903,7 @@ int PrincetonServer::onEventReadout()
      */
     if ( _CaptureState == CAPTURE_STATE_DATA_READY )
     {
-      printf( "PrincetonServer::onEventReadout(): Previous image data has not been sent out\n" );
+      printf( "PrincetonServer::startExposure(): Previous image data has not been sent out\n" );
       resetFrameData(true);
       return ERROR_INCORRECT_USAGE;
     }
@@ -915,7 +919,7 @@ int PrincetonServer::onEventReadout()
      * this case is NOT a normal case.
      */    
     
-    printf( "PrincetonServer::onEventReadout(): Capture task is running. It is impossible to start a new capture.\n" );
+    printf( "PrincetonServer::startExposure(): Capture task is running. It is impossible to start a new capture.\n" );
     
     /*
      * Here we don't reset the frame data, because the capture task is running and will use the data later
@@ -949,7 +953,7 @@ int PrincetonServer::onEventReadout()
   return 0;
 }
 
-int PrincetonServer::getDelayData(InDatagram* in, InDatagram*& out)
+int PrincetonServer::getData(InDatagram* in, InDatagram*& out)
 {
   out = in; // Default: return empty stream
 
@@ -964,7 +968,7 @@ int PrincetonServer::getDelayData(InDatagram* in, InDatagram*& out)
    */
   if ( _pDgOut == NULL )
   {
-    printf( "PrincetonServer::getDelayData(): Datagram is not properly set up\n" );
+    printf( "PrincetonServer::getData(): Datagram is not properly set up\n" );
     resetFrameData(true);
     return ERROR_LOGICAL_FAILURE;      
   }
@@ -996,7 +1000,7 @@ int PrincetonServer::getDelayData(InDatagram* in, InDatagram*& out)
   dgOut.xtc.extent = xtcOutBkp.extent;
 
   unsigned char*  pFrameHeader  = (unsigned char*) _pDgOut + sizeof(CDatagram) + sizeof(Xtc);  
-  new (pFrameHeader) Princeton::FrameV1(in->datagram().seq.stamp().fiducials(), _fReadoutTime);
+  new (pFrameHeader) PrincetonDataType(in->datagram().seq.stamp().fiducials(), _fReadoutTime);
       
   out       = _pDgOut;    
   
@@ -1016,7 +1020,7 @@ int PrincetonServer::getDelayData(InDatagram* in, InDatagram*& out)
   return 0;
 }
 
-int PrincetonServer::getLastDelayData(InDatagram* in, InDatagram*& out)
+int PrincetonServer::waitData(InDatagram* in, InDatagram*& out)
 {
   out = in; // Default: return empty stream
   
@@ -1043,17 +1047,12 @@ int PrincetonServer::getLastDelayData(InDatagram* in, InDatagram*& out)
      ( tsCurrent.tv_sec - tsWaitStart.tv_sec ) * 1000; // in milliseconds
     if ( iWaitTime >= _iMaxLastEventTime )
     {
-      printf( "PrincetonServer::getLastDelayData(): Waiting time is too long. Skip the final data\n" );          
+      printf( "PrincetonServer::waitData(): Waiting time is too long. Skip the final data\n" );          
       return ERROR_FUNCTION_FAILURE;
     }
   } // while (1)  
   
-  return getDelayData(in, out);      
-}
-
-int PrincetonServer::checkReadoutEventCode(unsigned code)
-{
-  return (code == _configCamera.readoutEventCode());
+  return getData(in, out);      
 }
 
 int PrincetonServer::waitForNewFrameAvailable()
@@ -1154,12 +1153,12 @@ int PrincetonServer::processFrame()
   if ( _iNumL1Event <= _iMaxEventReport ||  _iDebugLevel >= 5 )
   {
     unsigned char*  pFrameHeader   = (unsigned char*) _pDgOut + sizeof(CDatagram) + sizeof(Xtc);  
-    Princeton::FrameV1* pFrame     = (Princeton::FrameV1*) pFrameHeader;    
+    PrincetonDataType* pFrame      = (PrincetonDataType*) pFrameHeader;    
     const uint16_t*     pPixel     = pFrame->data();  
-    //int                 iWidth   = (int) ( (_configCamera.width()  + _configCamera.binX() - 1 ) / _configCamera.binX() );
-    //int                 iHeight  = (int) ( (_configCamera.height() + _configCamera.binY() - 1 ) / _configCamera.binY() );  
-    const uint16_t*     pEnd       = (const uint16_t*) ( (unsigned char*) pFrame->data() + _configCamera.frameSize() );
-    const uint64_t      uNumPixels = (uint64_t) (_configCamera.frameSize() / sizeof(uint16_t) );
+    //int                 iWidth   = (int) ( (_config.width()  + _config.binX() - 1 ) / _config.binX() );
+    //int                 iHeight  = (int) ( (_config.height() + _config.binY() - 1 ) / _config.binY() );  
+    const uint16_t*     pEnd       = (const uint16_t*) ( (unsigned char*) pFrame->data() + _config.frameSize() );
+    const uint64_t      uNumPixels = (uint64_t) (_config.frameSize() / sizeof(uint16_t) );
     
     uint64_t            uSum    = 0;
     uint64_t            uSumSq  = 0;
@@ -1185,7 +1184,7 @@ int PrincetonServer::setupFrame()
     return ERROR_LOGICAL_FAILURE;
   }
 
-  const int iFrameSize =_configCamera.frameSize();
+  const int iFrameSize =_config.frameSize();
   
   /*
    * Set the output datagram pointer
@@ -1213,16 +1212,14 @@ int PrincetonServer::setupFrame()
    */    
   unsigned char* pcXtcFrame = (unsigned char*) _pDgOut + sizeof(CDatagram);
      
-  TypeId typePrincetonFrame(TypeId::Id_PrincetonFrame, Princeton::FrameV1::Version);
   Xtc* pXtcFrame = 
-   new ((char*)pcXtcFrame) Xtc(typePrincetonFrame, _src);
+   new ((char*)pcXtcFrame) Xtc(_princetonDataType, _src);
   pXtcFrame->alloc( iFrameSize );
 
   unsigned char* pcXtcInfo  = (unsigned char*) pXtcFrame->next() ;
      
-  TypeId typePrincetonInfo(TypeId::Id_PrincetonInfo, Princeton::InfoV1::Version);
   Xtc* pXtcInfo = 
-   new ((char*)pcXtcInfo) Xtc(typePrincetonInfo, _src);
+   new ((char*)pcXtcInfo) Xtc(_princetonDataType, _src);
   pXtcInfo->alloc( sizeof(Princeton::InfoV1) );
   
   return 0;
@@ -1246,17 +1243,17 @@ int PrincetonServer::resetFrameData(bool bDelOutDatagram)
 
 void PrincetonServer::setupROI(rgn_type& region)
 {
-  region.s1   = _configCamera.orgX();
-  region.s2   = _configCamera.orgX() + _configCamera.width() - 1;
-  region.sbin = _configCamera.binX();
-  region.p1   = _configCamera.orgY();
-  region.p2   = _configCamera.orgY() + _configCamera.height() - 1;
-  region.pbin = _configCamera.binY();
+  region.s1   = _config.orgX();
+  region.s2   = _config.orgX() + _config.width() - 1;
+  region.sbin = _config.binX();
+  region.p1   = _config.orgY();
+  region.p2   = _config.orgY() + _config.height() - 1;
+  region.pbin = _config.binY();
 }
 
 int PrincetonServer::checkTemperature()
 {
-  const int16 iCoolingTemp = (int)( _configCamera.coolingTemp() * 100 );
+  const int16 iCoolingTemp = (int)( _config.coolingTemp() * 100 );
   int16 iTemperatureCurrent = -1;  
   
   PICAM::getAnyParam(_hCam, PARAM_TEMP, &iTemperatureCurrent );        
@@ -1275,7 +1272,7 @@ int PrincetonServer::checkTemperature()
   }
   else
   {
-    const int       iFrameSize   = _configCamera.frameSize();
+    const int       iFrameSize   = _config.frameSize();
     float           fCoolingTemp = iTemperatureCurrent / 100.0f;  
     unsigned char*  pcInfo       = (unsigned char*) _pDgOut + sizeof(CDatagram) + sizeof(Xtc) + iFrameSize + sizeof(Xtc);  
     new (pcInfo) Princeton::InfoV1( fCoolingTemp );
@@ -1338,7 +1335,7 @@ int PrincetonServer::checkSequence( const Datagram& datagram )
 const int       PrincetonServer::_iMaxCoolingTime;  
 const int       PrincetonServer::_iTemperatureHiTol;
 const int       PrincetonServer::_iTemperatureLoTol;
-const int       PrincetonServer::_iFrameHeaderSize      = sizeof(CDatagram) + sizeof(Xtc) + sizeof(Princeton::FrameV1);
+const int       PrincetonServer::_iFrameHeaderSize      = sizeof(CDatagram) + sizeof(Xtc) + sizeof(PrincetonDataType);
 const int       PrincetonServer::_iInfoSize             = sizeof(Xtc) + sizeof(Princeton::InfoV1);
 const int       PrincetonServer::_iMaxFrameDataSize     = _iFrameHeaderSize + 2048*2048*2 + _iInfoSize;
 const int       PrincetonServer::_iPoolDataCount;

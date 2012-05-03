@@ -1,12 +1,12 @@
-#ifndef PRINCETON_MANAGER_HH
-#define PRINCETON_MANAGER_HH
+#ifndef FLI_MANAGER_HH
+#define FLI_MANAGER_HH
 
 #include <string>
 #include <stdexcept>
 
 #include "pdsdata/xtc/Src.hh"
 #include "pdsdata/xtc/TypeId.hh"
-#include "pds/config/PrincetonConfigType.hh"
+#include "pds/config/FliConfigType.hh"
 #include "pds/client/Fsm.hh"
 
 namespace Pds 
@@ -18,19 +18,19 @@ class CfgClientNfs;
 class Action;
 class Response;
 class GenericPool;
-class PrincetonServer;
+class FliServer;
 
-class PrincetonManager 
+class FliManager 
 {
 public:
-  PrincetonManager(CfgClientNfs& cfg, int iCamera, bool bDelayMode, bool bInitTest, std::string sConfigDb, int iSleepInt, int iDebugLevel);
-  ~PrincetonManager();
+  FliManager(CfgClientNfs& cfg, int iCamera, bool bDelayMode, bool bInitTest, std::string sConfigDb, int iSleepInt, int iDebugLevel);
+  ~FliManager();
 
   Appliance&    appliance() { return *_pFsm; }
   
-  // Camera control: Gateway functions for accessing PrincetonServer class
+  // Camera control: Gateway functions for accessing FliServer class
   int   map(const Allocation& alloc);
-  int   config(PrincetonConfigType& config, std::string& sConfigWarning);
+  int   config(FliConfigType& config, std::string& sConfigWarning);
   int   unconfig();
   int   beginRun();
   int   endRun();
@@ -66,14 +66,14 @@ private:
   Action*             _pActionL1Accept;
   Response*           _pResponse;  
   
-  PrincetonServer*    _pServer;  
+  FliServer*    _pServer;  
   unsigned int        _uNumShotsInCycle;
 };
 
-class PrincetonManagerException : public std::runtime_error
+class FliManagerException : public std::runtime_error
 {
 public:
-  explicit PrincetonManagerException( const std::string& sDescription ) :
+  explicit FliManagerException( const std::string& sDescription ) :
     std::runtime_error( sDescription )
   {}  
 };

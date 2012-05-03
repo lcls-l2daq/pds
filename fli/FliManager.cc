@@ -1,4 +1,4 @@
-#include "PrincetonManager.hh"
+#include "FliManager.hh"
 
 #include <fcntl.h>
 #include <stdio.h>
@@ -11,7 +11,7 @@
 #include <new>
 #include <vector>
 
-#include "pdsdata/princeton/FrameV1.hh"
+#include "pdsdata/fli/FrameV1.hh"
 #include "pds/service/GenericPool.hh"
 #include "pds/service/Task.hh"
 #include "pds/service/Routine.hh"
@@ -20,7 +20,7 @@
 #include "pds/client/Response.hh"
 #include "pds/config/CfgClientNfs.hh"
 #include "pds/utility/StreamPorts.hh"
-#include "PrincetonServer.hh"
+#include "FliServer.hh"
 
 using std::string;
 
@@ -29,10 +29,10 @@ namespace Pds
 
 static int printDataTime(const InDatagram* in);
 
-class PrincetonMapAction : public Action 
+class FliMapAction : public Action 
 {
 public:
-    PrincetonMapAction(PrincetonManager& manager, CfgClientNfs& cfg, int iDebugLevel) : 
+    FliMapAction(FliManager& manager, CfgClientNfs& cfg, int iDebugLevel) : 
       _manager(manager), _cfg(cfg), _iMapCameraFail(0), _iDebugLevel(iDebugLevel) {}
     
     virtual Transition* fire(Transition* tr)     
@@ -55,28 +55,28 @@ public:
       return in;
     }
 private:
-    PrincetonManager& _manager;
+    FliManager& _manager;
     CfgClientNfs&     _cfg;
     int               _iMapCameraFail;    
     int               _iDebugLevel;
 };
 
-class PrincetonConfigAction : public Action 
+class FliConfigAction : public Action 
 {
 public:
-    PrincetonConfigAction(PrincetonManager& manager, CfgClientNfs& cfg, bool bDelayMode, int iDebugLevel) :
+    FliConfigAction(FliManager& manager, CfgClientNfs& cfg, bool bDelayMode, int iDebugLevel) :
         _manager(manager), _cfg(cfg), _occPool(sizeof(UserMessage),2), _bDelayMode(bDelayMode), _iDebugLevel(iDebugLevel),
-        _cfgtc(_typePrincetonConfig, cfg.src()), _config(), _iConfigCameraFail(0)
+        _cfgtc(_typeFliConfig, cfg.src()), _config(), _iConfigCameraFail(0)
     {}
     
     virtual Transition* fire(Transition* tr) 
     {
-      int iConfigSize = _cfg.fetch(*tr, _typePrincetonConfig, &_config, sizeof(_config));
+      int iConfigSize = _cfg.fetch(*tr, _typeFliConfig, &_config, sizeof(_config));
       
       if ( iConfigSize == 0 ) // no config data is found in the database.       
       {
-        printf( "PrincetonConfigAction::fire(): No config data is loaded. Will use default values for configuring the camera.\n" );
-        _config = PrincetonConfigType(
+        printf( "FliConfigAction::fire(): No config data is loaded. Will use default values for configuring the camera.\n" );
+        _config = FliConfigType(
           16, // Width
           16, // Height
           0,  // OrgX
@@ -85,7 +85,7 @@ public:
           1,  // BinX
           0.001,  // Exposure time
           25.0f,  // Cooling temperature
-          3,  // Gain index
+          1,  // Gain index
           1,  // Readout speed index
           1   // Redout event code
         );
@@ -93,10 +93,10 @@ public:
               
       if ( iConfigSize != 0 && iConfigSize != sizeof(_config) )
       {
-        printf( "PrincetonConfigAction::fire(): Config data has incorrect size (%d B). Should be %d B.\n",
-          iConfigSize, sizeof(_config) );
+        printf( "FliConfigAction::fire(): Config data has incorrect size (%d B). Should be %d B.\n",
+          iConfigSize, (int) sizeof(_config) );
           
-        _config       = PrincetonConfigType();
+        _config       = FliConfigType();
         _iConfigCameraFail  = 1;
       }
                   
@@ -129,7 +129,7 @@ public:
         if ( _iConfigCameraFail != 0 )
           in->datagram().xtc.damage.increase(Pds::Damage::UserDefined);
                   
-        if (_iDebugLevel>=2) printf( "Princeton Config data:\n"
+        if (_iDebugLevel>=2) printf( "Fli Config data:\n"
           "  Width %d Height %d  Org X %d Y %d  Bin X %d Y %d\n"
           "  Exposure time %gs  Cooling Temperature %.1f C  Gain Index %d\n"
           "  Readout Speed %d  Readout Event %d Num Delay Shots %d\n",
@@ -145,30 +145,30 @@ public:
     }
 
 private:
-    PrincetonManager&   _manager;    
+    FliManager&   _manager;    
     CfgClientNfs&       _cfg;
     GenericPool         _occPool;
     bool                _bDelayMode;
     const int           _iDebugLevel;
     Xtc                 _cfgtc;
-    PrincetonConfigType _config;    
+    FliConfigType _config;    
     int                 _iConfigCameraFail;
     
     /*
      * private static consts
      */
-    static const TypeId _typePrincetonConfig;    
+    static const TypeId _typeFliConfig;    
 };
 
 /*
  * Definition of private static consts
  */
-const TypeId PrincetonConfigAction::_typePrincetonConfig = TypeId(TypeId::Id_PrincetonConfig, PrincetonConfigType::Version);
+const TypeId FliConfigAction::_typeFliConfig = TypeId(TypeId::Id_FliConfig, FliConfigType::Version);
 
-class PrincetonUnconfigAction : public Action 
+class FliUnconfigAction : public Action 
 {
 public:
-    PrincetonUnconfigAction(PrincetonManager& manager, int iDebugLevel) : _manager(manager), _iDebugLevel(iDebugLevel), 
+    FliUnconfigAction(FliManager& manager, int iDebugLevel) : _manager(manager), _iDebugLevel(iDebugLevel), 
      _iUnConfigCameraFail(0)
     {}
         
@@ -189,15 +189,15 @@ public:
       return in;
     }    
 private:
-    PrincetonManager& _manager;
+    FliManager& _manager;
     int               _iDebugLevel;
     int               _iUnConfigCameraFail;
 };
 
-class PrincetonBeginRunAction : public Action 
+class FliBeginRunAction : public Action 
 {
 public:
-    PrincetonBeginRunAction(PrincetonManager& manager, int iDebugLevel) : _manager(manager), _iDebugLevel(iDebugLevel),
+    FliBeginRunAction(FliManager& manager, int iDebugLevel) : _manager(manager), _iDebugLevel(iDebugLevel),
      _iBeginRunCameraFail(0)
     {}
         
@@ -218,15 +218,15 @@ public:
       return in;
     }    
 private:
-    PrincetonManager& _manager;
+    FliManager& _manager;
     int               _iDebugLevel;
     int               _iBeginRunCameraFail;
 };
 
-class PrincetonEndRunAction : public Action 
+class FliEndRunAction : public Action 
 {
 public:
-    PrincetonEndRunAction(PrincetonManager& manager, int iDebugLevel) : _manager(manager), _iDebugLevel(iDebugLevel),
+    FliEndRunAction(FliManager& manager, int iDebugLevel) : _manager(manager), _iDebugLevel(iDebugLevel),
      _iEndRunCameraFail(0)
     {}
         
@@ -247,15 +247,15 @@ public:
       return in;
     }        
 private:
-    PrincetonManager& _manager;
+    FliManager& _manager;
     int               _iDebugLevel;
     int               _iEndRunCameraFail;
 };
 
-class PrincetonL1AcceptAction : public Action 
+class FliL1AcceptAction : public Action 
 {
 public:
-    PrincetonL1AcceptAction(PrincetonManager& manager, CfgClientNfs& cfg, bool bDelayMode, int iDebugLevel) :
+    FliL1AcceptAction(FliManager& manager, CfgClientNfs& cfg, bool bDelayMode, int iDebugLevel) :
         _manager(manager), _cfg(cfg), _bDelayMode(bDelayMode), _iDebugLevel(iDebugLevel)
         //, _poolFrameData(1024*1024*8 + 1024, 16) // pool for debug
     {
@@ -310,15 +310,15 @@ public:
       /*
        * The folloing code is used for debugging variable L1 data size
        */
-      //int iDataSize = 1024*1024*8 + sizeof(Princeton::FrameV1);            
+      //int iDataSize = 1024*1024*8 + sizeof(Fli::FrameV1);            
       //out = 
       // new ( &_poolFrameData ) CDatagram( in->datagram() ); 
       //out->datagram().xtc.alloc( sizeof(Xtc) + iDataSize );        
       //unsigned char* pXtcHeader = (unsigned char*) out + sizeof(CDatagram);
       //   
-      //TypeId typePrincetonFrame(TypeId::Id_PrincetonFrame, Princeton::FrameV1::Version);
+      //TypeId typeFliFrame(TypeId::Id_FliFrame, Fli::FrameV1::Version);
       //Xtc* pXtcFrame = 
-      // new ((char*)pXtcHeader) Xtc(typePrincetonFrame, _cfg.src() );
+      // new ((char*)pXtcHeader) Xtc(typeFliFrame, _cfg.src() );
       //pXtcFrame->alloc( iDataSize );      
 
       //!!debug
@@ -343,7 +343,7 @@ public:
         if ( xtcData.sizeofPayload() != 0 ) 
         {
           printf( "Frame  payload size = %d\n", xtcFrame.sizeofPayload());
-          Princeton::FrameV1& frameData = *(Princeton::FrameV1*) xtcFrame.payload();
+          Fli::FrameV1& frameData = *(Fli::FrameV1*) xtcFrame.payload();
           printf( "Frame  Id 0x%05x  ReadoutTime %.2fs\n", frameData.shotIdStart(), 
            frameData.readoutTime() );
         }
@@ -369,17 +369,17 @@ public:
     }
   
 private:        
-    PrincetonManager&   _manager;
+    FliManager&   _manager;
     CfgClientNfs&       _cfg;
     bool                _bDelayMode;    
     int                 _iDebugLevel;
     //GenericPool         _poolFrameData; // pool for debug
 };
 
-class PrincetonBeginCalibCycleAction : public Action 
+class FliBeginCalibCycleAction : public Action 
 {
 public:
-    PrincetonBeginCalibCycleAction(PrincetonManager& manager, int iDebugLevel) : 
+    FliBeginCalibCycleAction(FliManager& manager, int iDebugLevel) : 
      _manager(manager), _iDebugLevel(iDebugLevel),
      _iBeginCalibCycleCameraFail(0)
     {}
@@ -403,15 +403,15 @@ public:
     }
     
 private:
-    PrincetonManager& _manager;
+    FliManager& _manager;
     int               _iDebugLevel;
     int               _iBeginCalibCycleCameraFail;
 };
 
-class PrincetonEndCalibCycleAction : public Action 
+class FliEndCalibCycleAction : public Action 
 {
 public:
-    PrincetonEndCalibCycleAction(PrincetonManager& manager, int iDebugLevel) : 
+    FliEndCalibCycleAction(FliManager& manager, int iDebugLevel) : 
      _manager(manager), _iDebugLevel(iDebugLevel),
      _iEndCalibCycleCameraFail(0)
     {}
@@ -435,15 +435,15 @@ public:
     }
     
 private:
-    PrincetonManager& _manager;
+    FliManager& _manager;
     int               _iDebugLevel;
     int               _iEndCalibCycleCameraFail;
 };
 
-class PrincetonEnableAction : public Action 
+class FliEnableAction : public Action 
 {
 public:
-    PrincetonEnableAction(PrincetonManager& manager, int iDebugLevel) : 
+    FliEnableAction(FliManager& manager, int iDebugLevel) : 
      _manager(manager), _iDebugLevel(iDebugLevel),
      _iEnableCameraFail(0)
     {}
@@ -467,15 +467,15 @@ public:
     }
     
 private:
-    PrincetonManager& _manager;
-    int               _iDebugLevel;
-    int               _iEnableCameraFail;
+    FliManager& _manager;
+    int         _iDebugLevel;
+    int         _iEnableCameraFail;
 };
 
-class PrincetonDisableAction : public Action 
+class FliDisableAction : public Action 
 {
 public:
-    PrincetonDisableAction(PrincetonManager& manager, int iDebugLevel) : 
+    FliDisableAction(FliManager& manager, int iDebugLevel) : 
      _manager(manager), _occPool(sizeof(UserMessage),2), _iDebugLevel(iDebugLevel), 
      _iDisableCameraFail(0)
     {}
@@ -509,7 +509,7 @@ public:
         if ( xtcData.sizeofPayload() != 0 ) 
         {
           printf( "Frame  payload size = %d\n", xtcFrame.sizeofPayload());
-          Princeton::FrameV1& frameData = *(Princeton::FrameV1*) xtcFrame.payload();
+          Fli::FrameV1& frameData = *(Fli::FrameV1*) xtcFrame.payload();
           printf( "Frame Id Start %d ReadoutTime %f\n", frameData.shotIdStart(), 
            frameData.readoutTime() );
         }
@@ -522,7 +522,7 @@ public:
       if (out != in)
       {
         UserMessage* msg = new(&_occPool) UserMessage();
-        msg->append("Run stopped before princeton data is sent out,\n");
+        msg->append("Run stopped before fli data is sent out,\n");
         msg->append("so the data is attached to the Disable event.");      
         _manager.appliance().post(msg);
       }
@@ -531,18 +531,18 @@ public:
     }
     
 private:
-    PrincetonManager& _manager;
+    FliManager& _manager;
     GenericPool       _occPool;
     int               _iDebugLevel;
-    int               _iDisableCameraFail;    
+    int               _iDisableCameraFail;
 };
-
-//
+ 
+// 
 //  **weaver
 //
-class PrincetonResponse : public Response {
+class FliResponse : public Response {
 public:
-  PrincetonResponse(PrincetonManager& mgr, int iDebugLevel) :
+  FliResponse(FliManager& mgr, int iDebugLevel) :
     _manager(mgr), _iDebugLevel(iDebugLevel)
   {
   }
@@ -562,37 +562,37 @@ public:
     return 0;
   }
 private:
-  PrincetonManager& _manager;
+  FliManager& _manager;
   int               _iDebugLevel;
 };
 
-PrincetonManager::PrincetonManager(CfgClientNfs& cfg, int iCamera, bool bDelayMode, bool bInitTest, 
+FliManager::FliManager(CfgClientNfs& cfg, int iCamera, bool bDelayMode, bool bInitTest, 
   string sConfigDb, int iSleepInt, int iDebugLevel) :
   _iCamera(iCamera), _bDelayMode(bDelayMode), _bInitTest(bInitTest), 
   _sConfigDb(sConfigDb), _iSleepInt(iSleepInt),
   _iDebugLevel(iDebugLevel), _pServer(NULL), _uNumShotsInCycle(0)
 {
-  _pActionMap             = new PrincetonMapAction      (*this, cfg, _iDebugLevel);
-  _pActionConfig          = new PrincetonConfigAction   (*this, cfg, _bDelayMode, _iDebugLevel);
-  _pActionUnconfig        = new PrincetonUnconfigAction (*this, _iDebugLevel);  
-  _pActionBeginRun        = new PrincetonBeginRunAction (*this, _iDebugLevel);
-  _pActionEndRun          = new PrincetonEndRunAction   (*this, _iDebugLevel);  
-  _pActionBeginCalibCycle = new PrincetonBeginCalibCycleAction 
+  _pActionMap             = new FliMapAction      (*this, cfg, _iDebugLevel);
+  _pActionConfig          = new FliConfigAction   (*this, cfg, _bDelayMode, _iDebugLevel);
+  _pActionUnconfig        = new FliUnconfigAction (*this, _iDebugLevel);  
+  _pActionBeginRun        = new FliBeginRunAction (*this, _iDebugLevel);
+  _pActionEndRun          = new FliEndRunAction   (*this, _iDebugLevel);  
+  _pActionBeginCalibCycle = new FliBeginCalibCycleAction 
                                                         (*this, _iDebugLevel);
-  _pActionEndCalibCycle   = new PrincetonEndCalibCycleAction   
+  _pActionEndCalibCycle   = new FliEndCalibCycleAction   
                                                         (*this, _iDebugLevel);  
-  _pActionEnable          = new PrincetonEnableAction   (*this, _iDebugLevel);
-  _pActionDisable         = new PrincetonDisableAction  (*this, _iDebugLevel);
-  _pActionL1Accept        = new PrincetonL1AcceptAction (*this, cfg, _bDelayMode, _iDebugLevel);
-  _pResponse              = new PrincetonResponse       (*this, _iDebugLevel);
+  _pActionEnable          = new FliEnableAction   (*this, _iDebugLevel);
+  _pActionDisable         = new FliDisableAction  (*this, _iDebugLevel);
+  _pActionL1Accept        = new FliL1AcceptAction (*this, cfg, _bDelayMode, _iDebugLevel);
+  _pResponse              = new FliResponse       (*this, _iDebugLevel);
 
   try
   {     
-  _pServer = new PrincetonServer(_iCamera, _bDelayMode, _bInitTest, cfg.src(), _sConfigDb, _iSleepInt, _iDebugLevel);    
+  _pServer = new FliServer(_iCamera, _bDelayMode, _bInitTest, cfg.src(), _sConfigDb, _iSleepInt, _iDebugLevel);    
   }
-  catch ( PrincetonServerException& eServer )
+  catch ( FliServerException& eServer )
   {
-    throw PrincetonManagerException( "PrincetonManager::PrincetonManager(): Server Initialization Failed" );
+    throw FliManagerException( "FliManager::FliManager(): Server Initialization Failed" );
   }
 
   _pFsm = new Fsm();    
@@ -609,7 +609,7 @@ PrincetonManager::PrincetonManager(CfgClientNfs& cfg, int iCamera, bool bDelayMo
   _pFsm->callback(OccurrenceId::EvrCommand,       _pResponse);
 }
 
-PrincetonManager::~PrincetonManager()
+FliManager::~FliManager()
 {   
   delete _pFsm;
   
@@ -626,12 +626,12 @@ PrincetonManager::~PrincetonManager()
   delete _pActionMap; 
 }
 
-int PrincetonManager::map(const Allocation& alloc)
+int FliManager::map(const Allocation& alloc)
 {
   return _pServer->map();
 }
 
-int PrincetonManager::config(PrincetonConfigType& config, std::string& sConfigWarning)
+int FliManager::config(FliConfigType& config, std::string& sConfigWarning)
 {
   if ( !_bDelayMode )
     config.setNumDelayShots(0);
@@ -639,43 +639,43 @@ int PrincetonManager::config(PrincetonConfigType& config, std::string& sConfigWa
   return _pServer->config(config, sConfigWarning);
 }
 
-int PrincetonManager::unconfig()
+int FliManager::unconfig()
 {
   return _pServer->unconfig();
 }
 
-int PrincetonManager::beginRun()
+int FliManager::beginRun()
 {
   return _pServer->beginRun();
 }
 
-int PrincetonManager::endRun()
+int FliManager::endRun()
 {
   return _pServer->endRun();
 }
 
-int PrincetonManager::beginCalibCycle()
+int FliManager::beginCalibCycle()
 {
   _uNumShotsInCycle = 0;
   return _pServer->beginCalibCycle();
 }
 
-int PrincetonManager::endCalibCycle()
+int FliManager::endCalibCycle()
 {
   return _pServer->endCalibCycle();
 }
 
-int PrincetonManager::enable()
+int FliManager::enable()
 {
   return _pServer->enable();
 }
 
-int PrincetonManager::disable()
+int FliManager::disable()
 {
   return _pServer->disable();
 }
 
-int PrincetonManager::l1Accept(bool& bWait)
+int FliManager::l1Accept(bool& bWait)
 { 
   ++_uNumShotsInCycle;
   
@@ -686,29 +686,29 @@ int PrincetonManager::l1Accept(bool& bWait)
   return 0;
 }
 
-int PrincetonManager::startExposure()
+int FliManager::startExposure()
 {
   return _pServer->startExposure();
 }
 
 /* !! recover from delay mode
-int PrincetonManager::startExposurePrompt(int iShotId, InDatagram* in, InDatagram*& out)
+int FliManager::startExposurePrompt(int iShotId, InDatagram* in, InDatagram*& out)
 {
   return _pServer->startExposurePrompt(iShotId, in, out);  
 }
 
-int PrincetonManager::startExposureDelay(int iShotId, InDatagram* in)
+int FliManager::startExposureDelay(int iShotId, InDatagram* in)
 {
   return _pServer->startExposureDelay(iShotId, in);  
 }
 */
 
-int PrincetonManager::getData(InDatagram* in, InDatagram*& out)
+int FliManager::getData(InDatagram* in, InDatagram*& out)
 {
   return _pServer->getData(in, out);
 }
 
-int PrincetonManager::waitData(InDatagram* in, InDatagram*& out)
+int FliManager::waitData(InDatagram* in, InDatagram*& out)
 {
   int iFail = _pServer->waitData(in, out);
   
@@ -718,7 +718,7 @@ int PrincetonManager::waitData(InDatagram* in, InDatagram*& out)
   return iFail;
 }
 
-int PrincetonManager::checkExposureEventCode(unsigned code)
+int FliManager::checkExposureEventCode(unsigned code)
 {
   return (code == _pServer->config().exposureEventCode());
 }

@@ -1,15 +1,14 @@
-#ifndef PRINCETON_SERVER_HH
-#define PRINCETON_SERVER_HH
+#ifndef FLI_SERVER_HH
+#define FLI_SERVER_HH
 
 #include <time.h>
 #include <pthread.h>
 #include <string>
 #include <stdexcept>
 
-#include "pvcam/include/master.h"
-#include "pvcam/include/pvcam.h"
+#include "fli/include/libfli.h"
 #include "pdsdata/xtc/DetInfo.hh"
-#include "pds/config/PrincetonConfigType.hh"
+#include "pds/config/FliConfigType.hh"
 #include "pds/xtc/InDatagram.hh"
 #include "pds/xtc/Datagram.hh"
 #include "pds/xtc/CDatagram.hh"
@@ -20,16 +19,16 @@ namespace Pds
 {
 
 class Task;
-class PrincetonServer;
+class FliServer;
 
-class PrincetonServer
+class FliServer
 {
 public:
-  PrincetonServer(int iCamera, bool bUseCaptureTask, bool bInitTest, const Src& src, std::string sConfigDb, int iSleepInt, int iDebugLevel);
-  ~PrincetonServer();
+  FliServer(int iCamera, bool bUseCaptureTask, bool bInitTest, const Src& src, std::string sConfigDb, int iSleepInt, int iDebugLevel);
+  ~FliServer();
   
   int   map();  
-  int   config(PrincetonConfigType& config, std::string& sConfigWarning);
+  int   config(FliConfigType& config, std::string& sConfigWarning);
   int   unconfig();
   int   beginRun();
   int   endRun();  
@@ -40,7 +39,7 @@ public:
   int   startExposure();
   int   getData (InDatagram* in, InDatagram*& out);
   int   waitData(InDatagram* in, InDatagram*& out);
-  PrincetonConfigType&
+  FliConfigType&
         config() { return _config; }
   
   enum  ErrorCodeEnum
@@ -72,12 +71,10 @@ private:
    * private static consts
    */    
   static const int      _iMaxCoolingTime        = 100;        // in miliseconds
-  //static const int      _iMaxCoolingTime        = 58000;        // in miliseconds
-  static const int      _iTemperatureHiTol      = 100;          // 1 degree Celcius
-  static const int      _iTemperatureLoTol      = 20000;        // 200 degree Celcius -> Do not use Low Tolerance now
+  static const int      _fTemperatureHiTol      = 1;          // 1 degree Celcius
+  static const int      _fTemperatureLoTol      = 200;        // 200 degree Celcius -> Do not use Low Tolerance now
   static const int      _iClockSavingExpTime    = 24*60*60*1000;// 24 hours -> Long exposure time for clock saving
   static const int      _iFrameHeaderSize;                      // Buffer header used to store the CDatagram, Xtc and FrameV1 object
-  static const int      _iInfoSize;                             // For storing temperature infomation
   static const int      _iMaxFrameDataSize;                     // Buffer for 4 Mega (image pixels) x 2 (bytes per pixel) + 
                                                                 //   info size + header size
   static const int      _iPoolDataCount         = 5;            // 4 buffer for traffic shaping, 1 buffer for capture thread (in delay mode)
@@ -93,15 +90,19 @@ private:
   class CaptureRoutine : public Routine 
   {
   public:
-    CaptureRoutine(PrincetonServer& server);
+    CaptureRoutine(FliServer& server);
     void routine(void);
   private:
-    PrincetonServer& _server;
+    FliServer& _server;
   };  
   
   /*
    * private functions
    */
+   
+  /*
+   * camera control functions
+   */ 
   int   init();
   int   deinit();  
   
@@ -112,13 +113,14 @@ private:
   int   initCaptureTask(); // for delay mode use only
   int   runCaptureTask();
   
-  int   initCameraSettings(PrincetonConfigType& config, std::string& sConfigWarning);
   int   initCameraBeforeConfig();
+  int   configCamera(FliConfigType& config, std::string& sConfigWarning);
 
   int   initTest();
+  int   setupROI();
   
-  int   initClockSaving();
-  int   deinitClockSaving();
+  static int  getCamera(flidomain_t domain, int iCameraId, std::string& strCameraDev);
+  
   /*
    * Frame handling functions
    */
@@ -128,10 +130,9 @@ private:
   int   processFrame();
   int   resetFrameData(bool bDelOutDatagram);
 
-  int   setupCooling(float fCoolingTemperature);    
+  int   setupCooling(double fCoolingTemperature);    
   int   checkTemperature();  
-  int   checkSequence( const Datagram& datagram );
-  void  setupROI(rgn_type& region);
+  //int   checkSequence( const Datagram& datagram );
   
   /*
    * Initial settings
@@ -147,17 +148,22 @@ private:
   /*
    * Camera basic status control
    */
-  short               _hCam;  
+  flidev_t            _hCam;  
   bool                _bCameraInited;
   bool                _bCaptureInited;
-  bool                _bClockSaving;
   
   /*
    * Camera hardware settings
    */
-  int16               _i16CcdWidth;
-  int16               _i16CcdHeight; 
-  int16               _i16MaxSpeedTableIndex; 
+  int                 _iCcdWidth;
+  int                 _iCcdHeight; 
+  int                 _iCcdOrgX;
+  int                 _iCcdOrgY;    
+  int                 _iCcdDataWidth;
+  int                 _iCcdDataHeight;      
+  int                 _iImageWidth;
+  int                 _iImageHeight;
+  
   
   /*
    * Event sequence/traffic control
@@ -170,7 +176,7 @@ private:
   /*
    * Config data
    */ 
-  PrincetonConfigType _config; 
+  FliConfigType _config; 
   
   /*
    * Per-frame data
@@ -181,7 +187,7 @@ private:
    * Buffer control
    */
   GenericPool         _poolFrameData;
-  InDatagram*         _pDgOut;          // Datagram for outtputing to the Princeton Manager
+  InDatagram*         _pDgOut;          // Datagram for outtputing to the Fli Manager
     
   /*
    * Capture Task Control
@@ -196,7 +202,7 @@ private:
   inline static void lockCameraData(char* sDescription)
   {
     if ( pthread_mutex_lock(&_mutexPlFuncs) )
-      printf( "PrincetonServer::lockCameraData(): pthread_mutex_timedlock() failed for %s\n", sDescription );
+      printf( "FliServer::lockCameraData(): pthread_mutex_timedlock() failed for %s\n", sDescription );
   }
   inline static void releaseLockCameraData()
   {
@@ -223,10 +229,10 @@ private:
   static pthread_mutex_t _mutexPlFuncs;
 };
 
-class PrincetonServerException : public std::runtime_error
+class FliServerException : public std::runtime_error
 {
 public:
-  explicit PrincetonServerException( const std::string& sDescription ) :
+  explicit FliServerException( const std::string& sDescription ) :
     std::runtime_error( sDescription )
   {}  
 };
