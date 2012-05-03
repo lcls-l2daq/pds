@@ -376,11 +376,11 @@ int FliServer::initCapture()
     return 3;
   }
         
-  if ( _config.frameSize() + _iFrameHeaderSize > _iMaxFrameDataSize )
+  if ( _config.frameSize() - (int) sizeof(FliDataType) + _iFrameHeaderSize > _iMaxFrameDataSize )
   {
-    printf( "FliServer::initCapture():Frame size (%i) + Frame header size (%d) "
+    printf( "FliServer::initCapture():Frame size (%i) + Frame header size (%d)"
      "is larger than internal data frame buffer size (%d)\n",
-     _config.frameSize(), _iFrameHeaderSize, _iMaxFrameDataSize );
+     _config.frameSize() - (int) sizeof(FliDataType), _iFrameHeaderSize, _iMaxFrameDataSize );
     return 4;    
   }
      
@@ -1288,7 +1288,7 @@ const int       FliServer::_iMaxCoolingTime;
 const int       FliServer::_fTemperatureHiTol;
 const int       FliServer::_fTemperatureLoTol;
 const int       FliServer::_iFrameHeaderSize      = sizeof(CDatagram) + sizeof(Xtc) + sizeof(FliDataType);
-const int       FliServer::_iMaxFrameDataSize     = _iFrameHeaderSize + 2048*2048*2;
+const int       FliServer::_iMaxFrameDataSize     = _iFrameHeaderSize + 4096*4096*2;
 const int       FliServer::_iPoolDataCount;
 const int       FliServer::_iMaxReadoutTime;
 const int       FliServer::_iMaxThreadEndTime;
