@@ -796,7 +796,7 @@ int PrincetonServer::setupCooling(float fCoolingTemperature)
   
   if ( iTemperatureCurrent > iCoolingTemp ) 
   {
-    printf("PrincetonServer::setupCooling(): Cooling failed, final temperature = %.1f C", 
+    printf("PrincetonServer::setupCooling(): Cooling failed, final temperature = %.1f C\n", 
      (iTemperatureCurrent / 100.0f) );
     return ERROR_COOLING_FAILURE;
   }

@@ -679,10 +679,11 @@ int PrincetonManager::l1Accept(bool& bWait)
 { 
   ++_uNumShotsInCycle;
   
-  if (_bDelayMode)
+  if (!_bDelayMode)
     bWait = false;
   else
-    bWait = (_uNumShotsInCycle>= _pServer->config().numDelayShots());
+    bWait = (_uNumShotsInCycle >= _pServer->config().numDelayShots());
+        
   return 0;
 }
 
