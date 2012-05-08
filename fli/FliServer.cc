@@ -485,7 +485,40 @@ int FliServer::configCamera(FliConfigType& config, std::string& sConfigWarning)
   printf("Model: %s HW Rev: %ld FW Rev: %ld Pixel Size (um): x %lg y %lg\n", sBuffer,
     iHwRevsion, iFwRevsion, fPixelSizeX, fPixelSizeY);
   
-  // set speed index ....
+  /* 
+   * set speed index
+   *
+   * speed index = 0 => set mode = 1 (1MHz)
+   * speed index = 1 => set mode = 0 (8MHz)
+   */
+  flimode_t iModeSet = (config.readoutSpeedIndex() == 0 ? 1 : 0);
+  iError = FLISetCameraMode(_hCam, iModeSet);
+  if (iError != 0)
+  {
+    printf("FliServer::configCamera(): FLISetCameraMode() failed. Error code %d: %s\n", iError, strerror(-iError));
+    return 6;
+  }    
+  flimode_t iModeGet = -1;
+  iError = FLIGetCameraMode(_hCam, &iModeGet);
+  if (iError != 0)
+  {
+    printf("FliServer::configCamera(): FLIGetCameraMode() failed. Error code %d: %s\n", iError, strerror(-iError));
+    return 7;
+  }    
+  char sCameraMode[32];
+  iError = FLIGetCameraModeString(_hCam, iModeGet, sCameraMode, sizeof(sCameraMode) );
+  if (iError != 0)
+  {
+    printf("FliServer::configCamera(): FLIGetCameraModeString() failed. Error code %d: %s\n", iError, strerror(-iError));
+    return 8;
+  }        
+  printf("Speed : %d %s\n", (int) iModeGet, sCameraMode);       
+  if (iModeGet != iModeSet)
+  {
+    printf("FliServer::configCamera(): Camera Mode get value (%d) != set value (%d)\n", (int) iModeGet, (int) iModeSet);
+    return 9;
+  }
+  
   // set gain ...
   
   return 0;
