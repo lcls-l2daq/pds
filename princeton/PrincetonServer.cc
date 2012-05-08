@@ -1137,7 +1137,8 @@ int PrincetonServer::waitForNewFrameAvailable()
   
   // Report the readout time for the first few L1 events
   if ( _iNumL1Event <= _iMaxEventReport )
-    printf( "Readout time report [%d]: %.2f s\n", _iNumL1Event, _fReadoutTime );
+    printf( "Readout time report [%d]: %.2f s  Non-exposure time %.2f s\n", _iNumL1Event, _fReadoutTime,
+      _fReadoutTime - _config.exposureTime());
     
   return 0;
 }

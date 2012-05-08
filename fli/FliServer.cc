@@ -342,23 +342,14 @@ int FliServer::initCapture()
     deinitCapture();
     
   LockCameraData lockInitCapture("FliServer::initCapture()");    
-
-  // Note: pl_exp_init_seq() need not be called here, because
-  //       it doesn't help save the clocks  
-  ///* Initialize capture related functions */    
-  //if (!pl_exp_init_seq())
-  //{
-  //  printPvError("FliServer::initCapture(): pl_exp_init_seq() failed!\n");
-  //  return ERROR_PVCAM_FUNC_FAIL; 
-  //}  
-  
+ 
   int iError = setupROI();
   if (iError != 0)
     return 1;
   
   /*
    * _config.exposureTime() time is measured in seconds,
-   *  while iExposureTime for pl_exp_setup() is measured in milliseconds
+   *  while iExposureTime for FLISetExposureTime() is measured in milliseconds
    */
   const long int iExposureTime = (int) ( _config.exposureTime() * 1000 ); 
 
@@ -1046,7 +1037,8 @@ int FliServer::waitForNewFrameAvailable()
   
   // Report the readout time for the first few L1 events
   if ( _iNumL1Event <= _iMaxEventReport )
-    printf( "Readout time report [%d]: %.2f s\n", _iNumL1Event, _fReadoutTime );
+    printf( "Readout time report [%d]: %.2f s  Non-exposure time %.2f s\n", _iNumL1Event, _fReadoutTime,
+      _fReadoutTime - _config.exposureTime());
     
   return 0;
 }
