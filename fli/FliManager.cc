@@ -11,7 +11,7 @@
 #include <new>
 #include <vector>
 
-#include "pdsdata/fli/FrameV1.hh"
+#include "pds/config/FliDataType.hh"
 #include "pds/service/GenericPool.hh"
 #include "pds/service/Task.hh"
 #include "pds/service/Routine.hh"
@@ -310,13 +310,13 @@ public:
       /*
        * The folloing code is used for debugging variable L1 data size
        */
-      //int iDataSize = 1024*1024*8 + sizeof(Fli::FrameV1);            
+      //int iDataSize = 1024*1024*8 + sizeof(FliDataType);            
       //out = 
       // new ( &_poolFrameData ) CDatagram( in->datagram() ); 
       //out->datagram().xtc.alloc( sizeof(Xtc) + iDataSize );        
       //unsigned char* pXtcHeader = (unsigned char*) out + sizeof(CDatagram);
       //   
-      //TypeId typeFliFrame(TypeId::Id_FliFrame, Fli::FrameV1::Version);
+      //TypeId typeFliFrame(TypeId::Id_FliFrame, FliDataType::Version);
       //Xtc* pXtcFrame = 
       // new ((char*)pXtcHeader) Xtc(typeFliFrame, _cfg.src() );
       //pXtcFrame->alloc( iDataSize );      
@@ -343,7 +343,7 @@ public:
         if ( xtcData.sizeofPayload() != 0 ) 
         {
           printf( "Frame  payload size = %d\n", xtcFrame.sizeofPayload());
-          Fli::FrameV1& frameData = *(Fli::FrameV1*) xtcFrame.payload();
+          FliDataType& frameData = *(FliDataType*) xtcFrame.payload();
           printf( "Frame  Id 0x%05x  ReadoutTime %.2fs\n", frameData.shotIdStart(), 
            frameData.readoutTime() );
         }
@@ -509,7 +509,7 @@ public:
         if ( xtcData.sizeofPayload() != 0 ) 
         {
           printf( "Frame  payload size = %d\n", xtcFrame.sizeofPayload());
-          Fli::FrameV1& frameData = *(Fli::FrameV1*) xtcFrame.payload();
+          FliDataType& frameData = *(FliDataType*) xtcFrame.payload();
           printf( "Frame Id Start %d ReadoutTime %f\n", frameData.shotIdStart(), 
            frameData.readoutTime() );
         }

@@ -11,7 +11,7 @@
 #include <new>
 #include <vector>
 
-#include "pdsdata/princeton/FrameV1.hh"
+#include "pds/config/PrincetonDataType.hh"
 #include "pds/service/GenericPool.hh"
 #include "pds/service/Task.hh"
 #include "pds/service/Routine.hh"
@@ -310,13 +310,13 @@ public:
       /*
        * The folloing code is used for debugging variable L1 data size
        */
-      //int iDataSize = 1024*1024*8 + sizeof(Princeton::FrameV1);            
+      //int iDataSize = 1024*1024*8 + sizeof(PrincetonDataType);            
       //out = 
       // new ( &_poolFrameData ) CDatagram( in->datagram() ); 
       //out->datagram().xtc.alloc( sizeof(Xtc) + iDataSize );        
       //unsigned char* pXtcHeader = (unsigned char*) out + sizeof(CDatagram);
       //   
-      //TypeId typePrincetonFrame(TypeId::Id_PrincetonFrame, Princeton::FrameV1::Version);
+      //TypeId typePrincetonFrame(TypeId::Id_PrincetonFrame, PrincetonDataType::Version);
       //Xtc* pXtcFrame = 
       // new ((char*)pXtcHeader) Xtc(typePrincetonFrame, _cfg.src() );
       //pXtcFrame->alloc( iDataSize );      
@@ -343,7 +343,7 @@ public:
         if ( xtcData.sizeofPayload() != 0 ) 
         {
           printf( "Frame  payload size = %d\n", xtcFrame.sizeofPayload());
-          Princeton::FrameV1& frameData = *(Princeton::FrameV1*) xtcFrame.payload();
+          PrincetonDataType& frameData = *(PrincetonDataType*) xtcFrame.payload();
           printf( "Frame  Id 0x%05x  ReadoutTime %.2fs\n", frameData.shotIdStart(), 
            frameData.readoutTime() );
         }
@@ -509,7 +509,7 @@ public:
         if ( xtcData.sizeofPayload() != 0 ) 
         {
           printf( "Frame  payload size = %d\n", xtcFrame.sizeofPayload());
-          Princeton::FrameV1& frameData = *(Princeton::FrameV1*) xtcFrame.payload();
+          PrincetonDataType& frameData = *(PrincetonDataType*) xtcFrame.payload();
           printf( "Frame Id Start %d ReadoutTime %f\n", frameData.shotIdStart(), 
            frameData.readoutTime() );
         }

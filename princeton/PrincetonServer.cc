@@ -7,7 +7,6 @@
 #include "PrincetonUtils.hh"
 
 #include "pds/config/PrincetonDataType.hh"
-#include "pdsdata/princeton/InfoV1.hh"
 #include "pds/xtc/Datagram.hh"
 #include "pds/xtc/CDatagram.hh"
 #include "pds/service/Task.hh"
@@ -1220,7 +1219,7 @@ int PrincetonServer::setupFrame()
   unsigned char* pcXtcInfo  = (unsigned char*) pXtcFrame->next() ;
      
   Xtc* pXtcInfo = 
-   new ((char*)pcXtcInfo) Xtc(_princetonDataType, _src);
+   new ((char*)pcXtcInfo) Xtc(_princetonInfoType, _src);
   pXtcInfo->alloc( sizeof(Princeton::InfoV1) );
   
   return 0;
