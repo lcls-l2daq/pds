@@ -22,12 +22,9 @@ namespace Pds {
     
     Appliance&  appliance();
 
-    // for testing
-    static void drop_pulses(unsigned mask);
   private:
     Evr&        _er;
     Fsm&        _fsm;
-    DoneTimer*  _done;
     bool        _bTurnOffBeamCodes;
     
   public:

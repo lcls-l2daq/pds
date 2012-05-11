@@ -8,7 +8,7 @@
 
 using namespace Pds;
 
-static const unsigned EvrOutputs = EvrConfigType::EvrOutputs;
+static const unsigned EvrOutputs = 32;
 static const unsigned BufferSize = 0x200000;
 
 EvrCfgClient::EvrCfgClient( CfgClientNfs& c ) :
@@ -53,6 +53,7 @@ int EvrCfgClient::fetch(const Transition& tr,
     while( psrc < pend ) {
       EvrConfigType::PulseType*     pt = ptb;
       EvrConfigType::OutputMapType* om = omb;
+      unsigned npulses = 0;
       const EvrConfigType& tc = *reinterpret_cast<const EvrConfigType*>(psrc);
       for(unsigned j=0; j<tc.npulses(); j++) {
         const EvrConfigType::PulseType& p = tc.pulse(j);
@@ -61,15 +62,15 @@ int EvrCfgClient::fetch(const Transition& tr,
           const EvrConfigType::OutputMapType& o = tc.output_map(k);
           if ( o.source()==EvrConfigType::OutputMapType::Pulse &&
                o.source_id()==j )
-            if ((o.conn_id()/EvrOutputs) == modid) {
+            if (o.module() == modid) {
               *new (om++) EvrConfigType::OutputMapType
-                (o.source(), o.source_id(),
-                 o.conn  (), o.conn_id()%EvrOutputs);
+                (o.source(), npulses,
+                 o.conn  (), o.conn_id(), modid);
               lUsed=true;
             }
         }
         if (lUsed)
-          *new (pt++) EvrConfigType::PulseType(p.pulseId(), 
+          *new (pt++) EvrConfigType::PulseType(npulses++,
                                                p.polarity(),
                                                p.prescale(),
                                                p.delay(),

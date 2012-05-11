@@ -21,124 +21,94 @@
 
 using namespace Pds;
 
-class TerminatorLoader;
-class TimeLoader;
-class OpcodeLoader;
-static TerminatorLoader* terminatorLoaderGlobal;
-static TimeLoader*       timeLoaderGlobal;
-static OpcodeLoader*     opcodeLoaderGlobal;
 static EvgrBoardInfo<Evr> *erInfoGlobal;
 
 static unsigned _opcodecount=0;
 static unsigned _lastopcode=0;
 static int _ram=0;
-static int _pos=0;
 
-class TerminatorLoader {
+static const unsigned EVTCLK_TO_360HZ=991666/3;
+static const unsigned TRM_OPCODE=1;
+static const unsigned IRQ_OPCODE=2;
+
+class SequenceLoader {
 public:
-  TerminatorLoader(Evg& eg) : _eg(eg) {}
-  virtual ~TerminatorLoader() {}
+  SequenceLoader(Evr& er, Evg& eg) : _er(er), _eg(eg), _nfid(0), _count(0) {}
+public:
   void set() {
-    _eg.SetSeqRamEvent(_ram, _pos, _pos, 1); _pos++;
-  }
-private:
-  Evg& _eg;
-};
+    //    int ram = 1-_ram;
+    int ram = _ram;
 
-class TimeLoader {
-public:
-  TimeLoader(Evg& eg, Evr& er) : _eg(eg),_er(er),_nfid(0) {}
-  virtual ~TimeLoader() {}
-  enum {NumEvtCodes=33};
-  void load() {
+    _pos = 0;
+    unsigned p = 0;
 #ifdef BASE_120
-    _nfid+=3;
+    for(unsigned i=0; i<3; i++) {
 #else
-    _nfid++;
+    {
 #endif
-    _nfid&=((1<<Pds::TimeStamp::NumFiducialBits)-1);
-    //to simulate real evgr => nfid variation from 0 to (0x1ffff-32)
-    if(_nfid>0x1ffdf) {   
-      _nfid=0;
+
+      _set_opcode(ram, TRM_OPCODE, _pos+p);
+
+      //  Timestamp
+      _nfid++;
+      if (_nfid > TimeStamp::MaxFiducials)
+	_nfid -= TimeStamp::MaxFiducials;
+
+      const unsigned NumEvtCodes=33;
+      unsigned numEvtCode=0;
+      do {
+	unsigned mask = (1<<((NumEvtCodes-2)-numEvtCode)); 
+	unsigned opcode = (_nfid&mask) ?
+	  EvgrOpcode::TsBit1 : EvgrOpcode::TsBit0;
+	_set_opcode(ram, opcode, _pos+p);
+      } while (++numEvtCode<(NumEvtCodes-1));
+      _set_opcode(ram, EvgrOpcode::TsBitEnd, _pos+p);
+
+      unsigned q = p+36;
+      //  Eventcodes
+      if (_count%2      ==0) {_set_opcode(ram, 180, q+12944);}
+      if (_count%3      ==0) {_set_opcode(ram,  40, q+12954);}
+      if (_count%6      ==0) {_set_opcode(ram,  41, q+12964);}
+      if (_count%12     ==0) {_set_opcode(ram,  42, q+12974);}
+      if (_count%36     ==0) {_set_opcode(ram,  43, q+12984);}
+      if (_count%72     ==0) {_set_opcode(ram,  44, q+12994);}
+      if (_count%360    ==0) {_set_opcode(ram,  45, q+13004);}
+      if (_count%(360*2)==0) {_set_opcode(ram,  46, q+13014);}
+      if (_count%(360*4)==0) {_set_opcode(ram,  47, q+13024);}
+      if (_count%(360*8)==0) {_set_opcode(ram,  48, q+13034);}
+      p += EVTCLK_TO_360HZ;
+      _count++;
     }
-    int numEvtCode=0;
-    int ram=_ram;
-    //we send down MSB first
-    do {
-      unsigned mask = (1<<((NumEvtCodes-2)-numEvtCode)); 
-      unsigned opcode = (_nfid&mask) ?
-        EvgrOpcode::TsBit1 : EvgrOpcode::TsBit0;
-      _eg.SetSeqRamEvent(ram, _pos, _pos, opcode); _pos++;
-    } while (++numEvtCode<(NumEvtCodes-1));
-    _eg.SetSeqRamEvent(ram, _pos, _pos, EvgrOpcode::TsBitEnd); _pos++;
-  }
-  void set() {
-    FIFOEvent fe;
-    _er.GetFIFOEvent(&fe);
-    _opcodecount++;
-    _lastopcode = fe.EventCode;
-    load();
+
+    p -= EVTCLK_TO_360HZ;
+    _set_opcode(ram, IRQ_OPCODE, p+13043);
+    _set_opcode(ram, EvgrOpcode::EndOfSequence, p+13044);
+    _set_opcode(ram, 0, 0);
+
+    if ((_count%(360*8))==0) {
+      printf("count %d\n",_count);
+      _eg.SeqRamDump(ram);
+      printf("===\n");
+    }
+
+//     int enable=1; int single=1; int recycle=0; int reset=0;
+//     int trigsel=C_EVG_SEQTRIG_MXC_BASE;
+//     _eg.SeqRamCtrl(ram, enable, single, recycle, reset, trigsel);
+//     _ram = ram;
   }
 private:
-  Evg& _eg;
+  void _set_opcode(int ram, unsigned opcode, unsigned pos) {
+    _eg.SetSeqRamEvent(ram, _pos, pos, opcode);
+    _pos++;
+  }
   Evr& _er;
-  unsigned _nfid;
-};
-
-enum RateCode { r120Hz, r60Hz, r30Hz, r10Hz, r5Hz, r1Hz, r0_5Hz, r0_25Hz, r0_125Hz, Single, NumberOfRates };
-enum BeamCode { Off, On };
-
-static unsigned int opcodeFromBeamRate(BeamCode bc, RateCode rc) 
-{
-  static const unsigned beamOn     = 100;
-  static const unsigned baseRate   = 40;
-  static const unsigned singleShot = 150;
-  
-  unsigned v;
-  if (rc==Single) {
-    v = singleShot;
-  }
-  else {
-    v = baseRate+unsigned(rc);
-    if (bc==On) v += beamOn;
-  }
-  return v; 
-}
-
-#define OPCODEC(rate) opcodeFromBeamRate(Off,rate)
-
-class OpcodeLoader {
-public:
-  OpcodeLoader(Evg& eg) : _count(0),_eg(eg) {}
-  void set() {
-    int ram=_ram;
-    int ts =_pos+WaitForTimestamp;
-
-#ifdef BASE_120
-    _count+=3;
-#else
-    _count++; 
-#endif
-    _count%=(360*8);
-
-    _eg.SetSeqRamEvent(ram, _pos, ts, 9); _pos++; ts++;
-    if (_count%2      ==0) {_eg.SetSeqRamEvent(ram, _pos, ts, 180              ); _pos++;} ts++;
-    if (_count%3      ==0) {_eg.SetSeqRamEvent(ram, _pos, ts, OPCODEC(r120Hz)  ); _pos++;} ts++;
-    if (_count%6      ==0) {_eg.SetSeqRamEvent(ram, _pos, ts, OPCODEC(r60Hz)   ); _pos++;} ts++;
-    if (_count%12     ==0) {_eg.SetSeqRamEvent(ram, _pos, ts, OPCODEC(r30Hz)   ); _pos++;} ts++;
-    if (_count%36     ==0) {_eg.SetSeqRamEvent(ram, _pos, ts, OPCODEC(r10Hz)   ); _pos++;} ts++;
-    if (_count%72     ==0) {_eg.SetSeqRamEvent(ram, _pos, ts, OPCODEC(r5Hz)    ); _pos++;} ts++;
-    if (_count%360    ==0) {_eg.SetSeqRamEvent(ram, _pos, ts, OPCODEC(r1Hz)    ); _pos++;} ts++;
-    if (_count%(360*2)==0) {_eg.SetSeqRamEvent(ram, _pos, ts, OPCODEC(r0_5Hz)  ); _pos++;} ts++;
-    if (_count%(360*4)==0) {_eg.SetSeqRamEvent(ram, _pos, ts, OPCODEC(r0_25Hz) ); _pos++;} ts++;
-    if (_count%(360*8)==0) {_eg.SetSeqRamEvent(ram, _pos, ts, OPCODEC(r0_125Hz)); _pos++;} ts++;
-    _eg.SetSeqRamEvent(ram, _pos, ts, EvgrOpcode::EndOfSequence); _pos++;
-  }
-private:
-  enum {WaitForTimestamp=8}; // timestamp takes some clock ticks to take effect
-  unsigned _count;
   Evg& _eg;
+  unsigned _nfid;
+  unsigned _count;
+  unsigned _pos;
 };
+
+static SequenceLoader*   sequenceLoaderGlobal;
 
 class EvgrAction : public Action {
 protected:
@@ -149,20 +119,16 @@ protected:
 
 class EvgrEnableAction : public EvgrAction {
 public:
-  EvgrEnableAction(TimeLoader& time, OpcodeLoader& opcodes, Evg& eg, Evr& er) :
-    EvgrAction(eg,er),_time(time),_opcodes(opcodes) {}
+  EvgrEnableAction(Evg& eg, Evr& er) :
+    EvgrAction(eg,er) {}
   Transition* fire(Transition* tr) {
     _ram=0;
-    _time.load();
-    _opcodes.set();
+    sequenceLoaderGlobal->set();
 
     int ram=0;    _er.MapRamEnable(ram,1);
 
     return tr;
   }
-private:
-  TimeLoader& _time;
-  OpcodeLoader& _opcodes;
 };
 
 class EvgrDisableAction : public EvgrAction {
@@ -209,6 +175,11 @@ public:
   Transition* fire(Transition* tr) {
     printf("Configuring evg/evr\n");
     _eg.Reset();
+    for(int ram=0; ram<2; ram++) {
+      for(unsigned pos=0; pos<EVTCLK_TO_360HZ; pos++)
+	_eg.SetSeqRamEvent(ram, pos, 0, 0);
+    }
+
     _er.Reset();
     _eg.SetRFInput(0,C_EVG_RFDIV_4);
 
@@ -216,10 +187,9 @@ public:
     // setup map rams
     for(int ram=0; ram<2; ram++) {
       _er.MapRamEnable(ram,0);
-      int opcode=9; // for testing, use the highest rate opcode (360Hz).
-      _er.SetFIFOEvent(ram, opcode, enable);
+      _er.SetFIFOEvent(ram, IRQ_OPCODE, enable);
       int trig=0; int set=-1; int clear=-1;
-      _er.SetPulseMap(ram, opcode, trig, set, clear);
+      _er.SetPulseMap(ram, IRQ_OPCODE, trig, set, clear);
     }
 
     int pulse = 0; int presc = 1; int delay = 0; int width = 16;
@@ -234,11 +204,11 @@ public:
     // setup properties for multiplexed counter 0
     // to trigger the sequencer at 360Hz (so we can "stress" the system).
 #ifdef BASE_120
-    static const unsigned EVTCLK_TO_360HZ=991666;
+    const unsigned EVTCLK_RATE = EVTCLK_TO_360HZ;
 #else
-    static const unsigned EVTCLK_TO_360HZ=991666/3;
+    const unsigned EVTCLK_RATE = EVTCLK_TO_360HZ/3;
 #endif
-    _eg.SetMXCPrescaler(0, EVTCLK_TO_360HZ); // set prescale to 1
+    _eg.SetMXCPrescaler(0, EVTCLK_RATE); // set prescale to 1
     _eg.SyncMxc();
 
     int ram=_ram;
@@ -257,10 +227,16 @@ extern "C" {
     int flags = er.GetIrqFlags();
     if (flags & EVR_IRQFLAG_EVENT)
       {
-      _pos = 0;
-	terminatorLoaderGlobal->set();
-        timeLoaderGlobal      ->set();
-        opcodeLoaderGlobal    ->set();
+	FIFOEvent fe;
+	er.GetFIFOEvent(&fe);
+	_opcodecount++;
+	_lastopcode = fe.EventCode;
+
+	if ((_opcodecount%(360*8))==0)
+	  printf("ncodes %d  last %d\n",_opcodecount,_lastopcode);
+
+	sequenceLoaderGlobal->set();
+
         er.ClearIrqFlags(EVR_IRQFLAG_EVENT);
       }
     int fdEr = erInfoGlobal->filedes();
@@ -273,9 +249,8 @@ Appliance& EvgrManager::appliance() {return _fsm;}
 EvgrManager::EvgrManager(EvgrBoardInfo<Evg> &egInfo, EvgrBoardInfo<Evr> &erInfo) :
   _eg(egInfo.board()),_er(erInfo.board()),_fsm(*new Fsm) {
 
-  terminatorLoaderGlobal = new TerminatorLoader(_eg);
-  timeLoaderGlobal       = new TimeLoader(_eg,_er);
-  opcodeLoaderGlobal     = new OpcodeLoader(_eg);
+  sequenceLoaderGlobal   = new SequenceLoader(_er,_eg);
+
 //   _fsm.callback(TransitionId::Configure,new EvgrConfigAction(_eg,_er));
 //   _fsm.callback(TransitionId::BeginRun,new EvgrBeginRunAction(_eg,_er));
 //   _fsm.callback(TransitionId::Enable,new EvgrEnableAction(*timeLoaderGlobal,_eg,_er));
@@ -287,7 +262,7 @@ EvgrManager::EvgrManager(EvgrBoardInfo<Evg> &egInfo, EvgrBoardInfo<Evr> &erInfo)
   action->fire((Transition*)0);
   action = new EvgrBeginRunAction(_eg,_er);
   action->fire((Transition*)0);
-  action = new EvgrEnableAction(*timeLoaderGlobal,*opcodeLoaderGlobal,_eg,_er);
+  action = new EvgrEnableAction(_eg,_er);
   action->fire((Transition*)0);
 
   _er.IrqAssignHandler(erInfo.filedes(), &evgrmgr_sig_handler);
