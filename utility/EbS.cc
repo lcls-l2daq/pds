@@ -48,10 +48,10 @@ EbEventBase* EbS::_new_event(const EbBitMask& serverId, char* payload, unsigned 
 
   if (_vmoneb) _vmoneb->depth(depth);
 
-  if (depth==0)
+  if (depth<=1) {
     _postEvent(_pending.forward());
   //    arm(_postEvent(_pending.forward()));
-
+  }
   return event;
 }
 
@@ -64,10 +64,10 @@ EbEventBase* EbS::_new_event(const EbBitMask& serverId)
 
   if (_vmoneb) _vmoneb->depth(depth);
 
-  if (depth==1) // keep one buffer for recopy possibility
+  if (depth==1) { // keep one buffer for recopy possibility
     _postEvent(_pending.forward());
   //    arm(_postEvent(_pending.forward()));
-
+  }
   CDatagram* datagram = new(&_datagrams) CDatagram(_ctns, _id);
   EbSequenceKey* key = new(&_keys) EbSequenceKey(datagram->dg());
   return new(&_events) EbEvent(serverId, _clients, datagram, key);
