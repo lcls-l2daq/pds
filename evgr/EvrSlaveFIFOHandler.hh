@@ -30,7 +30,7 @@ namespace Pds {
     enum { guNumTypeEventCode = 256 };
     enum { TERMINATOR         = 1 };
   public:
-    EvrSlaveFIFOHandler(Evr&, Appliance&, unsigned, Task*);
+    EvrSlaveFIFOHandler(Evr&, Appliance&, unsigned, Task*, Task*);
     virtual ~EvrSlaveFIFOHandler();
   public:
     virtual void        fifo_event  (const FIFOEvent&);  // formerly 'xmit'

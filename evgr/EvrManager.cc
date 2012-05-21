@@ -426,7 +426,9 @@ public:
   EvrAllocAction(CfgClientNfs& cfg, 
                  Evr&          er,
                  Appliance&    app) :
-    _cfg(cfg), _er(er), _app(app), _task(new Task(TaskObject("evrsync")))
+    _cfg(cfg), _er(er), _app(app), 
+    _task     (new Task(TaskObject("evrsync"))),
+    _sync_task(new Task(TaskObject("slvsync")))
   {
     _fifo_handler = 0;
   }
@@ -468,7 +470,8 @@ public:
 	      _fifo_handler = new EvrSlaveFIFOHandler(_er, 
 						      _app,
 						      alloc.allocation().partitionid(),
-						      _task);
+						      _task,
+                                                      _sync_task);
 	    }
 	  break;
         }
@@ -483,6 +486,7 @@ private:
   Evr&          _er;
   Appliance&    _app;
   Task*         _task;
+  Task*         _sync_task;
 };
 
 extern "C"

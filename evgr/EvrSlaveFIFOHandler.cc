@@ -30,7 +30,8 @@ static bool evrHasEvent(Evr& er);
 EvrSlaveFIFOHandler::EvrSlaveFIFOHandler(Evr&       er,
 					 Appliance& app,
 					 unsigned   partition,
-					 Task*      task) :
+					 Task*      task,
+                                         Task*      sync_task) :
   bEnabled            (false),
   _er                 (er),
   _app                (app),
@@ -40,7 +41,7 @@ EvrSlaveFIFOHandler::EvrSlaveFIFOHandler(Evr&       er,
   _sem                (Semaphore::EMPTY),
   _rdptr              (0),
   _wrptr              (0),
-  _sync               (*this, er, partition, task),
+  _sync               (*this, er, partition, task, sync_task),
   _tr                 (0)
 {
   memset( _lEventCodeState, 0, sizeof(_lEventCodeState) );

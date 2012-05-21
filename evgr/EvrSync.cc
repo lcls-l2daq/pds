@@ -55,21 +55,27 @@ namespace Pds {
       const int bsiz = 256;
       char* payload = new char[bsiz];
 
-      int len = _server.fetch( payload, MSG_WAITALL );
-      if (len ==0) {
-	const EvrDatagram* dg = reinterpret_cast<const EvrDatagram*>(_server.datagram());
+      while(1) {
+        int len = _server.fetch( payload, MSG_WAITALL );
+        if (len ==0) {
+          const EvrDatagram* dg = reinterpret_cast<const EvrDatagram*>(_server.datagram());
 	
-	_sync.initialize(dg->seq.stamp().fiducials(),
-			 dg->seq.service()==TransitionId::Enable);
+          _sync.initialize(dg->seq.stamp().fiducials(),
+                           dg->seq.service()==TransitionId::Enable);
 #ifdef DBG	
-	timespec ts;
-	clock_gettime(CLOCK_REALTIME, &ts);
-	printf("sync mcast seq %d.%09d (%x : %d.%09d)\n",
-	       int(ts.tv_sec), int(ts.tv_nsec),
-	       dg->seq.stamp().fiducials(),
-	       dg->seq.clock().seconds(),
-	       dg->seq.clock().nanoseconds());
+          timespec ts;
+          clock_gettime(CLOCK_REALTIME, &ts);
+          printf("sync mcast seq %d.%09d (%x : %d.%09d)\n",
+                 int(ts.tv_sec), int(ts.tv_nsec),
+                 dg->seq.stamp().fiducials(),
+                 dg->seq.clock().seconds(),
+                 dg->seq.clock().nanoseconds());
 #endif
+        }
+        else {
+          printf("SyncRoutine exited\n");
+          break;
+        }
       }
     }
   private:
@@ -250,14 +256,17 @@ bool EvrSyncMaster::handle(const FIFOEvent& fe)
 EvrSyncSlave::EvrSyncSlave(EvrFIFOHandler& fifo_handler,
 			   Evr&            er, 
 			   unsigned        partition, 
-			   Task*           task) :
+			   Task*           task,
+                           Task*           sync_task) :
   _fifo_handler(fifo_handler),
   _er          (er),
   _state       (Disabled),
   _target      (0),
   _task        (*task),
+  _sync_task   (*sync_task),
   _routine     (new SyncRoutine(er,partition,*this))
 {
+  _sync_task.call(_routine);
 }
 
 EvrSyncSlave::~EvrSyncSlave()
@@ -275,8 +284,6 @@ void EvrSyncSlave::initialize(unsigned target,
     // configure EVR to listen for synchronization eventcode
     int dummyram = 1;
     _er.SetFIFOEvent(dummyram, TermCode, 1);
-
-    _task.call(_routine);
   }
   else {
     _state  = DisableInit;
@@ -286,7 +293,6 @@ void EvrSyncSlave::initialize(unsigned target,
 
 void EvrSyncSlave::enable()
 {
-  _task.call(_routine);
 }
 
 bool EvrSyncSlave::handle(const FIFOEvent& fe)

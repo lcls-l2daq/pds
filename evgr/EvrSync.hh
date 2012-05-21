@@ -40,7 +40,8 @@ namespace Pds {
     EvrSyncSlave(EvrFIFOHandler& fifo_handler,
 		 Evr&            er,
 		 unsigned        partition, 
-		 Task*           task);
+		 Task*           task,
+                 Task*           sync_task);
     ~EvrSyncSlave();
   public:
     void initialize(unsigned, bool);
@@ -52,6 +53,7 @@ namespace Pds {
     EvrSyncState    _state;
     unsigned _target;
     Task&    _task;
+    Task&    _sync_task;
     Routine* _routine;
   };
 };
