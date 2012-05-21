@@ -138,6 +138,8 @@ void EvrSlaveFIFOHandler::release_sync()
   clear();
   //  _sem.give();   // sometimes we get one less FIFO event than the master
   bEnabled = false; 
+
+  _app.post(_tr);
 }
 
 void        EvrSlaveFIFOHandler::set_config  (const EvrConfigType* pEvrConfig)

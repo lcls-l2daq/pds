@@ -9,6 +9,7 @@
 #include "pds/utility/Mtu.hh"
 #include "pds/collection/Route.hh"
 
+#define DBG
 //#define ONE_PHASE
 
 //  The latest eventcodes are 40-46
@@ -39,8 +40,7 @@ namespace Pds {
       _server((unsigned)-1,
 	      _group,
 	      sizeof(EvrDatagram),
-	      Mtu::Size,
-	      1),
+	      Mtu::Size),
       _sync  (sync)
     {
       _server.join(_group,Ins(Route::interface()));
@@ -61,8 +61,7 @@ namespace Pds {
 	
 	_sync.initialize(dg->seq.stamp().fiducials(),
 			 dg->seq.service()==TransitionId::Enable);
-	
-	/*
+#ifdef DBG	
 	timespec ts;
 	clock_gettime(CLOCK_REALTIME, &ts);
 	printf("sync mcast seq %d.%09d (%x : %d.%09d)\n",
@@ -70,7 +69,7 @@ namespace Pds {
 	       dg->seq.stamp().fiducials(),
 	       dg->seq.clock().seconds(),
 	       dg->seq.clock().nanoseconds());
-	*/
+#endif
       }
     }
   private:
@@ -156,10 +155,10 @@ bool EvrSyncMaster::handle(const FIFOEvent& fe)
       Sequence seq(Sequence::Occurrence, TransitionId::Enable, ctime, stamp);
       EvrDatagram datagram(seq, -1, 0);
       _outlet.send((char *) &datagram, 0, 0, _dst);      
-      /*
+#ifdef DBG
       printf("EvrMasterFIFOHandler enable sync target %x at %d.%09d\n",
 	     _target, int(ts.tv_sec), int(ts.tv_nsec));
-      */
+#endif
       _state = EnableSeek;
     }
     return true;
@@ -194,12 +193,12 @@ bool EvrSyncMaster::handle(const FIFOEvent& fe)
       //  Enable Triggers
       _er.MapRamEnable(ram, 1);
 
-      /*
+#ifdef DBG
       timespec ts;
       clock_gettime(CLOCK_REALTIME, &ts);
       printf("EvrMasterFIFOHandler enabled at %d.%09d\n",
 	     int(ts.tv_sec), int(ts.tv_nsec));
-      */
+#endif
     }
     return true;
   }
@@ -218,10 +217,10 @@ bool EvrSyncMaster::handle(const FIFOEvent& fe)
       EvrDatagram datagram(seq, -1, 0);
       _outlet.send((char *) &datagram, 0, 0, _dst);      
 
-      /*
+#ifdef DBG
       printf("EvrMasterFIFOHandler disable sync target %x at %d.%09d\n",
 	     _target, int(ts.tv_sec), int(ts.tv_nsec));
-      */
+#endif
       _state = DisableSeek;
     }
   }
@@ -234,12 +233,12 @@ bool EvrSyncMaster::handle(const FIFOEvent& fe)
       //  Disable Triggers
       _er.MapRamEnable(dummyram, 1);
 
-      /*
+#ifdef DBG
       timespec ts;
       clock_gettime(CLOCK_REALTIME, &ts);
       printf("EvrMasterFIFOHandler disabled at %d.%09d\n",
 	     int(ts.tv_sec), int(ts.tv_nsec));
-      */
+#endif
 
       _task.call(new ReleaseRoutine(_fifo_handler));
     }
@@ -301,12 +300,12 @@ bool EvrSyncSlave::handle(const FIFOEvent& fe)
       if (fe.TimestampHigh!=0)
 	_state = EnableSeek;
 
-      /*
+#ifdef DBG
       timespec ts;
       clock_gettime(CLOCK_REALTIME, &ts);
       printf("EvrSlaveFIFOHandler enable sync code at %x : %d.%09d\n",
 	     fe.TimestampHigh, int(ts.tv_sec), int(ts.tv_nsec));
-      */
+#endif
     }
     return true;
   }
@@ -326,12 +325,12 @@ bool EvrSyncSlave::handle(const FIFOEvent& fe)
       //  Enable Triggers
       _er.MapRamEnable(ram, 1);
 
-      /*
+#ifdef DBG
       timespec ts;
       clock_gettime(CLOCK_REALTIME, &ts);
       printf("EvrSlaveFIFOHandler enabled at %d.%09d\n",
 	     int(ts.tv_sec), int(ts.tv_nsec));
-      */
+#endif
     }
     return true;
   }
@@ -342,12 +341,12 @@ bool EvrSyncSlave::handle(const FIFOEvent& fe)
       if (fe.TimestampHigh!=0)
 	_state = DisableSeek;
 
-      /*
+#ifdef DBG
       timespec ts;
       clock_gettime(CLOCK_REALTIME, &ts);
       printf("EvrSlaveFIFOHandler disable sync code at %x : %d.%09d\n",
 	     fe.TimestampHigh, int(ts.tv_sec), int(ts.tv_nsec));
-      */
+#endif
     }
   }
 
@@ -359,12 +358,12 @@ bool EvrSyncSlave::handle(const FIFOEvent& fe)
       //  Disable Triggers
       _er.MapRamEnable(dummyram, 1);
 
-      /*
+#ifdef DBG
       timespec ts;
       clock_gettime(CLOCK_REALTIME, &ts);
       printf("EvrSlaveFIFOHandler disabled at %d.%09d\n",
 	     int(ts.tv_sec), int(ts.tv_nsec));
-      */
+#endif
 
       _task.call(new ReleaseRoutine(_fifo_handler));
     }

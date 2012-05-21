@@ -409,8 +409,6 @@ void EvrMasterFIFOHandler::get_sync()
 
 void EvrMasterFIFOHandler::release_sync()
 {
-  _app.post(_tr);
-
   bShowFirstFiducial  = false;
   bShowFiducial       = true;
 
@@ -419,6 +417,8 @@ void EvrMasterFIFOHandler::release_sync()
   clear();
     
   bEnabled = false; 
+
+  _app.post(_tr);
 }
 
 Transition* EvrMasterFIFOHandler::disable     (Transition* tr)

@@ -113,10 +113,7 @@ public:
     
   Transition* fire(Transition* tr) 
   { 
-    if (_fifo_handler)
-      _fifo_handler->disable(tr);
-
-    return tr;
+    return _fifo_handler ? _fifo_handler->disable(tr) : tr;
   }
 };
 
