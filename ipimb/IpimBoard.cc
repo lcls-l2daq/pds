@@ -378,6 +378,17 @@ unsigned IpimBoard::ReadRegister(unsigned regAddr) {
 void IpimBoard::WriteRegister(unsigned regAddr, unsigned regValue) {
   IpimBoardCommand cmd = IpimBoardCommand(true, regAddr, regValue);
   WriteCommand(cmd.getAll());
+  unsigned result = ReadRegister(regAddr);
+//printf(" *** regAddr = 0x%x\n", regAddr);
+//printf(" *** status   = 0x%x\n", status);
+//printf(" *** errors   = 0x%x\n", errors);
+//printf(" *** result   = 0x%x\n", result);
+  if (regAddr != status and regAddr != errors and regAddr != adc_delay) {
+    if (result != regValue) {
+      printf("IpimBoard error writing register 0x%x, wrote 0x%x, read 0x%x\n", regAddr, regValue, result);
+      _commandResponseDamage = true;
+    }
+  }
 }
 
 IpimBoardData IpimBoard::WaitData() {
