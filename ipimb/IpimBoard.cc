@@ -383,7 +383,7 @@ void IpimBoard::WriteRegister(unsigned regAddr, unsigned regValue) {
 //printf(" *** status   = 0x%x\n", status);
 //printf(" *** errors   = 0x%x\n", errors);
 //printf(" *** result   = 0x%x\n", result);
-  if (regAddr != status and regAddr != errors and regAddr != adc_delay) {
+  if (regAddr != status and regAddr != errors and regAddr != adc_delay and regAddr != timestamp0 and regAddr != timestamp1) {
     if (result != regValue) {
       printf("IpimBoard error writing register 0x%x, wrote 0x%x, read 0x%x\n", regAddr, regValue, result);
       _commandResponseDamage = true;
