@@ -51,12 +51,15 @@ namespace Pds {
         0x300003,  // digDelay       15
         0x300005,  // ampIdle        16
         0x300006,  // injTotal       17
-        0x400001  // rowColShiftPer  18
+        0x400001,  // rowColShiftPer 18
+        0x300009,  // ampReset       19
+        0x30000b,  // digCount       20
+        0x30000a   // digPeriod      21  //sizeOfQuadWrite in Cspadconfigurator.hh
     };
 
     unsigned                   CspadConfigurator::_quadReadOnlyAddrs[] = {
         0x400000,  // shiftTest       1
-        0x500000   // version         2
+        0x500000   // version         2 //sizeOfQuadReadOnly in Cspadconfigurator.hh
     };
 
     CspadConfigurator::CspadConfigurator( CsPadConfigType* c, int f, unsigned d) :

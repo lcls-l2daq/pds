@@ -98,7 +98,7 @@ namespace Pds {
 
       private:
         typedef unsigned     LoopHisto[4][10000];
-        enum {sizeOfQuadWrite=18, sizeOfQuadReadOnly=2};
+        enum {sizeOfQuadWrite=21, sizeOfQuadReadOnly=2};
         enum {quadGainMapStartAddr=0, quadGainMapLoadAddr=0x10000, quadTestDataAddr=0x100000};
         enum {RtemsQueueTimeout=50, MicroSecondsSleepTime=50};
         CsPadConfigType*            _config;
