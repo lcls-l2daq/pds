@@ -5,9 +5,13 @@
 #include "pds/service/Routine.hh"
 #include "pds/service/Task.hh"
 #include "pds/service/NetServer.hh"
+#include "pds/service/OobPipe.hh"
+#include "pds/service/Semaphore.hh"
 #include "pds/xtc/EvrDatagram.hh"
 #include "pds/utility/Mtu.hh"
 #include "pds/collection/Route.hh"
+
+#include <poll.h>
 
 #define DBG
 //#define ONE_PHASE
@@ -41,13 +45,17 @@ namespace Pds {
 	      _group,
 	      sizeof(EvrDatagram),
 	      Mtu::Size),
-      _sync  (sync)
+      _loopback(sizeof(EvrDatagram)),
+      _sync  (sync),
+      _sem   (Semaphore::EMPTY)
     {
       _server.join(_group,Ins(Route::interface()));
     }
     virtual ~SyncRoutine()
     {
-      close(_server.socket());
+      EvrDatagram dgram;
+      _loopback.unblock(reinterpret_cast<char*>(&dgram));
+      _sem.take();
     }
   public:
     void routine()
@@ -55,34 +63,50 @@ namespace Pds {
       const int bsiz = 256;
       char* payload = new char[bsiz];
 
-      while(1) {
-        int len = _server.fetch( payload, MSG_WAITALL );
-        if (len ==0) {
-          const EvrDatagram* dg = reinterpret_cast<const EvrDatagram*>(_server.datagram());
-	
-          _sync.initialize(dg->seq.stamp().fiducials(),
-                           dg->seq.service()==TransitionId::Enable);
+      int nfds = 2;
+
+      pollfd* pfd = new pollfd[2];
+      pfd[0].fd = _server.socket();
+      pfd[0].events = POLLIN | POLLERR | POLLHUP;
+      pfd[0].revents = 0;
+      pfd[1].fd = _loopback.fd();
+      pfd[1].events = POLLIN | POLLERR | POLLHUP;
+      pfd[1].revents = 0;
+
+      while(::poll(pfd, nfds, -1) > 0) {
+	if (pfd[0].revents & (POLLIN | POLLERR)) {
+	  int len = _server.fetch( payload, 0 );
+	  if (len ==0) {
+	    const EvrDatagram* dg = reinterpret_cast<const EvrDatagram*>(_server.datagram());
+	    
+	    _sync.initialize(dg->seq.stamp().fiducials(),
+			     dg->seq.service()==TransitionId::Enable);
 #ifdef DBG	
-          timespec ts;
-          clock_gettime(CLOCK_REALTIME, &ts);
-          printf("sync mcast seq %d.%09d (%x : %d.%09d)\n",
-                 int(ts.tv_sec), int(ts.tv_nsec),
-                 dg->seq.stamp().fiducials(),
-                 dg->seq.clock().seconds(),
-                 dg->seq.clock().nanoseconds());
+	    timespec ts;
+	    clock_gettime(CLOCK_REALTIME, &ts);
+	    printf("sync mcast seq %d.%09d (%x : %d.%09d)\n",
+		   int(ts.tv_sec), int(ts.tv_nsec),
+		   dg->seq.stamp().fiducials(),
+		   dg->seq.clock().seconds(),
+		   dg->seq.clock().nanoseconds());
 #endif
-        }
-        else {
-          printf("SyncRoutine exited\n");
-          break;
-        }
+	  }
+	}
+	if (pfd[1].revents & (POLLIN | POLLERR)) {
+	  _sem.give();
+	  break;
+	}
+	pfd[0].revents = 0;
+	pfd[1].revents = 0;
       }
     }
   private:
     Evr& _er;
     Ins  _group;
     NetServer _server;
+    OobPipe   _loopback;
     EvrSyncSlave& _sync;
+    Semaphore     _sem;
   };
 
   class ReleaseRoutine : public Routine {

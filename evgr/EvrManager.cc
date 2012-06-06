@@ -437,11 +437,6 @@ public:
     const Allocate & alloc = reinterpret_cast < const Allocate & >(*tr);
     _cfg.initialize(alloc.allocation());
 
-    if (_fifo_handler) {
-      delete _fifo_handler;
-      _fifo_handler = 0;
-    }
-
     //
     //  Test if we own the primary EVR for this partition
     //
@@ -489,6 +484,20 @@ private:
   Task*         _sync_task;
 };
 
+class EvrShutdownAction:public Action
+{
+public:
+  EvrShutdownAction() {}
+  Transition *fire(Transition * tr) {
+    if (_fifo_handler) {
+      delete _fifo_handler;
+      _fifo_handler = 0;
+    }
+    return tr;
+  }
+};
+
+
 extern "C"
 {
   void evrmgr_sig_handler(int parm)
@@ -514,6 +523,7 @@ EvrManager::EvrManager(EvgrBoardInfo < Evr > &erInfo, CfgClientNfs & cfg, bool b
   EvrConfigManager* cmgr = new EvrConfigManager(_er, cfg, _fsm, bTurnOffBeamCodes);
 
   _fsm.callback(TransitionId::Map            , new EvrAllocAction     (cfg,_er,_fsm));
+  _fsm.callback(TransitionId::Unmap          , new EvrShutdownAction);
   _fsm.callback(TransitionId::Configure      , new EvrConfigAction    (*cmgr));
   _fsm.callback(TransitionId::BeginCalibCycle, new EvrBeginCalibAction(*cmgr));
   _fsm.callback(TransitionId::EndCalibCycle  , new EvrEndCalibAction  (*cmgr));
