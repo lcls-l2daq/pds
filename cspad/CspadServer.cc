@@ -72,6 +72,7 @@ unsigned CspadServer::configure(CsPadConfigType* config) {
   if (c) printf("CspadServer::configure flushed %u event%s before configuration\n", c, c>1 ? "s" : "");
   if ((_configureResult = _cnfgrtr->configure(_configMask))) {
     printf("CspadServer::configure failed 0x%x\n", _configureResult);
+    _cnfgrtr->dumpPgpCard();
   } else {
     _quads = 0;
     for (unsigned i=0; i<4; i++) if ((1<<i) & config->quadMask()) _quads += 1;
