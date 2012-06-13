@@ -95,6 +95,11 @@ int Port::_bind(const Ins& ins)
     parm = parm + (88 + 32 * ((parm - 1993) / 2048));
 #endif
 
+    /*
+     * Set the send buffer size to be small (32K), since we
+     * have done the traffice shaping by ourselves
+     */
+    parm = 32*1024; 
     if(setsockopt(s, SOL_SOCKET, SO_SNDBUF, (char*)&parm, sizeof(parm)) == -1)
       return errno;
     }
