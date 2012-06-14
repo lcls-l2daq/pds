@@ -43,10 +43,10 @@ int FccdCamera::camera_depth() const
 { return Pds::FCCD::FccdConfigV2::Eight_bit; }
 
 int    FccdCamera::camera_width         () const
-{ return Pds::FCCD::FccdConfigV2::Row_Pixels; }
+{ return Pds::FCCD::FccdConfigV2::Column_Pixels; }
 
 int    FccdCamera::camera_height        () const
-{ return Pds::FCCD::FccdConfigV2::Column_Pixels; }
+{ return Pds::FCCD::FccdConfigV2::Row_Pixels; }
 
 int    FccdCamera::camera_taps          () const
 { return 2; }
