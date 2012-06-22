@@ -14,6 +14,7 @@
 #include "EvgrBoardInfo.hh"
 #include "EvgrManager.hh"
 #include "EvgrOpcode.hh"
+#include "EvgrPulseParams.hh"
 
 #include "pds/config/EvrConfigType.hh"
 
@@ -171,35 +172,38 @@ public:
 
 class EvgrConfigAction : public EvgrAction {
 public:
-  EvgrConfigAction(Evg& eg, Evr& er) : EvgrAction(eg,er) {}
+  EvgrConfigAction(Evg& eg, Evr& er, unsigned n, EvgrPulseParams* p) : EvgrAction(eg,er) {
+    npulses = n;
+    pulse = p;
+  }
+
   Transition* fire(Transition* tr) {
-    printf("Configuring evg/evr\n");
+    printf("Configuring evg\n");
     _eg.Reset();
     for(int ram=0; ram<2; ram++) {
       for(unsigned pos=0; pos<EVTCLK_TO_360HZ; pos++)
-	_eg.SetSeqRamEvent(ram, pos, 0, 0);
+        _eg.SetSeqRamEvent(ram, pos, 0, 0);
     }
 
     _er.Reset();
     _eg.SetRFInput(0,C_EVG_RFDIV_4);
 
-    int enable=1;
-    // setup map rams
-    for(int ram=0; ram<2; ram++) {
-      _er.MapRamEnable(ram,0);
-      _er.SetFIFOEvent(ram, IRQ_OPCODE, enable);
-      int trig=0; int set=-1; int clear=-1;
-      _er.SetPulseMap(ram, IRQ_OPCODE, trig, set, clear);
+    // setup map ram
+    printf("Configuring evr\n");
+    int ram=0; int enable=1;
+    _er.MapRamEnable(ram,0);
+    _er.SetFIFOEvent(ram, IRQ_OPCODE, enable);
+
+    for(unsigned i=0; i<npulses; i++) {
+      printf("Configuring pulse %d  eventcode %d  delay %d  width %d  output %d\n",
+             i, pulse[i].eventcode, pulse[i].delay, pulse[i].width, pulse[i].output);
+      _er.SetPulseMap(ram, pulse[i].eventcode, i, -1, -1);
+      _er.SetPulseProperties(i, pulse[i].polarity, 0, 0, 1, 1);
+      _er.SetPulseParams(i,1,pulse[i].delay,pulse[i].width);
+      _er.SetUnivOutMap( pulse[i].output, i);
     }
 
-    int pulse = 0; int presc = 1; int delay = 0; int width = 16;
-    int polarity=0;  int map_reset_ena=0; int map_set_ena=0; int map_trigger_ena=1;
-    _er.SetPulseProperties(pulse, polarity, map_reset_ena, map_set_ena, map_trigger_ena,
-                           enable);
-    _er.SetPulseParams(pulse,presc,delay,width);
-
-    // map pulse generator 0 to front panel output 0
-    _er.SetFPOutMap(0,0);
+    _er.DumpPulses(npulses);
 
     // setup properties for multiplexed counter 0
     // to trigger the sequencer at 360Hz (so we can "stress" the system).
@@ -211,13 +215,15 @@ public:
     _eg.SetMXCPrescaler(0, EVTCLK_RATE); // set prescale to 1
     _eg.SyncMxc();
 
-    int ram=_ram;
-    enable=1; int single=0; int recycle=0; int reset=0;
+    int single=0; int recycle=0; int reset=0;
     int trigsel=C_EVG_SEQTRIG_MXC_BASE;
     _eg.SeqRamCtrl(ram, enable, single, recycle, reset, trigsel);
 
     return tr;
   }
+public:
+  unsigned npulses;
+  EvgrPulseParams* pulse;
 };
 
 extern "C" {
@@ -246,8 +252,17 @@ extern "C" {
 
 Appliance& EvgrManager::appliance() {return _fsm;}
 
-EvgrManager::EvgrManager(EvgrBoardInfo<Evg> &egInfo, EvgrBoardInfo<Evr> &erInfo) :
-  _eg(egInfo.board()),_er(erInfo.board()),_fsm(*new Fsm) {
+EvgrManager::EvgrManager(
+    EvgrBoardInfo<Evg> &egInfo,
+    EvgrBoardInfo<Evr> &erInfo,
+    unsigned npulses,
+    EvgrPulseParams* pulse) :
+      _eg(egInfo.board()),
+      _er(erInfo.board()),
+      _fsm(*new Fsm),
+      _nplss(npulses),
+      _pls(pulse)
+  {
 
   sequenceLoaderGlobal   = new SequenceLoader(_er,_eg);
 
@@ -258,7 +273,7 @@ EvgrManager::EvgrManager(EvgrBoardInfo<Evg> &egInfo, EvgrBoardInfo<Evr> &erInfo)
 //   _fsm.callback(TransitionId::Disable,new EvgrDisableAction(_eg,_er));
 
   Action* action;
-  action = new EvgrConfigAction(_eg,_er);
+  action = new EvgrConfigAction(_eg,_er,_nplss,pulse);
   action->fire((Transition*)0);
   action = new EvgrBeginRunAction(_eg,_er);
   action->fire((Transition*)0);
