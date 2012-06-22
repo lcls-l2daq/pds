@@ -88,7 +88,7 @@ public:
       _set_opcode(ram, EvgrOpcode::EndOfSequence, p+13044);
       _set_opcode(ram, 0, 0);
 
-      if ((_count%(360*2048))==step) {
+      if ((_count%(360*131072))==step) {
         printf("count %d\n",_count);
         _eg.SeqRamDump(ram);
         printf("===\n");
