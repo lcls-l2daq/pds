@@ -43,60 +43,62 @@ public:
     _pos = 0;
     unsigned p = 0;
 #ifdef BASE_120
+    unsigned step = 3;
     for(unsigned i=0; i<3; i++) {
 #else
-    {
+    unsigned step = 1;
+   {
 #endif
 
-      _set_opcode(ram, TRM_OPCODE, _pos+p);
+        _set_opcode(ram, TRM_OPCODE, _pos+p);
 
-      //  Timestamp
-      _nfid++;
-      if (_nfid > TimeStamp::MaxFiducials)
-	_nfid -= TimeStamp::MaxFiducials;
+        //  Timestamp
+        _nfid++;
+        if (_nfid > TimeStamp::MaxFiducials)
+          _nfid -= TimeStamp::MaxFiducials;
 
-      const unsigned NumEvtCodes=33;
-      unsigned numEvtCode=0;
-      do {
-	unsigned mask = (1<<((NumEvtCodes-2)-numEvtCode)); 
-	unsigned opcode = (_nfid&mask) ?
-	  EvgrOpcode::TsBit1 : EvgrOpcode::TsBit0;
-	_set_opcode(ram, opcode, _pos+p);
-      } while (++numEvtCode<(NumEvtCodes-1));
-      _set_opcode(ram, EvgrOpcode::TsBitEnd, _pos+p);
+        const unsigned NumEvtCodes=33;
+        unsigned numEvtCode=0;
+        do {
+          unsigned mask = (1<<((NumEvtCodes-2)-numEvtCode));
+          unsigned opcode = (_nfid&mask) ?
+              EvgrOpcode::TsBit1 : EvgrOpcode::TsBit0;
+          _set_opcode(ram, opcode, _pos+p);
+        } while (++numEvtCode<(NumEvtCodes-1));
+        _set_opcode(ram, EvgrOpcode::TsBitEnd, _pos+p);
 
-      unsigned q = p+36;
-      //  Eventcodes
-      if (_count%2      ==0) {_set_opcode(ram, 180, q+12944);}
-      if (_count%3      ==0) {_set_opcode(ram,  40, q+12954);}
-      if (_count%6      ==0) {_set_opcode(ram,  41, q+12964);}
-      if (_count%12     ==0) {_set_opcode(ram,  42, q+12974);}
-      if (_count%36     ==0) {_set_opcode(ram,  43, q+12984);}
-      if (_count%72     ==0) {_set_opcode(ram,  44, q+12994);}
-      if (_count%360    ==0) {_set_opcode(ram,  45, q+13004);}
-      if (_count%(360*2)==0) {_set_opcode(ram,  46, q+13014);}
-      if (_count%(360*4)==0) {_set_opcode(ram,  47, q+13024);}
-      if (_count%(360*8)==0) {_set_opcode(ram,  48, q+13034);}
-      p += EVTCLK_TO_360HZ;
-      _count++;
+        unsigned q = p+36;
+        //  Eventcodes
+        if (_count%2      ==0) {_set_opcode(ram, 180, q+12944);}
+        if (_count%3      ==0) {_set_opcode(ram,  40, q+12954);}
+        if (_count%6      ==0) {_set_opcode(ram,  41, q+12964);}
+        if (_count%12     ==0) {_set_opcode(ram,  42, q+12974);}
+        if (_count%36     ==0) {_set_opcode(ram,  43, q+12984);}
+        if (_count%72     ==0) {_set_opcode(ram,  44, q+12994);}
+        if (_count%360    ==0) {_set_opcode(ram,  45, q+13004);}
+        if (_count%(360*2)==0) {_set_opcode(ram,  46, q+13014);}
+        if (_count%(360*4)==0) {_set_opcode(ram,  47, q+13024);}
+        if (_count%(360*8)==0) {_set_opcode(ram,  48, q+13034);}
+        p += EVTCLK_TO_360HZ;
+        _count++;
+      }
+
+      p -= EVTCLK_TO_360HZ;
+      _set_opcode(ram, IRQ_OPCODE, p+13043);
+      _set_opcode(ram, EvgrOpcode::EndOfSequence, p+13044);
+      _set_opcode(ram, 0, 0);
+
+      if ((_count%(360*2048))==step) {
+        printf("count %d\n",_count);
+        _eg.SeqRamDump(ram);
+        printf("===\n");
+      }
+
+      //     int enable=1; int single=1; int recycle=0; int reset=0;
+      //     int trigsel=C_EVG_SEQTRIG_MXC_BASE;
+      //     _eg.SeqRamCtrl(ram, enable, single, recycle, reset, trigsel);
+      //     _ram = ram;
     }
-
-    p -= EVTCLK_TO_360HZ;
-    _set_opcode(ram, IRQ_OPCODE, p+13043);
-    _set_opcode(ram, EvgrOpcode::EndOfSequence, p+13044);
-    _set_opcode(ram, 0, 0);
-
-    if ((_count%(360*8))==0) {
-      printf("count %d\n",_count);
-      _eg.SeqRamDump(ram);
-      printf("===\n");
-    }
-
-//     int enable=1; int single=1; int recycle=0; int reset=0;
-//     int trigsel=C_EVG_SEQTRIG_MXC_BASE;
-//     _eg.SeqRamCtrl(ram, enable, single, recycle, reset, trigsel);
-//     _ram = ram;
-  }
 private:
   void _set_opcode(int ram, unsigned opcode, unsigned pos) {
     _eg.SetSeqRamEvent(ram, _pos, pos, opcode);
@@ -235,11 +237,12 @@ extern "C" {
       {
 	FIFOEvent fe;
 	er.GetFIFOEvent(&fe);
+
+	if ((_opcodecount%(360*128))==0)
+	  printf("ncodes %d  last %d\n",_opcodecount,_lastopcode);
+
 	_opcodecount++;
 	_lastopcode = fe.EventCode;
-
-	if ((_opcodecount%(360*8))==0)
-	  printf("ncodes %d  last %d\n",_opcodecount,_lastopcode);
 
 	sequenceLoaderGlobal->set();
 
