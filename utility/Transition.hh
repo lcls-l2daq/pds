@@ -94,11 +94,15 @@ namespace Pds {
   class RunInfo : public Transition {
   public:
     RunInfo(unsigned run, unsigned experiment);
+    RunInfo(unsigned run, unsigned experiment, char *expname);
     unsigned run();
     unsigned experiment();
+    char *expname();
   private:
+    static const unsigned MaxExpName=16;
     unsigned _run;
     unsigned _experiment;
+    char     _expname  [MaxExpName];
   };
 
   class Kill : public Transition {
