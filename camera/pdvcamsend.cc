@@ -17,6 +17,7 @@
 #include <sys/time.h>
 
 #include "pds/config/Opal1kConfigType.hh"
+#include "pds/config/QuartzConfigType.hh"
 #include "pds/config/TM6740ConfigType.hh"
 #include "pds/config/FccdConfigType.hh"
 #include "pds/utility/Occurrence.hh"
@@ -26,6 +27,7 @@
 #include "pthread.h"
 
 #include "pds/camera/Opal1kCamera.hh"
+#include "pds/camera/QuartzCamera.hh"
 #include "pds/camera/TM6740Camera.hh"
 #include "pds/camera/FccdCamera.hh"
 #include "pds/camera/EdtPdvCL.hh"
@@ -59,7 +61,7 @@ static void help(const char *progname)
     "--count <nimages>: number of images to acquire.\n"
     "--fps <nframes>: frames per second.\n"
     "--shutter: use external shutter.\n"
-    "--camera  {0|1|2}   : choose Opal (0) or Pulnix (1) or FCCD (2).\n"
+    "--camera  {0|1|2|3}   : choose Opal (0) or Pulnix (1) or FCCD (2) or Quartz(3).\n"
     "--grabber <grabber#>: choose grabber number\n"
     "--noccd: enable data module test pattern (FCCD only).\n"
     "--opalgain: digital gain (%4.2f - %5.2f, default %5.2f) (Opal only).\n"
@@ -111,7 +113,7 @@ int main(int argc, char *argv[])
    	  printf( "Use grabber %d\n", grabberid );
       printf( "\n" );
     } else if( strcmp("--testpat", argv[i]) == 0 ) {
-       // Currently only valid for the Opal1K camera!
+       // Currently only valid for the Opal1K and Quartz camera!
        test_pattern = true;
     } else if (strcmp("--fps",argv[i]) == 0) {
       fps = strtod(argv[++i],NULL);
@@ -233,6 +235,22 @@ int main(int argc, char *argv[])
       pCamera = fCamera;
       break;
     }
+  case 3:
+    {
+      DetInfo info(0,DetInfo::NoDetector,0,DetInfo::Quartz4A150,0);
+      QuartzCamera* oCamera = new QuartzCamera(info);
+      QuartzConfigType* Config = new QuartzConfigType( 32, 100, 
+						       bitsperpixel==8 ? QuartzConfigType::Eight_bit : 
+						       QuartzConfigType::Ten_bit,
+						       QuartzConfigType::x1,
+						       QuartzConfigType::x1,
+						       QuartzConfigType::None,
+						       true);
+      
+      oCamera->set_config_data(Config);
+      pCamera = oCamera;
+      break;
+    }
   case 1:
   default:
     {
@@ -274,6 +292,13 @@ int main(int argc, char *argv[])
     opal->setTestPattern( *pDriver, test_pattern );
      if (!extshutter) {
        opal->setContinuousMode( *pDriver, fps);
+     }
+  }
+  else if( camera_choice == 3 ) {
+    QuartzCamera* q = static_cast<QuartzCamera*>(pCamera);
+    q->setTestPattern( *pDriver, test_pattern );
+     if (!extshutter) {
+       q->setContinuousMode( *pDriver, fps);
      }
   }
 

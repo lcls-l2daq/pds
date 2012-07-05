@@ -11,6 +11,8 @@ libsrcs_camera := CameraBase.cc \
 	          FccdFrameServer.cc \
 		  Opal1kCamera.cc \
 		  Opal1kManager.cc \
+		  QuartzCamera.cc \
+		  QuartzManager.cc \
 		  TM6740Camera.cc \
 		  TM6740Manager.cc \
 		  FccdCamera.cc \
@@ -54,7 +56,7 @@ leutron_libs += leutron/LvSerialCommunication.34.${ARCHCODE}
 tgtsrcs_camsend := camsend.cc
 tgtlibs_camsend := pds/service pds/collection pds/utility pds/config pds/camera pds/client pds/xtc
 tgtlibs_camsend += pds/vmon pds/mon pds/camleutron
-tgtlibs_camsend += pdsdata/xtcdata pdsdata/camdata pdsdata/opal1kdata pdsdata/pulnixdata pdsdata/fccddata
+tgtlibs_camsend += pdsdata/xtcdata pdsdata/camdata pdsdata/opal1kdata pdsdata/quartzdata pdsdata/pulnixdata pdsdata/fccddata
 tgtincs_camsend := pds/zerocopy/kmemory pds/camera
 tgtlibs_camsend += $(leutron_libs)
 tgtincs_camsend += leutron/include
@@ -88,7 +90,7 @@ tgtsrcs_pdvcamsend := pdvcamsend.cc
 tgtincs_pdvcamsend := edt/include
 tgtlibs_pdvcamsend := pds/service pds/collection pds/utility pds/config pds/client pds/xtc
 tgtlibs_pdvcamsend += pds/vmon pds/mon pds/camera pds/camedt
-tgtlibs_pdvcamsend += pdsdata/xtcdata pdsdata/camdata pdsdata/opal1kdata pdsdata/pulnixdata pdsdata/fccddata
+tgtlibs_pdvcamsend += pdsdata/xtcdata pdsdata/camdata pdsdata/opal1kdata pdsdata/quartzdata pdsdata/pulnixdata pdsdata/fccddata
 tgtlibs_pdvcamsend += edt/pdv
 tgtslib_pdvcamsend := $(USRLIBDIR)/rt dl
 
