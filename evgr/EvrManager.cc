@@ -179,6 +179,10 @@ public:
           _er.ClearPulseMap(ram, iopcode, jSetClear, jSetClear, jSetClear);
       }
     }    
+    // Another problem: The output mapping to pulses never clears
+    // workaround: Set output map to the last pulse (just cleared)
+    for (unsigned k = 0; k < EVR_MAX_UNIVOUT_MAP; k++)
+      _er.SetUnivOutMap(k, EVR_MAX_PULSES-1);
 
     // setup map ram
     int ram = 0;
