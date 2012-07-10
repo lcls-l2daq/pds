@@ -238,7 +238,7 @@ extern "C" {
 	FIFOEvent fe;
 	er.GetFIFOEvent(&fe);
 
-	if ((_opcodecount%(360*128))==0)
+	if ((_opcodecount%(360*8192))==0)
 	  printf("ncodes %d  last %d\n",_opcodecount,_lastopcode);
 
 	_opcodecount++;

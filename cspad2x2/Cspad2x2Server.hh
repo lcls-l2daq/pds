@@ -69,6 +69,8 @@ class Pds::Cspad2x2Server
    void     process(void);
    void     ignoreFetch(bool f) { _ignoreFetch = f; }
    void     runTimeConfigName(char*);
+   void     runTrigFactor(unsigned f) { _runTrigFactor = f; }
+   unsigned runTrigFactor() { return _runTrigFactor; }
 
  public:
    static Cspad2x2Server* instance() { return _instance; }
@@ -96,6 +98,7 @@ class Pds::Cspad2x2Server
    Pds::Pgp::Pgp*                 _pgp;
    unsigned*                      _dummy;
    char                           _runTimeConfigName[256];
+   unsigned                       _runTrigFactor;
    bool                           _configured;
    bool                           _firstFetch;
    bool                           _ignoreFetch;

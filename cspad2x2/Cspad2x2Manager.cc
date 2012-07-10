@@ -139,7 +139,7 @@ InDatagram* Cspad2x2L1Action::fire(InDatagram* in) {
       if (server->debug() & 0x80) printf("Cspad2x2L1Action::fire resetting evrFiducials(0x%x) acq(0x%x)\n", evrFiducials, acq);
     }
     if (evrFiducials == _lastMatchedFiducial) printf("Cspad2x2L1Action::fire(in) saw duplicated evr fiducials\n"); /* This is an EVR error, so what to do? */
-    if (noWrap && ((evrFiducials-_lastMatchedFiducial) != (3 * (acq-_lastMatchedAcqCount)))) {
+    if (noWrap && ((evrFiducials-_lastMatchedFiducial) != (server->runTrigFactor() * 3 * (acq-_lastMatchedAcqCount)))) {
       frameError |= 1;
       if (_frameSyncErrorCount < FiducialErrorCountLimit) {
         printf("Cspad2x2L1Action::fire(in) frame mismatch!  evr(0x%x) lastMatchedFiducial(0x%x)\n\tframeNumber(0x%x), lastMatchedFrameNumber(0x%x), ",
@@ -166,7 +166,7 @@ InDatagram* Cspad2x2L1Action::fire(InDatagram* in) {
         if (!_frameSyncErrorCount) server->printHisto(false);
       } else {
         if (_frameSyncErrorCount == FiducialErrorCountLimit) {
-          printf("Cspad2x2L1Action::fire(in) is turning of frame error reporting until we see a match\n");
+          printf("Cspad2x2L1Action::fire(in) is turning off frame error reporting until we see a match\n");
         }
       }
     }
