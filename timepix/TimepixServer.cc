@@ -108,9 +108,15 @@ Pds::TimepixServer::TimepixServer( const Src& client, unsigned moduleId, unsigne
         _pixelsCfg = NULL;
       } else {
         for (int jj=0; jj < TimepixConfigType::PixelThreshMax; jj++) {
-          // ensure that TOT mode is set
+          // ensure that mode is set...
           _pixelsCfg[jj] &= ~TPX_CFG8_MODE_MASK;
-          _pixelsCfg[jj] |= (TPX_MODE_TOT << TPX_CFG8_MODE_MASK_SHIFT);
+          if (_triggerMode) {
+            // TOT mode
+            _pixelsCfg[jj] |= (TPX_MODE_TOT << TPX_CFG8_MODE_MASK_SHIFT);
+          } else {
+            // Counting mode
+            _pixelsCfg[jj] |= (TPX_MODE_MEDIPIX << TPX_CFG8_MODE_MASK_SHIFT);
+          }
         }
       }
       fclose(fp);
@@ -494,7 +500,11 @@ unsigned Pds::TimepixServer::configure(TimepixConfigType& config)
   // set pixels configuration
 
   config.pixelThresh(0, NULL);  // default: empty pixel configuration
-  printf("Mode: Time Over Threshold (TOT)\n");
+  if (_triggerMode) {
+    printf("Mode: Time Over Threshold (TOT)\n");
+  } else {
+    printf("Mode: Counting\n");
+  }
   if (pixelsCfg()) {
     if (_timepix->setPixelsCfg(pixelsCfg())) {
       fprintf(stderr, "Error: failed to set pixels configuraton (individual thresholds)\n");
