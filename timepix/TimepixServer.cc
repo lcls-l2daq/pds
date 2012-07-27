@@ -106,19 +106,8 @@ Pds::TimepixServer::TimepixServer( const Src& client, unsigned moduleId, unsigne
         perror("fread");
         delete[] _pixelsCfg;
         _pixelsCfg = NULL;
-      } else {
-        for (int jj=0; jj < TimepixConfigType::PixelThreshMax; jj++) {
-          // ensure that mode is set...
-          _pixelsCfg[jj] &= ~TPX_CFG8_MODE_MASK;
-          if (_triggerMode) {
-            // TOT mode
-            _pixelsCfg[jj] |= (TPX_MODE_TOT << TPX_CFG8_MODE_MASK_SHIFT);
-          } else {
-            // Counting mode
-            _pixelsCfg[jj] |= (TPX_MODE_MEDIPIX << TPX_CFG8_MODE_MASK_SHIFT);
-          }
-        }
       }
+      // the Timepix mode (TOT or Counting) will be set later, after configuration
       fclose(fp);
     }
   }
@@ -147,6 +136,19 @@ Pds::TimepixServer::TimepixServer( const Src& client, unsigned moduleId, unsigne
 
 uint8_t *Pds::TimepixServer::pixelsCfg()
 {
+  if (_pixelsCfg) {
+    for (int jj=0; jj < TimepixConfigType::PixelThreshMax; jj++) {
+      // be sure to read the configuration before setting the mode
+      _pixelsCfg[jj] &= ~TPX_CFG8_MODE_MASK;
+      if (_triggerMode) {
+        // TOT mode
+        _pixelsCfg[jj] |= (TPX_MODE_TOT << TPX_CFG8_MODE_MASK_SHIFT);
+      } else {
+        // Counting mode
+        _pixelsCfg[jj] |= (TPX_MODE_MEDIPIX << TPX_CFG8_MODE_MASK_SHIFT);
+      }
+    }
+  }
   return _pixelsCfg;
 }
 
@@ -501,9 +503,9 @@ unsigned Pds::TimepixServer::configure(TimepixConfigType& config)
 
   config.pixelThresh(0, NULL);  // default: empty pixel configuration
   if (_triggerMode) {
-    printf("Mode: Time Over Threshold (TOT)\n");
+    printf("Timepix Mode: Time Over Threshold (TOT)\n");
   } else {
-    printf("Mode: Counting\n");
+    printf("Timepix Mode: Counting\n");
   }
   if (pixelsCfg()) {
     if (_timepix->setPixelsCfg(pixelsCfg())) {
