@@ -70,6 +70,7 @@ namespace Pds {
 
         unsigned                  configure(unsigned mask=0);
         CsPadConfigType&          configuration() { return *_config; };
+        void                      configuration(CsPadConfigType& c) { _config=&c; }
         void                      print();
         void                      dumpFrontEnd();
         void                      printMe();
