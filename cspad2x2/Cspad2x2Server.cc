@@ -65,6 +65,7 @@ unsigned Cspad2x2Server::configure(CsPad2x2ConfigType* config) {
     _cnfgrtr->runTimeConfigName(_runTimeConfigName);
   } else {
     printf("Cspad2x2Configurator already instantiated\n");
+    _cnfgrtr->configuration(*config);
   }
   unsigned c = flushInputQueue(fd());
   if (c) printf("Cspad2x2Server::configure flushed %u event%s before configuration\n", c, c>1 ? "s" : "");

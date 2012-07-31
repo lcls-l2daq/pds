@@ -64,6 +64,7 @@ namespace Pds {
 
         unsigned                  configure(unsigned mask=0);
         CsPad2x2ConfigType&       configuration() { return *_config; };
+        void                      configuration(CsPad2x2ConfigType& c) { _config=&c; }
         void                      print();
         void                      dumpFrontEnd();
         void                      printMe();
