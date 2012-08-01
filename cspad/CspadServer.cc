@@ -67,11 +67,10 @@ unsigned CspadServer::configure(CsPadConfigType* config) {
     _cnfgrtr->runTimeConfigName(_runTimeConfigName);
   } else {
     printf("CspadConfigurator already instantiated\n");
-    _cnfgrtr->configuration(*config);
   }
   unsigned c = flushInputQueue(fd());
   if (c) printf("CspadServer::configure flushed %u event%s before configuration\n", c, c>1 ? "s" : "");
-  if ((_configureResult = _cnfgrtr->configure(_configMask))) {
+  if ((_configureResult = _cnfgrtr->configure(config, _configMask))) {
     printf("CspadServer::configure failed 0x%x\n", _configureResult);
     _cnfgrtr->dumpPgpCard();
   } else {

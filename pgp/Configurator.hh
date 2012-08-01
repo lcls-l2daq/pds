@@ -34,7 +34,6 @@ namespace Pds {
 
       public:
         virtual void              print();
-        virtual unsigned          configure(unsigned) = 0;
         virtual void              dumpFrontEnd() = 0;
         void                      dumpPgpCard();
         int                       fd() { return _fd; }

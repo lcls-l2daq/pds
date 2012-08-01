@@ -68,9 +68,8 @@ namespace Pds {
         enum {ResetSeqCountRegisterAddr=0x000009};
         enum {QuadResetRegisterAddr=0x500004};
 
-        unsigned                  configure(unsigned mask=0);
+        unsigned                  configure(CsPadConfigType*, unsigned mask=0);
         CsPadConfigType&          configuration() { return *_config; };
-        void                      configuration(CsPadConfigType& c) { _config=&c; }
         void                      print();
         void                      dumpFrontEnd();
         void                      printMe();

@@ -367,7 +367,7 @@ class PhasicsEndCalibCycleAction : public Action {
       printf(" %p\n", _cfg.current());
       printf("\tdisabling front end\n");
       unsigned ret;
-      if (ret = _server->disable()) {
+      if ((ret = _server->disable()) != 0) {
         _result = 0xc | (ret & 0xf);
       }
       _server->printHisto(true);

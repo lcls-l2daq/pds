@@ -52,7 +52,6 @@ namespace Pds {
         enum resultReturn {Success=0, Failure=1, Terminate=2};
 
         unsigned             configure(FexampConfigType*, unsigned mask=0);
-        unsigned             configure(unsigned) { return Success; };
         FexampConfigType&    configuration() { return *_config; };
         void                 print();
         void                 dumpFrontEnd();

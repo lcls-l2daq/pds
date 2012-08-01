@@ -137,7 +137,8 @@ namespace Pds {
       return ret;
     }
 
-    unsigned CspadConfigurator::configure(unsigned mask) {
+    unsigned CspadConfigurator::configure(CsPadConfigType* config, unsigned mask) {
+      _config = config;
       timespec      start, end, sleepTime, shortSleepTime;
       sleepTime.tv_sec = 0;
       sleepTime.tv_nsec = 25000000; // 25ms
