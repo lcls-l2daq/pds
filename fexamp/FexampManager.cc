@@ -172,25 +172,6 @@ InDatagram* FexampL1Action::fire(InDatagram* in) {
       return in;
     }
 
-//    for (unsigned i=0; i<server->numberOfQuads(); i++) {
-//      data = (Pds::Pgp::DataImportFrame*) ( payload + (i * server->payloadSize()) );
-//      if (evrFiducials != data->fiducials()) {
-//        error |= 1<<i;
-//        printf("FexampL1Action::fire(in) fiducial mismatch evr(0x%x) fexamp(0x%x) in quad %u, lastMatchedFiducial(0x%x), frameNumber(%u)\n",
-//            evrFiducials, data->fiducials(), i, _lastMatchedFiducial, data->frameNumber());
-//      } else {
-//        _lastMatchedFiducial = evrFiducials;
-//      }
-//      // Kludge test of sending nothing ....                  !!!!!!!!!!!!!!!!!!!!!!
-////      if (data->frameNumber()) {
-////        if ((data->frameNumber() & 0xfff) == 0) {
-////          printf("FexampL1Action::FexampL1Action sending nothing %u 0x%x\n",
-////              data->frameNumber(),
-////              data->fiducials());
-////          return NULL;
-////        }
-////      }
-//    }
     if (error) {
       dg.xtc.damage.increase(Pds::Damage::UserDefined);
       dg.xtc.damage.userBits(0xf0 | (error&0xf));
