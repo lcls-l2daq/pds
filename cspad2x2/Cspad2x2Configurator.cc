@@ -277,9 +277,7 @@ namespace Pds {
           printf("Cspad2x2Configurator::checkDigPots() FAILED !!!!\n");
         }
       }
-      if ((_debug & 0x800) && (ret == Success)) {
-        dumpPgpCard();
-      }
+      dumpPgpCard();
       clock_gettime(CLOCK_REALTIME, &end);
       uint64_t diff = timeDiff(&end, &start) + 50000LL;
       if (_debug & 0x700) {

@@ -92,6 +92,7 @@ class Cspad2x2L1Action : public Action {
    unsigned _lastMatchedFrameNumber;
    unsigned _lastMatchedAcqCount;
    unsigned _frameSyncErrorCount;
+   unsigned _damageCount;
 };
 
 void Cspad2x2L1Action::reset(bool resetError) {
@@ -104,15 +105,22 @@ Cspad2x2L1Action::Cspad2x2L1Action(Cspad2x2Server* svr) :
     server(svr),
     _lastMatchedFiducial(0xffffffff),
     _lastMatchedFrameNumber(0xffffffff),
-    _frameSyncErrorCount(0) {}
+    _frameSyncErrorCount(0),
+    _damageCount(0) {}
 
 InDatagram* Cspad2x2L1Action::fire(InDatagram* in) {
   if (server->debug() & 8) printf("Cspad2x2L1Action::fire!\n");
-  if (in->datagram().xtc.damage.value() == 0) {
+  Datagram& dg = in->datagram();
+  Xtc* xtc = &(dg.xtc);
+  unsigned evrFiducials = dg.seq.stamp().fiducials();
+  unsigned vector = dg.seq.stamp().vector();
+  if (in->datagram().xtc.damage.value() != 0) {
+    if (_damageCount++ < 32) {
+      printf("Cspad2x2L1Action::fire damage(0x%x), fiducials(0x%x), vector(0x%x)\n",
+          in->datagram().xtc.damage.value(), evrFiducials, vector);
+    }
+  } else {
     Pds::Pgp::DataImportFrame* data;
-    Datagram& dg = in->datagram();
-    Xtc* xtc = &(dg.xtc);
-    unsigned evrFiducials = dg.seq.stamp().fiducials();
     unsigned frameError = 0;
     char*    payload;
     if (xtc->contains.id() == Pds::TypeId::Id_Xtc) {

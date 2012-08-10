@@ -181,8 +181,15 @@ public:
     }    
     // Another problem: The output mapping to pulses never clears
     // workaround: Set output map to the last pulse (just cleared)
-    for (unsigned k = 0; k < EVR_MAX_UNIVOUT_MAP; k++)
-      _er.SetUnivOutMap(k, EVR_MAX_PULSES-1);
+    unsigned omask = 0;
+    for (unsigned k = 0; k < cfg.noutputs(); k++)
+      omask |= 1<<cfg.output_map(k).conn_id();
+    omask = ~omask;
+
+    for (unsigned k = 0; k < EVR_MAX_UNIVOUT_MAP; k++) {
+      if ((omask >> k)&1)
+        _er.SetUnivOutMap(k, EVR_MAX_PULSES-1);
+    }
 
     // setup map ram
     int ram = 0;
@@ -287,7 +294,7 @@ public:
 
     unsigned dummyram = 1;
     _er.MapRamEnable(dummyram, 1);
-    
+
     if (_fifo_handler)
       _fifo_handler->set_config( &cfg );
 

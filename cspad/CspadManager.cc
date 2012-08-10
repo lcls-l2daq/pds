@@ -111,6 +111,7 @@ private:
    unsigned _frameSyncErrorCount;
    unsigned _ioIndex;
    unsigned _resetCount;
+   unsigned _damageCount;
    bool     _bUseCompressor;   
 };
 
@@ -127,6 +128,7 @@ CspadL1Action::CspadL1Action(CspadServer* svr, CspadCompressionProcessor& proces
     _lastMatchedFrameNumber(0xffffffff),
     _frameSyncErrorCount(0),
     _resetCount(0),
+    _damageCount(0),
     //_bUseCompressor(server->xtc().contains.id() == TypeId::Id_CspadElement)
     _bUseCompressor(false)
     {}
@@ -144,11 +146,17 @@ inline InDatagram* CspadL1Action::postData(InDatagram* in)
 
 InDatagram* CspadL1Action::fire(InDatagram* in) {
   if (server->debug() & 8) printf("CspadL1Action::fire!\n");
-  if (in->datagram().xtc.damage.value() == 0) {
+  Datagram& dg = in->datagram();
+  Xtc* xtc = &(dg.xtc);
+  unsigned evrFiducials = dg.seq.stamp().fiducials();
+  unsigned vector = dg.seq.stamp().vector();
+  if (in->datagram().xtc.damage.value() != 0) {
+    if (_damageCount++ < 32) {
+      printf("CspadL1Action::fire damage(0x%x), fiducials(0x%x), vector(0x%x)\n",
+          in->datagram().xtc.damage.value(), evrFiducials, vector);
+    }
+  } else {
     Pds::Pgp::DataImportFrame* data;
-    Datagram& dg = in->datagram();
-    Xtc* xtc = &(dg.xtc);
-    unsigned evrFiducials = dg.seq.stamp().fiducials();
     unsigned frameError = 0;
     char*    payload;
     if (xtc->contains.id() == Pds::TypeId::Id_Xtc) {
