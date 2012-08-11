@@ -7,12 +7,16 @@ namespace Pds {
   class Appliance;
   class Evr;
   class Evg;
+  class EvgMasterTiming;
   class EvgrPulseParams;
   template <class T> class EvgrBoardInfo;
 
   class EvgrManager {
   public:
-    EvgrManager(EvgrBoardInfo<Evg>& egInfo, EvgrBoardInfo<Evr>& erInfo, unsigned npulses, EvgrPulseParams* pulse);
+    EvgrManager(EvgrBoardInfo<Evg>& egInfo, 
+                EvgrBoardInfo<Evr>& erInfo, 
+                const EvgMasterTiming&  mtime,
+                unsigned npulses, EvgrPulseParams* pulse);
     Appliance& appliance();
 
   public:

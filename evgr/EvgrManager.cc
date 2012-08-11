@@ -15,6 +15,7 @@
 #include "EvgrManager.hh"
 #include "EvgrOpcode.hh"
 #include "EvgrPulseParams.hh"
+#include "EvgMasterTiming.hh"
 
 #include "pds/config/EvrConfigType.hh"
 
@@ -34,7 +35,8 @@ static const unsigned IRQ_OPCODE=2;
 
 class SequenceLoader {
 public:
-  SequenceLoader(Evr& er, Evg& eg) : _er(er), _eg(eg), _nfid(0), _count(0) {}
+  SequenceLoader(Evr& er, Evg& eg, const EvgMasterTiming& mtime) :
+    _er(er), _eg(eg), _mtime(mtime), _nfid(0), _count(0) {}
 public:
   void set() {
     //    int ram = 1-_ram;
@@ -42,13 +44,10 @@ public:
 
     _pos = 0;
     unsigned p = 0;
-#ifdef BASE_120
-    unsigned step = 3;
-    for(unsigned i=0; i<3; i++) {
-#else
-    unsigned step = 1;
-   {
-#endif
+
+    unsigned step = _mtime.sequences_per_main();
+
+    for(unsigned i=0; i<step; i++) {
 
         _set_opcode(ram, TRM_OPCODE, _pos+p);
 
@@ -79,11 +78,11 @@ public:
         if (_count%(360*2)==0) {_set_opcode(ram,  46, q+13014);}
         if (_count%(360*4)==0) {_set_opcode(ram,  47, q+13024);}
         if (_count%(360*8)==0) {_set_opcode(ram,  48, q+13034);}
-        p += EVTCLK_TO_360HZ;
+        p += _mtime.clocks_per_sequence();
         _count++;
       }
 
-      p -= EVTCLK_TO_360HZ;
+      p -= _mtime.clocks_per_sequence();
       _set_opcode(ram, IRQ_OPCODE, p+13043);
       _set_opcode(ram, EvgrOpcode::EndOfSequence, p+13044);
       _set_opcode(ram, 0, 0);
@@ -106,6 +105,7 @@ private:
   }
   Evr& _er;
   Evg& _eg;
+  const EvgMasterTiming& _mtime;
   unsigned _nfid;
   unsigned _count;
   unsigned _pos;
@@ -174,7 +174,12 @@ public:
 
 class EvgrConfigAction : public EvgrAction {
 public:
-  EvgrConfigAction(Evg& eg, Evr& er, unsigned n, EvgrPulseParams* p) : EvgrAction(eg,er) {
+  EvgrConfigAction(Evg& eg, Evr& er, 
+                   unsigned n, EvgrPulseParams* p,
+                   const EvgMasterTiming& mtim) : 
+    EvgrAction(eg,er),
+    mtime(mtim) 
+  {
     npulses = n;
     pulse = p;
   }
@@ -207,25 +212,35 @@ public:
 
     _er.DumpPulses(npulses);
 
-    // setup properties for multiplexed counter 0
-    // to trigger the sequencer at 360Hz (so we can "stress" the system).
-#ifdef BASE_120
-    const unsigned EVTCLK_RATE = EVTCLK_TO_360HZ;
-#else
-    const unsigned EVTCLK_RATE = EVTCLK_TO_360HZ/3;
-#endif
-    _eg.SetMXCPrescaler(0, EVTCLK_RATE); // set prescale to 1
-    _eg.SyncMxc();
+    if (mtime.internal_main()) {
+      // setup properties for multiplexed counter 0
+      // to trigger the sequencer at 360Hz (so we can "stress" the system).
 
-    int single=0; int recycle=0; int reset=0;
-    int trigsel=C_EVG_SEQTRIG_MXC_BASE;
-    _eg.SeqRamCtrl(ram, enable, single, recycle, reset, trigsel);
+      _eg.SetMXCPrescaler(0, mtime.clocks_per_sequence()*mtime.sequences_per_main());
+      _eg.SyncMxc();
+
+      int single=0; int recycle=0; int reset=0;
+      int trigsel=C_EVG_SEQTRIG_MXC_BASE;
+      _eg.SeqRamCtrl(ram, enable, single, recycle, reset, trigsel);
+    }
+    else {
+      int bypass=0, sync=0, div=0, delay=0;
+      _eg.SetACInput(bypass, sync, div, delay);
+      
+      int map = -1;
+      _eg.SetACMap(map);
+
+      int single=0; int recycle=0; int reset=0;
+      int trigsel=C_EVG_SEQTRIG_ACINPUT;
+      _eg.SeqRamCtrl(ram, enable, single, recycle, reset, trigsel);
+    }
 
     return tr;
   }
 public:
   unsigned npulses;
   EvgrPulseParams* pulse;
+  const EvgMasterTiming& mtime;
 };
 
 extern "C" {
@@ -258,17 +273,18 @@ Appliance& EvgrManager::appliance() {return _fsm;}
 EvgrManager::EvgrManager(
     EvgrBoardInfo<Evg> &egInfo,
     EvgrBoardInfo<Evr> &erInfo,
+    const EvgMasterTiming& mtime,
     unsigned npulses,
     EvgrPulseParams* pulse) :
-      _eg(egInfo.board()),
-      _er(erInfo.board()),
-      _fsm(*new Fsm),
-      _nplss(npulses),
-      _pls(pulse)
-  {
+  _eg(egInfo.board()),
+  _er(erInfo.board()),
+  _fsm(*new Fsm),
+  _nplss(npulses),
+  _pls(pulse)
+{
 
-  sequenceLoaderGlobal   = new SequenceLoader(_er,_eg);
-
+  sequenceLoaderGlobal   = new SequenceLoader(_er,_eg,mtime);
+    
 //   _fsm.callback(TransitionId::Configure,new EvgrConfigAction(_eg,_er));
 //   _fsm.callback(TransitionId::BeginRun,new EvgrBeginRunAction(_eg,_er));
 //   _fsm.callback(TransitionId::Enable,new EvgrEnableAction(*timeLoaderGlobal,_eg,_er));
@@ -276,7 +292,7 @@ EvgrManager::EvgrManager(
 //   _fsm.callback(TransitionId::Disable,new EvgrDisableAction(_eg,_er));
 
   Action* action;
-  action = new EvgrConfigAction(_eg,_er,_nplss,pulse);
+  action = new EvgrConfigAction(_eg,_er,_nplss,pulse,mtime);
   action->fire((Transition*)0);
   action = new EvgrBeginRunAction(_eg,_er);
   action->fire((Transition*)0);
