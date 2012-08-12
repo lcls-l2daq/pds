@@ -177,7 +177,7 @@ void EdtPdvCL::_setup(int unit, int channel)
     dd_p->serial_response[0] = '\r';
     dd_p->xilinx_rev = NOT_SET;
     dd_p->timeout = NOT_SET;
-    dd_p->user_timeout = NOT_SET;
+    dd_p->user_timeout = 100;  // set get_images timeout to be more responsive
     dd_p->mode_cntl_norm = NOT_SET;
     dd_p->mc4 = 0;
     dd_p->pulnix = 0;
