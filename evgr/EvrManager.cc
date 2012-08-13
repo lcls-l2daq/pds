@@ -187,7 +187,7 @@ public:
     omask = ~omask;
 
     for (unsigned k = 0; k < EVR_MAX_UNIVOUT_MAP; k++) {
-      if ((omask >> k)&1)
+      if ((omask >> k)&1 && !(k>9 && !slacEvr))
         _er.SetUnivOutMap(k, EVR_MAX_PULSES-1);
     }
 
