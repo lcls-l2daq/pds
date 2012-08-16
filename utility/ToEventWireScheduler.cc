@@ -11,6 +11,7 @@
 #include "pds/xtc/InDatagram.hh"
 #include "pds/service/Task.hh"
 
+#include <stdlib.h>
 #include <string.h>
 #include <errno.h>
 #include <poll.h>
@@ -40,11 +41,13 @@ ToEventWireScheduler::ToEventWireScheduler(Outlet& outlet,
   _collection  (collection),
   _client      (sizeof(OutletWireHeader), Mtu::Size, Ins(interface),
                 //                (1 + maxbuf / Mtu::Size)*_maxscheduled),
-                (1 + maxbuf / Mtu::Size)),
+                ((1 + maxbuf) / Mtu::Size)),
   _occurrences (occurrences),
   _scheduled   (_phase),
   _task        (new Task(TaskObject("TxScheduler")))
 {
+  _flushCount = 0;
+  _histo = (unsigned*) calloc(10000, sizeof(unsigned));
   if (::pipe(_schedfd) < 0)
     printf("ToEventWireScheduler pipe open error : %s\n",strerror(errno));
   else
@@ -91,8 +94,20 @@ void ToEventWireScheduler::_flush(InDatagram* dg)
   delete n;
 }
 
+long long int ToEventWireScheduler::timeDiff(timespec* end, timespec* start) {
+  long long int diff;
+  diff =  (end->tv_sec - start->tv_sec) * 1000000000LL;
+  diff += end->tv_nsec;
+  diff -= start->tv_nsec;
+  return diff;
+}
+
 void ToEventWireScheduler::_flush()
 {
+#ifdef HISTO_TRANSMIT_TIMES
+  timespec start, end;
+  clock_gettime(CLOCK_REALTIME, &start);
+#endif
   TrafficDst* t = _list.forward();
   while(t != _list.empty()) {
     do {
@@ -117,10 +132,27 @@ void ToEventWireScheduler::_flush()
   }
   _scheduled  = _phase;
   _nscheduled = 0;
+#ifdef HISTO_TRANSMIT_TIMES
+  clock_gettime(CLOCK_REALTIME, &end);
+  long long int interval = timeDiff(&end, &start)/100000LL;
+  if (interval > 9999) interval = 9999;
+  _histo[interval] += 1;
+  if ((++_flushCount % 10000) == 0) {
+    printf("ToEventWireScheduler time histo in ms %u\n", _flushCount);
+    for (int i=0; i<1000; i++) {
+      if (_histo[i]) {
+        printf("\t%5.1f - %8u\n", i/10.0, _histo[i]);
+      }
+    }
+  }
+#endif
 }
 
 InDatagram* ToEventWireScheduler::forward(InDatagram* dg)
 {
+//  if (dg->datagram().seq.isEvent())
+//    return 0;
+
   ::write(_schedfd[1], &dg, sizeof(dg));
   return (InDatagram*)Appliance::DontDelete;
 }

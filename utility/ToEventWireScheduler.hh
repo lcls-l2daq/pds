@@ -8,6 +8,7 @@
 
 #include "pds/utility/OutletWireInsList.hh"
 #include "pds/service/Client.hh"
+#include <time.h>
 
 namespace Pds {
   class CollectionManager;
@@ -42,6 +43,7 @@ namespace Pds {
   private:
     void _flush(InDatagram*);
     void _flush();
+    long long int timeDiff(timespec*, timespec*);
   private:
     OutletWireInsList  _nodes;
     CollectionManager& _collection;
@@ -54,6 +56,8 @@ namespace Pds {
     TrafficScheduler*      _schedule;
     Task*                  _task;
     int                    _schedfd[2];
+    unsigned               _flushCount;
+    unsigned*              _histo;
   };
 }
 
