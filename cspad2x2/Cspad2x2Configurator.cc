@@ -348,6 +348,10 @@ namespace Pds {
             expected, readBack, d->name(), addr);
         return Failure;
       }
+      if (_debug & 0x1000) {
+        printf("Cspad2x2Configurator::_checkReg matching value %8u at %s address 0x%x\n",
+            expected, d->name(), addr);
+      }
       return Success;
     }
 
@@ -371,6 +375,10 @@ namespace Pds {
           ret = Failure;
           printf("Cspad2x2Configurator::writeRegs concentrator read back Protection threshold (%u,%u) != (%u,%u)\n",
               pw->adcThreshold, pw->pixelCountThreshold, pr.adcThreshold, pr.pixelCountThreshold);
+        }
+        if (_debug & 0x1000 && !ret) {
+          printf("Cspad2x2Configurator::checkWrittenRegs matching protection sys %8u %8u\n",
+              pw->adcThreshold, pw->pixelCountThreshold);
         }
       }
       _d.dest(Cspad2x2Destination::Q0);
