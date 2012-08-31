@@ -17,14 +17,14 @@ namespace Pds {
 
   public:
     Transition(TransitionId::Value id,
-	       Phase           phase,
-	       const Sequence& sequence,
-	       const Env&      env, 
-	       unsigned        size=sizeof(Transition));
+         Phase           phase,
+         const Sequence& sequence,
+         const Env&      env, 
+         unsigned        size=sizeof(Transition));
 
     Transition(TransitionId::Value id,
- 	       const Env&          env, 
- 	       unsigned            size=sizeof(Transition));
+         const Env&          env, 
+         unsigned            size=sizeof(Transition));
 
     Transition(const Transition&);
 
@@ -50,19 +50,20 @@ namespace Pds {
   public:
     Allocation();
     Allocation(const char* partition,
-	       const char* dbpath,
-	       unsigned    partitionid,
+         const char* dbpath,
+         unsigned    partitionid,
                unsigned    bld_mask=0);
     Allocation(const char* partition,
-	       const char* dbpath,
-	       unsigned    partitionid,
-	       const Sequence&,
+         const char* dbpath,
+         unsigned    partitionid,
+         const Sequence&,
                unsigned    bld_mask=0);
 
     bool add(const Node& node);
 
     unsigned    nnodes() const;
     const Node* node(unsigned n) const;
+    Node*       node(unsigned n);
     const char* partition() const;
     const char* dbpath() const;
     unsigned    partitionid() const;
@@ -84,7 +85,7 @@ namespace Pds {
   public:
     Allocate(const Allocation&);
     Allocate(const Allocation&,
-	     const Sequence&);
+       const Sequence&);
   public:
     const Allocation& allocation() const;
   private:

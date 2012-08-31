@@ -19,7 +19,7 @@ class EbEventBase : public LinkedList<EbEventBase>
   public:
     EbEventBase();
     EbEventBase(EbBitMask creator, EbBitMask contract, 
-		Datagram* datagram, EbEventKey* key);
+    Datagram* datagram, EbEventKey* key);
     virtual ~EbEventBase();
   public:
     EbBitMask        remaining () const;
@@ -42,6 +42,12 @@ class EbEventBase : public LinkedList<EbEventBase>
     EbBitMask     _segments;      // Clients for which a segment already exists
     int           _timeouts;      // How many counts before event timeouts
     Datagram*     _datagram;
+    
+  public:
+    void          setClientGroup(EbBitMask maskClientGroup);
+    bool          isClientGroupSet();
+  private:
+    bool          _bClientGroupSet; // if client group has been updated. Used by EbSGroup to update the contribution list
   };
 }
 

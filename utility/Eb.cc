@@ -38,7 +38,7 @@ Eb::Eb(const Src& id,
        VmonEb* vmoneb,
        const Ins* dstack) :
   EbBase(id, ctns, level, inlet, outlet, stream, ipaddress,
-	 vmoneb, dstack),
+   vmoneb, dstack),
   _datagrams(eventsize, eventpooldepth),
   _events(sizeof(EbEvent), eventpooldepth)
 {
@@ -73,7 +73,7 @@ int Eb::processIo(Server* serverGeneric)
   //  If the event is better handled later (to avoid a copy) return 0.
   EbEvent*  event  = (EbEvent*)_event(server);
   if (!event) // Can't accept this contribution yet, may take it later
-    return 0;
+    return 0;    
 
   //  Allocate space within this event-under-construction and receive the contribution.
   EbBitMask serverId;

@@ -30,16 +30,17 @@ using namespace Pds;
 */
 
 EbEventBase::EbEventBase(EbBitMask creator,
-			 EbBitMask contract,
-			 Datagram* datagram,
-			 EbEventKey* key) :
-  _key          (key),
-  _allocated    (creator),
-  _contributions(contract),
-  _contract     (contract),
-  _segments     (),
-  _timeouts     (MaxTimeouts),
-  _datagram     (datagram)
+       EbBitMask contract,
+       Datagram* datagram,
+       EbEventKey* key) :
+  _key              (key),
+  _allocated        (creator),
+  _contributions    (contract),
+  _contract         (contract),
+  _segments         (),
+  _timeouts         (MaxTimeouts),
+  _datagram         (datagram),
+  _bClientGroupSet  (false)
   {
   }
 
@@ -59,13 +60,14 @@ EbEventBase::EbEventBase(EbBitMask creator,
 
 EbEventBase::EbEventBase() :
   LinkedList<EbEventBase>(), 
-  _key          (0),
-  _allocated    (EbBitMask(EbBitMask::FULL)),
-  _contributions(),
-  _contract     (),
-  _segments     (),
-  _timeouts     (MaxTimeouts),
-  _datagram     (0)
+  _key              (0),
+  _allocated        (EbBitMask(EbBitMask::FULL)),
+  _contributions    (),
+  _contract         (),
+  _segments         (),
+  _timeouts         (MaxTimeouts),
+  _datagram         (0),
+  _bClientGroupSet  (false)
   {
   }
 
@@ -83,4 +85,16 @@ int EbEventBase::timeouts(const EbTimeouts& ebtmo) {
     _timeouts = tmo < MaxTimeouts ? tmo : MaxTimeouts;
   }
   return --_timeouts;
+}
+
+
+void EbEventBase::setClientGroup(EbBitMask maskClientGroup)
+{
+  remaining(~maskClientGroup);
+  _bClientGroupSet = true;  
+}
+
+bool EbEventBase::isClientGroupSet()
+{
+  return _bClientGroupSet;
 }

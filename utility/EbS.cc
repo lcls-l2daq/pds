@@ -7,15 +7,15 @@
 using namespace Pds;
 
 EbS::EbS(const Src& id,
-	 const TypeId& ctns,
-	 Level::Type level,
-	 Inlet& inlet,
-	 OutletWire& outlet,
-	 int stream,
-	 int ipaddress,
-	 unsigned eventsize,
-	 unsigned eventpooldepth,
-	 VmonEb* vmoneb) :
+   const TypeId& ctns,
+   Level::Type level,
+   Inlet& inlet,
+   OutletWire& outlet,
+   int stream,
+   int ipaddress,
+   unsigned eventsize,
+   unsigned eventpooldepth,
+   VmonEb* vmoneb) :
   Eb(id, ctns, level, inlet, outlet,
      stream, ipaddress,
      eventsize, eventpooldepth, vmoneb),
@@ -85,7 +85,7 @@ unsigned EbS::_fixup( EbEventBase* event, const Src& client, const EbBitMask& id
 }
 
 EbBase::IsComplete EbS::_is_complete( EbEventBase* event,
-				      const EbBitMask& serverId)
+              const EbBitMask& serverId)
 {
   const Sequence& seq = event->key().sequence();
   if (_no_builds[seq.type()] & (1<<seq.service()))

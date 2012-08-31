@@ -64,6 +64,8 @@ Task* ControlEb::task() { return _task; }
 
 #ifdef BUILD_PRINCETON
 unsigned ControlEb::duration() const { return 60000; }
+#elif defined(BUILD_READOUT_GROUP)
+unsigned ControlEb::duration() const { return 10000; }
 #else
 unsigned ControlEb::duration() const { return 5000; }
 #endif

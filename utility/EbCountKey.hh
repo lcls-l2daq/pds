@@ -12,14 +12,20 @@
 namespace Pds {
   class EbCountKey : public EbEventKey {
   public:
-    EbCountKey(Sequence& s) : key((unsigned)-1), seq(s) 
-    {
+    //EbCountKey(Sequence& s) : key((unsigned)-1), seq(s) 
+    //{
+    //  //  Initialize the sequence to a default
+    //  s = Sequence(Sequence::Event, 
+    //   TransitionId::L1Accept,
+    //   ClockTime(),
+    //   TimeStamp()); 
+    //}
+    
+    EbCountKey(Datagram& dg) : key((unsigned)-1), dgram(dg) { 
       //  Initialize the sequence to a default
-      s = Sequence(Sequence::Event, 
-		   TransitionId::L1Accept,
-		   ClockTime(),
-		   TimeStamp()); 
-    }
+      dg.seq = Sequence(); 
+      dg.env = 0;
+    }      
   public:
     PoolDeclare;
   public:
@@ -29,16 +35,17 @@ namespace Pds {
     //  Special service from the EVR
     virtual bool precedes (const EvrServer& s) { return key <= s.count(); }
     virtual bool coincides(const EvrServer& s) { return key == s.count(); }
-    virtual void assign   (const EvrServer& s) { key = s.count(); seq = s.sequence(); }
+    virtual void assign   (const EvrServer& s) { key = s.count(); dgram.seq = s.sequence(); dgram.env = s.env();}
     //  Special case for only one server providing timestamp
     virtual bool precedes (const EbSequenceSrv& s) { return false; }
     virtual bool coincides(const EbSequenceSrv& s) { return false; }
-    virtual void assign   (const EbSequenceSrv& s) { seq = s.sequence(); }
+    virtual void assign   (const EbSequenceSrv& s) { dgram.seq = s.sequence(); dgram.env = s.env(); }
   public:
-    const Sequence& sequence() const { return seq; }
-  public:
+    const Sequence& sequence() const { return dgram.seq; }
+  private:  
     unsigned  key;
-    Sequence& seq;
+    //Sequence& seq;
+    Datagram& dgram;
   };
 }
 #endif

@@ -14,9 +14,9 @@ namespace Pds {
   {
   public:
     EvrServer(const Ins& ins,
-	      const Src& src,
+        const Src& src,
               InletWire& inlet,
-	      unsigned   nbufs);
+        unsigned   nbufs);
    ~EvrServer();
   public:
     //  Eb interface
@@ -25,10 +25,10 @@ namespace Pds {
     bool        isRequired()           const;
     const Src&  client  ()             const;
     //  EbSegment interface
-    const Xtc&   xtc   () const;
-    bool           more  () const;
-    unsigned       length() const;
-    unsigned       offset() const;
+    const Xtc&  xtc   () const;
+    bool        more  () const;
+    unsigned    length() const;
+    unsigned    offset() const;
   public:
     //  Eb-key interface
     EbServerDeclare;
@@ -38,9 +38,10 @@ namespace Pds {
     int      fetch       (char* payload, int flags);
     int      fetch       (ZcpFragment& , int flags);
   public:
-    NetServer&      server();
-    const Sequence& sequence() const;
-    unsigned        count() const;
+    NetServer&          server();
+    const Sequence&     sequence() const;
+    const L1AcceptEnv&  env() const;
+    unsigned            count() const;
   private:
     NetServer     _server;
     Src           _client;
@@ -59,6 +60,12 @@ inline const Pds::Sequence& Pds::EvrServer::sequence() const
 {
   const Pds::EvrDatagram& dg = reinterpret_cast<const Pds::EvrDatagram&>(*_server.datagram());
   return dg.seq;
+}
+
+inline const Pds::L1AcceptEnv& Pds::EvrServer::env() const
+{
+  const Pds::EvrDatagram& dg = reinterpret_cast<const Pds::EvrDatagram&>(*_server.datagram());
+  return dg.env;
 }
 
 inline unsigned Pds::EvrServer::count() const

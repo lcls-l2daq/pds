@@ -1,7 +1,7 @@
 /*
 ** ++
 **  Package:
-**	odfUtility
+**  odfUtility
 **
 **  Abstract:
 **      non-inline functions for class "odfEb"
@@ -10,10 +10,10 @@
 **      Michael Huffer, SLAC, (415) 926-4269
 **
 **  Creation Date:
-**	000 - June 1,1998
+**  000 - June 1,1998
 **
 **  Revision History:
-**	None.
+**  None.
 **
 ** --
 */
@@ -69,17 +69,17 @@ static const char* TaskName(Level::Type level, int stream, Inlet& inlet)
 int nEbPrints=32;
 
 EbBase::EbBase(const Src& id,
-	       const TypeId& ctns,
-	       Level::Type level,
-	       Inlet& inlet,
-	       OutletWire& outlet,
-	       int stream,
-	       int ipaddress,
-	       VmonEb* vmoneb,
-	       const Ins* dstack) :
+         const TypeId& ctns,
+         Level::Type level,
+         Inlet& inlet,
+         OutletWire& outlet,
+         int stream,
+         int ipaddress,
+         VmonEb* vmoneb,
+         const Ins* dstack) :
   InletWireServer(inlet, outlet, ipaddress, stream, 
-		  TaskPriority-stream, TaskName(level, stream, inlet),
-		  EbTimeouts::duration(stream)),
+      TaskPriority-stream, TaskName(level, stream, inlet),
+      EbTimeouts::duration(stream)),
   _ebtimeouts(stream,level),
   _output(inlet),
   _id(id),
@@ -94,7 +94,7 @@ EbBase::EbBase(const Src& id,
   if (dstack) {
     const unsigned PayloadSize = 0;
     _ack = new Client(sizeof(Datagram), PayloadSize, 
-			 *dstack, Ins(ipaddress));
+       *dstack, Ins(ipaddress));
   }
 }
 
@@ -223,15 +223,15 @@ void EbBase::_post(EbEventBase* event)
   EbBitMask   remaining  = event->remaining();
 
   EbBitMask value((event->allocated().remaining() |
-		   event->segments()) &
-		  _valued_clients);
+       event->segments()) &
+      _valued_clients);
   EbBitMask required((event->allocated().remaining() | 
-		      event->segments()) &
-		     _required_clients);
+          event->segments()) &
+         _required_clients);
 #ifdef VERBOSE
-  printf("(%p) %08x/%08x remaining %08x value %08x payload %d\n",
-    	 this, datagram->seq.service(),datagram->seq.stamp().fiducials(),
-  	 remaining.value(0),value.value(0),datagram->xtc.sizeofPayload());
+  printf("EbBase::_post (%p) %08x/%08x remaining %08x value %08x payload %d\n",
+       this, datagram->seq.service(),datagram->seq.stamp().fiducials(),
+     remaining.value(0),value.value(0),datagram->xtc.sizeofPayload());
 #endif
   if (value.isZero() || required!=_required_clients) {  // sink
 
@@ -239,10 +239,10 @@ void EbBase::_post(EbEventBase* event)
     if (_vmoneb) {
       EbBitMask id(EbBitMask::ONE);
       for(unsigned i=0; !remaining.isZero(); i++, id <<= 1) {
-	if ( !(remaining & id).isZero() ) {
-	  _vmoneb->fixup(_clients.BitMaskBits);
-	  remaining &= ~id;
-	}
+  if ( !(remaining & id).isZero() ) {
+    _vmoneb->fixup(_clients.BitMaskBits);
+    remaining &= ~id;
+  }
       }
       _vmoneb->fixup(-1);
     }
@@ -254,7 +254,7 @@ void EbBase::_post(EbEventBase* event)
 
 #ifdef VERBOSE
   printf("EbBase::_post %p  remaining %x\n",
-	 event, remaining.value(0));
+   event, remaining.value(0));
 #endif
 
   if(remaining.isNotZero()) {
@@ -264,19 +264,19 @@ void EbBase::_post(EbEventBase* event)
       char buff[buffsize];
       EbBitMask r = remaining;
       sprintf(buff,"EbBase::_post fixup seq %08x remaining ",
-	      datagram->seq.stamp().fiducials());
+        datagram->seq.stamp().fiducials());
       r.write(&buff[strlen(buff)]);
       EbBitMask id(EbBitMask::ONE);
       for(unsigned i=0; !r.isZero(); i++, id <<= 1) {
-	if ( !(r & id).isZero() ) {
-	  EbServer* srv = (EbServer*)server(i);
-	  if (srv)
-	    snprintf(buff+strlen(buff),buffsize-strlen(buff)," [%x/%x]",
-		     srv->client().log(),srv->client().phy());
-	  else
-	    snprintf(buff+strlen(buff),buffsize-strlen(buff)," [?/?]");
-	  r &= ~id;
-	}
+  if ( !(r & id).isZero() ) {
+    EbServer* srv = (EbServer*)server(i);
+    if (srv)
+      snprintf(buff+strlen(buff),buffsize-strlen(buff)," [%x/%x]",
+         srv->client().log(),srv->client().phy());
+    else
+      snprintf(buff+strlen(buff),buffsize-strlen(buff)," [?/?]");
+    r &= ~id;
+  }
       }
       printf("%s\n",buff);
       --nEbPrints;
@@ -287,18 +287,18 @@ void EbBase::_post(EbEventBase* event)
     unsigned dmg=0;
     for(unsigned i=0; !remaining.isZero(); i++, id <<= 1) {
       if ( !(remaining & id).isZero() ) {
-	if (_vmoneb) _vmoneb->fixup(i);
-	EbServer* srv = (EbServer*)server(i);
-	if (srv) {
-	  srv->fixup();
-	  dmg |= _fixup(event, srv->client(), id);
-	}
-	else {
-	  printf("EbBase::_post fixup NULL server : clients %x  remaining %x\n",
-		 _clients.value(), remaining.value());
-	  dmg |= _fixup(event, _id, id);
-	}
-	remaining &= ~id;
+  if (_vmoneb) _vmoneb->fixup(i);
+  EbServer* srv = (EbServer*)server(i);
+  if (srv) {
+    srv->fixup();
+    dmg |= _fixup(event, srv->client(), id);
+  }
+  else {
+    printf("EbBase::_post fixup NULL server : clients %x  remaining %x\n",
+     _clients.value(), remaining.value());
+    dmg |= _fixup(event, _id, id);
+  }
+  remaining &= ~id;
       }
     }
 
@@ -345,11 +345,11 @@ EbBitMask EbBase::_postEvent(EbEventBase* complete)
    if (event != empty &&
        event != complete) 
      printf("%x/%x(%x)... pushed by %x/%x\n",
-	    event->datagram()->seq.service(),
-	    event->datagram()->seq.stamp().fiducials(),
-	    event->remaining().value(0),
-	    complete->datagram()->seq.service(),
-	    complete->datagram()->seq.stamp().fiducials());
+      event->datagram()->seq.service(),
+      event->datagram()->seq.stamp().fiducials(),
+      event->remaining().value(0),
+      complete->datagram()->seq.service(),
+      complete->datagram()->seq.stamp().fiducials());
 #endif
 
    while( event != empty ) {
@@ -401,9 +401,9 @@ int EbBase::processTmo()
       const Datagram* datagram = &indatagram->datagram();
       EbBitMask value(event->allocated().remaining() & _valued_clients);
       if (!value.isZero())
-	printf("EbBase::processTmo seq %x/%x  remaining %08x : %g\n",
-	       datagram->seq.service(), datagram->seq.stamp().fiducials(),
-	       event->remaining().value(), dts);
+  printf("EbBase::processTmo seq %x/%x  remaining %08x : %g\n",
+         datagram->seq.service(), datagram->seq.stamp().fiducials(),
+         event->remaining().value(), dts);
       //#endif
       _postEvent(event);
       ServerManager::arm(_armMask());
@@ -458,7 +458,7 @@ EbEventBase* EbBase::_event(EbServer* server)
   clock_gettime(CLOCK_REALTIME, &ts);
   double dts = (ts.tv_sec - prev_ts.tv_sec) + 1.e-9*(ts.tv_nsec - prev_ts.tv_nsec);
   const Src& src = server->client();
-  printf("EbBase::_event srv %08x/%08x : %g [s]\n",src.phy(),src.log(),dts);
+  printf("EbBase::_event srv id %d %08x/%08x : %g [s]\n", server->id(), src.phy(),src.log(),dts);
   prev_ts = ts;
 #endif
 
@@ -610,11 +610,11 @@ void EbBase::dump(int detail)
     while( event != empty ) {
       const Sequence seq = event->key().sequence();
       printf("%08x/%08x %08x/%08x %08x %08x %08x\n",
-	     seq.clock().seconds(),seq.clock().nanoseconds(),
-	     seq.stamp().fiducials(), seq.stamp().ticks(),
-	     event->allocated().remaining().value(),
-	     event->segments().value(),
-	     event->remaining().value());
+       seq.clock().seconds(),seq.clock().nanoseconds(),
+       seq.stamp().fiducials(), seq.stamp().ticks(),
+       event->allocated().remaining().value(),
+       event->segments().value(),
+       event->remaining().value());
       event = event->forward();
     }
   }
@@ -622,7 +622,7 @@ void EbBase::dump(int detail)
 
 
 EbBase::IsComplete EbBase::_is_complete( EbEventBase* event,
-					 const EbBitMask& serverId )
+           const EbBitMask& serverId )
 {
   EbBitMask remaining = event->remaining(serverId);
   return remaining.isZero() ? Complete : Incomplete;

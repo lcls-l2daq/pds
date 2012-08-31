@@ -8,15 +8,15 @@
 using namespace Pds;
 
 EbC::EbC(const Src& id,
-	 const TypeId& ctns,
-	 Level::Type level,
-	 Inlet& inlet,
-	 OutletWire& outlet,
-	 int stream,
-	 int ipaddress,
-	 unsigned eventsize,
-	 unsigned eventpooldepth,
-	 VmonEb* vmoneb) :
+   const TypeId& ctns,
+   Level::Type level,
+   Inlet& inlet,
+   OutletWire& outlet,
+   int stream,
+   int ipaddress,
+   unsigned eventsize,
+   unsigned eventpooldepth,
+   VmonEb* vmoneb) :
   Eb(id, ctns, level, inlet, outlet,
      stream, ipaddress,
      eventsize, eventpooldepth, vmoneb),
@@ -31,7 +31,7 @@ EbC::~EbC()
 EbEventBase* EbC::_new_event(const EbBitMask& serverId, char* payload, unsigned sizeofPayload)
 {
   CDatagram* datagram = new(&_datagrams) CDatagram(_ctns, _id);
-  EbCountKey* key = new(&_keys) EbCountKey(datagram->dg().seq);
+  EbCountKey* key = new(&_keys) EbCountKey(datagram->dg());
   EbEvent* event = new(&_events) EbEvent(serverId, _clients, datagram, key);
   event->allocated().insert(serverId);
   event->recopy(payload, sizeofPayload, serverId);
@@ -58,7 +58,7 @@ EbEventBase* EbC::_new_event(const EbBitMask& serverId)
   //    arm(_postEvent(_pending.forward()));
 
   CDatagram* datagram = new(&_datagrams) CDatagram(_ctns, _id);
-  EbCountKey* key = new(&_keys) EbCountKey(datagram->dg().seq);
+  EbCountKey* key = new(&_keys) EbCountKey(datagram->dg());
   return new(&_events) EbEvent(serverId, _clients, datagram, key);
 }
 

@@ -34,8 +34,8 @@ Transition::Transition(TransitionId::Value id,
 {}
 
 Transition::Transition(TransitionId::Value id,
-		       const Env&          env, 
-		       unsigned            size) :
+           const Env&          env, 
+           unsigned            size) :
   Message  (Message::Transition, size),
   _id      (id),
   _phase   (Execute),
@@ -97,8 +97,8 @@ Allocation::Allocation() :
 }
 
 Allocation::Allocation(const char* partition,
-		       const char* dbpath,
-		       unsigned    partitionid,
+           const char* dbpath,
+           unsigned    partitionid,
                        unsigned    bld_mask) : 
   _partitionid(partitionid),
   _bld_mask   (bld_mask),
@@ -131,6 +131,15 @@ const Node* Allocation::node(unsigned n) const
   }
 }
 
+Node* Allocation::node(unsigned n)
+{
+  if (n < _nnodes) {
+    return _nodes+n;
+  } else {
+    return 0;
+  }
+}
+
 unsigned Allocation::bld_mask() const { return _bld_mask; }
 
 const char* Allocation::partition() const {return _partition;}
@@ -148,7 +157,7 @@ Allocate::Allocate(const Allocation& allocation) :
 }
 
 Allocate::Allocate(const Allocation& allocation,
-		   const Sequence& seq) :
+       const Sequence& seq) :
   Transition(TransitionId::Map, Transition::Execute, seq, 0,
              sizeof(Allocate)+allocation.size()-sizeof(Allocation)),
   _allocation(allocation)

@@ -41,6 +41,12 @@ EbTimeouts::EbTimeouts(int stream,
   case Level::Event  : _tmos = 62; break;
   case Level::Control: _tmos = 63; break;
   default            : _tmos = 63; break;
+#elif defined(BUILD_READOUT_GROUP)
+  case Level::Source : _tmos = 4; break;
+  case Level::Segment: _tmos = 5; break;
+  case Level::Event  : _tmos = 6; break;
+  case Level::Control: _tmos = 7; break;
+  default            : _tmos = 7; break;
 #else
   case Level::Source : _tmos = 1; break;
   case Level::Segment: _tmos = 2; break;
@@ -62,8 +68,8 @@ unsigned EbTimeouts::duration(int s) {
 
 int EbTimeouts::timeouts(const Sequence* sequence) const {
 
-#ifdef BUILD_PRINCETON
-  // No special timeout for L1Accept
+#if defined(BUILD_PRINCETON) || defined(BUILD_READOUT_GROUP)
+  // No quick timeout for L1Accept
 #else
   if (sequence && sequence->service()==TransitionId::L1Accept)
     return 1;
