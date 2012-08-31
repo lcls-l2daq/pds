@@ -288,7 +288,7 @@ int OfflineClient::BeginNewRun(int runNumber) {
   return (returnVal);
 }
 
-int OfflineClient::reportOpenFile (int expt, int run, int stream, int chunk, std::string& host, std::string& dirpath) {
+int OfflineClient::reportOpenFile (int expt, int run, int stream, int chunk, std::string& host, std::string& dirpath, bool ffb) {
   LogBook::Connection * conn = NULL;
   int returnVal = -1;  // default return is ERROR
 
@@ -305,8 +305,12 @@ int OfflineClient::reportOpenFile (int expt, int run, int stream, int chunk, std
         if (conn != NULL) {
           // begin transaction
           conn->beginTransaction();
-
-	  conn->reportOpenFile(expt, run, stream, chunk, host, dirpath);
+          // fast feedback option
+          if (ffb) {
+            conn->reportOpenFile(expt, run, stream, chunk, host, dirpath, "ffb"); // fast feedback
+          } else {
+            conn->reportOpenFile(expt, run, stream, chunk, host, dirpath);
+          }
           returnVal = 0; // OK
 
           // commit transaction
