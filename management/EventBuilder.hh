@@ -15,6 +15,9 @@ typedef Pds::ZcpEbC L1EventBuilder;
 #include "pds/utility/EbS.hh"
 typedef Pds::EbS EventBuilder;
 
+#include "pds/utility/EbSGroup.hh"
+typedef Pds::EbSGroup SegEventBuilder;
+
 #include "pds/utility/EbC.hh"
 typedef Pds::EbC L1EventBuilder;
 

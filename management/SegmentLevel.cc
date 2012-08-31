@@ -24,9 +24,9 @@ static const unsigned NetBufferDepth = 32;
 #endif
 
 SegmentLevel::SegmentLevel(unsigned platform,
-			   SegWireSettings& settings,
-			   EventCallback& callback,
-			   Arp* arp) :
+         SegWireSettings& settings,
+         EventCallback& callback,
+         Arp* arp) :
   PartitionMember(platform, Level::Segment, arp),
   _settings      (settings),
   _callback      (callback),
@@ -71,26 +71,35 @@ Message& SegmentLevel::reply    (Message::Type type)
 }
 
 void    SegmentLevel::allocated(const Allocation& alloc,
-				unsigned          index) 
+        unsigned          index) 
 {
+  //!!! segment group support
+  for (unsigned n=0; n<alloc.nnodes(); n++) {
+    const Node& node = *alloc.node(n);
+    if (node.level() == Level::Segment &&
+      node == _header &&
+      node.group() != _header.group()
+      ) 
+    {
+      _header.setGroup(node.group());
+      printf("Assign group to %d\n", _header.group());
+    }
+  }
+  
   unsigned partition= alloc.partitionid();
 
   InletWire& inlet = *_streams->wire(StreamParams::FrameWork);
 
   //  setup EVR server
-  Ins source(StreamPorts::event(partition,
-				Level::Segment));
+  Ins source(StreamPorts::event(partition, Level::Segment, _header.group()));
   Node evrNode(Level::Source,header().platform());
   evrNode.fixup(source.address(),Ether());
   DetInfo evrInfo(evrNode.pid(),DetInfo::NoDetector,0,DetInfo::Evr,0);
-  EvrServer* esrv = new EvrServer(source,
-				  evrInfo,
-                                  inlet,
-				  NetBufferDepth); // revisit
+  EvrServer* esrv = new EvrServer(source, evrInfo, inlet, NetBufferDepth); // revisit
   inlet.add_input(esrv);
   esrv->server().join(source, Ins(header().ip()));
   printf("Assign evr %d  %x/%d\n",
-	 esrv->id(),source.address(),source.portId());
+   esrv->id(),source.address(),source.portId());
   _evr = esrv;
   
   // setup event servers
@@ -101,21 +110,21 @@ void    SegmentLevel::allocated(const Allocation& alloc,
     if (node.level()==Level::Event) {
       // Add vectored output clients on inlet
       Ins ins = StreamPorts::event(partition,
-				   Level::Event,
-				   vectorid,
-				   index);
+           Level::Event,
+           vectorid,
+           index);
       InletWireIns wireIns(vectorid, ins);
       inlet.add_output(wireIns);
       printf("SegmentLevel::allocated adding output %d to %x/%d\n",
-	     vectorid, ins.address(), ins.portId());
+       vectorid, ins.address(), ins.portId());
       vectorid++;
     }
   }
 
   OutletWire* owire = _streams->stream(StreamParams::FrameWork)->outlet()->wire();
   owire->bind(OutletWire::Bcast, StreamPorts::bcast(partition, 
-						    Level::Event,
-						    index));
+                Level::Event,
+                index));
 
   //
   //  Assign traffic shaping phase

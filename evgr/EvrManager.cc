@@ -83,7 +83,7 @@ class EvrEnableAction:public EvrAction
 {
 public:
   EvrEnableAction(Evr&       er,
-		  Appliance& app) : EvrAction(er), _app(app) {}
+      Appliance& app) : EvrAction(er), _app(app) {}
     
   Transition* fire(Transition* tr)
   {
@@ -211,17 +211,18 @@ public:
       unsigned delay   =pc.delay()*prescale;
       unsigned width   =pc.width()*prescale;
 
-      if (pc.pulseId()>3 && (width>>16)!=0 && !slacEvr) {
-	nerror++;
-	char buff[64];
-	sprintf(buff,"EVR pulse %d width %gs exceeds maximum.\n",
-		pc.pulseId(), double(width)/119e6);
-	msg->append(buff);
+      if (pc.pulseId()>3 && (width>>16)!=0 && !slacEvr) 
+      {
+        nerror++;
+        char buff[64];
+        sprintf(buff,"EVR pulse %d width %gs exceeds maximum.\n",
+          pc.pulseId(), double(width)/119e6);
+        msg->append(buff);
       }
 
       _er.SetPulseParams(pc.pulseId(), prescale, delay, width);
 
-      printf("pulse %d :%d %c %d/%d/%d\n",
+      printf("pulse %d :%d %c %d/%8d/%8d\n",
              k, pc.pulseId(), pc.polarity() ? '-':'+', 
              prescale, delay, width);
     }
@@ -234,10 +235,10 @@ public:
       unsigned conn_id = map.conn_id();
 
       if (conn_id>9 && !slacEvr) {
-	nerror++;
-	char buff[64];
-	sprintf(buff,"EVR output %d out of range [0-9].\n", conn_id);
-	msg->append(buff);
+        nerror++;
+        char buff[64];
+        sprintf(buff,"EVR output %d out of range [0-9].\n", conn_id);
+        msg->append(buff);
       }
 
       switch (map.conn())
@@ -276,11 +277,13 @@ public:
           );          
       }
 
-      printf("event %d : %d %x/%x/%x\n",
+      printf("event %d : %d %x/%x/%x readout %d group %d\n",
        uEventIndex, eventCode.code(), 
        eventCode.maskTrigger(),
        eventCode.maskSet(),
-       eventCode.maskClear());
+       eventCode.maskClear(),
+       (int) eventCode.isReadout(),
+       eventCode.readoutGroup());       
     }
     
     if (!_bTurnOffBeamCodes)
@@ -362,7 +365,7 @@ public:
     _er.Enable(0);
     _er.EnableFIFO(0);
   }
-
+  
 private:
   Evr&            _er;
   EvrCfgClient    _cfg;
@@ -436,8 +439,9 @@ class EvrAllocAction:public Action
 public:
   EvrAllocAction(CfgClientNfs& cfg, 
                  Evr&          er,
-                 Appliance&    app) :
-    _cfg(cfg), _er(er), _app(app), 
+                 Appliance&         app,
+                 EvrConfigManager&  cmgr) :
+    _cfg(cfg), _er(er), _app(app), _cmgr(cmgr),
     _task     (new Task(TaskObject("evrsync"))),
     _sync_task(new Task(TaskObject("slvsync")))
   {
@@ -448,10 +452,23 @@ public:
     const Allocate & alloc = reinterpret_cast < const Allocate & >(*tr);
     _cfg.initialize(alloc.allocation());
 
+    unsigned nnodes = alloc.allocation().nnodes();
+    
+    // find max value of segment group id
+    int  iMaxGroup  = 0;
+    for (unsigned n = 0; n < nnodes; n++)
+    {
+      const Node *node = alloc.allocation().node(n);
+      if (node->level() == Level::Segment) 
+      {
+        if (node->group() > iMaxGroup)
+          iMaxGroup = node->group();
+      }
+    }
+    
     //
     //  Test if we own the primary EVR for this partition
     //
-    unsigned nnodes = alloc.allocation().nnodes();
     int pid = getpid();
     bool lmaster = true;
     for (unsigned n = 0; n < nnodes; n++)
@@ -461,36 +478,41 @@ public:
       {
         if (node->pid() == pid)
         {
-	  if (lmaster) 
-	    {
-	      printf("Found our EVR\n");
-	      _fifo_handler = new EvrMasterFIFOHandler(_er,
-						       _cfg.src(),
-						       _app,
-						       alloc.allocation().partitionid(),
-						       _task);
-	    }
-	  else
-	    {
-	      printf("Found other EVR\n");
-	      _fifo_handler = new EvrSlaveFIFOHandler(_er, 
-						      _app,
-						      alloc.allocation().partitionid(),
-						      _task,
+    if (lmaster) 
+      {
+              printf("Found master EVR\n");
+              _fifo_handler = new EvrMasterFIFOHandler(
+                         _er,
+                   _cfg.src(),
+                   _app,
+                   alloc.allocation().partitionid(),
+                         iMaxGroup,
+                   _task);
+      }
+    else
+      {
+              printf("Found slave EVR\n");
+              _fifo_handler = new EvrSlaveFIFOHandler(
+                        _er, 
+                  _app,
+                  alloc.allocation().partitionid(),
+                  _task,
                                                       _sync_task);
-	    }
-	  break;
+      }
+    break;
         }
         else
-	  lmaster = false;
-      }
-    }
+    lmaster = false;
+      } // if (node->level() == Level::Segment) 
+    } // for (unsigned n = 0; n < nnodes; n++)
+
     return tr;
   }
 private:
   CfgClientNfs& _cfg;
   Evr&          _er;
   Appliance&    _app;
+  EvrConfigManager& _cmgr;
   Task*         _task;
   Task*         _sync_task;
 };
@@ -533,7 +555,7 @@ EvrManager::EvrManager(EvgrBoardInfo < Evr > &erInfo, CfgClientNfs & cfg, bool b
 {
   EvrConfigManager* cmgr = new EvrConfigManager(_er, cfg, _fsm, bTurnOffBeamCodes);
 
-  _fsm.callback(TransitionId::Map            , new EvrAllocAction     (cfg,_er,_fsm));
+  _fsm.callback(TransitionId::Map            , new EvrAllocAction     (cfg,_er,_fsm, *cmgr));
   _fsm.callback(TransitionId::Unmap          , new EvrShutdownAction);
   _fsm.callback(TransitionId::Configure      , new EvrConfigAction    (*cmgr));
   _fsm.callback(TransitionId::BeginCalibCycle, new EvrBeginCalibAction(*cmgr));

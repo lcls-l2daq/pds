@@ -83,13 +83,13 @@ EvrMasterFIFOHandler::EvrMasterFIFOHandler(Evr&       er,
                                            const Src& src,
                                            Appliance& app,
                                            unsigned   partition,
-					   Task*      task):
+                                           int        iMaxGroup,
+                                           Task*      task):
   uFiducialPrev       (0),
   _er                 (er),
   _app                (app),
   _done               (new DoneTimer(app)),
-  _outlet             (sizeof(EvrDatagram), 0, Ins   (Route::interface())),
-  _dst                (StreamPorts::event(partition,Level::Segment)),
+  _outlet             (sizeof(EvrDatagram), 0, Ins   (Route::interface())),  
   _swtrig_out         (Route::interface(), Mtu::Size, 16),
   _swtrig_dst         (StreamPorts::event(partition,Level::Observer)),
   _src                (src),
@@ -97,7 +97,8 @@ EvrMasterFIFOHandler::EvrMasterFIFOHandler(Evr&       er,
   _evtCounter         (0), 
   _evtStop            (0), 
   _lastfid            (0),
-  _bReadout           (false),
+  _iMaxGroup          (iMaxGroup),
+  _uReadout           (0),
   _pEvrConfig         (NULL),
   _L1DataUpdated      ( *(EvrDataUtil*) new char[ EvrDataUtil::size( giMaxNumFifoEvent ) ]  ),
   _L1DataLatchQ       ( *(EvrDataUtil*) new char[ EvrDataUtil::size( giMaxNumFifoEvent ) ]  ),
@@ -108,6 +109,10 @@ EvrMasterFIFOHandler::EvrMasterFIFOHandler(Evr&       er,
   _sync               (*this, er, partition, task, _outlet),
   _tr                 (0)
 {
+  _lSegEvtCounter.resize(1+_iMaxGroup, 0);
+  for (int iGroup=0; iGroup <= _iMaxGroup; ++iGroup)
+    _ldst.push_back(StreamPorts::event(partition,Level::Segment, iGroup));    
+  
   new (&_L1DataUpdated) EvrDataUtil( 0, NULL );
   new (&_L1DataLatch)   EvrDataUtil( 0, NULL );    
   new (&_L1DataLatchQ)  EvrDataUtil( 0, NULL );    
@@ -134,7 +139,7 @@ void EvrMasterFIFOHandler::fifo_event(const FIFOEvent& fe)
       timespec ts;
       clock_gettime(CLOCK_REALTIME, &ts);
       printf("EvrMasterFIFOHandler first fifo event at %d.%09d\n",
-	     int(ts.tv_sec), int(ts.tv_nsec));
+       int(ts.tv_sec), int(ts.tv_nsec));
       bShowFirst = false;
     }
   */
@@ -154,7 +159,7 @@ void EvrMasterFIFOHandler::fifo_event(const FIFOEvent& fe)
      
   if (fe.EventCode == TERMINATOR) {            
     // TERMINATOR will not be stored in the event code list
-    if (_bReadout || _ncommands) 
+    if (_uReadout != 0 || _ncommands) 
       {        
         if (fe.TimestampHigh == 0 && uFiducialPrev < 0x1fe00) // Illegal fiducial wrap-around
           printf("EvrMasterFIFOHandler::xmit(): [%d] Call startL1Accept() with vector %d fiducial 0x%x prev 0x%x last 0x%x timeLow 0x%x\n", 
@@ -178,11 +183,12 @@ void EvrMasterFIFOHandler::fifo_event(const FIFOEvent& fe)
       return;
     }
     
-  if ( codeState.bReadout ) 
+  if ( codeState.iReadout != 0 ) 
     {
       addFifoEventCheck( _L1DataUpdated, *(const EvrDataType::FIFOEvent*) &fe );      
       _lastFiducial = fe.TimestampHigh;
-      _bReadout     = true;           
+      _uReadout |= 1 << (codeState.iReadout-1);
+      //printf("event %d readout [%d]\n", uEventCode, codeState.iReadout-1);//!!!debug
       return;
     }
 
@@ -433,9 +439,8 @@ void        EvrMasterFIFOHandler::set_config  (const EvrConfigType* pEvrConfig)
   _pEvrConfig = pEvrConfig; 
     
   memset( _lEventCodeState, 0, sizeof(_lEventCodeState) );
-
-  unsigned int uEventIndex = 0; 
-  for ( ; uEventIndex < _pEvrConfig->neventcodes(); uEventIndex++ )
+  
+  for ( unsigned int uEventIndex = 0; uEventIndex < _pEvrConfig->neventcodes(); uEventIndex++ )
     {
       const EvrConfigType::EventCodeType& eventCode = _pEvrConfig->eventcode( uEventIndex );
       if ( eventCode.code() >= guNumTypeEventCode )
@@ -445,7 +450,7 @@ void        EvrMasterFIFOHandler::set_config  (const EvrConfigType* pEvrConfig)
         }
       
       EventCodeState& codeState = _lEventCodeState[eventCode.code()];
-      codeState.bReadout        = eventCode.isReadout   ();
+      codeState.iReadout        = (eventCode.isReadout() ? eventCode.readoutGroup()+1: 0);
       codeState.bCommand        = eventCode.isCommand   ();
       codeState.iDefReportDelay = eventCode.reportDelay ();
       if (eventCode.isLatch())
@@ -453,11 +458,12 @@ void        EvrMasterFIFOHandler::set_config  (const EvrConfigType* pEvrConfig)
       else
         codeState.iDefReportWidth = eventCode.reportWidth ();             
 
-      printf("EventCode %d  readout %c  command %c  latch %c  delay %d  width %d\n",
+      printf("EventCode %d  readout %c group %d command %c  latch %c  delay %d  width %d\n",
              eventCode.code(),
-             eventCode.isReadout() ? 't':'f',
-             eventCode.isCommand() ? 't':'f',
-             eventCode.isLatch  () ? 't':'f',
+             eventCode.isReadout() ? 'Y':'n',
+             eventCode.readoutGroup(),
+             eventCode.isCommand() ? 'Y':'n',
+             eventCode.isLatch  () ? 'Y':'n',
              eventCode.reportDelay(),
              eventCode.reportWidth());
     }    
@@ -497,7 +503,7 @@ void EvrMasterFIFOHandler::startL1Accept(const FIFOEvent& fe, bool bEvrDataIncom
       return;
     }
     
-  if ( !(_bReadout || _ncommands) )
+  if ( !(_uReadout != 0 || _ncommands) )
     {
       if ( pthread_mutex_unlock(&mutex) )
         printf( "EvrMasterFIFOHandler::startL1Accept(): pthread_mutex_unlock() failed\n" );
@@ -519,12 +525,16 @@ void EvrMasterFIFOHandler::startL1Accept(const FIFOEvent& fe, bool bEvrDataIncom
   ClockTime ctime(ts.tv_sec, ts.tv_nsec);
   TimeStamp stamp(fe.TimestampLow, fe.TimestampHigh, _evtCounter);
 
-  if (!_bReadout) 
+  if (_uReadout == 0) 
+  {
+    Sequence seq(Sequence::Occurrence, TransitionId::Unknown, ctime, stamp);
+    EvrDatagram datagram(seq, _evtCounter, _ncommands);
+    for (int iGroup = 0; iGroup < (int) _ldst.size(); ++iGroup)
     {
-      Sequence seq(Sequence::Occurrence, TransitionId::Unknown, ctime, stamp);
-      EvrDatagram datagram(seq, _evtCounter, _ncommands);
-      _outlet.send((char *) &datagram, _commands, _ncommands, _dst);      
+      datagram.evr = _lSegEvtCounter[iGroup];
+      _outlet.send((char *) &datagram, _commands, _ncommands, _ldst[iGroup]);
     }
+  }
   else 
     {
       Sequence seq(Sequence::Event, TransitionId::L1Accept, ctime, stamp);
@@ -646,10 +656,23 @@ void EvrMasterFIFOHandler::startL1Accept(const FIFOEvent& fe, bool bEvrDataIncom
        * Note: As soon as the send() function is called, the other polling thread may
        *   race with this thread to get the evr data and send it out immediately.
        */
-      _outlet.send((char *) &datagram, _commands, _ncommands, _dst);      
-    } // if (!_bReadout) 
+   
+      _uReadout |= 0x1; // Readout group 0 is always triggered
+      datagram.setL1AcceptEnv(_uReadout);
+      unsigned int uGroupBit = 1;
+      for (int iGroup = 0; iGroup <= _iMaxGroup; ++iGroup, uGroupBit <<= 1)      
+      {
+        if ( (_uReadout & uGroupBit) != 0 )
+        {
+          //printf("sending L1 trigger for group %d\n", iGroup);//!!!debug
+          datagram.evr = _lSegEvtCounter[iGroup];
+          ++_lSegEvtCounter[iGroup];
+          _outlet.send((char *) &datagram, _commands, _ncommands, _ldst[iGroup]);  //!!! for supporting segment group
+        }
+      }        
+    } // else (_uReadout == 0) 
 
-  _bReadout  = false;
+  _uReadout  = 0;  
   _ncommands = 0;
     
   if ( pthread_mutex_unlock(&mutex) )
@@ -668,7 +691,7 @@ void EvrMasterFIFOHandler::clear()
       select( 0, NULL, NULL, NULL, &timeSleepMicro);       
     }
     
-  if (_bReadout || _ncommands) 
+  if (_uReadout != 0 || _ncommands) 
     {
       FIFOEvent fe;
       fe.TimestampHigh    = _lastFiducial;
@@ -701,7 +724,7 @@ void EvrMasterFIFOHandler::nextEnable()
       select( 0, NULL, NULL, NULL, &timeSleepMicro);       
     }
     
-  if (_bReadout || _ncommands) 
+  if (_uReadout != 0 || _ncommands) 
     {
       FIFOEvent fe;
       fe.TimestampHigh    = _lastFiducial;
@@ -733,6 +756,7 @@ void EvrMasterFIFOHandler::reset()
   clear();    
   _evrL1Data.reset();
   _evtCounter = 0;
+  _lSegEvtCounter.assign(_lSegEvtCounter.size(), 0);
 }
 
 int EvrMasterFIFOHandler::getL1Data(int iTriggerCounter, const EvrDataUtil* & pEvrData, bool& bOutOfOrder) 

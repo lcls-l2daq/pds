@@ -12,20 +12,22 @@ using namespace Pds;
 Node::Node() : _procInfo(Level::Control,0,0) {}
 
 Node::Node(const Node& rhs) :
-  _platform(rhs._platform), 
-  _uid(rhs._uid),
-  _procInfo(rhs._procInfo)
+  _platform (rhs._platform), 
+  _group    (rhs._group),
+  _uid      (rhs._uid),
+  _procInfo (rhs._procInfo)
 {}
 
-Node::Node(Level::Type level, unsigned platform) :
+Node::Node(Level::Type level, uint16_t platform) :
   _platform(platform),
+  _group   (0),
   _uid(getuid()),
   _procInfo(level,getpid(),0)
 {}
 
 Level::Type Node::level() const {return _procInfo.level();}
-unsigned Node::platform() const {return _platform;}
-
+uint16_t Node::platform() const {return _platform;}
+uint16_t Node::group() const {return _group;}
 int Node::pid() const {return _procInfo.processId();}
 int Node::uid() const {return _uid;}
 int Node::ip() const {return _procInfo.ipAddr();}
@@ -33,10 +35,16 @@ const Ether& Node::ether() const {return _ether;}
 
 int Node::operator == (const Node& rhs) const
 {
+  // note: don't compare group here, because group can be dynamically changed
   if (_platform == rhs._platform &&
       _uid == rhs._uid &&
       _procInfo == rhs._procInfo) return 1;
   else return 0;
+}
+
+void Node::setGroup(uint16_t group)
+{
+  _group = group;
 }
 
 void Node::fixup(int ip, const Ether& ether) 
@@ -75,7 +83,7 @@ int Node::ip_name(int ip, char* buf, int bufsiz)
     return 0;
   } else {
     snprintf(buf, bufsiz, "%d.%d.%d.%d", 
-	     (ip>>24)&0xff, (ip>>16)&0xff, (ip>>8)&0xff, ip&0xff);
+       (ip>>24)&0xff, (ip>>16)&0xff, (ip>>8)&0xff, ip&0xff);
     return 1;
   }
 }

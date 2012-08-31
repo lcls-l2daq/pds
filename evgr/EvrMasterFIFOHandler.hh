@@ -1,6 +1,8 @@
 #ifndef Pds_EvrMasterFIFOHandler_hh
 #define Pds_EvrMasterFIFOHandler_hh
 
+#include <vector>
+
 #include "pds/evgr/EvrFIFOHandler.hh"
 
 /*
@@ -42,10 +44,11 @@ namespace Pds {
     enum { TERMINATOR         = 1 };
   public:
     EvrMasterFIFOHandler(Evr&, 
-			 const Src&, 
-			 Appliance&, 
-			 unsigned partition,
-			 Task*    task);
+       const Src&, 
+       Appliance&, 
+       unsigned partition,
+       int      iMaxGroup,
+       Task*    task);
     virtual ~EvrMasterFIFOHandler();
   public:
     virtual void        fifo_event  (const FIFOEvent&);  // formerly 'xmit'
@@ -68,7 +71,7 @@ namespace Pds {
   private:
     struct EventCodeState
     {
-      bool bReadout;
+      int  iReadout;
       bool bCommand;
       int  iDefReportDelay;
       int  iDefReportWidth;  
@@ -81,7 +84,7 @@ namespace Pds {
     Appliance&            _app;
     DoneTimer*            _done;
     Client                _outlet;
-    Ins                   _dst;
+    std::vector<Ins>      _ldst;
 
     ToNetEb               _swtrig_out;
     Ins                   _swtrig_dst;
@@ -90,9 +93,11 @@ namespace Pds {
     GenericPool           _poolEvrData;    
     
     unsigned              _evtCounter;
+    std::vector<unsigned> _lSegEvtCounter;
     unsigned              _evtStop;
     unsigned              _lastfid;
-    bool                  _bReadout;
+    int                   _iMaxGroup;
+    unsigned              _uReadout;
     const EvrConfigType*  _pEvrConfig;
     EvrDataUtil&          _L1DataUpdated;     // codes that contribute to the coming L1Accept
     EvrDataUtil&          _L1DataLatchQ;      // codes that contribute to later L1Accepts. Holding first-order transient events.

@@ -11,15 +11,16 @@ class Node {
 public:
   Node();
   Node(const Node& rhs);
-  Node(Level::Type level, unsigned platform);
+  Node(Level::Type level, uint16_t platform);
 
 public:
-  Level::Type level() const;
-  unsigned platform() const;
-  int pid() const;
-  int uid() const;
-  int ip() const;
-  const Ether& ether() const;
+  Level::Type     level() const;
+  uint16_t        platform() const;
+  uint16_t        group() const;
+  int             pid() const;
+  int             uid() const;
+  int             ip() const;
+  const Ether&    ether() const;
   const ProcInfo& procInfo() const;
   int operator == (const Node& rhs) const;
 
@@ -29,12 +30,14 @@ public:
 
 public:
   void fixup(int ip, const Ether& ether);
+  void setGroup(uint16_t group);
 
 private:
-  unsigned _platform;
-  int _uid;
-  ProcInfo _procInfo;
-  Ether _ether;
+  uint16_t  _platform;
+  uint16_t  _group;    // segment level only: each group has different readout rates
+  int32_t   _uid;
+  ProcInfo  _procInfo;
+  Ether     _ether;
 };
 
 }

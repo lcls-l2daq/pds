@@ -27,7 +27,7 @@ ObserverStreams::ObserverStreams(CollectionObserver& cmgr,
 
      _outlets[s] = new OpenOutlet(*stream(s)->outlet());
 
-    EventBuilder* eb = new EventBuilder
+    SegEventBuilder* eb = new SegEventBuilder
       (cmgr.header().procInfo(),
        _xtcType,
        level,

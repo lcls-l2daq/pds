@@ -559,26 +559,38 @@ int PrincetonServer::initCameraBeforeConfig()
   
   int runKey = strtoul(entry->key().c_str(),NULL,16);        
   
-  const TypeId typePrincetonConfig = TypeId(TypeId::Id_PrincetonConfig, PrincetonConfigType::Version);    
+  //const TypeId typePrincetonConfig = TypeId(TypeId::Id_PrincetonConfig, PrincetonConfigType::Version);    
   
   char strConfigPath[128];
-  sprintf(strConfigPath,"%s/keys/%s",sConfigPath.c_str(),CfgPath::path(runKey,_src,typePrincetonConfig).c_str());
+  sprintf(strConfigPath,"%s/keys/%s",sConfigPath.c_str(),CfgPath::path(runKey,_src,_princetonConfigType).c_str());
   printf("Config Path: %s\n", strConfigPath);
 
-  int fdConfig = open(strConfigPath, O_RDONLY);
+  int fdConfig = ::open(strConfigPath, O_RDONLY);  
+  if ( fdConfig == -1 )
+  {
+    printf("PrincetonServer::initCameraBeforeConfig(): Read config file (%s) failed\n", strConfigPath);      
+    return 2;
+  }
+  
   PrincetonConfigType config;
-  int iSizeRead = read(fdConfig, &config, sizeof(config));
+  int iSizeRead = ::read(fdConfig, &config, sizeof(config));
   if (iSizeRead != sizeof(config))
   {
     printf("PrincetonServer::initCameraBeforeConfig(): Read config data of incorrect size. Read size = %d (should be %d) bytes\n",
       iSizeRead, sizeof(config));
-    return 2;
+    return 3;
+  }
+  int iCloseFail = ::close(fdConfig);
+  if ( iCloseFail == -1 )
+  {
+    printf("PrincetonServer::initCameraBeforeConfig(): close config file (%s) failed\n", strConfigPath);      
+    return 4;
   }
   
   printf("Setting cooling temperature: %f\n", config.coolingTemp());
   setupCooling( config.coolingTemp() );
   
-  return 0;
+  return 5;
 }
 
 int PrincetonServer::initTest()

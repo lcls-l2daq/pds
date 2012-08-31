@@ -1,3 +1,5 @@
+#include <vector>
+
 #include "EventLevel.hh"
 #include "EventStreams.hh"
 #include "EventCallback.hh"
@@ -9,14 +11,14 @@
 #include "pds/utility/InletWire.hh"
 #include "pds/utility/InletWireServer.hh"
 #include "pds/utility/InletWireIns.hh"
-
 #include "pds/utility/NetDgServer.hh"
+#include "pds/utility/EbSGroup.hh"
 
 using namespace Pds;
 
 EventLevel::EventLevel(unsigned platform,
-		       EventCallback& callback,
-		       Arp* arp,
+           EventCallback& callback,
+           Arp* arp,
                        unsigned max_eventsize) :
   PartitionMember(platform, Level::Event, arp),
   _callback   (callback),
@@ -75,10 +77,14 @@ Message& EventLevel::reply(Message::Type)
 }
 
 void    EventLevel::allocated(const Allocation& alloc,
-			      unsigned          index) 
+            unsigned          index) 
 {
   InletWire* inlet = _streams->wire(StreamParams::FrameWork);
 
+  
+  //!!! segment group support
+  std::vector<EbBitMask> lGroupSegMask;
+  
   // setup BLD and event servers
   unsigned partition  = alloc.partitionid();
   unsigned nnodes     = alloc.nnodes();
@@ -86,44 +92,57 @@ void    EventLevel::allocated(const Allocation& alloc,
   unsigned segmentid  = 0;
   for (unsigned n=0; n<nnodes; n++) {
     const Node& node = *alloc.node(n);
-    if (node.level() == Level::Segment) {
+    if (node.level() == Level::Segment) {                  
       // Add vectored output clients on bld_wire
       Ins ins = StreamPorts::event(partition,
-				   Level::Event,
-				   index,
-				   segmentid++);
+           Level::Event,
+           index,
+           segmentid);
+           
+      //!!! segment group support
+      if (node.group() >= lGroupSegMask.size())
+        lGroupSegMask.resize(node.group()+1);        
+      lGroupSegMask[node.group()].setBit(segmentid);                 
+           
+      ++segmentid;
       
       Ins srvIns(ins.portId());
       NetDgServer* srv = new NetDgServer(srvIns,
-					 node.procInfo(),
-					 EventStreams::netbufdepth*EventStreams::MaxSize);
+           node.procInfo(),
+           EventStreams::netbufdepth*EventStreams::MaxSize);
       inlet->add_input(srv);
       Ins mcastIns(ins.address());
       srv->server().join(mcastIns, Ins(header().ip()));
       Ins bcastIns = StreamPorts::bcast(partition, Level::Event);
       srv->server().join(bcastIns, Ins(header().ip()));
       printf("EventLevel::allocated assign fragment %d  src %x/%d  dst %x/%d  fd %d\n",
-	     srv->id(),
-	     node.procInfo().ipAddr(),node.procInfo().processId(),
-	     mcastIns.address(),srv->server().portId(),
-	     srv->fd());
+       srv->id(),
+       node.procInfo().ipAddr(),node.procInfo().processId(),
+       mcastIns.address(),srv->server().portId(),
+       srv->fd());
     }
     else if (node.level() == Level::Control) {
-	Ins ins = StreamPorts::event(partition,
-				     Level::Control,
-				     recorderid,
-				     index);
-	InletWireIns wireIns(recorderid, ins);
-	inlet->add_output(wireIns);
-	printf("EventLevel::message adding output %d to %x/%d\n",
-	       recorderid, ins.address(), ins.portId());
-	recorderid++;
+      Ins ins = StreamPorts::event(partition,
+                 Level::Control,
+                 recorderid,
+                 index);
+      InletWireIns wireIns(recorderid, ins);
+      inlet->add_output(wireIns);
+      printf("EventLevel::message adding output %d to %x/%d\n",
+             recorderid, ins.address(), ins.portId());
+      recorderid++;
     }
-  }
+  } // for (unsigned n=0; n<nnodes; n++)
+  
+  //!!! segment group support
+  for (int iGroup = 0; iGroup < (int) lGroupSegMask.size(); ++iGroup)
+    printf("Group %d Segment Mask 0x%04x%04x\n", iGroup, lGroupSegMask[iGroup].value(1), lGroupSegMask[iGroup].value(0) );
+  ((EbSGroup*) inlet)-> setClientMask(lGroupSegMask);
+  
   OutletWire* owire = _streams->stream(StreamParams::FrameWork)->outlet()->wire();
   owire->bind(OutletWire::Bcast, StreamPorts::bcast(partition, 
-						    Level::Control,
-						    index));
+                Level::Control,
+                index));
 }
 
 void    EventLevel::post     (const Transition& tr)
