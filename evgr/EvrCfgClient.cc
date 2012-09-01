@@ -89,7 +89,6 @@ int EvrCfgClient::fetch(const Transition& tr,
                                                     &tc.eventcode(0),
                                                     pt-ptb, ptb,
                                                     om-omb, omb,
-                                                    tc.enableReadGroup(),
                                                     tc.seq_config());
       psrc +=  tc.size();
       pdst += ntc.size();
