@@ -86,7 +86,7 @@ namespace Pds {
 	pdv_timeout_restart(pdv_p, TRUE);
 	_last_timeouts = timeouts;
 	_recover_timeout = true;
-	printf("timeout (%d)...\n",timeouts);
+        //	printf("timeout (%d)...\n",timeouts);
       }
       else if (overrun) {
 	printf("overrun...\n");
