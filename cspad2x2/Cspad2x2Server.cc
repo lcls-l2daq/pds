@@ -60,27 +60,32 @@ Cspad2x2Server::Cspad2x2Server( const Pds::Src& client, Pds::TypeId& myDataType,
 }
 
 unsigned Cspad2x2Server::configure(CsPad2x2ConfigType* config) {
-  if (_cnfgrtr == 0) {
-    _cnfgrtr = new Pds::CsPad2x2::Cspad2x2Configurator::Cspad2x2Configurator(config, fd(), _debug);
-    _cnfgrtr->runTimeConfigName(_runTimeConfigName);
+  if (config == 0) {
+    printf("Cspad2x2Server::configure was passed a nil config!\n");
+    _configureResult = 0xdead;
   } else {
-    printf("Cspad2x2Configurator already instantiated\n");
+    if (_cnfgrtr == 0) {
+      _cnfgrtr = new Pds::CsPad2x2::Cspad2x2Configurator::Cspad2x2Configurator(config, fd(), _debug);
+      _cnfgrtr->runTimeConfigName(_runTimeConfigName);
+    } else {
+      printf("Cspad2x2Configurator already instantiated\n");
+    }
+    unsigned c = flushInputQueue(fd());
+    if (c) printf("Cspad2x2Server::configure flushed %u event%s before configuration\n", c, c>1 ? "s" : "");
+    if ((_configureResult = _cnfgrtr->configure(config, _configMask))) {
+      printf("Cspad2x2Server::configure failed 0x%x\n", _configureResult);
+      _cnfgrtr->dumpPgpCard();
+    } else {
+      _payloadSize = config->payloadSize();
+      _xtc.extent = _payloadSize + sizeof(Xtc);
+      printf("Cspad2x2Server::configure _payloadSize(%u) _xtc.extent(%u)\n", _payloadSize, _xtc.extent);
+    }
+    _firstFetch = true;
+    _count = 0;
+    _configured = _configureResult == 0;
+    c = this->flushInputQueue(fd());
+    if (c) printf("Cspad2x2Server::configure flushed %u event%s after configuration\n", c, c>1 ? "s" : "");
   }
-  unsigned c = flushInputQueue(fd());
-  if (c) printf("Cspad2x2Server::configure flushed %u event%s before configuration\n", c, c>1 ? "s" : "");
-  if ((_configureResult = _cnfgrtr->configure(config, _configMask))) {
-    printf("Cspad2x2Server::configure failed 0x%x\n", _configureResult);
-    _cnfgrtr->dumpPgpCard();
-  } else {
-    _payloadSize = config->payloadSize();
-    _xtc.extent = _payloadSize + sizeof(Xtc);
-    printf("Cspad2x2Server::configure _payloadSize(%u) _xtc.extent(%u)\n", _payloadSize, _xtc.extent);
-  }
-  _firstFetch = true;
-  _count = 0;
-  _configured = _configureResult == 0;
-  c = this->flushInputQueue(fd());
-  if (c) printf("Cspad2x2Server::configure flushed %u event%s after configuration\n", c, c>1 ? "s" : "");
   return _configureResult;
 }
 
@@ -89,12 +94,16 @@ void Pds::Cspad2x2Server::die() {
   _d.dest(Pds::CsPad2x2::Cspad2x2Destination::CR);
   printf("Cspad2x2Server::die has been called !!!!!!!\n");
   if (_pgp != 0) {
-    _pgp->writeRegister(
+    if (_configureResult != 0xdead) {
+      _pgp->writeRegister(
           &_d,
           CsPad2x2::Cspad2x2Configurator::RunModeAddr,
           _cnfgrtr->configuration().inactiveRunMode());
-    printf("Cspad2x2Server::die has changed the run mode !!!!!!!\n");
-   }
+      printf("Cspad2x2Server::die has changed the run mode !!!!!!!\n");
+    } else {
+      printf("Cspad2x2Server::die found nil config!\n");
+    }
+  }
 }
 
 void Pds::Cspad2x2Server::dumpFrontEnd() {
@@ -109,14 +118,19 @@ void Cspad2x2Server::process() {
 
 unsigned Pds::Cspad2x2Server::enable() {
   _d.dest(Pds::CsPad2x2::Cspad2x2Destination::CR);
-  unsigned ret = _pgp->writeRegister(
-      &_d,
-      CsPad2x2::Cspad2x2Configurator::RunModeAddr,
-      _cnfgrtr->configuration().activeRunMode());
-  ::usleep(10000);
-  _firstFetch = true;
-  flushInputQueue(fd());
-  if (_debug & 0x20) printf("Cspad2x2Server::enable %s\n", ret ? "FAILED!" : "SUCCEEDED");
+  unsigned ret = _configureResult;
+  if (_configureResult != 0xdead) {
+    ret = _pgp->writeRegister(
+        &_d,
+        CsPad2x2::Cspad2x2Configurator::RunModeAddr,
+        _cnfgrtr->configuration().activeRunMode());
+    ::usleep(10000);
+    _firstFetch = true;
+    flushInputQueue(fd());
+    if (_debug & 0x20) printf("Cspad2x2Server::enable %s\n", ret ? "FAILED!" : "SUCCEEDED");
+  } else {
+    printf("Cspad2x2Server::enable found nil config!\n");
+  }
   return ret;
 }
 
@@ -127,13 +141,18 @@ void Pds::Cspad2x2Server::runTimeConfigName(char* name) {
 
 unsigned Pds::Cspad2x2Server::disable() {
   _d.dest(Pds::CsPad2x2::Cspad2x2Destination::CR);
-  unsigned ret = _pgp->writeRegister(
-      &_d,
-      CsPad2x2::Cspad2x2Configurator::RunModeAddr,
-      _cnfgrtr->configuration().inactiveRunMode());
-  ::usleep(10000);
-  flushInputQueue(fd());
-  if (_debug & 0x20) printf("Cspad2x2Server::disable %s\n", ret ? "FAILED!" : "SUCCEEDED");
+  unsigned ret = _configureResult;
+  if (_configureResult != 0xdead) {
+    ret = _pgp->writeRegister(
+        &_d,
+        CsPad2x2::Cspad2x2Configurator::RunModeAddr,
+        _cnfgrtr->configuration().inactiveRunMode());
+    ::usleep(10000);
+    flushInputQueue(fd());
+    if (_debug & 0x20) printf("Cspad2x2Server::disable %s\n", ret ? "FAILED!" : "SUCCEEDED");
+  } else {
+    printf("Cspad2x2Server::disable found nil config!\n");
+  }
   return ret;
 }
 

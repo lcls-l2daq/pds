@@ -284,10 +284,13 @@ class CspadConfigAction : public Action {
       _server->resetOffset();
       if (_cfg.scanning() == false) {
         unsigned count = 0;
-        while ((_result = _server->configure( (CsPadConfigType*)_cfg.current())) && count++<3) {
+        while ((_result = _server->configure( (CsPadConfigType*)_cfg.current()))
+            && _result != 0xdead
+            && count++<3) {
+
           printf("\nCspadConfigAction::fire(tr) retrying config %u\n", count);
         };
-        if (_server->debug() & 0x10) _cfg.printRO();
+        if (_result == 0 && _server->debug() & 0x10) _cfg.printRO();
       }
       return tr;
     }
@@ -295,7 +298,7 @@ class CspadConfigAction : public Action {
     InDatagram* fire(InDatagram* in) {
       printf("CspadConfigAction::fire(InDatagram) recorded\n");
       _cfg.record(in);
-      if (_server->debug() & 0x10) _cfg.printRO();
+      if (_result == 0 && _server->debug() & 0x10) _cfg.printRO();
       if( _result ) {
         printf( "*** CspadConfigAction found configuration errors _result(0x%x)\n", _result );
         if (in->datagram().xtc.damage.value() == 0) {

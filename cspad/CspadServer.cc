@@ -62,30 +62,35 @@ CspadServer::CspadServer( const Pds::Src& client, Pds::TypeId& myDataType, unsig
 }
 
 unsigned CspadServer::configure(CsPadConfigType* config) {
-  if (_cnfgrtr == 0) {
-    _cnfgrtr = new Pds::CsPad::CspadConfigurator::CspadConfigurator(config, fd(), _debug);
-    _cnfgrtr->runTimeConfigName(_runTimeConfigName);
+  if (config == 0) {
+    printf("CspadServer::configure was passed a nil config!\n");
+    _configureResult = 0xdead;
   } else {
-    printf("CspadConfigurator already instantiated\n");
+    if (_cnfgrtr == 0) {
+      _cnfgrtr = new Pds::CsPad::CspadConfigurator::CspadConfigurator(config, fd(), _debug);
+      _cnfgrtr->runTimeConfigName(_runTimeConfigName);
+    } else {
+      printf("CspadConfigurator already instantiated\n");
+    }
+    unsigned c = flushInputQueue(fd());
+    if (c) printf("CspadServer::configure flushed %u event%s before configuration\n", c, c>1 ? "s" : "");
+    if ((_configureResult = _cnfgrtr->configure(config, _configMask))) {
+      printf("CspadServer::configure failed 0x%x\n", _configureResult);
+      _cnfgrtr->dumpPgpCard();
+    } else {
+      _quads = 0;
+      for (unsigned i=0; i<4; i++) if ((1<<i) & config->quadMask()) _quads += 1;
+      _payloadSize = config->payloadSize();
+      _xtc.extent = (_payloadSize * _quads) + sizeof(Xtc);
+      printf("CspadServer::configure _quads(%u) _payloadSize(%u) _xtc.extent(%u)\n",
+          _quads, _payloadSize, _xtc.extent);
+    }
+    _firstFetch = true;
+    _count = _quadsThisCount = 0;
+    _configured = _configureResult == 0;
+    c = this->flushInputQueue(fd());
+    if (c) printf("CspadServer::configure flushed %u event%s after confguration\n", c, c>1 ? "s" : "");
   }
-  unsigned c = flushInputQueue(fd());
-  if (c) printf("CspadServer::configure flushed %u event%s before configuration\n", c, c>1 ? "s" : "");
-  if ((_configureResult = _cnfgrtr->configure(config, _configMask))) {
-    printf("CspadServer::configure failed 0x%x\n", _configureResult);
-    _cnfgrtr->dumpPgpCard();
-  } else {
-    _quads = 0;
-    for (unsigned i=0; i<4; i++) if ((1<<i) & config->quadMask()) _quads += 1;
-    _payloadSize = config->payloadSize();
-    _xtc.extent = (_payloadSize * _quads) + sizeof(Xtc);
-    printf("CspadServer::configure _quads(%u) _payloadSize(%u) _xtc.extent(%u)\n",
-        _quads, _payloadSize, _xtc.extent);
-  }
-  _firstFetch = true;
-  _count = _quadsThisCount = 0;
-  _configured = _configureResult == 0;
-  c = this->flushInputQueue(fd());
-  if (c) printf("CspadServer::configure flushed %u event%s after confguration\n", c, c>1 ? "s" : "");
   return _configureResult;
 }
 
@@ -93,12 +98,16 @@ void Pds::CspadServer::die() {
   _d.dest(Pds::CsPad::CspadDestination::CR);
   printf("CspadServer::die has been called !!!!!!!\n");
   if (_pgp != 0) {
-    _pgp->writeRegister(
+    if (_configureResult != 0xdead) {
+      _pgp->writeRegister(
           &_d,
           CsPad::CspadConfigurator::RunModeAddr,
           _cnfgrtr->configuration().inactiveRunMode());
-    printf("CspadServer::die has changed the run mode !!!!!!!\n");
-   }
+      printf("CspadServer::die has changed the run mode !!!!!!!\n");
+    } else {
+      printf("CspadServer::die found nil config!\n");
+    }
+  }
 }
 
 void Pds::CspadServer::dumpFrontEnd() {
@@ -114,14 +123,18 @@ void CspadServer::process() {
 
 void Pds::CspadServer::enable() {
   _d.dest(Pds::CsPad::CspadDestination::CR);
-  _pgp->writeRegister(
-      &_d,
-      CsPad::CspadConfigurator::RunModeAddr,
-      _cnfgrtr->configuration().activeRunMode());
-  ::usleep(10000);
-  _firstFetch = true;
-  flushInputQueue(fd());
-  if (_debug & 0x20) printf("CspadServer::enable\n");
+  if (_configureResult != 0xdead) {
+    _pgp->writeRegister(
+        &_d,
+        CsPad::CspadConfigurator::RunModeAddr,
+        _cnfgrtr->configuration().activeRunMode());
+    ::usleep(10000);
+    _firstFetch = true;
+    flushInputQueue(fd());
+    if (_debug & 0x20) printf("CspadServer::enable\n");
+  } else {
+    printf("CspadServer::enable found nil configuration\n");
+  }
 }
 
 void Pds::CspadServer::runTimeConfigName(char* name) {
@@ -131,13 +144,17 @@ void Pds::CspadServer::runTimeConfigName(char* name) {
 
 void Pds::CspadServer::disable() {
   _d.dest(Pds::CsPad::CspadDestination::CR);
-  _pgp->writeRegister(
-      &_d,
-      CsPad::CspadConfigurator::RunModeAddr,
-      _cnfgrtr->configuration().inactiveRunMode());
-  ::usleep(10000);
-  flushInputQueue(fd());
-  if (_debug & 0x20) printf("CspadServer::disable\n");
+  if (_configureResult != 0xdead) {
+    _pgp->writeRegister(
+        &_d,
+        CsPad::CspadConfigurator::RunModeAddr,
+        _cnfgrtr->configuration().inactiveRunMode());
+    ::usleep(10000);
+    flushInputQueue(fd());
+    if (_debug & 0x20) printf("CspadServer::disable\n");
+  } else {
+    printf("CspadServer::disable found nil configuration\n");
+  }
 }
 
 unsigned Pds::CspadServer::unconfigure(void) {

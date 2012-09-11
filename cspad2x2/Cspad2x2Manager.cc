@@ -201,10 +201,12 @@ class Cspad2x2ConfigAction : public Action {
       _server->resetOffset();
       if (_cfg.scanning() == false) {
         unsigned count = 0;
-        while ((_result = _server->configure( (CsPad2x2ConfigType*)_cfg.current())) && count++<1) {
+        while ((_result = _server->configure( (CsPad2x2ConfigType*)_cfg.current()))
+            && _result != 0xdead
+            && count++<1) {
           printf("\nCspad2x2ConfigAction::fire(tr) retrying config %u\n", count);
         };
-        if (_server->debug() & 0x10) _cfg.printRO();
+        if (_result == 0 && _server->debug() & 0x10) _cfg.printRO();
       }
       return tr;
     }
@@ -212,7 +214,7 @@ class Cspad2x2ConfigAction : public Action {
     InDatagram* fire(InDatagram* in) {
       printf("Cspad2x2ConfigAction::fire(InDatagram) recorded\n");
       _cfg.record(in);
-      if (_server->debug() & 0x10) _cfg.printRO();
+      if (_result == 0 && _server->debug() & 0x10) _cfg.printRO();
       if( _result ) {
         printf( "*** Cspad2x2ConfigAction found configuration errors _result(0x%x)\n", _result );
         if (in->datagram().xtc.damage.value() == 0) {
