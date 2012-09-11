@@ -15,11 +15,11 @@
 #define SZCOMMAND_MAXLEN  64
 
 // Base mode
-//#define MAX_TAPS 2
+#define MAX_TAPS 2
 // Medium mode
 //#define MAX_TAPS 4
 // Full mode
-#define MAX_TAPS 8
+//#define MAX_TAPS 8
 
 using namespace Pds;
 
@@ -177,8 +177,8 @@ int QuartzCamera::configure(CameraDriver& driver,
   GetParameter( "SN", val1 );
   printf( ">> Camera Serial #: '%s'\n", szResponse );
 
-  unsigned bl = _inputConfig->black_level()<<(10-_inputConfig->output_resolution_bits());
-  //  unsigned bl = _inputConfig->black_level();
+  //  unsigned bl = _inputConfig->black_level()<<(10-_inputConfig->output_resolution_bits());
+  unsigned bl = _inputConfig->black_level();
   SetParameter("Black Level" ,"BL",bl);
   SetParameter("Digital Gain","GA",_inputConfig->gain_percent());
   { unsigned vb;
@@ -219,7 +219,6 @@ int QuartzCamera::configure(CameraDriver& driver,
   SetParameters("Output Format","OFRM",camera_taps(),4);
 
   setTestPattern( driver, false );
-  //  setTestPattern( driver, true );
 
   if (_inputConfig->output_lookup_table_enabled()) {
     SetCommand("Output LUT Begin","OLUTBGN");
@@ -255,8 +254,6 @@ int QuartzCamera::configure(CameraDriver& driver,
     SetParameter("Defect Pixel Correction","DPE",0);
 
   SetParameter("Overlay Function","OVL",1);
-  SetCommand  ("Reset Frame Counter","FCR");
-  LastCount = 0;
 
 #if 0
   // Continuous Mode
@@ -315,19 +312,6 @@ bool QuartzCamera::validate(Pds::FrameServerMsg& msg)
     Count = (data[0]<<24) | (data[1]<<16) | (data[2]<<8) | data[3];
   }
 
-#if 1
-  //  Allow single frame drops
-  CurrentCount = Count;
-  if (CurrentCount != msg.count+LastCount) {
-    printf("Camera frame number(%d) != Server number(%d)\n",
-           CurrentCount, msg.count+LastCount);
-    LastCount++;
-    if (CurrentCount != msg.count+LastCount) {
-      return false;
-    }
-  }
-  msg.count = CurrentCount;
-#else
   if (CurrentCount==RESET_COUNT) {
     CurrentCount = 0;
     LastCount = Count;
@@ -335,6 +319,10 @@ bool QuartzCamera::validate(Pds::FrameServerMsg& msg)
   else
     CurrentCount = Count - LastCount;
 
+#ifdef DBUG
+  printf("Camera frame number(%x). Server number(%x), Count(%x), Last count(%x)\n",
+	 CurrentCount, msg.count, Count, LastCount);
+#else
   if (CurrentCount != msg.count) {
     printf("Camera frame number(%d) != Server number(%d)\n",
            CurrentCount, msg.count);
