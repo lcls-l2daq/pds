@@ -1,5 +1,5 @@
-#ifndef Pds_FliDataType_hh
-#define Pds_FliDataType_hh
+#ifndef Pds_PrincetonDataType_hh
+#define Pds_PrincetonDataType_hh
 
 #include "pdsdata/xtc/TypeId.hh"
 #include "pdsdata/princeton/FrameV1.hh"
