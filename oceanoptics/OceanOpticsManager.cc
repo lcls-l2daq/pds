@@ -86,7 +86,7 @@ public:
     if ( iConfigSize != 0 && iConfigSize != sizeof(_configDevice) )
     {
       printf( "OceanOpticsConfigAction::fire(): Config data has incorrect size (%d B). Should be %d B.\n",
-        iConfigSize, sizeof(_configDevice) );
+        iConfigSize, (unsigned) sizeof(_configDevice) );
         
       _configDevice       = OceanOpticsConfigType();
       _iConfigDeviceFail  = 1;

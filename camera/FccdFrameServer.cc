@@ -156,7 +156,7 @@ int FccdFrameServer::_reorder_frame(FrameServerMsg* fmsg)
       ((width * height * sizeof(uint8_t)) > FCCD_REORDER_BUFSIZE)) {
 #endif
     printf(">> %s ERROR: frame_data=%p height=%u width=%u FCCD_REORDER_BUFSIZE=%d\n", __FUNCTION__,
-            frame_data, height, width, FCCD_REORDER_BUFSIZE);
+            frame_data, height, width, (unsigned) FCCD_REORDER_BUFSIZE);
     return -1;  // error
   }
 

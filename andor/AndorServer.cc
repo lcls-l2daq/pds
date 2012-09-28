@@ -347,7 +347,7 @@ int AndorServer::initCapture()
    * _config.exposureTime() time is measured in seconds,
    *  while iExposureTime for ANDORSetExposureTime() is measured in milliseconds
    */
-  const long int iExposureTime = (int) ( _config.exposureTime() * 1000 ); 
+  //const long int iExposureTime = (int) ( _config.exposureTime() * 1000 ); 
 
   //iError = ANDORSetExposureTime(_hCam, iExposureTime);
   if (iError != 0)

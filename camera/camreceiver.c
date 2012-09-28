@@ -386,7 +386,7 @@ int main (int argc, char *argv[])
 		if (image == NULL) {
 			printf("failed.\n");
 			fprintf(stderr, "ERROR: could not allocate %d Bytes for image.\n", 
-					sizeof(struct camstream_image_t) + imgsize);
+					(unsigned) sizeof(struct camstream_image_t) + imgsize);
 			close(sockfd);
 			free(buffer);
 			return -errno;

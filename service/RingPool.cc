@@ -91,7 +91,7 @@ void RingPool::_bugCheck(const size_t size) const
 {
   char msg[128];
   sprintf(msg, "RingPool::ctor: "
-               "Insufficient heap available to create pool of size %u\n", size);
+               "Insufficient heap available to create pool of size %u\n", (unsigned) size);
   BugCheck(msg);
 }
 
@@ -100,7 +100,7 @@ void RingPool::_bugCheck(const size_t wrap, const size_t size) const
   char msg[128];
   sprintf(msg, "RingPool::ctor: "
                "Bad wrap value (%u): must be > 0 && < pool size %u\n",
-          wrap, size);
+          (unsigned) wrap, (unsigned) size);
   BugCheck(msg);
 }
 
@@ -109,7 +109,7 @@ void RingPool::_bugCheck(const char* name, const size_t size) const
   char msg[128];
   sprintf(msg, "RingPool::ctor: "
                "Bad %s value (%u) is not divisible by eight\n",
-          name, size);
+          name, (unsigned) size);
   BugCheck(msg);
 }
 
@@ -397,7 +397,7 @@ void RingPool::dump(int level)
 "   Bytes     Bytes                            Ordered\n"
 " Allocated   Free    Allocates     Frees       Frees      Empty   In Use\n"
 " --------- -------- ----------- ----------- ----------- --------- ------\n",
-         _pool, _size);
+         _pool, (unsigned) _size);
 
   RingEntry* atTail = _atTail();
   RingEntry* atHead = _atHead();
@@ -411,8 +411,8 @@ void RingPool::dump(int level)
   size_t size = head < tail ? tail - head : _size - (head - tail);
   if ((head == tail) && (tail != (char*)_empty()))  size = 0;
   printf("  %08x %08x %11u %11u %11u %8u %6d\n",
-         _size - size,
-         size,
+         (unsigned) ( _size - size ),
+         (unsigned) size,
          _allocs,
          _frees,
          _atHeads,
@@ -429,7 +429,7 @@ void RingPool::dump(int level)
            " wrap size:                %8u = 0x%08x\n",
            _empty(), _pool, _wrap, &_pool[_size],
            atTail, head, atHead, tail,
-           _maxSize, _maxSize, wrapSize, wrapSize);
+           (unsigned) _maxSize, (unsigned) _maxSize, (unsigned) wrapSize, (unsigned) wrapSize);
 
     printf("\n Allocations:\n");
     printf(" Entry   Location     size\n"
@@ -443,7 +443,7 @@ void RingPool::dump(int level)
       char*  end    = entry != _empty() ? (char*)entry : head;
       size_t size   = (end > buffer ? end : &_pool[_size]) - buffer;
 
-      printf(" %5u   %p  %8u\n", cnt++, buffer, size);
+      printf(" %5u   %p  %8u\n", cnt++, buffer, (unsigned) size);
     }
     if (cnt == 0)  printf(" none\n");
   }

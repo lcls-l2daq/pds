@@ -171,7 +171,7 @@ Eb::~Eb()
 void Eb::_dump(int detail)
 {
   printf(" %u Event buffers which manage datagrams of %u bytes each\n",
-         _events.numberofObjects(), _datagrams.sizeofObject());
+         _events.numberofObjects(), (unsigned) _datagrams.sizeofObject());
   printf(" Event buffers allocated/deallocated %u/%u\n",
          _events.numberofAllocs(), _events.numberofFrees());
   printf(" Datagrams allocated/deallocated %u/%u\n",

@@ -265,7 +265,7 @@ unsigned OceanOpticsServer::unconfigure()
   if (_iDebugLevel >= 2 && u64NumTotalFrames > 0)  
     finalSpectraReport();
     
-  printf("Count %Lu Captured frames %Lu delayed %Lu discarded %Lu\n", _count, u64NumTotalFrames, u64NumDelayedFrames, u64NumDiscardFrames);
+  printf("Count %Lu Captured frames %Lu delayed %Lu discarded %Lu\n", (long long unsigned) _count, (long long unsigned) u64NumTotalFrames, (long long unsigned) u64NumDelayedFrames, (long long unsigned) u64NumDiscardFrames);
   
   iError = LIBOOPT::clearDataBuffer(fd());
   if (iError != 0)
@@ -391,13 +391,13 @@ static int checkSpectraInfo(OceanOpticsDataType* pData)
     else
       printf("\n");
       
-    printf("Frame %Lu (Long Interval %d)\n", pSpectraPostheader->u64FrameCounter, iNumLongInterval);
+    printf("Frame %Lu (Long Interval %d)\n", (long long unsigned) pSpectraPostheader->u64FrameCounter, iNumLongInterval);
       
     printf("  Frame time %.3f fetch %.3f bound %.3f interval %.3f start %.3f first data %.3f get data %.3f gap %.3f\n",
       fTimeFrame * 1e3, fFetchInterval * 1e3, fLongIntervalBound * 1e3, fTimeInterval * 1e3, fTimeFrameStart * 1e3, fTimeFirstData * 1e3, fTimeGetData * 1e3, fTimeGap * 1e3);
 
     if (iNumSpectraInQueue > 0)
-      printf("*** Frame %Lu  Spectra in queue %d\n", pSpectraPostheader->u64FrameCounter, pSpectraPostheader->dataInfo.i8NumSpectraInQueue);        
+      printf("*** Frame %Lu  Spectra in queue %d\n", (long long unsigned) pSpectraPostheader->u64FrameCounter, pSpectraPostheader->dataInfo.i8NumSpectraInQueue);        
       
     printSpectraHeaderInfo(pSpectraPostheader);
       
@@ -464,9 +464,9 @@ static int printSpectraHeaderInfo(LIBOOPT::SpectraPostheader* pSpectraPostheader
     "    tsTimeFrameStart     %s.%d\n"
     "    tsTimeFrameFirstData %s.%d\n"
     "    tsTimeFrameEnd       %s.%d\n",
-    pSpectraPostheader->u64FrameCounter,
-    pSpectraPostheader->u64NumDelayedFrames,
-    pSpectraPostheader->u64NumDiscardFrames,
+    (long long unsigned) pSpectraPostheader->u64FrameCounter,
+    (long long unsigned) pSpectraPostheader->u64NumDelayedFrames,
+    (long long unsigned) pSpectraPostheader->u64NumDiscardFrames,
     sTimeFrameInit, (int) pSpectraPostheader->tsTimeFrameInit.tv_nsec,
     sTimeFrameStart, (int) pSpectraPostheader->tsTimeFrameStart.tv_nsec,
     sTimeFrameFirstData, (int) pSpectraPostheader->tsTimeFrameFirstData.tv_nsec,
