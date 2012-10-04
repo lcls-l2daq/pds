@@ -590,7 +590,7 @@ int PrincetonServer::initCameraBeforeConfig()
   printf("Setting cooling temperature: %f\n", config.coolingTemp());
   setupCooling( config.coolingTemp() );
   
-  return 5;
+  return 0;
 }
 
 int PrincetonServer::initTest()
