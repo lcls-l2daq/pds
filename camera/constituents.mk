@@ -1,23 +1,23 @@
 libnames := camera camleutron camedt
 
 libsrcs_camera := CameraBase.cc \
-		  CameraManager.cc \
-		  FrameHandle.cc \
-		  Frame.cc \
-		  TwoDMoments.cc \
-		  TwoDGaussian.cc \
-	          FrameServer.cc \
-	          FexFrameServer.cc \
-	          FccdFrameServer.cc \
-		  Opal1kCamera.cc \
-		  Opal1kManager.cc \
-		  QuartzCamera.cc \
-		  QuartzManager.cc \
-		  TM6740Camera.cc \
-		  TM6740Manager.cc \
-		  FccdCamera.cc \
-		  FccdManager.cc \
-		  PimManager.cc
+      CameraManager.cc \
+      FrameHandle.cc \
+      Frame.cc \
+      TwoDMoments.cc \
+      TwoDGaussian.cc \
+            FrameServer.cc \
+            FexFrameServer.cc \
+            FccdFrameServer.cc \
+      Opal1kCamera.cc \
+      Opal1kManager.cc \
+      QuartzCamera.cc \
+      QuartzManager.cc \
+      TM6740Camera.cc \
+      TM6740Manager.cc \
+      FccdCamera.cc \
+      FccdManager.cc \
+      PimManager.cc
 
 libsrcs_camleutron := PicPortCL.cc
 libsinc_camleutron := /usr/include/lvsds
@@ -54,10 +54,11 @@ leutron_libs += leutron/LvCamDat.34.${ARCHCODE}
 leutron_libs += leutron/LvSerialCommunication.34.${ARCHCODE}
 
 tgtsrcs_camsend := camsend.cc
+tgtincs_camsend := pds/zerocopy/kmemory pds/camera
 tgtlibs_camsend := pds/service pds/collection pds/utility pds/config pds/camera pds/client pds/xtc
 tgtlibs_camsend += pds/vmon pds/mon pds/camleutron
 tgtlibs_camsend += pdsdata/xtcdata pdsdata/camdata pdsdata/opal1kdata pdsdata/quartzdata pdsdata/pulnixdata pdsdata/fccddata
-tgtincs_camsend := pds/zerocopy/kmemory pds/camera
+tgtlibs_camsend += pdsdata/compressdata pdsdata/cspaddata pdsdata/cspad2x2data pdsdata/timepixdata
 tgtlibs_camsend += $(leutron_libs)
 tgtincs_camsend += leutron/include
 
@@ -91,6 +92,7 @@ tgtincs_pdvcamsend := edt/include
 tgtlibs_pdvcamsend := pds/service pds/collection pds/utility pds/config pds/client pds/xtc
 tgtlibs_pdvcamsend += pds/vmon pds/mon pds/camera pds/camedt
 tgtlibs_pdvcamsend += pdsdata/xtcdata pdsdata/camdata pdsdata/opal1kdata pdsdata/quartzdata pdsdata/pulnixdata pdsdata/fccddata
+tgtlibs_pdvcamsend += pdsdata/compressdata pdsdata/cspaddata pdsdata/cspad2x2data pdsdata/timepixdata
 tgtlibs_pdvcamsend += edt/pdv
 tgtslib_pdvcamsend := $(USRLIBDIR)/rt dl
 
