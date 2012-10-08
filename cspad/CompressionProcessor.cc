@@ -143,7 +143,7 @@ public:
     double  fThroughputCopy      = iOutputTotalSize / fTimeCopy / 1048576;
     int64_t i64CompressedNewSize = iXtcSize-i64ReducedSize;    
                 
-    if (_pProcessor->_iNumProcessedEvents % _pProcessor->_iDispPrint == 0)
+    if ((_pProcessor->_iNumProcessedEvents % _pProcessor->_iDispPrint == 0) && _pProcessor->_bPrintInfo)
     {
       printf("\n# 2x1 Images %d  # Image total size %.1f MB  Avg size %.1f MB/Element  Xtc Datas size %.1f MB\n",
         iNumImageElements, i64TotalOrgImgSize / 1048576.0, 
@@ -298,18 +298,19 @@ public:
   }
 };
 
-CspadCompressionProcessor::CspadCompressionProcessor(Appliance& appProcessor, unsigned iNumThreads1, int iImagesPerElement1) : 
-  _appProcessor(appProcessor), _iNumThreads(iNumThreads1), _iImagesPerElement(iImagesPerElement1), 
-  _poolOutputData(_iMaxOutputDataSize, _iPoolDataCount), _pOutDg(NULL),
+CspadCompressionProcessor::CspadCompressionProcessor(Appliance& appProcessor, unsigned iNumThreads1, int iImagesPerElement1, unsigned int uDebugFlag) : 
+  _appProcessor(appProcessor), _iNumThreads(iNumThreads1), _iImagesPerElement(iImagesPerElement1), _uDebugFlag(uDebugFlag),
+  _poolOutputData(_iMaxOutputDataSize, _iPoolDataCount), _pOutDg(NULL), _bPrintInfo(0 != (_uDebugFlag & (1<<12))),
   _histTimeRouine(0,100,1), _histTimeCall(0,100,1), _histInpLevel(0,20,1), _histOutLevel(0,_iPoolDataCount,1)
 {
-  printf("CspadCompressionProcessor::CspadCompressionProcessor() starts\n");
+  
   _pTaskCompression = new Task(TaskObject("CspadCompression"));
   
   iNumThreads           = _iNumThreads;
   iMaxImagesPerElement  = _iImagesPerElement;
 
-  printf("Thread #: %d  Images/Element: %d\n", iNumThreads, _iImagesPerElement);
+  printf("CspadCompressionProcessor starts. Thread #: %d  Images/Element: %d\n\tuDebugFlag: 0x%x bprintInfo: %s\n",
+      iNumThreads, _iImagesPerElement, _uDebugFlag, _bPrintInfo ? "true" : "false");
     
   // setup compressors
   pCompressor         = new Pds::CsPad::CompressorOMP<Pds::CsPad::CspadCompressor>
@@ -402,7 +403,7 @@ int CspadCompressionProcessor::readConfig(Xtc* xtc)
   if (bCspadConfigured)
     printf("CspadCompressionProcessor::readConfig(): Read config successfully\n");
   else
-    printf("!!! CspadCompressionProcessor::readConfig(): Failed to read config\n");  
+    printf("CspadCompressionProcessor::readConfig(): Failed to read config\n");  
       
   /*
    * reset run-related variables
@@ -418,11 +419,11 @@ int CspadCompressionProcessor::readConfig(Xtc* xtc)
   _iContinuousBusyCount = _iContinuousOkayCount = _iTotalBusyCount = 0;
 
   if (_lpInpDg.size() > 0)
-    printf( "!!! CspadCompressionProcessor::readConfig(): Input data buffer is not empty: %d used.\n",
+    printf( "CspadCompressionProcessor::readConfig(): Input data buffer is not empty: %d used.\n",
       _lpInpDg.size());
   
   if (_poolOutputData.numberOfAllocatedObjects() != 0)
-    printf( "!!! CspadCompressionProcessor::readConfig(): Data pool is not empty: %d/%d allocated\n", 
+    printf( "CspadCompressionProcessor::readConfig(): Data pool is not empty: %d/%d allocated\n", 
       _poolOutputData.numberOfAllocatedObjects(), _poolOutputData.numberofObjects());  
   
   /*
@@ -538,7 +539,7 @@ private:
     {
       unsigned extent = xtc->extent;
       if(extent==0) {
-        printf("Breaking on zero extent\n");
+        printf("XtcIterCspadShuffle::iterate(): Breaking on zero extent\n");
         break; // try to skip corrupt event
       }
       process(xtc);
@@ -614,7 +615,7 @@ void CspadCompressionProcessor::routineCompression()
 {   
   if (_lpInpDg.size() == 0) 
   {
-    printf("!!! CspadCompressionProcessor::routineCompression(): [%d] Input Data Buffer is empty\n", _iNumEvents);
+    printf("CspadCompressionProcessor::routineCompression(): [%d] Input Data Buffer is empty\n", _iNumEvents);
     return;
   }
   
@@ -635,7 +636,7 @@ void CspadCompressionProcessor::routineCompression()
     _iContinuousOkayCount = 0;
     
     if (_iContinuousBusyCount % _iBusyPrint == 0)
-      printf("!!! [%d] Busy<%d> Data pool is full: %d/%d allocated. Skip rate %4.1f%% (%d/%d). Previous routine time %4.1f ms. "
+      printf("[%d] Busy<%d> Data pool is full: %d/%d allocated. Skip rate %4.1f%% (%d/%d). Previous routine time %4.1f ms. "
         "Call interval %4.1f ms\n", 
         _iNumEvents, _iContinuousBusyCount, 
         _poolOutputData.numberOfAllocatedObjects(), _poolOutputData.numberofObjects(),
@@ -708,7 +709,7 @@ void CspadCompressionProcessor::routineCompression()
   
   _histTimeRouine.addValue( _fTimeRoutine * 1000 );
   
-  if (_iNumProcessedEvents % _iDispPrint == 0)
+  if (_bPrintInfo && _iNumProcessedEvents % _iDispPrint == 0)
   {
     // Note: the first processor call time is 0, because of no referenced timestamp 
     printf("### Compressor Routine Wall time %4.1f ms  Processed Event# %d  Total# %d  Avg Wall time %4.1f ms  Avg Call time %4.1f ms\n",
@@ -728,6 +729,6 @@ void CspadCompressionProcessor::routineCompression()
   _pOutDg           = NULL;
   _pOutData         = NULL;
   //_iOutSize         = 0;
-}  
+}
 
 }

@@ -14,7 +14,7 @@ namespace Pds {
 
   class Pds::CspadManager {
     public:
-      CspadManager( CspadServer* server, unsigned d);
+      CspadManager( CspadServer* server, unsigned d, bool c=false);
       Appliance& appliance( void ) { return _fsm; }
       Appliance& appProcessor( void ) { return _appProcessor; }
 

@@ -93,7 +93,7 @@ class CspadUnmapAction : public Action {
 
 class CspadL1Action : public Action {
  public:
-   CspadL1Action(CspadServer* svr, CspadCompressionProcessor& processor);
+   CspadL1Action(CspadServer* svr, CspadCompressionProcessor& processor, bool compress=false);
 
    InDatagram* fire(InDatagram* in);
    void        reset(bool f=true);
@@ -121,7 +121,7 @@ void CspadL1Action::reset(bool resetError) {
   if (resetError) _frameSyncErrorCount = 0;
 }
 
-CspadL1Action::CspadL1Action(CspadServer* svr, CspadCompressionProcessor& processor) :
+CspadL1Action::CspadL1Action(CspadServer* svr, CspadCompressionProcessor& processor,  bool compress) :
     server(svr),
     _processor(processor),
     _lastMatchedFiducial(0xffffffff),
@@ -130,7 +130,7 @@ CspadL1Action::CspadL1Action(CspadServer* svr, CspadCompressionProcessor& proces
     _resetCount(0),
     _damageCount(0),
     //_bUseCompressor(server->xtc().contains.id() == TypeId::Id_CspadElement)
-    _bUseCompressor(false)
+    _bUseCompressor(compress)
     {}
 
 inline InDatagram* CspadL1Action::postData(InDatagram* in)
@@ -269,10 +269,10 @@ InDatagram* CspadL1Action::fire(InDatagram* in) {
 class CspadConfigAction : public Action {
 
   public:
-    CspadConfigAction( Pds::CspadConfigCache& cfg, CspadServer* server, CspadCompressionProcessor& processor)
+    CspadConfigAction( Pds::CspadConfigCache& cfg, CspadServer* server, CspadCompressionProcessor& processor, bool compress)
     : _cfg( cfg ), _server(server), _processor(processor), _result(0), 
       //_bUseCompressor(_server->xtc().contains.id() == TypeId::Id_CspadElement)
-      _bUseCompressor(false)
+      _bUseCompressor(compress)
       {}
 
     ~CspadConfigAction() {}
@@ -435,9 +435,9 @@ public:
   virtual InDatagram* events     (InDatagram* in) {return in;}
 };
 
-CspadManager::CspadManager( CspadServer* server, unsigned d) :
+CspadManager::CspadManager( CspadServer* server, unsigned d, bool c) :
     _fsm(*new Fsm), _cfg(*new CspadConfigCache(server->client())),
-    _appProcessor(*new AppProcessor()), _compressionProcessor(_appProcessor, 14, 32)
+    _appProcessor(*new AppProcessor()), _compressionProcessor(_appProcessor, 14, 32, server->debug())
 {
 
    printf("CspadManager being initialized... " );
@@ -474,12 +474,12 @@ CspadManager::CspadManager( CspadServer* server, unsigned d) :
 
    server->setCspad( cspad );
 
-   CspadL1Action* l1 = new CspadL1Action( server, _compressionProcessor );
+   CspadL1Action* l1 = new CspadL1Action( server, _compressionProcessor, c );
    _fsm.callback( TransitionId::L1Accept, l1 );
 
    _fsm.callback( TransitionId::Map, new CspadAllocAction( _cfg ) );
    _fsm.callback( TransitionId::Unmap, new CspadUnmapAction( server ) );
-   _fsm.callback( TransitionId::Configure, new CspadConfigAction(_cfg, server, _compressionProcessor ) );
+   _fsm.callback( TransitionId::Configure, new CspadConfigAction(_cfg, server, _compressionProcessor, c ) );
    //   _fsm.callback( TransitionId::Enable, new CspadEnableAction( server ) );
    //   _fsm.callback( TransitionId::Disable, new CspadDisableAction( server ) );
    _fsm.callback( TransitionId::BeginCalibCycle, new CspadBeginCalibCycleAction( server, _cfg, *l1 ) );

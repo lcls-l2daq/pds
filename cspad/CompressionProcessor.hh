@@ -88,7 +88,7 @@ private:
 class CspadCompressionProcessor
 {
 public:
-  CspadCompressionProcessor(Appliance& appProcessor, unsigned iNumThreads, int iImagesPerElement);
+  CspadCompressionProcessor(Appliance& appProcessor, unsigned iNumThreads, int iImagesPerElement, unsigned int uDebugFlag);
   virtual ~CspadCompressionProcessor();
   
   int  readConfig(Xtc* xtc);
@@ -110,7 +110,7 @@ private:
       
     private:
       CspadCompressionProcessor& _processor;
-  };  
+  };
   
   struct InpData
   {
@@ -129,12 +129,14 @@ private:
   Appliance&                       _appProcessor;
   unsigned int                     _iNumThreads;
   int                              _iImagesPerElement;
+  unsigned int                     _uDebugFlag;
   
   GenericPool                      _poolOutputData;
   Task*                            _pTaskCompression;
   std::list<InpData>               _lpInpDg;   
   InDatagram*                      _pOutDg;
   char*                            _pOutData;
+  bool                             _bPrintInfo;
   //int                              _iOutSize;
  
   // Routine-based variables
