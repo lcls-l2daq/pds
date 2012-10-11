@@ -90,7 +90,6 @@ unsigned Cspad2x2Server::configure(CsPad2x2ConfigType* config) {
 }
 
 void Pds::Cspad2x2Server::die() {
-  printf("Pds::Cspad2x2Server::die() Goodbye cruel world, but we are not doing anything about it\n");
   _d.dest(Pds::CsPad2x2::Cspad2x2Destination::CR);
   printf("Cspad2x2Server::die has been called !!!!!!!\n");
   if (_pgp != 0) {
