@@ -48,7 +48,7 @@ CspadServer::CspadServer( const Pds::Src& client, Pds::TypeId& myDataType, unsig
      _cnfgrtr(0),
      _quads(0),
      _configMask(configMask),
-     _configureResult(0),
+     _configureResult(0xdead),
      _debug(0),
      _offset(0),
      _configured(false),
@@ -95,24 +95,16 @@ unsigned CspadServer::configure(CsPadConfigType* config) {
 }
 
 void Pds::CspadServer::die() {
-  _d.dest(Pds::CsPad::CspadDestination::CR);
-  printf("CspadServer::die has been called !!!!!!!\n");
-  if (_pgp != 0) {
-    if (_configureResult != 0xdead) {
-      _pgp->writeRegister(
-          &_d,
-          CsPad::CspadConfigurator::RunModeAddr,
-          _cnfgrtr->configuration().inactiveRunMode());
-      printf("CspadServer::die has changed the run mode !!!!!!!\n");
-    } else {
-      printf("CspadServer::die found nil config!\n");
-    }
-  }
+  disable();
 }
 
 void Pds::CspadServer::dumpFrontEnd() {
-  disable();
-  _cnfgrtr->dumpFrontEnd();
+  if (_configureResult != 0xdead) {
+    disable();
+    _cnfgrtr->dumpFrontEnd();
+  } else {
+    printf("CspadServer::dumpFrontEnd found nil configuration\n");
+  }
 }
 
 void CspadServer::process() {
@@ -153,7 +145,7 @@ void Pds::CspadServer::disable() {
     flushInputQueue(fd());
     if (_debug & 0x20) printf("CspadServer::disable\n");
   } else {
-    printf("CspadServer::disable found nil configuration\n");
+    printf("CspadServer::disable found nil configuration, so not disabling\n");
   }
 }
 
