@@ -376,6 +376,7 @@ class CspadUnconfigAction : public Action {
    Transition* fire(Transition* tr) {
      printf("CspadUnconfigAction:;fire(Transition) unconfigured\n");
      _result = _server->unconfigure();
+     _server->dumpFrontEnd();
      return tr;
    }
 
@@ -404,7 +405,7 @@ class CspadEndCalibCycleAction : public Action {
       _cfg.next();
       printf(" %p\n", _cfg.current());
       _result = _server->unconfigure();
-      _server->dumpFrontEnd();
+//      _server->dumpFrontEnd();
       _server->printHisto(true);
       return tr;
     }
