@@ -85,9 +85,13 @@ public:
           1,  // BinX
           0.001,  // Exposure time
           25.0f,  // Cooling temperature
+          AndorConfigType::ENUM_FAN_FULL,  // fan Mode
+          0,  // baseline clamp
+          0,  // high capacity
           1,  // Gain index
           1,  // Readout speed index
-          1   // Redout event code
+          1,  // Redout event code
+          1   // number delay shots   
         );
       }
               
