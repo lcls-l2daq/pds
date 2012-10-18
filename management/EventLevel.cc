@@ -17,14 +17,20 @@
 using namespace Pds;
 
 EventLevel::EventLevel(unsigned platform,
-           EventCallback& callback,
-           Arp* arp,
-                       unsigned max_eventsize) :
+                       EventCallback& callback,
+                       Arp* arp,
+                       unsigned max_eventsize,
+                       unsigned max_buffers) :
   PartitionMember(platform, Level::Event, arp),
   _callback   (callback),
   _streams    (0),
-  _max_eventsize(max_eventsize)
+  _max_eventsize(max_eventsize),
+  _max_buffers  (max_buffers)
 {
+  if (!_max_eventsize)
+    _max_eventsize = EventStreams::MaxSize;
+  if (!_max_buffers)
+    _max_buffers   = EventStreams::EbDepth;
 }
 
 EventLevel::~EventLevel() 
@@ -37,7 +43,10 @@ bool EventLevel::attach()
   start();
   if (connect()) {
     if (_max_eventsize)
-      _streams = new EventStreams(*this, _max_eventsize);
+      _streams = new EventStreams(*this, 
+                                  _max_eventsize, 
+                                  EventStreams::netbufdepth,
+                                  _max_buffers);
     else
       _streams = new EventStreams(*this);
 

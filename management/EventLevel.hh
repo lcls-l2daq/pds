@@ -15,7 +15,8 @@ public:
   EventLevel(unsigned       platform,
 	     EventCallback& callback,
 	     Arp*           arp,
-             unsigned       max_eventsize = 0);
+             unsigned       max_eventsize = 0,
+             unsigned       max_buffers = 0);
   virtual ~EventLevel();
   
   bool attach();
@@ -34,6 +35,7 @@ private:
   EventStreams*  _streams;          // appliance streams
   PingReply      _reply;
   unsigned       _max_eventsize;
+  unsigned       _max_buffers;
 };
 
 }
