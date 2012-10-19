@@ -66,7 +66,7 @@ private:
   Action*             _pActionL1Accept;
   Response*           _pResponse;  
   
-  AndorServer*    _pServer;  
+  AndorServer*        _pServer;  
   unsigned int        _uNumShotsInCycle;
 };
 

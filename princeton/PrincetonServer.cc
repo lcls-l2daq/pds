@@ -28,7 +28,7 @@ PrincetonServer::PrincetonServer(int iCamera, bool bDelayMode, bool bInitTest, c
  _iCamera(iCamera), _bDelayMode(bDelayMode), _bInitTest(bInitTest), _src(src), 
  _sConfigDb(sConfigDb), _iSleepInt(iSleepInt), _iDebugLevel(iDebugLevel),
  _hCam(-1), _bCameraInited(false), _bCaptureInited(false), _bClockSaving(false),
- _i16CcdWidth(-1), _i16CcdHeight(-1), _i16MaxSpeedTableIndex(-1),
+ _i16DetectorWidth(-1), _i16DetectorHeight(-1), _i16MaxSpeedTableIndex(-1),
  _fPrevReadoutTime(0), _bSequenceError(false), _clockPrevDatagram(0,0), _iNumL1Event(0),
  _config(), 
  _fReadoutTime(0),  
@@ -91,7 +91,7 @@ int PrincetonServer::init()
   if (!pl_pvcam_init())
   {
     printPvError("PrincetonServer::init(): pl_pvcam_init() failed");
-    return ERROR_PVCAM_FUNC_FAIL;
+    return ERROR_SDK_FUNC_FAIL;
   }
 
   char strCamera[CAM_NAME_LEN];  /* camera name                    */
@@ -100,7 +100,7 @@ int PrincetonServer::init()
   if (!pl_cam_get_name(_iCamera, strCamera))
   {
     printPvError("PrincetonServer::init(): pl_cam_get_name() failed");
-    return ERROR_PVCAM_FUNC_FAIL;
+    return ERROR_SDK_FUNC_FAIL;
   }
   
   printf( "Opening camera [%d] name %s...\n", _iCamera, strCamera );
@@ -108,7 +108,7 @@ int PrincetonServer::init()
   if (!pl_cam_open(strCamera, &_hCam, OPEN_EXCLUSIVE))
   {
     printPvError("PrincetonServer::init(): pl_cam_open() failed");
-    return ERROR_PVCAM_FUNC_FAIL;
+    return ERROR_SDK_FUNC_FAIL;
   }
     
   timespec timeVal1;  
@@ -117,24 +117,24 @@ int PrincetonServer::init()
   double fOpenTime = (timeVal1.tv_nsec - timeVal0.tv_nsec) * 1.e-6 + ( timeVal1.tv_sec - timeVal0.tv_sec ) * 1.e3;    
   printf("Camera Open Time = %6.1lf ms\n", fOpenTime);    
   
-  PICAM::getAnyParam(_hCam, PARAM_SER_SIZE, &_i16CcdWidth );
-  PICAM::getAnyParam(_hCam, PARAM_PAR_SIZE, &_i16CcdHeight );
+  PICAM::getAnyParam(_hCam, PARAM_SER_SIZE, &_i16DetectorWidth );
+  PICAM::getAnyParam(_hCam, PARAM_PAR_SIZE, &_i16DetectorHeight );
   PICAM::getAnyParam(_hCam, PARAM_SPDTAB_INDEX, &_i16MaxSpeedTableIndex, PICAM::GET_PARAM_MAX);
   int16 i16TemperatureCurrent = -1;  
   PICAM::getAnyParam(_hCam, PARAM_TEMP, &i16TemperatureCurrent );  
-  printf( "\nCCD Width %d Height %d Max Speed %d Temperature %.1f C\n", _i16CcdWidth, _i16CcdHeight, _i16MaxSpeedTableIndex, i16TemperatureCurrent/100.f );  
+  printf( "\nDetector Width %d Height %d Max Speed %d Temperature %.1f C\n", _i16DetectorWidth, _i16DetectorHeight, _i16MaxSpeedTableIndex, i16TemperatureCurrent/100.f );  
     
   if (_bInitTest)
   {
     if (initTest() != 0)
-      return ERROR_PVCAM_FUNC_FAIL;
+      return ERROR_SDK_FUNC_FAIL;
   }
 
   /* Initialize capture related functions */    
   if (!pl_exp_init_seq())
   {
     printPvError("PrincetonServer::init(): pl_exp_init_seq() failed!\n");
-    return ERROR_PVCAM_FUNC_FAIL; 
+    return ERROR_SDK_FUNC_FAIL; 
   }    
   
   
@@ -147,7 +147,7 @@ int PrincetonServer::init()
   
   i16TemperatureCurrent = -1;  
   PICAM::getAnyParam(_hCam, PARAM_TEMP, &i16TemperatureCurrent );  
-  printf( "\nCCD Width %d Height %d Max Speed %d Temperature %.1f C\n", _i16CcdWidth, _i16CcdHeight, _i16MaxSpeedTableIndex, i16TemperatureCurrent/100.f  );  
+  printf( "\nDetector Width %d Height %d Max Speed %d Temperature %.1f C\n", _i16DetectorWidth, _i16DetectorHeight, _i16MaxSpeedTableIndex, i16TemperatureCurrent/100.f  );  
   
   printf( "Princeton Camera [%d] %s has been initialized\n", _iCamera, strCamera );
   _bCameraInited = true;    
@@ -168,26 +168,18 @@ int PrincetonServer::deinit()
   if ( _bCaptureInited )
     deinitCapture(); // deinit the camera explicitly    
   
-  _bCameraInited = false;
-  
   /* Uninit capture related functions */  
   if (!pl_exp_uninit_seq() ) 
-  {
     printPvError("PrincetonServer::deinit():pl_exp_uninit_seq() failed");
-    return ERROR_PVCAM_FUNC_FAIL;
-  }
     
   if (!pl_cam_close(_hCam))
     printPvError("PrincetonServer::deinit(): pl_cam_close() failed"); // Don't return here; continue to uninit the library
 
   if (!pl_pvcam_uninit())
-  {
     printPvError("PrincetonServer::deinit(): pl_pvcam_uninit() failed");
-    return ERROR_PVCAM_FUNC_FAIL;
-  }
     
-  printf( "Princeton Camera [%d] has been deinitialized\n", _iCamera );
-  
+  _bCameraInited = false;  
+  printf( "Princeton Camera [%d] has been deinitialized\n", _iCamera );  
   return 0;
 }
 
@@ -206,24 +198,21 @@ int PrincetonServer::map()
 
 int PrincetonServer::config(PrincetonConfigType& config, std::string& sConfigWarning)
 {  
-  //if ( init() != 0 ) 
-  //  return ERROR_SERVER_INIT_FAIL;
-  
   int iFail = deinitClockSaving();
   if ( iFail != 0 )
     return ERROR_FUNCTION_FAILURE;  
     
-  if ( initCameraSettings(config, sConfigWarning) != 0 ) 
+  if ( configCamera(config, sConfigWarning) != 0 ) 
     return ERROR_SERVER_INIT_FAIL;
   
-  if ( (int) config.width() > _i16CcdWidth || (int) config.height() > _i16CcdHeight)
+  if ( (int) config.width() > _i16DetectorWidth || (int) config.height() > _i16DetectorHeight)
   {
     char sMessage[128];    
-    sprintf( sMessage, "!!! PI %d ConfigSize (%d,%d) > CcdSize(%d,%d)\n", _iCamera, config.width(), config.height(), _i16CcdWidth, _i16CcdHeight);
+    sprintf( sMessage, "!!! PI %d ConfigSize (%d,%d) > CcdSize(%d,%d)\n", _iCamera, config.width(), config.height(), _i16DetectorWidth, _i16DetectorHeight);
     printf(sMessage);
     sConfigWarning += sMessage;
-    config.setWidth (_i16CcdWidth);
-    config.setHeight(_i16CcdHeight);
+    config.setWidth (_i16DetectorWidth);
+    config.setHeight(_i16DetectorHeight);
   }
         
   //Note: We don't send error for cooling incomplete
@@ -239,8 +228,8 @@ int PrincetonServer::config(PrincetonConfigType& config, std::string& sConfigWar
   
   int16 i16TemperatureCurrent = -1;  
   PICAM::getAnyParam(_hCam, PARAM_TEMP, &i16TemperatureCurrent );    
-  printf( "\nROI (%d,%d) CCD (%d,%d) Speed %d/%d Temperature %.1f C\n", 
-    _config.width(), _config.height(), _i16CcdWidth, _i16CcdHeight, _config.readoutSpeedIndex(), _i16MaxSpeedTableIndex, i16TemperatureCurrent/100.f );
+  printf( "\nROI (%d,%d) Detector (%d,%d) Speed %d/%d Temperature %.1f C\n", 
+    _config.width(), _config.height(), _i16DetectorWidth, _i16DetectorHeight, _config.readoutSpeedIndex(), _i16MaxSpeedTableIndex, i16TemperatureCurrent/100.f );
   
   return 0;
 }
@@ -348,7 +337,7 @@ int PrincetonServer::initCapture()
   //if (!pl_exp_init_seq())
   //{
   //  printPvError("PrincetonServer::initCapture(): pl_exp_init_seq() failed!\n");
-  //  return ERROR_PVCAM_FUNC_FAIL; 
+  //  return ERROR_SDK_FUNC_FAIL; 
   //}  
     
   rgn_type region;  
@@ -369,7 +358,7 @@ int PrincetonServer::initCapture()
   if (!bStatus)
   {
     printPvError("PrincetonServer::initCapture(): pl_exp_setup_seq() failed!\n");
-    return ERROR_PVCAM_FUNC_FAIL;
+    return ERROR_SDK_FUNC_FAIL;
   }
     
   if ( (int)uFrameSize + _iFrameHeaderSize > _iMaxFrameDataSize )
@@ -432,7 +421,7 @@ int PrincetonServer::deinitCapture()
   if ( iPvCamFailCount == 0 )
     return 0;
   else
-    return ERROR_PVCAM_FUNC_FAIL;
+    return ERROR_SDK_FUNC_FAIL;
 }
 
 int PrincetonServer::startCapture()
@@ -449,13 +438,13 @@ int PrincetonServer::startCapture()
   if (!bStatus)
   {
     printPvError("PrincetonServer::startCapture():pl_exp_start_seq() failed");    
-    return ERROR_PVCAM_FUNC_FAIL;
+    return ERROR_SDK_FUNC_FAIL;
   }  
   
   return 0;
 }
 
-int PrincetonServer::initCameraSettings(PrincetonConfigType& config, std::string& sConfigWarning)
+int PrincetonServer::configCamera(PrincetonConfigType& config, std::string& sConfigWarning)
 { 
   using PICAM::setAnyParam;
   using PICAM::displayParamIdInfo;
@@ -689,7 +678,7 @@ int PrincetonServer::initClockSaving()
   if (!bStatus)
   {
    printPvError("PrincetonServer::initClockSaving(): pl_exp_setup_seq() failed!\n");
-   return ERROR_PVCAM_FUNC_FAIL;
+   return ERROR_SDK_FUNC_FAIL;
   }
          
   if ( _iDebugLevel >= 3 )
@@ -720,7 +709,7 @@ int PrincetonServer::deinitClockSaving()
   if (!bStatus)
   {
    printPvError("PrincetonServer::deinitCapture():pl_exp_abort() failed");    
-   return ERROR_PVCAM_FUNC_FAIL;
+   return ERROR_SDK_FUNC_FAIL;
   }    
     
   if ( _iDebugLevel >= 3 )
@@ -807,7 +796,7 @@ int PrincetonServer::setupCooling(float fCoolingTemperature)
   
   if ( iTemperatureCurrent > iCoolingTemp ) 
   {
-    printf("PrincetonServer::setupCooling(): Cooling failed, final temperature = %.1f C\n", 
+    printf("PrincetonServer::setupCooling(): Cooling temperature not reached yet; final temperature = %.1f C\n", 
      (iTemperatureCurrent / 100.0f) );
     return ERROR_COOLING_FAILURE;
   }
@@ -887,8 +876,8 @@ int PrincetonServer::runCaptureTask()
    *   2. sequence error happened in the current run
    */
   // Note: Dont send damage when temperature is high
-  checkTemperature();
-  //if ( checkTemperature() != 0 )
+  updateTemperatureData();
+  //if ( updateTemperatureData() != 0 )
   //  _pDgOut->datagram().xtc.damage.increase(Pds::Damage::UserDefined);           
   
   _CaptureState = CAPTURE_STATE_DATA_READY;  
@@ -1085,10 +1074,10 @@ int PrincetonServer::waitForNewFrameAvailable()
     if (!bCheckOk)
     {
       if ( pl_error_code() == 0 )
-        return ERROR_PVCAM_FUNC_FAIL;
+        return ERROR_SDK_FUNC_FAIL;
       
       printPvError("PrincetonServer::waitForNewFrameAvailable(): pl_exp_check_status() failed\n");
-      return ERROR_PVCAM_FUNC_FAIL;
+      return ERROR_SDK_FUNC_FAIL;
     }
     
     /*
@@ -1263,7 +1252,7 @@ void PrincetonServer::setupROI(rgn_type& region)
   region.pbin = _config.binY();
 }
 
-int PrincetonServer::checkTemperature()
+int PrincetonServer::updateTemperatureData()
 {
   const int16 iCoolingTemp = (int)( _config.coolingTemp() * 100 );
   int16 iTemperatureCurrent = -1;  
@@ -1275,12 +1264,12 @@ int PrincetonServer::checkTemperature()
    */
   if ( _iNumL1Event % 10 == 1 || _iDebugLevel >= 4 )
   {
-    printf( "CCD Temperature report [%d]: %.1f C\n", _iNumL1Event, iTemperatureCurrent/100.f );
+    printf( "Detector Temperature report [%d]: %.1f C\n", _iNumL1Event, iTemperatureCurrent/100.f );
   }
 
   if ( _pDgOut == NULL )
   {
-    printf( "PrincetonServer::checkTemperature(): Datagram has not been allocated. No buffer to store the info data\n" );
+    printf( "PrincetonServer::updateTemperatureData(): Datagram has not been allocated. No buffer to store the info data\n" );
   }
   else
   {
@@ -1293,7 +1282,7 @@ int PrincetonServer::checkTemperature()
   if ( iTemperatureCurrent >= iCoolingTemp + _iTemperatureHiTol ||  
     iTemperatureCurrent <= iCoolingTemp - _iTemperatureLoTol ) 
   {
-    printf( "** PrincetonServer::checkTemperature(): CCD temperature (%.1f C) is not fixed to the configuration (%.1f C)\n", 
+    printf( "** PrincetonServer::updateTemperatureData(): Detector temperature (%.1f C) is not fixed to the configuration (%.1f C)\n", 
       iTemperatureCurrent/100.0f, iCoolingTemp/100.0f );
     return ERROR_TEMPERATURE;
   }

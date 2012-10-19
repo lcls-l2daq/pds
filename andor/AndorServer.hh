@@ -48,7 +48,7 @@ public:
     ERROR_FUNCTION_FAILURE  = 2,
     ERROR_INCORRECT_USAGE   = 3,
     ERROR_LOGICAL_FAILURE   = 4,
-    ERROR_PVCAM_FUNC_FAIL   = 5,
+    ERROR_SDK_FUNC_FAIL     = 5,
     ERROR_SERVER_INIT_FAIL  = 6,
     ERROR_INVALID_CONFIG    = 7,
     ERROR_COOLING_FAILURE   = 8,
@@ -71,7 +71,7 @@ private:
    * private static consts
    */    
   static const int      _iMaxCoolingTime        = 100;        // in miliseconds
-  static const int      _fTemperatureHiTol      = 1;          // 1 degree Celcius
+  static const int      _fTemperatureHiTol      = 5;          // 5 degree Celcius
   static const int      _fTemperatureLoTol      = 200;        // 200 degree Celcius -> Do not use Low Tolerance now
   static const int      _iClockSavingExpTime    = 24*60*60*1000;// 24 hours -> Long exposure time for clock saving
   static const int      _iFrameHeaderSize;                      // Buffer header used to store the CDatagram, Xtc and FrameV1 object
@@ -105,9 +105,11 @@ private:
    */ 
   int   init();
   int   deinit();  
+  int   printInfo();
   
   int   initCapture();
   int   startCapture();
+  int   stopCapture();
   int   deinitCapture();  
 
   int   initCaptureTask(); // for delay mode use only
@@ -129,7 +131,7 @@ private:
   int   resetFrameData(bool bDelOutDatagram);
 
   int   setupCooling(double fCoolingTemperature);    
-  int   checkTemperature();  
+  int   updateTemperatureData();  
   //int   checkSequence( const Datagram& datagram );
   
   /*
@@ -146,22 +148,24 @@ private:
   /*
    * Camera basic status control
    */
-  long                _hCam;  
+  at_32               _hCam;  
   bool                _bCameraInited;
   bool                _bCaptureInited;
   
   /*
    * Camera hardware settings
    */
-  int                 _iCcdWidth;
-  int                 _iCcdHeight; 
-  int                 _iCcdOrgX;
-  int                 _iCcdOrgY;    
-  int                 _iCcdDataWidth;
-  int                 _iCcdDataHeight;      
+  int                 _iDetectorWidth;
+  int                 _iDetectorHeight; 
   int                 _iImageWidth;
-  int                 _iImageHeight;
-  
+  int                 _iImageHeight;  
+  int                 _iADChannel;
+  int                 _iReadoutPort;
+  int                 _iMaxSpeedTableIndex;
+  int                 _iMaxGainIndex;
+  int                 _iTempMin;
+  int                 _iTempMax;
+  int                 _iFanModeNonAcq;
   
   /*
    * Event sequence/traffic control

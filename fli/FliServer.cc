@@ -25,7 +25,7 @@ FliServer::FliServer(int iCamera, bool bDelayMode, bool bInitTest, const Src& sr
  _iCamera(iCamera), _bDelayMode(bDelayMode), _bInitTest(bInitTest), _src(src), 
  _sConfigDb(sConfigDb), _iSleepInt(iSleepInt), _iDebugLevel(iDebugLevel),
  _hCam(-1), _bCameraInited(false), _bCaptureInited(false), 
- _iCcdWidth(-1), _iCcdHeight(-1), _iCcdOrgX(-1), _iCcdOrgY(-1), _iCcdDataWidth(-1), _iCcdDataHeight(-1),
+ _iDetectorWidth(-1), _iDetectorHeight(-1), _iDetectorOrgX(-1), _iDetectorOrgY(-1), _iDetectorDataWidth(-1), _iDetectorDataHeight(-1),
  _iImageWidth(-1), _iImageHeight(-1),
  _fPrevReadoutTime(0), _bSequenceError(false), _clockPrevDatagram(0,0), _iNumL1Event(0),
  _config(), 
@@ -133,14 +133,14 @@ int FliServer::init()
   iVisW -= iVisX;
   iVisH -= iVisY;
   
-  _iCcdWidth  = iVisW;
-  _iCcdHeight = iVisH;
-  _iCcdOrgX   = iDatX - iVisX;
-  _iCcdOrgY   = iDatY - iVisY;
-  _iCcdDataWidth  = iDatW;
-  _iCcdDataHeight = iDatH;
+  _iDetectorWidth  = iVisW;
+  _iDetectorHeight = iVisH;
+  _iDetectorOrgX   = iDatX - iVisX;
+  _iDetectorOrgY   = iDatY - iVisY;
+  _iDetectorDataWidth  = iDatW;
+  _iDetectorDataHeight = iDatH;
   
-  printf("CCD Raw Size (%d,%d) W %d H %d\n", _iCcdOrgX, _iCcdOrgY, _iCcdDataWidth, _iCcdDataHeight);  
+  printf("Detector Raw Size (%d,%d) W %d H %d\n", _iDetectorOrgX, _iDetectorOrgY, _iDetectorDataWidth, _iDetectorDataHeight);  
   
   double fTemperature;
   iError = FLIGetTemperature( _hCam, &fTemperature);
@@ -149,12 +149,12 @@ int FliServer::init()
     printf("FliServer::init(): FLIGetTemperature() failed. Error code %d: %s\n", iError, strerror(-iError));
     return 4;
   }
-  printf( "CCD Width %d Height %d Temperature %.1lf C\n", _iCcdWidth, _iCcdHeight, fTemperature);  
+  printf( "Detector Width %d Height %d Temperature %.1lf C\n", _iDetectorWidth, _iDetectorHeight, fTemperature);  
     
   if (_bInitTest)
   {
     if (initTest() != 0)
-      return ERROR_PVCAM_FUNC_FAIL;
+      return ERROR_SDK_FUNC_FAIL;
   }
   
   int iFail = initCameraBeforeConfig();
@@ -170,7 +170,7 @@ int FliServer::init()
     printf("FliServer::init(): FLIGetTemperature() failed. Error code %d: %s\n", iError, strerror(-iError));
     return 4;
   }
-  printf( "CCD Width %d Height %d Temperature %.1lf C\n", _iCcdWidth, _iCcdHeight, fTemperature);  
+  printf( "Detector Width %d Height %d Temperature %.1lf C\n", _iDetectorWidth, _iDetectorHeight, fTemperature);  
   
   printf( "Fli Camera [%d] %s has been initialized\n", _iCamera, strCamera.c_str() );
   _bCameraInited = true;    
@@ -184,19 +184,15 @@ int FliServer::deinit()
   if ( _bCaptureInited )
     deinitCapture(); // deinit the camera explicitly    
   
-  _bCameraInited = false;
-  
   int iError = 0;
   if (_hCam != -1)
     iError = FLIClose(_hCam);
   if (iError != 0)
-  {
     printf("FliServer::deinit(): FLIClose() failed. Error code %d: %s\n", iError, strerror(-iError));
-    return 1;
-  }
     
-  printf( "Fli Camera [%d] has been deinitialized\n", _iCamera );
+  _bCameraInited = false;
   
+  printf( "Fli Camera [%d] has been deinitialized\n", _iCamera );  
   return 0;
 }
 
@@ -215,20 +211,17 @@ int FliServer::map()
 
 int FliServer::config(FliConfigType& config, std::string& sConfigWarning)
 {  
-  //if ( init() != 0 ) 
-  //  return ERROR_SERVER_INIT_FAIL;
-      
   if ( configCamera(config, sConfigWarning) != 0 ) 
     return ERROR_SERVER_INIT_FAIL;
   
-  if ( (int) config.width() > _iCcdWidth || (int) config.height() > _iCcdHeight)
+  if ( (int) config.width() > _iDetectorWidth || (int) config.height() > _iDetectorHeight)
   {
     char sMessage[128];    
-    sprintf( sMessage, "!!! FLI %d ConfigSize (%d,%d) > CcdSize(%d,%d)\n", _iCamera, config.width(), config.height(), _iCcdWidth, _iCcdHeight);
+    sprintf( sMessage, "!!! FLI %d ConfigSize (%d,%d) > CcdSize(%d,%d)\n", _iCamera, config.width(), config.height(), _iDetectorWidth, _iDetectorHeight);
     printf(sMessage);
     sConfigWarning += sMessage;
-    config.setWidth (_iCcdWidth);
-    config.setHeight(_iCcdHeight);
+    config.setWidth (_iDetectorWidth);
+    config.setHeight(_iDetectorHeight);
   }
         
   //Note: We don't send error for cooling incomplete
@@ -246,7 +239,7 @@ int FliServer::config(FliConfigType& config, std::string& sConfigWarning)
     printf("FliServer::init(): FLIGetTemperature() failed. Error code %d: %s\n", iError, strerror(-iError));
     return 4;
   }
-  printf( "CCD Width %d Height %d Temperature %.1lf C\n", _iCcdWidth, _iCcdHeight, fTemperature);  
+  printf( "Detector Width %d Height %d Temperature %.1lf C\n", _iDetectorWidth, _iDetectorHeight, fTemperature);  
   
   return 0;
 }
@@ -715,7 +708,7 @@ int FliServer::setupCooling(double fCoolingTemperature)
   {
     printf("FliServer::setupCooling(): Cooling failed, final temperature = %.1lf C", 
      fTemperature );
-    return 5;
+    return ERROR_COOLING_FAILURE;
   }
   
   return 0;
@@ -793,8 +786,8 @@ int FliServer::runCaptureTask()
    *   2. sequence error happened in the current run
    */
   // Note: Dont send damage when temperature is high
-  checkTemperature();
-  //if ( checkTemperature() != 0 )
+  updateTemperatureData();
+  //if ( updateTemperatureData() != 0 )
   //  _pDgOut->datagram().xtc.damage.increase(Pds::Damage::UserDefined);           
   
   _CaptureState = CAPTURE_STATE_DATA_READY;  
@@ -1100,7 +1093,6 @@ int FliServer::setupFrame()
   out = 
     new ( &_poolFrameData ) CDatagram( TypeId(TypeId::Any,0), DetInfo(0,DetInfo::NoDetector,0,DetInfo::NoDevice,0) );
 
-  //out->datagram().xtc.alloc( sizeof(Xtc) + iFrameSize + sizeof(Xtc) + sizeof(Fli::InfoV1) ); 
   out->datagram().xtc.alloc( sizeof(Xtc) + iFrameSize ); 
 
   if ( _iDebugLevel >= 3 )
@@ -1117,13 +1109,6 @@ int FliServer::setupFrame()
   Xtc* pXtcFrame = 
    new ((char*)pcXtcFrame) Xtc(_fliDataType, _src);
   pXtcFrame->alloc( iFrameSize );
-
-  //unsigned char* pcXtcInfo  = (unsigned char*) pXtcFrame->next() ;
-  //   
-  //TypeId typeFliInfo(TypeId::Id_FliInfo, Fli::InfoV1::Version);
-  //Xtc* pXtcInfo = 
-  // new ((char*)pcXtcInfo) Xtc(typeFliInfo, _src);
-  //pXtcInfo->alloc( sizeof(Fli::InfoV1) );
   
   return 0;
 }
@@ -1180,25 +1165,25 @@ int FliServer::setupROI()
   return 0;
 }
 
-int FliServer::checkTemperature()
+int FliServer::updateTemperatureData()
 {
   int     iError;
   double  fTemperature;
   iError = FLIGetTemperature( _hCam, &fTemperature);
   if (iError != 0)
   {
-    printf("FliServer::checkTemperature(): FLIGetTemperature() failed. Error code %d: %s\n", iError, strerror(-iError));
+    printf("FliServer::updateTemperatureData(): FLIGetTemperature() failed. Error code %d: %s\n", iError, strerror(-iError));
     return 1;
   }
     
   /*
    * Set Info object
    */
-  printf( "CCD Temperature report [%d]: %.1lf C\n", _iNumL1Event, fTemperature );
+  printf( "Detector Temperature report [%d]: %.1lf C\n", _iNumL1Event, fTemperature );
 
   if ( _pDgOut == NULL )
   {
-    printf( "FliServer::checkTemperature(): Datagram has not been allocated. No buffer to store the info data\n" );
+    printf( "FliServer::updateTemperatureData(): Datagram has not been allocated. No buffer to store the info data\n" );
   }
   else
   {    
@@ -1209,7 +1194,7 @@ int FliServer::checkTemperature()
   if ( fTemperature >= _config.coolingTemp() + _fTemperatureHiTol ||  
     fTemperature <= _config.coolingTemp() - _fTemperatureLoTol ) 
   {
-    printf( "** FliServer::checkTemperature(): CCD temperature (%.1f C) is not fixed to the configuration (%.1f C)\n", 
+    printf( "** FliServer::updateTemperatureData(): Detector temperature (%.1f C) is not fixed to the configuration (%.1f C)\n", 
       fTemperature, _config.coolingTemp() );
     return 2;
   }

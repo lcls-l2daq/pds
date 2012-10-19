@@ -48,7 +48,7 @@ public:
     ERROR_FUNCTION_FAILURE  = 2,
     ERROR_INCORRECT_USAGE   = 3,
     ERROR_LOGICAL_FAILURE   = 4,
-    ERROR_PVCAM_FUNC_FAIL   = 5,
+    ERROR_SDK_FUNC_FAIL     = 5,
     ERROR_SERVER_INIT_FAIL  = 6,
     ERROR_INVALID_CONFIG    = 7,
     ERROR_COOLING_FAILURE   = 8,
@@ -131,7 +131,7 @@ private:
   int   resetFrameData(bool bDelOutDatagram);
 
   int   setupCooling(double fCoolingTemperature);    
-  int   checkTemperature();  
+  int   updateTemperatureData();  
   //int   checkSequence( const Datagram& datagram );
   
   /*
@@ -155,12 +155,12 @@ private:
   /*
    * Camera hardware settings
    */
-  int                 _iCcdWidth;
-  int                 _iCcdHeight; 
-  int                 _iCcdOrgX;
-  int                 _iCcdOrgY;    
-  int                 _iCcdDataWidth;
-  int                 _iCcdDataHeight;      
+  int                 _iDetectorWidth;
+  int                 _iDetectorHeight; 
+  int                 _iDetectorOrgX;
+  int                 _iDetectorOrgY;    
+  int                 _iDetectorDataWidth;
+  int                 _iDetectorDataHeight;      
   int                 _iImageWidth;
   int                 _iImageHeight;
   
