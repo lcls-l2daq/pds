@@ -79,7 +79,7 @@ void PartitionMember::message(const Node& hdr, const Message& msg)
 	  lpost = (_isallocated && hdr == _allocator);
 
 	if (lpost) {
-	  if (tr.id() != TransitionId::L1Accept) {
+          //	  if (tr.id() != TransitionId::L1Accept) {
 	    arpadd(hdr);
 	    if (tr.phase() == Transition::Execute) {
 	      Transition* ntr = new(&_pool) Transition(tr);
@@ -95,7 +95,7 @@ void PartitionMember::message(const Node& hdr, const Message& msg)
 	      }
 	      post(*ndg);
 	    }
-	  }
+            //	  }
 	}
 	if (lkill) {
 	  _isallocated = false;

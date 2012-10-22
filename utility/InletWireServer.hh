@@ -36,6 +36,8 @@ public:
   void add_input   (Server*);
   void remove_input(Server*);
   void trim_input  (Server*);
+  void flush_inputs();
+  void flush_outputs();
 
   void add_output(const InletWireIns& iwi);
   void remove_output(const InletWireIns& iwi);
@@ -68,6 +70,8 @@ private:
   void add_output(unsigned id, const Ins& rcvr);
   void remove_output(unsigned id);
 
+  virtual void _flush_inputs();
+  virtual void _flush_outputs();
 public:
   Inlet& _inlet;
 protected:

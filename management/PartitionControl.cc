@@ -29,6 +29,7 @@
 #include <vector>
 
 #define RECOVER_TMO
+#define USE_L1A
 
 static const unsigned MaxPayload = 0x1000;
 
@@ -53,7 +54,7 @@ namespace Pds {
   class ReportJob : public Routine {
   public:
     ReportJob(RunAllocator& allocator,
-        int expt, int run, int stream, int chunk, std::string& hostname, std::string& fname) :
+              int expt, int run, int stream, int chunk, std::string& hostname, std::string& fname) :
       _allocator(allocator), 
       _expt(expt), _run(run), _stream(stream), _chunk(chunk), _host_name(hostname), _fname(fname) {}
   public:
@@ -71,7 +72,7 @@ namespace Pds {
   class ReportDetectors : public Routine {
   public:
     ReportDetectors(RunAllocator& allocator,
-        int expt, int run, std::vector<std::string>& names) :
+                    int expt, int run, std::vector<std::string>& names) :
       _allocator(allocator), _expt(expt), _run(run), _names(names) {}
   public:
     void routine() {
@@ -94,8 +95,9 @@ namespace Pds {
   public:
     Transition* transitions(Transition* i) {
       if (i->phase() == Transition::Execute) {
-        if (i->id()==TransitionId::Disable) {
-    //
+#ifdef USE_L1A
+        if (i->id()==TransitionId::L1Accept) {
+          //
           //  The disable transition often splits the last L1Accept.
           //  There is no way to know when the last L1A has passed through
           //  all levels, so wait some reasonable time.
@@ -105,7 +107,7 @@ namespace Pds {
           //
           //  Cspad + Opal1k seems to need more time?
           //
-#ifdef BUILD_SLOW_DISABLE          
+#ifdef BUILD_SLOW_DISABLE         
           tv.tv_sec = 1; tv.tv_nsec = 200000000;
 #else
           tv.tv_sec = 0; tv.tv_nsec = 300000000; // 300 ms
@@ -113,58 +115,94 @@ namespace Pds {
           //  20 milliseconds is apparently not long enough
           //          tv.tv_sec = 0; tv.tv_nsec = 20000000;
           nanosleep(&tv, 0);
-  }
-  else if (i->id()==TransitionId::Map) {
+
+	  const_cast<ControlEb&>(_control.eb()).reset(_control.partition());
+
+          Transition* tr = new(&_pool) Transition(TransitionId::Disable,
+                                                  Transition::Execute,
+                                                  Sequence(Sequence::Event,
+                                                           i->id(),
+                                                           i->sequence().clock(),
+                                                           i->sequence().stamp()),
+                                                  i->env());
+          _control.mcast(*tr);
+
+          delete tr;
+          return i;
+        }
+#else
+        if (i->id()==TransitionId::Disable) {
           //
-    //  The map transition instructs the event-builder streams 
-    //  to register for multicasts.  Without some ping/reply
-    //  protocol, we can't verify the registration is complete;
-    //  so wait some reasonable time.
+          //  The disable transition often splits the last L1Accept.
+          //  There is no way to know when the last L1A has passed through
+          //  all levels, so wait some reasonable time.
+          //
+          timespec tv;
+          //          tv.tv_sec = 0; tv.tv_nsec = 200000000;
+          //
+          //  Cspad + Opal1k seems to need more time?
+          //
+#ifdef BUILD_SLOW_DISABLE         
+          tv.tv_sec = 1; tv.tv_nsec = 200000000;
+#else
+          tv.tv_sec = 0; tv.tv_nsec = 300000000; // 300 ms
+#endif        
+          //  20 milliseconds is apparently not long enough
+          //          tv.tv_sec = 0; tv.tv_nsec = 20000000;
+          nanosleep(&tv, 0);
+        }
+#endif
+        else if (i->id()==TransitionId::Map) {
+          //
+          //  The map transition instructs the event-builder streams 
+          //  to register for multicasts.  Without some ping/reply
+          //  protocol, we can't verify the registration is complete;
+          //  so wait some reasonable time.
           //
           timespec tv;
           tv.tv_sec = 0; tv.tv_nsec = 50000000;
           nanosleep(&tv, 0);
         }
-  if (i->id()==TransitionId::Unmap) {
-    _control._complete(i->id());
-  }
-  else {
-    Transition* tr;
-    const Xtc* xtc = _control._transition_xtc[i->id()];
-    if (xtc && xtc->extent < MaxPayload) {
-      tr = new(&_pool) Transition(i->id(),
-          Transition::Record,
-          Sequence(Sequence::Event,
-             i->id(),
-             i->sequence().clock(),
-             i->sequence().stamp()),
-          i->env(),
-          sizeof(Transition)+xtc->extent);
-      char* p = reinterpret_cast<char*>(tr+1);
-      memcpy(p,xtc,sizeof(Xtc));
-      memcpy(p += sizeof(Xtc),_control._transition_payload[i->id()],xtc->sizeofPayload());
-    }
-    else {
-      if (xtc) 
-        printf("PartitionControl transition payload size (0x%x) exceeds maximum.  Discarding.\n",xtc->extent);
+        if (i->id()==TransitionId::Unmap) {
+          _control._complete(i->id());
+        }
+        else {
+          Transition* tr;
+          const Xtc* xtc = _control._transition_xtc[i->id()];
+          if (xtc && xtc->extent < MaxPayload) {
+            tr = new(&_pool) Transition(i->id(),
+                                        Transition::Record,
+                                        Sequence(Sequence::Event,
+                                                 i->id(),
+                                                 i->sequence().clock(),
+                                                 i->sequence().stamp()),
+                                        i->env(),
+                                        sizeof(Transition)+xtc->extent);
+            char* p = reinterpret_cast<char*>(tr+1);
+            memcpy(p,xtc,sizeof(Xtc));
+            memcpy(p += sizeof(Xtc),_control._transition_payload[i->id()],xtc->sizeofPayload());
+          }
+          else {
+            if (xtc) 
+              printf("PartitionControl transition payload size (0x%x) exceeds maximum.  Discarding.\n",xtc->extent);
 
-      tr = new(&_pool) Transition(i->id(),
-          Transition::Record,
-          Sequence(Sequence::Event,
-             i->id(),
-             i->sequence().clock(),
-             i->sequence().stamp()),
-          i->env());
-    }
-    _control.mcast(*tr);
-    delete tr;
-  }
+            tr = new(&_pool) Transition(i->id(),
+                                        Transition::Record,
+                                        Sequence(Sequence::Event,
+                                                 i->id(),
+                                                 i->sequence().clock(),
+                                                 i->sequence().stamp()),
+                                        i->env());
+          }
+          _control.mcast(*tr);
+          delete tr;
+        }
       }
       return i;
     }
     InDatagram* events     (InDatagram* i) {
-//       if (i->datagram().xtc.damage.value()&(1<<Damage::UserDefined))
-//  _control.set_target_state(_control.current_state());  // backout one step
+      //       if (i->datagram().xtc.damage.value()&(1<<Damage::UserDefined))
+      //  _control.set_target_state(_control.current_state());  // backout one step
 
       _control._complete(i->datagram().seq.service()); 
       return i; 
@@ -177,7 +215,7 @@ namespace Pds {
   class MyCallback : public ControlCallback {
   public:
     MyCallback(PartitionControl& o,
-         ControlCallback& cb) : _outlet(&o), _cb(cb) {}
+               ControlCallback& cb) : _outlet(&o), _cb(cb) {}
     void attached(SetOfStreams& streams) {
       Stream& frmk = *streams.stream(StreamParams::FrameWork);
       (new ControlAction(*_outlet))   ->connect(frmk.inlet());
@@ -212,9 +250,9 @@ namespace Pds {
 using namespace Pds;
 
 PartitionControl::PartitionControl(unsigned platform,
-           ControlCallback& cb,
-           Routine* tmo,
-           Arp*     arp) :
+                                   ControlCallback& cb,
+                                   Routine* tmo,
+                                   Arp*     arp) :
   ControlLevel    (platform, *new MyCallback(*this, cb), arp),
   _current_state  (Unmapped),
   _target_state   (Unmapped),
@@ -253,9 +291,9 @@ void PartitionControl::platform_rollcall(PlatformCallback* cb)
 }
 
 bool PartitionControl::set_partition(const char* name,
-             const char* dbpath,
-             const Node* nodes,
-             unsigned    nnodes,
+                                     const char* dbpath,
+                                     const Node* nodes,
+                                     unsigned    nnodes,
                                      unsigned    bldmask)
 {
   _partition = Allocation(name,dbpath,partitionid(),bldmask);
@@ -270,7 +308,7 @@ const Allocation& PartitionControl::partition() const
 void PartitionControl::set_target_state(State state)
 {
   printf("PartitionControl::set_target_state curr %s  prevtgt %s  tgt %s\n",
-   name(_current_state), name(_target_state), name(state));
+         name(_current_state), name(_target_state), name(state));
 
   State prev_target = _target_state;
   _target_state = state;
@@ -336,15 +374,15 @@ void PartitionControl::message(const Node& hdr, const Message& msg)
       const Transition& tr = reinterpret_cast<const Transition&>(msg);
       if (tr.phase() == Transition::Execute) {
 
-  if (hdr==header()) {
-  }
+        if (hdr==header()) {
+        }
 
-  Transition* out = _eb.build(hdr,tr);
-  if (!out) return;
+        Transition* out = _eb.build(hdr,tr);
+        if (!out) return;
 
-  PartitionMember::message(header(),*out);
-  delete out;
-  _sem.give();
+        PartitionMember::message(header(),*out);
+        delete out;
+        _sem.give();
       }
     }
     break;
@@ -353,32 +391,32 @@ void PartitionControl::message(const Node& hdr, const Message& msg)
       const Occurrence& occ = reinterpret_cast<const Occurrence&>(msg);
       switch(occ.id()) {
       case OccurrenceId::ClearReadout:
-  printf("Received ClearReadout occurrence from %x/%d\n",
-         hdr.procInfo().ipAddr(),
-         hdr.procInfo().processId());
-  //  reconfigure();
-  break;
+        printf("Received ClearReadout occurrence from %x/%d\n",
+               hdr.procInfo().ipAddr(),
+               hdr.procInfo().processId());
+        //  reconfigure();
+        break;
       case OccurrenceId::DataFileOpened: {
-  const DataFileOpened& dfo = reinterpret_cast<const DataFileOpened&>(occ);
-  printf("Received DataFileOpened occurrence from %x/%d [r%04d-s%02d-c%02d] host=%s path=%s\n",
-         hdr.procInfo().ipAddr(),
-         hdr.procInfo().processId(),
-         dfo.run, dfo.stream, dfo.chunk, dfo.host, dfo.path);
-  if (_runAllocator) {
-    std::string hostname = dfo.host;
-    std::string fname = dfo.path;
-    _reportTask->call(new ReportJob(*_runAllocator, dfo.expt, dfo.run, dfo.stream, dfo.chunk, hostname, fname));
-  }
-  break;
+        const DataFileOpened& dfo = reinterpret_cast<const DataFileOpened&>(occ);
+        printf("Received DataFileOpened occurrence from %x/%d [r%04d-s%02d-c%02d] host=%s path=%s\n",
+               hdr.procInfo().ipAddr(),
+               hdr.procInfo().processId(),
+               dfo.run, dfo.stream, dfo.chunk, dfo.host, dfo.path);
+        if (_runAllocator) {
+          std::string hostname = dfo.host;
+          std::string fname = dfo.path;
+          _reportTask->call(new ReportJob(*_runAllocator, dfo.expt, dfo.run, dfo.stream, dfo.chunk, hostname, fname));
+        }
+        break;
       }
       case OccurrenceId::RequestPause:
-  printf("Received RequestPause occurrence from %x/%d\n",
-         hdr.procInfo().ipAddr(),
-         hdr.procInfo().processId());
+        printf("Received RequestPause occurrence from %x/%d\n",
+               hdr.procInfo().ipAddr(),
+               hdr.procInfo().processId());
         pause();
-  break;
+        break;
       default:
-  break;
+        break;
       }
     }
   default:
@@ -397,16 +435,16 @@ void PartitionControl::_next()
     case Mapped    : _queue(TransitionId::Configure      ); break;
     case Configured: {
       if (_use_run_info) {
-  unsigned run = _runAllocator->alloc();
-  if (run!=RunAllocator::Error) {
-    RunInfo rinfo(run,_experiment); _queue(rinfo);
-  }
+        unsigned run = _runAllocator->alloc();
+        if (run!=RunAllocator::Error) {
+          RunInfo rinfo(run,_experiment); _queue(rinfo);
+        }
       }
       else {
-  timespec ts;
-  clock_gettime(CLOCK_REALTIME,&ts);
-  Transition rinfo(TransitionId::BeginRun, ts.tv_sec);
-  _queue(rinfo );
+        timespec ts;
+        clock_gettime(CLOCK_REALTIME,&ts);
+        Transition rinfo(TransitionId::BeginRun, ts.tv_sec);
+        _queue(rinfo );
       }
       break;
     }
@@ -422,7 +460,11 @@ void PartitionControl::_next()
     case Disabled  : _queue(TransitionId::EndCalibCycle); break;
     case Enabled   : 
       if (_sequencer) _sequencer->stop();
+#ifdef USE_L1A
+      _queue(TransitionId::L1Accept); 
+#else
       _queue(TransitionId::Disable); 
+#endif
       break;
     default: break;
     }
@@ -489,7 +531,7 @@ const ControlEb& PartitionControl::eb() const { return _eb; }
 const char* PartitionControl::name(State s)
 {
   static const char* names[] = {"Unmapped", "Mapped", "Configured", "Running",
-        "Disabled", "Enabled", NULL };
+                                "Disabled", "Enabled", NULL };
   return names[s];
 }
 

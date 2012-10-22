@@ -28,6 +28,8 @@
 #include "pds/service/Client.hh"
 
 #include <string.h>
+#include <poll.h>
+
 
 //#define VERBOSE
 
@@ -629,3 +631,56 @@ EbBase::IsComplete EbBase::_is_complete( EbEventBase* event,
 }
 
 void EbBase::printFixups(int n) { nEbPrints=n; }
+
+static const int FLUSH_SIZE=0x1000000;
+static char _flush_buff[FLUSH_SIZE];
+
+class serverFlush : public ServerScan<Server>
+  {
+  public:
+    serverFlush(ServerManager* eb) :
+      ServerScan<Server>(eb),
+      total             (0) {}
+    ~serverFlush() {}
+  public:
+    void process(Server* server)
+    {
+      EbBitMask serverId;
+
+      struct pollfd pfd[1];
+      pfd[0].fd      = server->fd();
+      pfd[0].events  = POLLIN;
+      pfd[0].revents = 0;
+      unsigned nfds = 1;
+      int tmo = 1;
+      int nbytes = 0;
+      char* payload = _flush_buff;
+      while( ::poll(pfd, nfds, tmo) > 0) {
+        nbytes += static_cast<EbServer*>(server)->fetch(payload, MSG_DONTWAIT);
+        pfd[0].events  = POLLIN;
+        pfd[0].revents = 0;
+      }
+      total += nbytes;
+    }
+  private:
+    int          total;
+  };
+
+void EbBase::_flush_inputs()
+{
+  serverFlush flush(this);
+  flush.iterate();
+}
+
+void EbBase::_flush_outputs()
+{
+  unsigned n=0;
+  EbEventBase* event = _pending.forward();
+  EbEventBase* empty = _pending.empty();
+  while( event != empty ) {
+    delete event->finalize();
+    delete event;
+    event = _pending.forward();
+    n++;
+  }
+}

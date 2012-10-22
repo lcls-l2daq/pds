@@ -28,6 +28,8 @@ public:
   virtual void add_output(const InletWireIns& iwi) = 0;
   virtual void remove_output(const InletWireIns& iwi) = 0;
   virtual void trim_output(const InletWireIns& iwi) = 0;
+  virtual void flush_inputs() = 0;
+  virtual void flush_outputs() = 0;
   //  virtual unsigned short port(unsigned id) const = 0;
 
   // Debugging

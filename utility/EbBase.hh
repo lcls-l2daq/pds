@@ -52,6 +52,8 @@ namespace Pds {
     void         _iterate_dump();
   private:
     void         _remove   (EbServer*);
+    void         _flush_inputs();
+    void         _flush_outputs();
   protected:
     virtual unsigned     _fixup      ( EbEventBase*, const Src&, const EbBitMask& ) = 0;
     virtual EbEventBase* _new_event  ( const EbBitMask& ) = 0;

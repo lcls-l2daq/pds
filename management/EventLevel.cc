@@ -156,6 +156,10 @@ void    EventLevel::allocated(const Allocation& alloc,
 
 void    EventLevel::post     (const Transition& tr)
 {
+  if (tr.id()!=TransitionId::L1Accept) {
+    _streams->wire(StreamParams::FrameWork)->flush_inputs();
+    _streams->wire(StreamParams::FrameWork)->flush_outputs();
+  }
   _streams->wire(StreamParams::FrameWork)->post(tr);
 }
 

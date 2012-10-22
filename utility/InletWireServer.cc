@@ -6,6 +6,7 @@
 #include "Transition.hh"
 #include "Occurrence.hh"
 #include "pds/service/Task.hh"
+#include "pds/utility/Mtu.hh"
 #include "pds/xtc/Datagram.hh"
 #include "pds/xtc/InDatagram.hh"
 #include "pds/xtc/CDatagram.hh"
@@ -23,6 +24,8 @@ static const int PostInDatagram = 7;  // Assumed to be a "local" out-of-band mes
 static const int PostTransition = 8;  // Ditto.
 static const int PostOccurrence = 9;  // Ditto.
 static const int RemoveOutputs = 10;
+static const int FlushInputs   = 11;
+static const int FlushOutputs  = 12;
 
 static const unsigned DatagramSize = sizeof(int); // out-of-band message header size
 static const unsigned PayloadSize  = sizeof(Transition);
@@ -113,6 +116,18 @@ void InletWireServer::trim_output(const InletWireIns& iwi)
   }
 }
 
+void InletWireServer::flush_inputs()
+{
+  unblock((char*)&FlushInputs, (char*)this, sizeof(this));
+  _sem.take();
+}
+
+void InletWireServer::flush_outputs()
+{
+  unblock((char*)&FlushOutputs, (char*)this, sizeof(this));
+  _sem.take();
+}
+
 void InletWireServer::post(const Transition& tr)
 {
   // assume that this object is constructed from a pool, and control has been handed over.
@@ -191,6 +206,14 @@ int InletWireServer::commit(char* datagram,
   case TrimOutput:
     remove_output(iwi.id());
     break;
+  case FlushInputs:
+    _flush_inputs();
+    _sem.give();
+    break;
+  case FlushOutputs:
+    _flush_outputs();
+    _sem.give();
+    break;
   case PostInDatagram:
     _inlet.post(dg);
     break;
@@ -244,4 +267,12 @@ int InletWireServer::processIo(Server* srv)
 int InletWireServer::processTmo() 
 {
   return 1;
+}
+
+void InletWireServer::_flush_inputs()
+{
+}
+
+void InletWireServer::_flush_outputs()
+{
 }
