@@ -171,7 +171,7 @@ private:
   float               _fPrevReadoutTime;// in seconds. Used to filter out events that are coming too fast
   bool                _bSequenceError;  
   ClockTime           _clockPrevDatagram;
-  int                 _iNumL1Event;
+  int                 _iNumExposure;
   
   /*
    * Config data

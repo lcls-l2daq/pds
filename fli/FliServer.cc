@@ -27,7 +27,7 @@ FliServer::FliServer(int iCamera, bool bDelayMode, bool bInitTest, const Src& sr
  _hCam(-1), _bCameraInited(false), _bCaptureInited(false), 
  _iDetectorWidth(-1), _iDetectorHeight(-1), _iDetectorOrgX(-1), _iDetectorOrgY(-1), _iDetectorDataWidth(-1), _iDetectorDataHeight(-1),
  _iImageWidth(-1), _iImageHeight(-1),
- _fPrevReadoutTime(0), _bSequenceError(false), _clockPrevDatagram(0,0), _iNumL1Event(0),
+ _fPrevReadoutTime(0), _bSequenceError(false), _clockPrevDatagram(0,0), _iNumExposure(0),
  _config(), 
  _fReadoutTime(0),  
  _poolFrameData(_iMaxFrameDataSize, _iPoolDataCount), _pDgOut(NULL),
@@ -265,7 +265,7 @@ int FliServer::beginRun()
    */
   _fPrevReadoutTime = 0;
   _bSequenceError   = false;
-  _iNumL1Event      = 0;
+  _iNumExposure      = 0;
   
   return 0;
 }
@@ -796,7 +796,7 @@ int FliServer::runCaptureTask()
 
 int FliServer::startExposure()
 {
-  ++_iNumL1Event; // update event counter
+  ++_iNumExposure; // update event counter
   
   /*
    * Chkec if we are allowed to add a new catpure task
@@ -1029,8 +1029,8 @@ int FliServer::waitForNewFrameAvailable()
   _fReadoutTime = (tsWaitEnd.tv_nsec - tsWaitStart.tv_nsec) / 1.0e9 + ( tsWaitEnd.tv_sec - tsWaitStart.tv_sec ); // in seconds
   
   // Report the readout time for the first few L1 events
-  if ( _iNumL1Event <= _iMaxEventReport )
-    printf( "Readout time report [%d]: %.2f s  Non-exposure time %.2f s\n", _iNumL1Event, _fReadoutTime,
+  if ( _iNumExposure <= _iMaxEventReport )
+    printf( "Readout time report [%d]: %.2f s  Non-exposure time %.2f s\n", _iNumExposure, _fReadoutTime,
       _fReadoutTime - _config.exposureTime());
     
   return 0;
@@ -1044,7 +1044,7 @@ int FliServer::processFrame()
     return ERROR_LOGICAL_FAILURE;
   }
         
-  if ( _iNumL1Event <= _iMaxEventReport ||  _iDebugLevel >= 5 )
+  if ( _iNumExposure <= _iMaxEventReport ||  _iDebugLevel >= 5 )
   {
     unsigned char*  pFrameHeader   = (unsigned char*) _pDgOut + sizeof(CDatagram) + sizeof(Xtc);  
     FliDataType* pFrame     = (FliDataType*) pFrameHeader;    
@@ -1179,7 +1179,7 @@ int FliServer::updateTemperatureData()
   /*
    * Set Info object
    */
-  printf( "Detector Temperature report [%d]: %.1lf C\n", _iNumL1Event, fTemperature );
+  printf( "Detector Temperature report [%d]: %.1lf C\n", _iNumExposure, fTemperature );
 
   if ( _pDgOut == NULL )
   {
@@ -1221,7 +1221,7 @@ int FliServer::updateTemperatureData()
 //  if ( fDeltaTime < _fPrevReadoutTime * _fEventDeltaTimeFactor )
 //  {
 //    // Report the error for the first few L1 events
-//    if ( _iNumL1Event <= _iMaxEventReport )
+//    if ( _iNumExposure <= _iMaxEventReport )
 //      printf( "** FliServer::checkSequence(): Sequence error. Event delta time (%.2fs) < Prev Readout Time (%.2fs) * Factor (%.2f)\n",
 //        fDeltaTime, _fPrevReadoutTime, _fEventDeltaTimeFactor );
 //        

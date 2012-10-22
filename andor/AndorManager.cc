@@ -422,7 +422,7 @@ public:
         
     virtual Transition* fire(Transition* in) 
     {
-      _iEndCalibCycleCameraFail = _manager.beginCalibCycle();
+      _iEndCalibCycleCameraFail = _manager.endCalibCycle();
       return in;
     }
     
