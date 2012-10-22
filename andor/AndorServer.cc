@@ -175,6 +175,7 @@ int AndorServer::init()
   printf("Set VSSpeed to %d\n", iVSRecIndex);
 
   GetNumberPreAmpGains(&_iMaxGainIndex);
+  --_iMaxGainIndex;
   printf("Max Gain Index: %d\n", _iMaxGainIndex);      
   
   _iADChannel = 0; // hard coded to use channel 0
@@ -207,6 +208,7 @@ int AndorServer::init()
 
   _iMaxSpeedTableIndex = -1;
   GetNumberHSSpeeds(_iADChannel, _iReadoutPort, &_iMaxSpeedTableIndex);
+  --_iMaxSpeedTableIndex;
   printf("Max Speed Table Index: %d\n", _iMaxSpeedTableIndex);
 
   int iTemperature = 999;
