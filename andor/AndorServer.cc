@@ -623,6 +623,20 @@ int AndorServer::initCapture()
     return ERROR_INVALID_CONFIG;    
   }
   
+  float fTimeKeepClean = -1;
+  GetKeepCleanTime(&fTimeKeepClean);
+  printf("Keep clean time: %f s\n", fTimeKeepClean); 
+ 
+  float fTimeExposure   = -1;
+  float fTimeAccumulate = -1;
+  float fTimeKinetic    = -1;
+  GetAcquisitionTimings(&fTimeExposure, &fTimeAccumulate, &fTimeKinetic);
+  printf("Exposure time: %f s  Accumulate time: %f s  Kinetic time: %f s\n", fTimeExposure, fTimeAccumulate, fTimeKinetic);
+
+  float fTimeReadout = -1;
+  GetReadOutTime(&fTimeReadout);  
+  printf("Readout time: %f s\n", fTimeReadout);  
+  
   iError = PrepareAcquisition();
   if (!isAndorFuncOk(iError))
   {
@@ -656,7 +670,14 @@ int AndorServer::stopCapture()
     printf("AndorServer::deinitCapture(): AbortAcquisition() failed. %s\n", AndorErrorCodes::name(iError));
     return ERROR_SDK_FUNC_FAIL;
   }
-    
+
+  if (_config.fanMode() == (int) AndorConfigType::ENUM_FAN_ACQOFF)  
+  {
+    iError = SetFanMode((int) AndorConfigType::ENUM_FAN_FULL);
+    if (!isAndorFuncOk(iError))
+      printf("AndorServer::stopCapture(): SetFanMode(%d): %s\n", (int) AndorConfigType::ENUM_FAN_FULL, AndorErrorCodes::name(iError));
+  }
+  
   printf( "Capture stopped\n" );
   return 0;
 }
@@ -682,6 +703,13 @@ int AndorServer::startCapture()
     return ERROR_LOGICAL_FAILURE;
   }
     
+  if (_config.fanMode() == (int) AndorConfigType::ENUM_FAN_ACQOFF)  
+  {
+    int iError = SetFanMode((int) AndorConfigType::ENUM_FAN_OFF);
+    if (!isAndorFuncOk(iError))
+      printf("AndorServer::startCapture(): SetFanMode(%d): %s\n", (int) AndorConfigType::ENUM_FAN_OFF, AndorErrorCodes::name(iError));
+  }
+  
   int iError = StartAcquisition();
   if (!isAndorFuncOk(iError))
   {
@@ -696,9 +724,10 @@ int AndorServer::configCamera(AndorConfigType& config, std::string& sConfigWarni
 { 
   int   iError;    
   
+  printf("\nConfiguring...\n");
   if (config.fanMode() == (int) AndorConfigType::ENUM_FAN_ACQOFF)
   {
-    printf("Fan Mode: Auto Acq Off\n");
+    printf("Fan Mode: Acq Off\n");
     _iFanModeNonAcq = (int) AndorConfigType::ENUM_FAN_FULL;
   }
   else
@@ -707,7 +736,7 @@ int AndorServer::configCamera(AndorConfigType& config, std::string& sConfigWarni
   if (!isAndorFuncOk(iError))
   {
     printf("AndorServer::configCamera(): SetFanMode(%d): %s\n", _iFanModeNonAcq, AndorErrorCodes::name(iError));  
-    return ERROR_INVALID_CONFIG;
+    return ERROR_SDK_FUNC_FAIL;
   }
   else
     printf("Set Fan Mode      to %d\n", _iFanModeNonAcq);
@@ -917,7 +946,7 @@ int AndorServer::setupCooling(double fCoolingTemperature)
     iError = SetTemperature((int)fCoolingTemperature);
     if (!isAndorFuncOk(iError))
     {
-      printf("AndorServer::setupCooling(): SetTemperature(): %s\n", AndorErrorCodes::name(iError));  
+      printf("AndorServer::setupCooling(): SetTemperature(%d): %s\n", (int)fCoolingTemperature, AndorErrorCodes::name(iError));  
       return ERROR_SDK_FUNC_FAIL;
     }  
     iError = CoolerON();
@@ -1250,6 +1279,13 @@ int AndorServer::waitForNewFrameAvailable()
   int iError;
   iError = WaitForAcquisitionTimeOut(_iMaxReadoutTime);
     
+  if (_config.fanMode() == (int) AndorConfigType::ENUM_FAN_ACQOFF)  
+  {
+    iError = SetFanMode((int) AndorConfigType::ENUM_FAN_FULL);
+    if (!isAndorFuncOk(iError))
+      printf("AndorServer::waitForNewFrameAvailable(): SetFanMode(%d): %s\n", (int) AndorConfigType::ENUM_FAN_FULL, AndorErrorCodes::name(iError));
+  }
+  
   if (!isAndorFuncOk(iError))
   {
     printf("AndorServer::waitForNewFrameAvailable(): WaitForAcquisitionTimeOut(): %s\n", AndorErrorCodes::name(iError));    
