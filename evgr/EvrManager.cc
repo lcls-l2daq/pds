@@ -60,6 +60,11 @@ public:
     _occPool        (sizeof(Occurrence),1), 
     _app            (app) {}
 
+  Transition* fire(Transition* tr) 
+  { 
+    return _fifo_handler ? _fifo_handler->disable(tr) : tr;
+  }
+
   InDatagram *fire(InDatagram * in)
   {
     InDatagram* out = in;
@@ -104,17 +109,6 @@ public:
   }
 private:
   Appliance& _app;
-};
-
-class EvrDisableAction:public EvrAction
-{
-public:
-  EvrDisableAction(Evr& er) : EvrAction(er) {}
-    
-  Transition* fire(Transition* tr) 
-  { 
-    return _fifo_handler ? _fifo_handler->disable(tr) : tr;
-  }
 };
 
 static unsigned int evrConfigSize(unsigned maxNumEventCodes, unsigned maxNumPulses, unsigned maxNumOutputMaps)
@@ -561,7 +555,6 @@ EvrManager::EvrManager(EvgrBoardInfo < Evr > &erInfo, CfgClientNfs & cfg, bool b
   _fsm.callback(TransitionId::BeginCalibCycle, new EvrBeginCalibAction(*cmgr));
   _fsm.callback(TransitionId::EndCalibCycle  , new EvrEndCalibAction  (*cmgr));
   _fsm.callback(TransitionId::Enable         , new EvrEnableAction    (_er,_fsm));
-  _fsm.callback(TransitionId::Disable        , new EvrDisableAction   (_er));
   _fsm.callback(TransitionId::L1Accept       , new EvrL1Action(_er, cfg.src(), &_fsm));
 
   _er.IrqAssignHandler(erInfo.filedes(), &evrmgr_sig_handler);
