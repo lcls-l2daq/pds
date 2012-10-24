@@ -260,6 +260,12 @@ int Pds::CspadServer::fetch( char* payload, int flags ) {
    if (ret > 0) {
      _quadsThisCount += 1;
      ret += offset;
+     if (_quadMask & (1 << data->elementId())) {
+       printf("CsPadServer::fetch duplicate quad 0x%x with quadmask 0x%x\n", data->elementId(), _quadMask);
+       damageMask |= 0xd0 | 1 << data->elementId();
+       _xtc.damage.increase(Pds::Damage::UserDefined);
+       _xtc.damage.userBits(damageMask);
+     }
      _quadMask |= 1 << data->elementId();
    }
    if (_debug & 1) printf(" returned %d\n", ret);
