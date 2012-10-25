@@ -37,7 +37,7 @@ namespace Pds {
     void* operator new(size_t size);
     void  operator delete(void* buffer);
   private:
-    TransitionId::Value _id;
+    uint32_t     _id;
     Phase        _phase;
     Sequence     _sequence;
     Env          _env;
@@ -75,9 +75,9 @@ namespace Pds {
     static const unsigned MaxDbPath=64;
     char     _partition[MaxName];
     char     _dbpath   [MaxDbPath];
-    unsigned _partitionid;
-    unsigned _bld_mask;
-    unsigned _nnodes;
+    uint32_t _partitionid;
+    uint32_t _bld_mask;
+    uint32_t _nnodes;
     Node     _nodes[MaxNodes];
   };
 
@@ -101,8 +101,8 @@ namespace Pds {
     char *expname();
   private:
     static const unsigned MaxExpName=16;
-    unsigned _run;
-    unsigned _experiment;
+    uint32_t _run;
+    uint32_t _experiment;
     char     _expname  [MaxExpName];
   };
 

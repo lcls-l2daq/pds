@@ -53,7 +53,7 @@ Transition::Transition(const Transition& c) :
   memcpy(this+1,&c+1,c.size()-sizeof(Transition));
 }
 
-TransitionId::Value Transition::id() const {return _id;}
+TransitionId::Value Transition::id() const {return TransitionId::Value(_id);}
 
 Transition::Phase Transition::phase() const {return _phase;}
 
@@ -86,7 +86,7 @@ void Transition::operator delete(void* buffer)
 
 void Transition::_stampIt()
 {
-  _sequence = now(_id);
+  _sequence = now(id());
 }
 
 Allocation::Allocation() :

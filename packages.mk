@@ -6,7 +6,7 @@ ifneq ($(findstring x86_64-linux,$(tgt_arch)),)
   packages += utility management client offlineclient
   packages += camera
   packages += firewire
-  packages += phasics oceanoptics fli andor usdusb
+  packages += phasics oceanoptics fli andor usdusb ipimb evgr
 else
   packages := service collection xtc 
   packages += config mon vmon

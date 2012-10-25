@@ -39,9 +39,9 @@ namespace Pds {
     int      fetch       (ZcpFragment& , int flags);
   public:
     NetServer&          server();
-    const Sequence&     sequence() const;
-    const L1AcceptEnv&  env() const;
-    unsigned            count() const;
+    virtual const Sequence&     sequence() const;
+    virtual const L1AcceptEnv&  env() const;
+    virtual unsigned            count() const;
   private:
     NetServer     _server;
     Src           _client;

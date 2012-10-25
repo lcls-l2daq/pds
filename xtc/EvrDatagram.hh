@@ -4,6 +4,8 @@
 #include "pdsdata/xtc/Sequence.hh"
 #include "pds/xtc/L1AcceptEnv.hh"
 
+#include <stdint.h>
+
 namespace Pds {
 
   class EvrDatagram {
@@ -18,8 +20,8 @@ namespace Pds {
   public:
     Sequence    seq;
     L1AcceptEnv env;
-    unsigned    evr;
-    unsigned    ncmds;
+    uint32_t    evr;
+    uint32_t    ncmds;
   };
 
 }

@@ -86,7 +86,6 @@ namespace Pds {
 	pdv_timeout_restart(pdv_p, TRUE);
 	_last_timeouts = timeouts;
 	_recover_timeout = true;
-        //	printf("timeout (%d)...\n",timeouts);
       }
       else if (overrun) {
 	printf("overrun...\n");
@@ -118,10 +117,11 @@ void EdtReaderEnable::routine() {
   _reader->enable(_v); 
 }
 
-EdtPdvCL::EdtPdvCL(CameraBase& camera, int unit, int channel) :
+EdtPdvCL::EdtPdvCL(CameraBase& camera, int unit, int channel, int tmo_ms) :
   CameraDriver(camera),
   _unit    (unit),
   _channel (channel),
+  _tmo_ms  (tmo_ms),
   _dev     (0),
   _acq     (new EdtReader(this, new Task(TaskObject("edtacq")))),
   _fsrv    (0),
@@ -177,7 +177,7 @@ void EdtPdvCL::_setup(int unit, int channel)
     dd_p->serial_response[0] = '\r';
     dd_p->xilinx_rev = NOT_SET;
     dd_p->timeout = NOT_SET;
-    dd_p->user_timeout = 100;  // set get_images timeout to be more responsive
+    dd_p->user_timeout = _tmo_ms;  // set get_images timeout to be more responsive
     dd_p->mode_cntl_norm = NOT_SET;
     dd_p->mc4 = 0;
     dd_p->pulnix = 0;
