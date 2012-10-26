@@ -104,10 +104,6 @@ namespace Pds {
 	_last_timeouts = timeouts;
 	_recover_timeout = true;
       }
-      else if (_recover_timeout) {
-	pdv_timeout_restart(pdv_p, TRUE);
-        _recover_timeout = false;
-      }
       else if (overrun) {
 	printf("overrun...\n");
       }
