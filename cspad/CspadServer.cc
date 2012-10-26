@@ -98,6 +98,11 @@ void Pds::CspadServer::die() {
   disable();
 }
 
+void Pds::CspadServer::printState() {
+  printf("\tCspadServer _quads(%u) _quadMask(%x) _count(%u) _quadsThisCount(%x)\n",
+      _quads, _quadMask, _count, _quadsThisCount);
+}
+
 void Pds::CspadServer::dumpFrontEnd() {
   if (_configureResult != 0xdead) {
     disable();
@@ -242,7 +247,7 @@ int Pds::CspadServer::fetch( char* payload, int flags ) {
      if (_debug & 4 || ret < 0) printf("\n\tquad(%u) opcode(0x%x) acqcount(0x%x) fiducials(0x%x) _oldCount(%u) _count(%u) _quadsThisCount(%u) lane(%u) vc(%u)\n",
          data->elementId(), data->second.opCode, data->acqCount(), data->fiducials(), oldCount, _count, _quadsThisCount, pgpCardRx.pgpLane, pgpCardRx.pgpVc);
      if ((_count != oldCount) && (_quadsThisCount)) {
-       if ((_count < oldCount) || (_count - oldCount > 1000)) {
+       if ((_count < oldCount) || (_count - oldCount > 10)) {
          printf("CsPadServer::fetch ignoring unreasonable frame number, %u followed %u, quadMask 0x%x, quad %u\n", _count, oldCount, _quadMask, data->elementId());
          ret = Ignore;
        } else {

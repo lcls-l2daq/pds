@@ -70,6 +70,7 @@ class Pds::CspadServer
    void     process(void);
    void     ignoreFetch(bool f) { _ignoreFetch = f; }
    void     runTimeConfigName(char*);
+   void     printState();
 
  public:
    static CspadServer* instance() { return _instance; }

@@ -154,6 +154,7 @@ InDatagram* CspadL1Action::fire(InDatagram* in) {
     if (_damageCount++ < 32) {
       printf("CspadL1Action::fire damage(0x%x), fiducials(0x%x), vector(0x%x)\n",
           in->datagram().xtc.damage.value(), evrFiducials, vector);
+      server->printState();
     }
   } else {
     Pds::Pgp::DataImportFrame* data;
