@@ -638,7 +638,7 @@ int AndorServer::initCapture()
 
   float fTimeReadout = -1;
   GetReadOutTime(&fTimeReadout);  
-  printf("Readout time: %f s\n", fTimeReadout);  
+  printf("Estimated Readout time: %f s\n", fTimeReadout);  
   
   iError = PrepareAcquisition();
   if (!isAndorFuncOk(iError))
@@ -873,14 +873,35 @@ int AndorServer::initTest()
 {
   printf( "Running init test...\n" );
 
-  int iError;  
+  timespec timeVal0;
+  clock_gettime( CLOCK_REALTIME, &timeVal0 );    
+    
+  int iError;    
+  iError = SetHSSpeed(_iReadoutPort, 0);
+  if (!isAndorFuncOk(iError))
+  {
+    printf("AndorServer::initTest(): SetHSSpeed(%d,%d): %s\n", _iReadoutPort, 0, AndorErrorCodes::name(iError));    
+    return ERROR_SDK_FUNC_FAIL;
+  }
+  
+  iError = SetExposureTime(0.001);
+  if (!isAndorFuncOk(iError))
+  {
+    printf("AndorServer::initTest(): SetExposureTime(): %s\n", AndorErrorCodes::name(iError));
+    return ERROR_SDK_FUNC_FAIL;
+  }
+  
   iError = SetImage(1, 1, 1, 128, 1, 128);
   if (!isAndorFuncOk(iError))
   {
     printf("AndorServer::initTest(): SetImage(): %s\n", AndorErrorCodes::name(iError));    
     return ERROR_SDK_FUNC_FAIL;
   }
-          
+
+  float fTimeReadout = -1;
+  GetReadOutTime(&fTimeReadout);  
+  printf("Estimated Readout time: %f s\n", fTimeReadout);  
+  
   timespec timeVal1;
   clock_gettime( CLOCK_REALTIME, &timeVal1 );    
   
@@ -922,12 +943,13 @@ int AndorServer::initTest()
   
   timespec timeVal3;
   clock_gettime( CLOCK_REALTIME, &timeVal3 );
- 
+  
+  double fInitTime    = (timeVal1.tv_nsec - timeVal0.tv_nsec) * 1.e-6 + ( timeVal1.tv_sec - timeVal0.tv_sec ) * 1.e3;     
   double fStartupTime = (timeVal2.tv_nsec - timeVal1.tv_nsec) * 1.e-6 + ( timeVal2.tv_sec - timeVal1.tv_sec ) * 1.e3;    
   double fPollingTime = (timeVal3.tv_nsec - timeVal2.tv_nsec) * 1.e-6 + ( timeVal3.tv_sec - timeVal2.tv_sec ) * 1.e3;    
   double fSingleFrameTime = fStartupTime + fPollingTime;
-  printf("  Capture Setup Time = %6.1lfms Total Time = %6.1lfms\n", 
-    fStartupTime, fSingleFrameTime );        
+  printf("Capture Init Time = %6.1lfms Setup Time = %6.1lfms Total Time = %6.1lfms\n", 
+    fInitTime, fStartupTime, fSingleFrameTime );        
     
   return 0;
 }

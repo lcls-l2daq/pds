@@ -372,6 +372,10 @@ int PrincetonServer::initCapture()
   _bCaptureInited = true;
   
   printf( "Capture initialized\n" );
+  
+  double fReadoutTime = -1;
+  PICAM::getAnyParam(_hCam, PARAM_READOUT_TIME, &fReadoutTime);
+  printf("Estimated Readout Time = %.1lf ms\n", fReadoutTime);          
 
   if ( _iDebugLevel >= 2 )
     printf( "Frame size for image capture = %lu, exposure mode = %d, time = %lu\n",
@@ -585,6 +589,9 @@ int PrincetonServer::initCameraBeforeConfig()
 int PrincetonServer::initTest()
 {
   printf( "Running init test...\n" );
+
+  timespec timeVal0;
+  clock_gettime( CLOCK_REALTIME, &timeVal0 );    
   
   rgn_type region;
   region.s1   = 0;
@@ -602,12 +609,16 @@ int PrincetonServer::initTest()
   uns16* pFrameBuffer = (uns16 *) malloc(uFrameSize);
 
   timeval timeSleepMicroOrg = {0, 1000 }; // 1 milliseconds  
-        
+
+  double fReadoutTime = -1;
+  PICAM::getAnyParam(_hCam, PARAM_READOUT_TIME, &fReadoutTime);
+  printf("Estimated Readout Time = %.1lf ms\n", fReadoutTime);          
+  
   timespec timeVal1;
   clock_gettime( CLOCK_REALTIME, &timeVal1 );    
   
   pl_exp_start_seq(_hCam, pFrameBuffer);
-
+  
   timespec timeVal2;
   clock_gettime( CLOCK_REALTIME, &timeVal2 );
   
@@ -631,15 +642,13 @@ int PrincetonServer::initTest()
 
   timespec timeVal3;
   clock_gettime( CLOCK_REALTIME, &timeVal3 );
-
-  double fReadoutTime = -1;
-  PICAM::getAnyParam(_hCam, PARAM_READOUT_TIME, &fReadoutTime);
   
+  double fInitTime    = (timeVal1.tv_nsec - timeVal0.tv_nsec) * 1.e-6 + ( timeVal1.tv_sec - timeVal0.tv_sec ) * 1.e3;    
   double fStartupTime = (timeVal2.tv_nsec - timeVal1.tv_nsec) * 1.e-6 + ( timeVal2.tv_sec - timeVal1.tv_sec ) * 1.e3;    
   double fPollingTime = (timeVal3.tv_nsec - timeVal2.tv_nsec) * 1.e-6 + ( timeVal3.tv_sec - timeVal2.tv_sec ) * 1.e3;    
   double fSingleFrameTime = fStartupTime + fPollingTime;
-  printf("  Capture Setup Time = %6.1lfms Total Time = %6.1lfms\n", 
-    fStartupTime, fSingleFrameTime );        
+  printf("Capture Init Time = %6.1lfms Setup Time = %6.1lfms Total Time = %6.1lfms\n", 
+    fInitTime, fStartupTime, fSingleFrameTime );        
     
   // pl_exp_finish_seq(_hCam, pFrameBuffer, 0); // No need to call this function, unless we have multiple ROIs
 

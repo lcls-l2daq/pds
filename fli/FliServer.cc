@@ -565,6 +565,9 @@ int FliServer::initTest()
 {
   printf( "Running init test...\n" );
 
+  timespec timeVal0;
+  clock_gettime( CLOCK_REALTIME, &timeVal0 );    
+  
   int iError;  
   iError = FLISetImageArea( _hCam, 0, 0, 1024, 1024);
   if (iError != 0)
@@ -620,12 +623,13 @@ int FliServer::initTest()
   
   timespec timeVal3;
   clock_gettime( CLOCK_REALTIME, &timeVal3 );
- 
+
+  double fInitTime    = (timeVal1.tv_nsec - timeVal0.tv_nsec) * 1.e-6 + ( timeVal1.tv_sec - timeVal0.tv_sec ) * 1.e3;       
   double fStartupTime = (timeVal2.tv_nsec - timeVal1.tv_nsec) * 1.e-6 + ( timeVal2.tv_sec - timeVal1.tv_sec ) * 1.e3;    
   double fPollingTime = (timeVal3.tv_nsec - timeVal2.tv_nsec) * 1.e-6 + ( timeVal3.tv_sec - timeVal2.tv_sec ) * 1.e3;    
   double fSingleFrameTime = fStartupTime + fPollingTime;
-  printf("  Capture Setup Time = %6.1lfms Total Time = %6.1lfms\n", 
-    fStartupTime, fSingleFrameTime );        
+  printf("  Capture Init Time = %6.1lfms Setup Time = %6.1lfms Total Time = %6.1lfms\n", 
+    fInitTime, fStartupTime, fSingleFrameTime );        
     
   return 0;
 }
