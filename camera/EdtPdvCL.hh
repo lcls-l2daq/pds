@@ -25,7 +25,7 @@ namespace Pds {
 
   class EdtPdvCL: public CameraDriver {
   public:
-    EdtPdvCL(CameraBase&, int unit, int channel, int tmo_ms=100);
+    EdtPdvCL(CameraBase&, int unit, int channel);
     virtual ~EdtPdvCL();
   public:
     PdvDev* dev() { return _dev; }

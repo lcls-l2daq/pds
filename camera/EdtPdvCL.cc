@@ -17,6 +17,8 @@ extern "C" {
 }
 
 static void display_serialcmd(char*, int);
+static int nPrint=0;
+static const int _tmo_ms = 10000000;
 
 namespace Pds {
 
@@ -57,17 +59,22 @@ namespace Pds {
   public:
     void start        () {} // { _task->call(this); }
     void queue_enable () { _task->call(_enable ); _enable ->block(); }
-    void queue_disable() { _task->call(_disable); _disable->block(); }
+    void queue_disable() { _task->call(_disable); edt_do_timeout(_base->dev()); _disable->block(); }
     void enable       (bool v)
     {
+      nPrint=0;
       PdvDev* pdv_p = _base->dev();
       _running = v; 
       if (v) {
+        pdv_cl_reset_fv_counter(pdv_p);
 	pdv_multibuf(_base->dev(), 4);
 	_last_timeouts = pdv_timeouts(_base->dev());
 	pdv_start_images(pdv_p, 4);
 	_task->call(this);
 	_enable->unblock();
+      }
+      else {
+        edt_do_timeout(_base->dev());
       }
     }
     void routine()
@@ -82,10 +89,24 @@ namespace Pds {
 
       int timeouts = pdv_timeouts(pdv_p);
 
+      if (nPrint) {
+        nPrint--;
+        int nfv = pdv_cl_get_fv_counter(pdv_p);
+        int curdone = edt_done_count(pdv_p);
+        int curtodo = edt_get_todo(pdv_p);
+        
+        printf("EDT: nfv %d  tmo %d  done %d  todo %d\n",
+               nfv, timeouts, curdone, curtodo);
+      }
+
       if (timeouts > _last_timeouts) {
 	pdv_timeout_restart(pdv_p, TRUE);
 	_last_timeouts = timeouts;
 	_recover_timeout = true;
+      }
+      else if (_recover_timeout) {
+	pdv_timeout_restart(pdv_p, TRUE);
+        _recover_timeout = false;
       }
       else if (overrun) {
 	printf("overrun...\n");
@@ -117,11 +138,10 @@ void EdtReaderEnable::routine() {
   _reader->enable(_v); 
 }
 
-EdtPdvCL::EdtPdvCL(CameraBase& camera, int unit, int channel, int tmo_ms) :
+EdtPdvCL::EdtPdvCL(CameraBase& camera, int unit, int channel) :
   CameraDriver(camera),
   _unit    (unit),
   _channel (channel),
-  _tmo_ms  (tmo_ms),
   _dev     (0),
   _acq     (new EdtReader(this, new Task(TaskObject("edtacq")))),
   _fsrv    (0),
