@@ -9,6 +9,13 @@ char *lsParamAccessMode[] =
 { "ACC_ERROR", "ACC_READ_ONLY", "ACC_READ_WRITE", "ACC_EXIST_CHECK_ONLY", "ACC_WRITE_ONLY"
 };
 
+char *lsParamDataType[] =
+{ "unknown (type 0)", "int16", "int32", "unknown (type 3)",
+  "flt64", "uns8", "uns16", "uns32",
+  "uns64", "enum", "unknown (type 10)", "boolean",
+  "int8", "char_ptr", "void_ptr", "void_ptr_ptr",
+};
+
 void printPvError(const char *sPrefixMsg)
 {
   char sErrorMsg[ERROR_MSG_LEN];
@@ -83,7 +90,7 @@ static void displayParamValueInfo(int16 hCam, uns32 uParamId)
     signed char bval;
   } currentVal, minVal, maxVal, defaultVal, incrementVal;
   uns16 type;                 /* data type of paramater id */
-  boolean status = false, status2 = false, status3 = false, status4 = false, status5 = false; /* status of pvcam functions */
+  boolean status = true, status2 = true, status3 = true, status4 = true, status5 = true; /* status of pvcam functions */
 
   /* get the data type of parameter id */
   status = pl_get_param(hCam, uParamId, ATTR_TYPE, (void *) &type);
@@ -254,7 +261,7 @@ void displayParamIdInfo(int16 hCam, uns32 uParamId,
       status2 = pl_get_param(hCam, uParamId, ATTR_TYPE, (void *) &type);
       if (status && status2)
       {
-        printf(" access mode = %s\n", lsParamAccessMode[access]);
+        printf(" access mode = %s, type = %s\n", lsParamAccessMode[access], lsParamDataType[type]);
 
         if (access == ACC_EXIST_CHECK_ONLY)
         {
@@ -300,7 +307,7 @@ void displayParamIdInfo(int16 hCam, uns32 uParamId,
   }
 }                             /* end of function displayParamIdInfo */
 
-int getAnyParam(int16 hCam, uns32 uParamId, void *pParamValue, EnumGetParam eumGetParam)
+int getAnyParam(int16 hCam, uns32 uParamId, void *pParamValue, int16 iMode, int iErrorReport)
 {
   if (pParamValue == NULL)
   {
@@ -321,7 +328,8 @@ int getAnyParam(int16 hCam, uns32 uParamId, void *pParamValue, EnumGetParam eumG
   }
   else if (!bParamAvailable)
   {
-    printf("getAnyParam(): param id %lu is not available\n", uParamId);
+    if (iErrorReport >= 1)
+      printf("getAnyParam(): param id %lu is not available\n", uParamId);
     return 3;
   }
 
@@ -339,53 +347,13 @@ int getAnyParam(int16 hCam, uns32 uParamId, void *pParamValue, EnumGetParam eumG
     return 5;
   }
 
-  switch (eumGetParam)
+  bStatus = pl_get_param(hCam, uParamId, iMode, pParamValue);
+  if (!bStatus)
   {
-  case GET_PARAM_CURRENT:
-    bStatus = pl_get_param(hCam, uParamId, ATTR_CURRENT, pParamValue);
-    if (!bStatus)
-    {
-      printf("getAnyParam(): pl_get_param(param id = %lu, ATTR_CURRENT) failed\n", uParamId);
-      return 6;
-    }
-    break;
-  case GET_PARAM_MIN:
-    bStatus = pl_get_param(hCam, uParamId, ATTR_MIN, pParamValue);
-    if (!bStatus)
-    {
-      printf("getAnyParam(): pl_get_param(param id = %lu, ATTR_MIN) failed\n", uParamId);
-      return 6;
-    }
-    break;
-  case GET_PARAM_MAX:
-    bStatus = pl_get_param(hCam, uParamId, ATTR_MAX, pParamValue);
-    if (!bStatus)
-    {
-      printf("getAnyParam(): pl_get_param(param id = %lu, ATTR_MAX) failed\n", uParamId);
-      return 6;
-    }
-    break;
-  case GET_PARAM_DEFAULT:
-    bStatus = pl_get_param(hCam, uParamId, ATTR_DEFAULT, pParamValue);
-    if (!bStatus)
-    {
-      printf("getAnyParam(): pl_get_param(param id = %lu, ATTR_DEFAULT) failed\n", uParamId);
-      return 6;
-    }
-    break;
-  case GET_PARAM_INC:
-    bStatus = pl_get_param(hCam, uParamId, ATTR_INCREMENT, pParamValue);
-    if (!bStatus)
-    {
-      printf("getAnyParam(): pl_get_param(param id = %lu, ATTR_INCREMENT) failed\n", uParamId);
-      return 6;
-    }
-    break;
-  default:
-    printf("getAnyParam(): Invalid ENUM for GetParam : %d\n", eumGetParam);
-    return 7;
-  };
-  
+    printf("getAnyParam(): pl_get_param(param id = %lu, mode = %d) failed\n", uParamId, iMode);
+    return 6;
+  }
+
   return 0;
 }
 
@@ -442,3 +410,19 @@ void printROI(int iNumRoi, rgn_type* roi)
 
 } // namespace PICAM
  
+// To avoid pvcam.so dependency on firewire raw1394 shared library
+extern "C" 
+{
+void raw1394_arm_register() {}
+void raw1394_new_handle_on_port() {}
+void raw1394_new_handle() {}
+void raw1394_get_nodecount() {}
+void raw1394_arm_get_buf() {}
+void raw1394_arm_unregister() {}
+void raw1394_destroy_handle() {}
+void raw1394_read() {}
+void raw1394_write() {}
+void raw1394_get_port_info() {}
+void raw1394_get_fd() {}
+void raw1394_loop_iterate() {}
+}

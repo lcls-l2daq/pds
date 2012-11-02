@@ -155,8 +155,8 @@ private:
   /*
    * Camera hardware settings
    */
-  int16               _i16DetectorWidth;
-  int16               _i16DetectorHeight; 
+  int16               _u16DetectorWidth;
+  int16               _u16DetectorHeight; 
   int16               _i16MaxSpeedTableIndex; 
   
   /*
