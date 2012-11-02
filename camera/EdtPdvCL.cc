@@ -18,7 +18,7 @@ extern "C" {
 
 static void display_serialcmd(char*, int);
 static int nPrint=0;
-static const int _tmo_ms = 10000000;
+static const int _tmo_ms = 0x7fffffff;
 
 namespace Pds {
 

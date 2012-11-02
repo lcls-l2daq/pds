@@ -67,6 +67,10 @@ namespace Pds {
     pmf          _handlers[Sequence::NumberOfTypes];
   };
 }
+
+typedef Pds::Appliance* create_app();
+typedef void destroy_app(Pds::Appliance*);
+
 /*
 ** --
 **
