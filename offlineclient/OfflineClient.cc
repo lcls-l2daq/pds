@@ -14,7 +14,9 @@ using namespace Pds;
 OfflineClient::OfflineClient(const char* path, const char* instrument_name, const char* experiment_name) :
     _path (path),
     _instrument_name (instrument_name),
-    _experiment_name (experiment_name)
+    _experiment_name (experiment_name),
+    _station_number(0),
+    _verbose(true)
 {
   
     bool found = false;
@@ -80,7 +82,9 @@ OfflineClient::OfflineClient(const char* path, const char* instrument_name, cons
 //
 OfflineClient::OfflineClient(const char* path, const char* instrument_name) :
     _path (path),
-    _instrument_name (instrument_name)
+    _instrument_name (instrument_name),
+    _station_number(0),
+    _verbose(true)
 {
 
     printf("entered OfflineClient(path=%s, instr=%s)\n", _path, _instrument_name);
@@ -131,6 +135,71 @@ OfflineClient::OfflineClient(const char* path, const char* instrument_name) :
 
     printf ("OfflineClient(): experiment %s/%s (#%d) \n",
             _instrument_name, _experiment_name, _experiment_number);
+}
+
+//
+// OfflineClient (current experiment name retrieved from database)
+//
+OfflineClient::OfflineClient(const char* path, const char* instrument_name, unsigned station, bool verbose) :
+    _path (path),
+    _instrument_name (instrument_name),
+    _station_number(station),
+    _verbose(verbose)
+{
+    if (_verbose) {
+      printf("entered OfflineClient(path=%s, instr=%s)\n", _path, _instrument_name);
+    }
+
+    // translate experiment name to experiment number
+    LogBook::Connection * conn = NULL;
+
+    try {
+        if (strcmp(path, "/dev/null") == 0) {
+            if (_verbose) {
+              printf("fake it (path=/dev/null)\n");
+            }
+            _experiment_number = 1;
+        } else {
+            _experiment_number = 0;
+            conn = LogBook::Connection::open(path);
+            if (conn == NULL) {
+                printf("LogBook::Connection::connect() failed\n");
+            }
+        }
+
+        if (conn != NULL) {
+            // begin transaction
+            conn->beginTransaction();
+
+            // get current experiment
+            std::string instrument = _instrument_name;
+            
+            conn->getCurrentExperiment(_experiment_descr, instrument);
+
+            _experiment_name = _experiment_descr.name.c_str();
+            _experiment_number = _experiment_descr.id;
+
+        }
+
+    } catch (const LogBook::ValueTypeMismatch& e) {
+      printf ("Parameter type mismatch %s:\n", e.what());
+
+    } catch (const LogBook::WrongParams& e) {
+      printf ("Problem with parameters %s:\n", e.what());
+    
+    } catch (const LogBook::DatabaseError& e) {
+      printf ("Database operation failed: %s\n", e.what());
+    }
+
+    if (conn != NULL) {
+        // close connection
+        delete conn ;
+    }
+
+    if (_verbose) {
+      printf ("OfflineClient(): experiment %s/%s (#%d) \n",
+              _instrument_name, _experiment_name, _experiment_number);
+    }
 }
 
 //
@@ -425,5 +494,12 @@ const char * OfflineClient::GetInstrumentName() {
 //
 const char * OfflineClient::GetPath() {
     return (_path);
+}
+
+//
+// GetStationNumber
+//
+unsigned int OfflineClient::GetStationNumber() {
+    return (_station_number);
 }
 

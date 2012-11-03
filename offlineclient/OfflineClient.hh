@@ -11,6 +11,7 @@ namespace Pds {
   public:
     OfflineClient(const char *path, const char *instrument, const char *experiment);
     OfflineClient(const char *path, const char *instrument);
+    OfflineClient(const char *path, const char *instrument, unsigned station, bool verbose=true);
     int AllocateRunNumber(unsigned int *runNumber);
     int BeginNewRun(int runNumber);
     int reportOpenFile (int expt, int run, int stream, int chunk, std::string& host, std::string& dirpath, bool ffb=false);
@@ -19,6 +20,7 @@ namespace Pds {
     const char * GetExperimentName();
     const char * GetInstrumentName();
     const char * GetPath();
+    unsigned int GetStationNumber();
   private:
     const char * _path;
     const char * _instrument_name;
@@ -28,6 +30,8 @@ namespace Pds {
     // Caution!  _experiment_descr is filled from offline database
     // Contents may not be the same as _experiment_name, _experiment_number
     LogBook::ExperDescr _experiment_descr;
+    unsigned int _station_number;
+    bool _verbose;
   };
 
 }
