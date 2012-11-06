@@ -22,6 +22,7 @@ namespace Pds {
     virtual char          sof() const=0;
     virtual char          eof() const=0;
     virtual unsigned long timeout_ms() const=0;
+    virtual bool          uses_sof() const { return true; }
   public:
     virtual bool        validate(FrameServerMsg&) = 0;
     virtual int         camera_width () const = 0;

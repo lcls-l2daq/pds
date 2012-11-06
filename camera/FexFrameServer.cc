@@ -3,10 +3,13 @@
 #include "pds/camera/Frame.hh"
 #include "pds/camera/TwoDGaussian.hh"
 
+#include "pds/utility/Transition.hh"
 #include "pds/xtc/XtcType.hh"
 #include "pds/camera/FrameServerMsg.hh"
 #include "pds/camera/FrameType.hh"
 #include "pds/camera/TwoDGaussianType.hh"
+#include "pds/config/CfgCache.hh"
+#include "pds/config/FrameFexConfigType.hh"
 
 #include <errno.h>
 #include <stdio.h>
@@ -17,12 +20,23 @@
 
 #define DBUG
 
+namespace Pds {
+  class FexConfig : public CfgCache {
+  public:
+    FexConfig(const Src& src) :
+      CfgCache(src,_frameFexConfigType,sizeof(FrameFexConfigType)) {}
+  private:
+    int _size(void* tc) const { return reinterpret_cast<FrameFexConfigType*>(tc)->size(); }
+  };
+};
+
 using namespace Pds;
 
 typedef unsigned short pixel_type;
 
 FexFrameServer::FexFrameServer(const Src& src) :
-  FrameServer(src),
+  FrameServer  (src),
+  _config      (new FexConfig (src)),
   _hinput      ("CamInput"),
   _hfetch      ("CamFetch")
 {
@@ -33,12 +47,35 @@ FexFrameServer::FexFrameServer(const Src& src) :
 
 FexFrameServer::~FexFrameServer()
 {
+  delete _config;
 }
 
-void FexFrameServer::setFexConfig(const FrameFexConfigType& cfg)
+void FexFrameServer::allocate   (Transition* tr)
 {
-  _config = &cfg;
-  _framefwd_count = 0;
+  const Allocate& alloc = reinterpret_cast<const Allocate&>(*tr);
+  _config ->init(alloc.allocation());
+}
+
+void FexFrameServer::doConfigure(Transition* tr)
+{
+  if (_config->fetch(tr) > 0) {
+    _framefwd_count = 0;
+  }
+  else {
+    printf("Config::configure failed to retrieve FrameFex configuration\n");
+    _config->damage().increase(Damage::UserDefined);
+  }
+}
+
+void FexFrameServer::nextConfigure(Transition* tr)
+{
+  _config ->next();
+}
+
+InDatagram* FexFrameServer::recordConfigure(InDatagram* in)
+{
+  _config ->record(in);
+  return in;
 }
 
 void FexFrameServer::setCameraOffset(unsigned camera_offset)
@@ -69,27 +106,29 @@ int FexFrameServer::fetch(char* payload, int flags)
     //  Is pipe write/read good enough?
     if (msg != fmsg) printf("Overlapping events %d/%d\n",msg->count,fmsg->count);
 
-    FrameFexConfigType::Forwarding forwarding(_config->forwarding());
-    if (++_framefwd_count < _config->forward_prescale())
+    const FrameFexConfigType& config = *reinterpret_cast<const FrameFexConfigType*>(_config->current());
+    FrameFexConfigType::Forwarding forwarding(config.forwarding());
+    if (++_framefwd_count < config.forward_prescale())
       forwarding = FrameFexConfigType::NoFrame;
     else
       _framefwd_count = 0;
 
-    if (_config->processing() != FrameFexConfigType::NoProcessing) {
+    Xtc* xtc = new (payload) Xtc(_xtcType,_xtc.src, fmsg->damage);
+
+    if (config.processing() != FrameFexConfigType::NoProcessing) {
       if (forwarding == FrameFexConfigType::NoFrame)
-	length = _post_fex( payload, fmsg);
+	xtc->extent += _post_fex  (xtc->next(), fmsg);
       else {
-	Xtc* xtc = new (payload) Xtc(_xtcType,_xtc.src, fmsg->damage);
 	xtc->extent += _post_fex  (xtc->next(), fmsg);
 	xtc->extent += _post_frame(xtc->next(), fmsg);
-	length = xtc->extent;
       }
     }
     else if (forwarding != FrameFexConfigType::NoFrame)
-      length = _post_frame( payload, fmsg);
+      xtc->extent += _post_frame(xtc->next(), fmsg);
     else
-      length = 0;
+      ;
 
+    length = xtc->extent;
     _xtc.damage = fmsg->damage;
 
     delete fmsg;
@@ -139,17 +178,19 @@ unsigned FexFrameServer::_post_frame(void* xtc, const FrameServerMsg* fmsg) cons
   const unsigned short* frame_data = 
     reinterpret_cast<const unsigned short*>(fmsg->data);
 
+  const FrameFexConfigType& config = *reinterpret_cast<const FrameFexConfigType*>(_config->current());
+
   Xtc& frameXtc = *new((char*)xtc) Xtc(_frameType, _xtc.src, fmsg->damage);
   Frame* fp;
-  if (_config->forwarding()==FrameFexConfigType::FullFrame)
+  if (config.forwarding()==FrameFexConfigType::FullFrame)
     fp=new(frameXtc.alloc(sizeof(Frame))) Frame(frame.width(), frame.height(), 
 						frame.depth(), frame.offset(),
 						frame_data);
   else
-    fp=new(frameXtc.alloc(sizeof(Frame))) Frame (_config->roiBegin().column,
-						 _config->roiEnd  ().column,
-						 _config->roiBegin().row,
-						 _config->roiEnd  ().row,
+    fp=new(frameXtc.alloc(sizeof(Frame))) Frame (config.roiBegin().column,
+						 config.roiEnd  ().column,
+						 config.roiBegin().row,
+						 config.roiEnd  ().row,
 						 frame.width(), frame.height(), 
 						 frame.depth(), frame.offset(),
 						 frame_data);
@@ -163,22 +204,23 @@ TwoDMoments FexFrameServer::_feature_extract(const Frame&          frame,
   //
   // perform the feature extraction here
   //
-  switch(_config->processing()) {
+  const FrameFexConfigType& config = *reinterpret_cast<const FrameFexConfigType*>(_config->current());
+  switch(config.processing()) {
   case FrameFexConfigType::GssFullFrame:
     return TwoDMoments(frame.width(), frame.height(), 
 		       frame.offset(), frame_data);
   case FrameFexConfigType::GssRegionOfInterest:
     return TwoDMoments(frame.width(),
-		       _config->roiBegin().column,
-		       _config->roiEnd  ().column,
-		       _config->roiBegin().row,
-		       _config->roiEnd  ().row,
+		       config.roiBegin().column,
+		       config.roiEnd  ().column,
+		       config.roiBegin().row,
+		       config.roiEnd  ().row,
 		       frame.offset(),
 		       frame_data);
   case FrameFexConfigType::GssThreshold:
     return TwoDMoments(frame.width(),
 		       frame.height(),
-		       _config->threshold(),
+		       config.threshold(),
 		       frame.offset(),
 		       frame_data);
   default:

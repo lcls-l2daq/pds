@@ -32,6 +32,23 @@ namespace Pds
     return 0;
   }
 
+  int EpicsMonitorPv::reconnect()
+  {
+    release();
+    _tsLastUpdate.tv_sec = _tsLastUpdate.tv_nsec = 0;
+    _iCaStatus = ca_create_channel(_sPvName.c_str(), caConnectionHandler, // event handler
+                                   this, _iCaChannelPriority, &_chidPv);
+    if (_iCaStatus != ECA_NORMAL)
+    {
+      printf("EpicsMonitorPv()::init()::ca_create_channel(%s) failed, CA errmsg: %s\n",
+        _sPvName.c_str(), ca_message(_iCaStatus));
+      return 1;
+    }
+
+    _u64MaskEventNode = ( ((uint64_t)1)<<_iNumEventNode) - 1;    
+    return 0;
+  }
+
   EpicsMonitorPv::~EpicsMonitorPv()
   {
     release();

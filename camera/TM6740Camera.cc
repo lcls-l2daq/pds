@@ -37,7 +37,7 @@ char          TM6740Camera::eotWrite() const { return '\r'; }
 char          TM6740Camera::eotRead () const { return '\r'; }
 char          TM6740Camera::sof     () const { return ':'; }
 char          TM6740Camera::eof     () const { return '\r'; }
-unsigned long TM6740Camera::timeout_ms() const { return 100; }
+unsigned long TM6740Camera::timeout_ms() const { return 40; }
 
 int  TM6740Camera::camera_depth () const { return _inputConfig ? _inputConfig->output_resolution_bits() : 8; }
 int  TM6740Camera::camera_taps  () const { return 2; }

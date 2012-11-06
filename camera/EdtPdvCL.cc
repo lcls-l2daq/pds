@@ -370,7 +370,10 @@ int EdtPdvCL::SendCommand(char *szCommand,
 
   const int BUFFER_SIZE=64;
   char* write_buffer = new char[BUFFER_SIZE];
-  sprintf(write_buffer,"%c%s%c",c.sof(),szCommand,c.eof());
+  if (c.uses_sof())
+    sprintf(write_buffer,"%c%s%c",c.sof(),szCommand,c.eof());
+  else
+    sprintf(write_buffer,"%s%c",szCommand,c.eof());
   //  sprintf(write_buffer,"%c%s",c.sof(),szCommand);
 
   int r,n;
@@ -404,7 +407,10 @@ int EdtPdvCL::SendBinary (char *szCommand,
 
   const int BUFFER_SIZE=64;
   char* write_buffer = new char[BUFFER_SIZE];
-  sprintf(write_buffer,"%c%s%c",c.sof(),szCommand,c.eof());
+  if (c.uses_sof())
+    sprintf(write_buffer,"%c%s%c",c.sof(),szCommand,c.eof());
+  else
+    sprintf(write_buffer,"%s%c",szCommand,c.eof());
   pdv_serial_command(_dev,write_buffer);
 
   pdv_set_waitchar(_dev,1,c.eotWrite());

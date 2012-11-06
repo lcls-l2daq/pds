@@ -26,6 +26,7 @@ namespace Pds
 
     int init(int iPvId, const std::string & sPvName,
        const std::string & sPvDescription, float fUpdateInterval, int iNumEventNode);
+    int reconnect();
     bool checkWriteEvent(const struct timespec& tsCurrent, unsigned int uVectorCur);
     int release();
     int printPv() const;

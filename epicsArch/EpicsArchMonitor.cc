@@ -157,21 +157,15 @@ int EpicsArchMonitor::writeToXtc(Datagram & dg, UserMessage ** msg, const struct
 
     XtcEpicsPv *pXtcEpicsPvCur = new(&dg.xtc) XtcEpicsPv(typeIdXtc, _src);
 
-    int iFail;
-    for (unsigned nTries = 0; nTries < 3; nTries++)
-    {
-      iFail = pXtcEpicsPvCur->setValue(epicsPvCur, bCtrlValue);
-      if (iFail == 2)
-        printf("%s (%s) failed to connect (%d)\n", 
-          epicsPvCur.getPvDescription().c_str(), epicsPvCur.getPvName().c_str(), nTries);
-      else
-        break;
-    }
+    int iFail = pXtcEpicsPvCur->setValue(epicsPvCur, bCtrlValue);
 
     if (iFail == 0)
       bAnyPvWriteOkay = true;
     else if (iFail == 2)  // Error code 2 means this PV has no connection
     {
+      printf("%s (%s) failed to connect\n", 
+             epicsPvCur.getPvDescription().c_str(), epicsPvCur.getPvName().c_str());
+
       if (bCtrlValue)
       {     // If this happens in the "config" action (ctrl value is about to be written)
         epicsPvCur.release(); // release this PV and never update it again
@@ -229,6 +223,28 @@ int EpicsArchMonitor::writeToXtc(Datagram & dg, UserMessage ** msg, const struct
     return 5;     // Some PV values have been outputted, but some has not been connected
 
   return 0;     // All PV values are outputted successfully
+}
+
+int EpicsArchMonitor::validate()
+{
+  ca_poll();
+
+  const int iNumPv = _lpvPvList.size();
+
+  int nNotConnected = 0;
+  for (int iPvName = 0; iPvName < iNumPv; iPvName++)
+  {
+    EpicsMonitorPv & epicsPvCur = _lpvPvList[iPvName];
+
+    if (!epicsPvCur.isConnected()) {
+      epicsPvCur.reconnect();
+      printf("%s (%s) not connected\n", 
+             epicsPvCur.getPvDescription().c_str(), epicsPvCur.getPvName().c_str());
+      nNotConnected++;
+    }
+  }
+
+  return nNotConnected++;
 }
 
 /*

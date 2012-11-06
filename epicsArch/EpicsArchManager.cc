@@ -75,6 +75,7 @@ public:
   virtual Transition *fire(Transition * tr)
   {
     //_cfg.fetch(*tr,_epicsArchConfigType, &_config);
+    _manager.validate();
     return tr;
   }
 
@@ -308,4 +309,9 @@ int EpicsArchManager::writeMonitoredContent(Datagram & dg, UserMessage ** msg, c
   }
 
   return _pMonitor->writeToXtc(dg, msg, tsCurrent, uVectorCur);
+}
+
+int EpicsArchManager::validate()
+{
+  return _pMonitor->validate();
 }

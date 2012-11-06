@@ -2,6 +2,7 @@ libnames := camera camleutron camedt
 
 libsrcs_camera := CameraBase.cc \
       CameraManager.cc \
+      FexCameraManager.cc \
       FrameHandle.cc \
       Frame.cc \
       TwoDMoments.cc \

@@ -9,12 +9,14 @@
 
 #include "pds/camera/FrameServer.hh"
 #include "pds/camera/TwoDMoments.hh"
-#include "pds/config/FrameFexConfigType.hh"
 #include "pds/mon/THist.hh"
 
 namespace Pds {
 
+  class CfgCache;
   class Frame;
+  class InDatagram;
+  class Transition;
   class TwoDMoments;
 
   class FexFrameServer : public FrameServer {
@@ -22,10 +24,11 @@ namespace Pds {
     FexFrameServer (const Src&);
     ~FexFrameServer();
   public:
-    void                            setFexConfig(const FrameFexConfigType&);
+    void                            allocate       (Transition*);
+    void                            doConfigure    (Transition*);
+    void                            nextConfigure  (Transition*);
+    InDatagram*                     recordConfigure(InDatagram*);
     void                            setCameraOffset(unsigned);
-
-    const FrameFexConfigType& Config();
   public:
     //  Server interface
     int      fetch       (char* payload, int flags);
@@ -38,7 +41,7 @@ namespace Pds {
 				  const unsigned short* frame_data ) const;
 
   private:    
-    const FrameFexConfigType* _config;
+    CfgCache*  _config;
     unsigned   _camera_offset;
     unsigned   _framefwd_count;
 

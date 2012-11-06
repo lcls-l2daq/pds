@@ -24,6 +24,7 @@ namespace Pds
     {
       return *_pFsm;
     }
+    int validate();
     int writeMonitoredContent(Datagram & dg, UserMessage ** msg, const struct timespec& tsCurrent, unsigned int uVectorCur);
 
     GenericPool *getPool()
