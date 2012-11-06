@@ -28,6 +28,8 @@ public:
 
   Appliance&    appliance() { return *_pFsm; }
   
+  int   initServer();
+  
   // Camera control: Gateway functions for accessing PrincetonServer class
   int   map(const Allocation& alloc);
   int   config(PrincetonConfigType& config, std::string& sConfigWarning);
@@ -44,7 +46,7 @@ public:
   int   startExposure();
   int   getData (InDatagram* in, InDatagram*& out);
   int   waitData(InDatagram* in, InDatagram*& out);
-  
+    
 private:          
   const int           _iCamera;
   const bool          _bDelayMode;          

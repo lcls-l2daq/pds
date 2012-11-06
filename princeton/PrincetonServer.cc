@@ -35,7 +35,7 @@ PrincetonServer::PrincetonServer(int iCamera, bool bDelayMode, bool bInitTest, c
  _poolFrameData(_iMaxFrameDataSize, _iPoolDataCount), _pDgOut(NULL),
  _CaptureState(CAPTURE_STATE_IDLE), _pTaskCapture(NULL), _routineCapture(*this)
 {        
-  if ( init() != 0 )
+  if ( initDevice() != 0 )
     throw PrincetonServerException( "PrincetonServer::PrincetonServer(): initPrinceton() failed" );    
 
   /*
@@ -47,39 +47,49 @@ PrincetonServer::PrincetonServer(int iCamera, bool bDelayMode, bool bInitTest, c
 }
 
 PrincetonServer::~PrincetonServer()
-{ 
-  if ( _pTaskCapture != NULL )
-    _pTaskCapture->destroy(); // task object will destroy the thread and release the object memory by itself
-
-  if (_bDelayMode)
-  {
-    /*
-     * Wait for capture thread (if exists) to terminate
-     */ 
-    while ( _CaptureState == CAPTURE_STATE_RUN_TASK )
-    {
-      printf( "PrincetonServer::~PrincetonServer(): Catpure task is running. Wait for it to terminate...\n" );
-      
-      static int        iTotalWaitTime  = 0;
-      static const int  iSleepTime      = 10000; // 10 ms
-      
-      timeval timeSleepMicro = {0, 10000}; 
-      // Use select() to simulate nanosleep(), because experimentally select() controls the sleeping time more precisely
-      select( 0, NULL, NULL, NULL, &timeSleepMicro);    
-      
-      iTotalWaitTime += iSleepTime / 1000;
-      if ( iTotalWaitTime >= _iMaxThreadEndTime )
-      {
-        printf( "PrincetonServer::~PrincetonServer(): timeout for waiting thread terminating\n" );
-        break;
-      }
-    }
-  }
+{   
+  /* Stop the acquisition */
+  rs_bool bStatus = 
+    pl_exp_abort(_hCam, CCS_HALT);
   
+  if (!bStatus)
+  {
+    printPvError("PrincetonServer::deinitCapture():pl_exp_abort() failed");    
+  }    
+  
+  //if ( _pTaskCapture != NULL )
+    //_pTaskCapture->destroy(); // task object will destroy the thread and release the object memory by itself      
+
+  //if (_bDelayMode)
+  //{
+  //  /*
+  //   * Wait for capture thread (if exists) to terminate
+  //   */ 
+  //  while ( _CaptureState == CAPTURE_STATE_RUN_TASK )
+  //  {
+  //    printf( "PrincetonServer::~PrincetonServer(): Catpure task is running. Wait for it to terminate...\n" );
+  //    
+  //    static int        iTotalWaitTime  = 0;
+  //    static const int  iSleepTime      = 10000; // 10 ms
+  //    
+  //    timeval timeSleepMicro = {0, 10000}; 
+  //    // Use select() to simulate nanosleep(), because experimentally select() controls the sleeping time more precisely
+  //    select( 0, NULL, NULL, NULL, &timeSleepMicro);    
+  //    
+  //    iTotalWaitTime += iSleepTime / 1000;
+  //    if ( iTotalWaitTime >= _iMaxThreadEndTime )
+  //    {
+  //      printf( "PrincetonServer::~PrincetonServer(): timeout for waiting thread terminating\n" );
+  //      break;
+  //    }
+  //  }
+  //}
+  
+  //releaseLockCameraData();
   deinit();  
 }
 
-int PrincetonServer::init()
+int PrincetonServer::initDevice()
 {
   if ( _bCameraInited )
     return 0;
@@ -116,7 +126,12 @@ int PrincetonServer::init()
   
   double fOpenTime = (timeVal1.tv_nsec - timeVal0.tv_nsec) * 1.e-6 + ( timeVal1.tv_sec - timeVal0.tv_sec ) * 1.e3;    
   printf("Camera Open Time = %6.1lf ms\n", fOpenTime);    
-  
+    
+  return 0;
+}
+
+int PrincetonServer::initSetup()
+{
   PICAM::getAnyParam(_hCam, PARAM_SER_SIZE, &_u16DetectorWidth );
   PICAM::getAnyParam(_hCam, PARAM_PAR_SIZE, &_u16DetectorHeight );
   PICAM::getAnyParam(_hCam, PARAM_SPDTAB_INDEX, &_i16MaxSpeedTableIndex, ATTR_MAX);
@@ -135,8 +150,7 @@ int PrincetonServer::init()
   {
     printPvError("PrincetonServer::init(): pl_exp_init_seq() failed!\n");
     return ERROR_SDK_FUNC_FAIL; 
-  }    
-  
+  }      
   
   int iFail = initCameraBeforeConfig();
   if (iFail != 0)
@@ -149,7 +163,7 @@ int PrincetonServer::init()
   PICAM::getAnyParam(_hCam, PARAM_TEMP, &i16TemperatureCurrent );  
   printf( "\nDetector Width %d Height %d Max Speed %d Temperature %.1f C\n", _u16DetectorWidth, _u16DetectorHeight, _i16MaxSpeedTableIndex, i16TemperatureCurrent/100.f  );  
   
-  printf( "Princeton Camera [%d] %s has been initialized\n", _iCamera, strCamera );
+  printf( "Princeton Camera [%d] has been initialized\n", _iCamera );
   _bCameraInited = true;    
   
   iFail = initClockSaving();  
@@ -157,10 +171,11 @@ int PrincetonServer::init()
   {
     deinit();
     return ERROR_FUNCTION_FAILURE;  
-  }
+  }  
   
   return 0;
 }
+
 
 int PrincetonServer::deinit()
 {  
@@ -213,6 +228,26 @@ int PrincetonServer::config(PrincetonConfigType& config, std::string& sConfigWar
     sConfigWarning += sMessage;
     config.setWidth (_u16DetectorWidth);
     config.setHeight(_u16DetectorHeight);
+  }
+  else if 
+  ( (int) config.width() != _u16DetectorWidth && (int) config.height() != _u16DetectorHeight
+    && config.width() == 1340 && config.height() == 1300
+  )
+  { // For special controller with size 1340x1300, but connected to detector with size 2048x2048
+    char sMessage[128];    
+    sprintf( sMessage, "!!! PI %d CfgSize (%d,%d) != Det Size(%d,%d)\n", _iCamera, config.width(), config.height(), _u16DetectorWidth, _u16DetectorHeight);
+    printf(sMessage);
+    sConfigWarning += sMessage;
+    config.setWidth (_u16DetectorWidth);
+    config.setHeight(_u16DetectorHeight);
+  }
+  else if ( config.maskedHeight() != 0 && config.height() > config.maskedHeight() )
+  {
+    char sMessage[128];    
+    sprintf( sMessage, "!!! PI %d H %d > Masked H %d\n", _iCamera, config.height(), config.maskedHeight());
+    printf(sMessage);
+    sConfigWarning += sMessage;    
+    config.setHeight(config.maskedHeight());
   }
         
   //Note: We don't send error for cooling incomplete
@@ -344,7 +379,11 @@ int PrincetonServer::initCapture()
   setupROI(region);
   PICAM::printROI(1, &region);
  
-  const int16 iExposureMode = 0; // set exposure mode to TIMED_MODE, avoid using external TTL trigger
+  int16 iExposureMode; 
+  if (_config.kineticHeight() != 0)
+    iExposureMode = 1; // set exposure mode to STROBED_MODE to trigger the exposure
+  else
+    iExposureMode = 0; // set exposure mode to TIMED_MODE, avoid using external TTL trigger
   
   /*
    * _config.exposureTime() time is measured in seconds,
@@ -456,7 +495,6 @@ int PrincetonServer::configCamera(PrincetonConfigType& config, std::string& sCon
   displayParamIdInfo(_hCam, PARAM_SHTR_OPEN_MODE  , "Shutter Open Mode");
   displayParamIdInfo(_hCam, PARAM_SHTR_OPEN_DELAY , "Shutter Open Delay");
   displayParamIdInfo(_hCam, PARAM_SHTR_CLOSE_DELAY, "Shutter Close Delay");
-  displayParamIdInfo(_hCam, PARAM_EDGE_TRIGGER    , "Edge Trigger" );
   displayParamIdInfo(_hCam, PARAM_EXP_RES         , "Exposure Resolution");
   displayParamIdInfo(_hCam, PARAM_EXP_RES_INDEX   , "Exposure Resolution Index");
   
@@ -466,8 +504,14 @@ int PrincetonServer::configCamera(PrincetonConfigType& config, std::string& sCon
   // Note: continuous clearing can only be read and set after pl_exp_setup_seq(...,STORBED_MODE,...)
   //displayParamIdInfo(_hCam, PARAM_CONT_CLEARS , "Continuous Clearing");
 
+  displayParamIdInfo(_hCam, PARAM_CLEAR_CYCLES, "Clear Cycles *org*");  
+  int16 i16ClerCycle = (uns16) 0;
+  PICAM::setAnyParam(_hCam, PARAM_CLEAR_CYCLES, &i16ClerCycle );    
   displayParamIdInfo(_hCam, PARAM_CLEAR_CYCLES, "Clear Cycles");  
 
+  /*
+   * Always set strips per clear to 1, to minimize the initial capture delay
+   */
   displayParamIdInfo(_hCam, PARAM_NUM_OF_STRIPS_PER_CLR, "Strips Per Clear *org*");
   int16 i16Strip = (int16) 1;
   PICAM::setAnyParam(_hCam, PARAM_NUM_OF_STRIPS_PER_CLR, &i16Strip );    
@@ -514,10 +558,91 @@ int PrincetonServer::configCamera(PrincetonConfigType& config, std::string& sCon
   PICAM::setAnyParam(_hCam, PARAM_LOGIC_OUTPUT, &u32LogicOutput ); 
   displayParamIdInfo(_hCam, PARAM_LOGIC_OUTPUT, "Logic Output *new*");    
     
-  //uns32 uTriggerEdge = EDGE_TRIG_POS;
-  //PICAM::setAnyParam(_hCam, PARAM_EDGE_TRIGGER, &uTriggerEdge );    
-  //displayParamIdInfo(_hCam, PARAM_EDGE_TRIGGER,     "Edge Trigger" );
+  uns32 uTriggerEdge = EDGE_TRIG_NEG;
+  PICAM::setAnyParam(_hCam, PARAM_EDGE_TRIGGER, &uTriggerEdge );    
+  displayParamIdInfo(_hCam, PARAM_EDGE_TRIGGER, "Edge Trigger" );
+     
+  if (config.maskedHeight() != 0)
+  {    
+    rs_bool iCustomChip = 1;
+    PICAM::setAnyParam(_hCam, PARAM_CUSTOM_CHIP, &iCustomChip );    
+        
+    displayParamIdInfo(_hCam, PARAM_PAR_SIZE, "Detecotr Height *org*");    
+    uns16 u16CustomH = (uns16) config.maskedHeight();
+    PICAM::setAnyParam(_hCam, PARAM_PAR_SIZE, &u16CustomH );        
+    
+    rs_bool iSkipSRegClean = 1;
+    PICAM::setAnyParam(_hCam, PARAM_SKIP_SREG_CLEAN, &iSkipSRegClean );                
+  }
+  else
+  {
+    rs_bool iCustomChip = 1;
+    PICAM::setAnyParam(_hCam, PARAM_CUSTOM_CHIP, &iCustomChip );    
+    
+    uns16 u16CustomH = (uns16) _u16DetectorHeight;
+    PICAM::setAnyParam(_hCam, PARAM_PAR_SIZE, &u16CustomH );            
+        
+    rs_bool iSkipSRegClean = 0;
+    PICAM::setAnyParam(_hCam, PARAM_SKIP_SREG_CLEAN, &iSkipSRegClean );                
+    
+    iCustomChip = 0;
+    PICAM::setAnyParam(_hCam, PARAM_CUSTOM_CHIP, &iCustomChip );        
+    
+  }
+  displayParamIdInfo(_hCam, PARAM_CUSTOM_CHIP, "Custom Chip");        
+  displayParamIdInfo(_hCam, PARAM_PAR_SIZE, "Detecotr Height");          
+  displayParamIdInfo(_hCam, PARAM_SKIP_SREG_CLEAN, "Skip Serial Reg Clean");  
   
+  if (config.kineticHeight() != 0)
+  {        
+    uns32 u32pmode = (uns32) PMODE_KINETICS;
+    PICAM::setAnyParam(_hCam, PARAM_PMODE, &u32pmode );        
+    
+    displayParamIdInfo(_hCam, PARAM_KIN_WIN_SIZE, "Kinetics Win Height *org*");    
+    uns16 u16kinSize = (uns16) config.kineticHeight();
+    PICAM::setAnyParam(_hCam, PARAM_KIN_WIN_SIZE, &u16kinSize );        
+  }        
+  else
+  {
+    uns32 u32pmode = (uns32) PMODE_KINETICS;
+    PICAM::setAnyParam(_hCam, PARAM_PMODE, &u32pmode );        
+    
+    uns16 u16kinSize = 0;
+    PICAM::getAnyParam(_hCam, PARAM_KIN_WIN_SIZE, &u16kinSize, ATTR_DEFAULT );     
+    PICAM::setAnyParam(_hCam, PARAM_KIN_WIN_SIZE, &u16kinSize );        
+    
+    u32pmode = (uns32) PMODE_NORMAL;
+    PICAM::setAnyParam(_hCam, PARAM_PMODE, &u32pmode );            
+  }
+  displayParamIdInfo(_hCam, PARAM_PMODE, "P Mode");      
+  displayParamIdInfo(_hCam, PARAM_KIN_WIN_SIZE, "Kinetics Win Height");    
+  
+  displayParamIdInfo(_hCam, PARAM_SER_SHIFT_TIME, "Serial Shift Speed");          
+  
+  if (config.vsSpeed() != 0)
+  {        
+    rs_bool iCustomTiming = 1;
+    PICAM::setAnyParam(_hCam, PARAM_CUSTOM_TIMING, &iCustomTiming );    
+    
+    displayParamIdInfo(_hCam, PARAM_PAR_SHIFT_TIME, "Vertical Shift Speed *org*");               
+    int32 i32parShiftTime = selectVsSpeed(config.vsSpeed() * 1000);    
+    PICAM::setAnyParam(_hCam, PARAM_PAR_SHIFT_TIME, &i32parShiftTime );        
+  }    
+  else  
+  {
+    rs_bool iCustomTiming = 1;
+    PICAM::setAnyParam(_hCam, PARAM_CUSTOM_TIMING, &iCustomTiming );    
+    
+    int32 i32parShiftTime = 0;
+    PICAM::getAnyParam(_hCam, PARAM_PAR_SHIFT_TIME, &i32parShiftTime, ATTR_DEFAULT );     
+    PICAM::setAnyParam(_hCam, PARAM_PAR_SHIFT_TIME, &i32parShiftTime ); 
+    
+    iCustomTiming = 0;
+    PICAM::setAnyParam(_hCam, PARAM_CUSTOM_TIMING, &iCustomTiming );        
+  }  
+  displayParamIdInfo(_hCam, PARAM_CUSTOM_TIMING, "Custom Timing");    
+  displayParamIdInfo(_hCam, PARAM_PAR_SHIFT_TIME, "Vertical Shift Speed");      
+    
   return 0;
 }
 
@@ -1259,6 +1384,24 @@ void PrincetonServer::setupROI(rgn_type& region)
   region.p1   = _config.orgY();
   region.p2   = _config.orgY() + _config.height() - 1;
   region.pbin = _config.binY();
+}
+
+int PrincetonServer::selectVsSpeed(float fRawVsSpeed)
+{
+  int32 i32parShiftTimeMin, i32parShiftTimeMax, i32parShiftTimeInc;
+  PICAM::getAnyParam(_hCam, PARAM_PAR_SHIFT_TIME, &i32parShiftTimeMin, ATTR_MIN );        
+  PICAM::getAnyParam(_hCam, PARAM_PAR_SHIFT_TIME, &i32parShiftTimeMax, ATTR_MAX );        
+  PICAM::getAnyParam(_hCam, PARAM_PAR_SHIFT_TIME, &i32parShiftTimeInc, ATTR_INCREMENT );        
+  
+  float fRatio = (fRawVsSpeed - i32parShiftTimeMin) / i32parShiftTimeInc;
+  int i32parShiftTime = i32parShiftTimeMin + i32parShiftTimeInc * (int)(fRatio +  0.5);
+    
+  if (i32parShiftTime <= i32parShiftTimeMin)
+    return i32parShiftTimeMin;
+  if (i32parShiftTime >= i32parShiftTimeMax)
+    return i32parShiftTimeMax;
+    
+  return (int) i32parShiftTime;  
 }
 
 int PrincetonServer::updateTemperatureData()

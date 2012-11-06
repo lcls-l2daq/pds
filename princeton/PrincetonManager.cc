@@ -82,7 +82,10 @@ public:
           0,  // OrgX
           0,  // OrgX
           1,  // BinX
-          1,  // BinX
+          1,  // BinY
+          16, // Masked Height
+          16, // Kinetic Height
+          30, // VShift Speed
           0.001,  // Exposure time
           25.0f,  // Cooling temperature
           3,  // Gain index
@@ -131,11 +134,13 @@ public:
                   
         if (_iDebugLevel>=2) printf( "Princeton Config data:\n"
           "  Width %d Height %d  Org X %d Y %d  Bin X %d Y %d\n"
+          "  Masked Height %d Kinetic Height %d VShift Speed %f us\n"
           "  Exposure time %gs  Cooling Temperature %.1f C  Gain Index %d\n"
           "  Readout Speed %d  Readout Event %d Num Delay Shots %d\n",
           _config.width(), _config.height(),
           _config.orgX(), _config.orgY(),
           _config.binX(), _config.binY(),
+          _config.maskedHeight(), _config.kineticHeight(), _config.vsSpeed(), 
           _config.exposureTime(), _config.coolingTemp(), _config.gainIndex(), 
           _config.readoutSpeedIndex(), _config.exposureEventCode(), _config.numDelayShots()
           );
@@ -611,9 +616,9 @@ PrincetonManager::PrincetonManager(CfgClientNfs& cfg, int iCamera, bool bDelayMo
 
 PrincetonManager::~PrincetonManager()
 {   
-  delete _pFsm;
+  delete _pServer;  
   
-  delete _pServer;
+  delete _pFsm;    
   
   delete _pResponse;
   delete _pActionL1Accept;
@@ -624,6 +629,11 @@ PrincetonManager::~PrincetonManager()
   delete _pActionUnconfig;    
   delete _pActionConfig;
   delete _pActionMap; 
+}
+
+int PrincetonManager::initServer()
+{
+  return _pServer->initSetup();
 }
 
 int PrincetonManager::map(const Allocation& alloc)

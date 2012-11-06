@@ -28,6 +28,7 @@ public:
   PrincetonServer(int iCamera, bool bUseCaptureTask, bool bInitTest, const Src& src, std::string sConfigDb, int iSleepInt, int iDebugLevel);
   ~PrincetonServer();
   
+  int   initSetup();  
   int   map();  
   int   config(PrincetonConfigType& config, std::string& sConfigWarning);
   int   unconfig();
@@ -101,19 +102,20 @@ private:
   
   /*
    * private functions
-   */
-  int   init();
+   */   
+  int   initDevice();
   int   deinit();  
   
   int   initCapture();
   int   startCapture();
-  int   deinitCapture();  
+  int   deinitCapture();
 
   int   initCaptureTask(); // for delay mode use only
   int   runCaptureTask();
   
   int   configCamera(PrincetonConfigType& config, std::string& sConfigWarning);
   int   initCameraBeforeConfig();
+  int   selectVsSpeed(float fRawVsSpeed);
 
   int   initTest();
   
