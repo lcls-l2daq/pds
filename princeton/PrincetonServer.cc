@@ -48,18 +48,15 @@ PrincetonServer::PrincetonServer(int iCamera, bool bDelayMode, bool bInitTest, c
 
 PrincetonServer::~PrincetonServer()
 {   
-  /* Stop the acquisition */
+  /* Stop the acquisition if any */
   rs_bool bStatus = 
     pl_exp_abort(_hCam, CCS_HALT);
   
   if (!bStatus)
   {
-    printPvError("PrincetonServer::deinitCapture():pl_exp_abort() failed");    
+    printPvError("PrincetonServer::~PrincetonServer():pl_exp_abort() failed");    
   }    
   
-  //if ( _pTaskCapture != NULL )
-    //_pTaskCapture->destroy(); // task object will destroy the thread and release the object memory by itself      
-
   //if (_bDelayMode)
   //{
   //  /*
@@ -85,8 +82,10 @@ PrincetonServer::~PrincetonServer()
   //  }
   //}
   
-  //releaseLockCameraData();
   deinit();  
+  
+  if ( _pTaskCapture != NULL )
+    _pTaskCapture->destroy(); // task object will destroy the thread and release the object memory by itself        
 }
 
 int PrincetonServer::initDevice()
