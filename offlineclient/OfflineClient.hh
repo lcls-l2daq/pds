@@ -10,7 +10,6 @@ namespace Pds {
   class OfflineClient {
   public:
     OfflineClient(const char *path, const char *instrument, const char *experiment);
-    OfflineClient(const char *path, const char *instrument);
     OfflineClient(const char *path, const char *instrument, unsigned station, bool verbose=true);
     int AllocateRunNumber(unsigned int *runNumber);
     int BeginNewRun(int runNumber);
