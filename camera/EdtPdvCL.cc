@@ -10,6 +10,7 @@
 #include "pds/service/Routine.hh"
 #include "pds/service/Task.hh"
 #include "pds/service/Semaphore.hh"
+#include "pdsdata/xtc/DetInfo.hh"
 
 //  library routine declaration missing from edt header files
 extern "C" {
@@ -460,6 +461,12 @@ void EdtPdvCL::handle(u_char* image_p)
     Occurrence* occ = new (_occPool)
       Occurrence(OccurrenceId::ClearReadout);
     _app->post(occ);
+
+    UserMessage* umsg = new (_occPool)
+      UserMessage;
+    umsg->append("Frame readout error\n");
+    umsg->append(DetInfo::name(static_cast<const DetInfo&>(_fsrv->client())));
+    _app->post(umsg);
 
     msg->damage.increase(Damage::OutOfOrder);
   }

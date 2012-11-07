@@ -20,6 +20,7 @@
 
 #include "pdsdata/xtc/ClockTime.hh"
 #include "pdsdata/xtc/Damage.hh"
+#include "pdsdata/xtc/DetInfo.hh"
 
 #include "pds/utility/Appliance.hh"
 #include "pds/utility/Occurrence.hh"
@@ -250,6 +251,11 @@ void PicPortCL::handle()
     Pds::Occurrence* occ = new (_occPool)
       Pds::Occurrence(Pds::OccurrenceId::ClearReadout);
     _app->post(occ);
+
+    Pds::UserMessage* umsg = new (_occPool) Pds::UserMessage;
+    umsg->append("Frame readout error\n");
+    umsg->append(Pds::DetInfo::name(static_cast<const Pds::DetInfo&>(_fsrv->client())));
+    _app->post(umsg);
 
     msg->damage.increase(Pds::Damage::OutOfOrder);
   }

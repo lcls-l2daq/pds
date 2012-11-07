@@ -304,8 +304,13 @@ public:
       _outoforder=1;	  
 
       Pds::Occurrence* occ = new (_occPool)
-      Pds::Occurrence(Pds::OccurrenceId::ClearReadout);
+        Pds::Occurrence(Pds::OccurrenceId::ClearReadout);
       _mgr->appliance().post(occ);
+
+      UserMessage* umsg = new (_occPool) UserMessage;
+      umsg->append("Event readout error\n");
+      umsg->append(DetInfo::name(static_cast<const DetInfo&>(xtc.src)));
+      _mgr->appliance().post(umsg);
     }
 	
 
