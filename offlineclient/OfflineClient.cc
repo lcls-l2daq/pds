@@ -99,9 +99,9 @@ OfflineClient::OfflineClient(const char* path, const char* instrument_name, unsi
             if (_verbose) {
               printf("fake it (path=/dev/null)\n");
             }
+            _experiment_name = "e1";
             _experiment_number = 1;
         } else {
-            _experiment_number = 0;
             conn = LogBook::Connection::open(path);
             if (conn == NULL) {
               fprintf(stderr, "LogBook::Connection::connect() failed\n");
@@ -115,21 +115,34 @@ OfflineClient::OfflineClient(const char* path, const char* instrument_name, unsi
             // get current experiment
             std::string instrument = _instrument_name;
             
-            conn->getCurrentExperiment(_experiment_descr, instrument, _station_number);
-
-            _experiment_name = _experiment_descr.name.c_str();
-            _experiment_number = _experiment_descr.id;
-
+            if (conn->getCurrentExperiment(_experiment_descr, instrument, _station_number)) {
+              _experiment_name = _experiment_descr.name.c_str();
+              _experiment_number = _experiment_descr.id;
+            } else {
+              fprintf (stderr, "%s: No experiment found for instrument %s:%u\n",
+                       __FUNCTION__, _instrument_name, _station_number);
+              _experiment_name = OFFLINECLIENT_DEFAULT_EXPNAME;
+              _experiment_number = OFFLINECLIENT_DEFAULT_EXPNUM;
+            }
+        } else {
+            _experiment_name = OFFLINECLIENT_DEFAULT_EXPNAME;
+            _experiment_number = OFFLINECLIENT_DEFAULT_EXPNUM;
         }
 
     } catch (const LogBook::ValueTypeMismatch& e) {
       fprintf (stderr, "Parameter type mismatch %s:\n", e.what());
+      _experiment_name = OFFLINECLIENT_DEFAULT_EXPNAME;
+      _experiment_number = OFFLINECLIENT_DEFAULT_EXPNUM;
 
     } catch (const LogBook::WrongParams& e) {
       fprintf (stderr, "Problem with parameters %s:\n", e.what());
+      _experiment_name = OFFLINECLIENT_DEFAULT_EXPNAME;
+      _experiment_number = OFFLINECLIENT_DEFAULT_EXPNUM;
     
     } catch (const LogBook::DatabaseError& e) {
       fprintf (stderr, "Database operation failed: %s\n", e.what());
+      _experiment_name = OFFLINECLIENT_DEFAULT_EXPNAME;
+      _experiment_number = OFFLINECLIENT_DEFAULT_EXPNUM;
     }
 
     if (conn != NULL) {
@@ -138,8 +151,8 @@ OfflineClient::OfflineClient(const char* path, const char* instrument_name, unsi
     }
 
     if (_verbose) {
-      printf ("OfflineClient(): experiment %s/%s (#%d) \n",
-              _instrument_name, _experiment_name, _experiment_number);
+      printf ("%s: instrument %s:%u experiment %s (#%d) \n", __FUNCTION__,
+              _instrument_name, _station_number, _experiment_name, _experiment_number);
     }
 }
 
@@ -350,8 +363,8 @@ int OfflineClient::reportOpenFile (int expt, int run, int stream, int chunk, std
   }
 
   if (-1 == returnVal) {
-    printf("Error reporting open file expt %d run %d stream %d chunk %d\n",
-	   expt, run, stream, chunk);
+    fprintf(stderr, "Error reporting open file expt %d run %d stream %d chunk %d\n",
+            expt, run, stream, chunk);
   }
 
   return (returnVal);

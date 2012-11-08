@@ -5,6 +5,9 @@
 #include <vector>
 #include "LogBook/Connection.h"
 
+#define OFFLINECLIENT_DEFAULT_EXPNAME ((char *)NULL)
+#define OFFLINECLIENT_DEFAULT_EXPNUM  0
+
 namespace Pds {
 
   class OfflineClient {
