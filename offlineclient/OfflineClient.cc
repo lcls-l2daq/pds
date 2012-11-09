@@ -87,67 +87,49 @@ OfflineClient::OfflineClient(const char* path, const char* instrument_name, unsi
     _station_number(station),
     _verbose(verbose)
 {
+    bool success = false;
     if (_verbose) {
       printf("entered OfflineClient(path=%s, instr=%s, station=%u)\n", _path, _instrument_name, _station_number);
     }
-
-    // translate experiment name to experiment number
     LogBook::Connection * conn = NULL;
-
     try {
-        if (strcmp(path, "/dev/null") == 0) {
-            if (_verbose) {
-              printf("fake it (path=/dev/null)\n");
-            }
-            _experiment_name = "e1";
-            _experiment_number = 1;
+      conn = LogBook::Connection::open(path);
+      if (conn == NULL) {
+        fprintf(stderr, "LogBook::Connection::connect() failed\n");
+      } else {
+        // begin transaction
+        conn->beginTransaction();
+
+        // get current experiment
+        std::string instrument = _instrument_name;
+        
+        if (conn->getCurrentExperiment(_experiment_descr, instrument, _station_number)) {
+          _experiment_name = _experiment_descr.name.c_str();
+          _experiment_number = _experiment_descr.id;
+          success = true;
         } else {
-            conn = LogBook::Connection::open(path);
-            if (conn == NULL) {
-              fprintf(stderr, "LogBook::Connection::connect() failed\n");
-            }
+          fprintf (stderr, "%s: No experiment found for instrument %s:%u\n",
+                   __FUNCTION__, _instrument_name, _station_number);
         }
-
-        if (conn != NULL) {
-            // begin transaction
-            conn->beginTransaction();
-
-            // get current experiment
-            std::string instrument = _instrument_name;
-            
-            if (conn->getCurrentExperiment(_experiment_descr, instrument, _station_number)) {
-              _experiment_name = _experiment_descr.name.c_str();
-              _experiment_number = _experiment_descr.id;
-            } else {
-              fprintf (stderr, "%s: No experiment found for instrument %s:%u\n",
-                       __FUNCTION__, _instrument_name, _station_number);
-              _experiment_name = OFFLINECLIENT_DEFAULT_EXPNAME;
-              _experiment_number = OFFLINECLIENT_DEFAULT_EXPNUM;
-            }
-        } else {
-            _experiment_name = OFFLINECLIENT_DEFAULT_EXPNAME;
-            _experiment_number = OFFLINECLIENT_DEFAULT_EXPNUM;
-        }
-
+      }
     } catch (const LogBook::ValueTypeMismatch& e) {
       fprintf (stderr, "Parameter type mismatch %s:\n", e.what());
-      _experiment_name = OFFLINECLIENT_DEFAULT_EXPNAME;
-      _experiment_number = OFFLINECLIENT_DEFAULT_EXPNUM;
 
     } catch (const LogBook::WrongParams& e) {
       fprintf (stderr, "Problem with parameters %s:\n", e.what());
-      _experiment_name = OFFLINECLIENT_DEFAULT_EXPNAME;
-      _experiment_number = OFFLINECLIENT_DEFAULT_EXPNUM;
     
     } catch (const LogBook::DatabaseError& e) {
       fprintf (stderr, "Database operation failed: %s\n", e.what());
-      _experiment_name = OFFLINECLIENT_DEFAULT_EXPNAME;
-      _experiment_number = OFFLINECLIENT_DEFAULT_EXPNUM;
     }
 
     if (conn != NULL) {
         // close connection
         delete conn ;
+    }
+
+    if (!success) {
+      _experiment_name = OFFLINECLIENT_DEFAULT_EXPNAME;
+      _experiment_number = OFFLINECLIENT_DEFAULT_EXPNUM;
     }
 
     if (_verbose) {
