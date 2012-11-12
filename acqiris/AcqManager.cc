@@ -432,7 +432,9 @@ public:
     _config.dump();
 
     // non-SAR mode
-    _check("AcqrsD1_configMemory",AcqrsD1_configMemory(_instrumentId, _config.horiz().nbrSamples(), _config.horiz().nbrSegments()));
+    if (_check("AcqrsD1_configMemory",
+               AcqrsD1_configMemory(_instrumentId, _config.horiz().nbrSamples(), _config.horiz().nbrSegments()),
+               msg)) _nerror++;
     uint32_t nbrSamples,nbrSegments;
     // JT 11/9/09: This is a hack to remove "type-punned" warnings.
     AcqrsD1_getMemory(_instrumentId, (ViInt32*)(void*)&nbrSamples, (ViInt32*)(void*)&nbrSegments);
@@ -464,9 +466,10 @@ public:
     // this ends up being the same for all channels in a multi-instrument.
     uint32_t nbrConvertersPerChannel, usedChannels;
     usedChannels = _config.channelMask()&0xf;
-    _check("AcqrsD1_configChannelCombination",
-           AcqrsD1_configChannelCombination(_instrumentId,_config.nbrConvertersPerChannel(),
-                                            usedChannels));
+    if (_check("AcqrsD1_configChannelCombination",
+               AcqrsD1_configChannelCombination(_instrumentId,_config.nbrConvertersPerChannel(),
+                                                usedChannels),
+               msg)) _nerror++;
     AcqrsD1_getChannelCombination(_instrumentId, (ViInt32*)(void*)&nbrConvertersPerChannel,
                                   (ViInt32*)(void*)&usedChannels);
     if (nbrConvertersPerChannel != _config.nbrConvertersPerChannel()) {
@@ -490,9 +493,11 @@ public:
     for (unsigned i=0;i<32;i++) {
       uint32_t channelMask = _config.channelMask();
       if (channelMask&(1<<i)) {
-        _check("AcqrsD1_configVertical",AcqrsD1_configVertical(_instrumentId, i+1, _config.vert(nchan).fullScale(),
-                                      _config.vert(nchan).offset(), _config.vert(nchan).coupling(),
-                                      _config.vert(nchan).bandwidth()));
+        if (_check("AcqrsD1_configVertical",
+                   AcqrsD1_configVertical(_instrumentId, i+1, _config.vert(nchan).fullScale(),
+                                          _config.vert(nchan).offset(), _config.vert(nchan).coupling(),
+                                          _config.vert(nchan).bandwidth()),
+                   msg)) _nerror++;
         AcqrsD1_getVertical(_instrumentId, i+1, (ViReal64*)&fullScale,
                             (ViReal64*)&offset, (ViInt32*)(void*)&coupling,
                             (ViInt32*)(void*)&bandwidth);
@@ -527,12 +532,13 @@ public:
     // Need to configure horizontal after the vertical, because some horizontal
     // settings (like fast 8GHz sampling) require the correct channel combinations first,
     // otherwise the driver will complain.
-    _check("AcqrsD1_configHorizontal",
-           AcqrsD1_configHorizontal(_instrumentId, _config.horiz().sampInterval(),
-                                    _config.horiz().delayTime()));
+    if (_check("AcqrsD1_configHorizontal",
+               AcqrsD1_configHorizontal(_instrumentId, _config.horiz().sampInterval(),
+                                        _config.horiz().delayTime()),
+               msg)) _nerror++;
     double sampInterval,delayTime;
     AcqrsD1_getHorizontal(_instrumentId, (ViReal64*)&sampInterval,
-                        (ViReal64*)&delayTime);
+                          (ViReal64*)&delayTime);
     if (fabs(sampInterval-_config.horiz().sampInterval())>epsilon) {
       printf("*** Requested %e fullscale, received %e\n",
              _config.horiz().sampInterval(),sampInterval);
@@ -548,7 +554,9 @@ public:
 
     // only support edge-trigger (no "TV trigger" for DC282)
     unsigned srcPattern = _generateTrigPattern(_config.trig().input());
-    _check("AcqrsD1_configTrigClass",AcqrsD1_configTrigClass(_instrumentId, 0, srcPattern, 0, 0, 0.0, 0.0));
+    if (_check("AcqrsD1_configTrigClass",
+               AcqrsD1_configTrigClass(_instrumentId, 0, srcPattern, 0, 0, 0.0, 0.0),
+               msg)) _nerror++;
     uint32_t trigClass,srcPatternOut,junk;
     double djunk;
     AcqrsD1_getTrigClass(_instrumentId, (ViInt32*)(void*)&trigClass, (ViInt32*)(void*)&srcPatternOut, (ViInt32*)(void*)&junk,
@@ -564,9 +572,11 @@ public:
       msg->append("Incorrect src pattern\n");
     }
 
-    _check("AcqrsD1_configTrigSource",AcqrsD1_configTrigSource(_instrumentId, _config.trig().input(),
-                                    _config.trig().coupling(), _config.trig().slope(),
-                                    _config.trig().level()*1000.0, 0.0));
+    if (_check("AcqrsD1_configTrigSource",
+               AcqrsD1_configTrigSource(_instrumentId, _config.trig().input(),
+                                        _config.trig().coupling(), _config.trig().slope(),
+                                        _config.trig().level()*1000.0, 0.0),
+               msg)) _nerror++;
     uint32_t slope;
     double level;
     AcqrsD1_getTrigSource(_instrumentId, _config.trig().input(),
@@ -643,13 +653,16 @@ private:
     }
     return srcPattern;
   }
-  void _check(const char* routine, ViStatus status) {
+  bool _check(const char* routine, ViStatus status, UserMessage* msg=0) {
     if(status != VI_SUCCESS)
       {
         char message[256];
         AcqrsD1_errorMessage(_instrumentId,status,message);
         printf("%s: %s\n",routine,message);
+        if (msg) msg->append(message);
+        return true;
       }
+    return false;
   }
 private:
   AcqReader& _reader;  
