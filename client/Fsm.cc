@@ -5,6 +5,15 @@
 
 #include <stdlib.h>
 
+namespace Pds {
+  class Pass : public Response {
+  public:
+    Pass() {}
+  public:
+    Occurrence* fire(Occurrence* occ) { return occ; }
+  };
+}
+
 using namespace Pds;
 
 const char* Fsm::_stateName()
@@ -27,6 +36,7 @@ Fsm::Fsm() :
   for (i=0;i<OccurrenceId::NumberOf;i++) {
     _response[i] = _defaultResponse;
   }
+  _response[OccurrenceId::EvrCommand] = new Pass;
 }
 
 Fsm::~Fsm() {

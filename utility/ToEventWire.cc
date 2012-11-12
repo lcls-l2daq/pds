@@ -36,7 +36,8 @@ Transition* ToEventWire::forward(Transition* tr)
 
 Occurrence* ToEventWire::forward(Occurrence* tr)
 {
-  _collection.ucast(*tr,_occurrences);
+  if (tr->id() != OccurrenceId::EvrCommand)
+    _collection.ucast(*tr,_occurrences);
   return 0;
 }
 
