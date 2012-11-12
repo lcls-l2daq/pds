@@ -8,12 +8,28 @@
 #define OFFLINECLIENT_DEFAULT_EXPNAME ((char *)NULL)
 #define OFFLINECLIENT_DEFAULT_EXPNUM  0
 
+
 namespace Pds {
+
+  class PartitionDescriptor {
+  public:
+    PartitionDescriptor(const char *name);
+    std::string GetPartitionName();
+    std::string GetInstrumentName();
+    unsigned int GetStationNumber();
+    bool valid();
+
+  private:
+    std::string _partition_name;
+    std::string _instrument_name;
+    unsigned int _station_number;
+    bool _valid;
+  };
 
   class OfflineClient {
   public:
     OfflineClient(const char *path, const char *instrument, const char *experiment);
-    OfflineClient(const char *path, const char *instrument, unsigned station, bool verbose=true);
+    OfflineClient(const char* path, PartitionDescriptor& pd, bool verbose=true);
     int AllocateRunNumber(unsigned int *runNumber);
     int BeginNewRun(int runNumber);
     int reportOpenFile (int expt, int run, int stream, int chunk, std::string& host, std::string& dirpath, bool ffb=false);
@@ -23,6 +39,7 @@ namespace Pds {
     const char * GetInstrumentName();
     const char * GetPath();
     unsigned int GetStationNumber();
+
   private:
     const char * _path;
     const char * _instrument_name;
