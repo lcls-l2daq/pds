@@ -9,6 +9,10 @@ namespace Pds {
   class QuartzCamera: public CameraBase {
   public:
     QuartzCamera(const DetInfo& src);  // identifies Quartz model (2A340, 4A150, 4A180)
+
+    enum CLMode { Base, Medium, Full };
+    QuartzCamera(const DetInfo& src, CLMode);
+
     ~QuartzCamera();
   public:
     void set_config_data  ( const void*);
@@ -38,6 +42,7 @@ namespace Pds {
   private:
     const DetInfo _src;
     const QuartzConfigType* _inputConfig;
+    unsigned _max_taps;
   };
 }
 

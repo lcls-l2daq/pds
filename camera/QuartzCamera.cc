@@ -25,8 +25,22 @@ using namespace Pds;
 
 QuartzCamera::QuartzCamera(const DetInfo& src) :
   _src        (src),
+  _inputConfig(0),
+  _max_taps   (MAX_TAPS)
+{
+}
+
+QuartzCamera::QuartzCamera(const DetInfo& src,
+                           CLMode mode) :
+  _src        (src),
   _inputConfig(0)
 {
+  switch(mode) {
+  case Base  : _max_taps=2; break;
+  case Medium: _max_taps=4; break;
+  case Full  : _max_taps=8; break;
+  default    : _max_taps=MAX_TAPS; break;
+  }
 }
 
 QuartzCamera::~QuartzCamera()
@@ -357,10 +371,10 @@ int  QuartzCamera::camera_depth () const { return _inputConfig ? _inputConfig->o
 int  QuartzCamera::camera_taps  () const { 
   if (_inputConfig && 
       _inputConfig->output_resolution_bits()>8 &&
-      MAX_TAPS>4)
+      _max_taps>4)
     return 4;
 
-  return MAX_TAPS;
+  return _max_taps;
 }
 
 const char* QuartzCamera::camera_name() const 
