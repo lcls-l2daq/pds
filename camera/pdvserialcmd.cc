@@ -23,7 +23,7 @@
 
 static void help(const char* p)
 {
-  printf("Usage: %s [--baud <baudrate>] [--channel <channel>]\n",p);
+  printf("Usage: %s [--baud <baudrate>] [--unit <unit>] [--channel <channel>]\n",p);
 }
 
 static EdtDev* _setup(int unit, int channel)
@@ -191,6 +191,7 @@ int main(int argc, char *argv[])
     memset(pReceiveBuffer,0,RECEIVEBUFFER_SIZE);
 
     int baud = 9600;
+    int unit    = 0;
     int channel = 0;
 
     // Parse arguments
@@ -200,6 +201,8 @@ int main(int argc, char *argv[])
             return 0;
         } else if (strcmp(argv[i], "--baud") == 0) {
           baud = atoi(argv[++i]);
+        } else if (strcmp(argv[i], "--unit") == 0) {
+          unit = atoi(argv[++i]);
         } else if (strcmp(argv[i], "--channel") == 0) {
           channel = atoi(argv[++i]);
         } else {
@@ -208,7 +211,6 @@ int main(int argc, char *argv[])
         }
     }
 
-    int unit=0;
 #if 1     // Assume Opal1k
     EdtDev* pdv_p = _setup(unit, channel);
 #else
