@@ -48,6 +48,12 @@ PrincetonServer::PrincetonServer(int iCamera, bool bDelayMode, bool bInitTest, c
 
 PrincetonServer::~PrincetonServer()
 {   
+  /*
+   * Note: This function may be called by the signal handler, and need to be finished quickly
+   */
+  if (_hCam == -1)
+    return;
+   
   /* Stop the acquisition if any */
   rs_bool bStatus = 
     pl_exp_abort(_hCam, CCS_HALT);
