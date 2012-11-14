@@ -29,7 +29,7 @@ namespace Pds {
   class OfflineClient {
   public:
     OfflineClient(const char *path, const char *instrument, const char *experiment);
-    OfflineClient(const char* path, PartitionDescriptor& pd, bool verbose=true);
+    OfflineClient(const char* path, PartitionDescriptor pd, bool verbose=true);
     int AllocateRunNumber(unsigned int *runNumber);
     int BeginNewRun(int runNumber);
     int reportOpenFile (int expt, int run, int stream, int chunk, std::string& host, std::string& dirpath, bool ffb=false);
