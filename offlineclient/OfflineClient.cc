@@ -224,7 +224,7 @@ int OfflineClient::AllocateRunNumber(unsigned int *runNumber) {
       *runNumber = _run_number = 0;
       returnVal = 0;  // OK
     } else {
-      printf("Allocating run number\n");
+      printf("Allocating run number (instrument '%s:%u', experiment '%s')\n", _instrument_name, _station_number, _experiment_name);
       try {
         conn = LogBook::Connection::open(_path);
 
