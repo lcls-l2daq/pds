@@ -89,6 +89,7 @@ int main(int argc, char *argv[])
   char *dest_host = NULL;
   char *strport;
   int  grabberid  = 0;
+  int  channel  = 0;
   int dest_port   = CAMSTREAM_DEFAULT_PORT;
   struct sockaddr_in dest_addr;
   struct hostent *dest_info;
@@ -111,6 +112,10 @@ int main(int argc, char *argv[])
     } else if( strcmp("--grabber", argv[i]) == 0 ) {
       grabberid = atoi(argv[++i]);
    	  printf( "Use grabber %d\n", grabberid );
+      printf( "\n" );
+    } else if( strcmp("--channel", argv[i]) == 0 ) {
+      channel = atoi(argv[++i]);
+   	  printf( "Use channel %d\n", channel );
       printf( "\n" );
     } else if( strcmp("--testpat", argv[i]) == 0 ) {
        // Currently only valid for the Opal1K and Quartz camera!
@@ -165,6 +170,7 @@ int main(int argc, char *argv[])
   // verbose > 2
   level |= PDVLIB_MSG_INFO_2;
 
+  level = 0;
   edt_msg_set_level(edt_msg_default_handle(), level);
 
   printf( "Preparing camera...\n" );
@@ -238,14 +244,14 @@ int main(int argc, char *argv[])
   case 3:
     {
       DetInfo info(0,DetInfo::NoDetector,0,DetInfo::Quartz4A150,0);
-      QuartzCamera* oCamera = new QuartzCamera(info);
-      QuartzConfigType* Config = new QuartzConfigType( 32, 100, 
+      QuartzCamera* oCamera = new QuartzCamera(info,QuartzCamera::Base);
+      QuartzConfigType* Config = new QuartzConfigType(  4, 100, 
 						       bitsperpixel==8 ? QuartzConfigType::Eight_bit : 
 						       QuartzConfigType::Ten_bit,
 						       QuartzConfigType::x1,
 						       QuartzConfigType::x1,
 						       QuartzConfigType::None,
-						       true);
+						       false);
       
       oCamera->set_config_data(Config);
       pCamera = oCamera;
@@ -270,7 +276,7 @@ int main(int argc, char *argv[])
     }
   }
 
-  EdtPdvCL* pDriver = new EdtPdvCL( *pCamera, grabberid, 0 );
+  EdtPdvCL* pDriver = new EdtPdvCL( *pCamera, grabberid, channel );
 
   /* Configure the camera */
   printf("Configuring camera ... "); 

@@ -230,7 +230,14 @@ int QuartzCamera::configure(CameraDriver& driver,
   //
   //     LVAL gap (clks) : 
 
-  SetParameters("Output Format","OFRM",camera_taps(),4);
+  unsigned lval_gap;
+  switch(camera_taps()) {
+  case 2:  lval_gap = 128; break;
+  case 8:
+  default: lval_gap =   4; break;
+  }
+
+  SetParameters("Output Format","OFRM",camera_taps(),lval_gap);
 
   setTestPattern( driver, false );
   //  setTestPattern( driver, true );
@@ -276,7 +283,7 @@ int QuartzCamera::configure(CameraDriver& driver,
   // Continuous Mode
   SetParameter ("Operating Mode","MO",0);
   SetParameter ("Frame Period","FP",
-	        100000/(unsigned long)config.FramesPerSec);
+	        1000000/(unsigned long)config.FramesPerSec);
   SetParameter ("Integration Time","IT",
 	        config.ShutterMicroSec/10);
 #else
@@ -307,7 +314,7 @@ int QuartzCamera::setContinuousMode( CameraDriver& driver, double fps )
   char szResponse[SZCOMMAND_MAXLEN];
   int ret;
 
-  unsigned _mode=0, _fps=unsigned(100000/fps), _it=_fps-10;
+  unsigned _mode=0, _fps=unsigned(1000000/fps), _it=_fps-100;
   SetParameter ("Operating Mode","MO",_mode);
   SetParameter ("Frame Period","FP",_fps);
   // SetParameter ("Frame Period","FP",813);
@@ -332,6 +339,16 @@ bool QuartzCamera::validate(Pds::FrameServerMsg& msg)
 #if 1
   //  Allow single frame drops
   CurrentCount = Count;
+
+  /*
+  printf("Camera frame number(%d) : Server number(%d)\n",
+         CurrentCount, msg.count);
+  printf("  width (%d), height (%d), depth (%d) extent (%d)\n",
+         msg.width, msg.height, msg.depth, msg.extent);
+  const uint32_t* p = reinterpret_cast<const uint32_t*>(msg.data);
+  printf("  data (%p) : %08x %08x %08x %08x\n", msg.data,
+         p[0], p[1], p[2], p[3]);
+  */
   if (CurrentCount != msg.count+LastCount) {
     printf("Camera frame number(%d) != Server number(%d)\n",
            CurrentCount, msg.count+LastCount);
