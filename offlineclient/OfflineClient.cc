@@ -87,12 +87,11 @@ OfflineClient::OfflineClient(const char* path, const char* instrument_name, cons
     LogBook::Connection * conn = NULL;
 
     try {
-        _experiment_number = 0;
         if (strcmp(path, "/dev/null") == 0) {
             printf("fake it (path=/dev/null)\n");
             _experiment_number = 1;
-            found = true;
         } else {
+            _experiment_number = 0;
             conn = LogBook::Connection::open(path);
             if (conn == NULL) {
                 printf("LogBook::Connection::connect() failed\n");
@@ -107,7 +106,9 @@ OfflineClient::OfflineClient(const char* path, const char* instrument_name, cons
             std::string instrument = _instrument_name;
             std::vector<LogBook::ExperDescr> experiments;
 
+
             conn->getExperiments(experiments, instrument);
+            conn->getCurrentExperiment(_experiment_descr, instrument, _station_number);
 
             for (size_t ii = 0 ; ii < experiments.size(); ii++) {
                 if (experiments[ii].name.compare(_experiment_name) == 0) {
@@ -133,19 +134,14 @@ OfflineClient::OfflineClient(const char* path, const char* instrument_name, cons
         delete conn ;
     }
 
-    if (!found) {
-      printf ("OfflineClient(): experiment %s:%u/%s not found\n",
-              _instrument_name, _station_number, _experiment_name);
-    }
-
-    printf ("OfflineClient(): experiment %s:%u/%s (#%d) \n",
-            _instrument_name, _station_number, _experiment_name, _experiment_number);
+    printf ("OfflineClient(): experiment %s/%s (#%d) \n",
+            _instrument_name, _experiment_name, _experiment_number);
 }
 
 //
 // OfflineClient (current experiment name retrieved from database)
 //
-OfflineClient::OfflineClient(const char* path, PartitionDescriptor pd, bool verbose) :
+OfflineClient::OfflineClient(const char* path, PartitionDescriptor& pd, bool verbose) :
     _path (path),
     _instrument_name (pd.GetInstrumentName().c_str()),
     _station_number(pd.GetStationNumber()),
