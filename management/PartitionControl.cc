@@ -294,7 +294,7 @@ bool PartitionControl::set_partition(const char* name,
                                      const char* dbpath,
                                      const Node* nodes,
                                      unsigned    nnodes,
-                                     unsigned    bldmask)
+                                     uint64_t    bldmask)
 {
   _partition = Allocation(name,dbpath,partitionid(),bldmask);
   for(unsigned k=0; k<nnodes; k++)

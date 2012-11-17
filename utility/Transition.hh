@@ -50,14 +50,14 @@ namespace Pds {
   public:
     Allocation();
     Allocation(const char* partition,
-         const char* dbpath,
-         unsigned    partitionid,
-               unsigned    bld_mask=0);
+               const char* dbpath,
+               unsigned    partitionid,
+               uint64_t    bld_mask=0);
     Allocation(const char* partition,
-         const char* dbpath,
-         unsigned    partitionid,
-         const Sequence&,
-               unsigned    bld_mask=0);
+               const char* dbpath,
+               unsigned    partitionid,
+               const Sequence&,
+               uint64_t    bld_mask=0);
 
     bool add(const Node& node);
 
@@ -67,7 +67,7 @@ namespace Pds {
     const char* partition() const;
     const char* dbpath() const;
     unsigned    partitionid() const;
-    unsigned    bld_mask() const;
+    uint64_t    bld_mask() const;
     unsigned    size() const;
   private:
     static const unsigned MaxNodes=128;
@@ -76,7 +76,7 @@ namespace Pds {
     char     _partition[MaxName];
     char     _dbpath   [MaxDbPath];
     uint32_t _partitionid;
-    uint32_t _bld_mask;
+    uint32_t _bld_mask[2];
     uint32_t _nnodes;
     Node     _nodes[MaxNodes];
   };

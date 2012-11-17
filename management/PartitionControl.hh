@@ -32,7 +32,7 @@ namespace Pds {
 			    const char* db_path,
 			    const Node* nodes,
 			    unsigned    nnodes,
-                            unsigned    bld_mask);
+                            uint64_t    bld_mask);
     const Allocation& partition() const;
   public:
     virtual void  set_target_state (State);
