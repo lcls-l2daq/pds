@@ -12,6 +12,8 @@
 #include "pds/service/Semaphore.hh"
 #include "pdsdata/xtc/DetInfo.hh"
 
+#include <time.h>
+
 //  library routine declaration missing from edt header files
 extern "C" {
   int  pdv_update_size(PdvDev *);
@@ -143,7 +145,7 @@ EdtPdvCL::EdtPdvCL(CameraBase& camera, int unit, int channel) :
   _acq     (new EdtReader(this, new Task(TaskObject("edtacq")))),
   _fsrv    (0),
   _app     (0),
-  _occPool (new GenericPool(sizeof(Occurrence),1)),
+  _occPool (new GenericPool(sizeof(Occurrence),4)),
   _hsignal ("CamSignal")
 {
 
