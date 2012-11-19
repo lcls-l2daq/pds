@@ -379,6 +379,7 @@ public:
   Transition* fire(Transition* tr) 
   { 
     _cfg.fetch(tr);
+    _cfg.configure(); // added by Tomy
 
     if (_fifo_handler)
       _fifo_handler->config(tr);
