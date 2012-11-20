@@ -113,7 +113,7 @@ void SourceLevel::_verify_partition(const Node& hdr, const Allocation& alloc)
 void SourceLevel::_assign_partition(const Node& hdr, const Ins& dst)
 {
 #if 1
-  partition = hdr.platform();
+  unsigned partition = hdr.platform();
 #else
   unsigned partition = MaxPartitions();
   for(unsigned p=0; p<MaxPartitions(); p++) {
