@@ -112,12 +112,16 @@ void SourceLevel::_verify_partition(const Node& hdr, const Allocation& alloc)
 
 void SourceLevel::_assign_partition(const Node& hdr, const Ins& dst)
 {
+#if 1
+  partition = hdr.platform();
+#else
   unsigned partition = MaxPartitions();
   for(unsigned p=0; p<MaxPartitions(); p++) {
     if (_control[p].node()==hdr) { partition = p; break; }
     if (_control[p].node()==UnassignedNode || 
 	_control[p].allocation().nnodes()==0) { partition = p; }
   }
+#endif
   if (partition == MaxPartitions()) 
     printf("*** warning: no partitions available for control %x/%d\n",
 	   hdr.ip(), hdr.pid());
@@ -159,6 +163,7 @@ void SourceLevel::message(const Node& hdr, const Message& msg)
       in_addr ip; ip.s_addr = htonl(hdr.ip());
       printf("*** warning: another source level running on %s pid %d\n",
 	     inet_ntoa(ip), hdr.pid());
+      exit(1);
     }
   }
   else {
@@ -179,6 +184,12 @@ void SourceLevel::message(const Node& hdr, const Message& msg)
 			    (query).allocation());
 	}
       }
+      printf("Request %s from {%s, platform %d, group %d, pid %d, uid %d, ip %08x}\n",
+             msg.type_name(), 
+             Level::name(hdr.level()), 
+             hdr.platform(), hdr.group(), 
+             hdr.pid(), hdr.uid(), hdr.ip());
+      dump();
     }
     else if (msg.type() == Message::Query) {
       const Query& query = reinterpret_cast<const Query&>(msg);
