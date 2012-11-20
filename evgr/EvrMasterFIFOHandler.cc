@@ -98,7 +98,7 @@ EvrMasterFIFOHandler::EvrMasterFIFOHandler(Evr&       er,
   _evtStop            (0), 
   _lastfid            (0),
   _iMaxGroup          (iMaxGroup),
-  _uReadout           (0),
+  _uMaskReadout           (0),
   _pEvrConfig         (NULL),
   _L1DataUpdated      ( *(EvrDataUtil*) new char[ EvrDataUtil::size( giMaxNumFifoEvent ) ]  ),
   _L1DataLatchQ       ( *(EvrDataUtil*) new char[ EvrDataUtil::size( giMaxNumFifoEvent ) ]  ),
@@ -159,7 +159,7 @@ void EvrMasterFIFOHandler::fifo_event(const FIFOEvent& fe)
      
   if (fe.EventCode == TERMINATOR) {            
     // TERMINATOR will not be stored in the event code list
-    if (_uReadout != 0 || _ncommands) 
+    if (_uMaskReadout != 0 || _ncommands) 
       {        
         if (fe.TimestampHigh == 0 && uFiducialPrev < 0x1fe00) // Illegal fiducial wrap-around
           printf("EvrMasterFIFOHandler::xmit(): [%d] Call startL1Accept() with vector %d fiducial 0x%x prev 0x%x last 0x%x timeLow 0x%x\n", 
@@ -183,12 +183,12 @@ void EvrMasterFIFOHandler::fifo_event(const FIFOEvent& fe)
       return;
     }
     
-  if ( codeState.iReadout != 0 ) 
+  if ( codeState.uMaskReadout != 0 ) 
     {
       addFifoEventCheck( _L1DataUpdated, *(const EvrDataType::FIFOEvent*) &fe );      
       _lastFiducial = fe.TimestampHigh;
-      _uReadout |= 1 << (codeState.iReadout-1);
-      //printf("event %d readout [%d]\n", uEventCode, codeState.iReadout-1);//!!!debug
+      _uMaskReadout |= codeState.uMaskReadout;
+      //printf("event %d readout [0x%x]\n", uEventCode, codeState.uMaskReadout);//!!!debug
       return;
     }
 
@@ -450,7 +450,7 @@ void        EvrMasterFIFOHandler::set_config  (const EvrConfigType* pEvrConfig)
         }
       
       EventCodeState& codeState = _lEventCodeState[eventCode.code()];
-      codeState.iReadout        = (eventCode.isReadout() ? eventCode.readoutGroup()+1: 0);
+      codeState.uMaskReadout    |= (eventCode.isReadout() ? (1<<eventCode.readoutGroup()): 0);
       codeState.bCommand        = eventCode.isCommand   ();
       codeState.iDefReportDelay = eventCode.reportDelay ();
       if (eventCode.isLatch())
@@ -458,10 +458,11 @@ void        EvrMasterFIFOHandler::set_config  (const EvrConfigType* pEvrConfig)
       else
         codeState.iDefReportWidth = eventCode.reportWidth ();             
 
-      printf("EventCode %d  readout %c group %d command %c  latch %c  delay %d  width %d\n",
+      printf("EventCode %d  readout %c group %d mask 0x%x command %c  latch %c  delay %d  width %d\n",
              eventCode.code(),
              eventCode.isReadout() ? 'Y':'n',
              eventCode.readoutGroup(),
+             codeState.uMaskReadout,
              eventCode.isCommand() ? 'Y':'n',
              eventCode.isLatch  () ? 'Y':'n',
              eventCode.reportDelay(),
@@ -503,7 +504,7 @@ void EvrMasterFIFOHandler::startL1Accept(const FIFOEvent& fe, bool bEvrDataIncom
       return;
     }
     
-  if ( !(_uReadout != 0 || _ncommands) )
+  if ( !(_uMaskReadout != 0 || _ncommands) )
     {
       if ( pthread_mutex_unlock(&mutex) )
         printf( "EvrMasterFIFOHandler::startL1Accept(): pthread_mutex_unlock() failed\n" );
@@ -525,7 +526,7 @@ void EvrMasterFIFOHandler::startL1Accept(const FIFOEvent& fe, bool bEvrDataIncom
   ClockTime ctime(ts.tv_sec, ts.tv_nsec);
   TimeStamp stamp(fe.TimestampLow, fe.TimestampHigh, _evtCounter);
 
-  if (_uReadout == 0) 
+  if (_uMaskReadout == 0) 
   {
     Sequence seq(Sequence::Occurrence, TransitionId::Unknown, ctime, stamp);
     EvrDatagram datagram(seq, _evtCounter, _ncommands);
@@ -657,12 +658,12 @@ void EvrMasterFIFOHandler::startL1Accept(const FIFOEvent& fe, bool bEvrDataIncom
        *   race with this thread to get the evr data and send it out immediately.
        */
    
-      _uReadout |= 0x1; // Readout group 0 is always triggered
-      datagram.setL1AcceptEnv(_uReadout);
+      _uMaskReadout |= 0x1; // Readout group 0 is always triggered
+      datagram.setL1AcceptEnv(_uMaskReadout);
       unsigned int uGroupBit = 1;
       for (int iGroup = 0; iGroup <= _iMaxGroup; ++iGroup, uGroupBit <<= 1)      
       {
-        if ( (_uReadout & uGroupBit) != 0 )
+        if ( (_uMaskReadout & uGroupBit) != 0 )
         {
           //printf("sending L1 trigger for group %d\n", iGroup);//!!!debug
           datagram.evr = _lSegEvtCounter[iGroup];
@@ -670,9 +671,9 @@ void EvrMasterFIFOHandler::startL1Accept(const FIFOEvent& fe, bool bEvrDataIncom
           _outlet.send((char *) &datagram, _commands, _ncommands, _ldst[iGroup]);  //!!! for supporting segment group
         }
       }        
-    } // else (_uReadout == 0) 
+    } // else (_uMaskReadout == 0) 
 
-  _uReadout  = 0;  
+  _uMaskReadout  = 0;  
   _ncommands = 0;
     
   if ( pthread_mutex_unlock(&mutex) )
@@ -691,7 +692,7 @@ void EvrMasterFIFOHandler::clear()
       select( 0, NULL, NULL, NULL, &timeSleepMicro);       
     }
     
-  if (_uReadout != 0 || _ncommands) 
+  if (_uMaskReadout != 0 || _ncommands) 
     {
       FIFOEvent fe;
       fe.TimestampHigh    = _lastFiducial;
@@ -724,7 +725,7 @@ void EvrMasterFIFOHandler::nextEnable()
       select( 0, NULL, NULL, NULL, &timeSleepMicro);       
     }
     
-  if (_uReadout != 0 || _ncommands) 
+  if (_uMaskReadout != 0 || _ncommands) 
     {
       FIFOEvent fe;
       fe.TimestampHigh    = _lastFiducial;

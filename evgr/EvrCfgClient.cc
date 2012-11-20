@@ -119,10 +119,6 @@ int EvrCfgClient::fetch(const Transition& tr,
         }
       }
 
-      //if (pdst + tc.size() > 
-      //    reinterpret_cast<char*>(dst) + maxSize 
-      //    + (pt-ptb)*sizeof(EvrConfigType::PulseType)
-      //    + (om-omb)*sizeof(EvrConfigType::OutputMapType)) {
       if (pdst + 
           (et-etb)*sizeof(EvrConfigType::EventCodeType) +
           (pt-ptb)*sizeof(EvrConfigType::PulseType)   +

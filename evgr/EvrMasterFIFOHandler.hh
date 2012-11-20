@@ -71,13 +71,13 @@ namespace Pds {
   private:
     struct EventCodeState
     {
-      int  iReadout;
-      bool bCommand;
-      int  iDefReportDelay;
-      int  iDefReportWidth;  
-      int  iReportWidth;
-      int  iReportDelayQ; // First-order  delay for Control-Transient events
-      int  iReportDelay;  // Second-order delay for Control-Transient events; First-order delay for Control-Latch events
+      uint32_t  uMaskReadout;
+      bool      bCommand;
+      int       iDefReportDelay;
+      int       iDefReportWidth;  
+      int       iReportWidth;
+      int       iReportDelayQ; // First-order  delay for Control-Transient events
+      int       iReportDelay;  // Second-order delay for Control-Transient events; First-order delay for Control-Latch events
     };
   private:
     Evr &                 _er;
@@ -97,7 +97,7 @@ namespace Pds {
     unsigned              _evtStop;
     unsigned              _lastfid;
     int                   _iMaxGroup;
-    unsigned              _uReadout;
+    uint32_t              _uMaskReadout;
     const EvrConfigType*  _pEvrConfig;
     EvrDataUtil&          _L1DataUpdated;     // codes that contribute to the coming L1Accept
     EvrDataUtil&          _L1DataLatchQ;      // codes that contribute to later L1Accepts. Holding first-order transient events.
