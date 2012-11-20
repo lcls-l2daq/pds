@@ -53,13 +53,13 @@ int EvrCfgClient::fetch(const Transition& tr,
     const char* psrc       = _buffer;
     const char* pend       = _buffer+len;
     
-    EvrConfigType::EventCodeType* et = etb;
-    EvrConfigType::PulseType*     pt = ptb;
-    EvrConfigType::OutputMapType* om = omb;
-    unsigned npulses = 0;
-    
     while( psrc < pend ) {
       
+      EvrConfigType::EventCodeType* et = etb;
+      EvrConfigType::PulseType*     pt = ptb;
+      EvrConfigType::OutputMapType* om = omb;
+    
+      unsigned npulses = 0;
       const EvrConfigType& tc = *reinterpret_cast<const EvrConfigType*>(psrc);      
       if (et + tc.neventcodes() >= etb + EvrCodes)
       {
