@@ -7,6 +7,7 @@
 
 #define OFFLINECLIENT_DEFAULT_EXPNAME ((char *)NULL)
 #define OFFLINECLIENT_DEFAULT_EXPNUM  0
+#define OFFLINECLIENT_DEFAULT_STATION 0u
 
 
 namespace Pds {
@@ -28,7 +29,7 @@ namespace Pds {
 
   class OfflineClient {
   public:
-    OfflineClient(const char *path, const char *instrument, const char *experiment);
+    OfflineClient(const char* path, PartitionDescriptor& pd, const char *experiment_name, bool verbose=true);
     OfflineClient(const char* path, PartitionDescriptor& pd, bool verbose=true);
     int AllocateRunNumber(unsigned int *runNumber);
     int BeginNewRun(int runNumber);
@@ -51,6 +52,7 @@ namespace Pds {
     LogBook::ExperDescr _experiment_descr;
     unsigned int _station_number;
     bool _verbose;
+    PartitionDescriptor _pd;
   };
 
 }

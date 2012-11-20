@@ -71,71 +71,93 @@ bool PartitionDescriptor::valid()
 //
 // OfflineClient (current experiment name passed in)
 //
-OfflineClient::OfflineClient(const char* path, const char* instrument_name, const char* experiment_name) :
+//    /**
+//    * Find experiment descriptor of the specified experiment if the one exists
+//    *
+//    * Return 'true' and initialize experiment descripton if there is
+//    * such experiment. Return falase otherwise. In all other cases
+//    * throw an exception.
+//    */
+//  virtual bool getOneExperiment (ExperDescr&        descr,
+//                                 const std::string& instrument,
+//                                 const std::string& experiment) throw (WrongParams,
+//                                                                       DatabaseError) = 0 ;
+//
+//    make this call from anywhere in the DAQ system where you need to resolve the mapping:
+//
+//      {instrument_name,experiment_name} -> {experiment_id}
+//
+OfflineClient::OfflineClient(const char* path, PartitionDescriptor& pd, const char *experiment_name, bool verbose) :
     _path (path),
-    _instrument_name (instrument_name),
     _experiment_name (experiment_name),
-    _station_number(0),
-    _verbose(true)
+    _experiment_number(OFFLINECLIENT_DEFAULT_EXPNUM),
+    _station_number(OFFLINECLIENT_DEFAULT_STATION),
+    _verbose(verbose),
+    _pd(pd)
 {
-    fprintf(stderr, "*** WARNING! _station_number hardcoded to 0 in %s\n", __PRETTY_FUNCTION__); // FIXME
-  
-    bool found = false;
-    printf("entered OfflineClient(path=%s, instr=%s, exp=%s)\n", _path, _instrument_name, _experiment_name);
-
-    // translate experiment name to experiment number
-    LogBook::Connection * conn = NULL;
-
-    try {
-        if (strcmp(path, "/dev/null") == 0) {
-            printf("fake it (path=/dev/null)\n");
-            _experiment_number = 1;
-        } else {
-            _experiment_number = 0;
-            conn = LogBook::Connection::open(path);
-            if (conn == NULL) {
-                printf("LogBook::Connection::connect() failed\n");
-            }
-        }
-
-        if (conn != NULL) {
-            // begin transaction
-            conn->beginTransaction();
-
-            // get current experiment and experiment list
-            std::string instrument = _instrument_name;
-            std::vector<LogBook::ExperDescr> experiments;
-
-
-            conn->getExperiments(experiments, instrument);
-            conn->getCurrentExperiment(_experiment_descr, instrument, _station_number);
-
-            for (size_t ii = 0 ; ii < experiments.size(); ii++) {
-                if (experiments[ii].name.compare(_experiment_name) == 0) {
-                    _experiment_number = (unsigned int) experiments[ii].id;
-                    found = true;
-                    break;
-                }
-            }
-        }
-
-    } catch (const LogBook::ValueTypeMismatch& e) {
-      printf ("Parameter type mismatch %s:\n", e.what());
-
-    } catch (const LogBook::WrongParams& e) {
-      printf ("Problem with parameters %s:\n", e.what());
-    
-    } catch (const LogBook::DatabaseError& e) {
-      printf ("Database operation failed: %s\n", e.what());
+    if (_pd.valid()) {
+      _instrument_name = _pd.GetInstrumentName().c_str();
+      _station_number= _pd.GetStationNumber();
     }
-
-    if (conn != NULL) {
-        // close connection
-        delete conn ;
+    if (_verbose) {
+      printf("entered %s: path='%s', instrument='%s:%u', experiment='%s'\n", __PRETTY_FUNCTION__,
+             _path, _instrument_name, _station_number, _experiment_name);
     }
+    if (_pd.valid()) {
+      // translate experiment name to experiment number
+      LogBook::Connection * conn = NULL;
 
-    printf ("OfflineClient(): experiment %s/%s (#%d) \n",
-            _instrument_name, _experiment_name, _experiment_number);
+      try {
+          if (strcmp(path, "/dev/null") == 0) {
+              if (_verbose) {
+                printf("%s: use experiment #1 (path=/dev/null)\n", __PRETTY_FUNCTION__);
+              }
+              _experiment_number = 1;
+          } else {
+              conn = LogBook::Connection::open(path);
+              if (conn == NULL) {
+                  fprintf(stderr, "LogBook::Connection::connect() failed\n");
+              }
+          }
+
+          if (conn != NULL) {
+              // begin transaction
+              conn->beginTransaction();
+
+              // translate experiment name to experiment number
+              std::string instrument = _instrument_name;
+              std::string experiment = _experiment_name;
+              LogBook::ExperDescr descr;
+              if (conn->getOneExperiment (descr, instrument, experiment)) {
+                // database lookup successful
+                _experiment_number = descr.id;
+              } else {
+                fprintf (stderr, "%s: experiment '%s' not found\n", __PRETTY_FUNCTION__,
+                        _experiment_name);
+              }
+          }
+
+      } catch (const LogBook::ValueTypeMismatch& e) {
+        fprintf (stderr, "Parameter type mismatch %s:\n", e.what());
+
+      } catch (const LogBook::WrongParams& e) {
+        fprintf (stderr, "Problem with parameters %s:\n", e.what());
+      
+      } catch (const LogBook::DatabaseError& e) {
+        fprintf (stderr, "Database operation failed: %s\n", e.what());
+      }
+
+      if (conn != NULL) {
+          // close connection
+          delete conn ;
+      }
+    } else {
+      fprintf(stderr, "%s: partition descriptor not valid\n", __PRETTY_FUNCTION__);
+    }
+    if (_verbose) {
+      printf ("%s: experiment %s/%s (#%d) \n", __PRETTY_FUNCTION__,
+              _instrument_name, _experiment_name, _experiment_number);
+    }
 }
 
 //
@@ -143,18 +165,20 @@ OfflineClient::OfflineClient(const char* path, const char* instrument_name, cons
 //
 OfflineClient::OfflineClient(const char* path, PartitionDescriptor& pd, bool verbose) :
     _path (path),
-    _instrument_name (pd.GetInstrumentName().c_str()),
-    _station_number(pd.GetStationNumber()),
-    _verbose(verbose)
+    _experiment_name(OFFLINECLIENT_DEFAULT_EXPNAME),
+    _experiment_number(OFFLINECLIENT_DEFAULT_EXPNUM),
+    _station_number(OFFLINECLIENT_DEFAULT_STATION),
+    _verbose(verbose),
+    _pd(pd)
 {
+    if (_pd.valid()) {
+      _instrument_name = _pd.GetInstrumentName().c_str();
+      _station_number= _pd.GetStationNumber();
+    }
     if (_verbose) {
       printf("entered OfflineClient(path=%s, instr=%s, station=%u)\n", _path, _instrument_name, _station_number);
     }
-    bool success = false;
-    _experiment_name = OFFLINECLIENT_DEFAULT_EXPNAME;
-    _experiment_number = OFFLINECLIENT_DEFAULT_EXPNUM;
-
-    if (pd.valid()) {
+    if (_pd.valid()) {
       LogBook::Connection * conn = NULL;
       try {
         conn = LogBook::Connection::open(path);
@@ -170,7 +194,6 @@ OfflineClient::OfflineClient(const char* path, PartitionDescriptor& pd, bool ver
           if (conn->getCurrentExperiment(_experiment_descr, instrument, _station_number)) {
             _experiment_name = _experiment_descr.name.c_str();
             _experiment_number = _experiment_descr.id;
-            success = true;
           } else {
             fprintf (stderr, "%s: No experiment found for instrument %s:%u\n",
                      __FUNCTION__, _instrument_name, _station_number);
@@ -191,11 +214,11 @@ OfflineClient::OfflineClient(const char* path, PartitionDescriptor& pd, bool ver
           delete conn ;
       }
       if (_verbose) {
-        printf ("%s: instrument %s:%u experiment %s (#%d) \n", __FUNCTION__,
+        printf ("%s: instrument %s:%u experiment %s (#%d) \n", __PRETTY_FUNCTION__,
                 _instrument_name, _station_number, _experiment_name, _experiment_number);
       }
     } else {
-      printf("%s: partition descriptor not valid\n", __PRETTY_FUNCTION__);
+      fprintf(stderr, "%s: partition descriptor not valid\n", __PRETTY_FUNCTION__);
     }
 }
 
