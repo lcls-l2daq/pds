@@ -145,7 +145,7 @@ EdtPdvCL::EdtPdvCL(CameraBase& camera, int unit, int channel) :
   _acq     (new EdtReader(this, new Task(TaskObject("edtacq")))),
   _fsrv    (0),
   _app     (0),
-  _occPool (new GenericPool(sizeof(Occurrence),4)),
+  _occPool (new GenericPool(sizeof(Occurrence),8)),
   _hsignal ("CamSignal")
 {
 
@@ -459,18 +459,21 @@ void EdtPdvCL::handle(u_char* image_p)
 
   else if (!c.validate(*msg)) {
     _outOfOrder = true;
-
-    Occurrence* occ = new (_occPool)
-      Occurrence(OccurrenceId::ClearReadout);
-    _app->post(occ);
-
-    UserMessage* umsg = new (_occPool)
-      UserMessage;
-    umsg->append("Frame readout error\n");
-    umsg->append(DetInfo::name(static_cast<const DetInfo&>(_fsrv->client())));
-    _app->post(umsg);
-
     msg->damage.increase(Damage::OutOfOrder);
+
+    if (_occPool->numberOfFreeObjects()<2)
+      printf("Out-of-order and occPool is empty!\n");
+    else {
+      Occurrence* occ = new (_occPool)
+        Occurrence(OccurrenceId::ClearReadout);
+      _app->post(occ);
+
+      UserMessage* umsg = new (_occPool)
+        UserMessage;
+      umsg->append("Frame readout error\n");
+      umsg->append(DetInfo::name(static_cast<const DetInfo&>(_fsrv->client())));
+      _app->post(umsg);
+    }
   }
 
   _fsrv->post(msg);
