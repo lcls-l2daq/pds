@@ -224,7 +224,7 @@ public:
       _eg.SeqRamCtrl(ram, enable, single, recycle, reset, trigsel);
     }
     else {
-      int bypass=0, sync=0, div=0, delay=0;
+      int bypass=1, sync=0, div=0, delay=0;
       _eg.SetACInput(bypass, sync, div, delay);
       
       int map = -1;
