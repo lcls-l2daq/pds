@@ -279,9 +279,12 @@ int timepix_dev::warmup(bool init)
     goto warmup_error;
   }
 
-  // set low clock frequency (2.5 MHz)
+  // ASI - TPX clock frequencies on the new board are
+  // 10, 50 and 100 MHz, so no 2.5MHz anymore (Nov 2012)
+
+  // set low clock frequency (10 MHz)
   confReg &= ~MPIX2_CONF_TPX_CLOCK_MASK;
-  confReg |= MPIX2_CONF_TPX_CLOCK_2MHZ5;
+  confReg |= MPIX2_CONF_TPX_CLOCK_10MHZ;
 
   if (_relaxd->writeReg(MPIX2_CONF_REG_OFFSET, confReg)) {
     errString = "writeReg(MPIX2_CONF_REG_OFFSET) failed";
