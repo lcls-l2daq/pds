@@ -51,7 +51,8 @@ Pds::TimepixServer::TimepixServer( const Src& client, unsigned moduleId, unsigne
      _relaxd(NULL),
      _cpu0(cpu0),
      _cpu1(cpu1),
-     _readTaskMutex(new Semaphore(Semaphore::FULL))
+     _readTaskMutex(new Semaphore(Semaphore::FULL)),
+     _threshFileError(false)
 {
   // allocate read tasks and buffers
   for (int ii = 0; ii < ReadThreads; ii++) {
@@ -99,11 +100,13 @@ Pds::TimepixServer::TimepixServer( const Src& client, unsigned moduleId, unsigne
   if (threshFile) {
     FILE* fp = fopen(threshFile, "r");
     if (fp == NULL) {
-      perror("fopen");
+      perror("TimepixServer: fopen bpc");
+      _threshFileError = true;
     } else {
       _pixelsCfg = new uint8_t[TimepixConfigType::PixelThreshMax];
       if (fread(_pixelsCfg, TimepixConfigType::PixelThreshMax, 1, fp) != 1) {
-        perror("fread");
+        perror("TimepixServer: fread bpc");
+        _threshFileError = true;
         delete[] _pixelsCfg;
         _pixelsCfg = NULL;
       }
@@ -315,6 +318,16 @@ unsigned Pds::TimepixServer::configure(TimepixConfigType& config)
       // Set verbose writing to MpxModule's logfile (default = non-verbose)
       _relaxd->setLogVerbose(true);
     }
+  }
+
+  if (_threshFileError) {
+    snprintf(msgBuf, sizeof(msgBuf), "Error reading bpc file '%s'\n", _threshFile);
+    fprintf(stderr, "%s: %s", __PRETTY_FUNCTION__, msgBuf);
+    if (_occSend != NULL) {
+      // send occurrence
+      _occSend->userMessage(msgBuf);
+    }
+    return (1);
   }
 
   // only start receiving frames if init succeeds and sanity check passes

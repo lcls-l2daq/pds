@@ -168,6 +168,7 @@ class Pds::TimepixServer
     int         _cpu0;
     int         _cpu1;
     Semaphore * _readTaskMutex;
+    bool _threshFileError;
 };
 
 #endif
