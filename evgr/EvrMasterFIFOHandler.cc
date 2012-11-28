@@ -653,7 +653,7 @@ void EvrMasterFIFOHandler::startL1Accept(const FIFOEvent& fe, bool bEvrDataIncom
           clock_gettime(CLOCK_REALTIME, &_thisTime);
           long long int nanoseconds = timeDiff(&_thisTime, &_lastTime);
           float rate = 1000.0 / (nanoseconds * 1.e-9);
-          printf("Evr event %d, high/low 0x%x/0x%x, rate(Hz): %7.2f\n",
+          printf("Evr event %d, high/low 0x%05x/0x%x, rate(Hz): %7.2f\n",
                  _evtCounter, fe.TimestampHigh, fe.TimestampLow, rate);
           _lastTime.tv_nsec = _thisTime.tv_nsec;
           _lastTime.tv_sec  = _thisTime.tv_sec;
