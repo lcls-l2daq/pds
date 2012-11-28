@@ -67,6 +67,14 @@ namespace Pds
 
 using namespace Pds;
 
+long long int timeDiff(timespec* end, timespec* start) {
+  long long int diff;
+  diff =  (end->tv_sec - start->tv_sec) * 1000000000LL;
+  diff += end->tv_nsec;
+  diff -= start->tv_nsec;
+  return diff;
+}
+
 static bool evrHasEvent(Evr& er);
 
 /*
@@ -96,7 +104,6 @@ EvrMasterFIFOHandler::EvrMasterFIFOHandler(Evr&       er,
   _poolEvrData        (sizeof(CDatagram) + sizeof(Xtc) + EvrDataUtil::size( giMaxNumFifoEvent ),16),
   _evtCounter         (0), 
   _evtStop            (0), 
-  _lastfid            (0),
   _iMaxGroup          (iMaxGroup),
   _uMaskReadout           (0),
   _pEvrConfig         (NULL),
@@ -526,6 +533,12 @@ void EvrMasterFIFOHandler::startL1Accept(const FIFOEvent& fe, bool bEvrDataIncom
   ClockTime ctime(ts.tv_sec, ts.tv_nsec);
   TimeStamp stamp(fe.TimestampLow, fe.TimestampHigh, _evtCounter);
 
+  if (_evtCounter == 0)
+  {
+    _lastTime.tv_nsec = ts.tv_nsec;
+    _lastTime.tv_sec = ts.tv_sec;
+  }
+
   if (_uMaskReadout == 0) 
   {
     Sequence seq(Sequence::Occurrence, TransitionId::Unknown, ctime, stamp);
@@ -637,15 +650,13 @@ void EvrMasterFIFOHandler::startL1Accept(const FIFOEvent& fe, bool bEvrDataIncom
       static const int NEVENTPRINT = 1000;      
       if (_evtCounter%NEVENTPRINT == 0) 
         {
-          float dfid = (_lastfid < fe.TimestampHigh) ? 
-            fe.TimestampHigh-_lastfid :
-            fe.TimestampHigh+Pds::TimeStamp::MaxFiducials-_lastfid;
-          float period=dfid/(float)(NEVENTPRINT)/360.0;
-          float rate=0.0;
-          if (period>1.e-8) rate=1./period;
+          clock_gettime(CLOCK_REALTIME, &_thisTime);
+          long long int nanoseconds = timeDiff(&_thisTime, &_lastTime);
+          float rate = 1000.0 / (nanoseconds * 1.e-9);
           printf("Evr event %d, high/low 0x%x/0x%x, rate(Hz): %7.2f\n",
                  _evtCounter, fe.TimestampHigh, fe.TimestampLow, rate);
-          _lastfid = fe.TimestampHigh;
+          _lastTime.tv_nsec = _thisTime.tv_nsec;
+          _lastTime.tv_sec  = _thisTime.tv_sec;
         }
 
       if (_evtCounter == _evtStop)

@@ -2,6 +2,7 @@
 #define Pds_EvrMasterFIFOHandler_hh
 
 #include <vector>
+#include <time.h>
 
 #include "pds/evgr/EvrFIFOHandler.hh"
 
@@ -95,7 +96,6 @@ namespace Pds {
     unsigned              _evtCounter;
     std::vector<unsigned> _lSegEvtCounter;
     unsigned              _evtStop;
-    unsigned              _lastfid;
     int                   _iMaxGroup;
     uint32_t              _uMaskReadout;
     const EvrConfigType*  _pEvrConfig;
@@ -112,6 +112,8 @@ namespace Pds {
 
     EvrSyncMaster         _sync;
     Transition*           _tr;
+    timespec              _thisTime;
+    timespec              _lastTime;
 
   private:
     void startL1Accept(const FIFOEvent& fe, bool bEvrDataIncomplete);
