@@ -52,7 +52,7 @@ namespace Pds {
       if (name && strlen(name)) {
         FILE* f;
         Destination _d;
-        unsigned maxCount = 32;
+        unsigned maxCount = 1024;
         char path[240];
         char* home = getenv("HOME");
         sprintf(path,"%s/%s",home, name);
@@ -66,7 +66,7 @@ namespace Pds {
           unsigned dest, addr, data;
           while (fscanf(f, "%x %x %x", &dest, &addr, &data) && !feof(f) && myi++ < maxCount) {
             _d.dest(dest);
-            printf("\n\tFound run time config addtions: dest %s, addr 0x%x, data 0x%x ", _d.name(), addr, data);
+            printf("\nRun time config: dest %s, addr 0x%x, data 0x%x ", _d.name(), addr, data);
             if(_pgp->writeRegister(&_d, addr, data)) {
               printf("\nConfigurator::loadRunTimeConfigAdditions failed on dest %u address 0x%x\n", dest, addr);
             }
@@ -74,6 +74,8 @@ namespace Pds {
           if (!feof(f)) {
             perror("Error reading");
           }
+//          printf("\nSleeping 200 microseconds\n");
+//          microSpin(200);
         }
       }
     }
