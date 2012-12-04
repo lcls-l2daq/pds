@@ -7,24 +7,20 @@
 
 namespace Pds {
 
-  class DmaSplice;
+  class FrameServerMsg;
 
   class Frame : public FrameType {
   public:
     Frame() {}
     //  Frame with unassigned contents
-    Frame(unsigned width, unsigned height, 
-	  unsigned depth, unsigned offset);
+    Frame(const FrameServerMsg&);
     //  Copy frame contents from "input"
-    Frame(unsigned width, unsigned height, 
-	  unsigned depth, unsigned offset,
+    Frame(const FrameServerMsg&,
 	  const void* input);
     //  Copy frame contents from subsection of "input"
     Frame(unsigned startCol, unsigned endCol,
 	  unsigned startRow, unsigned endRow,
-	  unsigned width, unsigned height, 
-	  unsigned depth, unsigned offset,
-	  const void* input);
+	  const FrameServerMsg&);
     //  Copy constructor (does not copy contents)
     Frame(const Frame&);
   public:

@@ -1,6 +1,7 @@
 #ifndef Pds_CameraBase_hh
 #define Pds_CameraBase_hh
 
+
 namespace Pds {
 
   class CameraDriver;
@@ -29,6 +30,7 @@ namespace Pds {
     virtual int         camera_height() const = 0;
     virtual int         camera_depth () const = 0;
     virtual int         camera_taps  () const = 0;
+    virtual int         camera_cfg2  () const;  // EDT special register
     virtual const char* camera_name  () const = 0; // Leutron camera lookup
   };
 

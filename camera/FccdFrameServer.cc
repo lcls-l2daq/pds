@@ -89,24 +89,21 @@ int FccdFrameServer::fetch(ZcpFragment& zfo, int flags)
 
 unsigned FccdFrameServer::_post_frame(void* xtc, const FrameServerMsg* fmsg) const
 {
-  Frame frame(fmsg->width, fmsg->height, fmsg->depth, _camera_offset);
+  Frame frame(*fmsg);
   const unsigned short* frame_data = 
     reinterpret_cast<const unsigned short*>(fmsg->data);
 
   Xtc& frameXtc = *new((char*)xtc) Xtc(_frameType, _xtc.src, fmsg->damage);
   Frame* fp;
 //if (_config->forwarding()==FrameFccdConfigType::FullFrame)
-    fp=new(frameXtc.alloc(sizeof(Frame))) Frame(frame.width(), frame.height(), 
-						frame.depth(), frame.offset(),
+    fp=new(frameXtc.alloc(sizeof(Frame))) Frame(*fmsg,
 						frame_data);
 //else
 //  fp=new(frameXtc.alloc(sizeof(Frame))) Frame (_config->roiBegin().column,
 //  				 _config->roiEnd  ().column,
 //  				 _config->roiBegin().row,
 //  				 _config->roiEnd  ().row,
-//  				 frame.width(), frame.height(), 
-//  				 frame.depth(), frame.offset(),
-//  				 frame_data);
+//  				 *fmsg);
   frameXtc.extent += fp->data_size();
   return frameXtc.extent;
 }
@@ -133,7 +130,7 @@ static void reverse_copy(uint32_t *dst, uint32_t *src, unsigned int count)
 
 int FccdFrameServer::_reorder_frame(FrameServerMsg* fmsg)
 {
-  Frame frame(fmsg->width, fmsg->height, fmsg->depth, _camera_offset);
+  Frame frame(*fmsg);
   unsigned short* frame_data = 
     reinterpret_cast<unsigned short*>(fmsg->data);
   unsigned height = frame.height();

@@ -34,7 +34,5 @@ TM6740Manager::~TM6740Manager()
 
 void TM6740Manager::_configure(const void* buff)
 {
-  const TM6740ConfigType& c = *reinterpret_cast<const TM6740ConfigType*>(buff);
   driver().camera().set_config_data(buff);
-  _server->setCameraOffset(c.vref_a());
 }  

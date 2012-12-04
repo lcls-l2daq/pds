@@ -40,7 +40,5 @@ QuartzManager::~QuartzManager()
 
 void QuartzManager::_configure(const void* buff)
 {
-  const QuartzConfigType& c = *reinterpret_cast<const QuartzConfigType*>(buff);
   driver().camera().set_config_data(buff);
-  _server->setCameraOffset(c.output_offset());
 }  

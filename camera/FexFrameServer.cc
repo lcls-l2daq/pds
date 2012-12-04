@@ -78,11 +78,6 @@ InDatagram* FexFrameServer::recordConfigure(InDatagram* in)
   return in;
 }
 
-void FexFrameServer::setCameraOffset(unsigned camera_offset)
-{
-  _camera_offset = camera_offset;
-}
-
 //
 //  Apply feature extraction to the input frame and
 //  provide the result to the event builder
@@ -157,11 +152,7 @@ int FexFrameServer::fetch(ZcpFragment& zfo, int flags)
 
 unsigned FexFrameServer::_post_fex(void* xtc, const FrameServerMsg* fmsg) const
 {
-  Frame frame(fmsg->width, fmsg->height, fmsg->depth, _camera_offset);
-  const unsigned short* frame_data = 
-    reinterpret_cast<const unsigned short*>(fmsg->data);
-
-  TwoDGaussian work(_feature_extract(frame,frame_data));
+  TwoDGaussian work(_feature_extract(fmsg));
   Xtc& fexXtc = *new((char*)xtc) Xtc(_twoDGType, _xtc.src, fmsg->damage);
   new(fexXtc.alloc(sizeof(TwoDGaussianType))) TwoDGaussianType(work._n,
 							       work._xmean,
@@ -174,54 +165,47 @@ unsigned FexFrameServer::_post_fex(void* xtc, const FrameServerMsg* fmsg) const
 
 unsigned FexFrameServer::_post_frame(void* xtc, const FrameServerMsg* fmsg) const
 {
-  Frame frame(fmsg->width, fmsg->height, fmsg->depth, _camera_offset);
-  const unsigned short* frame_data = 
-    reinterpret_cast<const unsigned short*>(fmsg->data);
-
   const FrameFexConfigType& config = *reinterpret_cast<const FrameFexConfigType*>(_config->current());
-
   Xtc& frameXtc = *new((char*)xtc) Xtc(_frameType, _xtc.src, fmsg->damage);
   Frame* fp;
   if (config.forwarding()==FrameFexConfigType::FullFrame)
-    fp=new(frameXtc.alloc(sizeof(Frame))) Frame(frame.width(), frame.height(), 
-						frame.depth(), frame.offset(),
-						frame_data);
+    fp=new(frameXtc.alloc(sizeof(Frame))) Frame(*fmsg,
+						fmsg->data);
   else
     fp=new(frameXtc.alloc(sizeof(Frame))) Frame (config.roiBegin().column,
 						 config.roiEnd  ().column,
 						 config.roiBegin().row,
 						 config.roiEnd  ().row,
-						 frame.width(), frame.height(), 
-						 frame.depth(), frame.offset(),
-						 frame_data);
+						 *fmsg);
+
   frameXtc.extent += fp->data_size();
   return frameXtc.extent;
 }
 
-TwoDMoments FexFrameServer::_feature_extract(const Frame&          frame,
-					     const unsigned short* frame_data) const
+TwoDMoments FexFrameServer::_feature_extract(const FrameServerMsg* msg) const
 {
   //
   // perform the feature extraction here
   //
+  const unsigned short* frame_data = reinterpret_cast<const unsigned short*>(msg->data);
   const FrameFexConfigType& config = *reinterpret_cast<const FrameFexConfigType*>(_config->current());
   switch(config.processing()) {
   case FrameFexConfigType::GssFullFrame:
-    return TwoDMoments(frame.width(), frame.height(), 
-		       frame.offset(), frame_data);
+    return TwoDMoments(msg->width, msg->height, 
+		       msg->offset, frame_data);
   case FrameFexConfigType::GssRegionOfInterest:
-    return TwoDMoments(frame.width(),
+    return TwoDMoments(msg->width,
 		       config.roiBegin().column,
 		       config.roiEnd  ().column,
 		       config.roiBegin().row,
 		       config.roiEnd  ().row,
-		       frame.offset(),
+		       msg->offset,
 		       frame_data);
   case FrameFexConfigType::GssThreshold:
-    return TwoDMoments(frame.width(),
-		       frame.height(),
+    return TwoDMoments(msg->width,
+		       msg->height,
 		       config.threshold(),
-		       frame.offset(),
+		       msg->offset,
 		       frame_data);
   default:
     break;

@@ -14,6 +14,11 @@
 
 #include <time.h>
 
+#define DBG
+//#define DBUG
+
+#define N_RING_BUFFERS 4
+
 //  library routine declaration missing from edt header files
 extern "C" {
   int  pdv_update_size(PdvDev *);
@@ -70,9 +75,9 @@ namespace Pds {
       _running = v; 
       if (v) {
         pdv_cl_reset_fv_counter(pdv_p);
-	pdv_multibuf(_base->dev(), 4);
+	pdv_multibuf(_base->dev(), N_RING_BUFFERS);
 	_last_timeouts = pdv_timeouts(_base->dev());
-	pdv_start_images(pdv_p, 4);
+	pdv_start_images(pdv_p, N_RING_BUFFERS);
 	_task->call(this);
 	_enable->unblock();
       }
@@ -149,12 +154,24 @@ EdtPdvCL::EdtPdvCL(CameraBase& camera, int unit, int channel) :
   _hsignal ("CamSignal")
 {
 
-#ifdef DBUG
+#ifdef DBG
   _tsignal.tv_sec = _tsignal.tv_nsec = 0;
 #endif
 
   _sample_sec  = 0;
   _sample_nsec = 0;
+
+#ifdef DBUG
+  int level = edt_msg_default_level();
+  level |= EDTAPP_MSG_INFO_1;
+  level |= PDVLIB_MSG_INFO_1;
+  level |= PDVLIB_MSG_WARNING;
+  level |= PDVLIB_MSG_FATAL;
+  level |= EDTAPP_MSG_INFO_2;
+  level |= PDVLIB_MSG_INFO_2;
+
+  edt_msg_set_level(edt_msg_default_handle(), level);
+#endif
 }
 
 EdtPdvCL::~EdtPdvCL()
@@ -255,10 +272,14 @@ void EdtPdvCL::_setup(int unit, int channel)
   dd_p->cameralink = 1;
   dd_p->cl_data_path = (c.camera_depth()-1) | ((c.camera_taps()-1)<<4);
   dd_p->cl_cfg       = 0x02;
-  dd_p->htaps        = c.camera_taps();
 
+  if (c.camera_cfg2())   dd_p->cl_cfg2      = c.camera_cfg2();
+
+  dd_p->htaps        = c.camera_taps();
   dd_p->vtaps        = NOT_SET;
-  //  dd_p->swinterlace  = PDV_WORD_INTLV;
+
+  dd_p->swinterlace   = 0;
+
   dd_p->camera_shutter_timing  = AIA_SERIAL;
 
   sprintf(dd_p->cameratype, "%s %s %s",
@@ -320,11 +341,15 @@ int EdtPdvCL::initialize(UserMessage* msg)
 
   int ret = c.configure(*this,msg);
 
+  /*
+  **  This overwrites some corrections done by EDT software earlier
+  **
   Dependent* dd_p = _dev->dd_p;
   dd_p->width  = c.camera_width();
   dd_p->height = c.camera_height();
   dd_p->depth  = c.camera_depth();
   dd_p->extdepth = c.camera_depth();
+  */
 
   // The following call doesn't seem to work properly.
   // Changes in the camera bit depth cause timeouts
@@ -435,7 +460,7 @@ void EdtPdvCL::dump()
 
 void EdtPdvCL::handle(u_char* image_p)
 {
-#ifdef DBUG
+#ifdef DBG
   timespec ts;
   clock_gettime(CLOCK_REALTIME, &ts);
   if (_tsignal.tv_sec)
@@ -446,12 +471,12 @@ void EdtPdvCL::handle(u_char* image_p)
   CameraBase& c = camera();
   FrameServerMsg* msg =
     new FrameServerMsg(FrameServerMsg::NewFrame,
-                            image_p,
-                            c.camera_width(),
-                            c.camera_height(),
-                            c.camera_depth(),
-                            _nposts,
-                            0);
+		       image_p,
+		       c.camera_width(),
+		       c.camera_height(),
+		       c.camera_depth(),
+		       _nposts,
+		       0);
 
   //  Test out-of-order
   if (_outOfOrder)
@@ -479,7 +504,7 @@ void EdtPdvCL::handle(u_char* image_p)
   _fsrv->post(msg);
   _nposts++;
 
-#ifdef DBUG
+#ifdef DBG
   _hsignal.print(_nposts);
 #endif
 }

@@ -9,6 +9,7 @@ namespace Pds {
   class FrameServerMsg : public LinkedList<FrameServerMsg> {
   public:
     enum Type { NewFrame, Fragment };
+    enum Intlv { None, MidTopLine };
 
     FrameServerMsg(Type     _type,
                    void*    _data,
@@ -24,6 +25,7 @@ namespace Pds {
       width (_width),
       height(_height),
       depth (_depth),
+      intlv (None),
       count (_count),
       offset(_offset),
       damage(0),
@@ -36,6 +38,7 @@ namespace Pds {
     unsigned width;
     unsigned height;
     unsigned depth;
+    Intlv    intlv;
     unsigned count;
     unsigned offset;
     unsigned extent;

@@ -372,6 +372,7 @@ bool QuartzCamera::validate(Pds::FrameServerMsg& msg)
     return false;
   }
 #endif
+  msg.offset = _inputConfig->output_offset();
   return true;
 }
 

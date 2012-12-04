@@ -28,7 +28,6 @@ namespace Pds {
     void                            doConfigure    (Transition*);
     void                            nextConfigure  (Transition*);
     InDatagram*                     recordConfigure(InDatagram*);
-    void                            setCameraOffset(unsigned);
   public:
     //  Server interface
     int      fetch       (char* payload, int flags);
@@ -37,12 +36,11 @@ namespace Pds {
     unsigned _post_fex  (void* xtc, const FrameServerMsg* msg) const;
     unsigned _post_frame(void* xtc, const FrameServerMsg* msg) const;
 
-    TwoDMoments _feature_extract( const Frame&          frame,
-				  const unsigned short* frame_data ) const;
+    TwoDMoments _feature_extract( const FrameServerMsg* msg) const;
 
   private:    
     CfgCache*  _config;
-    unsigned   _camera_offset;
+
     unsigned   _framefwd_count;
 
     timespec        _tinput;

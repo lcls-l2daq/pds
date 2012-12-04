@@ -40,7 +40,5 @@ Opal1kManager::~Opal1kManager()
 
 void Opal1kManager::_configure(const void* buff)
 {
-  const Opal1kConfigType& c = *reinterpret_cast<const Opal1kConfigType*>(buff);
   driver().camera().set_config_data(buff);
-  _server->setCameraOffset(c.output_offset());
 }  

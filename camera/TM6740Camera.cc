@@ -29,6 +29,7 @@ void TM6740Camera::set_config_data(const void* p)
 
 bool TM6740Camera::validate(Pds::FrameServerMsg& msg)
 {
+  msg.offset = _inputConfig->vref_a();
   return true;
 }
 
