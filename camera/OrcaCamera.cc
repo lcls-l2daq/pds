@@ -201,8 +201,8 @@ int  OrcaCamera::camera_width () const
   **   (this problem is likely true for any camera)
   */
   unsigned t = camera_taps();
-  return np;
 
+  return np;
 #if 1
   np  = t*( np/t);        // crop
 #else

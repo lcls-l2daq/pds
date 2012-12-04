@@ -1,5 +1,8 @@
 #include "pds/camera/FexCameraManager.hh"
 #include "pds/camera/FexFrameServer.hh"
+#include "pds/camera/CameraDriver.hh"
+#include "pds/camera/CameraBase.hh"
+#include "pds/utility/Appliance.hh"
 
 using namespace Pds;
 
@@ -27,12 +30,20 @@ void FexCameraManager::doConfigure(Transition* tr)
 {
   CameraManager::doConfigure(tr);
   _server      ->doConfigure(tr);
+  UserMessage* msg = _server->validate(driver().camera().camera_width(),
+				       driver().camera().camera_height());
+  if (msg)
+    appliance().post(msg);
 }
 
 void FexCameraManager::nextConfigure    (Transition* tr)
 {
   CameraManager::nextConfigure(tr);
   _server      ->nextConfigure(tr);
+  UserMessage* msg = _server->validate(driver().camera().camera_width(),
+				       driver().camera().camera_height());
+  if (msg)
+    appliance().post(msg);
 }
 
 InDatagram* FexCameraManager::recordConfigure  (InDatagram* in) 

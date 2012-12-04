@@ -10,6 +10,8 @@
 #include "pds/camera/TwoDGaussianType.hh"
 #include "pds/config/CfgCache.hh"
 #include "pds/config/FrameFexConfigType.hh"
+#include "pds/utility/Occurrence.hh"
+#include "pds/service/GenericPool.hh"
 
 #include <errno.h>
 #include <stdio.h>
@@ -37,6 +39,7 @@ typedef unsigned short pixel_type;
 FexFrameServer::FexFrameServer(const Src& src) :
   FrameServer  (src),
   _config      (new FexConfig (src)),
+  _occPool     (new GenericPool(sizeof(UserMessage),4)),
   _hinput      ("CamInput"),
   _hfetch      ("CamFetch")
 {
@@ -47,6 +50,7 @@ FexFrameServer::FexFrameServer(const Src& src) :
 
 FexFrameServer::~FexFrameServer()
 {
+  delete _occPool;
   delete _config;
 }
 
@@ -65,6 +69,25 @@ void FexFrameServer::doConfigure(Transition* tr)
     printf("Config::configure failed to retrieve FrameFex configuration\n");
     _config->damage().increase(Damage::UserDefined);
   }
+}
+
+UserMessage* FexFrameServer::validate(unsigned w, unsigned h)
+{
+  const FrameFexConfigType& c = *reinterpret_cast<const FrameFexConfigType*>(_config->current());
+  if (c.forwarding()==FrameFexConfigType::RegionOfInterest)
+    if (!(c.roiBegin().column < w &&
+	  c.roiBegin().row < h &&
+	  c.roiEnd().column <= w &&
+	  c.roiEnd().row <= h)) {
+      _config->damage().increase(Damage::UserDefined);
+      char buff[128];
+      sprintf(buff,"FrameFexConfig ROI (col:%d-%d,row:%d-%d) exceeds frame size(col:%d,row:%d)",
+	      c.roiBegin().column,c.roiEnd().column,
+	      c.roiBegin().row   ,c.roiEnd().row,
+	      w,h);
+      return new(_occPool) UserMessage(buff);
+    }
+  return 0;
 }
 
 void FexFrameServer::nextConfigure(Transition* tr)

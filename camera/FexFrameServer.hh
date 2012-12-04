@@ -18,6 +18,8 @@ namespace Pds {
   class InDatagram;
   class Transition;
   class TwoDMoments;
+  class UserMessage;
+  class GenericPool;
 
   class FexFrameServer : public FrameServer {
   public:
@@ -28,6 +30,7 @@ namespace Pds {
     void                            doConfigure    (Transition*);
     void                            nextConfigure  (Transition*);
     InDatagram*                     recordConfigure(InDatagram*);
+    UserMessage*                    validate       (unsigned,unsigned);
   public:
     //  Server interface
     int      fetch       (char* payload, int flags);
@@ -39,7 +42,8 @@ namespace Pds {
     TwoDMoments _feature_extract( const FrameServerMsg* msg) const;
 
   private:    
-    CfgCache*  _config;
+    CfgCache*    _config;
+    GenericPool* _occPool;
 
     unsigned   _framefwd_count;
 
