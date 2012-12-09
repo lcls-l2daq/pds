@@ -207,6 +207,8 @@ namespace Pds {
          _nerror += 1;
 	}
 	else {
+          _cfgtc.extent = sizeof(Xtc) + sizeof(UsdUsbConfigType);
+
 	  for(unsigned i=0; i<UsdUsbConfigType::NCHANNELS; i++) {
 	    _nerror += USB4_SetMultiplier    (_dev, i, (int)_config.quadrature_mode(i)) != USB4_SUCCESS;
 	    _nerror += USB4_SetCounterMode   (_dev, i, (int)_config.counting_mode  (i)) != USB4_SUCCESS;
