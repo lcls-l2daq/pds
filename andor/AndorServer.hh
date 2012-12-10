@@ -15,7 +15,7 @@
 #include "pds/service/GenericPool.hh"
 #include "pds/service/Routine.hh"
 
-namespace Pds 
+namespace Pds
 {
 
 class Task;
@@ -26,22 +26,23 @@ class AndorServer
 public:
   AndorServer(int iCamera, bool bUseCaptureTask, bool bInitTest, const Src& src, std::string sConfigDb, int iSleepInt, int iDebugLevel);
   ~AndorServer();
-  
-  int   map();  
+
+  int   initSetup();
+  int   map();
   int   config(AndorConfigType& config, std::string& sConfigWarning);
   int   unconfig();
   int   beginRun();
-  int   endRun();  
+  int   endRun();
   int   beginCalibCycle();
-  int   endCalibCycle();  
+  int   endCalibCycle();
   int   enable();
-  int   disable();  
+  int   disable();
   int   startExposure();
   int   getData (InDatagram* in, InDatagram*& out);
   int   waitData(InDatagram* in, InDatagram*& out);
   AndorConfigType&
         config() { return _config; }
-  
+
   enum  ErrorCodeEnum
   {
     ERROR_INVALID_ARGUMENTS = 1,
@@ -55,11 +56,11 @@ public:
     ERROR_TEMPERATURE       = 9,
     ERROR_SEQUENCE_ERROR    = 10,
   };
-  
+
 private:
-  /*  
+  /*
    * private enum
-   */  
+   */
   enum CaptureStateEnum
   {
     CAPTURE_STATE_IDLE        = 0,
@@ -67,60 +68,60 @@ private:
     CAPTURE_STATE_DATA_READY  = 2,
   };
 
-  /*  
+  /*
    * private static consts
-   */    
+   */
   static const int      _iMaxCoolingTime        = 100;        // in miliseconds
   static const int      _fTemperatureHiTol      = 5;          // 5 degree Celcius
   static const int      _fTemperatureLoTol      = 200;        // 200 degree Celcius -> Do not use Low Tolerance now
   static const int      _iClockSavingExpTime    = 24*60*60*1000;// 24 hours -> Long exposure time for clock saving
   static const int      _iFrameHeaderSize;                      // Buffer header used to store the CDatagram, Xtc and FrameV1 object
-  static const int      _iMaxFrameDataSize;                     // Buffer for 4 Mega (image pixels) x 2 (bytes per pixel) + 
+  static const int      _iMaxFrameDataSize;                     // Buffer for 4 Mega (image pixels) x 2 (bytes per pixel) +
                                                                 //   info size + header size
   static const int      _iPoolDataCount         = 5;            // 4 buffer for traffic shaping, 1 buffer for capture thread (in delay mode)
   static const int      _iMaxReadoutTime        = 120000;        // Max readout time
   static const int      _iMaxThreadEndTime      = 120000;        // Max thread terminating time (in ms)
   static const int      _iMaxLastEventTime      = 120000;        // Max readout time for the last event
   static const int      _iMaxEventReport        = 20;           // Only report some statistics and non-critical errors in the first few L1 events
-  static const float    _fEventDeltaTimeFactor;                 // Event delta time factor, for detecting sequence error  
+  static const float    _fEventDeltaTimeFactor;                 // Event delta time factor, for detecting sequence error
 
   /*
    * private classes
    */
-  class CaptureRoutine : public Routine 
+  class CaptureRoutine : public Routine
   {
   public:
     CaptureRoutine(AndorServer& server);
     void routine(void);
   private:
     AndorServer& _server;
-  };  
-  
+  };
+
   /*
    * private functions
    */
-   
+
   /*
    * camera control functions
-   */ 
-  int   init();
-  int   deinit();  
+   */
+  int   initDevice();
+  int   deinit();
   int   printInfo();
-  
+
   int   initCapture();
   int   startCapture();
   int   stopCapture();
-  int   deinitCapture();  
+  int   deinitCapture();
 
   int   initCaptureTask(); // for delay mode use only
   int   runCaptureTask();
-  
+
   int   initCameraBeforeConfig();
   int   configCamera(AndorConfigType& config, std::string& sConfigWarning);
 
   int   initTest();
   int   setupROI();
-    
+
   /*
    * Frame handling functions
    */
@@ -130,10 +131,10 @@ private:
   int   processFrame();
   int   resetFrameData(bool bDelOutDatagram);
 
-  int   setupCooling(double fCoolingTemperature);    
-  int   updateTemperatureData();  
+  int   setupCooling(double fCoolingTemperature);
+  int   updateTemperatureData();
   //int   checkSequence( const Datagram& datagram );
-  
+
   /*
    * Initial settings
    */
@@ -144,21 +145,21 @@ private:
   const std::string   _sConfigDb;
   const int           _iSleepInt;
   const int           _iDebugLevel;
-  
+
   /*
    * Camera basic status control
    */
-  at_32               _hCam;  
+  at_32               _hCam;
   bool                _bCameraInited;
   bool                _bCaptureInited;
-  
+
   /*
    * Camera hardware settings
    */
   int                 _iDetectorWidth;
-  int                 _iDetectorHeight; 
+  int                 _iDetectorHeight;
   int                 _iImageWidth;
-  int                 _iImageHeight;  
+  int                 _iImageHeight;
   int                 _iADChannel;
   int                 _iReadoutPort;
   int                 _iMaxSpeedTableIndex;
@@ -166,38 +167,38 @@ private:
   int                 _iTempMin;
   int                 _iTempMax;
   int                 _iFanModeNonAcq;
-  
+
   /*
    * Event sequence/traffic control
    */
   float               _fPrevReadoutTime;// in seconds. Used to filter out events that are coming too fast
-  bool                _bSequenceError;  
+  bool                _bSequenceError;
   ClockTime           _clockPrevDatagram;
   int                 _iNumExposure;
-  
+
   /*
    * Config data
-   */ 
-  AndorConfigType _config; 
-  
+   */
+  AndorConfigType _config;
+
   /*
    * Per-frame data
    */
   float               _fReadoutTime;    // in seconds
-      
+
   /*
    * Buffer control
    */
   GenericPool         _poolFrameData;
   InDatagram*         _pDgOut;          // Datagram for outtputing to the Andor Manager
-    
+
   /*
    * Capture Task Control
    */
-  CaptureStateEnum    _CaptureState;    // 0 -> idle, 1 -> start data polling/processing, 2 -> data ready  
+  CaptureStateEnum    _CaptureState;    // 0 -> idle, 1 -> start data polling/processing, 2 -> data ready
   Task*               _pTaskCapture;    // for delay mode use
   CaptureRoutine      _routineCapture;  // for delay mode use
-      
+
   /*
    * Thread syncronization (lock/unlock) functions
    */
@@ -210,21 +211,21 @@ private:
   {
     pthread_mutex_unlock(&_mutexPlFuncs);
   }
-  
+
   class LockCameraData
   {
   public:
-    LockCameraData(char* sDescription) 
+    LockCameraData(char* sDescription)
     {
       lockCameraData(sDescription);
     }
-    
-    ~LockCameraData() 
-    { 
-      releaseLockCameraData(); 
+
+    ~LockCameraData()
+    {
+      releaseLockCameraData();
     }
   };
-    
+
   /*
    * private static data
    */
@@ -236,9 +237,9 @@ class AndorServerException : public std::runtime_error
 public:
   explicit AndorServerException( const std::string& sDescription ) :
     std::runtime_error( sDescription )
-  {}  
+  {}
 };
 
-} //namespace Pds 
+} //namespace Pds
 
 #endif

@@ -9,7 +9,7 @@
 #include "pds/config/AndorConfigType.hh"
 #include "pds/client/Fsm.hh"
 
-namespace Pds 
+namespace Pds
 {
 
 class Fsm;
@@ -20,15 +20,16 @@ class Response;
 class GenericPool;
 class AndorServer;
 
-class AndorManager 
+class AndorManager
 {
 public:
   AndorManager(CfgClientNfs& cfg, int iCamera, bool bDelayMode, bool bInitTest, std::string sConfigDb, int iSleepInt, int iDebugLevel);
   ~AndorManager();
 
   Appliance&    appliance() { return *_pFsm; }
-  
+
   // Camera control: Gateway functions for accessing AndorServer class
+  int   initServer();
   int   map(const Allocation& alloc);
   int   config(AndorConfigType& config, std::string& sConfigWarning);
   int   unconfig();
@@ -39,20 +40,20 @@ public:
   int   enable();
   int   disable();
   int   l1Accept(bool& bWait);
-  
+
   int   checkExposureEventCode(unsigned);
   int   startExposure();
   int   getData (InDatagram* in, InDatagram*& out);
   int   waitData(InDatagram* in, InDatagram*& out);
-  
-private:          
+
+private:
   const int           _iCamera;
-  const bool          _bDelayMode;          
+  const bool          _bDelayMode;
   const bool          _bInitTest;
   const std::string   _sConfigDb;
   const int           _iSleepInt;
   const int           _iDebugLevel;
-  
+
   Fsm*                _pFsm;
   Action*             _pActionMap;
   Action*             _pActionConfig;
@@ -61,12 +62,12 @@ private:
   Action*             _pActionEndRun;
   Action*             _pActionBeginCalibCycle;
   Action*             _pActionEndCalibCycle;
-  Action*             _pActionEnable;  
-  Action*             _pActionDisable;  
+  Action*             _pActionEnable;
+  Action*             _pActionDisable;
   Action*             _pActionL1Accept;
-  Response*           _pResponse;  
-  
-  AndorServer*        _pServer;  
+  Response*           _pResponse;
+
+  AndorServer*        _pServer;
   unsigned int        _uNumShotsInCycle;
 };
 
@@ -75,7 +76,7 @@ class AndorManagerException : public std::runtime_error
 public:
   explicit AndorManagerException( const std::string& sDescription ) :
     std::runtime_error( sDescription )
-  {}  
+  {}
 };
 
 } // namespace Pds
