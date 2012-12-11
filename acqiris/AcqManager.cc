@@ -238,7 +238,7 @@ public:
     _src(src),
     _lastAcqTS(0),_lastEvrFid(0),_lastEvrClockNSec(0),_initFlag(0),_evrAbsDiffNSec(0),
     _mgr(mgr),
-    _occPool   (new GenericPool(sizeof(Occurrence),1)), 
+    _occPool   (new GenericPool(sizeof(Occurrence),4)), 
     _outoforder(0) {}
   ~AcqL1Action() { delete _occPool; }
 
