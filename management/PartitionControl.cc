@@ -108,7 +108,7 @@ namespace Pds {
           //  Cspad + Opal1k seems to need more time?
           //
 #ifdef BUILD_SLOW_DISABLE         
-          tv.tv_sec = 7; tv.tv_nsec = 0;
+          tv.tv_sec = 1; tv.tv_nsec = 0;
 #else
           tv.tv_sec = 0; tv.tv_nsec = 300000000; // 300 ms
 #endif        
