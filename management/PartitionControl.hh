@@ -43,7 +43,7 @@ namespace Pds {
   public:
     unsigned get_transition_env (TransitionId::Value) const;
 
-    void  reconfigure      ();
+    void  reconfigure      (bool wait=true);
     void  pause            ();
     void  set_transition_env    (TransitionId::Value, unsigned);
     void  set_transition_payload(TransitionId::Value, Xtc*, void*);
@@ -89,6 +89,9 @@ namespace Pds {
     friend class TimeoutRecovery;
     void _eb_tmo_recovery();
     Routine*   _tmo;
+
+    Semaphore  _sem_target;
+    bool       _wait_for_target;
   };
 
 };

@@ -270,7 +270,9 @@ PartitionControl::PartitionControl(unsigned platform,
   _experiment     (0),
   _use_run_info   (true),
   _reportTask     (new Task(TaskObject("controlRep"))),
-  _tmo            (tmo)
+  _tmo            (tmo),
+  _sem_target     (Semaphore::EMPTY),
+  _wait_for_target(false)
 {
   memset(_transition_env,0,TransitionId::NumberOf*sizeof(unsigned));
   memset(_transition_xtc,0,TransitionId::NumberOf*sizeof(Xtc*));
@@ -319,11 +321,15 @@ void PartitionControl::set_target_state(State state)
 PartitionControl::State PartitionControl::target_state () const { return _target_state; }
 PartitionControl::State PartitionControl::current_state() const { return _current_state; }
 
-void PartitionControl::reconfigure()
+void PartitionControl::reconfigure(bool wait)
 {
   if (_target_state > Mapped) {
     _queued_target = _target_state;
     set_target_state(Mapped);
+  }
+  if (wait) {
+    _wait_for_target = true;
+    _sem_target.take();
   }
 }
 
@@ -427,8 +433,12 @@ void PartitionControl::message(const Node& hdr, const Message& msg)
 
 void PartitionControl::_next()
 {
-  if      (_current_state==_target_state) 
-    ;
+  if      (_current_state==_target_state) {
+    if (_wait_for_target) {
+      _wait_for_target=false;
+      _sem_target.give();
+    }
+  }
   else if (_target_state > _current_state) 
     switch(_current_state) {
     case Unmapped  : { Allocate alloc(_partition); _queue(alloc); break; }
