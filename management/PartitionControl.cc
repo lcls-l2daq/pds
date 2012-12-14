@@ -326,10 +326,10 @@ void PartitionControl::reconfigure(bool wait)
   if (_target_state > Mapped) {
     _queued_target = _target_state;
     set_target_state(Mapped);
-  }
-  if (wait) {
-    _wait_for_target = true;
-    _sem_target.take();
+    if (wait) {
+      _wait_for_target = true;
+      _sem_target.take();
+    }
   }
 }
 
