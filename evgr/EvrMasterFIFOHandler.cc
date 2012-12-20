@@ -19,6 +19,7 @@
 #include <string.h>
 #include <signal.h>
 #include <byteswap.h>
+#include <stdlib.h>
 
 static const unsigned syncCode = 40;
 
@@ -67,7 +68,19 @@ namespace Pds
 
 using namespace Pds;
 
-long long int timeDiff(timespec* end, timespec* start) {
+static void _print_L1(const ClockTime& iTriggerCounter, 
+		      const EvrL1Data& evrL1Data)
+{
+  printf("Trigger counter: %d.%09d, Current Data counter: %d.%09d\n"
+          "  Read Index = %d, Write Index = %d\n", 
+	 iTriggerCounter.seconds(),
+	 iTriggerCounter.nanoseconds(),
+	 evrL1Data.getCounterRead().seconds(),
+	 evrL1Data.getCounterRead().nanoseconds(),
+	 evrL1Data.readIndex(), evrL1Data.writeIndex() );
+}
+
+static long long int timeDiff(timespec* end, timespec* start) {
   long long int diff;
   diff =  (end->tv_sec - start->tv_sec) * 1000000000LL;
   diff += end->tv_nsec;
@@ -92,6 +105,8 @@ EvrMasterFIFOHandler::EvrMasterFIFOHandler(Evr&       er,
                                            Appliance& app,
                                            unsigned   partition,
                                            int        iMaxGroup,
+					   unsigned   neventnodes,
+					   bool       randomize,
                                            Task*      task):
   uFiducialPrev       (0),
   _er                 (er),
@@ -114,7 +129,9 @@ EvrMasterFIFOHandler::EvrMasterFIFOHandler(Evr&       er,
   _ncommands          (0),
   _evrL1Data          (giMaxNumFifoEvent, giNumL1Buffers),
   _sync               (*this, er, partition, task, _outlet),
-  _tr                 (0)
+  _tr                 (0),
+  _nnodes             (neventnodes),
+  _randomize_nodes    (randomize)
 {
   _lSegEvtCounter.resize(1+_iMaxGroup, 0);
   for (int iGroup=0; iGroup <= _iMaxGroup; ++iGroup)
@@ -125,6 +142,10 @@ EvrMasterFIFOHandler::EvrMasterFIFOHandler(Evr&       er,
   new (&_L1DataLatchQ)  EvrDataUtil( 0, NULL );    
     
   memset( _lEventCodeState, 0, sizeof(_lEventCodeState) );
+
+  timespec tv;
+  clock_gettime(CLOCK_REALTIME, &tv);
+  srand(tv.tv_nsec);
 }
   
 EvrMasterFIFOHandler::~EvrMasterFIFOHandler()
@@ -271,7 +292,8 @@ InDatagram* EvrMasterFIFOHandler::l1accept(InDatagram* in)
         break;
       }      
 
-    int                iTriggerCounter  = in->seq.stamp().vector();      
+    const ClockTime&   iTriggerCounter  = in->seq.clock();
+    int                iVector          = in->seq.stamp().vector();
     bool               bDataFull        = _evrL1Data.getDataReadFull();
     bool               bDataInc         = _evrL1Data.getDataReadIncomplete();
       
@@ -308,7 +330,7 @@ InDatagram* EvrMasterFIFOHandler::l1accept(InDatagram* in)
       {
         //printf( "EvrL1Action::fire(): Incomplete data.\n" );
         printf( "EvrL1Action::fire(): [%d] Incomplete data with vector %d fiducial 0x%x prev 0x%x last 0x%x\n", 
-                uNumBeginCalibCycle, iTriggerCounter, uFiducialCur, uFiducialPrev, _lastFiducial );
+                uNumBeginCalibCycle, iVector, uFiducialCur, uFiducialPrev, _lastFiducial );
         out->datagram().xtc.damage.increase(Pds::Damage::UserDefined);              
         out->datagram().xtc.damage.userBits(0x1);        
         
@@ -362,7 +384,7 @@ InDatagram* EvrMasterFIFOHandler::l1accept(InDatagram* in)
     if ( uFiducialCur == 0 && uFiducialPrev < 0x1fe00) // Illegal fiducial wrap-around
       {
         printf( "EvrL1Action::fire(): [%d] vector %d fiducial 0x%x prev 0x%x\n", 
-                uNumBeginCalibCycle, iTriggerCounter, uFiducialCur, uFiducialPrev );
+                uNumBeginCalibCycle, iVector, uFiducialCur, uFiducialPrev );
         printf( "EvrL1Action::fire() data dump start (size = %u bytes)\n", evrData.size() );
         evrData.printFifoEvents();
         printf( "EvrL1Action::fire() data dump end\n\n" );
@@ -527,11 +549,38 @@ void EvrMasterFIFOHandler::startL1Accept(const FIFOEvent& fe, bool bEvrDataIncom
              uNumBeginCalibCycle, _evtCounter, fe.TimestampHigh, uFiducialPrev, (bEvrDataIncomplete?'Y':'n'),
              _lastFiducial, fe.TimestampLow, fe.EventCode );
     }
-      
+
+  unsigned vector;
+  if (_randomize_nodes) {
+    //
+    //  Schedule the event node destinations for the next batch of events
+    //
+    unsigned node_index = _evtCounter%_nnodes;
+    if (node_index==0) {
+      for(unsigned i=0; i<_nnodes; i++) _vector[i]=-1;
+      for(unsigned i=0; i<_nnodes; i++) {
+	const unsigned NBITS=24;
+	const unsigned NB_MASK=((1<<NBITS)-1);
+	unsigned j = ((_nnodes-i)*(rand()&NB_MASK))>>NBITS;
+	for(unsigned k=0; (1); k++) {
+	  if (_vector[k]<0) 
+	    if (j-- == 0) {
+	      _vector[k] = i;
+	      break;
+	    }
+	}
+      }
+    }
+    vector = _evtCounter - node_index + _vector[node_index];
+  }
+  else {
+    vector = _evtCounter;
+  }
+
   timespec ts;
   clock_gettime(CLOCK_REALTIME, &ts);
   ClockTime ctime(ts.tv_sec, ts.tv_nsec);
-  TimeStamp stamp(fe.TimestampLow, fe.TimestampHigh, _evtCounter);
+  TimeStamp stamp(fe.TimestampLow, fe.TimestampHigh, vector);
 
   if (_evtCounter == 0)
   {
@@ -557,17 +606,14 @@ void EvrMasterFIFOHandler::startL1Accept(const FIFOEvent& fe, bool bEvrDataIncom
       if ( ! _evrL1Data.isDataWriteReady() )
         {
           printf( "EvrMasterFIFOHandler::startL1Accept(): Previous Evr Data has not been transferred out.\n"
-                  "  Current data will be reported in next round.\n"
-                  "  Trigger counter: %d, Current Data counter: %d\n"
-                  "  Read Index = %d, Write Index = %d\n", 
-                  stamp.vector() ,        _evrL1Data.getCounterRead(),
-                  _evrL1Data.readIndex(), _evrL1Data.writeIndex() );
+                  "  Current data will be reported in next round.\n");
+	  _print_L1(ctime, _evrL1Data);
         }
       else
         {
           EvrDataUtil& _lL1DataFianl = _evrL1Data.getDataWrite();
         
-          _evrL1Data.setCounterWrite (stamp.vector());
+          _evrL1Data.setCounterWrite (ctime);
 
           /* 
            * Process delayed & enlongated events
@@ -771,17 +817,15 @@ void EvrMasterFIFOHandler::reset()
   _lSegEvtCounter.assign(_lSegEvtCounter.size(), 0);
 }
 
-int EvrMasterFIFOHandler::getL1Data(int iTriggerCounter, const EvrDataUtil* & pEvrData, bool& bOutOfOrder) 
+int EvrMasterFIFOHandler::getL1Data(const ClockTime& iTriggerCounter, const EvrDataUtil* & pEvrData, bool& bOutOfOrder) 
 {  
   pEvrData    = NULL; // default return value: invalid data
   bOutOfOrder = false;
 
   if ( ! _evrL1Data.isDataReadReady() )
     {
-      printf( "EvrMasterFIFOHandler::getL1Data(): No L1 Data ready. Trigger Counter: %d\n"
-              "  Read Index = %d, Write Index = %d\n", 
-              iTriggerCounter,
-              _evrL1Data.readIndex(), _evrL1Data.writeIndex() );
+      printf( "EvrMasterFIFOHandler::getL1Data(): No L1 Data ready: ");
+      _print_L1(iTriggerCounter,_evrL1Data);
       return 1; // Will set Dropped Contribution damage for L1 Data
     }    
     
@@ -794,8 +838,6 @@ int EvrMasterFIFOHandler::getL1Data(int iTriggerCounter, const EvrDataUtil* & pE
       return 0;      
     }
 
-  const int iFiducialWrapAroundDiffMin = 65536; 
-    
   /*
    * Error cases:
    *
@@ -806,16 +848,10 @@ int EvrMasterFIFOHandler::getL1Data(int iTriggerCounter, const EvrDataUtil* & pE
    *   thre is no valid L1 data returned
    */
      
-  if ( _evrL1Data.getCounterRead() > iTriggerCounter && //  test if data is later than trigger
-       iTriggerCounter + iFiducialWrapAroundDiffMin > _evrL1Data.getCounterRead() // special case: counter wrap-around    
-       )
+  if ( _evrL1Data.getCounterRead() > iTriggerCounter ) //  test if data is later than trigger
     {
-      printf( "EvrMasterFIFOHandler::getL1Data(): Missing L1 Data: "
-              "Trigger counter: %d, Current Data counter: %d\n"
-              "  Read Index = %d, Write Index = %d\n", 
-              iTriggerCounter,        _evrL1Data.getCounterRead(),
-              _evrL1Data.readIndex(), _evrL1Data.writeIndex() );
-      
+      printf( "EvrMasterFIFOHandler::getL1Data(): Missing L1 Data: ");
+      _print_L1(iTriggerCounter,_evrL1Data);
       return 2;      
     }
 
@@ -834,11 +870,8 @@ int EvrMasterFIFOHandler::getL1Data(int iTriggerCounter, const EvrDataUtil* & pE
        *   and mark this data as invalid, so it will not be
        *   used later
        */      
-      printf( "EvrMasterFIFOHandler::getL1Data(): Recovered Out-of-order L1 Data: "
-              "Trigger counter: %d, Current Data counter: %d\n"
-              "  Read Index = %d, Write Index = %d, Data Index = %d\n", 
-              iTriggerCounter,        _evrL1Data.getCounterRead(),
-              _evrL1Data.readIndex(), _evrL1Data.writeIndex(), iDataIndex );
+      printf( "EvrMasterFIFOHandler::getL1Data(): Recovered Out-of-order L1 Data: Data Index = %d, ",iDataIndex);
+      _print_L1(iTriggerCounter, _evrL1Data);
        
       _evrL1Data.markDataAsInvalid( iDataIndex );
       pEvrData = & _evrL1Data.getDataWithIndex( iDataIndex );
@@ -864,32 +897,21 @@ int EvrMasterFIFOHandler::getL1Data(int iTriggerCounter, const EvrDataUtil* & pE
    *   indicate thre is no valid L1 data returned
    */         
 
-  printf( "EvrMasterFIFOHandler::getL1Data(): Missing Triggers: "
-          "Trigger counter: %d, Current Data counter: %d\n"
-          "  Read Index = %d, Write Index = %d\n", 
-          iTriggerCounter,        _evrL1Data.getCounterRead(),
-          _evrL1Data.readIndex(), _evrL1Data.writeIndex() );
+  printf( "EvrMasterFIFOHandler::getL1Data(): Missing Triggers: ");
+  _print_L1(iTriggerCounter, _evrL1Data);
         
   int iDataDropped = 0;
   while ( 
          _evrL1Data.isDataReadReady() &&
-         (
-          _evrL1Data.getCounterRead() < iTriggerCounter || // test if trigger is later than data
-          iTriggerCounter + iFiducialWrapAroundDiffMin <= _evrL1Data.getCounterRead() // special case: counter wrap-around
-          )
+         ( iTriggerCounter > _evrL1Data.getCounterRead() ) // test if trigger is later than data
          )
     {
       ++iDataDropped;
       _evrL1Data.finishDataRead();
     }
     
-  printf( "EvrMasterFIFOHandler::getL1Data(): Dropped %d Data: "
-          "Trigger counter: %d, Current Data counter: %d\n"
-          "  Read Index = %d, Write Index = %d\n", 
-          iDataDropped,
-          iTriggerCounter,        _evrL1Data.getCounterRead(),
-          _evrL1Data.readIndex(), _evrL1Data.writeIndex() );
-
+  printf("EvrMasterFIFOHandler::getL1Data(): Dropped %d Data: ", iDataDropped);
+  _print_L1(iTriggerCounter, _evrL1Data);
   return 4; // Will set Dropped Contribution damage for L1 Data
 }
   
@@ -997,3 +1019,4 @@ bool evrHasEvent(Evr& er)
   else
     return false;
 }
+

@@ -43,6 +43,8 @@ namespace Pds {
   public:
     unsigned get_transition_env (TransitionId::Value) const;
 
+    //  This call blocks until Configure is complete.
+    //  It will deadlock if called in the eventbuilder thread.
     void  reconfigure      (bool wait=true);
     void  pause            ();
     void  set_transition_env    (TransitionId::Value, unsigned);

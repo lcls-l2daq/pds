@@ -5,7 +5,9 @@
 
 namespace Pds
 {
-  
+
+  static const ClockTime _invalid(-1,-1);
+
 EvrL1Data::EvrL1Data( int iMaxNumFifoEvent, int iNumBuffers ) :
   _iMaxNumFifoEvent (iMaxNumFifoEvent),
   _iNumBuffers      (iNumBuffers),
@@ -14,7 +16,7 @@ EvrL1Data::EvrL1Data( int iMaxNumFifoEvent, int iNumBuffers ) :
   _lDataCircBuffer  ( new char[ iNumBuffers * EvrDataUtil::size( iMaxNumFifoEvent ) ]  ),
   _lbDataFull       ( new bool[ iNumBuffers ] ),
   _lbDataIncomplete ( new bool[ iNumBuffers ] ),
-  _liCounter        ( new int [ iNumBuffers ] )
+  _liCounter        ( new ClockTime[ iNumBuffers ] )
 {
 }
 
@@ -35,7 +37,7 @@ void EvrL1Data::reset()
   
   memset( _lbDataFull,       0, _iNumBuffers * sizeof(bool) );
   memset( _lbDataIncomplete, 0, _iNumBuffers * sizeof(bool) ); 
-  memset( _liCounter,        0, _iNumBuffers * sizeof(int) ); 
+  memset( _liCounter,        0, _iNumBuffers * sizeof(ClockTime) ); 
 }
 
 EvrDataUtil& EvrL1Data::getDataRead()
@@ -76,7 +78,7 @@ void EvrL1Data::finishDataRead()  // move on to the next data position for data 
       _iDataReadIndex = -1;   
       break;
     }
-  } while ( _liCounter[_iDataReadIndex] == -1 ); // if current data counter is invalid, keep moving forward
+  } while ( _liCounter[_iDataReadIndex] == _invalid ); // if current data counter is invalid, keep moving forward
   
   //if ( _iDataReadIndex != -1 || bDataWriteAbnormal ) // !! debug
   //{
@@ -104,7 +106,7 @@ void EvrL1Data::finishDataWrite() // move on to the next data position for data 
 /*
  * find and get data with counter
  */
-int EvrL1Data::findDataWithCounter(int iCounter) 
+int EvrL1Data::findDataWithCounter(const ClockTime& iCounter) 
 {
   for ( int iDataIndex = 0; iDataIndex < _iNumBuffers; iDataIndex++ )
     if ( _liCounter[iDataIndex] == iCounter )
@@ -122,7 +124,7 @@ EvrDataUtil& EvrL1Data::getDataWithIndex(int iDataIndex)
 
 void EvrL1Data::markDataAsInvalid(int iDataIndex)
 {
-  _liCounter[iDataIndex] = -1; // Mark the counter as invalid
+  _liCounter[iDataIndex] = _invalid; // Mark the counter as invalid
 }
 
 pthread_mutex_t EvrL1Data::LockData::_mutexData = PTHREAD_MUTEX_INITIALIZER;    

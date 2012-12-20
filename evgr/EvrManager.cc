@@ -34,6 +34,7 @@
 
 using namespace Pds;
 
+static bool _randomize_nodes = false;
 static EvrFIFOHandler* _fifo_handler;
 
 static const int      giMaxEventCodes   = 64; // max number of event code configurations
@@ -460,7 +461,7 @@ public:
           iMaxGroup = node->group();
       }
     }
-    
+
     //
     //  Test if we own the primary EVR for this partition
     //
@@ -472,35 +473,37 @@ public:
       if (node->level() == Level::Segment) 
       {
         if (node->pid() == pid)
-        {
-    if (lmaster) 
-      {
-              printf("Found master EVR\n");
-              _fifo_handler = new EvrMasterFIFOHandler(
-                         _er,
-                   _cfg.src(),
-                   _app,
-                   alloc.allocation().partitionid(),
-                         iMaxGroup,
-                   _task);
-      }
-    else
-      {
-              printf("Found slave EVR\n");
-              _fifo_handler = new EvrSlaveFIFOHandler(
-                        _er, 
-                  _app,
-                  alloc.allocation().partitionid(),
-                  _task,
-                                                      _sync_task);
-      }
-    break;
-        }
+	  {
+	    if (lmaster) 
+	      {
+		printf("Found master EVR\n");
+		_fifo_handler = new EvrMasterFIFOHandler(
+							 _er,
+							 _cfg.src(),
+							 _app,
+							 alloc.allocation().partitionid(),
+							 iMaxGroup,
+							 alloc.allocation().nnodes(Level::Event),
+							 _randomize_nodes,
+							 _task);
+	      }
+	    else
+	      {
+		printf("Found slave EVR\n");
+		_fifo_handler = new EvrSlaveFIFOHandler(
+							_er, 
+							_app,
+							alloc.allocation().partitionid(),
+							_task,
+							_sync_task);
+	      }
+	    break;
+	  }
         else
-    lmaster = false;
+	  lmaster = false;
       } // if (node->level() == Level::Segment) 
     } // for (unsigned n = 0; n < nnodes; n++)
-
+    
     return tr;
   }
 private:
@@ -605,6 +608,8 @@ void EvrManager::sigintHandler(int iSignal)
   }
   exit(0);
 }
+
+void EvrManager::randomize_nodes(bool v) { _randomize_nodes=v; }
 
 const int EvrManager::EVENT_CODE_BEAM;  // value is defined in the header file
 const int EvrManager::EVENT_CODE_BYKIK; // value is defined in the header file

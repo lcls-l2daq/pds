@@ -5,6 +5,7 @@
 #include <pthread.h>
 
 #include "EvrDataUtil.hh"
+#include "pdsdata/xtc/ClockTime.hh"
 
 namespace Pds
 {
@@ -39,15 +40,15 @@ public:
   
   void setDataWriteFull      (bool bVal)    { _lbDataFull       [_iDataWriteIndex] = bVal; }
   void setDataWriteIncomplete(bool bVal)    { _lbDataIncomplete [_iDataWriteIndex] = bVal; }
-  void setCounterWrite       (int iCounter) { _liCounter        [_iDataWriteIndex] = iCounter; }
+  void setCounterWrite       (const ClockTime& iCounter) { _liCounter        [_iDataWriteIndex] = iCounter; }
   bool getDataReadFull       ()             { return _lbDataFull       [_iDataReadIndex]; }
   bool getDataReadIncomplete ()             { return _lbDataIncomplete [_iDataReadIndex]; }
-  int  getCounterRead        ()             { return _liCounter        [_iDataReadIndex]; }
+  const ClockTime& getCounterRead() const   { return _liCounter        [_iDataReadIndex]; }
   bool isDataWriteReady      ()             { return ( _iDataWriteIndex != _iDataReadIndex ); }  
   bool isDataReadReady       ()             { return ( _iDataReadIndex  != -1 ); }  
   
-  int  readIndex             ()             { return _iDataReadIndex;  }
-  int  writeIndex            ()             { return _iDataWriteIndex; }
+  int  readIndex             () const       { return _iDataReadIndex;  }
+  int  writeIndex            () const       { return _iDataWriteIndex; }
   int  numOfBuffers          ()             { return _iNumBuffers;     }
       
   EvrDataUtil& getDataRead();
@@ -59,7 +60,7 @@ public:
   /*
    * find and get data with counter
    */
-  int           findDataWithCounter(int iCounter);  
+  int           findDataWithCounter(const ClockTime& iCounter);  
   EvrDataUtil&  getDataWithIndex   (int iDataIndex);
   void          markDataAsInvalid  (int iDataIndex);
   
@@ -73,7 +74,7 @@ private:
 
   bool*  _lbDataFull;
   bool*  _lbDataIncomplete;  
-  int*   _liCounter;
+  ClockTime* _liCounter;
   
   
   /*

@@ -16,6 +16,64 @@
 #include <errno.h>
 #include <poll.h>
 
+namespace Pds {
+  class FlushRoutine : public Routine {
+  public:
+    FlushRoutine(LinkedList<TrafficDst>& list,
+		 Client&                 client,
+		 ToEventWireScheduler*   scheduler=0) :
+      _client   (client),
+      _scheduler(scheduler)
+    {
+      _list.insertList(&list);
+    }
+    ~FlushRoutine() {} // _list should be empty
+  public:
+    void routine()
+    {
+#ifdef HISTO_TRANSMIT_TIMES
+      timespec start, end;
+      if (_scheduler)
+	clock_gettime(CLOCK_REALTIME, &start);
+#endif
+      TrafficDst* t = _list.forward();
+      while(t != _list.empty()) {
+	do {
+	  TrafficDst* n = t->forward();
+
+#ifdef BUILD_PACKAGE_SPACE
+	  static int iDgCount = 0;
+	  if (++iDgCount > 100)
+	    {
+	      timeval timeSleepMicro = {0, 1000};
+	      // Use select() to simulate nanosleep(), because experimentally select() controls the sleeping time more precisely
+	      select( 0, NULL, NULL, NULL, &timeSleepMicro);
+	      iDgCount = 0;
+	    }
+#endif
+
+	  if (!t->send_next(_client))
+	    delete t->disconnect();
+	  t = n;
+	} while( t != _list.empty());
+	t = _list.forward();
+      }
+#ifdef HISTO_TRANSMIT_TIMES
+      if (_scheduler) {
+	clock_gettime(CLOCK_REALTIME, &end);
+	_scheduler->histo(start,end);
+      }
+#endif
+
+      delete this;
+    }
+  private:
+    LinkedList<TrafficDst>  _list;
+    Client&                 _client;
+    ToEventWireScheduler*   _scheduler;
+  };
+};
+
 using namespace Pds;
 
 static unsigned _maxscheduled = 4;
@@ -29,8 +87,16 @@ static int      _idol_timeout  = 150;  // idol time [ms] which forces flush of q
 static int      _disable_buffer = 100; // time [ms] inserted between flushed L1 and Disable transition
 static unsigned _phase = 0;
 
+static long long int timeDiff(timespec* end, timespec* start) {
+  long long int diff;
+  diff =  (end->tv_sec - start->tv_sec) * 1000000000LL;
+  diff += end->tv_nsec;
+  diff -= start->tv_nsec;
+  return diff;
+}
+
 void ToEventWireScheduler::setMaximum(unsigned m) { _maxscheduled = m; }
-void ToEventWireScheduler::setPhase  (unsigned m) { _phase = (1<<m); printf("ToEventWireScheduler phase = %d\n",m); }
+void ToEventWireScheduler::setPhase  (unsigned m) { _phase = m; }
 
 ToEventWireScheduler::ToEventWireScheduler(Outlet& outlet,
              CollectionManager& collection,
@@ -43,8 +109,8 @@ ToEventWireScheduler::ToEventWireScheduler(Outlet& outlet,
                 //                (1 + maxbuf / Mtu::Size)*_maxscheduled),
                 ((1 + maxbuf) / Mtu::Size)),
   _occurrences (occurrences),
-  _scheduled   (_phase),
-  _task        (new Task(TaskObject("TxScheduler")))
+  _task        (new Task(TaskObject("TxScheduler"))),
+  _flush_task  (new Task(TaskObject("TxFlush")))
 {
   _flushCount = 0;
   _histo = (unsigned*) calloc(10000, sizeof(unsigned));
@@ -78,75 +144,37 @@ Occurrence* ToEventWireScheduler::forward(Occurrence* tr)
 
 void ToEventWireScheduler::_flush(InDatagram* dg)
 {
-  TrafficDst* n = dg->traffic(_bcast);
-  while (n->send_next(_client)) 
-  {
-#ifdef BUILD_PACKAGE_SPACE
-    static int iDgCount = 0;
-    if (++iDgCount > 100)
-    {
-      timeval timeSleepMicro = {0, 1000}; 
-      // Use select() to simulate nanosleep(), because experimentally select() controls the sleeping time more precisely
-      select( 0, NULL, NULL, NULL, &timeSleepMicro);
-      iDgCount = 0; 
-    }
-#endif
+  if (_nscheduled) {
+    _flush();
+    //
+    //  Add some spacing to insure that the L1's and Transitions are not "coalesced"
+    //
+    timespec ts;
+    ts.tv_sec = 0; ts.tv_nsec = _disable_buffer*1000000;
+    nanosleep(&ts,0);
   }
-  delete n;
-}
 
-long long int ToEventWireScheduler::timeDiff(timespec* end, timespec* start) {
-  long long int diff;
-  diff =  (end->tv_sec - start->tv_sec) * 1000000000LL;
-  diff += end->tv_nsec;
-  diff -= start->tv_nsec;
-  return diff;
+  TrafficDst* n = dg->traffic(_bcast);
+  _list.insert(n);
+
+  _flush_task->call( new FlushRoutine(_list,_client) );
 }
 
 void ToEventWireScheduler::_flush()
 {
-#ifdef HISTO_TRANSMIT_TIMES
-  timespec start, end;
-  clock_gettime(CLOCK_REALTIME, &start);
-#endif
-  TrafficDst* t = _list.forward();
-  while(t != _list.empty()) {
-    do {
-      TrafficDst* n = t->forward();
+  if (_nscheduled==0)
+    return;
 
-#ifdef BUILD_PACKAGE_SPACE
-      static int iDgCount = 0;
-      if (++iDgCount > 100)
-      {
-        timeval timeSleepMicro = {0, 1000};
-        // Use select() to simulate nanosleep(), because experimentally select() controls the sleeping time more precisely
-        select( 0, NULL, NULL, NULL, &timeSleepMicro);
-        iDgCount = 0;
-      }
-#endif
+  //
+  //  Phase delay goes here
+  //
+  timeval timeSleepMicro = {0, _phase*8000}; // 8 milliseconds  
+  select( 0, NULL, NULL, NULL, &timeSleepMicro);       
 
-      if (!t->send_next(_client))
-  delete t->disconnect();
-      t = n;
-    } while( t != _list.empty());
-    t = _list.forward();
-  }
-  _scheduled  = _phase;
+  _flush_task->call( new FlushRoutine(_list,_client,this) );
+
+  _scheduled  = 0;
   _nscheduled = 0;
-#ifdef HISTO_TRANSMIT_TIMES
-  clock_gettime(CLOCK_REALTIME, &end);
-  long long int interval = timeDiff(&end, &start)/100000LL;
-  if (interval > 9999) interval = 9999;
-  _histo[interval] += 1;
-  if ((++_flushCount % 10000) == 0) {
-    printf("ToEventWireScheduler time histo in ms %u\n", _flushCount);
-    for (int i=0; i<1000; i++) {
-      if (_histo[i]) {
-        printf("\t%5.1f - %8u\n", i/10.0, _histo[i]);
-      }
-    }
-  }
-#endif
 }
 
 InDatagram* ToEventWireScheduler::forward(InDatagram* dg)
@@ -169,39 +197,29 @@ void ToEventWireScheduler::routine()
     if (::poll(&pfd, nfd, _idol_timeout) > 0) {
       InDatagram* dg;
       if (::read(_schedfd[0], &dg, sizeof(dg)) == sizeof(dg)) {
-  //  Flush the set of events if
-  //    (1) we already have queued an event to the same destination
-  //    (2) we have reached the maximum number of queued events
-  //    [missing a timeout?]
-  const Sequence& seq = dg->datagram().seq;
-  if (seq.isEvent() && !_nodes.isempty()) {
-    OutletWireIns* dst = _nodes.lookup(seq.stamp().vector());
-    unsigned m = 1<<dst->id();
-    if (m & _scheduled)
-      _flush();
-    TrafficDst* t = dg->traffic(dst->ins());
-    _list.insert(t);
-    _scheduled |= m;
-    if (++_nscheduled >= _maxscheduled)
-      _flush();
-  }
-  else {
-    if (_nscheduled) {
-      _flush();
-      //
-      //  Add some spacing to insure that the L1's and Transitions are not "coalesced"
-      //
-      timespec ts;
-      ts.tv_sec = 0; ts.tv_nsec = _disable_buffer*1000000;
-      nanosleep(&ts,0);
-    }
-    _flush(dg);
-  }
+	//  Flush the set of events if
+	//    (1) we already have queued an event to the same destination
+	//    (2) we have reached the maximum number of queued events
+	const Sequence& seq = dg->datagram().seq;
+	if (seq.isEvent() && !_nodes.isempty()) {
+	  OutletWireIns* dst = _nodes.lookup(seq.stamp().vector());
+	  unsigned m = 1<<dst->id();
+	  if (m & _scheduled)
+	    _flush();
+	  TrafficDst* t = dg->traffic(dst->ins());
+	  _list.insert(t);
+	  _scheduled |= m;
+	  if (++_nscheduled >= _maxscheduled)
+	    _flush();
+	}
+	else {
+	  _flush(dg);
+	}
       }
       else {
-  printf("ToEventWireScheduler::routine error reading pipe : %s\n",
-         strerror(errno));
-  break;
+	printf("ToEventWireScheduler::routine error reading pipe : %s\n",
+	       strerror(errno));
+	break;
       }
     }
     else {  // timeout
@@ -223,4 +241,19 @@ void ToEventWireScheduler::bind(unsigned id, const Ins& node)
 void ToEventWireScheduler::unbind(unsigned id) 
 {
   _nodes.remove(id);
+}
+
+void ToEventWireScheduler::histo(timespec& start, timespec& end)
+{
+  long long int interval = timeDiff(&end, &start)/100000LL;
+  if (interval > 9999) interval = 9999;
+  _histo[interval] += 1;
+  if ((++_flushCount % 10000) == 0) {
+    printf("ToEventWireScheduler time histo in ms %u\n", _flushCount);
+    for (int i=0; i<1000; i++) {
+      if (_histo[i]) {
+        printf("\t%5.1f - %8u\n", i/10.0, _histo[i]);
+      }
+    }
+  }
 }

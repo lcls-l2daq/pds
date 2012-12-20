@@ -141,6 +141,15 @@ Node* Allocation::node(unsigned n)
   }
 }
 
+unsigned Allocation::nnodes(Level::Type level) const
+{
+  unsigned n=0;
+  for(unsigned i=0; i<_nnodes; i++)
+    if (_nodes[i].level()==level)
+      n++;
+  return n;
+}
+
 uint64_t Allocation::bld_mask() const 
 {
   uint64_t mask = _bld_mask[1];

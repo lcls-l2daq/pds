@@ -19,9 +19,9 @@ namespace Pds {
 
     // SIGINT handler
     static void sigintHandler(int);
+    static void randomize_nodes(bool);
     
     Appliance&  appliance();
-
   private:
     Evr&        _er;
     Fsm&        _fsm;

@@ -45,11 +45,13 @@ namespace Pds {
     enum { TERMINATOR         = 1 };
   public:
     EvrMasterFIFOHandler(Evr&, 
-       const Src&, 
-       Appliance&, 
-       unsigned partition,
-       int      iMaxGroup,
-       Task*    task);
+			 const Src&, 
+			 Appliance&, 
+			 unsigned partition,
+			 int      iMaxGroup,
+			 unsigned neventnodes,
+			 bool     randomize,
+			 Task*    task);
     virtual ~EvrMasterFIFOHandler();
   public:
     virtual void        fifo_event  (const FIFOEvent&);  // formerly 'xmit'
@@ -115,10 +117,15 @@ namespace Pds {
     timespec              _thisTime;
     timespec              _lastTime;
 
+    enum { MAX_NODES=32 };
+    unsigned              _nnodes;
+    bool                  _randomize_nodes;
+    int                   _vector[MAX_NODES];
+
   private:
     void startL1Accept(const FIFOEvent& fe, bool bEvrDataIncomplete);
 
-    int  getL1Data(int iTriggerCounter, const EvrDataUtil* & pEvrData, bool& bOutOfOrder);
+    int  getL1Data(const ClockTime&, const EvrDataUtil* & pEvrData, bool& bOutOfOrder);
     void releaseL1Data();
 
     // Add Fifo event to the evrData with boundary check

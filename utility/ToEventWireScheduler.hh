@@ -41,9 +41,11 @@ namespace Pds {
     static void setMaximum(unsigned);
     static void setPhase  (unsigned);
   private:
+    void _queue(TrafficDst*);
     void _flush(InDatagram*);
     void _flush();
-    long long int timeDiff(timespec*, timespec*);
+  public:
+    void histo(timespec&, timespec&);
   private:
     OutletWireInsList  _nodes;
     CollectionManager& _collection;
@@ -55,6 +57,7 @@ namespace Pds {
     LinkedList<TrafficDst> _list;
     TrafficScheduler*      _schedule;
     Task*                  _task;
+    Task*                  _flush_task;
     int                    _schedfd[2];
     unsigned               _flushCount;
     unsigned*              _histo;

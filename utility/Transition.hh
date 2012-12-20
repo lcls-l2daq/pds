@@ -62,6 +62,7 @@ namespace Pds {
     bool add(const Node& node);
 
     unsigned    nnodes() const;
+    unsigned    nnodes(Level::Type) const;
     const Node* node(unsigned n) const;
     Node*       node(unsigned n);
     const char* partition() const;

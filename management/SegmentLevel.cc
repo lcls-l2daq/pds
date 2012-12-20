@@ -133,9 +133,10 @@ void    SegmentLevel::allocated(const Allocation& alloc,
   for(unsigned n=0; n<nnodes; n++) {
     const Node& node = *alloc.node(n);
     if (node.level()==Level::Segment)
-      if (node.pid()==pid)
-        ToEventWireScheduler::setPhase(n % vectorid);
-    
+      if (node.pid()==pid) {
+        ToEventWireScheduler::setPhase  (n % vectorid);
+        ToEventWireScheduler::setMaximum(vectorid);
+      }
   }
 }
 
