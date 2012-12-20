@@ -10,6 +10,7 @@
 #include <sys/signal.h>
 #include <sys/types.h>
 #include <time.h>
+#include <string>
 
 #include "pdsdata/ipimb/ConfigV2.hh"
 
@@ -24,6 +25,7 @@ namespace Pds {
   class IpimBoardData;
   class IpimBoardPacketParser;
   class IpimBoardBaselineHistory;
+  class UserMessage;
 
   enum {
     crcFailed = 0x00,
@@ -79,7 +81,7 @@ namespace Pds {
     void WriteCommand(unsigned*);
     int inWaiting(IpimBoardPacketParser&);
     
-    bool configure(Ipimb::ConfigV2& config);
+    bool configure(Ipimb::ConfigV2& config, std::string&);
     bool unconfigure();
     bool setReadable(bool);
     void setBaselineSubtraction(const int, const int);

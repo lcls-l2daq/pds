@@ -8,6 +8,8 @@
 
 #include "pds/ipimb/IpimBoard.hh"
 
+#include <string>
+
 #include "pdsdata/ipimb/DataV1.hh"
 typedef Pds::Ipimb::DataV1 OldIpimbDataType;
 static Pds::TypeId  oldIpimbDataType(Pds::TypeId::Id_IpimbData,
@@ -42,7 +44,7 @@ namespace Pds {
     void setIpimb(IpimBoard* ipimb, char* serialDevice, int baselineMode, int polarity);
 
   public:
-    unsigned configure(IpimbConfigType& config);
+    unsigned configure(IpimbConfigType& config, std::string&);
     unsigned unconfigure();
 
   private:

@@ -107,12 +107,13 @@ void IpimbServer::setIpimb(IpimBoard* ipimb, char* portName, const int baselineS
   _serialDevice = portName;
 }
 
-unsigned IpimbServer::configure(IpimbConfigType& config) {
+unsigned IpimbServer::configure(IpimbConfigType& config,
+                                std::string&     msg) {
   nPrints = MaxPrints;
   printf("In IpimbServer, using baseline mode %d, polarity %d\n", _baselineSubtraction, _polarity);
   if (_c01) _ipimBoard->setOldVersion();
   _ipimBoard->setBaselineSubtraction(_baselineSubtraction, _polarity); // avoid updating config class; caveat user
-  return _ipimBoard->configure(config);
+  return _ipimBoard->configure(config,msg);
 }
 
 unsigned IpimbServer::unconfigure() {

@@ -44,15 +44,16 @@ UserMessage::UserMessage() :
 UserMessage::UserMessage(const char* msg) :
   Occurrence(OccurrenceId::UserMessage,
 	     sizeof(UserMessage))
-{ strncpy(_msg, msg, MaxMsgLength); }
+{
+  strncpy(_msg, msg, MaxMsgLength); 
+  _msg[MaxMsgLength-1] = 0;
+}
 
 void UserMessage::append(const char* msg)
 { 
   int l = strlen(_msg);
-  if (l < MaxMsgLength-1) {
-    strncpy(_msg+l, msg, MaxMsgLength-l-1);
-    _msg[MaxMsgLength-1] = 0;
-  }
+  strncpy(_msg+l, msg, MaxMsgLength-l);
+  _msg[MaxMsgLength-1] = 0;
 }
 
 DataFileOpened::DataFileOpened(unsigned _expt,

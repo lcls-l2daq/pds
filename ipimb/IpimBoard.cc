@@ -501,7 +501,7 @@ void IpimBoard::flush() {
   tcflush(_fd, TCIOFLUSH);
 }
 
-bool IpimBoard::configure(Ipimb::ConfigV2& config) {
+bool IpimBoard::configure(Ipimb::ConfigV2& config, std::string& errmsg) {
   flush();
   setReadable(true);
   printf("have set fd to readable in IpimBoard configure\n");
@@ -513,6 +513,8 @@ bool IpimBoard::configure(Ipimb::ConfigV2& config) {
 
   if (_commandResponseDamage) {
     printf("read of board failed - check serial and power connections of fd %d, device %s\nGiving up on configuration\n", _fd, _serialDevice);
+    errmsg += "Board read failed - check serial, power conn for ";
+    errmsg += _serialDevice;
     return !_commandResponseDamage; // bail if can't read
   }
 
@@ -531,6 +533,7 @@ bool IpimBoard::configure(Ipimb::ConfigV2& config) {
   if (!_c01) {// c02 is default
     if (vhdlVersion != NewVhdlVersion) {
       printf("Expected vhdl version 0x%x, found 0x%x, old version is 0x%x\n", NewVhdlVersion, vhdlVersion, OldVhdlVersion);
+      errmsg += "Unexpected firmware version.";
       _commandResponseDamage = true;
     }
     unsigned multiplier = (unsigned) config.chargeAmpRange();
@@ -541,6 +544,7 @@ bool IpimBoard::configure(Ipimb::ConfigV2& config) {
     printf("Configuring gain with %d, %d, %d, %d\n", mult_chan0, mult_chan1, mult_chan2, mult_chan3);
     if(mult_chan0*mult_chan1*mult_chan2*mult_chan3 == 0) {
       printf("Do not understand gain configuration 0x%x, byte values restricted to 0-14\n", multiplier);
+      errmsg += "Unexpected gain configuration.";
       _commandResponseDamage = true;
     }
     unsigned inputAmplifier_pF[4] = {mult_chan0, mult_chan1, mult_chan2, mult_chan3};
@@ -548,6 +552,7 @@ bool IpimBoard::configure(Ipimb::ConfigV2& config) {
   } else {
     if (vhdlVersion != OldVhdlVersion) {
       printf("Expected vhdl version 0x%x, found 0x%x, new version is 0x%x\n", OldVhdlVersion, vhdlVersion, NewVhdlVersion);
+      errmsg += "Unexpected firmware version.";
       _commandResponseDamage = true;
     }
     unsigned multiplier = (unsigned) config.chargeAmpRange();
@@ -559,6 +564,7 @@ bool IpimBoard::configure(Ipimb::ConfigV2& config) {
     printf("Configuring gain with %d, %d, %d, %d\n", mult_chan0, mult_chan1, mult_chan2, mult_chan3);
     if(mult_chan0*mult_chan1*mult_chan2*mult_chan3 == 0) {
       printf("Do not understand bit pattern of 0x%x gain configuration, only 0, 1, 2 allowed per byte\n", multiplier);
+      errmsg += "Unexpected gain configuration.";
       _commandResponseDamage = true;
     }
     unsigned inputAmplifier_pF[4] = {mult_chan0, mult_chan1, mult_chan2, mult_chan3};
@@ -574,6 +580,7 @@ bool IpimBoard::configure(Ipimb::ConfigV2& config) {
     if ((HardCodedPresampleDelay+HardCodedTotalPresampleTime)>config.trigDelay()) {
       _commandResponseDamage = true;
       printf("Sample delay %d is too short - must be at least %d earlier than %d\n", config.trigDelay(), HardCodedTotalPresampleTime, HardCodedPresampleDelay);
+      errmsg += "Sampled delay is too short.";
     }
     _SetAdcDelay(HardCodedAdcDelay);
     printf("Have hardcoded adc delay to %f us\n", float(HardCodedAdcDelay)/1000);
@@ -581,6 +588,7 @@ bool IpimBoard::configure(Ipimb::ConfigV2& config) {
     if ((HardCodedPresampleDelay+OldHardCodedADCTime)>config.trigDelay()) {
       _commandResponseDamage = true;
       printf("Sample delay %d is too short - must be at least %d earlier than %d\n", config.trigDelay(), OldHardCodedADCTime, HardCodedPresampleDelay);
+      errmsg += "Sampled delay is too short.";
     }
   }
   //  CalibrationStart((unsigned) config.calStrobeLength());

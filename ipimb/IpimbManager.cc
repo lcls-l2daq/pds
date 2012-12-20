@@ -7,6 +7,7 @@
 #include <new>
 #include <errno.h>
 #include <math.h>
+#include <string>
 
 #include "pds/xtc/CDatagram.hh"
 #include "pds/client/Fsm.hh"
@@ -18,7 +19,9 @@
 #include "IpimbFex.hh"
 #include "pdsdata/ipimb/DataV2.hh"
 #include "pdsdata/ipimb/ConfigV2.hh"
+#include "pdsdata/xtc/DetInfo.hh"
 #include "pds/config/CfgClientNfs.hh"
+#include "pds/service/GenericPool.hh"
 
 using namespace Pds;
 
@@ -66,11 +69,13 @@ private:
 class IpimbConfigAction : public IpimbAction {
 public:
   IpimbConfigAction(CfgClientNfs** cfg, IpimbServer* server[], int nServers,
-		    IpimbFex& fex) :
+		    IpimbFex& fex, Appliance& app) :
     _cfg(cfg), _server(server), _nServers(nServers), 
     _fex(fex),
     _nDamagedConfigures(0),
-    _config(new IpimbConfigType[_nServers]) {}
+    _config (new IpimbConfigType[_nServers]),
+    _app    (app),
+    _occPool(sizeof(UserMessage),4) {}
   ~IpimbConfigAction() {}
   InDatagram* fire(InDatagram* dg) {
     //    printf("in ipimb config indatagram transition\n");
@@ -92,25 +97,41 @@ public:
   Transition* fire(Transition* tr) {
     _nDamagedConfigures = 0;
     _fex.reset();
+    std::string errmsg;
     for (unsigned i=0; i<_nServers; i++) {
       int len = (*_cfg[i]).fetch(*tr,_ipimbConfigType, &_config[i], sizeof(_config[i]));
+      std::string errhdr(DetInfo::name(static_cast<const DetInfo&>(_cfg[i]->src())));
       if (len <= 0) {
 	printf("IpimbConfigAction: failed to retrieve configuration : (%d)%s.  Refusing to configure.\n",errno,strerror(errno));
+        errmsg += errhdr;
+        errmsg += ": ";
+        errmsg += "failed to retrieve configuration: ";
+        errmsg += strerror(errno);
 	_nDamagedConfigures += 1;
 	continue;
       }
       _config[i].dump();
-      if (!_server[i]->configure(_config[i])) {
+      std::string emsg;
+      if (!_server[i]->configure(_config[i],emsg)) {
 	printf("Ipimb server %d configuration was damaged\n", i);
 	_nDamagedConfigures ++;
       }
 
       if (!_fex.configure(*_cfg[i],*tr,_config[i])) {
 	printf("Fex configuration was damaged\n");
+        emsg += "FEX configuration was damaged.";
 	_nDamagedConfigures ++;
       }
+
+      if (emsg.size())
+        errmsg += errhdr + ": " + emsg;
     }
     //    printf("fake success back from ipim board class: %d\n", _nerror);
+    if (errmsg.size()) {
+      if (_occPool.numberOfFreeObjects())
+        _app.post(new (&_occPool)UserMessage(errmsg.c_str()));
+    }
+
     return tr;
   }
 
@@ -121,6 +142,8 @@ private:
   IpimbFex&  _fex;
   unsigned _nDamagedConfigures;
   IpimbConfigType* _config;
+  Appliance&  _app;
+  GenericPool _occPool;
 };
 
 class IpimbUnconfigAction : public IpimbAction {
@@ -155,7 +178,7 @@ IpimbManager::IpimbManager(IpimbServer* server[], unsigned nServers, CfgClientNf
     IpimBoard* ipimBoard = new IpimBoard(portName[i]);
     server[i]->setIpimb(ipimBoard, portName[i], baselineMode, polarities[i]);
   }
-  Action* caction = new IpimbConfigAction(cfg, server, _nServers, fex);
+  Action* caction = new IpimbConfigAction(cfg, server, _nServers, fex, _fsm);
   _fsm.callback(TransitionId::Configure, caction);
   Action* uncaction = new IpimbUnconfigAction(server, _nServers);
   _fsm.callback(TransitionId::Unconfigure, uncaction);
