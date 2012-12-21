@@ -156,7 +156,7 @@ class Pds::TimepixServer
     Task *                   _readTask[ReadThreads];
     int _shutdownFlag;
     uint8_t *   _pixelsCfg;
-    int8_t      _readoutSpeed, _triggerMode;
+    int8_t      _readoutSpeed, _timepixMode;
     int32_t     _timepixSpeed;  // replaced _shutterTimeout
     int32_t     _dac0[TPX_DACS];
     int32_t     _dac1[TPX_DACS];
@@ -169,6 +169,7 @@ class Pds::TimepixServer
     int         _cpu1;
     Semaphore * _readTaskMutex;
     bool _threshFileError;
+    uint8_t     _dacBias;
 };
 
 #endif

@@ -143,7 +143,7 @@ uint8_t *Pds::TimepixServer::pixelsCfg()
     for (int jj=0; jj < TimepixConfigType::PixelThreshMax; jj++) {
       // be sure to read the configuration before setting the mode
       _pixelsCfg[jj] &= ~TPX_CFG8_MODE_MASK;
-      if (_triggerMode) {
+      if (_timepixMode) {
         // TOT mode
         _pixelsCfg[jj] |= (TPX_MODE_TOT << TPX_CFG8_MODE_MASK_SHIFT);
       } else {
@@ -294,7 +294,7 @@ read_shutdown:
 
 unsigned Pds::TimepixServer::configure(TimepixConfigType& config)
 {
-  char msgBuf[80];
+  char msgBuf[100];
   // int rv;
   unsigned int configReg;
   unsigned numErrs = 0;
@@ -321,7 +321,7 @@ unsigned Pds::TimepixServer::configure(TimepixConfigType& config)
   }
 
   if (_threshFileError) {
-    snprintf(msgBuf, sizeof(msgBuf), "Error reading bpc file '%s'\n", _threshFile);
+    snprintf(msgBuf, sizeof(msgBuf), "Timepix: Error reading bpc file '%s'\n", _threshFile);
     fprintf(stderr, "%s: %s", __PRETTY_FUNCTION__, msgBuf);
     if (_occSend != NULL) {
       // send occurrence
@@ -333,7 +333,7 @@ unsigned Pds::TimepixServer::configure(TimepixConfigType& config)
   // only start receiving frames if init succeeds and sanity check passes
 
   if (_relaxd->init() != 0) {
-    sprintf(msgBuf, "Relaxd module %d (192.168.%d.175) init failed\n", id, 33+id);
+    snprintf(msgBuf, sizeof(msgBuf), "Timepix: Relaxd module %d (192.168.%d.175) init failed\n", id, 33+id);
     fprintf(stderr, "%s: %s", __PRETTY_FUNCTION__, msgBuf);
     if (_occSend != NULL) {
       // send occurrence
@@ -357,7 +357,7 @@ unsigned Pds::TimepixServer::configure(TimepixConfigType& config)
   if (tpx->warmup(false) != 0) {
     // failed warmup
     delete tpx;
-    sprintf(msgBuf, "Timepix module %d (192.168.%d.175) warmup failed\n", id, 33+id);
+    snprintf(msgBuf, sizeof(msgBuf), "Timepix module %d (192.168.%d.175) warmup failed\n", id, 33+id);
     fprintf(stderr, "%s: %s", __PRETTY_FUNCTION__, msgBuf);
     if (_occSend != NULL) {
       // send occurrence
@@ -428,7 +428,7 @@ unsigned Pds::TimepixServer::configure(TimepixConfigType& config)
   if (numErrs > 0) {
     // failed initialization
     delete tpx;
-    sprintf(msgBuf, "Timepix module %u (192.168.%d.175) init failed\n", moduleId(), 33+moduleId());
+    snprintf(msgBuf, sizeof(msgBuf), "Timepix module %u (192.168.%d.175) init failed\n", moduleId(), 33+moduleId());
     fprintf(stderr, "%s: %s", __PRETTY_FUNCTION__, msgBuf);
     if (_occSend != NULL) {
       // send occurrence
@@ -449,8 +449,9 @@ unsigned Pds::TimepixServer::configure(TimepixConfigType& config)
   decisleep(1);
 
   _readoutSpeed = config.readoutSpeed();
-  _triggerMode = config.triggerMode();
+  _timepixMode = config.timepixMode();
   _timepixSpeed = config.timepixSpeed();
+  _dacBias = config.dacBias();
 
   _dac0[0]  = config.dac0Ikrum();
   _dac0[1]  = config.dac0Disc();
@@ -515,7 +516,7 @@ unsigned Pds::TimepixServer::configure(TimepixConfigType& config)
   // set pixels configuration
 
   config.pixelThresh(0, NULL);  // default: empty pixel configuration
-  if (_triggerMode) {
+  if (_timepixMode) {
     printf("Timepix Mode: Time Over Threshold (TOT)\n");
   } else {
     printf("Timepix Mode: Counting\n");
@@ -597,6 +598,12 @@ unsigned Pds::TimepixServer::configure(TimepixConfigType& config)
     printf("Timepix configuration register: 0x%08x\n", configReg);
   }
 
+  uint32_t pct = ((uint32_t)_dacBias - 50) * 100 / 50; // convert 50-100V to 0-100%
+  if (_timepix->setHwInfo(HW_ITEM_BIAS_VOLTAGE_ADJUST, (void *)&pct, sizeof(pct))) {
+    fprintf(stderr, "Error: setHwInfo(HW_ITEM_BIAS_VOLTAGE_ADJUST, %u) failed\n", pct);
+    ++numErrs;
+  }
+
   // ensure that pipes are empty
   int nbytes;
   char bucket;
@@ -671,47 +678,6 @@ unsigned Pds::TimepixServer::unconfigure(void)
     _timepix = (timepix_dev *)NULL;
   }
 
-  // profiling report
-  if (_profileCollected) {
-    printf("Profiling Report: \n");
-
-    long long diff1, diff2, diff3, diff4, diff5;
-    diff1 = (_profile2[1].tv_nsec - _profile1[1].tv_nsec) / 1000;
-    diff2 = (_profile3[1].tv_nsec - _profile2[1].tv_nsec) / 1000;
-    diff3 = (_profile4[1].tv_nsec - _profile3[1].tv_nsec) / 1000;
-    diff4 = (_profile5[1].tv_nsec - _profile4[1].tv_nsec) / 1000;
-    diff5 = (_profile6[1].tv_nsec - _profile5[1].tv_nsec) / 1000;
-    printf("Profile time 1: %ld.%09ld\n", _profile1[1].tv_sec, _profile1[1].tv_nsec);
-    printf("Profile time 2: %ld.%09ld (diff %lld usec)\n", _profile2[1].tv_sec, _profile1[1].tv_nsec, diff1);
-    printf("Profile time 3: %ld.%09ld (diff %lld usec)\n", _profile3[1].tv_sec, _profile2[1].tv_nsec, diff2);
-    printf("Profile time 4: %ld.%09ld (diff %lld usec)\n", _profile4[1].tv_sec, _profile3[1].tv_nsec, diff3);
-    printf("Profile time 5: %ld.%09ld (diff %lld usec)\n", _profile5[1].tv_sec, _profile4[1].tv_nsec, diff4);
-    printf("Profile time 6: %ld.%09ld (diff %lld usec)\n", _profile6[1].tv_sec, _profile5[1].tv_nsec, diff5);
-//  printf("HW Tick 1: %u\n", _profileHwTimestamp[1]);
-    for (int ii = 1; ii <= 6; ii++) {
-      // hw ticks are 10us
-      printf("HW Tick %d: %u ", ii, _profileHwTimestamp[ii]);
-      if (ii > 1) {
-        printf("(diff %g msec)", (_profileHwTimestamp[ii] - _profileHwTimestamp[ii-1]) / 100.);
-      }
-      printf("\n");
-    }
-    if (_badFrame > 6) {
-      printf(" ...\n");
-      for (unsigned uu = _badFrame - 9 ; uu <= _badFrame; uu++) {
-          printf("HW Tick %u: %u (diff %g msec)\n", uu, _profileHwTimestamp[uu],
-                 (_profileHwTimestamp[uu] - _profileHwTimestamp[uu-1]) / 100.);
-      }
-    }
-    if (_uglyFrame > 6) {
-      printf(" ...\n");
-      for (unsigned uu = _uglyFrame - 9 ; uu <= _uglyFrame; uu++) {
-          printf("HW Tick %u: %u (diff %g msec)\n", uu, _profileHwTimestamp[uu],
-                 (_profileHwTimestamp[uu] - _profileHwTimestamp[uu-1]) / 100.);
-      }
-    }
-  }
-
   _count = 0;
   _missedTriggerCount = 0;
   _badFrame = 0;
@@ -729,6 +695,7 @@ int Pds::TimepixServer::fetch( char* payload, int flags )
 {
   command_t     receiveCommand;
   timespec time5;
+  char msgBuf[80];
 
   if (_outOfOrder) {
     // error condition is latched
@@ -750,11 +717,13 @@ int Pds::TimepixServer::fetch( char* payload, int flags )
   } else if (receiveCommand.cmd == FrameAvailable) {
 
     if (!receiveCommand.buf_iter->_full) {  // is this buffer empty?
-      fprintf(stderr, "Error: buffer underflow in %s\n", __PRETTY_FUNCTION__);
+      snprintf(msgBuf, sizeof(msgBuf), "Timepix buffer underflow\n");
+      fprintf(stderr, "%s: %s", __PRETTY_FUNCTION__, msgBuf);
       // latch error
       _outOfOrder = 1;
       if (_occSend) {
         // send occurrence
+        _occSend->userMessage(msgBuf);
         _occSend->outOfOrder();
       }
       return (-1);
@@ -773,17 +742,20 @@ int Pds::TimepixServer::fetch( char* payload, int flags )
     }
 
     ++_count;
+    uint16_t sum16 = (uint16_t)(_count + _countOffset);
 
     if (!(_debug & TIMEPIX_DEBUG_IGNORE_FRAMECOUNT)) {
       // check for out-of-order condition
-      uint16_t sum16 = (uint16_t)(_count + _countOffset);
       if (frame->frameCounter() != sum16) {
-        fprintf(stderr, "Error: hw framecounter (%hu) != sw count (%hu) + count offset (%u) == (%hu)\n",
+        _badFrame = sum16;
+        snprintf(msgBuf, sizeof(msgBuf), "Timepix: hw count (%hu) != sw count (%hu) + offset (%u) == (%hu)\n",
                 frame->frameCounter(), _count, _countOffset, sum16);
+        fprintf(stderr, "%s: %s", __FUNCTION__, msgBuf);
         // latch error
         _outOfOrder = 1;
         if (_occSend) {
           // send occurrence
+          _occSend->userMessage(msgBuf);
           _occSend->outOfOrder();
         }
         return (-1);

@@ -39,6 +39,11 @@ public:
   std::string getChipName(int chipnr);
   int getChipID(int chipnr, uint32_t *id);
   int readFirmware(int page, uint8_t *bytes);
+  // Dec 2012 extension
+  int hwInfoCount();
+  int getHwInfoFlags(int index, u32 *flags);
+  int getHwInfo(int index, HwInfoItem *hw_item, int *sz);
+  int setHwInfo(int index, void *data, int sz);
 
   // Timepix warmup
   int warmup(bool init);

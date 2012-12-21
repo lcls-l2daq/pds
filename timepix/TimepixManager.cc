@@ -14,7 +14,6 @@
 #include "pds/config/TimepixConfigType.hh"
 #include "TimepixManager.hh"
 #include "TimepixServer.hh"
-#include "pdsdata/timepix/ConfigV1.hh"
 #include "pds/config/CfgClientNfs.hh"
 
 using namespace Pds;

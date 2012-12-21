@@ -360,3 +360,47 @@ warmup_error:
   }
   return (1);
 }
+
+int timepix_dev::hwInfoCount()
+{
+  int rv;
+
+  _mutex->take();
+  rv = _relaxd->hwInfoCount();
+  _mutex->give();
+
+  return (rv);
+}
+
+int timepix_dev::getHwInfoFlags(int index, u32 *flags)
+{
+  int rv;
+
+  _mutex->take();
+  rv = _relaxd->hwInfoCount();
+  _mutex->give();
+
+  return (rv);
+}
+
+int timepix_dev::getHwInfo(int index, HwInfoItem *hw_item, int *sz)
+{
+  int rv;
+
+  _mutex->take();
+  rv = _relaxd->getHwInfo(index, hw_item, sz);
+  _mutex->give();
+
+  return (rv);
+}
+
+int timepix_dev::setHwInfo(int index, void *data, int sz)
+{
+  int rv;
+
+  _mutex->take();
+  rv = _relaxd->setHwInfo(index, data, sz);
+  _mutex->give();
+
+  return (rv);
+}
