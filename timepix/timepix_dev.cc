@@ -377,7 +377,7 @@ int timepix_dev::getHwInfoFlags(int index, u32 *flags)
   int rv;
 
   _mutex->take();
-  rv = _relaxd->hwInfoCount();
+  rv = _relaxd->getHwInfoFlags(index, flags);
   _mutex->give();
 
   return (rv);
