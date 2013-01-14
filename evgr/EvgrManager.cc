@@ -68,6 +68,7 @@ public:
 
         unsigned q = p+36;
         //  Eventcodes
+        if (_count%3      ==0) {_set_opcode(ram, 140, q+11850);}
         if (_count%2      ==0) {_set_opcode(ram, 180, q+12944);}
         if (_count%3      ==0) {_set_opcode(ram,  40, q+12954);}
         if (_count%6      ==0) {_set_opcode(ram,  41, q+12964);}

@@ -40,6 +40,7 @@ class OccurrenceId
       EvrCommand,
       DataFileError,
       RequestPause,
+      RequestConfigure,
       NumberOf
     };
   };
