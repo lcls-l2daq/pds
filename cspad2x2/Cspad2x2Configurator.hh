@@ -30,7 +30,6 @@ namespace Pds {
 
     class Cspad2x2Configurator;
     class Cspad2x2ConcentratorRegisters;
-    class Cspad2x2QuadRegisters;
 
     class Cspad2x2Configurator : public Pds::Pgp::Configurator {
       public:
@@ -51,13 +50,19 @@ namespace Pds {
         enum {ConcentratorVersionAddr=0,
             RunModeAddr=0x2a,
             ProtEnableAddr=0x3e,
-            protThreshBase=0x36};
+            protThreshBase=0x36,
+            runTriggerDelayAddr=0x3f,
+            daqTriggerDelayAddr=0x40,
+            twoHunderedFiftyMicrosecondsIn8nsIncrements=31250
+        };
+        enum {daqTriggerDelayValue=0};
         enum {resetAddr=1,
             resetCountersAddr=2,
             resetLinksBaseAddr=3,
             resetSeqCountAddr=9,
             resetQuadsAddr=0x2C
         };
+        enum potsAddrs {CompBias1addr=0x13, CompBias2addr=0x27, iss2addr=0x3b, iss5addr=0x4b};
         enum {TriggerWidthAddr=0x102, TriggerWidthValue=15};
         enum {ResetSeqCountRegisterAddr=0x000009};
         enum {QuadResetRegisterAddr=0x500004};
@@ -84,10 +89,15 @@ namespace Pds {
         unsigned                   checkDigPots();
         unsigned                   writeTestData();
         unsigned                   writeGainMap();
+        unsigned                   writeUnusedColumns();
         unsigned                   readRegs();
         bool                      _flush(unsigned);
         void                      _initRanges();
         resultReturn              _checkReg(Cspad2x2Destination*, unsigned, unsigned, uint32_t);
+        unsigned                  _internalColWrite(uint32_t, bool, bool,
+                                                   Pds::Pgp::RegisterSlaveExportFrame*, unsigned);
+        unsigned                  _internalColWrite(uint32_t, bool,
+                                                   Pds::Pgp::RegisterSlaveExportFrame*, uint32_t);
 
 
       private:

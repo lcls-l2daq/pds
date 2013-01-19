@@ -44,8 +44,8 @@ namespace Pds {
 //    --    0x700006 : dacValue,   16-bit (status read only)
 
     unsigned                  Cspad2x2Configurator::_quadAddrs[] = {
-        0x110001,  // shiftSelect0    1
-        0x110002,  // edgeSelect0     2
+        0x110001,  // shiftSelect     1
+        0x110002,  // edgeSelect      2
         0x110003,  // readClkSet      3
         0x110005,  // readClkHold     4
         0x110006,  // dataMode        5
@@ -65,6 +65,8 @@ namespace Pds {
         0x700003,  // kdConstant     19
         0x700004,  // humidThold     20
         0x700005   // setPoint       21     sizeOfQuadWrite
+        //none        bias tuning is not written, but used by configurator
+        //none        pMOS and nMOS displacement and main not written, but used by configurator
 
     };
 
@@ -168,6 +170,7 @@ namespace Pds {
       if (_flush(0)) printf("Cspad2x2Configurator::configure _flush(0) FAILED\n");
       ret |= _pgp->writeRegister(&_d, TriggerWidthAddr, TriggerWidthValue);
       ret |= _pgp->writeRegister(&_d, ResetSeqCountRegisterAddr, 1);
+      ret |= _pgp->writeRegister(&_d, daqTriggerDelayAddr, daqTriggerDelayValue);
       ret <<= 1;
       if (printFlag) {
         clock_gettime(CLOCK_REALTIME, &end);
@@ -318,6 +321,19 @@ namespace Pds {
         printf("Cspad2x2Configurator::writeRegisterBlock failed on protThreshBase\n");
                 return Failure;
       }
+      if (_pgp->writeRegister(&_d, runTriggerDelayAddr, _config->runTriggerDelay())) {
+        printf("Cspad2x2Configurator::writeRegs failed on runTriggerDelayAddr\n");
+        return Failure;
+      }
+      uint32_t d = _config->runTriggerDelay();
+      if (d) {
+        d += twoHunderedFiftyMicrosecondsIn8nsIncrements;
+        printf(" setting daq trigger delay to %dns", d<<3);
+      }
+        if (_pgp->writeRegister(&_d, daqTriggerDelayAddr, d)) {
+          printf("Cspad2x2Configurator::writeRegs failed on daqTriggerDelayAddr\n");
+          return Failure;
+        }
       if (_pgp->writeRegister(&_d, ProtEnableAddr, _config->protectionEnable())) {
         printf("Cspad2x2Configurator::writeRegs failed on ProtEnableAddr\n");
         return Failure;
@@ -476,24 +492,66 @@ namespace Pds {
       return ret;
     }
 
-    enum {LoopHistoShift=8};
+    unsigned Cspad2x2Configurator::_internalColWrite(uint32_t val, bool capEn, bool resEn, Pds::Pgp::RegisterSlaveExportFrame* rsef, unsigned col) {
+      uint32_t i;
+      uint32_t* mem = rsef->array(); // One location per shift register bit
+      unsigned size = (sizeof(Pds::Pgp::RegisterSlaveExportFrame)/sizeof(uint32_t)) + 16;
+      memset(mem,0x0,16*4);
+      val >>= 4;  // we want the top four bits
+      printf("Cspad2x2Configurator::_internalColWrite(0x%x, %5s, %5s, %d\n", val, capEn ? "true" : "false", resEn ? "true" : "false", col);
+      // Set value bits, 8 - 11
+      for ( i = 0; i < 4; i++ ) // 1 value bit per address. 16-bits = 16 ASICs
+         mem[8+i] = (((val >> i) & 0x1) ? 0xFFFF : 0); // all ASICs alike
+      // ext cap enable, int res en/ pulsing
+      mem[12] = capEn ? 0xFFFF : 0; // all ASICs alike
+      mem[13] = resEn ? 0xFFFF : 0;    // all ASICs alike
+      if (rsef->post(size)) { return Failure; }
+      microSpin(MicroSecondsSleepTime);
+      if(_pgp->writeRegister(&_d, _gainMap.load, col)) { return Failure; }
+      microSpin(MicroSecondsSleepTime);
+      return Success;
+    }
+
+    unsigned Cspad2x2Configurator::_internalColWrite(uint32_t val, bool prstsel, Pds::Pgp::RegisterSlaveExportFrame* rsef, unsigned col) {
+      uint32_t i;
+      uint32_t* mem = rsef->array(); // One location per shift register bit
+      unsigned size = (sizeof(Pds::Pgp::RegisterSlaveExportFrame)/sizeof(uint32_t)) + 16;
+      memset(mem,0x0,16*4);
+      printf("Cspad2x2Configurator::_internalColWrite(0x%x, %5s, %10d\n", val, prstsel ? "true" : "false", col);
+      // Set value bits, 8 - 15
+      for ( i = 0; i < 2; i++ ) { // 1 value bit per address. 16-bits = 16 asics
+         mem[i+8]  = (val >> i) &    0x1 ? 0xFFFF : 0x0000; // all asics alike
+         mem[i+10] = (val >> i) &   0x10 ? 0xFFFF : 0x0000; // all asics alike
+         mem[i+12] = (val >> i) &  0x100 ? 0xFFFF : 0x0000; // all asics alike
+         mem[i+14] = (val >> i) & 0x1000 ? 0xFFFF : 0x0000; // all asics alike
+      }
+      // analog/ digital preset, bit 7
+      mem[7] = prstsel ? 0x0000 : 0xFFFF; // all asics alike
+      if (rsef->post(size)) { return Failure; }
+      microSpin(MicroSecondsSleepTime);
+      if(_pgp->writeRegister(&_d, _gainMap.load, col)) { return Failure; }
+      microSpin(MicroSecondsSleepTime);
+      return Success;
+    }
 
     unsigned Cspad2x2Configurator::writeGainMap() {
       Pds::CsPad2x2::CsPad2x2GainMapCfg::GainMap* map[1];
+      Pds::Pgp::RegisterSlaveExportFrame* rsef;
       unsigned len = (((Pds::CsPad2x2::RowsPerBank-1)<<3) + Pds::CsPad2x2::BanksPerASIC -1) ;  // there are only 6 banks in the last row
       unsigned size = (sizeof(Pds::Pgp::RegisterSlaveExportFrame)/sizeof(uint32_t)) + len + 1 - 2; // last one for the DNC - the two already in the header
+      unsigned col;
       uint32_t myArray[size];
       memset(myArray, 0, size*sizeof(uint32_t));
       map[0] = (Pds::CsPad2x2::CsPad2x2GainMapCfg::GainMap*)_config->quad()->gm()->map();
       Pds::Pgp::ConfigSynch mySynch(_fd, QuadsPerSensor, this, sizeof(Pds::Pgp::RegisterSlaveExportFrame)/sizeof(uint32_t));
 //      printf("\n");
-      for (unsigned col=0; col<Pds::CsPad2x2::ColumnsPerASIC; col++) {
+      for (col=0; col<Pds::CsPad2x2::ColumnsPerASIC; col++) {
         _d.dest(Cspad2x2Destination::Q0);
         if (!mySynch.take()) {
           printf("Gain Map Write synchronization failed! col(%u)\n", col);
           return Failure;
         }
-        Pds::Pgp::RegisterSlaveExportFrame* rsef = new (myArray) Pds::Pgp::RegisterSlaveExportFrame::RegisterSlaveExportFrame(
+        rsef = new (myArray) Pds::Pgp::RegisterSlaveExportFrame::RegisterSlaveExportFrame(
             Pds::Pgp::PgpRSBits::write,
             &_d,
             _gainMap.base,
@@ -513,6 +571,7 @@ namespace Pds {
         }
         bulk[len] = 0;  // write the last word
         //          if ((col==0) && (i==0)) printf(" payload words %u, length %u ", len, len*4);
+        if (rsef->post(size)) { return Failure; }
         rsef->post(size);
         microSpin(MicroSecondsSleepTime);
         //            printf("GainMap col(%u) quad(%u) len(%u) length(%u) size(%u)", col, i, len, length, size);
@@ -523,7 +582,16 @@ namespace Pds {
         }
       }
       if (!mySynch.clear()) return Failure;
-      return Success;
+      printf("\n");
+         // 194 is first column for vacant line writes for ASIC rev 1.5
+      unsigned ret = Success;
+      uint32_t rce = _config->quad()->biasTuning();
+      if      (_internalColWrite(_config->quad()->dp().pots[iss2addr] & 0xff,      rce &    0x1, rce &    0x2, rsef, 194)) {ret = Failure;}
+      else if (_internalColWrite(_config->quad()->dp().pots[iss5addr] & 0xff,      rce &   0x10, rce &   0x20, rsef, 195)) {ret = Failure;}
+      else if (_internalColWrite(_config->quad()->dp().pots[CompBias1addr] & 0xff, rce &  0x100, rce &  0x200, rsef, 196)) {ret = Failure;}
+      else if (_internalColWrite(_config->quad()->dp().pots[CompBias2addr] & 0xff, rce & 0x1000, rce & 0x2000, rsef, 197)) {ret = Failure;}
+      else if (_internalColWrite(_config->quad()->pdpmndnmBalance(),      _config->quad()->prstSel() != 0,     rsef, 198)) {ret = Failure;}
+      return ret;
     }
   } // namespace CsPad2x2
 } // namespace Pds
