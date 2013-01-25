@@ -173,18 +173,25 @@ int EpicsArchMonitor::writeToXtc(Datagram & dg, UserMessage ** msg, const struct
         if ((*msg) == 0)
         {
           /*
-           * Note: The UserMessage will only contains the first non-connected PV
-           * 
-           * For full list of problematic PVs, users need to check the epicsArch output (logfile).
+           * Push the full list of problematic PVs, if possible.
            */
           (*msg) = new(&_occPool) UserMessage;
           (*msg)->append("EpicsArch: Some PVs not connected\n");
           (*msg)->append(epicsPvCur.getPvDescription().c_str());
           (*msg)->append(" (");
           (*msg)->append(epicsPvCur.getPvName().c_str());
-          (*msg)->append(")");
-          (*msg)->append("\n...\n");
+          (*msg)->append(")\n");
         }
+	else {
+	  int len = strlen(epicsPvCur.getPvDescription().c_str())+
+	    strlen(epicsPvCur.getPvName().c_str()+4);
+	  if ((*msg)->remaining() > len) {
+	    (*msg)->append(epicsPvCur.getPvDescription().c_str());
+	    (*msg)->append(" (");
+	    (*msg)->append(epicsPvCur.getPvName().c_str());
+	    (*msg)->append(")\n");
+	  }
+	}
       }
 
       bSomePvNotConnected = true;

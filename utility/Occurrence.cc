@@ -49,6 +49,11 @@ UserMessage::UserMessage(const char* msg) :
   _msg[MaxMsgLength-1] = 0;
 }
 
+int  UserMessage::remaining() const
+{
+  return MaxMsgLength-1 - strlen(_msg);
+}
+
 void UserMessage::append(const char* msg)
 { 
   int l = strlen(_msg);

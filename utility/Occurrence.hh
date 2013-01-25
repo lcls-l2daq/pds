@@ -66,11 +66,12 @@ namespace Pds {
   class UserMessage : public Occurrence
   {
   public:
-    enum { MaxMsgLength=128 };
+    enum { MaxMsgLength=8000 };
     UserMessage();
     UserMessage(const char* msg);
   public:
     const char* msg() const { return _msg; }
+    int         remaining() const;
     void append(const char*);
   private:
     char _msg[MaxMsgLength];
