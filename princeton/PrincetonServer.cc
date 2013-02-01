@@ -28,7 +28,7 @@ PrincetonServer::PrincetonServer(int iCamera, bool bDelayMode, bool bInitTest, c
  _iCamera(iCamera), _bDelayMode(bDelayMode), _bInitTest(bInitTest), _src(src),
  _sConfigDb(sConfigDb), _iSleepInt(iSleepInt), _iDebugLevel(iDebugLevel),
  _hCam(-1), _bCameraInited(false), _bCaptureInited(false), _bClockSaving(false),
- _u16DetectorWidth(-1), _u16DetectorHeight(-1), _i16MaxSpeedTableIndex(-1),
+ _i16DetectorWidth(-1), _i16DetectorHeight(-1), _i16MaxSpeedTableIndex(-1),
  _fPrevReadoutTime(0), _bSequenceError(false), _clockPrevDatagram(0,0), _iNumExposure(0),
  _config(),
  _fReadoutTime(0),
@@ -112,12 +112,12 @@ int PrincetonServer::initDevice()
 
 int PrincetonServer::initSetup()
 {
-  PICAM::getAnyParam(_hCam, PARAM_SER_SIZE, &_u16DetectorWidth );
-  PICAM::getAnyParam(_hCam, PARAM_PAR_SIZE, &_u16DetectorHeight );
+  PICAM::getAnyParam(_hCam, PARAM_SER_SIZE, &_i16DetectorWidth );
+  PICAM::getAnyParam(_hCam, PARAM_PAR_SIZE, &_i16DetectorHeight );
   PICAM::getAnyParam(_hCam, PARAM_SPDTAB_INDEX, &_i16MaxSpeedTableIndex, ATTR_MAX);
   int16 i16TemperatureCurrent = -1;
   PICAM::getAnyParam(_hCam, PARAM_TEMP, &i16TemperatureCurrent );
-  printf( "\nDetector Width %d Height %d Max Speed %d Temperature %.1f C\n", _u16DetectorWidth, _u16DetectorHeight, _i16MaxSpeedTableIndex, i16TemperatureCurrent/100.f );
+  printf( "\nDetector Width %d Height %d Max Speed %d Temperature %.1f C\n", _i16DetectorWidth, _i16DetectorHeight, _i16MaxSpeedTableIndex, i16TemperatureCurrent/100.f );
 
   if (_bInitTest)
   {
@@ -141,9 +141,10 @@ int PrincetonServer::initSetup()
 
   i16TemperatureCurrent = -1;
   PICAM::getAnyParam(_hCam, PARAM_TEMP, &i16TemperatureCurrent );
-  printf( "\nDetector Width %d Height %d Max Speed %d Temperature %.1f C\n", _u16DetectorWidth, _u16DetectorHeight, _i16MaxSpeedTableIndex, i16TemperatureCurrent/100.f  );
+  printf( "\nDetector Width %d Height %d Max Speed %d Temperature %.1f C\n", _i16DetectorWidth, _i16DetectorHeight, _i16MaxSpeedTableIndex, i16TemperatureCurrent/100.f  );
 
-  printf( "Princeton Camera [%d] has been initialized\n", _iCamera );
+  const int iDevId = ((DetInfo&)_src).devId();
+  printf( "Princeton Camera [%d] (device %d) has been initialized\n", iDevId, _iCamera );
   _bCameraInited = true;
 
   iFail = initClockSaving();
@@ -174,7 +175,9 @@ int PrincetonServer::deinit()
     printPvError("PrincetonServer::deinit(): pl_pvcam_uninit() failed");
 
   _bCameraInited = false;
-  printf( "Princeton Camera [%d] has been deinitialized\n", _iCamera );
+
+  const int iDevId = ((DetInfo&)_src).devId();
+  printf( "Princeton Camera [%d] (device %d) has been deinitialized\n", iDevId, _iCamera );
   return 0;
 }
 
@@ -200,31 +203,46 @@ int PrincetonServer::config(PrincetonConfigType& config, std::string& sConfigWar
   if ( configCamera(config, sConfigWarning) != 0 )
     return ERROR_SERVER_INIT_FAIL;
 
-  if ( (int) config.width() > _u16DetectorWidth || (int) config.height() > _u16DetectorHeight)
+  const int iDevId = ((DetInfo&)_src).devId();
+
+  if ( (int) config.width() > _i16DetectorWidth || (int) config.height() > _i16DetectorHeight)
   {
     char sMessage[128];
-    sprintf( sMessage, "!!! PI %d CfgSize (%d,%d) > Det Size(%d,%d)\n", _iCamera, config.width(), config.height(), _u16DetectorWidth, _u16DetectorHeight);
+    sprintf( sMessage, "!!! PI %d ConfigSize (%d,%d) > Det Size(%d,%d)\n", iDevId, config.width(), config.height(), _i16DetectorWidth, _i16DetectorHeight);
     printf(sMessage);
     sConfigWarning += sMessage;
-    config.setWidth (_u16DetectorWidth);
-    config.setHeight(_u16DetectorHeight);
+    config.setWidth (_i16DetectorWidth);
+    config.setHeight(_i16DetectorHeight);
   }
   else if
-  ( (int) config.width() != _u16DetectorWidth && (int) config.height() != _u16DetectorHeight
-    && config.width() == 1340 && config.height() == 1300
+  ( _i16DetectorWidth == 2048 && _i16DetectorHeight == 2048 &&
+    config.width() == 1340 && config.height() == 1300
   )
   { // For special controller with size 1340x1300, but connected to detector with size 2048x2048
     char sMessage[128];
-    sprintf( sMessage, "!!! PI %d CfgSize (%d,%d) != Det Size(%d,%d)\n", _iCamera, config.width(), config.height(), _u16DetectorWidth, _u16DetectorHeight);
+    sprintf( sMessage, "!!! PI %d ConfigSize (%d,%d) != Det Size(%d,%d)\n", iDevId, config.width(), config.height(), _i16DetectorWidth, _i16DetectorHeight);
     printf(sMessage);
     sConfigWarning += sMessage;
-    config.setWidth (_u16DetectorWidth);
-    config.setHeight(_u16DetectorHeight);
+    config.setWidth (_i16DetectorWidth);
+    config.setHeight(_i16DetectorHeight);
   }
-  else if ( config.maskedHeight() != 0 && config.height() > config.maskedHeight() )
+
+  if ( (int) (config.orgX() + config.width()) > _i16DetectorWidth ||
+       (int) (config.orgY() + config.height()) > _i16DetectorHeight)
   {
     char sMessage[128];
-    sprintf( sMessage, "!!! PI %d H %d > Masked H %d\n", _iCamera, config.height(), config.maskedHeight());
+    sprintf( sMessage, "!!! PI %d ROI Boundary (%d,%d) > Det Size(%d,%d)\n", iDevId,
+      config.orgX() + config.width(), config.orgY() + config.height(), _i16DetectorWidth, _i16DetectorHeight);
+    printf(sMessage);
+    sConfigWarning += sMessage;
+    config.setWidth (_i16DetectorWidth - config.orgX());
+    config.setHeight(_i16DetectorHeight - config.orgY());
+  }
+
+  if ( config.maskedHeight() != 0 && config.height() > config.maskedHeight() )
+  {
+    char sMessage[128];
+    sprintf( sMessage, "!!! PI %d H %d > Masked H %d\n", iDevId, config.height(), config.maskedHeight());
     printf(sMessage);
     sConfigWarning += sMessage;
     config.setHeight(config.maskedHeight());
@@ -244,7 +262,7 @@ int PrincetonServer::config(PrincetonConfigType& config, std::string& sConfigWar
   int16 i16TemperatureCurrent = -1;
   PICAM::getAnyParam(_hCam, PARAM_TEMP, &i16TemperatureCurrent );
   printf( "\nROI (%d,%d) Detector (%d,%d) Speed %d/%d Temperature %.1f C\n",
-    _config.width(), _config.height(), _u16DetectorWidth, _u16DetectorHeight, _config.readoutSpeedIndex(), _i16MaxSpeedTableIndex, i16TemperatureCurrent/100.f );
+    _config.width(), _config.height(), _i16DetectorWidth, _i16DetectorHeight, _config.readoutSpeedIndex(), _i16MaxSpeedTableIndex, i16TemperatureCurrent/100.f );
 
   return 0;
 }
@@ -472,6 +490,8 @@ int PrincetonServer::configCamera(PrincetonConfigType& config, std::string& sCon
   using PICAM::setAnyParam;
   using PICAM::displayParamIdInfo;
 
+  const int iDevId = ((DetInfo&)_src).devId();
+
   displayParamIdInfo(_hCam, PARAM_SHTR_OPEN_MODE  , "Shutter Open Mode");
   displayParamIdInfo(_hCam, PARAM_SHTR_OPEN_DELAY , "Shutter Open Delay");
   displayParamIdInfo(_hCam, PARAM_SHTR_CLOSE_DELAY, "Shutter Close Delay");
@@ -508,17 +528,11 @@ int PrincetonServer::configCamera(PrincetonConfigType& config, std::string& sCon
   char sMessage[128];
   if ( iSpeedTableIndex > _i16MaxSpeedTableIndex )
   {
-    sprintf( sMessage, "!!! PI %d ConfigSpeed %d > Max(%d)\n", _iCamera, iSpeedTableIndex, _i16MaxSpeedTableIndex );
+    sprintf( sMessage, "!!! PI %d ConfigSpeed %d > Max(%d)\n", iDevId, iSpeedTableIndex, _i16MaxSpeedTableIndex );
     printf(sMessage);
     sConfigWarning += sMessage;
     iSpeedTableIndex = _i16MaxSpeedTableIndex;
     config.setReadoutSpeedIndex(iSpeedTableIndex);
-  }
-  else if ( iSpeedTableIndex < _i16MaxSpeedTableIndex-2 )
-  {
-    sprintf( sMessage, "*** ConfigSpeed %d < Max(%d)-2. Slow readout\n", iSpeedTableIndex, _i16MaxSpeedTableIndex );
-    printf(sMessage);
-    sConfigWarning += sMessage;
   }
 
   setAnyParam(_hCam, PARAM_SPDTAB_INDEX, &iSpeedTableIndex );
@@ -559,7 +573,7 @@ int PrincetonServer::configCamera(PrincetonConfigType& config, std::string& sCon
     rs_bool iCustomChip = 1;
     PICAM::setAnyParam(_hCam, PARAM_CUSTOM_CHIP, &iCustomChip );
 
-    uns16 u16CustomH = (uns16) _u16DetectorHeight;
+    uns16 u16CustomH = (uns16) _i16DetectorHeight;
     PICAM::setAnyParam(_hCam, PARAM_PAR_SIZE, &u16CustomH );
 
     rs_bool iSkipSRegClean = 0;

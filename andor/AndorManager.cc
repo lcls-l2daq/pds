@@ -737,25 +737,31 @@ int AndorManager::checkExposureEventCode(unsigned code)
  *
  * If the input parameter in == NULL, no data timestamp will be printed
  */
+/*
+ * Print the local timestamp and the data timestamp
+ *
+ * If the input parameter in == NULL, no data timestamp will be printed
+ */
 static int printDataTime(const InDatagram* in)
 {
   static const char sTimeFormat[40] = "%02d_%02H:%02M:%02S"; /* Time format string */
   char sTimeText[40];
 
-  time_t timeCurrent;
-  time(&timeCurrent);
-  strftime(sTimeText, sizeof(sTimeText), sTimeFormat, localtime(&timeCurrent));
+  timespec timeCurrent;
+  clock_gettime( CLOCK_REALTIME, &timeCurrent );
+  time_t timeSeconds = timeCurrent.tv_sec;
+  strftime(sTimeText, sizeof(sTimeText), sTimeFormat, localtime(&timeSeconds));
 
-  printf("Local Time: %s\n", sTimeText);
+  printf("Local Time: %s.%09ld\n", sTimeText, timeCurrent.tv_nsec);
 
   if ( in == NULL ) return 0;
 
   const ClockTime clockCurDatagram  = in->datagram().seq.clock();
   uint32_t        uFiducial         = in->datagram().seq.stamp().fiducials();
   uint32_t        uVector           = in->datagram().seq.stamp().vector();
-  timeCurrent                       = clockCurDatagram.seconds();
-  strftime(sTimeText, sizeof(sTimeText), sTimeFormat, localtime(&timeCurrent));
-  printf("Data  Time: %s  Fiducial: 0x%05x Vector: %d\n", sTimeText, uFiducial, uVector);
+  timeSeconds                       = clockCurDatagram.seconds();
+  strftime(sTimeText, sizeof(sTimeText), sTimeFormat, localtime(&timeSeconds));
+  printf("Data  Time: %s.%09u  Fiducial: 0x%05x Vector: %d\n", sTimeText, clockCurDatagram.nanoseconds(), uFiducial, uVector);
   return 0;
 }
 

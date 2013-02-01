@@ -163,7 +163,8 @@ int FliServer::initSetup()
   }
   printf( "Detector Width %d Height %d Temperature %.1lf C\n", _iDetectorWidth, _iDetectorHeight, fTemperature);
 
-  printf( "Fli Camera [%d] has been initialized\n", _iCamera );
+  const int iDevId = ((DetInfo&)_src).devId();
+  printf( "Fli Camera [%d] (device %d) has been initialized\n", iDevId, _iCamera );
   _bCameraInited = true;
 
   return 0;
@@ -183,7 +184,8 @@ int FliServer::deinit()
 
   _bCameraInited = false;
 
-  printf( "Fli Camera [%d] has been deinitialized\n", _iCamera );
+  const int iDevId = ((DetInfo&)_src).devId();
+  printf( "Fli Camera [%d] (device %d) has been deinitialized\n", iDevId, _iCamera );
   return 0;
 }
 
@@ -205,14 +207,28 @@ int FliServer::config(FliConfigType& config, std::string& sConfigWarning)
   if ( configCamera(config, sConfigWarning) != 0 )
     return ERROR_SERVER_INIT_FAIL;
 
+  const int iDevId = ((DetInfo&)_src).devId();
+
   if ( (int) config.width() > _iDetectorWidth || (int) config.height() > _iDetectorHeight)
   {
     char sMessage[128];
-    sprintf( sMessage, "!!! FLI %d ConfigSize (%d,%d) > CcdSize(%d,%d)\n", _iCamera, config.width(), config.height(), _iDetectorWidth, _iDetectorHeight);
+    sprintf( sMessage, "!!! FLI %d ConfigSize (%d,%d) > Det Size(%d,%d)\n", iDevId, config.width(), config.height(), _iDetectorWidth, _iDetectorHeight);
     printf(sMessage);
     sConfigWarning += sMessage;
     config.setWidth (_iDetectorWidth);
     config.setHeight(_iDetectorHeight);
+  }
+
+  if ( (int) (config.orgX() + config.width()) > _iDetectorWidth ||
+       (int) (config.orgY() + config.height()) > _iDetectorHeight)
+  {
+    char sMessage[128];
+    sprintf( sMessage, "!!! FLI %d ROI Boundary (%d,%d) > Det Size(%d,%d)\n", iDevId,
+             config.orgX() + config.width(), config.orgY() + config.height(), _iDetectorWidth, _iDetectorHeight);
+    printf(sMessage);
+    sConfigWarning += sMessage;
+    config.setWidth (_iDetectorWidth - config.orgX());
+    config.setHeight(_iDetectorHeight - config.orgY());
   }
 
   //Note: We don't send error for cooling incomplete
