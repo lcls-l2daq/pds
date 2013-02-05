@@ -1457,7 +1457,7 @@ int PrincetonServer::selectVsSpeed(float fRawVsSpeed)
 int PrincetonServer::updateTemperatureData()
 {
   float fCoolingTemp;
-  if (_config.infoReportInterval() <= 0 || (_iNumExposure % _config.infoReportInterval()) != 1)
+  if (_config.infoReportInterval() <= 0 || ((_iNumExposure-1) % _config.infoReportInterval()) != 0)
     fCoolingTemp = PrincetonDataType::TemperatureNotDefined;
   else
   {
