@@ -93,7 +93,8 @@ int PrincetonServer::initDevice()
     return ERROR_SDK_FUNC_FAIL;
   }
 
-  printf( "Opening camera [%d] name %s...\n", _iCamera, strCamera );
+  const int iDevId = ((DetInfo&)_src).devId();
+  printf( "Opening camera [%d] (device %d) name %s...\n", iDevId, _iCamera, strCamera );
 
   if (!pl_cam_open(strCamera, &_hCam, OPEN_EXCLUSIVE))
   {
@@ -978,13 +979,36 @@ int PrincetonServer::runCaptureTask()
     return ERROR_INCORRECT_USAGE;
   }
 
+  //!!!debug
+  static const char sTimeFormat[40] = "%02d_%02H:%02M:%02S"; /* Time format string */
+  char      sTimeText[40];
+  timespec  timeCurrent;
+  time_t    timeSeconds ;
+
   int iFail = 0;
   do
   {
+    //!!!debug
+    clock_gettime( CLOCK_REALTIME, &timeCurrent );
+    timeSeconds = timeCurrent.tv_sec;
+    strftime(sTimeText, sizeof(sTimeText), sTimeFormat, localtime(&timeSeconds));
+    printf("PrincetonServer::runCaptureTask(): Before waitForNewFrameAvailable(): Local Time: %s.%09ld\n", sTimeText, timeCurrent.tv_nsec);
+
     iFail  = waitForNewFrameAvailable();
 
+    //!!!debug
+    clock_gettime( CLOCK_REALTIME, &timeCurrent );
+    timeSeconds = timeCurrent.tv_sec;
+    strftime(sTimeText, sizeof(sTimeText), sTimeFormat, localtime(&timeSeconds));
+    printf("PrincetonServer::runCaptureTask(): After waitForNewFrameAvailable(): Local Time: %s.%09ld\n", sTimeText, timeCurrent.tv_nsec);
     // Even if waitForNewFrameAvailable() failed, we still fill in the frame data with ShotId information
     iFail |= processFrame();
+
+    //!!!debug
+    clock_gettime( CLOCK_REALTIME, &timeCurrent );
+    timeSeconds = timeCurrent.tv_sec;
+    strftime(sTimeText, sizeof(sTimeText), sTimeFormat, localtime(&timeSeconds));
+    printf("PrincetonServer::runCaptureTask(): After processFrame(): Local Time: %s.%09ld\n", sTimeText, timeCurrent.tv_nsec);
   }
   while (false);
 
@@ -1009,6 +1033,13 @@ int PrincetonServer::runCaptureTask()
   //  _pDgOut->datagram().xtc.damage.increase(Pds::Damage::UserDefined);
 
   _CaptureState = CAPTURE_STATE_DATA_READY;
+
+  //!!!debug
+  clock_gettime( CLOCK_REALTIME, &timeCurrent );
+  timeSeconds = timeCurrent.tv_sec;
+  strftime(sTimeText, sizeof(sTimeText), sTimeFormat, localtime(&timeSeconds));
+  printf("PrincetonServer::runCaptureTask(): After capture: Local Time: %s.%09ld\n", sTimeText, timeCurrent.tv_nsec);
+
   return 0;
 }
 
@@ -1055,13 +1086,37 @@ int PrincetonServer::startExposure()
     return ERROR_INCORRECT_USAGE; // No error for adaptive mode
   }
 
+  //!!!debug
+  static const char sTimeFormat[40] = "%02d_%02H:%02M:%02S"; /* Time format string */
+  char      sTimeText[40];
+  timespec  timeCurrent;
+  time_t    timeSeconds ;
+
+  //!!!debug
+  clock_gettime( CLOCK_REALTIME, &timeCurrent );
+  timeSeconds = timeCurrent.tv_sec;
+  strftime(sTimeText, sizeof(sTimeText), sTimeFormat, localtime(&timeSeconds));
+  printf("PrincetonServer::startExposure(): Before setupFrame(): Local Time: %s.%09ld\n", sTimeText, timeCurrent.tv_nsec);
+
   int iFail = 0;
   do
   {
     iFail = setupFrame();
     if ( iFail != 0 ) break;
 
+    //!!!debug
+    clock_gettime( CLOCK_REALTIME, &timeCurrent );
+    timeSeconds = timeCurrent.tv_sec;
+    strftime(sTimeText, sizeof(sTimeText), sTimeFormat, localtime(&timeSeconds));
+    printf("PrincetonServer::startExposure(): After setupFrame(): Local Time: %s.%09ld\n", sTimeText, timeCurrent.tv_nsec);
+
     iFail = startCapture();
+
+    //!!!debug
+    clock_gettime( CLOCK_REALTIME, &timeCurrent );
+    timeSeconds = timeCurrent.tv_sec;
+    strftime(sTimeText, sizeof(sTimeText), sTimeFormat, localtime(&timeSeconds));
+    printf("PrincetonServer::startExposure(): After startCapture(): Local Time: %s.%09ld\n", sTimeText, timeCurrent.tv_nsec);
   }
   while (false);
 
@@ -1328,7 +1383,8 @@ int PrincetonServer::setupFrame()
   out =
     new ( &_poolFrameData ) CDatagram( TypeId(TypeId::Any,0), DetInfo(0,DetInfo::NoDetector,0,DetInfo::NoDevice,0) );
 
-  out->datagram().xtc.alloc( sizeof(Xtc) + iFrameSize + sizeof(Xtc) + sizeof(Princeton::InfoV1) );
+  //out->datagram().xtc.alloc( sizeof(Xtc) + iFrameSize + sizeof(Xtc) + sizeof(Princeton::InfoV1) );
+  out->datagram().xtc.alloc( sizeof(Xtc) + iFrameSize );
 
   if ( _iDebugLevel >= 3 )
   {
@@ -1345,11 +1401,11 @@ int PrincetonServer::setupFrame()
    new ((char*)pcXtcFrame) Xtc(_princetonDataType, _src);
   pXtcFrame->alloc( iFrameSize );
 
-  unsigned char* pcXtcInfo  = (unsigned char*) pXtcFrame->next() ;
+  //unsigned char* pcXtcInfo  = (unsigned char*) pXtcFrame->next() ;
 
-  Xtc* pXtcInfo =
-   new ((char*)pcXtcInfo) Xtc(_princetonInfoType, _src);
-  pXtcInfo->alloc( sizeof(Princeton::InfoV1) );
+  //Xtc* pXtcInfo =
+  // new ((char*)pcXtcInfo) Xtc(_princetonInfoType, _src);
+  //pXtcInfo->alloc( sizeof(Princeton::InfoV1) );
 
   return 0;
 }
@@ -1400,18 +1456,32 @@ int PrincetonServer::selectVsSpeed(float fRawVsSpeed)
 
 int PrincetonServer::updateTemperatureData()
 {
-  const int16 iCoolingTemp = (int)( _config.coolingTemp() * 100 );
-  int16 iTemperatureCurrent = -1;
+  float fCoolingTemp;
+  if (_config.infoReportInterval() <= 0 || (_iNumExposure % _config.infoReportInterval()) != 1)
+    fCoolingTemp = PrincetonDataType::TemperatureNotDefined;
+  else
+  {
+    const int16 iCoolingTemp = (int)( _config.coolingTemp() * 100 );
+    int16 iTemperatureCurrent = -1;
 
-  PICAM::getAnyParam(_hCam, PARAM_TEMP, &iTemperatureCurrent );
+    PICAM::getAnyParam(_hCam, PARAM_TEMP, &iTemperatureCurrent );
+    fCoolingTemp = iTemperatureCurrent / 100.0f;
+
+    if ( _iDebugLevel >= 4 )
+      printf( "Detector Temperature report [%d]: %.1f C\n", _iNumExposure, fCoolingTemp );
+
+    if ( iTemperatureCurrent >= iCoolingTemp + _iTemperatureHiTol ||
+         iTemperatureCurrent <= iCoolingTemp - _iTemperatureLoTol )
+    {
+      printf( "** PrincetonServer::updateTemperatureData(): Detector temperature (%.1f C) is not fixed to the configuration (%.1f C)\n",
+              iTemperatureCurrent/100.0f, iCoolingTemp/100.0f );
+      return ERROR_TEMPERATURE;
+    }
+  }
 
   /*
    * Set Info object
    */
-  if ( _iNumExposure % 10 == 1 || _iDebugLevel >= 4 )
-  {
-    printf( "Detector Temperature report [%d]: %.1f C\n", _iNumExposure, iTemperatureCurrent/100.f );
-  }
 
   if ( _pDgOut == NULL )
   {
@@ -1419,18 +1489,8 @@ int PrincetonServer::updateTemperatureData()
   }
   else
   {
-    const int       iFrameSize   = _config.frameSize();
-    float           fCoolingTemp = iTemperatureCurrent / 100.0f;
-    unsigned char*  pcInfo       = (unsigned char*) _pDgOut + sizeof(CDatagram) + sizeof(Xtc) + iFrameSize + sizeof(Xtc);
-    new (pcInfo) Princeton::InfoV1( fCoolingTemp );
-  }
-
-  if ( iTemperatureCurrent >= iCoolingTemp + _iTemperatureHiTol ||
-    iTemperatureCurrent <= iCoolingTemp - _iTemperatureLoTol )
-  {
-    printf( "** PrincetonServer::updateTemperatureData(): Detector temperature (%.1f C) is not fixed to the configuration (%.1f C)\n",
-      iTemperatureCurrent/100.0f, iCoolingTemp/100.0f );
-    return ERROR_TEMPERATURE;
+    PrincetonDataType*  pata       = (PrincetonDataType*) ((unsigned char*) _pDgOut + sizeof(CDatagram) + sizeof(Xtc));
+    pata->setTemperature( (float) fCoolingTemp );
   }
 
   return 0;

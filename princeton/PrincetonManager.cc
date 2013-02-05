@@ -83,14 +83,16 @@ public:
           0,  // OrgX
           1,  // BinX
           1,  // BinY
+          0.001,// Exposure time
+          25.0f,// Cooling temperature
+          3,    // Gain index
+          1,    // Readout speed index
           16, // Masked Height
           16, // Kinetic Height
           30, // VShift Speed
-          0.001,  // Exposure time
-          25.0f,  // Cooling temperature
-          3,  // Gain index
-          1,  // Readout speed index
-          1   // Redout event code
+          0,    // Info Report Interval
+          150,  // Redout event code
+          1     // num delay shots
         );
       }
 
