@@ -1489,8 +1489,8 @@ int PrincetonServer::updateTemperatureData()
   }
   else
   {
-    PrincetonDataType*  pata       = (PrincetonDataType*) ((unsigned char*) _pDgOut + sizeof(CDatagram) + sizeof(Xtc));
-    pata->setTemperature( (float) fCoolingTemp );
+    PrincetonDataType*  pData       = (PrincetonDataType*) ((unsigned char*) _pDgOut + sizeof(CDatagram) + sizeof(Xtc));
+    pData->setTemperature( (float) fCoolingTemp );
   }
 
   return 0;
