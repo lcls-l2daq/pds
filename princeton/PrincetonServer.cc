@@ -209,7 +209,7 @@ int PrincetonServer::config(PrincetonConfigType& config, std::string& sConfigWar
   if ( (int) config.width() > _i16DetectorWidth || (int) config.height() > _i16DetectorHeight)
   {
     char sMessage[128];
-    sprintf( sMessage, "!!! PI %d ConfigSize (%d,%d) > Det Size(%d,%d)\n", iDevId, config.width(), config.height(), _i16DetectorWidth, _i16DetectorHeight);
+    sprintf( sMessage, "PI %d ConfigSize (%d,%d) > Det Size(%d,%d)\n", iDevId, config.width(), config.height(), _i16DetectorWidth, _i16DetectorHeight);
     printf(sMessage);
     sConfigWarning += sMessage;
     config.setWidth (_i16DetectorWidth);
@@ -221,7 +221,7 @@ int PrincetonServer::config(PrincetonConfigType& config, std::string& sConfigWar
   )
   { // For special controller with size 1340x1300, but connected to detector with size 2048x2048
     char sMessage[128];
-    sprintf( sMessage, "!!! PI %d ConfigSize (%d,%d) != Det Size(%d,%d)\n", iDevId, config.width(), config.height(), _i16DetectorWidth, _i16DetectorHeight);
+    sprintf( sMessage, "PI %d ConfigSize (%d,%d) != Det Size(%d,%d)\n", iDevId, config.width(), config.height(), _i16DetectorWidth, _i16DetectorHeight);
     printf(sMessage);
     sConfigWarning += sMessage;
     config.setWidth (_i16DetectorWidth);
@@ -232,7 +232,7 @@ int PrincetonServer::config(PrincetonConfigType& config, std::string& sConfigWar
        (int) (config.orgY() + config.height()) > _i16DetectorHeight)
   {
     char sMessage[128];
-    sprintf( sMessage, "!!! PI %d ROI Boundary (%d,%d) > Det Size(%d,%d)\n", iDevId,
+    sprintf( sMessage, "PI %d ROI Boundary (%d,%d) > Det Size(%d,%d)\n", iDevId,
       config.orgX() + config.width(), config.orgY() + config.height(), _i16DetectorWidth, _i16DetectorHeight);
     printf(sMessage);
     sConfigWarning += sMessage;
@@ -243,7 +243,7 @@ int PrincetonServer::config(PrincetonConfigType& config, std::string& sConfigWar
   if ( config.maskedHeight() != 0 && config.height() > config.maskedHeight() )
   {
     char sMessage[128];
-    sprintf( sMessage, "!!! PI %d H %d > Masked H %d\n", iDevId, config.height(), config.maskedHeight());
+    sprintf( sMessage, "PI %d H %d > Masked H %d\n", iDevId, config.height(), config.maskedHeight());
     printf(sMessage);
     sConfigWarning += sMessage;
     config.setHeight(config.maskedHeight());
@@ -529,7 +529,7 @@ int PrincetonServer::configCamera(PrincetonConfigType& config, std::string& sCon
   char sMessage[128];
   if ( iSpeedTableIndex > _i16MaxSpeedTableIndex )
   {
-    sprintf( sMessage, "!!! PI %d ConfigSpeed %d > Max(%d)\n", iDevId, iSpeedTableIndex, _i16MaxSpeedTableIndex );
+    sprintf( sMessage, "PI %d ConfigSpeed %d > Max(%d)\n", iDevId, iSpeedTableIndex, _i16MaxSpeedTableIndex );
     printf(sMessage);
     sConfigWarning += sMessage;
     iSpeedTableIndex = _i16MaxSpeedTableIndex;
@@ -988,27 +988,28 @@ int PrincetonServer::runCaptureTask()
   int iFail = 0;
   do
   {
-    //!!!debug
-    clock_gettime( CLOCK_REALTIME, &timeCurrent );
-    timeSeconds = timeCurrent.tv_sec;
-    strftime(sTimeText, sizeof(sTimeText), sTimeFormat, localtime(&timeSeconds));
-    printf("PrincetonServer::runCaptureTask(): Before waitForNewFrameAvailable(): Local Time: %s.%09ld\n", sTimeText, timeCurrent.tv_nsec);
+    ////!!!debug
+    //clock_gettime( CLOCK_REALTIME, &timeCurrent );
+    //timeSeconds = timeCurrent.tv_sec;
+    //strftime(sTimeText, sizeof(sTimeText), sTimeFormat, localtime(&timeSeconds));
+    //printf("PrincetonServer::runCaptureTask(): Before waitForNewFrameAvailable(): Local Time: %s.%09ld\n", sTimeText, timeCurrent.tv_nsec);
 
     iFail  = waitForNewFrameAvailable();
 
-    //!!!debug
-    clock_gettime( CLOCK_REALTIME, &timeCurrent );
-    timeSeconds = timeCurrent.tv_sec;
-    strftime(sTimeText, sizeof(sTimeText), sTimeFormat, localtime(&timeSeconds));
-    printf("PrincetonServer::runCaptureTask(): After waitForNewFrameAvailable(): Local Time: %s.%09ld\n", sTimeText, timeCurrent.tv_nsec);
+    ////!!!debug
+    //clock_gettime( CLOCK_REALTIME, &timeCurrent );
+    //timeSeconds = timeCurrent.tv_sec;
+    //strftime(sTimeText, sizeof(sTimeText), sTimeFormat, localtime(&timeSeconds));
+    //printf("PrincetonServer::runCaptureTask(): After waitForNewFrameAvailable(): Local Time: %s.%09ld\n", sTimeText, timeCurrent.tv_nsec);
+
     // Even if waitForNewFrameAvailable() failed, we still fill in the frame data with ShotId information
     iFail |= processFrame();
 
-    //!!!debug
-    clock_gettime( CLOCK_REALTIME, &timeCurrent );
-    timeSeconds = timeCurrent.tv_sec;
-    strftime(sTimeText, sizeof(sTimeText), sTimeFormat, localtime(&timeSeconds));
-    printf("PrincetonServer::runCaptureTask(): After processFrame(): Local Time: %s.%09ld\n", sTimeText, timeCurrent.tv_nsec);
+    ////!!!debug
+    //clock_gettime( CLOCK_REALTIME, &timeCurrent );
+    //timeSeconds = timeCurrent.tv_sec;
+    //strftime(sTimeText, sizeof(sTimeText), sTimeFormat, localtime(&timeSeconds));
+    //printf("PrincetonServer::runCaptureTask(): After processFrame(): Local Time: %s.%09ld\n", sTimeText, timeCurrent.tv_nsec);
   }
   while (false);
 
@@ -1038,7 +1039,7 @@ int PrincetonServer::runCaptureTask()
   clock_gettime( CLOCK_REALTIME, &timeCurrent );
   timeSeconds = timeCurrent.tv_sec;
   strftime(sTimeText, sizeof(sTimeText), sTimeFormat, localtime(&timeSeconds));
-  printf("PrincetonServer::runCaptureTask(): After capture: Local Time: %s.%09ld\n", sTimeText, timeCurrent.tv_nsec);
+  printf("After capture: Local Time: %s.%09ld\n", sTimeText, timeCurrent.tv_nsec);
 
   return 0;
 }
@@ -1092,11 +1093,11 @@ int PrincetonServer::startExposure()
   timespec  timeCurrent;
   time_t    timeSeconds ;
 
-  //!!!debug
-  clock_gettime( CLOCK_REALTIME, &timeCurrent );
-  timeSeconds = timeCurrent.tv_sec;
-  strftime(sTimeText, sizeof(sTimeText), sTimeFormat, localtime(&timeSeconds));
-  printf("PrincetonServer::startExposure(): Before setupFrame(): Local Time: %s.%09ld\n", sTimeText, timeCurrent.tv_nsec);
+  ////!!!debug
+  //clock_gettime( CLOCK_REALTIME, &timeCurrent );
+  //timeSeconds = timeCurrent.tv_sec;
+  //strftime(sTimeText, sizeof(sTimeText), sTimeFormat, localtime(&timeSeconds));
+  //printf("PrincetonServer::startExposure(): Before setupFrame(): Local Time: %s.%09ld\n", sTimeText, timeCurrent.tv_nsec);
 
   int iFail = 0;
   do
