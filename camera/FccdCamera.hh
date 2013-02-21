@@ -51,6 +51,7 @@ namespace Pds {
     unsigned long CurrentCount;
     const FccdConfigType* _inputConfig;
     char* _outputBuffer;
+    bool _initialConfigComplete;
   };
 
 }

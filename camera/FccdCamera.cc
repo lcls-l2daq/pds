@@ -28,6 +28,7 @@ FccdCamera::FccdCamera() :
   _inputConfig(0)
 {
   LastCount = 0;
+  _initialConfigComplete = false;
 }
 
 FccdCamera::~FccdCamera() {
@@ -539,22 +540,27 @@ int FccdCamera::configure(CameraDriver& driver,
   CurrentCount = RESET_COUNT;
 
   // enable manual configuration
-  switch (_inputConfig->outputMode()) {
-    case 1:
-      printf(">> Output mode 1: Skip %s\n", __PRETTY_FUNCTION__);
-      return (0);
+  int mode = _inputConfig->outputMode();
+  if (_initialConfigComplete) {
+    switch (mode) {
+      case 1:
+        printf(">> Output mode 1: Skip %s\n", __PRETTY_FUNCTION__);
+        return (0);
 
-    case 2:
-      // shift clock phase of Data Module 1
-      ret = ShiftDataModulePhase(driver,1);
-      printf(">> Output mode 2: Skip remainder of %s\n", __PRETTY_FUNCTION__);
-      return (ret);
+      case 2:
+        // shift clock phase of Data Module 1
+        ret = ShiftDataModulePhase(driver,1);
+        printf(">> Output mode 2: Skip remainder of %s\n", __PRETTY_FUNCTION__);
+        return (ret);
 
-    case 3:
-      // shift clock phase of Data Module 2
-      ret = ShiftDataModulePhase(driver,2);
-      printf(">> Output mode 3: Skip remainder of %s\n", __PRETTY_FUNCTION__);
-      return (ret);
+      case 3:
+        // shift clock phase of Data Module 2
+        ret = ShiftDataModulePhase(driver,2);
+        printf(">> Output mode 3: Skip remainder of %s\n", __PRETTY_FUNCTION__);
+        return (ret);
+    }
+  } else {
+    printf(">> Output mode %d: Initial config in %s\n", mode, __PRETTY_FUNCTION__);
   }
 
   //
@@ -795,11 +801,15 @@ int FccdCamera::configure(CameraDriver& driver,
     printf(">> Set camera link output source to test pattern 03 04...\n");
     if (SendFccdCommand(driver,"03:04") < 0) {
       printf(">> Failed to set camera link output source\n");
+    } else {
+      _initialConfigComplete = true;
     }
-  } else if (_inputConfig->outputMode() == 0) {
+  } else {
     printf(">> Set camera link output source to CCD...\n");
     if (SendFccdCommand(driver,"03:00") < 0) {
       printf(">> Failed to set camera link output source\n");
+    } else {
+      _initialConfigComplete = true;
     }
   }
 
