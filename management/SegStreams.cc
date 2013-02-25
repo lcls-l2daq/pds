@@ -12,11 +12,12 @@
 
 using namespace Pds;
 
-#ifdef BUILD_LARGE_STREAM_BUFFER
-static const unsigned MaxSize = 5<<23;
-#else
-static const unsigned MaxSize = 0xa00000;
-#endif
+//#ifdef BUILD_LARGE_STREAM_BUFFER
+//static const unsigned MaxSize = 5<<23;
+//#else
+//static const unsigned MaxSize = 0xa00000;
+//#endif
+static const unsigned MaxSize = 48*1024*1024;
 
 SegStreams::SegStreams(PartitionMember& cmgr) :
   WiredStreams(VmonSourceId(cmgr.header().level(), cmgr.header().ip()))
@@ -27,10 +28,10 @@ SegStreams::SegStreams(PartitionMember& cmgr) :
   const Src& src = node.procInfo();
   for (int s = 0; s < StreamParams::NumberOfStreams; s++) {
 
-    _outlets[s] = new ToEventWireScheduler(*stream(s)->outlet(), 
-             //    _outlets[s] = new ToEventWire(*stream(s)->outlet(), 
-          cmgr, 
-          ipaddress, 
+    _outlets[s] = new ToEventWireScheduler(*stream(s)->outlet(),
+             //    _outlets[s] = new ToEventWire(*stream(s)->outlet(),
+          cmgr,
+          ipaddress,
           MaxSize*ebdepth,
           cmgr.occurrences());
 
@@ -42,14 +43,15 @@ SegStreams::SegStreams(PartitionMember& cmgr) :
            s,
            ipaddress,
            MaxSize, ebdepth,
+           cmgr.slowEb(),
            new VmonEb(src,32,ebdepth,(1<<24),(1<<22)));
 
     (new VmonServerAppliance(src))->connect(stream(s)->inlet());
   }
 }
 
-SegStreams::~SegStreams() 
-{  
+SegStreams::~SegStreams()
+{
   for (int s = 0; s < StreamParams::NumberOfStreams; s++) {
     delete _inlet_wires[s];
     delete _outlets[s];

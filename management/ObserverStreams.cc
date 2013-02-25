@@ -14,6 +14,7 @@
 using namespace Pds;
 
 ObserverStreams::ObserverStreams(CollectionObserver& cmgr,
+                                 int slowEb,
                                  unsigned max_size) :
   WiredStreams(VmonSourceId(cmgr.header().level(), cmgr.header().ip()))
 {
@@ -32,8 +33,8 @@ ObserverStreams::ObserverStreams(CollectionObserver& cmgr,
        _xtcType,
        level,
        *stream(s)->inlet(), *_outlets[s], s, ipaddress,
-       max_size, ebdepth);
-    
+       max_size, ebdepth, slowEb);
+
     _inlet_wires[s] = eb;
   }
   //  _vmom_appliance = new VmonAppliance(vmon());

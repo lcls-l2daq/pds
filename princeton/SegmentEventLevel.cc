@@ -3,7 +3,7 @@
 /*
  * Note: This file is no longer required for PrincetonServer.
  *       Originally this was used to get EVR data for the princeton server,
- *       but later it was changed to use Occurance. Now this file is 
+ *       but later it was changed to use Occurance. Now this file is
  *       deprecated, and only remain as a reference for segment level to
  *       get the EVR data
  */
@@ -25,9 +25,10 @@ SegmentEventLevel::  SegmentEventLevel(
   unsigned          platform,
   SegWireSettings&  settings,
   EventCallback&    callback,
-  Arp*              arp) 
+  Arp*              arp,
+  int               slowEb)
   :
-  SegmentLevel  (platform, settings, callback, arp),      
+  SegmentLevel  (platform, settings, callback, arp, slowEb),
   _pEventServer (NULL)
 {
 }
@@ -42,12 +43,12 @@ static std::string addressToStr( unsigned int uAddr )
     unsigned int uNetworkAddr = htonl(uAddr);
     const unsigned char* pcAddr = (const unsigned char*) &uNetworkAddr;
     std::stringstream sstream;
-    sstream << 
+    sstream <<
       (int) pcAddr[0] << "." <<
       (int) pcAddr[1] << "." <<
       (int) pcAddr[2] << "." <<
       (int) pcAddr[3];
-      
+
      return sstream.str();
 }
 */
@@ -72,7 +73,7 @@ void SegmentEventLevel::allocated(const Allocation & alloc, unsigned index)
 
       Ins mcastIns(ins.address());
       _pEventServer->server().join(mcastIns, Ins(header().ip()));
-      
+
       inlet.add_input(_pEventServer);
   //    break;
   //  }
@@ -94,7 +95,7 @@ void SegmentEventLevel::allocated(const Allocation & alloc, unsigned index)
       inlet.add_output(wireIns);
       printf("SegmentLevel::allocated adding output %d to %x/%d\n",
        vectorid, ins.address(), ins.portId());
-      
+
       vectorid++;
     }
   }
@@ -109,7 +110,7 @@ void SegmentEventLevel::allocated(const Allocation & alloc, unsigned index)
 
   OutletWire *owire =
     _streams->stream(StreamParams::FrameWork)->outlet()->wire();
-  owire->bind(OutletWire::Bcast, 
+  owire->bind(OutletWire::Bcast,
     StreamPorts::bcast(partition,Level::Event, index));
 }
 

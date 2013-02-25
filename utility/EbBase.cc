@@ -77,12 +77,14 @@ EbBase::EbBase(const Src& id,
          OutletWire& outlet,
          int stream,
          int ipaddress,
+         int slowEb,
          VmonEb* vmoneb,
-         const Ins* dstack) :
-  InletWireServer(inlet, outlet, ipaddress, stream, 
+         const Ins* dstack
+         ) :
+  InletWireServer(inlet, outlet, ipaddress, stream,
       TaskPriority-stream, TaskName(level, stream, inlet),
       EbTimeouts::duration(stream)),
-  _ebtimeouts(stream,level),
+  _ebtimeouts(stream,level, slowEb),
   _output(inlet),
   _id(id),
   _ctns(ctns),
@@ -95,7 +97,7 @@ EbBase::EbBase(const Src& id,
 {
   if (dstack) {
     const unsigned PayloadSize = 0;
-    _ack = new Client(sizeof(Datagram), PayloadSize, 
+    _ack = new Client(sizeof(Datagram), PayloadSize,
        *dstack, Ins(ipaddress));
   }
 }
@@ -227,7 +229,7 @@ void EbBase::_post(EbEventBase* event)
   EbBitMask value((event->allocated().remaining() |
        event->segments()) &
       _valued_clients);
-  EbBitMask required((event->allocated().remaining() | 
+  EbBitMask required((event->allocated().remaining() |
           event->segments()) &
          _required_clients);
 #ifdef VERBOSE
@@ -342,10 +344,10 @@ EbBitMask EbBase::_postEvent(EbEventBase* complete)
 //
    EbEventBase* event = _pending.forward();
    EbEventBase* empty = _pending.empty();
-   
+
 #ifdef VERBOSE
    if (event != empty &&
-       event != complete) 
+       event != complete)
      printf("%x/%x(%x)... pushed by %x/%x\n",
       event->datagram()->seq.service(),
       event->datagram()->seq.stamp().fiducials(),
@@ -470,7 +472,7 @@ EbEventBase* EbBase::_event(EbServer* server)
   while( event != _pending.empty() ) {
 
     if(!(event->segments() & serverId).isZero() ||
-       event->allocated().insert(serverId).isZero()) 
+       event->allocated().insert(serverId).isZero())
       return event;
 
     event = event->forward();

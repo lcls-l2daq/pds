@@ -1,7 +1,7 @@
 /*
 ** ++
 **  Package:
-**	odfUtility
+**  odfUtility
 **
 **  Abstract:
 **      non-inline functions for class "odfEb"
@@ -10,10 +10,10 @@
 **      Michael Huffer, SLAC, (415) 926-4269
 **
 **  Creation Date:
-**	000 - June 1,1998
+**  000 - June 1,1998
 **
 **  Revision History:
-**	None.
+**  None.
 **
 ** --
 */
@@ -50,18 +50,19 @@ using namespace Pds;
 */
 
 ZcpEb::ZcpEb(const Src& id,
-	     const TypeId& ctns,
-	     Level::Type level,
-	     Inlet& inlet,
-	     OutletWire& outlet,
-	     int stream,
-	     int ipaddress,
-	     unsigned eventsize, // max size in # of IP datagrams
-	     unsigned eventpooldepth,
-	     VmonEb* vmoneb,
-	     const Ins* dstack) :
-  EbBase(id, ctns, level, inlet, outlet, stream, ipaddress,
-	 vmoneb, dstack),
+       const TypeId& ctns,
+       Level::Type level,
+       Inlet& inlet,
+       OutletWire& outlet,
+       int stream,
+       int ipaddress,
+       unsigned eventsize, // max size in # of IP datagrams
+       unsigned eventpooldepth,
+       int slowEb,
+       VmonEb* vmoneb,
+       const Ins* dstack) :
+  EbBase(id, ctns, level, inlet, outlet, stream, ipaddress, slowEb,
+   vmoneb, dstack),
   _datagrams (sizeof(ZcpDatagram), eventpooldepth),
   _events    (sizeof(ZcpEbEvent) , eventpooldepth)
 {
@@ -117,9 +118,9 @@ int ZcpEb::processIo(Server* serverGeneric)
 
   if(sizeofPayload<0) {  // no payload
     printf("ZcpEb::processIo error in fetch more/len/off %c/%x/%x\n",
-	   server->more() ? 't':'f', 
-	   server->length(), 
-	   server->offset());
+     server->more() ? 't':'f',
+     server->length(),
+     server->offset());
     _zfragment.flush();
     return 1;
   }
@@ -132,7 +133,7 @@ int ZcpEb::processIo(Server* serverGeneric)
 
   //
   //  Search for an event with a matching key
-  //  If no match is found, append a new event onto the pending queue 
+  //  If no match is found, append a new event onto the pending queue
   //
   ZcpEbEvent* zevent;
   {
@@ -152,8 +153,8 @@ int ZcpEb::processIo(Server* serverGeneric)
   if (sizeofPayload==0)
     ;
   else if (zevent->consume(server,
-			   serverId,
-			   _zfragment)) {
+         serverId,
+         _zfragment)) {
     _segments++;
     return 1;
   }

@@ -4,7 +4,7 @@
 #include <vector>
 #include "EbS.hh"
 
-namespace Pds 
+namespace Pds
 {
 
 class EbSGroup : public EbS
@@ -19,6 +19,7 @@ public:
     int ipaddress,
     unsigned eventsize,
     unsigned eventpooldepth,
+    int slowEb,
     VmonEb* vmoneb=0);
   ~EbSGroup();
 
@@ -27,10 +28,10 @@ protected:
 
 public:
   void setClientMask(std::vector<EbBitMask>& lGroupClientMask) {_lGroupClientMask = lGroupClientMask;}
-  
-private:  
+
+private:
   std::vector<EbBitMask> _lGroupClientMask;
 };
 
-} // namespace Pds 
+} // namespace Pds
 #endif

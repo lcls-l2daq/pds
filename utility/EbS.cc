@@ -15,10 +15,11 @@ EbS::EbS(const Src& id,
    int ipaddress,
    unsigned eventsize,
    unsigned eventpooldepth,
+   int slowEb,
    VmonEb* vmoneb) :
   Eb(id, ctns, level, inlet, outlet,
      stream, ipaddress,
-     eventsize, eventpooldepth, vmoneb),
+     eventsize, eventpooldepth, slowEb, vmoneb),
   _keys( sizeof(EbSequenceKey), eventpooldepth )
 {
   memset(_no_builds,0,sizeof(_no_builds));

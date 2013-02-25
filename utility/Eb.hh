@@ -14,7 +14,7 @@ class OutletWire;
 class EbServer;
 class Client;
 
-class Eb : public EbBase 
+class Eb : public EbBase
   {
   public:
     Eb(const Src& id,
@@ -26,6 +26,7 @@ class Eb : public EbBase
        int ipaddress,
        unsigned eventsize,
        unsigned eventpooldepth,
+       int slowEb,
        VmonEb* vmoneb,
        const Ins* dstack=0);
     virtual ~Eb();

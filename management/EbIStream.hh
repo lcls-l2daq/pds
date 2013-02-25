@@ -17,9 +17,10 @@ namespace Pds {
   class EbIStream : public Stream {
   public:
     EbIStream(const Src& src,
-	      int        interface,
-	      Level::Type level,
-	      InletWire& inlet_wire);
+        int         interface,
+        Level::Type level,
+        InletWire&  inlet_wire,
+        int         slowEb);
     virtual ~EbIStream();
 
     InletWireServer* input ();

@@ -13,12 +13,13 @@ class Arp;
 class EventLevel: public PartitionMember {
 public:
   EventLevel(unsigned       platform,
-	     EventCallback& callback,
-	     Arp*           arp,
+       EventCallback& callback,
+       int            slowEb,
+       Arp*           arp,
              unsigned       max_eventsize = 0,
              unsigned       max_buffers = 0);
   virtual ~EventLevel();
-  
+
   bool attach();
   void detach();
 private:

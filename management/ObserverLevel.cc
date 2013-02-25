@@ -20,16 +20,18 @@ ObserverLevel::ObserverLevel(unsigned platform,
            const char* partition,
            unsigned nodes,
            EventCallback& callback,
-                             unsigned       max_eventsize) :
+           int            slowEb,
+           unsigned       max_eventsize) :
   CollectionObserver(platform, partition),
   _nodes            (nodes),
   _callback         (callback),
   _streams          (0),
+  _slowEb           (slowEb),
   _max_eventsize    (max_eventsize)
 {
 }
 
-ObserverLevel::~ObserverLevel() 
+ObserverLevel::~ObserverLevel()
 {
   if (_streams) {
     for (int s = 0; s < StreamParams::NumberOfStreams; s++)
@@ -42,18 +44,18 @@ bool ObserverLevel::attach()
   start();
   if (connect()) {
     if (_max_eventsize)
-      _streams = new ObserverStreams(*this,_max_eventsize);
+      _streams = new ObserverStreams(*this, _slowEb, _max_eventsize);
     else
-      _streams = new ObserverStreams(*this);
+      _streams = new ObserverStreams(*this, _slowEb);
 
     for (int s = 0; s < StreamParams::NumberOfStreams; s++) {
       delete _streams->stream(s)->outlet()->wire();
       _outlets[s] = new OpenOutlet(*_streams->stream(s)->outlet());
     }
     _streams->connect();
-  
+
     _callback.attached(*_streams);
-    
+
     return true;
   }
   else {
@@ -68,7 +70,7 @@ void ObserverLevel::allocated(const Allocation& alloc)
 
   //!!! segment group support
   std::vector<EbBitMask> lGroupSegMask;
-  
+
   // setup BLD and event servers
   unsigned partition  = alloc.partitionid();
   unsigned nnodes     = alloc.nnodes();
@@ -80,12 +82,12 @@ void ObserverLevel::allocated(const Allocation& alloc)
             Level::Event,
             0,  // this parameter is ignored for the port server assignment
             segmentid).portId());
-            
+
       //!!! segment group support
       if (node.group() >= lGroupSegMask.size())
-        lGroupSegMask.resize(node.group()+1);        
-      lGroupSegMask[node.group()].setBit(segmentid);                 
-            
+        lGroupSegMask.resize(node.group()+1);
+      lGroupSegMask[node.group()].setBit(segmentid);
+
       NetDgServer* srv = new NetDgServer(srvIns,
            node.procInfo(),
            EventStreams::netbufdepth*EventStreams::MaxSize);
@@ -107,11 +109,11 @@ void ObserverLevel::allocated(const Allocation& alloc)
       segmentid++;
     } // if (node.level() == Level::Segment) {
   } // for (unsigned n=0; n<nnodes; n++) {
-  
+
   //!!! segment group support
   for (int iGroup = 0; iGroup < (int) lGroupSegMask.size(); ++iGroup)
     printf("Group %d Segment Mask 0x%04x%04x\n", iGroup, lGroupSegMask[iGroup].value(1), lGroupSegMask[iGroup].value(0) );
-  ((EbSGroup*) inlet)-> setClientMask(lGroupSegMask);  
+  ((EbSGroup*) inlet)-> setClientMask(lGroupSegMask);
 }
 
 void ObserverLevel::post     (const Transition& tr)

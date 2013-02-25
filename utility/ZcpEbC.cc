@@ -16,10 +16,11 @@ ZcpEbC::ZcpEbC(const Src& id,
          int ipaddress,
          unsigned eventsize,
          unsigned eventpooldepth,
+         int slowEb,
          VmonEb* vmoneb) :
   ZcpEb(id, ctns, level, inlet, outlet,
   stream, ipaddress,
-  eventsize, eventpooldepth, vmoneb),
+  eventsize, eventpooldepth, slowEb, vmoneb),
   _keys( sizeof(EbCountKey), eventpooldepth )
 {
 }

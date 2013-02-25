@@ -15,9 +15,11 @@ namespace Pds {
   class SegmentLevel: public PartitionMember {
   public:
     SegmentLevel(unsigned platform,
-		 SegWireSettings& settings,
-		 EventCallback& callback,
-		 Arp* arp);
+     SegWireSettings& settings,
+     EventCallback& callback,
+     Arp* arp,
+     int slowEb = 0
+    );
 
     virtual ~SegmentLevel();
 

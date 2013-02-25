@@ -12,16 +12,17 @@ namespace Pds {
   class ZcpEb : public EbBase {
   public:
     ZcpEb(const Src& id,
-	  const TypeId& ctns,
-	  Level::Type level,
-	  Inlet& inlet,
-	  OutletWire& outlet,
-	  int stream,
-	  int ipaddress,
-	  unsigned eventsize,
-	  unsigned eventpooldepth,
-	  VmonEb* vmoneb,
-	  const Ins* dstack=0);
+    const TypeId& ctns,
+    Level::Type level,
+    Inlet& inlet,
+    OutletWire& outlet,
+    int stream,
+    int ipaddress,
+    unsigned eventsize,
+    unsigned eventpooldepth,
+    int slowEb,
+    VmonEb* vmoneb,
+    const Ins* dstack=0);
     virtual ~ZcpEb();
   public:
     int processIo (Server*);

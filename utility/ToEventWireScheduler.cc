@@ -20,8 +20,8 @@ namespace Pds {
   class FlushRoutine : public Routine {
   public:
     FlushRoutine(LinkedList<TrafficDst>& list,
-		 Client&                 client,
-		 ToEventWireScheduler*   scheduler=0) :
+     Client&                 client,
+     ToEventWireScheduler*   scheduler=0) :
       _client   (client),
       _scheduler(scheduler)
     {
@@ -34,34 +34,34 @@ namespace Pds {
 #ifdef HISTO_TRANSMIT_TIMES
       timespec start, end;
       if (_scheduler)
-	clock_gettime(CLOCK_REALTIME, &start);
+  clock_gettime(CLOCK_REALTIME, &start);
 #endif
       TrafficDst* t = _list.forward();
       while(t != _list.empty()) {
-	do {
-	  TrafficDst* n = t->forward();
+  do {
+    TrafficDst* n = t->forward();
 
-#ifdef BUILD_PACKAGE_SPACE
-	  static int iDgCount = 0;
-	  if (++iDgCount > 100)
-	    {
-	      timeval timeSleepMicro = {0, 1000};
-	      // Use select() to simulate nanosleep(), because experimentally select() controls the sleeping time more precisely
-	      select( 0, NULL, NULL, NULL, &timeSleepMicro);
-	      iDgCount = 0;
-	    }
-#endif
+//#ifdef BUILD_PACKAGE_SPACE
+//    static int iDgCount = 0;
+//    if (++iDgCount > 100)
+//      {
+//        timeval timeSleepMicro = {0, 1000};
+//        // Use select() to simulate nanosleep(), because experimentally select() controls the sleeping time more precisely
+//        select( 0, NULL, NULL, NULL, &timeSleepMicro);
+//        iDgCount = 0;
+//      }
+//#endif
 
-	  if (!t->send_next(_client))
-	    delete t->disconnect();
-	  t = n;
-	} while( t != _list.empty());
-	t = _list.forward();
+    if (!t->send_next(_client))
+      delete t->disconnect();
+    t = n;
+  } while( t != _list.empty());
+  t = _list.forward();
       }
 #ifdef HISTO_TRANSMIT_TIMES
       if (_scheduler) {
-	clock_gettime(CLOCK_REALTIME, &end);
-	_scheduler->histo(start,end);
+  clock_gettime(CLOCK_REALTIME, &end);
+  _scheduler->histo(start,end);
       }
 #endif
 
@@ -78,11 +78,12 @@ using namespace Pds;
 
 static unsigned _maxscheduled = 4;
 
-#ifdef BUILD_PRINCETON
-static int      _idol_timeout  = 150; // idol time [ms] which forces flush of queued events
-#else
-static int      _idol_timeout  = 150;  // idol time [ms] which forces flush of queued events, to be sync at 0.5Hz
-#endif
+//#ifdef BUILD_PRINCETON
+//static int      _idol_timeout  = 150; // idol time [ms] which forces flush of queued events
+//#else
+//static int      _idol_timeout  = 150;  // idol time [ms] which forces flush of queued events, to be sync at 0.5Hz
+//#endif
+static int      _idol_timeout  = 150;  // idol time [ms] which forces flush of queued events
 
 static int      _disable_buffer = 100; // time [ms] inserted between flushed L1 and Disable transition
 static unsigned _phase = 0;
@@ -168,8 +169,8 @@ void ToEventWireScheduler::_flush()
   //
   //  Phase delay goes here
   //
-  timeval timeSleepMicro = {0, _phase*8000}; // 8 milliseconds  
-  select( 0, NULL, NULL, NULL, &timeSleepMicro);       
+  timeval timeSleepMicro = {0, _phase*8000}; // 8 milliseconds
+  select( 0, NULL, NULL, NULL, &timeSleepMicro);
 
   _flush_task->call( new FlushRoutine(_list,_client,this) );
 
@@ -197,29 +198,29 @@ void ToEventWireScheduler::routine()
     if (::poll(&pfd, nfd, _idol_timeout) > 0) {
       InDatagram* dg;
       if (::read(_schedfd[0], &dg, sizeof(dg)) == sizeof(dg)) {
-	//  Flush the set of events if
-	//    (1) we already have queued an event to the same destination
-	//    (2) we have reached the maximum number of queued events
-	const Sequence& seq = dg->datagram().seq;
-	if (seq.isEvent() && !_nodes.isempty()) {
-	  OutletWireIns* dst = _nodes.lookup(seq.stamp().vector());
-	  unsigned m = 1<<dst->id();
-	  if (m & _scheduled)
-	    _flush();
-	  TrafficDst* t = dg->traffic(dst->ins());
-	  _list.insert(t);
-	  _scheduled |= m;
-	  if (++_nscheduled >= _maxscheduled)
-	    _flush();
-	}
-	else {
-	  _flush(dg);
-	}
+  //  Flush the set of events if
+  //    (1) we already have queued an event to the same destination
+  //    (2) we have reached the maximum number of queued events
+  const Sequence& seq = dg->datagram().seq;
+  if (seq.isEvent() && !_nodes.isempty()) {
+    OutletWireIns* dst = _nodes.lookup(seq.stamp().vector());
+    unsigned m = 1<<dst->id();
+    if (m & _scheduled)
+      _flush();
+    TrafficDst* t = dg->traffic(dst->ins());
+    _list.insert(t);
+    _scheduled |= m;
+    if (++_nscheduled >= _maxscheduled)
+      _flush();
+  }
+  else {
+    _flush(dg);
+  }
       }
       else {
-	printf("ToEventWireScheduler::routine error reading pipe : %s\n",
-	       strerror(errno));
-	break;
+  printf("ToEventWireScheduler::routine error reading pipe : %s\n",
+         strerror(errno));
+  break;
       }
     }
     else {  // timeout
@@ -228,17 +229,17 @@ void ToEventWireScheduler::routine()
   }
 }
 
-void ToEventWireScheduler::bind(NamedConnection, const Ins& ins) 
+void ToEventWireScheduler::bind(NamedConnection, const Ins& ins)
 {
   _bcast = ins;
 }
 
-void ToEventWireScheduler::bind(unsigned id, const Ins& node) 
+void ToEventWireScheduler::bind(unsigned id, const Ins& node)
 {
   _nodes.insert(id, node);
 }
 
-void ToEventWireScheduler::unbind(unsigned id) 
+void ToEventWireScheduler::unbind(unsigned id)
 {
   _nodes.remove(id);
 }

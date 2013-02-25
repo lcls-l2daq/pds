@@ -6,6 +6,6 @@ libnames := utility
 #############################
 
 #CXXFLAGS += -DBUILD_READOUT_GROUP -DBUILD_PRINCETON -DBUILD_PACKAGE_SPACE # for princeton camera and the switch problem
-CXXFLAGS += -DBUILD_READOUT_GROUP  # for running devices with different readout rate
+#CXXFLAGS += -DBUILD_READOUT_GROUP  # for running devices with different readout rate
 
 libsrcs_utility := $(wildcard *.cc)

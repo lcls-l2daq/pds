@@ -14,9 +14,11 @@
 using namespace Pds;
 
 EventStreams::EventStreams(PartitionMember& cmgr,
+         int      slowEb,
          unsigned max_size,
          unsigned net_buf_depth,
-         unsigned eb_depth) :
+         unsigned eb_depth
+         ) :
   WiredStreams(VmonSourceId(cmgr.header().level(), cmgr.header().ip()))
 {
   const Node& node = cmgr.header();
@@ -25,22 +27,23 @@ EventStreams::EventStreams(PartitionMember& cmgr,
   const Src& src = cmgr.header().procInfo();
   for (int s = 0; s < StreamParams::NumberOfStreams; s++) {
 
-    _outlets[s] = new ToEventWire(*stream(s)->outlet(), 
-          cmgr, 
-          ipaddress, 
+    _outlets[s] = new ToEventWire(*stream(s)->outlet(),
+          cmgr,
+          ipaddress,
           max_size*net_buf_depth,
           cmgr.occurrences());
 
     _inlet_wires[s] = new SegEventBuilder(src,
                _xtcType,
                level,
-               *stream(s)->inlet(), 
+               *stream(s)->inlet(),
                *_outlets[s],
                s,
                ipaddress,
                max_size, eb_depth,
+               slowEb,
                new VmonEb(src,32,eb_depth,(1<<23),max_size));
-               
+
     (new VmonServerAppliance(src))->connect(stream(s)->inlet());
   }
 }

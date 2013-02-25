@@ -14,12 +14,12 @@ namespace Pds {
 
   class ControlEb : public Timer {
   public:
-    ControlEb (const Node&, Routine* =0);
+    ControlEb (const Node&, Routine*, int iDuration);
     ~ControlEb();
   public:
     void        reset(const Allocation& alloc);
-    Transition* build(const Node&, 
-		      const Transition&);
+    Transition* build(const Node&,
+          const Transition&);
     Allocation  remaining() const;
   public:
     void expired();
@@ -36,6 +36,7 @@ namespace Pds {
     const Allocation* _alloc;
     GenericPool       _buffer;
     Transition*       _pending;
+    int               _duration;
     enum { MAX_CONTRIBUTORS=128 };
     BitMaskArray<(MAX_CONTRIBUTORS>>5)> _remaining;
     BitMaskArray<(MAX_CONTRIBUTORS>>5)> _previous;
@@ -44,4 +45,4 @@ namespace Pds {
 };
 
 #endif
-    
+

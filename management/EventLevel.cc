@@ -18,10 +18,12 @@ using namespace Pds;
 
 EventLevel::EventLevel(unsigned platform,
                        EventCallback& callback,
+                       int slowEb,
                        Arp* arp,
                        unsigned max_eventsize,
-                       unsigned max_buffers) :
-  PartitionMember(platform, Level::Event, arp),
+                       unsigned max_buffers
+                       ) :
+  PartitionMember(platform, Level::Event, slowEb, arp),
   _callback   (callback),
   _streams    (0),
   _max_eventsize(max_eventsize),
@@ -33,7 +35,7 @@ EventLevel::EventLevel(unsigned platform,
     _max_buffers   = EventStreams::EbDepth;
 }
 
-EventLevel::~EventLevel() 
+EventLevel::~EventLevel()
 {
   if (_streams) delete _streams;
 }
@@ -43,12 +45,13 @@ bool EventLevel::attach()
   start();
   if (connect()) {
     if (_max_eventsize)
-      _streams = new EventStreams(*this, 
-                                  _max_eventsize, 
+      _streams = new EventStreams(*this,
+                                  slowEb(),
+                                  _max_eventsize,
                                   EventStreams::netbufdepth,
                                   _max_buffers);
     else
-      _streams = new EventStreams(*this);
+      _streams = new EventStreams(*this, slowEb());
 
     _streams->connect();
 
@@ -86,14 +89,14 @@ Message& EventLevel::reply(Message::Type)
 }
 
 void    EventLevel::allocated(const Allocation& alloc,
-            unsigned          index) 
+            unsigned          index)
 {
   InletWire* inlet = _streams->wire(StreamParams::FrameWork);
 
-  
+
   //!!! segment group support
   std::vector<EbBitMask> lGroupSegMask;
-  
+
   // setup BLD and event servers
   unsigned partition  = alloc.partitionid();
   unsigned nnodes     = alloc.nnodes();
@@ -101,20 +104,20 @@ void    EventLevel::allocated(const Allocation& alloc,
   unsigned segmentid  = 0;
   for (unsigned n=0; n<nnodes; n++) {
     const Node& node = *alloc.node(n);
-    if (node.level() == Level::Segment) {                  
+    if (node.level() == Level::Segment) {
       // Add vectored output clients on bld_wire
       Ins ins = StreamPorts::event(partition,
            Level::Event,
            index,
            segmentid);
-           
+
       //!!! segment group support
       if (node.group() >= lGroupSegMask.size())
-        lGroupSegMask.resize(node.group()+1);        
-      lGroupSegMask[node.group()].setBit(segmentid);                 
-           
+        lGroupSegMask.resize(node.group()+1);
+      lGroupSegMask[node.group()].setBit(segmentid);
+
       ++segmentid;
-      
+
       Ins srvIns(ins.portId());
       NetDgServer* srv = new NetDgServer(srvIns,
            node.procInfo(),
@@ -142,14 +145,14 @@ void    EventLevel::allocated(const Allocation& alloc,
       recorderid++;
     }
   } // for (unsigned n=0; n<nnodes; n++)
-  
+
   //!!! segment group support
   for (int iGroup = 0; iGroup < (int) lGroupSegMask.size(); ++iGroup)
     printf("Group %d Segment Mask 0x%04x%04x\n", iGroup, lGroupSegMask[iGroup].value(1), lGroupSegMask[iGroup].value(0) );
   ((EbSGroup*) inlet)-> setClientMask(lGroupSegMask);
-  
+
   OutletWire* owire = _streams->stream(StreamParams::FrameWork)->outlet()->wire();
-  owire->bind(OutletWire::Bcast, StreamPorts::bcast(partition, 
+  owire->bind(OutletWire::Bcast, StreamPorts::bcast(partition,
                 Level::Control,
                 index));
 }
@@ -175,6 +178,6 @@ void    EventLevel::post     (const InDatagram& in)
 
 #if 0 // revisit
 void EventLevel::disconnected()
-{  
+{
 }
 #endif

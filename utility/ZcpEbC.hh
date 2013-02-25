@@ -11,15 +11,16 @@ class ZcpEbC : public ZcpEb
   {
   public:
     ZcpEbC(const Src& id,
-	   const TypeId& ctns,
-	   Level::Type level,
-	   Inlet& inlet,
-	   OutletWire& outlet,
-	   int stream,
-	   int ipaddress,
-	   unsigned eventsize,
-	   unsigned eventpooldepth,
-	   VmonEb* vmoneb=0);
+     const TypeId& ctns,
+     Level::Type level,
+     Inlet& inlet,
+     OutletWire& outlet,
+     int stream,
+     int ipaddress,
+     unsigned eventsize,
+     unsigned eventpooldepth,
+     int slowEb,
+     VmonEb* vmoneb=0);
     ~ZcpEbC();
   private:
     EbEventBase* _new_event  ( const EbBitMask& );

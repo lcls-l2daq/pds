@@ -4,16 +4,17 @@
 
 using namespace Pds;
 
-ControlEb::ControlEb(const Node& n, Routine* tmo) :
+ControlEb::ControlEb(const Node& n, Routine* tmo, int iDuration) :
   _hdr(n),
   _timeout(tmo),
   _task(new Task(TaskObject("cntleb"))),
   _alloc(0),
-  _buffer(sizeof(Allocate),1)
+  _buffer(sizeof(Allocate),1),
+  _duration(iDuration)
 {
 }
 
-ControlEb::~ControlEb() 
+ControlEb::~ControlEb()
 {
   _task->destroy();
 }
@@ -49,26 +50,27 @@ Transition* ControlEb::build(const Node& hdr,
       _remaining.clearBit(k);
       if (_remaining.isZero()) return _pending;
       else break;
-    } 
+    }
   }
 
   start();
   return 0;
 }
 
-void ControlEb::expired() {   
-  if (_timeout) _timeout->routine(); 
+void ControlEb::expired() {
+  if (_timeout) _timeout->routine();
 }
 
 Task* ControlEb::task() { return _task; }
 
-#ifdef BUILD_PRINCETON
-unsigned ControlEb::duration() const { return 60000; }
-#elif defined(BUILD_READOUT_GROUP)
-unsigned ControlEb::duration() const { return 10000; }
-#else
-unsigned ControlEb::duration() const { return 5000; }
-#endif
+//#ifdef BUILD_PRINCETON
+//unsigned ControlEb::duration() const { return 60000; }
+//#elif defined(BUILD_READOUT_GROUP)
+//unsigned ControlEb::duration() const { return 10000; }
+//#else
+//unsigned ControlEb::duration() const { return 5000; }
+//#endif
+unsigned ControlEb::duration() const { return _duration; }
 
 unsigned ControlEb::repetitive() const { return 0; }
 

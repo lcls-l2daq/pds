@@ -15,9 +15,10 @@
 using namespace Pds;
 
 ControlLevel::ControlLevel(unsigned platform,
-			   ControlCallback& callback,
-			   Arp* arp) :
-  PartitionMember(platform, Level::Control, arp),
+         ControlCallback& callback,
+         int slowEb,
+         Arp* arp) :
+  PartitionMember(platform, Level::Control, slowEb, arp),
   _reason   (-1),
   _callback (callback),
   _streams  (0),
@@ -25,7 +26,7 @@ ControlLevel::ControlLevel(unsigned platform,
   _partitionid(-1)
 {}
 
-ControlLevel::~ControlLevel() 
+ControlLevel::~ControlLevel()
 {
   if (_streams) delete _streams;
 }
@@ -39,7 +40,7 @@ bool ControlLevel::attach()
   if (connect()) {
     _streams = new ControlStreams(*this);
     _streams->connect();
-    
+
     _callback.attached(*_streams);
 
     Message join(Message::Join);
@@ -76,7 +77,7 @@ Message& ControlLevel::reply(Message::Type)
 }
 
 void ControlLevel::allocated(const Allocation& alloc,
-			     unsigned          index) 
+           unsigned          index)
 {
   _allocation = alloc;
   PartitionAllocation pa(_allocation);
@@ -92,14 +93,14 @@ void ControlLevel::allocated(const Allocation& alloc,
     if (node->level() == Level::Event) {
       // Add vectored output clients on wire
       Ins ins = StreamPorts::event(alloc.partitionid(),
-				   Level::Control,
-				   index,
-				   eventid++);
-      
+           Level::Control,
+           index,
+           eventid++);
+
       Ins srvIns(ins.portId());
       NetDgServer* srv = new NetDgServer(ins,
-					 node->procInfo(),
-					 ControlStreams::netbufdepth*ControlStreams::MaxSize);
+           node->procInfo(),
+           ControlStreams::netbufdepth*ControlStreams::MaxSize);
       wire->add_input(srv);
       Ins mcastIns(ins.address());
       srv->server().join(mcastIns, Ins(header().ip()));
@@ -112,8 +113,8 @@ void ControlLevel::allocated(const Allocation& alloc,
 void ControlLevel::dissolved()
 {
   Allocation alloc(_allocation.partition(),
-		   _allocation.dbpath(),
-		   _allocation.partitionid());
+       _allocation.dbpath(),
+       _allocation.partitionid());
   _allocation = alloc;
   PartitionAllocation pa(alloc);
   ucast( pa, CollectionPorts::platform());
@@ -146,8 +147,8 @@ void ControlLevel::message(const Node& hdr, const Message& msg)
       hdr.level() == Level::Source) {
     const Query& query = reinterpret_cast<const Query&>(msg);
     if (query.type() == Query::Group) {
-      _partitionid = 
-	reinterpret_cast<const PartitionGroup&>(query).partitionid();
+      _partitionid =
+  reinterpret_cast<const PartitionGroup&>(query).partitionid();
     }
     else if (query.type() == Query::Partition) {
       PartitionAllocation pa(_allocation);

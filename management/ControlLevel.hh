@@ -14,8 +14,9 @@ namespace Pds {
   class ControlLevel: public PartitionMember {
   public:
     ControlLevel(unsigned platform,
-		 ControlCallback& callback,
-		 Arp* arp);
+     ControlCallback& callback,
+     int slowEb,
+     Arp* arp);
     virtual ~ControlLevel();
 
     unsigned partitionid() const;
@@ -28,7 +29,7 @@ namespace Pds {
     /***  void reboot(); ***/
   private:
     /***  void check_complete(const Node& hdr, bool isjoining); ***/
-    
+
   private:
     // Implements PartitionMember
     virtual Message& reply     (Message::Type);
@@ -37,7 +38,7 @@ namespace Pds {
     virtual void     post      (const Transition&);
     virtual void     post      (const Occurrence&);
     virtual void     post      (const InDatagram&);
-    
+
   private:
     int                 _reason;
     ControlCallback&    _callback;
@@ -46,6 +47,6 @@ namespace Pds {
     unsigned            _partitionid;
     Allocation          _allocation;
   };
-  
+
 }
 #endif

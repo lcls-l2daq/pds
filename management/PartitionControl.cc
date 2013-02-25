@@ -55,11 +55,11 @@ namespace Pds {
   public:
     ReportJob(RunAllocator& allocator,
               int expt, int run, int stream, int chunk, std::string& hostname, std::string& fname) :
-      _allocator(allocator), 
+      _allocator(allocator),
       _expt(expt), _run(run), _stream(stream), _chunk(chunk), _host_name(hostname), _fname(fname) {}
   public:
-    void routine() { 
-      _allocator.reportOpenFile(_expt,_run,_stream,_chunk,_host_name,_fname); 
+    void routine() {
+      _allocator.reportOpenFile(_expt,_run,_stream,_chunk,_host_name,_fname);
       delete this;
     }
   private:
@@ -107,11 +107,13 @@ namespace Pds {
           //
           //  Cspad + Opal1k seems to need more time?
           //
-#ifdef BUILD_SLOW_DISABLE         
-          tv.tv_sec = 1; tv.tv_nsec = 0;
-#else
+//#ifdef BUILD_SLOW_DISABLE // no need if princeton runs with "delay shots"
+//          tv.tv_sec = 1; tv.tv_nsec = 0;
+//#else
+//          tv.tv_sec = 0; tv.tv_nsec = 300000000; // 300 ms
+//#endif
           tv.tv_sec = 0; tv.tv_nsec = 300000000; // 300 ms
-#endif        
+
           //  20 milliseconds is apparently not long enough
           //          tv.tv_sec = 0; tv.tv_nsec = 20000000;
           nanosleep(&tv, 0);
@@ -142,11 +144,13 @@ namespace Pds {
           //
           //  Cspad + Opal1k seems to need more time?
           //
-#ifdef BUILD_SLOW_DISABLE         
-          tv.tv_sec = 2; tv.tv_nsec = 0;
-#else
+//#ifdef BUILD_SLOW_DISABLE // no need if princeton runs with "delay shots"
+//          tv.tv_sec = 2; tv.tv_nsec = 0;
+//#else
+//          tv.tv_sec = 0; tv.tv_nsec = 300000000; // 300 ms
+//#endif
           tv.tv_sec = 0; tv.tv_nsec = 300000000; // 300 ms
-#endif        
+
           //  20 milliseconds is apparently not long enough
           //          tv.tv_sec = 0; tv.tv_nsec = 20000000;
           nanosleep(&tv, 0);
@@ -154,7 +158,7 @@ namespace Pds {
 #endif
         else if (i->id()==TransitionId::Map) {
           //
-          //  The map transition instructs the event-builder streams 
+          //  The map transition instructs the event-builder streams
           //  to register for multicasts.  Without some ping/reply
           //  protocol, we can't verify the registration is complete;
           //  so wait some reasonable time.
@@ -183,7 +187,7 @@ namespace Pds {
             memcpy(p += sizeof(Xtc),_control._transition_payload[i->id()],xtc->sizeofPayload());
           }
           else {
-            if (xtc) 
+            if (xtc)
               printf("PartitionControl transition payload size (0x%x) exceeds maximum.  Discarding.\n",xtc->extent);
 
             tr = new(&_pool) Transition(i->id(),
@@ -204,8 +208,8 @@ namespace Pds {
       //       if (i->datagram().xtc.damage.value()&(1<<Damage::UserDefined))
       //  _control.set_target_state(_control.current_state());  // backout one step
 
-      _control._complete(i->datagram().seq.service()); 
-      return i; 
+      _control._complete(i->datagram().seq.service());
+      return i;
     }
   private:
     PartitionControl& _control;
@@ -251,16 +255,18 @@ using namespace Pds;
 
 PartitionControl::PartitionControl(unsigned platform,
                                    ControlCallback& cb,
+                                   int      slowReadout,
                                    Routine* tmo,
-                                   Arp*     arp) :
-  ControlLevel    (platform, *new MyCallback(*this, cb), arp),
+                                   Arp*     arp
+                                   ) :
+  ControlLevel    (platform, *new MyCallback(*this, cb), slowReadout, arp),
   _current_state  (Unmapped),
   _target_state   (Unmapped),
   _queued_target  (Mapped),
 #ifdef RECOVER_TMO
-  _eb             (header(),new TimeoutRecovery(*this)),
+  _eb             (header(),new TimeoutRecovery(*this), (slowReadout > 0? 60000: 10000)),
 #else
-  _eb             (header(),tmo),
+  _eb             (header(),tmo, (slowReadout > 0? 60000: 10000)),
 #endif
   _sequenceTask   (new Task(TaskObject("controlSeq"))),
   _sem            (Semaphore::EMPTY),
@@ -278,10 +284,10 @@ PartitionControl::PartitionControl(unsigned platform,
   memset(_transition_xtc,0,TransitionId::NumberOf*sizeof(Xtc*));
 }
 
-PartitionControl::~PartitionControl() 
+PartitionControl::~PartitionControl()
 {
-  _sequenceTask->destroy(); 
-  _reportTask  ->destroy(); 
+  _sequenceTask->destroy();
+  _reportTask  ->destroy();
 }
 
 void PartitionControl::platform_rollcall(PlatformCallback* cb)
@@ -309,7 +315,8 @@ const Allocation& PartitionControl::partition() const
 
 void PartitionControl::set_target_state(State state)
 {
-  printf("PartitionControl::set_target_state curr %s  prevtgt %s  tgt %s\n",
+  if (state != _target_state || state != _target_state)
+    printf("PartitionControl::set_target_state curr %s  prevtgt %s  tgt %s\n",
          name(_current_state), name(_target_state), name(state));
 
   State prev_target = _target_state;
@@ -364,8 +371,8 @@ void  PartitionControl::set_transition_env(TransitionId::Value tr, unsigned env)
 { _transition_env[tr] = env; }
 void  PartitionControl::set_transition_payload(TransitionId::Value tr, Xtc* xtc, void* payload)
 {
-  _transition_xtc    [tr] = xtc; 
-  _transition_payload[tr] = payload; 
+  _transition_xtc    [tr] = xtc;
+  _transition_payload[tr] = payload;
 }
 
 void PartitionControl::message(const Node& hdr, const Message& msg)
@@ -439,7 +446,7 @@ void PartitionControl::_next()
       _sem_target.give();
     }
   }
-  else if (_target_state > _current_state) 
+  else if (_target_state > _current_state)
     switch(_current_state) {
     case Unmapped  : { Allocate alloc(_partition); _queue(alloc); break; }
     case Mapped    : _queue(TransitionId::Configure      ); break;
@@ -462,18 +469,18 @@ void PartitionControl::_next()
     case Disabled  : _queue(TransitionId::Enable         ); break;
     default: break;
     }
-  else if (_target_state < _current_state) 
+  else if (_target_state < _current_state)
     switch(_current_state) {
     case Mapped    : { Kill kill(header()); _queue(kill); break; }
     case Configured: _queue(TransitionId::Unconfigure  ); break;
     case Running   : _queue(TransitionId::EndRun       ); break;
     case Disabled  : _queue(TransitionId::EndCalibCycle); break;
-    case Enabled   : 
+    case Enabled   :
       if (_sequencer) _sequencer->stop();
 #ifdef USE_L1A
-      _queue(TransitionId::L1Accept); 
+      _queue(TransitionId::L1Accept);
 #else
-      _queue(TransitionId::Disable); 
+      _queue(TransitionId::Disable);
 #endif
       break;
     default: break;
@@ -485,8 +492,8 @@ void PartitionControl::_complete(TransitionId::Value id)
   State current = _current_state;
   switch(id) {
   case TransitionId::Unmap          : _current_state = Unmapped  ; break;
-  case TransitionId::Unconfigure    : 
-    if (_target_state==Mapped) { 
+  case TransitionId::Unconfigure    :
+    if (_target_state==Mapped) {
       _current_state = _target_state;
       set_target_state(_queued_target);
       _queued_target=Mapped;
@@ -498,7 +505,7 @@ void PartitionControl::_complete(TransitionId::Value id)
   case TransitionId::BeginRun       :
   case TransitionId::EndCalibCycle  : _current_state = Running   ; break;
   case TransitionId::BeginCalibCycle:
-  case TransitionId::Disable        : 
+  case TransitionId::Disable        :
     _current_state = Disabled;
     if (_target_state==Disabled && _queued_target>Disabled) {
       set_target_state(_queued_target);
@@ -506,8 +513,8 @@ void PartitionControl::_complete(TransitionId::Value id)
       return;
     }
     break;
-  case TransitionId::Enable         : 
-    _current_state = Enabled   ; 
+  case TransitionId::Enable         :
+    _current_state = Enabled   ;
     if (_sequencer) _sequencer->start();
     break;
   case TransitionId::L1Accept       : return;

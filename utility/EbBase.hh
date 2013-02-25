@@ -20,14 +20,16 @@ namespace Pds {
   {
   public:
     EbBase(const Src& id,
-	   const TypeId& ctns,
-	   Level::Type level,
-	   Inlet& inlet,
-	   OutletWire& outlet,
-	   int stream,
-	   int ipaddress,
-	   VmonEb* vmoneb,
-	   const Ins* dstack);
+     const TypeId& ctns,
+     Level::Type level,
+     Inlet& inlet,
+     OutletWire& outlet,
+     int stream,
+     int ipaddress,
+     int slowEb,
+     VmonEb* vmoneb,
+     const Ins* dstack
+     );
     virtual ~EbBase();
   public:
     // Implements InletWireServer for adding and removing servers

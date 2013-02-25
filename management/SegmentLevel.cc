@@ -17,17 +17,21 @@
 
 using namespace Pds;
 
-#ifdef BUILD_LARGE_STREAM_BUFFER
+//#ifdef BUILD_LARGE_STREAM_BUFFER
+//static const unsigned NetBufferDepth = 1024;
+//#else
+//static const unsigned NetBufferDepth = 32;
+//#endif
+
 static const unsigned NetBufferDepth = 1024;
-#else
-static const unsigned NetBufferDepth = 32;
-#endif
 
 SegmentLevel::SegmentLevel(unsigned platform,
          SegWireSettings& settings,
          EventCallback& callback,
-         Arp* arp) :
-  PartitionMember(platform, Level::Segment, arp),
+         Arp* arp,
+         int slowEb
+         ) :
+  PartitionMember(platform, Level::Segment, slowEb, arp),
   _settings      (settings),
   _callback      (callback),
   _streams       (0),
@@ -50,9 +54,9 @@ bool SegmentLevel::attach()
 
     _callback.attached(*_streams);
 
-    //  Add the L1 Data servers  
+    //  Add the L1 Data servers
     _settings.connect(*_streams->wire(StreamParams::FrameWork),
-                      StreamParams::FrameWork, 
+                      StreamParams::FrameWork,
                       header().ip());
 
     _reply.ready(true);
@@ -71,7 +75,7 @@ Message& SegmentLevel::reply    (Message::Type type)
 }
 
 void    SegmentLevel::allocated(const Allocation& alloc,
-        unsigned          index) 
+        unsigned          index)
 {
   //!!! segment group support
   for (unsigned n=0; n<alloc.nnodes(); n++) {
@@ -79,13 +83,13 @@ void    SegmentLevel::allocated(const Allocation& alloc,
     if (node.level() == Level::Segment &&
       node == _header &&
       node.group() != _header.group()
-      ) 
+      )
     {
       _header.setGroup(node.group());
       printf("Assign group to %d\n", _header.group());
     }
   }
-  
+
   unsigned partition= alloc.partitionid();
 
   InletWire& inlet = *_streams->wire(StreamParams::FrameWork);
@@ -101,7 +105,7 @@ void    SegmentLevel::allocated(const Allocation& alloc,
   printf("Assign evr %d  %x/%d\n",
    esrv->id(),source.address(),source.portId());
   _evr = esrv;
-  
+
   // setup event servers
   unsigned nnodes   = alloc.nnodes();
   unsigned vectorid = 0;
@@ -122,7 +126,7 @@ void    SegmentLevel::allocated(const Allocation& alloc,
   }
 
   OutletWire* owire = _streams->stream(StreamParams::FrameWork)->outlet()->wire();
-  owire->bind(OutletWire::Bcast, StreamPorts::bcast(partition, 
+  owire->bind(OutletWire::Bcast, StreamPorts::bcast(partition,
                 Level::Event,
                 index));
 
@@ -165,7 +169,7 @@ void    SegmentLevel::post     (const InDatagram& in)
   _streams->wire(StreamParams::FrameWork)->post(in);
 }
 
-void SegmentLevel::detach() 
+void SegmentLevel::detach()
 {
   if (_streams) {
     _streams->disconnect();

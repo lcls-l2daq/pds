@@ -16,23 +16,24 @@ ControlStreams::ControlStreams(PartitionMember& cmgr) :
   WiredStreams(VmonSourceId(cmgr.header().level(), 0))
 {
   //  VmonEb vmoneb(vmon());
-  Level::Type level = cmgr.header().level(); 
+  Level::Type level = cmgr.header().level();
   int ipaddress = cmgr.header().ip();
   unsigned eventpooldepth = 32;
   for (int s = 0; s < StreamParams::NumberOfStreams; s++) {
     _outlets[s] = new OpenOutlet(*stream(s)->outlet());
-//     _outlets[s] = new ToEventWire(*stream(s)->outlet(), 
+//     _outlets[s] = new ToEventWire(*stream(s)->outlet(),
 //          cmgr,
 //          ipaddress,
 //          MaxSize*netbufdepth,
 //          cmgr.occurrences());
 
-    EventBuilder* eb = 
+    EventBuilder* eb =
       new EventBuilder(cmgr.header().procInfo(),
            _xtcType,
            level, *stream(s)->inlet(),
            *_outlets[s], s, ipaddress,
-           MaxSize, eventpooldepth);
+           MaxSize, eventpooldepth,
+          cmgr.slowEb());
     //    vmoneb);
 
     eb->no_build(Sequence::Event,1<<TransitionId::L1Accept);
@@ -41,7 +42,7 @@ ControlStreams::ControlStreams(PartitionMember& cmgr) :
   }
 }
 
-ControlStreams::~ControlStreams() 
+ControlStreams::~ControlStreams()
 {
   for (int s = 0; s < StreamParams::NumberOfStreams; s++) {
     delete _inlet_wires[s];

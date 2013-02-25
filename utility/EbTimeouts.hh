@@ -8,10 +8,10 @@
 namespace Pds {
 class EbTimeouts {
 public:
-  EbTimeouts(const EbTimeouts& ebtimeouts);
-  EbTimeouts(int stream, 
-	     Level::Type level);
-  
+  EbTimeouts(const EbTimeouts& ebtimeouts, int iSlowEb);
+  EbTimeouts(int stream,
+       Level::Type level, int iSlowEb);
+
   // Basic expiration time of the event builder at the current
   // level. The total timeout for a given sequence is
   // duration()*timeouts(sequence). The total time a given sequence
@@ -24,12 +24,14 @@ public:
   int timeouts(const Sequence* sequence) const;
 
   // For debugging
-  void dump() const; 
+  void dump() const;
 
 public:
   static unsigned duration(int);
 
 private:
+  EbTimeouts(const EbTimeouts& ebtimeouts); // prohibit others from using this constructor
+
   unsigned _duration;
   short _tmos;
 };

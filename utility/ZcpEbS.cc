@@ -10,18 +10,19 @@
 using namespace Pds;
 
 ZcpEbS::ZcpEbS(const Src& id,
-	       const TypeId& ctns,
-	       Level::Type level,
-	       Inlet& inlet,
-	       OutletWire& outlet,
-	       int stream,
-	       int ipaddress,
-	       unsigned eventsize,
-	       unsigned eventpooldepth,
-	       VmonEb* vmoneb) :
+         const TypeId& ctns,
+         Level::Type level,
+         Inlet& inlet,
+         OutletWire& outlet,
+         int stream,
+         int ipaddress,
+         unsigned eventsize,
+         unsigned eventpooldepth,
+         int slowEb,
+         VmonEb* vmoneb) :
   ZcpEb(id, ctns, level, inlet, outlet,
-	stream, ipaddress,
-	eventsize, eventpooldepth, vmoneb),
+  stream, ipaddress,
+  eventsize, eventpooldepth, slowEb, vmoneb),
   _keys( sizeof(EbSequenceKey), eventpooldepth )
 {
   memset(_no_builds,0,sizeof(_no_builds));
@@ -51,7 +52,7 @@ EbEventBase* ZcpEbS::_new_event(const EbBitMask& serverId)
 }
 
 EbBase::IsComplete ZcpEbS::_is_complete( EbEventBase* event,
-					 const EbBitMask& serverId)
+           const EbBitMask& serverId)
 {
   const Sequence& seq = event->key().sequence();
   if (_no_builds[seq.type()] & (1<<seq.service()))

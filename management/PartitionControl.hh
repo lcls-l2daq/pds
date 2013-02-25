@@ -21,17 +21,19 @@ namespace Pds {
     enum State { Unmapped, Mapped, Configured, Running, Disabled, Enabled, NumberOfStates };
   public:
     PartitionControl       (unsigned platform,
-			    ControlCallback&,
-			    Routine* tmo = 0,
-			    Arp*     arp = 0);
+          ControlCallback&,
+          int      slowReadout,
+          Routine* tmo = 0,
+          Arp*     arp = 0
+          );
     ~PartitionControl      ();
   public:
     void  platform_rollcall(PlatformCallback*);
   public:
     bool  set_partition    (const char* name,
-			    const char* db_path,
-			    const Node* nodes,
-			    unsigned    nnodes,
+          const char* db_path,
+          const Node* nodes,
+          unsigned    nnodes,
                             uint64_t    bld_mask);
     const Allocation& partition() const;
   public:
@@ -55,8 +57,8 @@ namespace Pds {
     void  set_sequencer    (Sequencer* seq);
     void  use_run_info(bool);
   public: // Implements ControlLevel
-    void  message          (const Node& hdr, 
-			    const Message& msg);
+    void  message          (const Node& hdr,
+          const Message& msg);
   private:
     void  _next            ();
     void  _queue           (TransitionId::Value id);

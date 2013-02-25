@@ -11,15 +11,16 @@ class ZcpEbS : public ZcpEb
   {
   public:
     ZcpEbS(const Src& id,
-	   const TypeId& ctns,
-	   Level::Type level,
-	   Inlet& inlet,
-	   OutletWire& outlet,
-	   int stream,
-	   int ipaddress,
-	   unsigned eventsize,
-	   unsigned eventpooldepth,
-	   VmonEb* vmoneb=0);
+     const TypeId& ctns,
+     Level::Type level,
+     Inlet& inlet,
+     OutletWire& outlet,
+     int stream,
+     int ipaddress,
+     unsigned eventsize,
+     unsigned eventpooldepth,
+     int slowEb,
+     VmonEb* vmoneb=0);
     ~ZcpEbS();
 
     void no_build(Sequence::Type type, unsigned mask);

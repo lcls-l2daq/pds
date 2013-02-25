@@ -19,21 +19,22 @@ namespace Pds {
   class PartitionMember : public CollectionManager {
   public:
     PartitionMember(unsigned char platform,
-		    Level::Type   level,
-		    Arp*          arp);
+        Level::Type   level,
+        int           slowEb,
+        Arp*          arp);
     virtual ~PartitionMember();
 
     virtual bool     attach   () = 0;
     virtual void     detach   () = 0;
   public:
     virtual void     message  (const Node&    hdr,
-			       const Message& msg);
+             const Message& msg);
   public:
     const Ins&       occurrences() const;
   private:
     virtual Message& reply     (Message::Type) = 0;
     virtual void     allocated (const Allocation&,
-			        unsigned);
+              unsigned);
     virtual void     dissolved ();
     virtual void     post      (const Transition&) = 0;
     virtual void     post      (const Occurrence&) = 0;
@@ -44,6 +45,10 @@ namespace Pds {
     GenericPool _pool;
     unsigned    _index;
     Ins         _occurrences;
+  private:
+    int         _slowEb;
+  public:
+    int         slowEb() {return _slowEb;}
   };
 
 }
