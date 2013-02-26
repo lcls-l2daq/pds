@@ -67,8 +67,8 @@ EbTimeouts::EbTimeouts(int stream,
 //#endif
 //  }
 
-  printf("EbTimeouts::EbTimeouts(stream = %d, level = %s, iSlowEb = %d) tmo = %d\n",
-    stream, Level::name(level), iSlowEb, _tmos);
+  //printf("EbTimeouts::EbTimeouts(stream = %d, level = %s, iSlowEb = %d) tmo = %d\n",
+  //  stream, Level::name(level), iSlowEb, _tmos);//!!!debug
 
 }
 
@@ -82,7 +82,7 @@ unsigned EbTimeouts::duration(int s) {
 
 int EbTimeouts::timeouts(const Sequence* sequence) const {
 
-  printf("EbTimeouts::timeouts() tmo = %d\n", _tmos);
+  //printf("EbTimeouts::timeouts() tmo = %d\n", _tmos);//!!!debug
 
   return _tmos;
 //#if defined(BUILD_PRINCETON) || defined(BUILD_READOUT_GROUP)
