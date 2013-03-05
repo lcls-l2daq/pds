@@ -40,6 +40,7 @@ namespace Pds {
   private:
     const DetInfo _src;
     const OrcaConfigType* _inputConfig;
+    unsigned              _offset;
   };
 }
 

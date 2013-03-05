@@ -28,6 +28,13 @@ OrcaCamera::~OrcaCamera()
 void OrcaCamera::set_config_data(const void* p)
 {
   _inputConfig = reinterpret_cast<const OrcaConfigType*>(p);
+  switch(_inputConfig->mode()) {
+  case OrcaConfigType::Subarray: 
+  case OrcaConfigType::x1      : _offset =  100; break;
+  case OrcaConfigType::x2      : _offset =  400; break;
+  case OrcaConfigType::x4      : _offset = 1600; break;
+  default: break;
+  }
 }
 
 #define SetCommand(title,cmd) {				\
@@ -170,7 +177,7 @@ int OrcaCamera::setContinuousMode( CameraDriver& driver, double fps )
 bool OrcaCamera::validate(Pds::FrameServerMsg& msg)
 {
   msg.width -= msg.width%camera_taps();
-  msg.offset = 100;
+  msg.offset = _offset;
   msg.intlv  = FrameServerMsg::MidTopLine;
   return true;
 }

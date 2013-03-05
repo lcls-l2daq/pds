@@ -17,7 +17,8 @@
 #define DBG
 //#define DBUG
 
-#define N_RING_BUFFERS 4
+//#define N_RING_BUFFERS 4
+#define N_RING_BUFFERS 8
 
 //  library routine declaration missing from edt header files
 extern "C" {
@@ -113,7 +114,7 @@ namespace Pds {
 	_recover_timeout = true;
       }
       else if (overrun) {
-	printf("overrun...\n");
+	_base->handle_error("Frame readout error: overrun\n");
       }
       else {
 	_base->handle(image_p);
@@ -150,7 +151,7 @@ EdtPdvCL::EdtPdvCL(CameraBase& camera, int unit, int channel) :
   _acq     (new EdtReader(this, new Task(TaskObject("edtacq")))),
   _fsrv    (0),
   _app     (0),
-  _occPool (new GenericPool(sizeof(Occurrence),8)),
+  _occPool (new GenericPool(sizeof(UserMessage),8)),
   _hsignal ("CamSignal")
 {
 
@@ -366,6 +367,7 @@ int EdtPdvCL::start_acquisition(FrameServer& fsrv,  // post frames here
 				UserMessage* msg)
 {
   _outOfOrder = false;
+  _latched    = false;
   _fsrv = &fsrv;
   _app  = &app;
 
@@ -486,19 +488,7 @@ void EdtPdvCL::handle(u_char* image_p)
     _outOfOrder = true;
     msg->damage.increase(Damage::OutOfOrder);
 
-    if (_occPool->numberOfFreeObjects()<2)
-      printf("Out-of-order and occPool is empty!\n");
-    else {
-      Occurrence* occ = new (_occPool)
-        Occurrence(OccurrenceId::ClearReadout);
-      _app->post(occ);
-
-      UserMessage* umsg = new (_occPool)
-        UserMessage;
-      umsg->append("Frame readout error\n");
-      umsg->append(DetInfo::name(static_cast<const DetInfo&>(_fsrv->client())));
-      _app->post(umsg);
-    }
+    handle_error("Frame readout error: out of order\n");
   }
 
   _fsrv->post(msg);
@@ -507,6 +497,26 @@ void EdtPdvCL::handle(u_char* image_p)
 #ifdef DBG
   _hsignal.print(_nposts);
 #endif
+}
+
+void EdtPdvCL::handle_error(const char* s)
+{
+  if (_latched) return;
+
+  if (_occPool->numberOfFreeObjects()<2)
+    printf("Readout error and occPool is empty!\n");
+  else {
+    _latched = true;
+    Occurrence* occ = new (_occPool)
+      Occurrence(OccurrenceId::ClearReadout);
+    _app->post(occ);
+    
+    UserMessage* umsg = new (_occPool)
+      UserMessage;
+    umsg->append(s);
+    umsg->append(DetInfo::name(static_cast<const DetInfo&>(_fsrv->client())));
+    _app->post(umsg);
+  }
 }
 
 void display_serialcmd(char* cmd, int len)

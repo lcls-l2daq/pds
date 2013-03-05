@@ -36,6 +36,7 @@ namespace Pds {
 			  UserMessage*);
     int stop_acquisition();
     void handle         (u_char*);
+    void handle_error   (const char*);
   public:
     int SendCommand(char* szCommand, 
 		    char* pszResponse, 
@@ -57,6 +58,7 @@ namespace Pds {
     Appliance*      _app;
     GenericPool*    _occPool;
     bool                 _outOfOrder;
+    bool                 _latched;
     unsigned             _nposts;
     timespec             _tsignal;
     THist           _hsignal;
