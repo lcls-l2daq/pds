@@ -30,17 +30,13 @@ FrameServer::~FrameServer()
 
 void FrameServer::post(FrameServerMsg* msg)
 {
-  msg->connect(_msg_queue.reverse());
   ::write(_fd[1],&msg,sizeof(msg));
 }
 
 void FrameServer::clear()
 {
   FrameServerMsg* msg;
-  while( _msg_queue.forward() != _msg_queue.empty() ) {
-    ::read(_fd[0],&msg,sizeof(msg));
-    delete _msg_queue.remove();
-  }
+  while(::read(_fd[0],&msg,sizeof(msg))) ;
 }
 
 void FrameServer::dump(int detail) const

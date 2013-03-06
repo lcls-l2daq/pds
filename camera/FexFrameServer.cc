@@ -115,14 +115,10 @@ int FexFrameServer::fetch(char* payload, int flags)
   _tinput=ts;
 #endif
   
-  FrameServerMsg* msg;
-  int length = ::read(_fd[0],&msg,sizeof(msg));
+  FrameServerMsg* fmsg;
+  int length = ::read(_fd[0],&fmsg,sizeof(fmsg));
   if (length >= 0) {
-    FrameServerMsg* fmsg = _msg_queue.remove();
     _count = fmsg->count;
-
-    //  Is pipe write/read good enough?
-    if (msg != fmsg) printf("Overlapping events %d/%d\n",msg->count,fmsg->count);
 
     const FrameFexConfigType& config = *reinterpret_cast<const FrameFexConfigType*>(_config->current());
     FrameFexConfigType::Forwarding forwarding(config.forwarding());

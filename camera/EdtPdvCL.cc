@@ -17,8 +17,10 @@
 #define DBG
 //#define DBUG
 
+static unsigned n_ring_buffers = 4;
+
 //#define N_RING_BUFFERS 4
-#define N_RING_BUFFERS 8
+#define N_RING_BUFFERS n_ring_buffers
 
 //  library routine declaration missing from edt header files
 extern "C" {
@@ -542,3 +544,6 @@ void display_serialcmd(char* cmd, int len)
   }
   printf("<END>\n");
 }
+
+void EdtPdvCL::set_nbuffers(unsigned v) { n_ring_buffers=v; }
+

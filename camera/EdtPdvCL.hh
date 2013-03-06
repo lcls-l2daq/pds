@@ -46,6 +46,8 @@ namespace Pds {
 		    char* pszResponse, 
 		    int   iResponseBufferSize);
     void dump();
+  public:
+    static void set_nbuffers(unsigned);
   protected: 
     void _setup(int unit, int channel);
     int                  _unit;

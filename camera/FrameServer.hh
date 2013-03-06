@@ -49,7 +49,6 @@ namespace Pds {
     int        _fd[2];
     Xtc        _xtc;
     unsigned   _count;
-    LinkedList<FrameServerMsg> _msg_queue;
   };
 }
 

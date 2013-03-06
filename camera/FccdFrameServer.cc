@@ -49,11 +49,8 @@ int FccdFrameServer::fetch(char* payload, int flags)
   FrameServerMsg* msg;
   int length = ::read(_fd[0],&msg,sizeof(msg));
   if (length >= 0) {
-    FrameServerMsg* fmsg = _msg_queue.remove();
+    FrameServerMsg* fmsg = msg;
     _count = fmsg->count;
-
-    //  Is pipe write/read good enough?
-    if (msg != fmsg) printf("Overlapping events %d/%d\n",msg->count,fmsg->count);
 
     _framefwd_count = 0;  // is this OK???
 
