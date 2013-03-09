@@ -12,6 +12,8 @@
 #include "pds/utility/EvrServer.hh"
 #include "pds/utility/ToEventWireScheduler.hh"
 #include "pds/xtc/CDatagram.hh"
+#include "pds/xtc/XtcType.hh"
+#include "pds/management/EventBuilder.hh"
 #include "pds/management/EventCallback.hh"
 #include "pdsdata/xtc/DetInfo.hh"
 
@@ -77,22 +79,25 @@ Message& SegmentLevel::reply    (Message::Type type)
 void    SegmentLevel::allocated(const Allocation& alloc,
         unsigned          index)
 {
+  InletWire& inlet = *_streams->wire(StreamParams::FrameWork);
+
   //!!! segment group support
   for (unsigned n=0; n<alloc.nnodes(); n++) {
     const Node& node = *alloc.node(n);
     if (node.level() == Level::Segment &&
-      node == _header &&
-      node.group() != _header.group()
-      )
-    {
-      _header.setGroup(node.group());
-      printf("Assign group to %d\n", _header.group());
+	node == _header) {
+      if (node.group() != _header.group())
+	{
+	  _header.setGroup(node.group());
+	  printf("Assign group to %d\n", _header.group());
+	}
+
+      _contains = node.transient()?_transientXtcType:_xtcType;  // transitions
+      static_cast<EbBase&>(inlet).contains(_contains);  // l1accepts
     }
   }
 
   unsigned partition= alloc.partitionid();
-
-  InletWire& inlet = *_streams->wire(StreamParams::FrameWork);
 
   //  setup EVR server
   Ins source(StreamPorts::event(partition, Level::Segment, _header.group()));

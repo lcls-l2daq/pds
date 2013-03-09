@@ -4,6 +4,7 @@
 #include "pds/collection/CollectionManager.hh"
 
 #include "pdsdata/xtc/Level.hh"
+#include "pdsdata/xtc/TypeId.hh"
 #include "pds/collection/Message.hh"
 #include "pds/collection/Node.hh"
 #include "pds/service/GenericPool.hh"
@@ -45,6 +46,7 @@ namespace Pds {
     GenericPool _pool;
     unsigned    _index;
     Ins         _occurrences;
+    TypeId      _contains;
   private:
     int         _slowEb;
   public:

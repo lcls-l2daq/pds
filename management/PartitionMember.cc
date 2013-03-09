@@ -19,6 +19,7 @@ PartitionMember::PartitionMember(unsigned char platform,
   _isallocated     (false),
   _pool            (MaxPayload,8),
   _index           ((unsigned)-1),
+  _contains        (_xtcType),
   _slowEb          (slowEb)
 {
 }
@@ -90,7 +91,7 @@ void PartitionMember::message(const Node& hdr, const Message& msg)
       //  Initiate a datagram for all segment levels.
       else if (header().level()==Level::Segment) {
         CDatagram* ndg =
-    new(&_pool) CDatagram(Datagram(tr,_xtcType,header().procInfo()));
+    new(&_pool) CDatagram(Datagram(tr,_contains,header().procInfo()));
         if (tr.size() > sizeof(Transition) && _index==0) {
     const Xtc& tc = *reinterpret_cast<const Xtc*>(&tr+1);
     ndg->insert(tc,tc.payload());

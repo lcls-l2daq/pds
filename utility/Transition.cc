@@ -94,12 +94,14 @@ Allocation::Allocation() :
   _nnodes     (0)
 {
   _bld_mask[0] = _bld_mask[1] = 0;
+  _bld_mask_mon[0] = _bld_mask_mon[1] = 0;
 }
 
 Allocation::Allocation(const char* partition,
                        const char* dbpath,
                        unsigned    partitionid,
-                       uint64_t    bld_mask) : 
+                       uint64_t    bld_mask,
+                       uint64_t    bld_mask_mon) : 
   _partitionid(partitionid),
   _nnodes     (0)
 {
@@ -107,6 +109,8 @@ Allocation::Allocation(const char* partition,
   strncpy(_dbpath   , dbpath   , MaxDbPath-1);
   _bld_mask[1] = (bld_mask>>32)&0xffffffff;
   _bld_mask[0] = (bld_mask>> 0)&0xffffffff;
+  _bld_mask_mon[1] = (bld_mask_mon>>32)&0xffffffff;
+  _bld_mask_mon[0] = (bld_mask_mon>> 0)&0xffffffff;
 }
 
 bool Allocation::add(const Node& node)
@@ -154,6 +158,13 @@ uint64_t Allocation::bld_mask() const
 {
   uint64_t mask = _bld_mask[1];
   mask = (mask<<32) | _bld_mask[0];
+  return mask;
+}
+
+uint64_t Allocation::bld_mask_mon() const 
+{
+  uint64_t mask = _bld_mask_mon[1];
+  mask = (mask<<32) | _bld_mask_mon[0];
   return mask;
 }
 

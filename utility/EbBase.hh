@@ -41,6 +41,8 @@ namespace Pds {
     int  processTmo();
     void dump      (int);
   public:
+    void contains(const TypeId&);
+  public:
     static void printFixups(int);
   private:
     friend class serverRundown;

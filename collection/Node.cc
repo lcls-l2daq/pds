@@ -9,6 +9,8 @@
 
 using namespace Pds;
 
+enum { Transient = 0x8000 };
+
 Node::Node() : _procInfo(Level::Control,0,0) {}
 
 Node::Node(const Node& rhs) :
@@ -25,9 +27,10 @@ Node::Node(Level::Type level, uint16_t platform) :
   _procInfo(level,getpid(),0)
 {}
 
-Level::Type Node::level() const {return _procInfo.level();}
-uint16_t Node::platform() const {return _platform;}
-uint16_t Node::group() const {return _group;}
+Level::Type Node::level () const {return _procInfo.level();}
+unsigned Node::platform () const {return _platform;}
+unsigned Node::group    () const {return _group&~Transient;}
+bool     Node::transient() const {return _group&Transient; }
 int Node::pid() const {return _procInfo.processId();}
 int Node::uid() const {return _uid;}
 int Node::ip() const {return _procInfo.ipAddr();}
@@ -44,7 +47,15 @@ int Node::operator == (const Node& rhs) const
 
 void Node::setGroup(uint16_t group)
 {
-  _group = group;
+  _group = (_group&Transient) | (group&~Transient);
+}
+
+void Node::setTransient(bool t)
+{
+  if (t)
+    _group |= Transient;		      
+  else
+    _group &= ~Transient;
 }
 
 void Node::fixup(int ip, const Ether& ether) 

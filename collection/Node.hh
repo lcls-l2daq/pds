@@ -14,14 +14,15 @@ public:
   Node(Level::Type level, uint16_t platform);
 
 public:
-  Level::Type     level() const;
-  uint16_t        platform() const;
-  uint16_t        group() const;
-  int             pid() const;
-  int             uid() const;
-  int             ip() const;
-  const Ether&    ether() const;
-  const ProcInfo& procInfo() const;
+  Level::Type     level    () const;
+  unsigned        platform () const;
+  unsigned        group    () const;
+  bool            transient() const;
+  int             pid      () const;
+  int             uid      () const;
+  int             ip       () const;
+  const Ether&    ether    () const;
+  const ProcInfo& procInfo () const;
   int operator == (const Node& rhs) const;
 
 public:
@@ -31,6 +32,7 @@ public:
 public:
   void fixup(int ip, const Ether& ether);
   void setGroup(uint16_t group);
+  void setTransient(bool);
 
 private:
   uint16_t  _platform;

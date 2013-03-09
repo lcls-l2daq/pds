@@ -686,3 +686,5 @@ void EbBase::_flush_outputs()
     n++;
   }
 }
+
+void EbBase::contains(const TypeId& c) { _ctns=c; }

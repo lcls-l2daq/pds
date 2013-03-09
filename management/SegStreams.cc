@@ -18,7 +18,7 @@ using namespace Pds;
 //static const unsigned MaxSize = 0xa00000;
 //#endif
 //static const unsigned MaxSize = 48*1024*1024;
-static const unsigned MaxSize = 40*1024*1024;
+static const unsigned MaxSize = 10*1024*1024;
 
 SegStreams::SegStreams(PartitionMember& cmgr) :
   WiredStreams(VmonSourceId(cmgr.header().level(), cmgr.header().ip()))
