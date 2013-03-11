@@ -11,7 +11,7 @@ else
   packages := service collection xtc 
   packages += config mon vmon
   packages += utility management client offlineclient
-  packages += ipimb encoder camera acqiris evgr epicsArch rceProxy \
+  packages += ipimb encoder camera acqiris evgr epicsArch \
               princeton epicstools pgp cspad xamps fexamp gsc16ai timepix
   packages += cspad2x2 oceanoptics fli andor usdusb
 endif
