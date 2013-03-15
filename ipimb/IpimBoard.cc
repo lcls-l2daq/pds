@@ -533,8 +533,8 @@ bool IpimBoard::configure(Ipimb::ConfigV2& config, std::string& errmsg) {
   if (!_c01) {// c02 is default
     if (vhdlVersion != NewVhdlVersion) {
       printf("Expected vhdl version 0x%x, found 0x%x, old version is 0x%x\n", NewVhdlVersion, vhdlVersion, OldVhdlVersion);
-      errmsg += "Unexpected firmware version.";
-      _commandResponseDamage = true;
+      //      errmsg += "Unexpected firmware version.";
+      //      _commandResponseDamage = true;
     }
     unsigned multiplier = (unsigned) config.chargeAmpRange();
     unsigned mult_chan0 = ((multiplier&0xf)+1)%0xf;  // Board interprets 0 as no capacitor
