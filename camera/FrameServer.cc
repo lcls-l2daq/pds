@@ -9,6 +9,7 @@
 #include <unistd.h>
 #include <string.h>
 #include <sys/uio.h>
+#include <fcntl.h>
 
 using namespace Pds;
 
@@ -36,7 +37,17 @@ void FrameServer::post(FrameServerMsg* msg)
 void FrameServer::clear()
 {
   FrameServerMsg* msg;
+#if 1
+  //  Possible deadlock ?
   while(::read(_fd[0],&msg,sizeof(msg))) ;
+#else
+  int flags = ::fcntl(_fd[0],F_GETFL) | O_NONBLOCK;
+  ::fcntl(_fd[0],F_SETFL,flags);
+  while(::read(_fd[0],&msg,sizeof(msg))>0) 
+    printf("FrameServer::clear %p\n",msg);
+  flags ^= O_NONBLOCK;
+  ::fcntl(_fd[0],F_SETFL,flags);
+#endif
 }
 
 void FrameServer::dump(int detail) const
