@@ -58,11 +58,13 @@ class EvrL1Action:public EvrAction
 public:
   EvrL1Action(Evr & er, const Src& src, Appliance* app) :
     EvrAction(er),
-    _occPool        (sizeof(Occurrence),1), 
-    _app            (app) {}
+    _occPool        (sizeof(Occurrence),2), 
+    _app            (app),
+    _outOfOrder     (false) {}
 
   Transition* fire(Transition* tr) 
   { 
+    _outOfOrder = false;
     return _fifo_handler ? _fifo_handler->disable(tr) : tr;
   }
 
@@ -71,10 +73,11 @@ public:
     InDatagram* out = in;
     if (_fifo_handler) {
       out = _fifo_handler->l1accept(in);
-      if (out->datagram().xtc.damage.value() & (1<<Damage::OutOfOrder)) {
+      if (!_outOfOrder && out->datagram().xtc.damage.value() & (1<<Damage::OutOfOrder)) {
         Pds::Occurrence* occ = new (&_occPool)
           Pds::Occurrence(Pds::OccurrenceId::ClearReadout);
         _app->post(occ);
+        _outOfOrder = true;
       }
     }
     return out;
@@ -83,6 +86,7 @@ public:
 private:
   GenericPool _occPool;
   Appliance*  _app;
+  bool        _outOfOrder;
 };
 
 class EvrEnableAction:public EvrAction
@@ -451,7 +455,7 @@ public:
     unsigned nnodes = alloc.allocation().nnodes();
     
     // find max value of segment group id
-    int  iMaxGroup  = 0;
+    unsigned iMaxGroup  = 0;
     for (unsigned n = 0; n < nnodes; n++)
     {
       const Node *node = alloc.allocation().node(n);
