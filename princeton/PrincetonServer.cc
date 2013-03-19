@@ -1005,11 +1005,11 @@ int PrincetonServer::runCaptureTask()
     // Even if waitForNewFrameAvailable() failed, we still fill in the frame data with ShotId information
     iFail |= processFrame();
 
-    ////!!!debug
-    //clock_gettime( CLOCK_REALTIME, &timeCurrent );
-    //timeSeconds = timeCurrent.tv_sec;
-    //strftime(sTimeText, sizeof(sTimeText), sTimeFormat, localtime(&timeSeconds));
-    //printf("PrincetonServer::runCaptureTask(): After processFrame(): Local Time: %s.%09ld\n", sTimeText, timeCurrent.tv_nsec);
+    //!!!debug
+    clock_gettime( CLOCK_REALTIME, &timeCurrent );
+    timeSeconds = timeCurrent.tv_sec;
+    strftime(sTimeText, sizeof(sTimeText), sTimeFormat, localtime(&timeSeconds));
+    printf("PrincetonServer::runCaptureTask(): After processFrame(): Local Time: %s.%09ld\n", sTimeText, timeCurrent.tv_nsec);
   }
   while (false);
 
@@ -1105,11 +1105,11 @@ int PrincetonServer::startExposure()
     iFail = setupFrame();
     if ( iFail != 0 ) break;
 
-    //!!!debug
-    clock_gettime( CLOCK_REALTIME, &timeCurrent );
-    timeSeconds = timeCurrent.tv_sec;
-    strftime(sTimeText, sizeof(sTimeText), sTimeFormat, localtime(&timeSeconds));
-    printf("PrincetonServer::startExposure(): After setupFrame(): Local Time: %s.%09ld\n", sTimeText, timeCurrent.tv_nsec);
+    ////!!!debug
+    //clock_gettime( CLOCK_REALTIME, &timeCurrent );
+    //timeSeconds = timeCurrent.tv_sec;
+    //strftime(sTimeText, sizeof(sTimeText), sTimeFormat, localtime(&timeSeconds));
+    //printf("PrincetonServer::startExposure(): After setupFrame(): Local Time: %s.%09ld\n", sTimeText, timeCurrent.tv_nsec);
 
     iFail = startCapture();
 

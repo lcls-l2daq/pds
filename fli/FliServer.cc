@@ -771,13 +771,37 @@ int FliServer::runCaptureTask()
     return ERROR_INCORRECT_USAGE;
   }
 
+  //!!!debug
+  static const char sTimeFormat[40] = "%02d_%02H:%02M:%02S"; /* Time format string */
+  char      sTimeText[40];
+  timespec  timeCurrent;
+  time_t    timeSeconds ;
+
   int iFail = 0;
   do
   {
+    ////!!!debug
+    //clock_gettime( CLOCK_REALTIME, &timeCurrent );
+    //timeSeconds = timeCurrent.tv_sec;
+    //strftime(sTimeText, sizeof(sTimeText), sTimeFormat, localtime(&timeSeconds));
+    //printf("FliServer::runCaptureTask(): Before waitForNewFrameAvailable(): Local Time: %s.%09ld\n", sTimeText, timeCurrent.tv_nsec);
+
     iFail  = waitForNewFrameAvailable();
+
+    ////!!!debug
+    //clock_gettime( CLOCK_REALTIME, &timeCurrent );
+    //timeSeconds = timeCurrent.tv_sec;
+    //strftime(sTimeText, sizeof(sTimeText), sTimeFormat, localtime(&timeSeconds));
+    //printf("FliServer::runCaptureTask(): After waitForNewFrameAvailable(): Local Time: %s.%09ld\n", sTimeText, timeCurrent.tv_nsec);
 
     // Even if waitForNewFrameAvailable() failed, we still fill in the frame data with ShotId information
     iFail |= processFrame();
+
+    //!!!debug
+    clock_gettime( CLOCK_REALTIME, &timeCurrent );
+    timeSeconds = timeCurrent.tv_sec;
+    strftime(sTimeText, sizeof(sTimeText), sTimeFormat, localtime(&timeSeconds));
+    printf("FliServer::runCaptureTask(): After processFrame(): Local Time: %s.%09ld\n", sTimeText, timeCurrent.tv_nsec);
   }
   while (false);
 
@@ -802,6 +826,13 @@ int FliServer::runCaptureTask()
   //  _pDgOut->datagram().xtc.damage.increase(Pds::Damage::UserDefined);
 
   _CaptureState = CAPTURE_STATE_DATA_READY;
+
+  //!!!debug
+  clock_gettime( CLOCK_REALTIME, &timeCurrent );
+  timeSeconds = timeCurrent.tv_sec;
+  strftime(sTimeText, sizeof(sTimeText), sTimeFormat, localtime(&timeSeconds));
+  printf("After capture: Local Time: %s.%09ld\n", sTimeText, timeCurrent.tv_nsec);
+
   return 0;
 }
 
@@ -848,13 +879,37 @@ int FliServer::startExposure()
     return ERROR_INCORRECT_USAGE; // No error for adaptive mode
   }
 
+  //!!!debug
+  static const char sTimeFormat[40] = "%02d_%02H:%02M:%02S"; /* Time format string */
+  char      sTimeText[40];
+  timespec  timeCurrent;
+  time_t    timeSeconds ;
+
+  ////!!!debug
+  //clock_gettime( CLOCK_REALTIME, &timeCurrent );
+  //timeSeconds = timeCurrent.tv_sec;
+  //strftime(sTimeText, sizeof(sTimeText), sTimeFormat, localtime(&timeSeconds));
+  //printf("FliServer::startExposure(): Before setupFrame(): Local Time: %s.%09ld\n", sTimeText, timeCurrent.tv_nsec);
+
   int iFail = 0;
   do
   {
     iFail = setupFrame();
     if ( iFail != 0 ) break;
 
+    ////!!!debug
+    //clock_gettime( CLOCK_REALTIME, &timeCurrent );
+    //timeSeconds = timeCurrent.tv_sec;
+    //strftime(sTimeText, sizeof(sTimeText), sTimeFormat, localtime(&timeSeconds));
+    //printf("FliServer::startExposure(): After setupFrame(): Local Time: %s.%09ld\n", sTimeText, timeCurrent.tv_nsec);
+
     iFail = startCapture();
+
+    //!!!debug
+    clock_gettime( CLOCK_REALTIME, &timeCurrent );
+    timeSeconds = timeCurrent.tv_sec;
+    strftime(sTimeText, sizeof(sTimeText), sTimeFormat, localtime(&timeSeconds));
+    printf("FliServer::startExposure(): After startCapture(): Local Time: %s.%09ld\n", sTimeText, timeCurrent.tv_nsec);
   }
   while (false);
 
