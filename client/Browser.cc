@@ -4,6 +4,7 @@
 #include "pds/xtc/Datagram.hh"
 #include "pds/xtc/InDatagramIterator.hh"
 
+#include <stdio.h>
 
 using namespace Pds;
 
