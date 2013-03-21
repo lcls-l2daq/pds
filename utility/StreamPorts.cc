@@ -11,9 +11,9 @@ static const int MaxSegGroups    = 16;
 static const int MaxPartitionL1s = 32;
 static const int MaxPartitionL2s = 64;
 static const int MaxBLDServers   = 32;
-static const int BaseMcastAddr = 0xefff1000;
+static const int BaseMcastAddr = 0xefff1010;
 
-// EVR -> L1 : 0xefff1000
+// EVR -> L1 : 0xefff1010
 static const int SegmentMcastAddr  = BaseMcastAddr;
 // L1  -> L2 : 0xefff1100
 static const int EventMcastAddr    = SegmentMcastAddr +StreamPorts::MaxPartitions * MaxSegGroups;

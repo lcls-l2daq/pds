@@ -8,6 +8,8 @@
 #include "Mtu.hh"
 #include "ChunkIterator.hh"
 
+#include <stdio.h>
+
 using namespace Pds;
 
 ToNetEb::ToNetEb(int interface, 

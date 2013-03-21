@@ -105,6 +105,7 @@ int EbServer::commit(char* key,
 */
 
 #include <string.h>
+#include <stdio.h>
 
 int EbServer::handleError(int value)
 {

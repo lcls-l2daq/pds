@@ -3,7 +3,7 @@
 
 #include "OutletWireInsList.hh"
 #include "pds/service/EbBitMaskArray.hh"
-#include "pds/service/RingPool.hh"
+#include "pds/service/Pool.hh"
 
 namespace Pds {
 class EbBitMaskArrayXtc : public Xtc {
@@ -48,7 +48,7 @@ inline void* Pds::EbBitMaskArrayXtc::operator new(unsigned size,Pds::Pool* pool)
 
 inline void  Pds::EbBitMaskArrayXtc::operator delete(void* buffer)
 {
-  Pds::RingPool::free(buffer);
+  Pds::Pool::free(buffer);
 }
 
 

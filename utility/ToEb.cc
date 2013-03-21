@@ -6,6 +6,7 @@
 #include <sys/uio.h>
 #include <string.h>
 #include <errno.h>
+#include <stdio.h>
 
 using namespace Pds;
 

@@ -2,6 +2,8 @@
 #include "EbServer.hh"
 #include "pds/xtc/ZcpDatagram.hh"
 
+#include <stdio.h>
+
 using namespace Pds;
 
 /*
