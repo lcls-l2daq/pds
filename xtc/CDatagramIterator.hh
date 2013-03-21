@@ -2,7 +2,7 @@
 #define Pds_CDatagramIterator_hh
 
 #include "PayloadIterator.hh"
-#include "pds/service/RingPool.hh"
+#include "pds/service/Pool.hh"
 
 namespace Pds {
 
@@ -26,7 +26,7 @@ inline void* Pds::CDatagramIterator::operator new(size_t sz,Pool* pool)
 
 inline void Pds::CDatagramIterator::operator delete(void* buffer)
 {
-  return Pds::RingPool::free(buffer);
+  return Pds::Pool::free(buffer);
 }
 
 inline Pds::CDatagramIterator::CDatagramIterator(const Datagram& dg) :

@@ -15,7 +15,7 @@
 #include "pds/service/LinkedList.hh"
 #include "pds/service/ZcpFragment.hh"
 #include "pds/service/KStream.hh"
-#include "pds/service/RingPool.hh"
+#include "pds/service/Pool.hh"
 #include "pds/xtc/ZcpDatagram.hh"
 
 namespace Pds {
@@ -70,7 +70,7 @@ inline void* Pds::ZcpDatagramIterator::operator new(size_t sz,Pool* pool)
 
 inline void Pds::ZcpDatagramIterator::operator delete(void* buffer)
 {
-  return Pds::RingPool::free(buffer);
+  return Pds::Pool::free(buffer);
 }
 
 #endif

@@ -37,6 +37,7 @@ class Pool
     Pool(size_t sizeofObject, int numberofOfObjects, unsigned alignBoundary);
     void*         alloc(size_t size);
     static void   free(void* buffer);
+    virtual void  free(PoolEntry*);
     size_t        sizeofObject()              const;
     int           numberofObjects()           const;
     int           numberofAllocs()            const;
@@ -81,7 +82,7 @@ inline void* Pds::Pool::alloc(size_t size)
 inline void Pds::Pool::free(void* buffer)
   {
   Pds::Pool* pool = (Pds::PoolEntry::entry(buffer))->_pool;
-  pool->enque(Pds::PoolEntry::entry(buffer));
+  pool->free(Pds::PoolEntry::entry(buffer));
   pool->_numberofFrees++;
   }
 

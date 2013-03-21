@@ -3,7 +3,6 @@
 
 #include "InDatagram.hh"
 #include "pds/service/Pool.hh"
-#include "pds/service/RingPool.hh"
 
 #include <string.h>
 
@@ -18,7 +17,6 @@ namespace Pds {
     ~CDatagram();
 
     void* operator new(size_t, Pool*);
-    void* operator new(size_t, RingPool*);
     //void* operator new(size_t, void*);
     void  operator delete(void* buffer);
 
@@ -62,11 +60,6 @@ inline Pds::CDatagram::CDatagram(const Datagram& dg, const TypeId& ctn,
 {
 }
 
-inline void* Pds::CDatagram::operator new(size_t size, Pds::RingPool* pool)
-{
-  return pool->alloc(size);
-}
-
 inline void* Pds::CDatagram::operator new(size_t size, Pds::Pool* pool)
 {
   return pool->alloc(size);
@@ -79,7 +72,7 @@ inline void* Pds::CDatagram::operator new(size_t size, Pds::Pool* pool)
 
 inline void Pds::CDatagram::operator delete(void* buffer)
 {
-  Pds::RingPool::free(buffer);
+  Pds::Pool::free(buffer);
 }
 
 inline Pds::Datagram& Pds::CDatagram::dg() { return *this; }

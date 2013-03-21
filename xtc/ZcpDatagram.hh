@@ -2,7 +2,6 @@
 #define Pds_ZcpDatagram_hh
 
 #include "InDatagram.hh"
-#include "pds/service/RingPool.hh"
 #include "pds/service/Pool.hh"
 #include "pds/service/ZcpFragment.hh"
 #include "pds/service/ZcpStream.hh"
@@ -82,7 +81,7 @@ inline void* Pds::ZcpDatagram::operator new(size_t size, Pds::Pool* pool)
 
 inline void Pds::ZcpDatagram::operator delete(void* buffer)
 {
-  Pds::RingPool::free(buffer);
+  Pds::Pool::free(buffer);
 }
 /*
 inline int Pds::ZcpDatagram::_insert(char* p, int size)

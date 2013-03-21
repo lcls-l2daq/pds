@@ -8,8 +8,6 @@
 #include "pdsdata/xtc/TypeId.hh"
 
 #include "pds/service/Pool.hh"
-#include "pds/service/RingPool.hh"
-#include "pds/service/RingPoolW.hh"
 
 #include "pds/utility/Transition.hh"
 
@@ -43,7 +41,7 @@ namespace Pds {
     { return pool->alloc(size); }
 
     void operator delete(void* buffer)
-    { RingPool::free(buffer); }
+    { Pool::free(buffer); }
 
     PDS_DGRAM_STRUCT;
   };

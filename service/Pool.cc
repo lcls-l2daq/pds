@@ -82,3 +82,10 @@ void Pool::populate()
   } while (--remaining);
 
   }
+
+
+void Pds::Pool::free(PoolEntry* entry)
+{
+  enque(entry);
+}
+
