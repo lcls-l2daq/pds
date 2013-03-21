@@ -34,6 +34,5 @@ OrcaManager::~OrcaManager()
 
 void OrcaManager::_configure(const void* buff)
 {
-  const OrcaConfigType& c = *reinterpret_cast<const OrcaConfigType*>(buff);
   driver().camera().set_config_data(buff);
 }  

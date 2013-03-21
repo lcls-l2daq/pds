@@ -112,12 +112,9 @@ int QuartzCamera::configure(CameraDriver& driver,
   char szResponse[SZCOMMAND_MAXLEN];
   memset(szCommand ,0,SZCOMMAND_MAXLEN);
   memset(szResponse,0,SZCOMMAND_MAXLEN);
-  int val1=-1, val2=-1;
+  int val1=-1;
   int ret;
   char *versionString;
-  int versionMajor, versionMinor;
-  int versionFPGA = 0;
-  bool triggerInverted = false;
 
   QuartzConfigType* outputConfig = const_cast<QuartzConfigType*>(_inputConfig);
 
@@ -153,32 +150,7 @@ int QuartzCamera::configure(CameraDriver& driver,
     // advance to character after the 2nd ';'
     ++versionString;
   }
-#if 0
-  if (versionString) {
-    versionMajor = atoi(versionString);
-    versionMinor = atoi(versionString + 2);
-    // sanity check
-    if ((versionMajor <= 9) && (versionMinor <= 99)) {
-      versionFPGA = (100 * versionMajor) + versionMinor;
-    }
-  }
-  // sanity check
-  if ((versionFPGA < 1) || (versionFPGA > 999))
-    {
-    printf( ">> ERROR: Failed to read FPGA firmware version\n");
-    return (-1);
-    }
-
-  printf( ">> FPGA firmware version %d.%02d: ", versionMajor, versionMinor);
-  if (versionFPGA >= 120) {
-    printf( "adjusting for inverted trigger polarity.\n");
-    triggerInverted = true;
-  } else {
-    printf( "trigger polarity is normal.\n");
-  }
-#else
   printf("versionString: %s\n",versionString);
-#endif
 
   GetParameter( "ID", val1 );
   printf( ">> Camera ID: '%s'\n", szResponse );
@@ -214,9 +186,6 @@ int QuartzCamera::configure(CameraDriver& driver,
     SetParameter("Horizontal Binning","HBIN",hb);
   }
   SetParameter("Output Mirroring","MI",_inputConfig->output_mirroring());
-#if 0
-  SetParameter("Vertical Remap"  ,"VR",_inputConfig->vertical_remapping());
-#endif
   SetParameter("Output Resolution","OR",_inputConfig->output_resolution_bits());
   SetParameter("Pixel Clock Speed","CLC",2); // always choose 66MHz
 
@@ -288,7 +257,7 @@ int QuartzCamera::configure(CameraDriver& driver,
 	        config.ShutterMicroSec/10);
 #else
   SetParameter ("Operating Mode","MO",1);
-  SetParameters("External Inputs","CCE",4, triggerInverted ? 0 : 1);
+  SetParameters("External Inputs","CCE",4, 1);
   SetParameter ("Request Mode","RQM",0);
 #endif
 
