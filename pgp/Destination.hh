@@ -15,7 +15,7 @@ namespace Pds {
     class Destination {
       public:
         Destination() {};
-        Destination(unsigned d) {};
+        Destination(unsigned d) { _dest = d; };
         virtual ~Destination() {};
 
       public:

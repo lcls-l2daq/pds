@@ -20,8 +20,9 @@ namespace Pds {
 
     unsigned Pgp::Pgp::_portOffset = 0;
 
-    Pgp::Pgp(int f) : _fd(f) {
-      printf("Pgp::Pgp(fd(%d)), offset(%u)\n", f, _portOffset);
+    Pgp::Pgp(int f, bool pf) : _fd(f) {
+      if (pf) printf("Pgp::Pgp(fd(%d)), offset(%u)\n", f, _portOffset);
+      Pds::Pgp::RegisterSlaveExportFrame::FileDescr(f);
     }
 
     Pgp::~Pgp() {}
@@ -179,11 +180,11 @@ namespace Pds {
       unsigned errorCount = 0;
       while (true) {
         rsif = this->read(size + 3);
-        if (pf) rsif->print(size + 3);
         if (rsif == 0) {
           printf("Pgp::readRegister _pgp->read failed!\n");
           return Failure;
         }
+        if (pf) rsif->print(size + 3);
         if (addr != rsif->addr()) {
           printf("Pds::Pgp::readRegister out of order response lane=%u, vc=%u, addr=0x%x, tid=%u, errorCount=%u\n",
               dest->lane(), dest->vc(), addr, tid, ++errorCount);

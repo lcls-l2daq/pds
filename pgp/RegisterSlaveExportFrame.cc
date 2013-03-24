@@ -28,7 +28,7 @@ namespace Pds {
 
     void RegisterSlaveExportFrame::FileDescr(int i) {
       _fd = i;
-      printf("RegisterSlaveExportFrame::FileDescr(%d)\n", _fd);
+//      printf("RegisterSlaveExportFrame::FileDescr(%d)\n", _fd);
     }
 
     RegisterSlaveExportFrame::RegisterSlaveExportFrame(
@@ -90,7 +90,7 @@ namespace Pds {
     void RegisterSlaveExportFrame::print(unsigned n, unsigned s) {
       char ocn[][20] = {"read", "write", "set", "clear"};
 //      char dn[][20]  = {"Q0", "Q1", "Q2", "Q3", "Cncntr"};
-      printf("Register Slave Export Frame: %u %u\n\t", s, n);
+      printf("Register Slave Export Frame: %u %u fd(%u)\n\t", s, n, _fd);
       printf("lane(%u), vc(%u), opcode(%s), addr(0x%x), waiting(%s), tid(0x%x), ",
           bits._lane, bits._vc, &ocn[bits.oc][0],
           bits._addr, bits._waiting ? "waiting" : "not waiting", bits._tid);
