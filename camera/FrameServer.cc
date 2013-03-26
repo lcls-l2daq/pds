@@ -37,7 +37,7 @@ void FrameServer::post(FrameServerMsg* msg)
 void FrameServer::clear()
 {
   FrameServerMsg* msg;
-#if 1
+#if 0
   //  Possible deadlock ?
   while(::read(_fd[0],&msg,sizeof(msg))) ;
 #else
