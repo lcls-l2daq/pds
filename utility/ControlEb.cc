@@ -9,7 +9,7 @@ ControlEb::ControlEb(const Node& n, Routine* tmo, int iDuration) :
   _timeout(tmo),
   _task(new Task(TaskObject("cntleb"))),
   _alloc(0),
-  _buffer(sizeof(Allocate),1),
+  _buffer(sizeof(Allocate),8),
   _duration(iDuration)
 {
 }
@@ -42,8 +42,16 @@ Transition* ControlEb::build(const Node& hdr,
   cancel();
 
   //  if (hdr == _hdr)
-  if (hdr == _master)
+  if (hdr == _master) {
+    if (_buffer.numberOfAllocatedObjects()) {
+      printf("ControlEb::build tr %d  seq %08x.%08x depth %d\n",
+             tr.id(), 
+             tr.sequence().clock().seconds(),
+             tr.sequence().clock().nanoseconds(),
+             _buffer.numberOfAllocatedObjects());
+    }
     _pending = new(&_buffer) Transition(tr);
+  }
 
   for(unsigned k=0; k<_alloc->nnodes(); k++) {
     if (hdr == *_alloc->node(k)) {
