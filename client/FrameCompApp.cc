@@ -5,8 +5,7 @@
 #include "pds/service/Task.hh"
 
 #include "pdsdata/compress/CompressedPayload.hh"
-#include "pdsdata/compress/HistNEngine.hh"
-#include "pdsdata/compress/Camera_FrameV1.hh"
+#include "pdsdata/compress/CompressedXtc.hh"
 #include "pdsdata/camera/FrameV1.hh"
 
 #include <list>
@@ -196,46 +195,34 @@ void FCA::MyIter::process(Xtc* xtc)
     return;
   }
 
+  std::list<unsigned> headerOffsets;
+  unsigned headerSize;
+  unsigned depth = 0;
+
   if (xtc->contains.id()==TypeId::Id_Frame) {
     switch(xtc->contains.version()) {
     case 1: {
       const Camera::FrameV1& frame = *reinterpret_cast<const Camera::FrameV1*>(xtc->payload());
+      headerOffsets.push_back(0);
+      headerSize = sizeof(frame);
+      depth      = frame.depth_bytes();
 
-      Compress::HistNEngine engine;
-      size_t outsz;
-      if (engine.compress(frame.data(), frame.depth_bytes(), frame.data_size(),
-                          _obuff,
-                          outsz) != Compress::HistNEngine::Success) {
-        break;
-      }
-      //  Require data size is reduced
-      else if (outsz + sizeof(CompressedPayload) > frame.data_size()) {
-        break;
-      }
-
-
-      Xtc nxtc( TypeId(xtc->contains.id(), xtc->contains.version(), true),
-                xtc->src,
-                xtc->damage );
-
-      Camera::CompressedFrameV1 cframe(frame);
-
-      const unsigned align_mask = sizeof(uint32_t)-1;
-      unsigned spayload = (outsz+align_mask)&~align_mask;
-      nxtc.extent = sizeof(Xtc) + sizeof(cframe) + spayload;
-
-      _write(&nxtc, sizeof(Xtc));
-      _write(&cframe, sizeof(cframe)-sizeof(CompressedPayload));
-
-      CompressedPayload pd(CompressedPayload::HistN,frame.data_size(),outsz);
-      _write(&pd, sizeof(pd));
-
-      _write(_obuff, spayload);
-
-      return; }
+      break; }
     default:
       break;
     }
+  }
+
+  if (depth) {
+    Xtc* cxtc = new (_obuff) CompressedXtc(*xtc, 
+                                           headerOffsets,
+                                           headerSize,
+                                           depth,
+                                           Pds::CompressedPayload::HistN);
+    if (cxtc->extent < xtc->extent) {
+      _write(cxtc, cxtc->extent);
+      return;
+    }  
   }
 
   XtcStripper::process(xtc);
