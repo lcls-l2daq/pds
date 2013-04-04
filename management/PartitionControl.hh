@@ -6,6 +6,8 @@
 #include "pdsdata/xtc/TransitionId.hh"
 #include "pdsdata/xtc/Xtc.hh"
 
+#include <pthread.h>
+
 namespace Pds {
 
   class Arp;
@@ -43,6 +45,9 @@ namespace Pds {
     State target_state     ()             const;
     State current_state    ()             const;
     static const char* name(State);
+  public: // serialization
+    void wait_for_target();
+    void release_target ();
   public:
     unsigned get_transition_env (TransitionId::Value) const;
 
@@ -95,8 +100,8 @@ namespace Pds {
     void _eb_tmo_recovery();
     Routine*   _tmo;
 
-    Semaphore  _sem_target;
-    bool       _wait_for_target;
+    pthread_mutex_t _target_mutex;
+    pthread_cond_t  _target_cond;
   };
 
 };

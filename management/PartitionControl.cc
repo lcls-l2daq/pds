@@ -276,12 +276,13 @@ PartitionControl::PartitionControl(unsigned platform,
   _experiment     (0),
   _use_run_info   (true),
   _reportTask     (new Task(TaskObject("controlRep"))),
-  _tmo            (tmo),
-  _sem_target     (Semaphore::EMPTY),
-  _wait_for_target(false)
+  _tmo            (tmo)
 {
   memset(_transition_env,0,TransitionId::NumberOf*sizeof(unsigned));
   memset(_transition_xtc,0,TransitionId::NumberOf*sizeof(Xtc*));
+
+  pthread_mutex_init(&_target_mutex, NULL);
+  pthread_cond_init (&_target_cond , NULL);
 }
 
 PartitionControl::~PartitionControl()
@@ -326,6 +327,18 @@ void PartitionControl::set_target_state(State state)
     _next();
 }
 
+void PartitionControl::wait_for_target()
+{
+  pthread_mutex_lock(&_target_mutex);
+  while(_current_state != _target_state)
+    pthread_cond_wait(&_target_cond, &_target_mutex);
+}
+
+void PartitionControl::release_target()
+{
+  pthread_mutex_unlock(&_target_mutex);
+}
+
 PartitionControl::State PartitionControl::target_state () const { return _target_state; }
 PartitionControl::State PartitionControl::current_state() const { return _current_state; }
 
@@ -335,8 +348,10 @@ void PartitionControl::reconfigure(bool wait)
     _queued_target = _target_state;
     set_target_state(Mapped);
     if (wait) {
-      _wait_for_target = true;
-      _sem_target.take();
+      pthread_mutex_lock(&_target_mutex);
+      while(_current_state != _target_state)
+        pthread_cond_wait(&_target_cond, &_target_mutex);
+      pthread_mutex_unlock(&_target_mutex);
     }
   }
 }
@@ -442,10 +457,7 @@ void PartitionControl::message(const Node& hdr, const Message& msg)
 void PartitionControl::_next()
 {
   if      (_current_state==_target_state) {
-    if (_wait_for_target) {
-      _wait_for_target=false;
-      _sem_target.give();
-    }
+    pthread_cond_signal(&_target_cond);
   }
   else if (_target_state > _current_state)
     switch(_current_state) {
@@ -565,3 +577,4 @@ void PartitionControl::_eb_tmo_recovery()
     _tmo->routine();
   }
 }
+
