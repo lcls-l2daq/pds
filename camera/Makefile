@@ -11,6 +11,7 @@ endif
 
 include $(RELEASE_DIR)/make/share/setup.mk
 include ../flags.mk
+include $(RELEASE_DIR)/make/sw/qtflags.mk
 
 ifndef PREMAKE_DONE
 include $(RELEASE_DIR)/make/share/premake.mk

@@ -10,10 +10,10 @@
 
 using namespace Pds::Fexamp;
 
-char* FexampDestination::name()
+const char* FexampDestination::name()
 {
   // no abstraction possible because of hardware hacking
-  static char* _names[NumberOf + 1] = {
+  static const char* _names[NumberOf + 1] = {
       "Data VC, invalid destination",
       "Virtual Circuit 1",
       "Virtual Circuit 2",

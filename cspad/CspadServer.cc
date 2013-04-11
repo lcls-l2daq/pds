@@ -8,7 +8,6 @@
 #include "pds/cspad/CspadServer.hh"
 #include "pds/cspad/CspadConfigurator.hh"
 #include "pds/xtc/CDatagram.hh"
-#include "pds/xtc/ZcpDatagram.hh"
 #include "pds/config/CsPadConfigType.hh"
 #include "pds/pgp/DataImportFrame.hh"
 #include "pds/pgp/RegisterSlaveExportFrame.hh"

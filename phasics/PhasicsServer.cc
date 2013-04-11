@@ -84,7 +84,7 @@ enum {PreadPipe=0, PwritePipe=1};
 unsigned PhasicsReceiver::count = 0;
 bool     PhasicsReceiver::first = true;
 
-void PhasicsReceiver::printError(char* m) {
+void PhasicsReceiver::printError(const char* m) {
   if ((_err>0)||(_err<=-DC1394_ERROR_NUM))
     _err=DC1394_INVALID_ERROR_CODE;
   if (_err!=DC1394_SUCCESS) {
@@ -185,7 +185,7 @@ PhasicsServer::PhasicsServer( const Pds::Src& client )
   signal( SIGBUS,  sigHandler );
 }
 
-void PhasicsServer::printError(char* m) {
+void PhasicsServer::printError(const char* m) {
   if ((_err>0)||(_err<=-DC1394_ERROR_NUM))
     _err=DC1394_INVALID_ERROR_CODE;
   if (_err!=DC1394_SUCCESS) {

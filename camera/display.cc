@@ -151,8 +151,8 @@ DisplayImage *video_screen;
 
 void *display_main(void *arg)
 {	int argc = 1;
-	char *argv[] = { "app", NULL };
-	QApplication app(argc, argv);
+	const char *argv[] = { "app", NULL };
+	QApplication app(argc, const_cast<char**>(argv));
 
 	// Create the display
 	video_screen = new DisplayImage();

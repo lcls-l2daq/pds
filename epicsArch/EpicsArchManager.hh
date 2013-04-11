@@ -46,6 +46,7 @@ namespace Pds
     Fsm *_pFsm;
     Action *_pActionConfig;
     Action *_pActionMap;
+    Action *_pActionUnmap;
     Action *_pActionL1Accept;
     Action *_pActionDisable;
 

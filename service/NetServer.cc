@@ -220,7 +220,6 @@ int NetServer::fetch      (ZcpFragment& dg, int flags)
     if (length < 0)  goto err;
     length = size - length;
   }
-
   return length;
 
  err:

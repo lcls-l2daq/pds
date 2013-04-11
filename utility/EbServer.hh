@@ -30,7 +30,6 @@ class EbServer : public Server
   public:
     //  Eb interface
     virtual int      fetch       (char* payload, int flags) = 0;
-    virtual int      fetch       (ZcpFragment& , int flags) = 0;
 
     virtual void        dump    (int detail)   const = 0;
     //

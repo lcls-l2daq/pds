@@ -9,6 +9,8 @@
 #include "pds/service/Semaphore.hh"
 #include "pds/xtc/EvrDatagram.hh"
 #include "pds/utility/Mtu.hh"
+#include "pds/utility/Appliance.hh"
+#include "pds/utility/Occurrence.hh"
 #include "pds/collection/Route.hh"
 
 #include <poll.h>
@@ -130,13 +132,16 @@ EvrSyncMaster::EvrSyncMaster(EvrFIFOHandler& fifo_handler,
 			     Evr&            er, 
 			     unsigned        partition, 
 			     Task*           task,
-			     Client&         outlet) :
+			     Client&         outlet,
+                             Appliance&      app) :
   _fifo_handler(fifo_handler),
   _er          (er),
   _state       (Disabled),
   _dst         (StreamPorts::evr(partition)),
   _task        (*task),
   _outlet      (outlet),
+  _app         (app),
+  _pool        (sizeof(Occurrence),1),
   _target      (0)
 {
 }
@@ -229,6 +234,9 @@ bool EvrSyncMaster::handle(const FIFOEvent& fe)
       printf("EvrMasterFIFOHandler enabled at %d.%09d\n",
 	     int(ts.tv_sec), int(ts.tv_nsec));
 #endif
+
+      //  Generate EVR Enabled Occurrence
+      _app.post(new (&_pool) Occurrence(OccurrenceId::EvrEnabled));
     }
     return true;
   }

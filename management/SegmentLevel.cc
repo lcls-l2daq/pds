@@ -17,6 +17,8 @@
 #include "pds/management/EventCallback.hh"
 #include "pdsdata/xtc/DetInfo.hh"
 
+#include <unistd.h>
+
 using namespace Pds;
 
 //#ifdef BUILD_LARGE_STREAM_BUFFER

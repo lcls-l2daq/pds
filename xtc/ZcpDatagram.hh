@@ -1,6 +1,10 @@
 #ifndef Pds_ZcpDatagram_hh
 #define Pds_ZcpDatagram_hh
 
+#if 1
+#include "pds/xtc/CDatagram.hh"
+namespace Pds { typedef CDatagram ZcpDatagram; }
+#else
 #include "InDatagram.hh"
 #include "pds/service/Pool.hh"
 #include "pds/service/ZcpFragment.hh"
@@ -114,4 +118,5 @@ inline int Pds::ZcpDatagram::dump() const
 {
   return _stream.dump();
 }
+#endif
 #endif

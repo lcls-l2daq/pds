@@ -8,4 +8,5 @@ libnames := utility
 #CXXFLAGS += -DBUILD_READOUT_GROUP -DBUILD_PRINCETON -DBUILD_PACKAGE_SPACE # for princeton camera and the switch problem
 #CXXFLAGS += -DBUILD_READOUT_GROUP  # for running devices with different readout rate
 
-libsrcs_utility := $(wildcard *.cc)
+ignore_src := ZcpEb.cc ZcpEbC.cc ZcpEbS.cc ZcpEbEvent.cc
+libsrcs_utility := $(filter-out $(ignore_src),$(wildcard *.cc))

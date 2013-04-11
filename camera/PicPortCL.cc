@@ -248,14 +248,14 @@ void PicPortCL::handle()
   else if (!camera().validate(*msg)) {
     _outOfOrder = true;
 
-    Pds::Occurrence* occ = new (_occPool)
-      Pds::Occurrence(Pds::OccurrenceId::ClearReadout);
-    _app->post(occ);
-
     Pds::UserMessage* umsg = new (_occPool) Pds::UserMessage;
     umsg->append("Frame readout error\n");
     umsg->append(Pds::DetInfo::name(static_cast<const Pds::DetInfo&>(_fsrv->client())));
     _app->post(umsg);
+
+    Pds::Occurrence* occ = new (_occPool)
+      Pds::Occurrence(Pds::OccurrenceId::ClearReadout);
+    _app->post(occ);
 
     msg->damage.increase(Pds::Damage::OutOfOrder);
   }

@@ -60,6 +60,21 @@ private:
   int            _iMapError;
 };
 
+class EpicsArchShutdownAction:public Action
+{
+public:
+  EpicsArchShutdownAction(EpicsArchManager & manager):_manager(manager) {}
+  virtual Transition *fire(Transition * tr)
+  {
+    //    string s;
+    //    _manager.initMonitor(s);
+    return tr;
+  }
+  virtual InDatagram* fire(InDatagram* in) { return in; }
+private:
+  EpicsArchManager & _manager;
+};
+
 class EpicsArchConfigAction:public Action
 {
 public:
@@ -218,14 +233,19 @@ EpicsArchManager::EpicsArchManager(CfgClientNfs & cfg, const std::string & sFnCo
   _fMinTriggerInterval(fMinTriggerInterval), _iDebugLevel(iDebugLevel), _iNumEventNode(0),
   _pMonitor(NULL) // _pMonitor need to be initialized in the task thread
 {
+  string s;
+  initMonitor(s);
+
   _pFsm = new Fsm();
   _pActionMap = new EpicsArchAllocAction(*this, cfg);
+  _pActionUnmap = new EpicsArchShutdownAction(*this);
   _pActionConfig = new EpicsArchConfigAction(*this, EpicsArchManager::srcLevel, cfg, _iDebugLevel); // Level::Reporter for Epics Archiver
   _pActionL1Accept =
     new EpicsArchL1AcceptAction(*this, _fMinTriggerInterval, _iDebugLevel);
   _pActionDisable = new EpicsArchDisableAction(*this);
 
   _pFsm->callback(TransitionId::Map, _pActionMap);
+  _pFsm->callback(TransitionId::Unmap, _pActionUnmap);
   _pFsm->callback(TransitionId::Configure, _pActionConfig);
   _pFsm->callback(TransitionId::L1Accept, _pActionL1Accept);
   _pFsm->callback(TransitionId::Disable, _pActionDisable);
@@ -238,12 +258,13 @@ EpicsArchManager::~EpicsArchManager()
 {
   delete _occPool;
   delete _pPool;
-  delete _pMonitor;
+  if (_pMonitor)  delete _pMonitor;
 
   delete _pActionDisable;
   delete _pActionL1Accept;
   delete _pActionConfig;
   delete _pActionMap;
+  delete _pActionUnmap;
 
   delete _pFsm;
 }
@@ -257,7 +278,8 @@ int EpicsArchManager::onActionMap(UserMessage*& pMsg)
 {
   // initialize thread-specific data  
   string sConfigFileWarning;
-  int iError = initMonitor(sConfigFileWarning);
+  //  int iError = initMonitor(sConfigFileWarning);
+  int iError = 0;
   
   //if (!sConfigFileWarning.empty() && pMsg == NULL)
   if (false) // Do not show the PV title error message, as it is too verbose
@@ -279,7 +301,7 @@ int EpicsArchManager::onActionMap(UserMessage*& pMsg)
 
 int EpicsArchManager::initMonitor(string& sConfigFileWarning)
 {
-  delete _pMonitor;
+  if (_pMonitor)  delete _pMonitor;
 
   try
   {

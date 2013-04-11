@@ -3,6 +3,8 @@
 #include "Mtu.hh"
 #include "OutletWireHeader.hh"
 
+#include <stdio.h>
+
 using namespace Pds;
 
 /*

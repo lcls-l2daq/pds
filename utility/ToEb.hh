@@ -17,13 +17,11 @@
 #include "EbSequenceSrv.hh"
 #include "EbEventKey.hh"
 
-#include "pds/service/ZcpFragment.hh"
 #include "pds/xtc/Datagram.hh"
 
 namespace Pds {
 
   class CDatagram;
-  class ZcpDatagram;
 
   class ToEb : public EbServer, public EbSequenceSrv {
   public:
@@ -31,7 +29,6 @@ namespace Pds {
     virtual ~ToEb() {}
     
     int  send(const CDatagram*  );
-    int  send(const ZcpDatagram*);
   public:
     //  Eb interface
     void        dump    (int detail)   const;
@@ -49,7 +46,6 @@ namespace Pds {
     //  Server interface
     int      pend        (int flag = 0);
     int      fetch       (char* payload, int flags);
-    int      fetch       (ZcpFragment& , int flags);
   public:
     const Sequence& sequence() const;
     const Env&      env()      const;
@@ -57,7 +53,6 @@ namespace Pds {
     int      _pipefd[2];
     Src      _client;
     Datagram _datagram;
-    ZcpFragment _fragment;  // to handle send(zcpdatagram) -> fetch(cdatagram)
     bool     _more;
     unsigned _offset;
     unsigned _next;

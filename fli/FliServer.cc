@@ -2,6 +2,7 @@
 #include <math.h>
 #include <errno.h>
 #include <pthread.h>
+#include <stdlib.h>
 
 #include "pds/config/FliDataType.hh"
 #include "pds/xtc/Datagram.hh"
@@ -341,7 +342,7 @@ int FliServer::initCapture()
   if ( _bCaptureInited )
     deinitCapture();
 
-  LockCameraData lockInitCapture("FliServer::initCapture()");
+  LockCameraData lockInitCapture(const_cast<char*>("FliServer::initCapture()"));
 
   int iError = setupROI();
   if (iError != 0)
@@ -390,8 +391,8 @@ int FliServer::deinitCapture()
 {
   if ( !_bCaptureInited )
     return 0;
-
-  LockCameraData lockDeinitCapture("FliServer::deinitCapture()");
+  
+  LockCameraData lockDeinitCapture(const_cast<char*>("FliServer::deinitCapture()"));
 
   _bCaptureInited = false;
 
@@ -747,7 +748,7 @@ int FliServer::runCaptureTask()
     return ERROR_INCORRECT_USAGE;
   }
 
-  LockCameraData lockCaptureProcess("FliServer::runCaptureTask(): Start data polling and processing" );
+  LockCameraData lockCaptureProcess(const_cast<char*>("FliServer::runCaptureTask(): Start data polling and processing" ));
 
   /*
    * Check if current run is being reset or program is exiting

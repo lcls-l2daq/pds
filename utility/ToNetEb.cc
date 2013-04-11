@@ -4,7 +4,6 @@
 #include "ToNetEb.hh"
 #include "OutletWireHeader.hh"
 #include "pds/xtc/CDatagram.hh"
-#include "pds/xtc/ZcpDatagram.hh"
 #include "Mtu.hh"
 #include "ChunkIterator.hh"
 
@@ -71,77 +70,3 @@ int ToNetEb::send(const CDatagram* cdatagram,
 
   return 0;
 }
-
-/*
-** ++
-**
-**   Similar to the above _send method, but sends data described by an array
-**   of iovec entries, instead.
-**
-**   I (RiC) don't know why Mike designed it like this, but I followed his
-**   example by passing the datagram to the send routine separately.  This
-**   means that the first entry in the iovec array is replaced by what was
-**   already there in Client, presuming Client::sizeofDatagram() returns
-**   the same value as sizeof(Datagram).  It looks like they're always
-**   the same, so I don't understand why he didn't use the constant rather
-**   than causing a memory fetch.
-**
-**   As soon as a piece of the array has been sent we can scribble over the
-**   sent entries.  Thus, we loop over entries and sum up the sizes.  When it
-**   becomes bigger than the allowed size, we truncate and remember the
-**   remainder.  After the send, we modify the previous entry that was sent to
-**   start at the truncation point.  Then repeat until all chunks are sent.
-**
-** --
-*/
-
-int ToNetEb::send(ZcpDatagram* zdatagram,
-		  const Ins&   dst)
-{
-  const Datagram& datagram = zdatagram->datagram();
-  unsigned remaining = datagram.xtc.sizeofPayload();
-
-  if (!remaining) return _client.send((char*)&datagram,
-				      (char*)&datagram.xtc,
-				      sizeof(Xtc),
-				      dst);
-
-  remaining -= zdatagram->_stream.remove(_fragment, remaining);
-
-  int error(0);
-
-  if (!remaining && (datagram.xtc.extent+sizeof(Datagram)) <= Mtu::Size) 
-    error = _client.send((char*)&datagram,
-			 (char*)&datagram.xtc,
-			 sizeof(Xtc),
-			 _fragment,
-			 _fragment.size(),
-			 dst);
-  
-  else {
-    
-    ZcpChunkIterator chkIter(zdatagram,zdatagram->_stream,_fragment);
-    
-    error = _client.send((char*)chkIter.header(),
-			 (char*)&datagram.xtc,
-			 sizeof(Xtc),
-			 chkIter.payload(),
-			 chkIter.payloadSize(),
-			 dst);
-    
-    while( !error && chkIter.next() ) {
-      error = _client.send((char*)chkIter.header(), 
-			   chkIter.payload(),
-			   chkIter.payloadSize(),
-			   dst);
-    }
-  }
-  
-  if (error) {
-    printf("ToNetEb::send error: %s\n",strerror(-error));
-    _fragment.flush();
-  }
-  
-  return error;
-}
-

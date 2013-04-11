@@ -28,7 +28,7 @@ namespace Pds {
       public:
         unsigned            lane() {return 0;}
         unsigned            vc() {return (_dest  ? 0 : 1); }
-        char*               name();
+        const char*         name();
 //        Cspad2x2Destination::FEdest getDest(Pds::Pgp::RegisterSlaveImportFrame*);
     };
   }

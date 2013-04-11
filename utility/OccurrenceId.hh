@@ -41,6 +41,7 @@ class OccurrenceId
       DataFileError,
       RequestPause,
       RequestConfigure,
+      EvrEnabled,
       NumberOf
     };
   };

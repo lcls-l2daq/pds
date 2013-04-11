@@ -46,7 +46,7 @@ class Pds::PhasicsReceiver : public Pds::Routine {
 
   public:
   void routine(void);
-  void printError(char*);
+  void printError(const char*);
   void camera(dc1394camera_t* c) { _camera = c;     }
   void die()                     { runFlag = false; }
   static void resetCount()       { count = 0;       }
@@ -103,7 +103,7 @@ class Pds::PhasicsServer
    void            resetCount() {_count = 0; }
    unsigned        myCount() { return _count; }
    void            printHisto(bool);
-   void            printError(char*);
+   void            printError(const char*);
    void            process(void);
    void            allocated();
    void            camera(dc1394camera_t* c) { _camera = c; }

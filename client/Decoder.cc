@@ -21,7 +21,7 @@
 #include "Browser.hh"
 #include <stdio.h>
 
-#include "pds/xtc/ZcpDatagramIterator.hh"
+#include "pds/xtc/CDatagramIterator.hh"
 
 using namespace Pds;
 
@@ -33,7 +33,7 @@ using namespace Pds;
 */
 
 Decoder::Decoder(Level::Type level) :
-  _pool(sizeof(ZcpDatagramIterator),16)
+  _pool(sizeof(CDatagramIterator),16)
 {
   if      (level == Level::Control)  _depth = 1;
   else if (level == Level::Event)    _depth = 0;

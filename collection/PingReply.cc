@@ -1,5 +1,7 @@
 #include "pds/collection/PingReply.hh"
 
+#include <stdio.h>
+
 using namespace Pds;
 
 PingReply::PingReply() :

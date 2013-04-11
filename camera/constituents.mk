@@ -1,4 +1,8 @@
-libnames := camera camleutron camedt
+ifneq ($(findstring x86_64,$(tgt_arch)),)
+libnames := camera camedt
+else
+libnames := camera camleutron
+endif
 
 libsrcs_camera := CameraBase.cc \
 		  CameraManager.cc \
@@ -35,11 +39,11 @@ libincs_camedt := edt/include
 #tgtnames += camsend
 tgtnames :=
 
-ifneq ($(findstring x86_64-linux,$(tgt_arch)),)
+ifneq ($(findstring x86_64,$(tgt_arch)),)
 tgtnames := pdvserialcmd pdvcamsend camreceiver
 else
 #tgtnames := camsend camreceiver serialcmd fccdcmd pdvserialcmd pdvcamsend camsendm
-tgtnames := camsend camreceiver serialcmd fccdcmd pdvserialcmd pdvcamsend 
+tgtnames := camsend camreceiver serialcmd fccdcmd
 endif
 
 # ifeq ($(shell uname -m | egrep -c '(x86_|amd)64$$'),1)
@@ -75,8 +79,9 @@ tgtlibs_camsendm += $(leutron_libs)
 tgtincs_camsendm += leutron/include
 
 tgtsrcs_camreceiver := camreceiver.c display.cc
-tgtincs_camreceiver := qt/include_${ARCHCODE}
-tgtlibs_camreceiver := qt/QtGui qt/QtCore
+tgtincs_camreceiver := $(qtincdir)
+tgtlibs_camreceiver := $(qtlibdir)
+tgtslib_camreceiver := $(USRLIBDIR)/rt $(qtslibdir)
 
 tgtsrcs_serialcmd := serialcmd.cc
 tgtlibs_serialcmd := $(leutron_libs)

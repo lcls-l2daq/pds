@@ -189,7 +189,7 @@ int FccdCamera::configure(CameraDriver& driver,
   char sendBuf[SENDBUF_MAXLEN];
   int ret = 0;
   int trace;
-  char *initCmd[] = {
+  const char *initCmd[] = {
     // -- 
     // --	SET State Parameters to fix fCRIC Pipe
     // --
@@ -233,7 +233,7 @@ int FccdCamera::configure(CameraDriver& driver,
     ""
   };
 
-  char *singleCmd[] = {
+  const char *singleCmd[] = {
     // -- Single Mode = Focus bit = 0 and Number of Images = 1
     // ----- Number of Exposures to take after a trigger = 1
     "0e:00:01",
@@ -243,7 +243,7 @@ int FccdCamera::configure(CameraDriver& driver,
     ""
   };
 
-  char *focusCmd[] = {
+  const char *focusCmd[] = {
     // ----- Continuous trigger mode (focus):
     // ----- Specify zero images
     "0e:00:00",
@@ -255,7 +255,7 @@ int FccdCamera::configure(CameraDriver& driver,
     ""
   };
 
-  char *enableCcdCmd[] = {
+  const char *enableCcdCmd[] = {
     // --
     // -- INITIALIZE fCRICS
     // --

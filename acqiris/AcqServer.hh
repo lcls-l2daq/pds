@@ -10,7 +10,6 @@
 namespace Pds {
 
   class CDatagram;
-  class ZcpDatagram;
   class DmaEngine;
 
   class AcqServer : public EbServer, public EbCountSrv {

@@ -1,5 +1,5 @@
 # List of packages (low level first)
-ifneq ($(findstring x86_64-linux,$(tgt_arch)),)
+ifneq ($(findstring x86_64,$(tgt_arch)),)
 #  packages := service camera
   packages := service collection xtc
   packages += config mon vmon

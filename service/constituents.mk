@@ -1,3 +1,5 @@
 libnames := service
 
-libsrcs_service := $(filter-out BitMaskArray.cc RingPool.cc RingPoolW.cc,$(wildcard *.cc))
+ignore_src := BitMaskArray.cc RingPool.cc RingPoolW.cc KStream.cc TStream.cc
+
+libsrcs_service := $(filter-out $(ignore_src),$(wildcard *.cc))

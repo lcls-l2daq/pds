@@ -2,6 +2,7 @@
 #include <math.h>
 #include <errno.h>
 #include <pthread.h>
+#include <stdlib.h>
 
 #include "pds/config/AndorDataType.hh"
 #include "pds/xtc/Datagram.hh"
@@ -98,7 +99,7 @@ int AndorServer::initDevice()
     return ERROR_SDK_FUNC_FAIL;
   }
 
-  iError = Initialize("/usr/local/etc/andor");
+  iError = Initialize(const_cast<char*>("/usr/local/etc/andor"));
   if (!isAndorFuncOk(iError))
   {
     printf("AndorServer::init(): Initialize(): %s\n", AndorErrorCodes::name(iError));
@@ -605,7 +606,7 @@ int AndorServer::initCapture()
   if ( _bCaptureInited )
     deinitCapture();
 
-  LockCameraData lockInitCapture("AndorServer::initCapture()");
+  LockCameraData lockInitCapture(const_cast<char*>("AndorServer::initCapture()"));
 
   printf("\nInit capture...\n");
   timespec timeVal0;
@@ -668,7 +669,7 @@ int AndorServer::initCapture()
 
 int AndorServer::stopCapture()
 {
-  LockCameraData lockDeinitCapture("AndorServer::stopCapture()");
+  LockCameraData lockDeinitCapture(const_cast<char*>("AndorServer::stopCapture()"));
 
   resetFrameData(true);
 
@@ -697,7 +698,7 @@ int AndorServer::deinitCapture()
 
   stopCapture();
 
-  LockCameraData lockDeinitCapture("AndorServer::deinitCapture()");
+  LockCameraData lockDeinitCapture(const_cast<char*>("AndorServer::deinitCapture()"));
 
   _bCaptureInited = false;
   return 0;
@@ -1072,7 +1073,7 @@ int AndorServer::runCaptureTask()
     return ERROR_INCORRECT_USAGE;
   }
 
-  LockCameraData lockCaptureProcess("AndorServer::runCaptureTask(): Start data polling and processing" );
+  LockCameraData lockCaptureProcess(const_cast<char*>("AndorServer::runCaptureTask(): Start data polling and processing" ));
 
   /*
    * Check if current run is being reset or program is exiting

@@ -309,7 +309,8 @@ void EdtPdvCL::_setup(int unit, int channel)
     exit(1);
   }
 
-  if (pdv_initcam(edt_p, dd_p, unit, ei_p, "", "", 0) != 0) {
+  char no_string = '\0';
+  if (pdv_initcam(edt_p, dd_p, unit, ei_p, &no_string, &no_string, 0) != 0) {
     printf("EdtPdvCL::initcam failed\n");
     edt_close(edt_p);
     exit(1);
@@ -525,7 +526,7 @@ void display_serialcmd(char* cmd, int len)
 {
   int i;
   for(i=0; i<len; i++) {
-    char *str;
+    const char *str;
     switch (cmd[i]) {
     case 0: str="\\0"; break;
     case '\r': str="<CR>"; break;
@@ -536,8 +537,8 @@ void display_serialcmd(char* cmd, int len)
     default: 
       char str_data[2];
       str=str_data;
-      str[0]=cmd[i];
-      str[1]=0;
+      str_data[0]=cmd[i];
+      str_data[1]=0;
       break;
     };
     printf(str);

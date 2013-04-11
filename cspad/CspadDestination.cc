@@ -10,9 +10,9 @@
 
 using namespace Pds::CsPad;
 
-     char* CspadDestination::name()
+     const char* CspadDestination::name()
      {
-        static char* _names[NumberOf + 1] = {
+        static const char* _names[NumberOf + 1] = {
          "Quad_0",
          "Quad_1",
          "Quad_2",

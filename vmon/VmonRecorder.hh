@@ -3,6 +3,8 @@
 
 #include <map>
 
+#include <stdio.h>
+
 namespace Pds {
 
   class MonClient;

@@ -38,7 +38,7 @@ namespace Pds {
         dc1394_t*            getD() { return d; };
 
       private:
-        void                       printError(char* m, unsigned* rp);
+        void                       printError(const char* m, unsigned* rp);
         dc1394camera_t*            _camera;
         dc1394error_t              err;
         dc1394_t*                  d;

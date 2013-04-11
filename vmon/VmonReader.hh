@@ -5,6 +5,8 @@
 #include "pdsdata/xtc/ClockTime.hh"
 #include "pdsdata/xtc/Src.hh"
 
+#include <stdio.h>
+
 #include <vector>
 using std::vector;
 

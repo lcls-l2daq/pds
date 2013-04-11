@@ -69,7 +69,7 @@ public:
 
     for (unsigned iIndex = 0; iIndex < _lCounts.size() - 2; ++iIndex)
     {
-      if (_lCounts[iIndex] != 0)
+      if (_lCounts[iIndex] != 0) {
         if (_bIntRange)
           printf("#             %4d   : %7d (%4.1f%%)\n",
            (int) (_fFrom + iIndex * _fInterval), _lCounts[iIndex],
@@ -79,6 +79,7 @@ public:
            _fFrom + iIndex * _fInterval,
            _fFrom + (1 + iIndex) * _fInterval, _lCounts[iIndex],
            _lCounts[iIndex] * 100.0 / _iTotalCounts);
+      }
     }
 
     if (_lCounts[_lCounts.size() - 1] != 0)

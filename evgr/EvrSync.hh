@@ -1,10 +1,12 @@
 #ifndef Pds_EvrSync_hh
 #define Pds_EvrSync_hh
 
+#include "pds/service/GenericPool.hh"
 #include "pds/service/Ins.hh"
 #include "evgr/evr/evr.hh"
 
 namespace Pds {
+  class Appliance;
   class Task;
   class Routine;
   class Client;
@@ -18,7 +20,8 @@ namespace Pds {
 		  Evr&            er,
 		  unsigned        partition, 
 		  Task*           task,
-		  Client&         outlet);
+		  Client&         outlet,
+                  Appliance&      app);
     ~EvrSyncMaster();
   public:
     void initialize(bool);
@@ -30,6 +33,8 @@ namespace Pds {
     Ins      _dst;
     Task&    _task;
     Client&  _outlet;
+    Appliance& _app;
+    GenericPool _pool;
     unsigned _target;
   public:
     static const int EVENT_CODE_SYNC = 40;

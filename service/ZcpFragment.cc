@@ -13,7 +13,7 @@
 #include <string.h>
 #include <errno.h>
 #include <stdio.h>
-#include <stropts.h>
+//#include <stropts.h>
 #include <stdio.h>
 
 

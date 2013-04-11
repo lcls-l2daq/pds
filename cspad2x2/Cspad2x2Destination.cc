@@ -9,9 +9,9 @@
 #include <stdio.h>
 #include "pds/pgp/RegisterSlaveImportFrame.hh"
 
-char* Pds::CsPad2x2::Cspad2x2Destination::name()
+const char* Pds::CsPad2x2::Cspad2x2Destination::name()
 {
-  static char* _names[NumberOf + 1] = {
+  static const char* _names[NumberOf + 1] = {
       "Quad",
       "Concentrator",
       "--INVALID--"

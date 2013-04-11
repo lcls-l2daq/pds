@@ -10,9 +10,9 @@
 
 using namespace Pds::Xamps;
 
-     char* XampsDestination::name()
+     const char* XampsDestination::name()
      {
-        static char* _names[NumberOf + 1] = {
+        static const char* _names[NumberOf + 1] = {
          "External Register",
          "Internal Register",
          "--INVALID--"

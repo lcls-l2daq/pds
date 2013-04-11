@@ -1,8 +1,7 @@
 #include "DamageBrowser.hh"
 
 #include "pds/xtc/InDatagram.hh"
-#include "pds/xtc/InDatagramIterator.hh"
-#include "pds/xtc/ZcpDatagramIterator.hh"
+#include "pds/xtc/CDatagramIterator.hh"
 #include "pds/client/XtcIterator.hh"
 #include "pds/service/GenericPool.hh"
 
@@ -52,7 +51,7 @@ using namespace Pds;
 
 DamageBrowser::DamageBrowser(const InDatagram& dg) 
 {
-  GenericPool* pool = new GenericPool(sizeof(ZcpDatagramIterator),2);
+  GenericPool* pool = new GenericPool(sizeof(CDatagramIterator),2);
   MyIterator iter(dg.datagram().xtc, dg.iterator(pool),_damaged);
   iter.iterate();
 }

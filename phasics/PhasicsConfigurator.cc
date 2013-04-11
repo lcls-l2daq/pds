@@ -26,7 +26,7 @@ PhasicsConfigurator::PhasicsConfigurator() : _rhisto(0) {
 
 PhasicsConfigurator::~PhasicsConfigurator() {}
 
-static char    videoModenames[DC1394_VIDEO_MODE_NUM][120] = {
+static const char    videoModenames[DC1394_VIDEO_MODE_NUM][120] = {
       {"DC1394_VIDEO_MODE_160x120_YUV444"},
       {"DC1394_VIDEO_MODE_320x240_YUV422"},
       {"DC1394_VIDEO_MODE_640x480_YUV411"},
@@ -61,7 +61,7 @@ static char    videoModenames[DC1394_VIDEO_MODE_NUM][120] = {
       {"DC1394_VIDEO_MODE_FORMAT7_7"}
     };
 
-static char     codingNames[DC1394_COLOR_CODING_NUM][120] = {
+static const char     codingNames[DC1394_COLOR_CODING_NUM][120] = {
       {"DC1394_COLOR_CODING_MONO8"},
       {"DC1394_COLOR_CODING_YUV411"},
       {"DC1394_COLOR_CODING_YUV422"},
@@ -100,7 +100,7 @@ static char     codingNames[DC1394_COLOR_CODING_NUM][120] = {
 //        {"DC1394_FEATURE_CAPTURE_QUALITY"}
 //};
 
-static char      frameRateNames[][120] = {
+static const char      frameRateNames[][120] = {
       {"DC1394_FRAMERATE_1_875"},
       {"DC1394_FRAMERATE_3_75"},
       {"DC1394_FRAMERATE_7_5"},
@@ -127,7 +127,7 @@ void PhasicsConfigurator::printMe() {
   printf("\n");
 }
 
-void PhasicsConfigurator::printError(char* m, unsigned* rp) {
+void PhasicsConfigurator::printError(const char* m, unsigned* rp) {
   if ((err>0)||(err<=-DC1394_ERROR_NUM))
     err=DC1394_INVALID_ERROR_CODE;
   if (err!=DC1394_SUCCESS) {

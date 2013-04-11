@@ -11,6 +11,8 @@
 #include "OceanOpticsServer.hh"
 #include "histreport.hh"
 
+#include <stdlib.h>
+
 /*
  * local functions
  */

@@ -2,6 +2,7 @@
 #define Pds_RunAllocator_hh
 
 #include <vector>
+#include <string>
 
 namespace Pds {
 

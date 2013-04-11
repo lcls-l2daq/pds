@@ -1,6 +1,5 @@
 #include "AcqServer.hh"
 #include "pds/xtc/CDatagram.hh"
-#include "pds/xtc/ZcpDatagram.hh"
 #include "pds/utility/DmaEngine.hh"
 
 #include <unistd.h>

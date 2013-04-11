@@ -128,7 +128,7 @@ EvrMasterFIFOHandler::EvrMasterFIFOHandler(Evr&       er,
   _bEvrDataFullUpdated(false),
   _ncommands          (0),
   _evrL1Data          (giMaxNumFifoEvent, giNumL1Buffers),
-  _sync               (*this, er, partition, task, _outlet),
+  _sync               (*this, er, partition, task, _outlet, app),
   _tr                 (0),
   _nnodes             (neventnodes),
   _randomize_nodes    (randomize)

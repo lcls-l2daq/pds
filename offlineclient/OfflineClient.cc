@@ -10,6 +10,8 @@
 
 #include "LogBook/Connection.h"
 
+#include <stdio.h>
+
 using namespace Pds;
 
 //

@@ -1,3 +1,4 @@
 libnames := xtc
 
-libsrcs_xtc := $(wildcard *.cc)
+ignore_src := ZcpDatagram.cc ZcpDatagramIterator.cc
+libsrcs_xtc := $(filter-out $(ignore_src),$(wildcard *.cc))
