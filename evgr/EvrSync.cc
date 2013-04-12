@@ -217,8 +217,8 @@ bool EvrSyncMaster::handle(const FIFOEvent& fe)
 	return true;
 
       _state = Enabled;
-      _er.SetFIFOEvent(dummyram, SyncCode, 0);
-      _er.SetFIFOEvent(dummyram, TermCode, 0);
+//       _er.SetFIFOEvent(dummyram, SyncCode, 0);
+//       _er.SetFIFOEvent(dummyram, TermCode, 0);
       
       //  Empty FIFO
       FIFOEvent tfe;
@@ -269,6 +269,8 @@ bool EvrSyncMaster::handle(const FIFOEvent& fe)
       _state = Disabled;
 
       //  Disable Triggers
+      _er.SetFIFOEvent(dummyram, SyncCode, 0);
+      _er.SetFIFOEvent(dummyram, TermCode, 0);
       _er.MapRamEnable(dummyram, 1);
 
 #ifdef DBG
@@ -279,6 +281,11 @@ bool EvrSyncMaster::handle(const FIFOEvent& fe)
 #endif
 
       _task.call(new ReleaseRoutine(_fifo_handler));
+
+      //  Empty FIFO
+      FIFOEvent tfe;
+      while( !_er.GetFIFOEvent(&tfe) )
+	;
     }
   }
   return false;
