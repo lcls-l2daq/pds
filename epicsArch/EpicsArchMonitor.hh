@@ -18,8 +18,9 @@ namespace Pds
     EpicsArchMonitor(const Src & src, const std::string & sFnConfig,
       float fDefaultInterval, int iNumEventNode, Pool & occPool, int iDebugLevel, std::string& sConfigFileWarning);
     ~EpicsArchMonitor();
+  public:
     int writeToXtc(Datagram & dg, UserMessage ** msg, const struct timespec& tsCurrent, unsigned int uVectorCur);
-    int validate  ();
+    int validate  (int iNumEventNode);
 
     static const int iXtcVersion = EpicsXtcSettings::iXtcVersion;
     static const int iMaxNumPv = EpicsXtcSettings::iMaxNumPv;

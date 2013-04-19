@@ -54,6 +54,12 @@ namespace Pds
     release();
   }
 
+  void EpicsMonitorPv::resetUpdates(int iNumEventNode)
+  {
+    _iNumEventNode    = iNumEventNode;
+    _u64MaskEventNode = ( ((uint64_t)1)<<iNumEventNode) - 1;    
+  }
+
   int EpicsMonitorPv::release()
   {
     if (!_bConnected)

@@ -67,14 +67,13 @@ EpicsArchMonitor::~EpicsArchMonitor()
       printf("xtcEpicsTest()::EpicsMonitorPv::release(%s (%s)) failed\n",
              epicsPvCur.getPvDescription().c_str(), epicsPvCur.getPvName().c_str());
   }
-
+  
   int iFail = ca_task_exit();
   if (ECA_NORMAL != iFail)
     SEVCHK(iFail,
-     "EpicsArchMonitor::~EpicsArchMonitor(): ca_task_exit() failed");
+           "EpicsArchMonitor::~EpicsArchMonitor(): ca_task_exit() failed");
 }
-
-
+  
 //static int getLocalTime( const timespec& ts, char* sTime )
 //{
 //  static const char timeFormatStr[40] = "%04Y-%02m-%02d %02H:%02M:%02S"; /* Time format string */
@@ -232,7 +231,7 @@ int EpicsArchMonitor::writeToXtc(Datagram & dg, UserMessage ** msg, const struct
   return 0;     // All PV values are outputted successfully
 }
 
-int EpicsArchMonitor::validate()
+int EpicsArchMonitor::validate(int iNumEventNode)
 {
   ca_poll();
 
@@ -249,6 +248,8 @@ int EpicsArchMonitor::validate()
              epicsPvCur.getPvDescription().c_str(), epicsPvCur.getPvName().c_str());
       nNotConnected++;
     }
+
+    epicsPvCur.resetUpdates(iNumEventNode);
   }
 
   return nNotConnected++;

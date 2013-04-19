@@ -335,5 +335,5 @@ int EpicsArchManager::writeMonitoredContent(Datagram & dg, UserMessage ** msg, c
 
 int EpicsArchManager::validate()
 {
-  return _pMonitor->validate();
+  return _pMonitor->validate(_iNumEventNode);
 }
