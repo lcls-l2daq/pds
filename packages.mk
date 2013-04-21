@@ -7,6 +7,7 @@ ifneq ($(findstring x86_64,$(tgt_arch)),)
   packages += camera
   packages += firewire
   packages += phasics oceanoptics fli andor usdusb ipimb evgr epicstools
+  packages += pgp imp
 else
   packages := service collection xtc 
   packages += config mon vmon
