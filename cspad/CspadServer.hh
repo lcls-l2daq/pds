@@ -9,6 +9,7 @@
 #include "pdsdata/cspad/ElementHeader.hh"
 #include "pds/cspad/CspadConfigurator.hh"
 #include "pds/cspad/CspadDestination.hh"
+#include "pds/cspad/CspadOccurrence.hh"
 #include "pds/cspad/Processor.hh"
 #include "pdsdata/xtc/Xtc.hh"
 #include <fcntl.h>
@@ -78,6 +79,7 @@ class Pds::CspadServer
  private:
    static CspadServer*            _instance;
    static void instance(CspadServer* s) { _instance = s; }
+   void setOccSend(CspadOccurrence* occSend);
 
  private:
    enum     {sizeOfHisto=1000, DummySize=(1<<19)};
@@ -101,6 +103,7 @@ class Pds::CspadServer
    Pds::Pgp::Pgp*                 _pgp;
    unsigned*                      _dummy;
    char                           _runTimeConfigName[256];
+   CspadOccurrence*               _occSend;
    bool                           _configured;
    bool                           _firstFetch;
    bool                           _ignoreFetch;

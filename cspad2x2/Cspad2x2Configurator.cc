@@ -170,7 +170,7 @@ namespace Pds {
       if (_flush(0)) printf("Cspad2x2Configurator::configure _flush(0) FAILED\n");
       ret |= _pgp->writeRegister(&_d, TriggerWidthAddr, TriggerWidthValue);
       ret |= _pgp->writeRegister(&_d, ResetSeqCountRegisterAddr, 1);
-      ret |= _pgp->writeRegister(&_d, daqTriggerDelayAddr, daqTriggerDelayValue);
+      ret |= _pgp->writeRegister(&_d, externalTriggerDelayAddr, externalTriggerDelayValue);
       ret <<= 1;
       if (printFlag) {
         clock_gettime(CLOCK_REALTIME, &end);
@@ -319,10 +319,10 @@ namespace Pds {
       unsigned size = QuadsPerSensor*sizeof(ProtectionSystemThreshold)/sizeof(uint32_t);
       if (_pgp->writeRegisterBlock(&_d, protThreshBase, (uint32_t*)_config->protectionThreshold(), size)) {
         printf("Cspad2x2Configurator::writeRegisterBlock failed on protThreshBase\n");
-                return Failure;
+        return Failure;
       }
-      if (_pgp->writeRegister(&_d, runTriggerDelayAddr, _config->runTriggerDelay())) {
-        printf("Cspad2x2Configurator::writeRegs failed on runTriggerDelayAddr\n");
+      if (_pgp->writeRegister(&_d, internalTriggerDelayAddr, _config->runTriggerDelay())) {
+        printf("Cspad2x2Configurator::writeRegs failed on internalTriggerDelayAddr\n");
         return Failure;
       }
       uint32_t d = _config->runTriggerDelay();
@@ -330,10 +330,10 @@ namespace Pds {
         d += twoHunderedFiftyMicrosecondsIn8nsIncrements;
         printf(" setting daq trigger delay to %dns", d<<3);
       }
-        if (_pgp->writeRegister(&_d, daqTriggerDelayAddr, d)) {
-          printf("Cspad2x2Configurator::writeRegs failed on daqTriggerDelayAddr\n");
-          return Failure;
-        }
+      if (_pgp->writeRegister(&_d, externalTriggerDelayAddr, d)) {
+        printf("Cspad2x2Configurator::writeRegs failed on externalTriggerDelayAddr\n");
+        return Failure;
+      }
       if (_pgp->writeRegister(&_d, ProtEnableAddr, _config->protectionEnable())) {
         printf("Cspad2x2Configurator::writeRegs failed on ProtEnableAddr\n");
         return Failure;

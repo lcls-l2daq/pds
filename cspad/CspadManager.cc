@@ -152,8 +152,8 @@ InDatagram* CspadL1Action::fire(InDatagram* in) {
   unsigned vector = dg.seq.stamp().vector();
   if (in->datagram().xtc.damage.value() != 0) {
     if (_damageCount++ < 32) {
-      printf("CspadL1Action::fire damage(0x%x), fiducials(0x%x), vector(0x%x)\n",
-          in->datagram().xtc.damage.value(), evrFiducials, vector);
+      printf("CspadL1Action::fire damage(%x) fiducials(%x) vector(%x) lastMatchedFid(%x) lastMatchedFrame(%x)\n",
+          in->datagram().xtc.damage.value(), evrFiducials, vector, _lastMatchedFiducial, _lastMatchedFrameNumber);
       server->printState();
     }
   } else {
@@ -454,7 +454,7 @@ CspadManager::CspadManager( CspadServer* server, unsigned d, bool c) :
      sprintf(devName, "/dev/pgpcard_%u_%u", d & 0xf, ports);
    }
 
-   int cspad = open( devName,  O_RDWR);
+   int cspad = open( devName,  O_RDWR | O_NONBLOCK);
    printf("pgpcard file number %d\n", cspad);
    if (cspad < 0) {
      sprintf(err, "CspadManager::CspadManager() opening %s failed", devName);

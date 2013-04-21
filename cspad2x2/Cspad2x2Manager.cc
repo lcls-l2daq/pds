@@ -203,7 +203,7 @@ class Cspad2x2ConfigAction : public Action {
         unsigned count = 0;
         while ((_result = _server->configure( (CsPad2x2ConfigType*)_cfg.current()))
             && _result != 0xdead
-            && count++<1) {
+            && count++<2) {
           printf("\nCspad2x2ConfigAction::fire(tr) retrying config %u\n", count);
         };
         if (_result == 0 && _server->debug() & 0x10) _cfg.printRO();
@@ -243,7 +243,7 @@ class Cspad2x2BeginCalibCycleAction : public Action {
           printf("configured and \n");
           _server->offset(_server->offset()+_server->myCount()+1);
           unsigned count = 0;
-          while ((_result = _server->configure( (CsPad2x2ConfigType*)_cfg.current())) && count++<1) {
+          while ((_result = _server->configure( (CsPad2x2ConfigType*)_cfg.current())) && count++<2) {
             printf("\nCspad2x2BeginCalibCycleAction::fire(tr) retrying config %u\n", count);
           };
           if (_server->debug() & 0x10) _cfg.printRO();

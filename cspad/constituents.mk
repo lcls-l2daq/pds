@@ -6,11 +6,12 @@ libsrcs_cspad := \
                  CspadDestination.cc \
                  CspadQuadRegisters.cc \
                  CspadConcentratorRegisters.cc \
-     CspadConfigurator.cc \
-     Processor.cc \
-     CspadServer.cc \
-     CspadManager.cc \
-     CompressionProcessor.cc          
+     		 CspadConfigurator.cc \
+     		 Processor.cc \
+     		 CspadServer.cc \
+     		 CspadManager.cc \
+     		 CompressionProcessor.cc \
+     		 CspadOccurrence.cc
 #libsinc_cspad :=
 libincs_cspad := pgpcard
 CPPFLAGS += -fno-strict-aliasing

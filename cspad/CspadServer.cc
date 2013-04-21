@@ -98,8 +98,8 @@ void Pds::CspadServer::die() {
 }
 
 void Pds::CspadServer::printState() {
-  printf("\tCspadServer _quads(%u) _quadMask(%x) _count(%u) _quadsThisCount(%x)\n",
-      _quads, _quadMask, _count, _quadsThisCount);
+  printf("  CspadServer _quads(%u) _quadMask(%x) _count(%u) _quadsThisCount(%x)\n",
+      _quads, _quadMask, _count + _offset, _quadsThisCount);
 }
 
 void Pds::CspadServer::dumpFrontEnd() {
@@ -204,12 +204,12 @@ int Pds::CspadServer::fetch( char* payload, int flags ) {
    pgpCardRx.model   = sizeof(&pgpCardRx);
    pgpCardRx.maxSize = _payloadSize / sizeof(__u32);
    pgpCardRx.data    = (__u32*)(payload + offset);
+   Pds::Pgp::DataImportFrame* data = (Pds::Pgp::DataImportFrame*)(payload + offset);
 
    if ((ret = read(fd(), &pgpCardRx, sizeof(PgpCardRx))) < 0) {
      perror ("CspadServer::fetch pgpCard read error");
      ret =  Ignore;
    } else ret *= sizeof(__u32);
-   Pds::Pgp::DataImportFrame* data = (Pds::Pgp::DataImportFrame*)(payload + offset);
 
    if ((ret > 0) && (ret < (int)_payloadSize)) {
      printf("CspadServer::fetch() returning Ignore, ret was %d, looking for %u, frame(%u) quad(%u) quadmask(%x) ",
@@ -217,11 +217,11 @@ int Pds::CspadServer::fetch( char* payload, int flags ) {
      if (_debug & 4 || ret < 0) printf("\n\topcode(0x%x) acqcount(0x%x) fiducials(0x%x) _count(%u) _quadsThisCount(%u) lane(%u) vc(%u)",
          data->second.opCode, data->acqCount(), data->fiducials(), _count, _quadsThisCount, pgpCardRx.pgpLane, pgpCardRx.pgpVc);
      ret = Ignore;
-//     printf("\n\t ");
-//     unsigned* u= (unsigned*)data;
-//     for (unsigned j=0; j<(sizeof(Pds::Pgp::DataImportFrame)/sizeof(unsigned)); j++) {
-//       printf(" 0x%x", u[j]);
-//     }
+     //     printf("\n\t ");
+     //     unsigned* u= (unsigned*)data;
+     //     for (unsigned j=0; j<(sizeof(Pds::Pgp::DataImportFrame)/sizeof(unsigned)); j++) {
+     //       printf(" 0x%x", u[j]);
+     //     }
      printf("\n");
    }
 
@@ -330,6 +330,10 @@ void CspadServer::setCspad( int f ) {
   fd( f );
   _pgp = new Pds::Pgp::Pgp::Pgp(f);
   Pds::Pgp::RegisterSlaveExportFrame::FileDescr(f);
+}
+
+void CspadServer::setOccSend(CspadOccurrence* occSend) {
+  _occSend = occSend;
 }
 
 void CspadServer::printHisto(bool c) {

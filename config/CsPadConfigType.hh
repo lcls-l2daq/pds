@@ -8,9 +8,10 @@
 #define CSPADCONFIGTYPE_HH_
 
 #include "pdsdata/xtc/TypeId.hh"
-#include "pdsdata/cspad/ConfigV4.hh"
+#include "pdsdata/cspad/ConfigV5.hh"
 
-typedef Pds::CsPad::ConfigV4 CsPadConfigType;
+typedef Pds::CsPad::ConfigV5 CsPadConfigType;
+typedef Pds::CsPad::ConfigV3QuadReg CspadConfigQuadRegType;
 
 static Pds::TypeId _CsPadConfigType(Pds::TypeId::Id_CspadConfig,
                                     CsPadConfigType::Version);

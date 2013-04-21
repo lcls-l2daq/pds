@@ -14,4 +14,5 @@ else
   packages += ipimb encoder camera acqiris evgr epicsArch \
               princeton epicstools pgp cspad xamps fexamp gsc16ai timepix
   packages += cspad2x2 oceanoptics fli andor usdusb
+  packages += imp
 endif

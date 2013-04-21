@@ -57,7 +57,12 @@ namespace Pds {
             EventCodeAddr=0x146,
             RunModeAddr=0x2a,
             ProtEnableAddr=0x3e,
-            protThreshBase=0x36};
+            protThreshBase=0x36,
+            internalTriggerDelayAddr=0x3f,
+            externalTriggerDelayAddr=0x40,
+            twoHunderedFiftyMicrosecondsIn8nsIncrements=31250};
+        enum {externalTriggerDelayValue=0};
+        enum potsAddrs {CompBias1addr=0x13, CompBias2addr=0x27, iss2addr=0x3b, iss5addr=0x4b};
         enum {resetAddr=1,
             resetCountersAddr=2,
             resetLinksBaseAddr=3,
@@ -80,8 +85,6 @@ namespace Pds {
         static uint16_t           rawTestData[][Pds::CsPad::RowsPerBank][Pds::CsPad::ColumnsPerASIC];
 
       private:
-//        static char                       _inputQueueName[80];
-//        static char                       _outputQueueName[80];
 
       private:
         unsigned                   writeRegs();
@@ -94,6 +97,10 @@ namespace Pds {
         bool                      _flush(unsigned);
         void                      _initRanges();
         resultReturn              _checkReg(CspadDestination*, unsigned, unsigned, uint32_t);
+        unsigned                  _internalColWrite(uint32_t, bool, bool,
+                                                   Pds::Pgp::RegisterSlaveExportFrame*, unsigned);
+        unsigned                  _internalColWrite(uint32_t, bool,
+                                                   Pds::Pgp::RegisterSlaveExportFrame*, uint32_t);
 
 
       private:
@@ -102,7 +109,7 @@ namespace Pds {
         enum {quadGainMapStartAddr=0, quadGainMapLoadAddr=0x10000, quadTestDataAddr=0x100000};
         enum {RtemsQueueTimeout=50, MicroSecondsSleepTime=50};
         CsPadConfigType*            _config;
-        CspadDestination                 _d;
+        CspadDestination            _d;
         Pds::Pgp::AddressRange      _gainMap;
         Pds::Pgp::AddressRange      _digPot;
         unsigned*                   _rhisto;
