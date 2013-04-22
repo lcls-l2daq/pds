@@ -51,11 +51,11 @@ namespace Pds {
             RunModeAddr=0x2a,
             ProtEnableAddr=0x3e,
             protThreshBase=0x36,
-            internalTriggerDelayAddr=0x3f,
-            externalTriggerDelayAddr=0x40,
+            runTriggerDelayAddr=0x3f,
+            daqTriggerDelayAddr=0x40,
             twoHunderedFiftyMicrosecondsIn8nsIncrements=31250
         };
-        enum {externalTriggerDelayValue=0};
+        enum {daqTriggerDelayValue=0};
         enum {resetAddr=1,
             resetCountersAddr=2,
             resetLinksBaseAddr=3,
@@ -79,6 +79,8 @@ namespace Pds {
         static uint16_t           rawTestData[][Pds::CsPad2x2::RowsPerBank][Pds::CsPad2x2::ColumnsPerASIC];
 
       private:
+//        static char                       _inputQueueName[80];
+//        static char                       _outputQueueName[80];
 
       private:
         unsigned                   writeRegs();
@@ -87,6 +89,7 @@ namespace Pds {
         unsigned                   checkDigPots();
         unsigned                   writeTestData();
         unsigned                   writeGainMap();
+        unsigned                   writeUnusedColumns();
         unsigned                   readRegs();
         bool                      _flush(unsigned);
         void                      _initRanges();

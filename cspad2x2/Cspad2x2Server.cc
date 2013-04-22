@@ -204,7 +204,7 @@ int Pds::Cspad2x2Server::fetch( char* payload, int flags ) {
    if ((ret = read(fd(), &pgpCardRx, sizeof(PgpCardRx))) < 0) {
      perror ("Cspad2x2Server::fetch pgpCard read error");
      ret =  Ignore;
-   } else ret *= sizeof(__u32);  // correct for pgpcard read not returning # of bytes
+   } else ret *= sizeof(__u32);  // correct for pgpcard read error
    Pds::Pgp::DataImportFrame* data = (Pds::Pgp::DataImportFrame*)(payload + xtcSize);
 
    if ((ret > 0) && (ret < (int)_payloadSize)) {

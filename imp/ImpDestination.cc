@@ -10,10 +10,10 @@
 
 using namespace Pds::Imp;
 
-char* ImpDestination::name()
+const char* ImpDestination::name()
 {
   // no abstraction possible because of hardware hacking
-  static char* _names[NumberOf + 1] = {
+  static const char* _names[NumberOf + 1] = {
       "Data VC, invalid destination",
       "Virtual Circuit 1, invalid destination",
       "Virtual Circuit 2, invalid destination",

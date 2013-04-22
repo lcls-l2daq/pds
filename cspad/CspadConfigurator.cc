@@ -161,7 +161,6 @@ namespace Pds {
       if (_flush(0)) printf("CspadConfigurator::configure _flush(0) FAILED\n");
       ret |= _pgp->writeRegister(&_d, TriggerWidthAddr, TriggerWidthValue);
       ret |= _pgp->writeRegister(&_d, ResetSeqCountRegisterAddr, 1);
-      ret |= _pgp->writeRegister(&_d, externalTriggerDelayAddr, externalTriggerDelayValue);
       ret <<= 1;
       if (printFlag) {
         clock_gettime(CLOCK_REALTIME, &end);
@@ -337,19 +336,6 @@ namespace Pds {
       if (_pgp->writeRegisterBlock(&_d, protThreshBase, (uint32_t*)_config->protectionThresholds(), size)) {
         printf("CspadConfigurator::writeRegisterBlock failed on protThreshBase\n");
                 return Failure;
-      }
-      if (_pgp->writeRegister(&_d, internalTriggerDelayAddr, _config->internalTriggerDelay())) {
-        printf("CspadConfigurator::writeRegs failed on internalTriggerDelayAddr\n");
-        return Failure;
-      }
-      uint32_t d = _config->internalTriggerDelay();
-      if (d) {
-        d += twoHunderedFiftyMicrosecondsIn8nsIncrements;
-        printf(" setting daq trigger delay to %dns", d<<3);
-      }
-      if (_pgp->writeRegister(&_d, externalTriggerDelayAddr, d)) {
-        printf("CspadConfigurator::writeRegs failed on externalTriggerDelayAddr\n");
-        return Failure;
       }
       if (_pgp->writeRegister(&_d, ProtEnableAddr, _config->protectionEnable())) {
         printf("CspadConfigurator::writeRegs failed on ProtEnableAddr\n");
@@ -540,52 +526,6 @@ namespace Pds {
       return ret;
     }
 
-    unsigned CspadConfigurator::_internalColWrite(uint32_t val, bool capEn, bool resEn, Pds::Pgp::RegisterSlaveExportFrame* rsef, unsigned col) {
-      uint32_t i;
-      uint32_t* mem = rsef->array(); // One location per shift register bit
-      unsigned size = (sizeof(Pds::Pgp::RegisterSlaveExportFrame)/sizeof(uint32_t)) + 16;
-      memset(mem,0x0,16*4);
-      val >>= 4;  // we want the top four bits
-      printf("\n\t_internalColWrite(0x%x, capEn=%5s, resEn=%5s,\t%d\t", val, capEn ? "true" : "false", resEn ? "true" : "false", col);
-      // Set value bits, 8 - 11
-      for ( i = 0; i < 4; i++ ) // 1 value bit per address. 16-bits = 16 ASICs
-         mem[8+i] = (((val >> i) & 0x1) ? 0xFFFF : 0); // all ASICs alike
-      // ext cap enable, int res en/ pulsing
-      mem[12] = capEn ? 0xFFFF : 0; // all ASICs alike
-      mem[13] = resEn ? 0xFFFF : 0;    // all ASICs alike
-      if (rsef->post(size)) { return Failure; }
-      microSpin(MicroSecondsSleepTime);
-      if(_pgp->writeRegister(&_d, _gainMap.load, col)) { return Failure; }
-      microSpin(MicroSecondsSleepTime);
-      if (_pgp->writeRegister(&_d, _gainMap.base, 0)) { return Failure; }
-      microSpin(MicroSecondsSleepTime);
-      return Success;
-    }
-
-    unsigned CspadConfigurator::_internalColWrite(uint32_t val, bool prstsel, Pds::Pgp::RegisterSlaveExportFrame* rsef, unsigned col) {
-      uint32_t i;
-      uint32_t* mem = rsef->array(); // One location per shift register bit
-      unsigned size = (sizeof(Pds::Pgp::RegisterSlaveExportFrame)/sizeof(uint32_t)) + 16;
-      memset(mem,0x0,16*4);
-      printf("\n\t_internalColWrite(0x%x, prstsel=%5s,\t\t\t%d\t", val, prstsel ? "true" : "false", col);
-      // Set value bits, 8 - 15
-      for ( i = 0; i < 2; i++ ) { // 1 value bit per address. 16-bits = 16 asics
-         mem[i+8]  = (val >> i) &    0x1 ? 0xFFFF : 0x0000; // all asics alike
-         mem[i+10] = (val >> i) &   0x10 ? 0xFFFF : 0x0000; // all asics alike
-         mem[i+12] = (val >> i) &  0x100 ? 0xFFFF : 0x0000; // all asics alike
-         mem[i+14] = (val >> i) & 0x1000 ? 0xFFFF : 0x0000; // all asics alike
-      }
-      // analog/ digital preset, bit 7
-      mem[7] = prstsel ? 0x0000 : 0xFFFF; // all asics alike
-      if (rsef->post(size)) { return Failure; }
-      microSpin(MicroSecondsSleepTime);
-      if(_pgp->writeRegister(&_d, _gainMap.load, col)) { return Failure; }
-      microSpin(MicroSecondsSleepTime);
-      if (_pgp->writeRegister(&_d, _gainMap.base, 0)) { return Failure; }
-      microSpin(MicroSecondsSleepTime);
-      return Success;
-    }
-
     enum {LoopHistoShift=8};
 
     unsigned CspadConfigurator::writeGainMap() {
@@ -642,21 +582,6 @@ namespace Pds {
         }
       }
       if (!mySynch.clear()) return Failure;
-      for (unsigned i=0; i<Pds::CsPad::MaxQuadsPerSensor; i++) {
-        if ((1<<i) & _config->quadMask()) {
-          _d.dest(i);
-          Pds::Pgp::RegisterSlaveExportFrame* rsef = new (myArray) Pds::Pgp::RegisterSlaveExportFrame::RegisterSlaveExportFrame(
-              Pds::Pgp::PgpRSBits::write, &_d, _gainMap.base, i);
-          unsigned ret = Success;
-          uint32_t rce = _config->quads()[i].biasTuning();
-          if      (_internalColWrite(_config->quads()[i].dp().pots[iss2addr] & 0xff,      rce &    0x1, rce &    0x2, rsef, 194)) {ret = Failure;}
-          else if (_internalColWrite(_config->quads()[i].dp().pots[iss5addr] & 0xff,      rce &   0x10, rce &   0x20, rsef, 195)) {ret = Failure;}
-          else if (_internalColWrite(_config->quads()[i].dp().pots[CompBias1addr] & 0xff, rce &  0x100, rce &  0x200, rsef, 196)) {ret = Failure;}
-          else if (_internalColWrite(_config->quads()[i].dp().pots[CompBias2addr] & 0xff, rce & 0x1000, rce & 0x2000, rsef, 197)) {ret = Failure;}
-          else if (_internalColWrite(_config->quads()[i].pdpmndnmBalance(), _config->quads()[i].prstSel() != 0,       rsef, 198)) {ret = Failure;}
-          if (ret) return Failure;
-        }
-      }
       return Success;
     }
   } // namespace CsPad

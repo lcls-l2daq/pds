@@ -66,7 +66,7 @@ tgtsrcs_camsend := camsend.cc
 tgtincs_camsend := pds/zerocopy/kmemory pds/camera
 tgtlibs_camsend := pds/service pds/collection pds/utility pds/config pds/client pds/camera pds/xtc
 tgtlibs_camsend += pds/vmon pds/mon pds/camleutron
-tgtlibs_camsend += pdsdata/xtcdata pdsdata/camdata pdsdata/opal1kdata pdsdata/quartzdata pdsdata/orcadata pdsdata/pulnixdata pdsdata/fccddata pdsdata/quartzdata
+tgtlibs_camsend += pdsdata/xtcdata pdsdata/camdata pdsdata/opal1kdata pdsdata/quartzdata pdsdata/orcadata pdsdata/pulnixdata pdsdata/fccddata
 tgtlibs_camsend += $(leutron_libs)
 tgtincs_camsend += leutron/include
 
