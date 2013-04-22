@@ -243,7 +243,7 @@ class Cspad2x2BeginCalibCycleAction : public Action {
           printf("configured and \n");
           _server->offset(_server->offset()+_server->myCount()+1);
           unsigned count = 0;
-          while ((_result = _server->configure( (CsPad2x2ConfigType*)_cfg.current())) && count++<2) {
+          while ((_result = _server->configure( (CsPad2x2ConfigType*)_cfg.current())) && count++<3) {
             printf("\nCspad2x2BeginCalibCycleAction::fire(tr) retrying config %u\n", count);
           };
           if (_server->debug() & 0x10) _cfg.printRO();
@@ -288,6 +288,7 @@ class Cspad2x2UnconfigAction : public Action {
    Transition* fire(Transition* tr) {
      printf("Cspad2x2UnconfigAction:;fire(Transition) unconfigured\n");
      _result = _server->unconfigure();
+     if (!(_server->debug() & 0x2000)) _server->dumpFrontEnd();
      return tr;
    }
 
@@ -317,7 +318,7 @@ class Cspad2x2EndCalibCycleAction : public Action {
       printf(" %p\n", _cfg.current());
       unsigned result = _server->unconfigure();
       result |= _server->disable();
-      _server->dumpFrontEnd();
+      if (_server->debug() & 0x2000) _server->dumpFrontEnd();
       _server->printHisto(true);
       if (result) _result = 0xcf;
       return tr;
@@ -357,7 +358,7 @@ Cspad2x2Manager::Cspad2x2Manager( Cspad2x2Server* server, unsigned d) :
      sprintf(devName, "/dev/pgpcard_%u_%u", d & 0xf, ports);
    }
 
-   int cspad2x2 = open( devName,  O_RDWR);
+   int cspad2x2 = open( devName,  O_RDWR | O_NONBLOCK);
    printf("pgpcard file number %d\n", cspad2x2);
    if (cspad2x2 < 0) {
      sprintf(err, "Cspad2x2Manager::Cspad2x2Manager() opening %s failed", devName);
