@@ -251,7 +251,7 @@ EpicsArchManager::EpicsArchManager(CfgClientNfs & cfg, const std::string & sFnCo
   _pFsm->callback(TransitionId::Disable, _pActionDisable);
 
   _pPool    = new GenericPool(EpicsArchMonitor::iMaxXtcSize, 32);
-  _occPool  = new GenericPool(sizeof(UserMessage), 1);
+  _occPool  = new GenericPool(sizeof(UserMessage), 4);
 }
 
 EpicsArchManager::~EpicsArchManager()

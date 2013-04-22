@@ -54,7 +54,7 @@ EvrServer::EvrServer(const Ins& ins,
            nbufs),
   _client (src),
   _inlet  (inlet),
-  _occPool(sizeof(EvrCommand),16)
+  _occPool(sizeof(EvrCommand),64)
 {
   fd(_server.fd());
 }
@@ -151,8 +151,12 @@ int EvrServer::fetch(char* payload, int flags)
   */
 
   const char* cmd = payload;
-  for(unsigned i=0; i<dg.ncmds; i++, cmd++)
-    _inlet.post(*new(&_occPool) EvrCommand(dg.seq,*cmd));
+  for(unsigned i=0; i<dg.ncmds; i++, cmd++) {
+    if (_occPool.numberOfFreeObjects())
+      _inlet.post(*new(&_occPool) EvrCommand(dg.seq,*cmd));
+    else
+      printf("EvrServer occPool buffer is empty.  EvrCommand dropped!\n");
+  }
 
   return (dg.seq.isEvent()) ? 0 : -1;
 }

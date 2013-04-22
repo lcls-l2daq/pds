@@ -23,8 +23,8 @@ namespace Pds {
 
 using namespace Pds;
 
-static const int OutSize = 0x400;
-static const int OutEntries = 16;
+static const int OutSize = 0x800;
+static const int OutEntries = 32;
 static const int max_configs=32;
 
 #define IS_IPM(det) (_cap_config[det].ndiodes >1)

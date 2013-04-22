@@ -174,12 +174,17 @@ int EpicsArchMonitor::writeToXtc(Datagram & dg, UserMessage ** msg, const struct
           /*
            * Push the full list of problematic PVs, if possible.
            */
-          (*msg) = new(&_occPool) UserMessage;
-          (*msg)->append("EpicsArch: Some PVs not connected\n");
-          (*msg)->append(epicsPvCur.getPvDescription().c_str());
-          (*msg)->append(" (");
-          (*msg)->append(epicsPvCur.getPvName().c_str());
-          (*msg)->append(")\n");
+          if (_occPool.numberOfFreeObjects()) {
+            (*msg) = new(&_occPool) UserMessage;
+            (*msg)->append("EpicsArch: Some PVs not connected\n");
+            (*msg)->append(epicsPvCur.getPvDescription().c_str());
+            (*msg)->append(" (");
+            (*msg)->append(epicsPvCur.getPvName().c_str());
+            (*msg)->append(")\n");
+          }
+          else {
+            printf("EpicsArchMonitor::writeToXtc occPool empty\n");
+          }
         }
 	else {
 	  int len = strlen(epicsPvCur.getPvDescription().c_str())+
@@ -192,7 +197,7 @@ int EpicsArchMonitor::writeToXtc(Datagram & dg, UserMessage ** msg, const struct
 	  }
 	}
       }
-
+    
       bSomePvNotConnected = true;
     }
     else
@@ -206,10 +211,14 @@ int EpicsArchMonitor::writeToXtc(Datagram & dg, UserMessage ** msg, const struct
       printf
         ("EpicsArchMonitor::writeToXtc(): %d Pvs are stored in 90%% of the pool buffer (size = %d bytes)\n",
          iPvName + 1, EpicsArchMonitor::iMaxXtcSize);
-      if ((*msg) == 0)
+      if (bCtrlValue && (*msg) == 0)
       {
-        (*msg) = new(&_occPool) UserMessage;
-        (*msg)->append("EpicsArch:PV data size too large\n");
+        if (_occPool.numberOfFreeObjects()) {
+          (*msg) = new(&_occPool) UserMessage;
+          (*msg)->append("EpicsArch:PV data size too large\n");
+        }
+        else
+          printf("EpicsArchMonitor occPool empty\n");
       }
       return 2;
     }

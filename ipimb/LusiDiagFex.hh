@@ -4,7 +4,7 @@
 #include "pds/ipimb/IpimbFex.hh"
 
 #include "pdsdata/xtc/XtcIterator.hh"
-#include "pds/service/GenericPool.hh"
+#include "pds/service/GenericPoolW.hh"
 
 #include "pds/config/IpimbConfigType.hh"
 #include "pds/config/IpmFexConfigType.hh"
@@ -31,7 +31,7 @@ namespace Pds {
   public:
     int process(Xtc*);
   private:
-    GenericPool            _pool;
+    GenericPoolW           _pool;
     IpmFexConfigType*      _ipm_config;
     DiodeFexConfigType*    _pim_config;
     IpimbCapSetting*       _cap_config;
