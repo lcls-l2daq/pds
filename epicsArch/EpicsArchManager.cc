@@ -233,9 +233,6 @@ EpicsArchManager::EpicsArchManager(CfgClientNfs & cfg, const std::string & sFnCo
   _fMinTriggerInterval(fMinTriggerInterval), _iDebugLevel(iDebugLevel), _iNumEventNode(0),
   _pMonitor(NULL) // _pMonitor need to be initialized in the task thread
 {
-  string s;
-  initMonitor(s);
-
   _pFsm = new Fsm();
   _pActionMap = new EpicsArchAllocAction(*this, cfg);
   _pActionUnmap = new EpicsArchShutdownAction(*this);
@@ -252,6 +249,9 @@ EpicsArchManager::EpicsArchManager(CfgClientNfs & cfg, const std::string & sFnCo
 
   _pPool    = new GenericPool(EpicsArchMonitor::iMaxXtcSize, 32);
   _occPool  = new GenericPool(sizeof(UserMessage), 4);
+
+  string s;
+  initMonitor(s);
 }
 
 EpicsArchManager::~EpicsArchManager()
