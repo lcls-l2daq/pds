@@ -156,7 +156,7 @@ unsigned ImpConfigurator::writeConfig() {
 unsigned ImpConfigurator::checkWrittenConfig(bool writeBack) {
   _d.dest(ImpDestination::CommandVC);
   unsigned ret = Success;
-  unsigned size = ImpConfigType::NumberOfValues -2;    // !!!!!!!!!!!!!!!!!!!!!skipping because not there
+  unsigned size = ImpConfigType::NumberOfValues;    // !!!!!!!!!!!!!!!!!!!!!skipping because not there
   uint32_t myBuffer[size];
   for (unsigned i=0; i<size; i++) {
     if (_pgp->readRegister(&_d, configAddrs[i], 0x1100+i, myBuffer+i)) {
