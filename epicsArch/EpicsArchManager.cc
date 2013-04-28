@@ -22,6 +22,20 @@
 using namespace Pds;
 using std::string;
 
+class EpicsResetAction:public Action
+{
+public:
+  EpicsResetAction(EpicsArchManager& manager) : _manager(manager) {}
+public:
+  Transition* fire(Transition* tr)
+  {
+    _manager.onActionReset();
+    return 0;
+  }
+private:
+  EpicsArchManager& _manager;
+};
+
 class EpicsArchAllocAction:public Action
 {
 public:
@@ -33,7 +47,7 @@ public:
   {
     const Allocation & alloc = ((const Allocate &) *tr).allocation();
     _cfg.initialize(alloc);
-            
+
     int iNumEventNode = 0;
     for (unsigned i = 0; i < alloc.nnodes(); i++)
       if (alloc.node(i)->level() == Level::Event)
@@ -234,13 +248,15 @@ EpicsArchManager::EpicsArchManager(CfgClientNfs & cfg, const std::string & sFnCo
   _pMonitor(NULL) // _pMonitor need to be initialized in the task thread
 {
   _pFsm = new Fsm();
-  _pActionMap = new EpicsArchAllocAction(*this, cfg);
+  _pActionReset = new EpicsResetAction(*this);
+  _pActionMap   = new EpicsArchAllocAction(*this, cfg);
   _pActionUnmap = new EpicsArchShutdownAction(*this);
   _pActionConfig = new EpicsArchConfigAction(*this, EpicsArchManager::srcLevel, cfg, _iDebugLevel); // Level::Reporter for Epics Archiver
   _pActionL1Accept =
     new EpicsArchL1AcceptAction(*this, _fMinTriggerInterval, _iDebugLevel);
   _pActionDisable = new EpicsArchDisableAction(*this);
 
+  _pFsm->callback(TransitionId::Reset, _pActionReset);
   _pFsm->callback(TransitionId::Map, _pActionMap);
   _pFsm->callback(TransitionId::Unmap, _pActionUnmap);
   _pFsm->callback(TransitionId::Configure, _pActionConfig);
@@ -250,8 +266,8 @@ EpicsArchManager::EpicsArchManager(CfgClientNfs & cfg, const std::string & sFnCo
   _pPool    = new GenericPool(EpicsArchMonitor::iMaxXtcSize, 32);
   _occPool  = new GenericPool(sizeof(UserMessage), 4);
 
-  string s;
-  initMonitor(s);
+  //  string s;
+  //  initMonitor(s);
 }
 
 EpicsArchManager::~EpicsArchManager()
@@ -265,6 +281,7 @@ EpicsArchManager::~EpicsArchManager()
   delete _pActionConfig;
   delete _pActionMap;
   delete _pActionUnmap;
+  delete _pActionReset;
 
   delete _pFsm;
 }
@@ -272,6 +289,12 @@ EpicsArchManager::~EpicsArchManager()
 void EpicsArchManager::setNumEventNode(int iNumEventNode)
 {
   _iNumEventNode = iNumEventNode;  
+}
+
+int EpicsArchManager::onActionReset()
+{
+  string sConfigFileWarning;
+  return initMonitor(sConfigFileWarning);
 }
 
 int EpicsArchManager::onActionMap(UserMessage*& pMsg)

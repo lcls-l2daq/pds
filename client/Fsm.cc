@@ -46,6 +46,10 @@ Fsm::~Fsm() {
 
 Fsm::State Fsm::_reqState(TransitionId::Value id) {
   switch (id) {
+  case TransitionId::Reset: {
+    return Idle;
+    break;
+  }
   case TransitionId::Map: {
     return Mapped;
     break;
@@ -101,7 +105,10 @@ Fsm::State Fsm::_reqState(TransitionId::Value id) {
 unsigned Fsm::_allowed(State reqState, TransitionId::Value id) {
   if (id==TransitionId::L1Accept) {
     return _state==Enabled;
-  } else {
+  } else if (id==TransitionId::Reset) {
+    return true;
+  }
+  else {
     return (abs((unsigned)reqState-_state)==1);
   }
 }

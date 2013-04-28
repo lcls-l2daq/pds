@@ -36,6 +36,7 @@ namespace Pds
     
     // event handlers
     int onActionMap(UserMessage*& pMsg);
+    int onActionReset();
 
   private:
     static const Src srcLevel;  // Src for Epics Archiver
@@ -44,6 +45,7 @@ namespace Pds
 
     const Src & _src;
     Fsm *_pFsm;
+    Action *_pActionReset;
     Action *_pActionConfig;
     Action *_pActionMap;
     Action *_pActionUnmap;

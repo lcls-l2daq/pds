@@ -252,7 +252,7 @@ int EpicsArchMonitor::validate(int iNumEventNode)
     EpicsMonitorPv & epicsPvCur = _lpvPvList[iPvName];
 
     if (!epicsPvCur.isConnected()) {
-      //      epicsPvCur.reconnect();
+      epicsPvCur.reconnect();
       printf("%s (%s) not connected\n", 
              epicsPvCur.getPvDescription().c_str(), epicsPvCur.getPvName().c_str());
       nNotConnected++;
