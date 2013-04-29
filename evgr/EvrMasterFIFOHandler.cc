@@ -204,7 +204,8 @@ void EvrMasterFIFOHandler::fifo_event(const FIFOEvent& fe)
   if ( codeState.iDefReportWidth == 0 )// not an interesting event
     {
       if ( uEventCode == (unsigned) EvrManager::EVENT_CODE_BEAM  || // special event: Beam present -> always included in the report
-           uEventCode == (unsigned) EvrManager::EVENT_CODE_BYKIK    // special event: Dark frame   -> always included in the report
+           uEventCode == (unsigned) EvrManager::EVENT_CODE_BYKIK || // special event: Dark frame   -> always included in the report
+           uEventCode == (unsigned) EvrManager::EVENT_CODE_ALKIK    // special event: Dark frame   -> always included in the report
            )
         addSpecialEvent( _L1DataUpdated, *(const EvrDataType::FIFOEvent*) &fe );
         

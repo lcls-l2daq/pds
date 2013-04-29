@@ -32,6 +32,7 @@ namespace Pds {
     //static const int EVENT_CODE_BYKIK = 41;
     static const int EVENT_CODE_BEAM  = 140;
     static const int EVENT_CODE_BYKIK = 162;
+    static const int EVENT_CODE_ALKIK = 163;
   };
 }
 

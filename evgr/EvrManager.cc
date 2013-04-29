@@ -289,6 +289,7 @@ public:
     {
       _er.SetFIFOEvent(ram, EvrManager::EVENT_CODE_BEAM,  enable);
       _er.SetFIFOEvent(ram, EvrManager::EVENT_CODE_BYKIK, enable);
+      _er.SetFIFOEvent(ram, EvrManager::EVENT_CODE_ALKIK, enable);
       _er.SetFIFOEvent(ram, EvrSyncMaster::EVENT_CODE_SYNC, enable);
     }
     
