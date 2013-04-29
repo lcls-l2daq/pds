@@ -214,7 +214,7 @@ unsigned RunInfo::experiment() {return _experiment;}
 char *RunInfo::expname() {return _expname;}
 
 Kill::Kill(const Node& allocator) : 
-  Transition(TransitionId::Unmap, Transition::Execute, Sequence(), 0, 
+  Transition(TransitionId::Unmap, Transition::Execute, none(TransitionId::Unmap), 0, 
              sizeof(Kill)),
   _allocator(allocator)
 {}
