@@ -199,20 +199,18 @@ void ToEventWireScheduler::routine()
     if (::poll(&pfd, nfd, _idol_timeout) > 0) {
       InDatagram* dg;
       if (::read(_schedfd[0], &dg, sizeof(dg)) == sizeof(dg)) {
-  //  Flush the set of events if
-  //    (1) we already have queued an event to the same destination
-  //    (2) we have reached the maximum number of queued events
+	//  Flush the set of events if
+	//    (1) we already have queued an event to the same destination
+	//    (2) we have reached the maximum number of queued events
         const Sequence& seq = dg->datagram().seq;
         if (seq.isEvent() && !_nodes.isempty()) {
           OutletWireIns* dst = _nodes.lookup(seq.stamp().vector());
           unsigned m = 1<<dst->id();
-          if (m & _scheduled)
+          if ((m & _scheduled) || (_nscheduled++ >= _maxscheduled))
             _flush();
           TrafficDst* t = dg->traffic(dst->ins());
           _list.insert(t);
           _scheduled |= m;
-          if (++_nscheduled >= _maxscheduled)
-            _flush();
         }
         else {
           _flush(dg);
