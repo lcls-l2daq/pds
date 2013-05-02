@@ -79,12 +79,7 @@ using namespace Pds;
 
 static unsigned _maxscheduled = 4;
 
-//#ifdef BUILD_PRINCETON
-//static int      _idol_timeout  = 150; // idol time [ms] which forces flush of queued events
-//#else
-//static int      _idol_timeout  = 150;  // idol time [ms] which forces flush of queued events, to be sync at 0.5Hz
-//#endif
-static int      _idol_timeout  = 150;  // idol time [ms] which forces flush of queued events
+static int      _idol_timeout  = 150;  // idol time [ms] which forces flush of queued events.
 
 static int      _disable_buffer = 100; // time [ms] inserted between flushed L1 and Disable transition
 static unsigned _phase = 0;
@@ -225,7 +220,12 @@ void ToEventWireScheduler::routine()
     else {  // timeout
       if (_list.forward() != _list.empty()) {
         //
-        //  Workaround to put the clone at the front of the list
+        //  Workaround to shape transmission of an additional event (clone of an existing one and
+        //  destined for an unused multicast address) when we run at low rates (< 1/idol_timeout [6Hz]).
+        //  This is needed to prevent drops, for reasons I don't understand, when traffic shaping is absent.  
+        //  The additional transmission only works if the additional contribution can be transmitted
+        //  during the idol_timeout interval; i.e. 2 events * eth_rate < idol_timeout 
+        //  [ for eth_rate = 1GB/s, idol_timeout = 150ms => event_size < 37.5 MB ]
         //
         LinkedList<TrafficDst> list;
         list.insert( _list.forward()->clone() );
