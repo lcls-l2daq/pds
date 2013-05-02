@@ -4,34 +4,79 @@
 #include "pds/xtc/InDatagram.hh"
 #include "pds/service/Task.hh"
 
+#include "pds/config/CsPad2x2DataType.hh"
+
+#include "pds/config/CsPadConfigType.hh"
+#include "pds/config/CsPadDataType.hh"
+#include "pdsdata/cspad/ConfigV4.hh"
+//#include "pdsdata/cspad/ConfigV5.hh"
+#include "pdsdata/cspad/ElementHeader.hh"
+#include "pdsdata/cspad/ElementIterator.hh"
+
 #include "pdsdata/compress/CompressedPayload.hh"
 #include "pdsdata/compress/CompressedXtc.hh"
 #include "pdsdata/camera/FrameV1.hh"
 
+#include "pdsdata/xtc/DetInfo.hh"
+
+#include "pdsdata/compress/CompressedXtc.hh"
+#include "pdsdata/compress/CompressedData.hh"
+#include "pdsdata/compress/HistNEngine.hh"
+#include "pdsdata/compress/Hist16Engine.hh"
+
+#include "pds/vmon/VmonServerManager.hh"
+#include "pds/mon/MonCds.hh"
+#include "pds/mon/MonGroup.hh"
+#include "pds/mon/MonEntryTH1F.hh"
+#include "pds/mon/MonDescTH1F.hh"
+
+#include <time.h>
+
 #include <list>
+#include <vector>
+
+#ifdef _OPENMP
+#include <omp.h>
+#endif
+
+static bool lUseOMP=false;
+static bool lVerbose=false;
+
+static double time_since(const timespec& now, const timespec& tv)
+{
+  double dt = double(now.tv_sec - tv.tv_sec)*1.e3;
+  dt += (double(now.tv_nsec)-double(tv.tv_nsec))*1.e-6;
+  return dt;
+}
 
 namespace Pds {
   namespace FCA {
     class Entry {
     public:
-      Entry(Transition* tr) : _state(Completed), _type(TypeT), _ptr(tr) {}
-      Entry(InDatagram* in) : _state(in->datagram().seq.isEvent() ? Queued:Completed),
-                              _type(TypeI), _ptr(in) {}
+      Entry(Transition* tr) : _state(Completed), _type(TypeT), _ptr(tr) { clock_gettime(CLOCK_REALTIME,&_start); }
+      Entry(InDatagram* in) : _state(in->datagram().seq.service()==TransitionId::L1Accept ||
+                                     in->datagram().seq.service()==TransitionId::Configure ? Queued:Completed),
+                              _type(TypeI), _ptr(in) { clock_gettime(CLOCK_REALTIME,&_start); }
     public:
       bool is_complete  () const { return _state==Completed; }
       bool is_unassigned() const { return _state==Queued; }
     public:
-      void assign  () { _state=Assigned; }
+      void assign  () { _state=Assigned; clock_gettime(CLOCK_REALTIME,&_assign); }
       void complete() { _state=Completed; }
       void post    (FrameCompApp& app) { 
         if (_type == TypeT) app.post((Transition*)_ptr);
         else                app.post((InDatagram*)_ptr);
       }
       void* ptr() { return _ptr; }
+    public:
+      double since_start (const timespec& now) const { return time_since(now,_start); }
+      double since_assign(const timespec& now) const { return time_since(now,_assign); }
     private:
       enum { Queued, Assigned, Completed } _state;
       enum { TypeT, TypeI } _type;
       void* _ptr;
+      timespec _start;
+      timespec _assign;
     };
     
     typedef std::list<Entry*> EList;
@@ -108,17 +153,50 @@ namespace Pds {
       size_t        _max_size;
     };
 
+#ifdef _OPENMP
+    class OMPCompressedXtc : public Pds::Xtc {
+    public:
+      enum { MaxThreads=4 };
+      OMPCompressedXtc( Pds::Xtc&     xtc,
+                        const std::list<unsigned>& headerOffsets,
+                        unsigned headerSize,
+                        unsigned depth,
+                        Pds::CompressedPayload::Engine engine );
+    };
+#endif
   };
 };
 
 using namespace Pds;
 
-FrameCompApp::FrameCompApp(size_t max_size) :
+static std::vector<CsPad::ConfigV4> _configv4;
+static std::vector<DetInfo>         _infov4;
+
+static std::vector<CsPadConfigType> _config;
+static std::vector<DetInfo>         _info;
+
+static const unsigned nbins = 64;
+static const double ms_per_bin = 64./64.;
+
+FrameCompApp::FrameCompApp(size_t max_size, unsigned nthreads) :
   _mgr_task(new Task(TaskObject("FCAmgr"))),
-  _tasks   (4)
+  _tasks   (nthreads)
 {
+  MonGroup* group = new MonGroup("FCA");
+  VmonServerManager::instance()->cds().add(group);
+
+  MonDescTH1F start_to_complete("Start to Complete","[ms]", "", nbins, 0., double(nbins)*ms_per_bin);
+  _start_to_complete = new MonEntryTH1F(start_to_complete);
+  group->add(_start_to_complete);
+
+  MonDescTH1F assign_to_complete("Assign to Complete","[ms]", "", nbins, 0., double(nbins)*ms_per_bin);
+  _assign_to_complete = new MonEntryTH1F(assign_to_complete);
+  group->add(_assign_to_complete);
+
+
   for(unsigned id=0; id<_tasks.size(); id++)
     _tasks[id] = new FCA::Task(id,*this,max_size);
+
 }
 
 FrameCompApp::~FrameCompApp()
@@ -127,6 +205,9 @@ FrameCompApp::~FrameCompApp()
   for(unsigned id=0; id<_tasks.size(); id++)
     delete _tasks[id];
 }
+
+void FrameCompApp::useOMP(bool l) { lUseOMP=l; }
+void FrameCompApp::setVerbose(bool l) { lVerbose=l; }
 
 Transition* FrameCompApp::transitions(Transition* tr)
 {
@@ -148,12 +229,38 @@ void FrameCompApp::queueTransition(Transition* tr)
 
 void FrameCompApp::queueEvent(InDatagram* in)
 {
+  if (in->datagram().seq.service()==TransitionId::Configure) {
+    _config.clear();
+    _info  .clear();
+    _configv4.clear();
+    _infov4  .clear();
+    if (lVerbose)    printf("FCA::queue Configure\n");
+  }
   _list.push_back(new FCA::Entry(in));
   _process();
 }
 
 void FrameCompApp::completeEntry(FCA::Entry* e, unsigned id)
 {
+  timespec now;
+  clock_gettime(CLOCK_REALTIME,&now);
+  ClockTime time(now.tv_sec,now.tv_nsec);
+  { unsigned bin = unsigned(e->since_start(now)/ms_per_bin);
+    if (bin < nbins)
+      _start_to_complete->addcontent(1,bin);
+    else
+      _start_to_complete->addinfo(1,MonEntryTH1F::Overflow); 
+    _start_to_complete->time(time);
+  }
+
+  { unsigned bin = unsigned(e->since_assign(now)/ms_per_bin);
+    if (bin < nbins)
+      _assign_to_complete->addcontent(1,bin);
+    else
+      _assign_to_complete->addinfo(1,MonEntryTH1F::Overflow);
+    _assign_to_complete->time(time);
+  }
+    
   e->complete();
   _tasks[id]->unassign();
   _process();
@@ -196,37 +303,200 @@ void FCA::MyIter::process(Xtc* xtc)
   }
 
   std::list<unsigned> headerOffsets;
-  unsigned headerSize;
-  unsigned depth = 0;
+  unsigned headerSize = 0;
+  int depth = 0;
+  CompressedPayload::Engine engine = CompressedPayload::None;
+  
+  const TypeId _FrameDataType(TypeId::Id_Frame,Camera::FrameV1::Version);
 
-  if (xtc->contains.id()==TypeId::Id_Frame) {
-    switch(xtc->contains.version()) {
-    case 1: {
-      const Camera::FrameV1& frame = *reinterpret_cast<const Camera::FrameV1*>(xtc->payload());
-      headerOffsets.push_back(0);
-      headerSize = sizeof(frame);
-      depth      = frame.depth_bytes();
-
-      break; }
-    default:
-      break;
+  if (xtc->contains.value() == _FrameDataType.value()) {
+    const Camera::FrameV1& frame = *reinterpret_cast<const Camera::FrameV1*>(xtc->payload());
+    headerOffsets.push_back(0);
+    headerSize = sizeof(Camera::FrameV1);
+    depth      = frame.depth_bytes();
+    engine     = CompressedPayload::HistN;
+  }
+  else if (xtc->contains.value() == _CsPad2x2DataType.value()) {
+    headerOffsets.push_back(0);
+    headerSize = sizeof(CsPad2x2::ElementHeader);
+    depth      = 2;
+    engine     = CompressedPayload::Hist16;
+  }
+  else if (xtc->contains.value() == _CsPadDataType.value()) {
+    const DetInfo& info = static_cast<const DetInfo&>(xtc->src);
+    for(unsigned i=0; i<_info.size(); i++) {
+      if (_info[i] == info) {
+        const CsPadConfigType& cfg = _config[i];
+        CsPad::ElementIterator iter(cfg, *xtc);
+        const Pds::CsPad::ElementHeader* hdr;
+        while( (hdr=iter.next()) ) {
+          headerOffsets.push_back( reinterpret_cast<const char*>(hdr)-xtc->payload() );
+          headerSize = sizeof(CsPad::ElementHeader);
+#ifdef _OPENMP
+          depth      = lUseOMP ? -2 : 2;
+#else
+          depth      = 2;
+#endif
+        }
+        engine     = CompressedPayload::Hist16;
+        break;
+      }
     }
+
+    if (!depth)
+      for(unsigned i=0; i<_infov4.size(); i++) {
+        if (_infov4[i] == info) {
+          const Pds::CsPad::ConfigV4& cfg = _configv4[i];
+          CsPad::ElementIterator iter(cfg, *xtc);
+          const Pds::CsPad::ElementHeader* hdr;
+          while( (hdr=iter.next()) ) {
+            headerOffsets.push_back( reinterpret_cast<const char*>(hdr)-xtc->payload() );
+            headerSize = sizeof(CsPad::ElementHeader);
+#ifdef _OPENMP
+            depth      = lUseOMP ? -2 : 2;
+#else
+            depth      = 2;
+#endif
+          }
+          engine     = CompressedPayload::Hist16;
+          break;
+        }
+      }
+
+    if (!depth && lVerbose)      printf("Failed to lookup config for %08x.%08x:%sv%d\n",
+                                        xtc->src.log(),xtc->src.phy(),
+                                        TypeId::name(xtc->contains.id()),
+                                        xtc->contains.version());
+  }
+  else if (xtc->contains.value() == _CsPadConfigType.value()) {
+    _config.push_back(*reinterpret_cast<const CsPadConfigType*>(xtc->payload()));
+    _info  .push_back(static_cast<DetInfo&>(xtc->src));
+    if (lVerbose)      printf("Registered config for %08x.%08x:%sv%d\n",
+                              xtc->src.log(),xtc->src.phy(),
+                              TypeId::name(xtc->contains.id()),
+                              xtc->contains.version());
+  }
+  else if (xtc->contains.id() == TypeId::Id_CspadConfig && xtc->contains.version()==4) {
+    _configv4.push_back(*reinterpret_cast<const CsPad::ConfigV4*>(xtc->payload()));
+    _infov4  .push_back(static_cast<DetInfo&>(xtc->src));
+    if (lVerbose)      printf("Registered config for %08x.%08x:%sv%d\n",
+                              xtc->src.log(),xtc->src.phy(),
+                              TypeId::name(xtc->contains.id()),
+                              xtc->contains.version());
   }
 
-  if (depth) {
-    Xtc* cxtc = new (_obuff) CompressedXtc(*xtc, 
-                                           headerOffsets,
-                                           headerSize,
-                                           depth,
-                                           Pds::CompressedPayload::HistN);
-    if (cxtc->extent < xtc->extent) {
-      _write(cxtc, cxtc->extent);
-      return;
-    }  
+  Xtc* cxtc = 0;
+  if (depth > 0) {
+    cxtc = new (_obuff) CompressedXtc(*xtc, 
+                                      headerOffsets,
+                                      headerSize,
+                                      depth,
+                                      engine);
   }
+#ifdef _OPENMP
+  else if (depth < 0) {
+    cxtc = new (_obuff) OMPCompressedXtc(*xtc, 
+                                         headerOffsets,
+                                         headerSize,
+                                         -depth,
+                                         engine);
+  }
+#endif
+
+  if (lVerbose) {
+    if (cxtc) printf("Compressed %08x.%08x:%sv%d %d/%d\n",
+                     xtc->src.log(),xtc->src.phy(),
+                     TypeId::name(xtc->contains.id()),
+                     xtc->contains.version(),
+                     cxtc->sizeofPayload(),
+                     xtc->sizeofPayload());
+    else      printf("Did not compress %08x.%08x:%sv%d %d\n",
+                     xtc->src.log(),xtc->src.phy(),
+                     TypeId::name(xtc->contains.id()),
+                     xtc->contains.version(),
+                     xtc->sizeofPayload());
+  }
+
+  if (cxtc && (cxtc->extent < xtc->extent)) {
+    _write(cxtc, cxtc->extent);
+    return;
+  }  
 
   XtcStripper::process(xtc);
 }
 
 
+#ifdef _OPENMP
+FCA::OMPCompressedXtc::OMPCompressedXtc( Xtc&     xtc,
+                                         const std::list<unsigned>& headerOffsets,
+                                         unsigned headerSize,
+                                         unsigned depth,
+                                         CompressedPayload::Engine engine ) :
+  Xtc( TypeId(xtc.contains.id(), xtc.contains.version(), true),
+       xtc.src,
+       xtc.damage )
+{
+  int n = headerOffsets.size();
+  unsigned offsets[MaxThreads];
+  char*    ibuff  [MaxThreads];
+  char*    obuff  [MaxThreads];
+  Compress::Hist16Engine::ImageParams img[MaxThreads];
+  size_t csize[MaxThreads];
+  int i=0;
+  std::list<unsigned>::const_iterator it=headerOffsets.begin();
+  while(it!=headerOffsets.end()) {
+    offsets[i] = *it;
+    ibuff  [i] = xtc.payload() + (*it) + headerSize;
 
+    unsigned hoff  = *it;
+    unsigned dsize = (++it == headerOffsets.end()) ? (char*)xtc.next()-ibuff[i] : (*it)-hoff-headerSize;
+
+    obuff  [i] = (char*)next() + hoff + dsize*5/4;
+
+    img[i].width  = dsize/depth;
+    img[i].height = 1;
+    img[i].depth  = depth;
+    i++;
+  }
+#pragma omp parallel shared(offsets,ibuff,obuff,csize,engine) private(i) num_threads(MaxThreads)
+  {
+#pragma omp for schedule(dynamic,1)
+    for(i=0; i<n; i++) {
+      unsigned dsize = img[i].depth*img[i].width;
+
+      if      (engine == CompressedPayload::HistN &&
+               Compress::HistNEngine().compress(ibuff[i],depth,dsize,obuff[i],csize[i]) == Compress::HistNEngine::Success)
+        ;
+      else if (engine == CompressedPayload::Hist16 &&
+               Compress::Hist16Engine().compress(ibuff[i],img[i],obuff[i],csize[i]) == Compress::Hist16Engine::Success)
+        ;
+      else {
+        csize[i] = 0;
+      }
+    }
+  }
+
+  const unsigned align_mask = sizeof(uint32_t)-1;
+
+  i = 0;
+  it=headerOffsets.begin();
+  while(it!=headerOffsets.end()) {
+    //  copy the header
+    new (alloc(sizeof(CompressedData))) CompressedData(headerSize);
+    memcpy(alloc(headerSize), xtc.payload()+(*it), headerSize);
+    //  copy the payload
+    if (csize[i]==0) {
+      unsigned dsize = img[i].depth*img[i].width;
+      new (alloc(sizeof(CompressedPayload))) CompressedPayload(CompressedPayload::None,dsize,dsize);
+      memcpy(alloc((dsize+align_mask)&~align_mask),ibuff[i],dsize);
+    }
+    else {
+      unsigned dsize = img[i].depth*img[i].width;
+      new (alloc(sizeof(CompressedPayload))) CompressedPayload(engine,dsize,csize[i]);
+      memcpy(alloc((csize[i]+align_mask)&~align_mask),obuff[i],csize[i]);
+    }
+    i++;
+    it++;
+  }
+}
+#endif

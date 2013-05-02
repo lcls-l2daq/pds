@@ -25,6 +25,7 @@ namespace Pds {
     static Ins bld  (unsigned    id);
     static Ins vmon (unsigned    partition);
     static Ins evr  (unsigned    partition);
+    static Ins sink ();
   public:
     StreamPorts();
     StreamPorts(const StreamPorts&);

@@ -25,6 +25,7 @@ static const int ObserverMcastAddr = ControlMcastAddr +StreamPorts::MaxPartition
 static const int VmonMcastAddr     = ObserverMcastAddr+StreamPorts::MaxPartitions;
 // EVR Master -> Slaves     0xeffff1530
 static const int EvrMcastAddr      = VmonMcastAddr    +StreamPorts::MaxPartitions;
+static const int SinkMcastAddr     = EvrMcastAddr     +StreamPorts::MaxPartitions;
 
 // BLD -> L1,L2 : 0xefff1800
 static const int BLDMcastAddr      = 0xefff1800;  // FIXED value for external code
@@ -36,6 +37,7 @@ static const unsigned ControlPortBase  = EventPortBase   +StreamPorts::MaxPartit
 static const unsigned ObserverPortBase = ControlPortBase +StreamPorts::MaxPartitions * MaxPartitionL2s; // 11942
 static const unsigned VmonPortBase     = ObserverPortBase+StreamPorts::MaxPartitions;                   // 11958
 static const unsigned EvrPortBase      = VmonPortBase    +1;                                            // 11959
+static const unsigned SinkPortBase     = VmonPortBase    +StreamPorts::MaxPartitions;                                            // 11959
 static const unsigned BLDPortBase      = 10148;   // FIXED value for external code
 
 
@@ -94,6 +96,11 @@ Ins StreamPorts::vmon(unsigned partition)
 Ins StreamPorts::evr(unsigned partition)
 {
   return Ins(EvrMcastAddr + partition, EvrPortBase + partition);
+}
+
+Ins StreamPorts::sink()
+{
+  return Ins(SinkMcastAddr, SinkPortBase);
 }
 
 StreamPorts::StreamPorts()

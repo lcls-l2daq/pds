@@ -39,8 +39,8 @@ namespace Pds {
 #endif
       TrafficDst* t = _list.forward();
       while(t != _list.empty()) {
-  do {
-    TrafficDst* n = t->forward();
+        do {
+          TrafficDst* n = t->forward();
 
 //#ifdef BUILD_PACKAGE_SPACE
 //    static int iDgCount = 0;
@@ -53,11 +53,11 @@ namespace Pds {
 //      }
 //#endif
 
-    if (!t->send_next(_client))
-      delete t->disconnect();
-    t = n;
-  } while( t != _list.empty());
-  t = _list.forward();
+          if (!t->send_next(_client))
+            delete t->disconnect();
+          t = n;
+        } while( t != _list.empty());
+        t = _list.forward();
       }
 #ifdef HISTO_TRANSMIT_TIMES
       if (_scheduler) {
@@ -202,29 +202,38 @@ void ToEventWireScheduler::routine()
   //  Flush the set of events if
   //    (1) we already have queued an event to the same destination
   //    (2) we have reached the maximum number of queued events
-  const Sequence& seq = dg->datagram().seq;
-  if (seq.isEvent() && !_nodes.isempty()) {
-    OutletWireIns* dst = _nodes.lookup(seq.stamp().vector());
-    unsigned m = 1<<dst->id();
-    if (m & _scheduled)
-      _flush();
-    TrafficDst* t = dg->traffic(dst->ins());
-    _list.insert(t);
-    _scheduled |= m;
-    if (++_nscheduled >= _maxscheduled)
-      _flush();
-  }
-  else {
-    _flush(dg);
-  }
+        const Sequence& seq = dg->datagram().seq;
+        if (seq.isEvent() && !_nodes.isempty()) {
+          OutletWireIns* dst = _nodes.lookup(seq.stamp().vector());
+          unsigned m = 1<<dst->id();
+          if (m & _scheduled)
+            _flush();
+          TrafficDst* t = dg->traffic(dst->ins());
+          _list.insert(t);
+          _scheduled |= m;
+          if (++_nscheduled >= _maxscheduled)
+            _flush();
+        }
+        else {
+          _flush(dg);
+        }
       }
       else {
-  printf("ToEventWireScheduler::routine error reading pipe : %s\n",
-         strerror(errno));
-  break;
+        printf("ToEventWireScheduler::routine error reading pipe : %s\n",
+               strerror(errno));
+        break;
       }
     }
     else {  // timeout
+      if (_list.forward() != _list.empty()) {
+        //
+        //  Workaround to put the clone at the front of the list
+        //
+        LinkedList<TrafficDst> list;
+        list.insert( _list.forward()->clone() );
+        list.insertList(&_list);
+        _list.insertList(&list);
+      }
       _flush();
     }
   }
