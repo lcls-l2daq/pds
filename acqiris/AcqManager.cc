@@ -248,7 +248,7 @@ public:
       xtc->damage.increase(_damage);
       return 1;
     }
-    else if (xtc->src == _src) {
+    else if (xtc->src == _src && xtc->contains.id()==TypeId::Id_AcqWaveform) {
       validate(xtc);
       return 0;
     }
