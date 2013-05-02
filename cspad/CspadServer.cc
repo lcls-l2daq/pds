@@ -103,7 +103,7 @@ void Pds::CspadServer::printState() {
 }
 
 void Pds::CspadServer::dumpFrontEnd() {
-  if (_configureResult != 0xdead) {
+  if ((_configureResult != 0xdead) && (_cnfgrtr != 0)) {
     disable();
     _cnfgrtr->dumpFrontEnd();
   } else {
@@ -140,7 +140,7 @@ void Pds::CspadServer::runTimeConfigName(char* name) {
 
 void Pds::CspadServer::disable() {
   _d.dest(Pds::CsPad::CspadDestination::CR);
-  if (_configureResult != 0xdead) {
+  if ((_configureResult != 0xdead) && (_cnfgrtr != 0)) {
     _pgp->writeRegister(
         &_d,
         CsPad::CspadConfigurator::RunModeAddr,

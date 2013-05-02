@@ -14,9 +14,9 @@ const char* ImpDestination::name()
 {
   // no abstraction possible because of hardware hacking
   static const char* _names[NumberOf + 1] = {
-      "Data VC, invalid destination",
-      "Virtual Circuit 1, invalid destination",
-      "Virtual Circuit 2, invalid destination",
+      "Data VC, INVALID destination",
+      "Virtual Circuit 1, INVALID destination",
+      "Virtual Circuit 2, INVALID destination",
       "Command Virtual Circuit 3",
       "--INVALID--"
   };

@@ -13,24 +13,30 @@ namespace Pds {
 
   namespace Imp {
 
-    //   <status>
-    //    <register> <name>regStatus</name> <address>2</address> <lane>0</lane> <vc>2</vc> <size>1</size>
-    //       <field> <bits>0</bits> <label>LocLinkReady</label> </field>
-    //       <field> <bits>1</bits> <label>RemLinkReady</label> </field>
-    //       <field> <bits>2</bits> <label>PibLinkReady</label> </field>
-    //       <field> <bits>7:4</bits> <label>CntCellError</label> </field>
-    //       <field> <bits>15:12</bits> <label>CntLinkError</label> </field>
-    //       <field> <bits>19:16</bits> <label>CntLinkDown</label> </field>
-    //       <field> <bits>27:24</bits> <label>CntOverFlow</label> </field>
-    //    </register>
-    //      <register> <name>txCount</name> <address>3</address> <lane>0</lane> <vc>2</vc> <size>1</size> </register>
-    //      <register> <name>AdcChipIdReg</name> <address>49153</address> <lane>0</lane> <vc>1</vc> <size>1</size>
-    //         <field> <bits>7:0</bits><label>AdcChipId</label></field>
-    //      </register>
-    //      <register> <name>AdcChipGradeReg</name> <address>49154</address> <lane>0</lane> <vc>1</vc> <size>1</size>
-    //         <field> <bits>6:4</bits><label>AdcChipGrade</label></field>
-    //      </register>
-    //  </status>
+//    Register definitions:
+//    25 = 0xDEAD0001 usRxReset,
+//         0x00000002 is Count Reset,
+//         0xDEAD0004 Reset_sft.
+//
+//    26 = 0x00000001 enable data frames.
+//
+//    12 =  (31:28) powers okay
+//          (27:18) zeroes
+//          (17) usRemLinked
+//          (16) usLocLinked
+//          (15:12) usRxCount
+//          (11:8).  UsCellErrCount
+//          (7:4).    UsLinkDownCount
+//          (3:0).    UsLinkErrCount.
+//
+//    24 = same as 12, except that the upper 4 bits are zeroes.
+//
+//    Registers 12 and 24 are read only.
+//    Register 12 is returned in the data frames as well as the ranges that are being used.
+
+    enum Addresses {sequenceCountAddr=1, laneStatusAddr=12, chipIdAddr=2,
+      versionAddr=23, resetAddr=25, enableTriggersAddr=26};
+    enum Masks {CountRestMask=2, enable=1, disable=0};
 
     class StatusLane {
       public:
@@ -38,17 +44,14 @@ namespace Pds {
         ~StatusLane() {};
         void print();
       public:
-        unsigned locLinkReady:          1;  //0
-        unsigned remLinkReady:          1;  //1
-        unsigned PibLinkReady:          1;  //2
-        unsigned unused1:               1;  //3
-        unsigned cellErrorCount:        4;  //7:4
-        unsigned unused2:               4;  //11:8
-        unsigned linkErrorCount:        4;  //15:12
-        unsigned linkDownCount:         4;  //19:16
-        unsigned unused3:               4;  //23:20
-        unsigned bufferOverflowCount:   4;  //27:24
-        unsigned unused4:               4;  //28:31
+        unsigned usLinkErrCount:     4;  //(3:0)
+        unsigned usLinkDownCount:    4;  //(7:4)
+        unsigned usCellErrCount:     4;  //(11:8)
+        unsigned usRxCount:          4;  //(15:12)
+        unsigned usLocLinked:        1;  //16
+        unsigned usRemLinked:        1;  //17
+        unsigned zeros:             10;  //(27:18)
+        unsigned powersOkay:         4;  //(31:28)
     };
 
     class ImpStatusRegisters {
@@ -65,7 +68,8 @@ namespace Pds {
         unsigned        version;
         StatusLane      lane;
         unsigned        txCounter;
-        unsigned        chipIdReg;
+        unsigned        chipIdRegLow;
+        unsigned        chipIdRegHi;
     };
   }
 }

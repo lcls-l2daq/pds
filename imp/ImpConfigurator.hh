@@ -18,35 +18,34 @@
 #include <time.h>
 #include <new>
 
-//   <control>
-//      <register> <name>regControl</name> <address>10</address> <lane>0</lane> <vc>2</vc> <size>1</size>
-//         <field> <bits>0</bits> <label>reset</label> </field>
-//         <field> <bits>1</bits> <label>reLink</label> </field>
-//         <field> <bits>2</bits> <label>countReset</label> </field>
-//      </register>
-//       <register> <name>RunControl</name> <address>1</address> <lane>0</lane> <vc>1</vc> <size>1</size>
-//         <field> <bits>0</bits><label>SeqCntRst</label></field>
-//         <field> <bits>1</bits><label>ExtEnable</label></field>
-//      </register>
-//      <register>
-//         <name>SeqCount</name> <address>2</address> <lane>0</lane> <vc>1</vc> <size>1</size>
-//         <field> <bits>31:0</bits><label>SeqCount</label></field>
-//      </register>
-//   </control>
+//Register definitions:
+//25 = 0xDEAD0001 usRxReset,
+//        0x00000002 is Count Reset,
+//        0xDEAD0004 Reset_sft.
+//
+//26 = 0x00000001 enable data frames.
+//
+//27 = number of samples
+//
+//12 = (31:28) powers okay
+//        (27:18) zeroes
+//        (17) usRemLinked
+//        (16) usLocLinked
+//        (15:12) usRxCount
+//        (11:8).  UsCellErrCount
+//        (7:4).    UsLinkDownCount
+//        (3:0).    UsLinkErrCount.
+//
+//24 = same as 12, except that the upper 4 bits are zeroes.
+//
 
 namespace Pds {
 
   namespace Imp {
 
 
-//    enum resetMasks { MasterReset=1, Relink=2, CountReset=4 };
-//    enum runControlMasks { SequenceCountResetMask=1, ExternalTriggerEnableMask=2 };
-//    enum ASICaddrs { ASICbaseAddr=0x8040, ChannelBaseAddr=0x8000, AsicShiftReqAddr=0x8044};
-//    enum controlAddrs { ResetAddr=10, RunControlAddr=1, SequenceCountAddr=2 };
-    enum resetMasks { MasterReset=1, Relink=2, CountReset=4 };
-    enum runControlMasks { SequenceCountResetMask=1, ExternalTriggerEnableMask=2 };
-    enum ASICaddrs { ASICbaseAddr=0x8040, ChannelBaseAddr=0x8000, AsicShiftReqAddr=0x8044};
-    enum controlAddrs { ResetAddr=10, RunControlAddr=1, SequenceCountAddr=0 };
+    enum resetValues { usRxReset=0xDEAD0001, CountReset=2, SoftReset=0xDEAD0004 };
+    enum runControlValues { EnableDataFramesValue=1 };
 
     class ImpConfigurator : public Pds::Pgp::Configurator {
       public:
@@ -61,7 +60,7 @@ namespace Pds {
         void                 dumpFrontEnd();
         void                 printMe();
         uint32_t             testModeState() { return _testModeState; };
-        void                 resetFrontEnd(uint32_t);
+//        void                 resetFrontEnd(uint32_t);
         void                 resetSequenceCount();
         uint32_t             sequenceCount();
 

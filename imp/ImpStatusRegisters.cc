@@ -12,25 +12,26 @@
 #include "pds/imp/ImpDestination.hh"
 #include "pds/pgp/RegisterSlaveImportFrame.hh"
 #include "pds/pgp/RegisterSlaveExportFrame.hh"
-//   <status>
-//      <register> <name>version</name> <address>0</address> <lane>0</lane> <vc>2</vc> <size>1</size> </register>
-//      <register> <name>regStatus</name> <address>2</address> <lane>0</lane> <vc>2</vc> <size>1</size>
-//         <field> <bits>0</bits> <label>LocLinkReady</label> </field>
-//         <field> <bits>1</bits> <label>RemLinkReady</label> </field>
-//         <field> <bits>2</bits> <label>PibLinkReady</label> </field>
-//         <field> <bits>7:4</bits> <label>CntCellError</label> </field>
-//         <field> <bits>15:12</bits> <label>CntLinkError</label> </field>
-//         <field> <bits>19:16</bits> <label>CntLinkDown</label> </field>
-//         <field> <bits>27:24</bits> <label>CntOverFlow</label> </field>
-//      </register>
-//      <register> <name>txCount</name> <address>3</address> <lane>0</lane> <vc>2</vc> <size>1</size> </register>
-//      <register> <name>AdcChipIdReg</name> <address>49153</address> <lane>0</lane> <vc>1</vc> <size>1</size>
-//         <field> <bits>7:0</bits><label>AdcChipId</label></field>
-//      </register>
-//      <register> <name>AdcChipGradeReg</name> <address>49154</address> <lane>0</lane> <vc>1</vc> <size>1</size>
-//         <field> <bits>6:4</bits><label>AdcChipGrade</label></field>
-//      </register>
-//   </status>
+//    Register definitions:
+//    25 = 0xDEAD0001 usRxReset,
+//            0x00000002 is Count Reset,
+//            0xDEAD0004 Reset_sft.
+//
+//    26 = 0x00000001 enable data frames.
+//
+//    12 =  (31:28) powers okay
+//          (27:18) zeroes
+//          (17) usRemLinked
+//          (16) usLocLinked
+//          (15:12) usRxCount
+//          (11:8).  UsCellErrCount
+//          (7:4).    UsLinkDownCount
+//          (3:0).    UsLinkErrCount.
+//
+//    24 = same as 12, except that the upper 4 bits are zeroes.
+//
+//    Registers 12 and 24 are read only.
+//    Register 12 is returned in the data frames as well as the ranges that are being used.
 
 
 using namespace Pds::Imp;
@@ -39,30 +40,31 @@ class ImpDestination;
 class StatusRegister;
 //class StatusLane;
 
-enum Addresses {versionAddr=0, laneStatusAddr=2, txCountAddr=3, chipIdAddr=2};
 
 void ImpStatusRegisters::print() {
 //  printf("ImpStatusRegisters: version(0x%x)\n", version);
-//  lane.print();
-  printf("ImpStatusRegisters: ChipIDReg(0x%x)\n", chipIdReg);
+  long long unsigned* u = (long long unsigned*) &chipIdRegLow;
+  printf("ImpStatusRegisters: version(0x%x) ChipIDReg(0x%llx)\n", version, *u);
+  lane.print();
 }
 
 
 void StatusLane::print() {
-//  printf("\tLink Status: locLink(%u) remLink(%u) pibLink(%u)\n",
-//      locLinkReady, remLinkReady, PibLinkReady);
-//  printf("\t\tcellErrorCount(%u) linkErrorCount(%u) linkDownCount(%u) bufferOverflowCount(%u)\n",
-//      cellErrorCount, linkErrorCount, linkDownCount, bufferOverflowCount);
+  printf("\tusLocLinked(%s) usRemLinked(%s) usCellErrCount(%u) usLinkErrCount(%u) usLinkDownCount(%u)\n",
+      usRemLinked ? "true" : "false", usLocLinked ? "true" : "false", usCellErrCount, usLinkErrCount, usLinkDownCount);
+  printf("\t\tpowersOkay(0x%x)\n", powersOkay);
 }
 
 int ImpStatusRegisters::read() {
   int ret = 0;
   ImpDestination d;
   d.dest(ImpDestination::CommandVC);
-//  ret |= pgp->readRegister(&d,versionAddr,0x10,(uint32_t*)&version);
-//  ret |= pgp->readRegister(&d,laneStatusAddr,0x11,(uint32_t*)&lane);
-//  ret |= pgp->readRegister(&d,txCountAddr,0x12,(uint32_t*)&txCounter);
-  ret |= pgp->readRegister(&d,chipIdAddr,0x13,(uint32_t*)&chipIdReg);
+  if (pgp) {
+    ret |= pgp->readRegister(&d,versionAddr,0x10,(uint32_t*)&version);
+    ret |= pgp->readRegister(&d,laneStatusAddr,0x11,(uint32_t*)&lane);
+    ret |= pgp->readRegister(&d,chipIdAddr,0x12,(uint32_t*)&chipIdRegLow);
+    ret |= pgp->readRegister(&d,chipIdAddr+1,0x12,(uint32_t*)&chipIdRegHi);
+  } else ret = 1;
   if (ret != 0) {
     printf("\tImp Status Registers encountered error while reading!\n");
   }

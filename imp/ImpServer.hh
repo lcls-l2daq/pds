@@ -7,6 +7,7 @@
 #include "pds/config/ImpConfigType.hh"
 #include "pds/service/Task.hh"
 //#include "pdsdata/imp/ElementHeader.hh"
+#include "pds/pgp/Pgp.hh"
 #include "pds/imp/ImpConfigurator.hh"
 #include "pds/imp/ImpDestination.hh"
 #include "pds/imp/Processor.hh"
@@ -96,6 +97,7 @@ class Pds::ImpServer
    Pds::Pgp::Pgp*                 _pgp;
    unsigned                       _unconfiguredErrors;
    unsigned                       _compensateNoCountReset;
+   unsigned                       _ignoreCount;
    bool                           _configured;
    bool                           _firstFetch;
    bool                           _getNewComp;

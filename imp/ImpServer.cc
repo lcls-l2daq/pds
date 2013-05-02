@@ -18,6 +18,8 @@
 #include "pds/imp/ImpConfigurator.hh"
 #include "pds/imp/ImpDestination.hh"
 #include "pds/imp/Processor.hh"
+#include "pds/imp/ImpStatusRegisters.hh"
+#include "pds/pgp/Pgp.hh"
 #include "pdsdata/xtc/DetInfo.hh"
 #include "pgpcard/PgpCardMod.h"
 #include <unistd.h>
@@ -55,7 +57,8 @@ ImpServer::ImpServer( const Pds::Src& client, unsigned configMask )
      _debug(0),
      _offset(0),
      _unconfiguredErrors(0),
-     _compensateNoCountReset(0),
+     _compensateNoCountReset(1),
+     _ignoreCount(0),
      _configured(false),
      _firstFetch(true),
      _getNewComp(false),
@@ -70,8 +73,8 @@ unsigned ImpServer::configure(ImpConfigType* config) {
   if (_cnfgrtr == 0) {
     _cnfgrtr = new Imp::ImpConfigurator::ImpConfigurator(fd(), _debug);
   }
-  // first calculate payload size in uint32s
-  _payloadSize = ImpDataType::Uint32sPerHeader + config->get(Imp::ConfigV1::NumberOfSamples) * ImpDataType::Uint32sPerSample;
+  // First calculate payload size in uint32s, 8 for the header 2 for each sample and 1 at the end
+  _payloadSize = ImpDataType::Uint32sPerHeader + config->get(Imp::ConfigV1::NumberOfSamples) * ImpDataType::Uint32sPerSample + 1;
   // then convert to bytes
   _payloadSize *= sizeof(uint32_t);
   printf("ImpServer::configure, payload size %u\n", _payloadSize);
@@ -81,6 +84,7 @@ unsigned ImpServer::configure(ImpConfigType* config) {
   if ((_configureResult = _cnfgrtr->configure(config, _configMask))) {
     printf("ImpServer::configure failed 0x%x\n", _configureResult);
   } else {
+    _cnfgrtr->resetSequenceCount();
     _xtc.extent = _payloadSize + sizeof(Xtc);
     printf("CspadServer::configure _payloadSize(%u) _xtc.extent(%u)\n",
         _payloadSize, _xtc.extent);
@@ -112,19 +116,24 @@ void ImpServer::process() {
 }
 
 void ImpServer::allocated() {
-  _cnfgrtr->resetFrontEnd(Imp::MasterReset);
+//  _cnfgrtr->resetFrontEnd(Imp::MasterReset);
 }
 
 void Pds::ImpServer::enable() {
+  Pds::Imp::ImpDestination d;
+  d.dest(Pds::Imp::ImpDestination::CommandVC);
   if (usleep(10000)<0) perror("ImpServer::enable ulseep failed\n");
-  usleep(10000);
   _ignoreFetch = false;
   _firstFetch = true;
+  _pgp->writeRegister(&d, Pds::Imp::enableTriggersAddr, Pds::Imp::enable);
   flushInputQueue(fd());
   if (_debug & 0x20) printf("ImpServer::enable\n");
 }
 
 void Pds::ImpServer::disable() {
+  Pds::Imp::ImpDestination d;
+  d.dest(Pds::Imp::ImpDestination::CommandVC);
+  _pgp->writeRegister(&d, Pds::Imp::enableTriggersAddr, Pds::Imp::disable);
   flushInputQueue(fd());
   _ignoreFetch = true;
   if (usleep(10000)<0) perror("ImpServer::disable ulseep 1 failed\n");
@@ -151,6 +160,7 @@ int Pds::ImpServer::fetch( char* payload, int flags ) {
    }
 
    if (_ignoreFetch) {
+     _ignoreCount += 1;
 //     printf("ImpServer::fetch() being ignored\n");
      return Ignore;
    }
@@ -163,7 +173,7 @@ int Pds::ImpServer::fetch( char* payload, int flags ) {
    offset = sizeof(Xtc);
    if (_firstFetch) {
      _firstFetch = false;
-     _getNewComp = true;
+//     _getNewComp = true;
      clock_gettime(CLOCK_REALTIME, &_lastTime);
    } else {
      clock_gettime(CLOCK_REALTIME, &_thisTime);
@@ -210,10 +220,10 @@ int Pds::ImpServer::fetch( char* payload, int flags ) {
      printf("\n");
    } else {
      unsigned oldCount = _count;
-     if (_getNewComp) {
-       _compensateNoCountReset = data->frameNumber();
-       _getNewComp = false;
-     }
+//     if (_getNewComp) {
+//       _compensateNoCountReset = data->frameNumber();
+//       _getNewComp = false;
+//     }
      _count = data->frameNumber() - _compensateNoCountReset;  // compensate for no trigger reset !!!!!!!!!!!!!!!!
      if (_debug & 4 || ret < 0) {
 //       printf("\telementId(%u) frameType(0x%x) acqcount(0x%x) _oldCount(%u) _count(%u) lane(%u) vc(%u)\n",
@@ -277,10 +287,10 @@ unsigned ImpServer::flushInputQueue(int f) {
 }
 
 void ImpServer::setImp( int f ) {
+  fd( f );
   if (unsigned c = this->flushInputQueue(f)) {
     printf("ImpServer::setImp read %u time%s after opening pgpcard driver\n", c, c==1 ? "" : "s");
   }
-  fd( f );
 //  _pgp = new Pds::Pgp::Pgp::Pgp(f);
   Pds::Pgp::RegisterSlaveExportFrame::FileDescr(f);
   if (_cnfgrtr == 0) {
@@ -289,6 +299,7 @@ void ImpServer::setImp( int f ) {
 }
 
 void ImpServer::printHisto(bool c) {
+  printf("ImpServer ignored count %u times\n", _ignoreCount);
   printf("ImpServer event fetch periods\n");
   for (unsigned i=0; i<sizeOfHisto; i++) {
     if (_histo[i]) {

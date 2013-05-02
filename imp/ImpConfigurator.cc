@@ -32,7 +32,7 @@ static uint32_t configAddrs[ImpConfigType::NumberOfValues] = {
       0xA, //    Cal_data,
       0xB, //    BiasDac_data,
       0xE, //    Cal_strobe,
-      0xF, //    NumberOfSamples,
+      0x1B,//    NumberOfSamples,
       0x10,//    TrigDelay,
       0x16,//    Adc_delay,
 };
@@ -49,26 +49,26 @@ ImpConfigurator::ImpConfigurator(int f, unsigned d) :
 
 ImpConfigurator::~ImpConfigurator() {}
 
-void ImpConfigurator::resetFrontEnd(uint32_t r) {
+//void ImpConfigurator::resetFrontEnd(uint32_t r) {
 //  _d.dest(ImpDestination::VC2);
 //  _pgp->writeRegister(&_d, ResetAddr, r);
 //  if (!(r&MasterReset)) {
 //    microSpin(10);
 //    _pgp->writeRegister(&_d, ResetAddr, 0);
 //  }
-}
+//}
 
 void ImpConfigurator::resetSequenceCount() {
-//  _d.dest(ImpDestination::CommandVC);
-//  _pgp->writeRegister(&_d, RunControlAddr, _runControl | SequenceCountResetMask);
-//  microSpin(10);
-//  _pgp->writeRegister(&_d, RunControlAddr, _runControl);
+  _d.dest(ImpDestination::CommandVC);
+  // belt and suspenders, delete the second if and when the first works
+  _pgp->writeRegister(&_d, resetAddr, CountRestMask);
+  _pgp->writeRegister(&_d, sequenceCountAddr, 0);
 }
 
 uint32_t ImpConfigurator::sequenceCount() {
   _d.dest(ImpDestination::CommandVC);
   uint32_t count=1111;
-  _pgp->readRegister(&_d, SequenceCountAddr, 0x5e4, &count);
+  _pgp->readRegister(&_d, sequenceCountAddr, 0x5e4, &count);
   return (count);
 }
 
@@ -127,11 +127,12 @@ unsigned ImpConfigurator::configure( ImpConfigType* c, unsigned mask) {
     printf("- 0x%x - so far %lld.%lld milliseconds\t", ret, diff/1000000LL, diff%1000000LL);
   }
   ret <<= 1;
-  if (usleep(10000)<0) perror("ImpConfigurator::configure second ulseep failed\n");
+//  resetSequenceCount();
+//  if (usleep(10000)<0) perror("ImpConfigurator::configure second ulseep failed\n");
   if (printFlag) {
     clock_gettime(CLOCK_REALTIME, &end);
     uint64_t diff = timeDiff(&end, &start) + 50000LL;
-    printf("- 0x%x - \n\tdone \n", ret);
+    printf("- 0x%x - \n\tdone, %s \n", ret, ret ? "FAILED" : "SUCCEEDED");
     printf(" it took %lld.%lld milliseconds with mask 0x%x\n", diff/1000000LL, diff%1000000LL, mask&0x1f);
     /*if (ret)*/ dumpFrontEnd();
   }
@@ -156,7 +157,7 @@ unsigned ImpConfigurator::writeConfig() {
 unsigned ImpConfigurator::checkWrittenConfig(bool writeBack) {
   _d.dest(ImpDestination::CommandVC);
   unsigned ret = Success;
-  unsigned size = ImpConfigType::NumberOfValues;    // !!!!!!!!!!!!!!!!!!!!!skipping because not there
+  unsigned size = ImpConfigType::NumberOfValues;
   uint32_t myBuffer[size];
   for (unsigned i=0; i<size; i++) {
     if (_pgp->readRegister(&_d, configAddrs[i], 0x1100+i, myBuffer+i)) {
@@ -186,16 +187,16 @@ void ImpConfigurator::dumpFrontEnd() {
   clock_gettime(CLOCK_REALTIME, &start);
   int ret = Success;
   if (_debug & 0x100) {
-//    ret = _statRegs.read();
-//    if (ret == Success) {
-//      _statRegs.print();
-//      uint32_t count = ImpConfigurator::sequenceCount();
-//      printf("\tSequenceCount(%u)\n", count);
-//    } else {
-//      printf("\tImp Status Registers could not be read!\n");
-//    }
+    ret = _statRegs.read();
+    if (ret == Success) {
+      _statRegs.print();
+      uint32_t count = ImpConfigurator::sequenceCount();
+      printf("\tSequenceCount(%u)\n", count);
+    } else {
+      printf("\tImp Status Registers could not be read!\n");
+    }
   }
-  if (_debug & 0x400) {
+  if (_debug & 0x400 && _pgp) {
     printf("Checking Configuration, no news is good news ...\n");
     if (Failure == checkWrittenConfig(false)) {
       printf("ImpConfigurator::checkWrittenConfig() FAILED !!!\n");

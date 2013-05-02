@@ -91,7 +91,7 @@ unsigned Cspad2x2Server::configure(CsPad2x2ConfigType* config) {
 void Pds::Cspad2x2Server::die() {
   _d.dest(Pds::CsPad2x2::Cspad2x2Destination::CR);
   printf("Cspad2x2Server::die has been called !!!!!!!\n");
-  if (_pgp != 0) {
+  if ((_pgp != 0) && (_cnfgrtr != 0)) {
     if (_configureResult != 0xdead) {
       _pgp->writeRegister(
           &_d,
@@ -101,11 +101,13 @@ void Pds::Cspad2x2Server::die() {
     } else {
       printf("Cspad2x2Server::die found nil config!\n");
     }
+  } else {
+    printf("Cspad2x2Server::die too late, everybody is already dead!\n");
   }
 }
 
 void Pds::Cspad2x2Server::dumpFrontEnd() {
-  _cnfgrtr->dumpFrontEnd();
+  if (_cnfgrtr != 0) _cnfgrtr->dumpFrontEnd();
 }
 
 void Cspad2x2Server::process() {
