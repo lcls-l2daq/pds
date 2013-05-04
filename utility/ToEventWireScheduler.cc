@@ -17,6 +17,8 @@
 #include <poll.h>
 #include <unistd.h>
 
+#define SHAPE_TMO
+
 namespace Pds {
   class FlushRoutine : public Routine {
   public:
@@ -201,11 +203,21 @@ void ToEventWireScheduler::routine()
         if (seq.isEvent() && !_nodes.isempty()) {
           OutletWireIns* dst = _nodes.lookup(seq.stamp().vector());
           unsigned m = 1<<dst->id();
-          if ((m & _scheduled) || (_nscheduled++ >= _maxscheduled))
+#ifdef SHAPE_TMO
+	  if ((m & _scheduled) || (_nscheduled>=_maxscheduled))
+#else
+          if (m & _scheduled)
+#endif
             _flush();
           TrafficDst* t = dg->traffic(dst->ins());
           _list.insert(t);
           _scheduled |= m;
+#ifdef SHAPE_TMO
+	  ++_nscheduled;
+#else
+          if (++_nscheduled >= _maxscheduled)
+            _flush();
+#endif
         }
         else {
           _flush(dg);
@@ -218,6 +230,7 @@ void ToEventWireScheduler::routine()
       }
     }
     else {  // timeout
+#ifdef SHAPE_TMO
       if (_list.forward() != _list.empty()) {
         //
         //  Workaround to shape transmission of an additional event (clone of an existing one and
@@ -232,6 +245,7 @@ void ToEventWireScheduler::routine()
         list.insertList(&_list);
         _list.insertList(&list);
       }
+#endif
       _flush();
     }
   }
