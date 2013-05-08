@@ -147,6 +147,7 @@ void    SegmentLevel::allocated(const Allocation& alloc,
       if (node.pid()==pid) {
         ToEventWireScheduler::setPhase  (n % vectorid);
         ToEventWireScheduler::setMaximum(vectorid);
+        ToEventWireScheduler::shapeTmo  (alloc.options()&Allocation::ShapeTmo);
       }
   }
 }

@@ -536,16 +536,18 @@ int FliServer::initCameraBeforeConfig()
   }
 
   // Setup ConfigDB and Run Key
-  Pds_ConfigDb::Experiment expt((const Pds_ConfigDb::Path&)Pds_ConfigDb::Path(sConfigPath));
-  expt.read();
-  const Pds_ConfigDb::TableEntry* entry = expt.table().get_top_entry(sConfigType);
-  if (entry == NULL)
-  {
-    printf("FliServer::initCameraBeforeConfig(): Invalid config db path [%s] type [%s]\n",sConfigPath.c_str(), sConfigType.c_str());
-    return 1;
+  int runKey;
+  { Pds_ConfigDb::Experiment expt((const Pds_ConfigDb::Path&)Pds_ConfigDb::Path(sConfigPath),
+                                  Pds_ConfigDb::Experiment::NoLock);
+    expt.read();
+    const Pds_ConfigDb::TableEntry* entry = expt.table().get_top_entry(sConfigType);
+    if (entry == NULL)
+      {
+        printf("FliServer::initCameraBeforeConfig(): Invalid config db path [%s] type [%s]\n",sConfigPath.c_str(), sConfigType.c_str());
+        return 1;
+      }
+    runKey = strtoul(entry->key().c_str(),NULL,16);
   }
-
-  int runKey = strtoul(entry->key().c_str(),NULL,16);
 
   const TypeId typeFliConfig = TypeId(TypeId::Id_FliConfig, FliConfigType::Version);
 

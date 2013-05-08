@@ -23,21 +23,22 @@ namespace Pds {
     enum State { Unmapped, Mapped, Configured, Running, Disabled, Enabled, NumberOfStates };
   public:
     PartitionControl       (unsigned platform,
-          ControlCallback&,
-          int      slowReadout,
-          Routine* tmo = 0,
-          Arp*     arp = 0
-          );
+                            ControlCallback&,
+                            int      slowReadout,
+                            Routine* tmo = 0,
+                            Arp*     arp = 0
+                            );
     ~PartitionControl      ();
   public:
     void  platform_rollcall(PlatformCallback*);
   public:
     bool  set_partition    (const char* name,
-          const char* db_path,
-          const Node* nodes,
-          unsigned    nnodes,
+                            const char* db_path,
+                            const Node* nodes,
+                            unsigned    nnodes,
                             uint64_t    bld_mask,
-			    uint64_t    bld_mask_mon);
+			    uint64_t    bld_mask_mon,
+                            unsigned    options=0);
     const Allocation& partition() const;
   public:
     virtual void  set_target_state (State);

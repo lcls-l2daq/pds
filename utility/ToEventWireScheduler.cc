@@ -17,8 +17,6 @@
 #include <poll.h>
 #include <unistd.h>
 
-#define SHAPE_TMO
-
 namespace Pds {
   class FlushRoutine : public Routine {
   public:
@@ -86,6 +84,8 @@ static int      _idol_timeout  = 150;  // idol time [ms] which forces flush of q
 static int      _disable_buffer = 100; // time [ms] inserted between flushed L1 and Disable transition
 static unsigned _phase = 0;
 
+static bool _shape_tmo = false;
+
 static long long int timeDiff(timespec* end, timespec* start) {
   long long int diff;
   diff =  (end->tv_sec - start->tv_sec) * 1000000000LL;
@@ -96,6 +96,7 @@ static long long int timeDiff(timespec* end, timespec* start) {
 
 void ToEventWireScheduler::setMaximum(unsigned m) { _maxscheduled = m; }
 void ToEventWireScheduler::setPhase  (unsigned m) { _phase = m; }
+void ToEventWireScheduler::shapeTmo  (bool v) { _shape_tmo = v; }
 
 ToEventWireScheduler::ToEventWireScheduler(Outlet& outlet,
              CollectionManager& collection,
@@ -203,21 +204,17 @@ void ToEventWireScheduler::routine()
         if (seq.isEvent() && !_nodes.isempty()) {
           OutletWireIns* dst = _nodes.lookup(seq.stamp().vector());
           unsigned m = 1<<dst->id();
-#ifdef SHAPE_TMO
-	  if ((m & _scheduled) || (_nscheduled>=_maxscheduled))
-#else
-          if (m & _scheduled)
-#endif
+
+          if ((m & _scheduled) || (_shape_tmo && (_nscheduled>=_maxscheduled)))
             _flush();
+
           TrafficDst* t = dg->traffic(dst->ins());
           _list.insert(t);
           _scheduled |= m;
-#ifdef SHAPE_TMO
-	  ++_nscheduled;
-#else
-          if (++_nscheduled >= _maxscheduled)
+          ++_nscheduled;
+
+          if (!_shape_tmo && _nscheduled >= _maxscheduled)
             _flush();
-#endif
         }
         else {
           _flush(dg);
@@ -230,8 +227,7 @@ void ToEventWireScheduler::routine()
       }
     }
     else {  // timeout
-#ifdef SHAPE_TMO
-      if (_list.forward() != _list.empty()) {
+      if (_shape_tmo && (_list.forward() != _list.empty())) {
         //
         //  Workaround to shape transmission of an additional event (clone of an existing one and
         //  destined for an unused multicast address) when we run at low rates (< 1/idol_timeout [6Hz]).
@@ -245,7 +241,7 @@ void ToEventWireScheduler::routine()
         list.insertList(&_list);
         _list.insertList(&list);
       }
-#endif
+
       _flush();
     }
   }

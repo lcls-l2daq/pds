@@ -304,9 +304,10 @@ bool PartitionControl::set_partition(const char* name,
                                      const Node* nodes,
                                      unsigned    nnodes,
                                      uint64_t    bldmask,
-                                     uint64_t    bldmask_mon)
+                                     uint64_t    bldmask_mon,
+                                     unsigned    options)
 {
-  _partition = Allocation(name,dbpath,partitionid(),bldmask,bldmask_mon);
+  _partition = Allocation(name,dbpath,partitionid(),bldmask,bldmask_mon,options);
   for(unsigned k=0; k<nnodes; k++)
     _partition.add(nodes[k]);
   return true;

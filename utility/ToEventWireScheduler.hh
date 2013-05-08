@@ -40,6 +40,7 @@ namespace Pds {
   public:
     static void setMaximum(unsigned);
     static void setPhase  (unsigned);
+    static void shapeTmo  (bool);
   private:
     void _queue(TrafficDst*);
     void _flush(InDatagram*);

@@ -91,7 +91,8 @@ void Transition::_stampIt()
 
 Allocation::Allocation() :
   _partitionid(0),
-  _nnodes     (0)
+  _nnodes     (0),
+  _options    (0)
 {
   _bld_mask[0] = _bld_mask[1] = 0;
   _bld_mask_mon[0] = _bld_mask_mon[1] = 0;
@@ -101,9 +102,11 @@ Allocation::Allocation(const char* partition,
                        const char* dbpath,
                        unsigned    partitionid,
                        uint64_t    bld_mask,
-                       uint64_t    bld_mask_mon) : 
+                       uint64_t    bld_mask_mon,
+                       unsigned    options) : 
   _partitionid(partitionid),
-  _nnodes     (0)
+  _nnodes     (0),
+  _options    (options)
 {
   strncpy(_partition, partition, MaxName-1);
   strncpy(_dbpath   , dbpath   , MaxDbPath-1);
@@ -166,6 +169,11 @@ uint64_t Allocation::bld_mask_mon() const
   uint64_t mask = _bld_mask_mon[1];
   mask = (mask<<32) | _bld_mask_mon[0];
   return mask;
+}
+
+unsigned Allocation::options() const
+{
+  return _options;
 }
 
 const char* Allocation::partition() const {return _partition;}

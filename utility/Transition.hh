@@ -48,18 +48,23 @@ namespace Pds {
 
   class Allocation {
   public:
+    enum { ShapeTmo=1 };
     Allocation();
     Allocation(const char* partition,
                const char* dbpath,
                unsigned    partitionid,
                uint64_t    bld_mask=0,
-	       uint64_t    bld_mask_mon=0);
+	       uint64_t    bld_mask_mon=0,
+               unsigned    options=0);
+    /*
     Allocation(const char* partition,
                const char* dbpath,
                unsigned    partitionid,
                const Sequence&,
                uint64_t    bld_mask=0,
-	       uint64_t    bld_mask_mon=0);
+	       uint64_t    bld_mask_mon=0,
+               unsigned    options=0);
+    */
 
     bool add(const Node& node);
 
@@ -72,6 +77,7 @@ namespace Pds {
     unsigned    partitionid() const;
     uint64_t    bld_mask() const;
     uint64_t    bld_mask_mon() const;
+    unsigned    options() const;
     unsigned    size() const;
   private:
     static const unsigned MaxNodes=128;
@@ -84,13 +90,14 @@ namespace Pds {
     uint32_t _bld_mask_mon[2];
     uint32_t _nnodes;
     Node     _nodes[MaxNodes];
+    uint32_t _options;
   };
 
   class Allocate : public Transition {
   public:
     Allocate(const Allocation&);
     Allocate(const Allocation&,
-       const Sequence&);
+             const Sequence&);
   public:
     const Allocation& allocation() const;
   private:
