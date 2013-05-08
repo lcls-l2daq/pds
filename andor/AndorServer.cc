@@ -1359,6 +1359,11 @@ int AndorServer::waitData(InDatagram* in, InDatagram*& out)
   return getData(in, out);
 }
 
+bool AndorServer::IsCapturingData()
+{
+  return ( _CaptureState != CAPTURE_STATE_IDLE );
+}
+
 int AndorServer::waitForNewFrameAvailable()
 {
   static timespec tsWaitStart;

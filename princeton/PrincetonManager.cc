@@ -99,7 +99,7 @@ public:
       if ( iConfigSize != 0 && iConfigSize != sizeof(_config) )
       {
         printf( "PrincetonConfigAction::fire(): Config data has incorrect size (%d B). Should be %d B.\n",
-          iConfigSize, sizeof(_config) );
+                iConfigSize, (int) sizeof(_config) );
 
         _config       = PrincetonConfigType();
         _iConfigCameraFail  = 1;
@@ -699,6 +699,12 @@ int PrincetonManager::disable()
 
 int PrincetonManager::l1Accept(bool& bWait)
 {
+  if (!_pServer->IsCapturingData())
+  {
+    bWait = false;
+    return 0;
+  }
+
   ++_uNumShotsInCycle;
 
   if (!_bDelayMode)

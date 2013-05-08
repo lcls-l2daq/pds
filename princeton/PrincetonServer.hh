@@ -41,6 +41,7 @@ public:
   int   startExposure();
   int   getData (InDatagram* in, InDatagram*& out);
   int   waitData(InDatagram* in, InDatagram*& out);
+  bool  IsCapturingData();
   PrincetonConfigType&
         config() { return _config; }
 

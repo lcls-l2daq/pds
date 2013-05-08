@@ -296,6 +296,13 @@ public:
       bool bWait = false;
       _manager.l1Accept(bWait);
 
+      if (_iDebugLevel >= 1 && bWait)
+      {
+        printf( "\n\n===== Writing L1Accept Data =========\n" );
+        if (_iDebugLevel>=2) printDataTime(in);
+        printf( "\n" );
+      }      
+
       if (bWait)
         iFail =  _manager.waitData( in, out );
       else
@@ -327,8 +334,11 @@ public:
 
       if (_iDebugLevel >= 1 && out != in)
       {
-        printf( "\n\n===== Writing L1Accept Data =========\n" );
-        if (_iDebugLevel>=2) printDataTime(in);
+        if (!bWait)
+        {
+          printf( "\n\n===== Writing L1Accept Data =========\n" );
+          if (_iDebugLevel>=2) printDataTime(in);
+        }
 
         if (_iDebugLevel >= 3)
         {
@@ -682,6 +692,12 @@ int FliManager::disable()
 
 int FliManager::l1Accept(bool& bWait)
 {
+  if (!_pServer->IsCapturingData())
+  {
+    bWait = false;
+    return 0;
+  }
+  
   ++_uNumShotsInCycle;
 
   if (!_bDelayMode)

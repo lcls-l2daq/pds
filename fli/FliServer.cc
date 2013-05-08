@@ -1034,6 +1034,11 @@ int FliServer::waitData(InDatagram* in, InDatagram*& out)
   return getData(in, out);
 }
 
+bool FliServer::IsCapturingData()
+{
+  return ( _CaptureState != CAPTURE_STATE_IDLE );
+}
+
 int FliServer::waitForNewFrameAvailable()
 {
   static timespec tsWaitStart;

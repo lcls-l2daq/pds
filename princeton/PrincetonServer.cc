@@ -693,7 +693,7 @@ int PrincetonServer::initCameraBeforeConfig()
   if (iSizeRead != sizeof(config))
   {
     printf("PrincetonServer::initCameraBeforeConfig(): Read config data of incorrect size. Read size = %d (should be %d) bytes\n",
-      iSizeRead, sizeof(config));
+           iSizeRead, (int) sizeof(config));
     return 3;
   }
   int iCloseFail = ::close(fdConfig);
@@ -1240,6 +1240,11 @@ int PrincetonServer::waitData(InDatagram* in, InDatagram*& out)
   } // while (1)
 
   return getData(in, out);
+}
+
+bool PrincetonServer::IsCapturingData()
+{
+  return ( _CaptureState != CAPTURE_STATE_IDLE );
 }
 
 int PrincetonServer::waitForNewFrameAvailable()
