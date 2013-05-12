@@ -322,22 +322,32 @@ void FCA::MyIter::process(Xtc* xtc)
     depth      = 2;
     engine     = CompressedPayload::Hist16;
   }
-  else if (xtc->contains.value() == _CsPadDataType.value()) {
+  else if (xtc->contains.id() == TypeId::Id_CspadElement) {
     const DetInfo& info = static_cast<const DetInfo&>(xtc->src);
     for(unsigned i=0; i<_info.size(); i++) {
       if (_info[i] == info) {
         const CsPadConfigType& cfg = _config[i];
-        CsPad::ElementIterator iter(cfg, *xtc);
-        const Pds::CsPad::ElementHeader* hdr;
-        while( (hdr=iter.next()) ) {
-          headerOffsets.push_back( reinterpret_cast<const char*>(hdr)-xtc->payload() );
-          headerSize = sizeof(CsPad::ElementHeader);
-#ifdef _OPENMP
-          depth      = lUseOMP ? -2 : 2;
-#else
-          depth      = 2;
-#endif
+        const char* hdr = xtc->payload();
+        const unsigned quadMask = cfg.quadMask();
+        for(unsigned q=0; q<4; q++) {
+          if (quadMask & (1<<q)) {
+            headerOffsets.push_back( hdr-xtc->payload() );
+            // ElementV1 is unsparsified
+            unsigned roiMask = xtc->contains.value()==1 ? 
+              (cfg.asicMask()==1 ? 0x3 : 0xff) : cfg.roiMask(q);
+            while(roiMask) {
+              hdr += sizeof(CsPad::Section);
+              roiMask &= roiMask-1;
+            }
+            hdr += sizeof(uint32_t);
+          }
         }
+        headerSize = sizeof(CsPad::ElementHeader);
+#ifdef _OPENMP
+        depth      = lUseOMP ? -2 : 2;
+#else
+        depth      = 2;
+#endif
         engine     = CompressedPayload::Hist16;
         break;
       }
