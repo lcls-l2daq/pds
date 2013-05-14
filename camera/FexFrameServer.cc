@@ -197,7 +197,7 @@ unsigned FexFrameServer::_post_frame(void* xtc, const FrameServerMsg* fmsg) cons
 						 config.roiEnd  ().row,
 						 *fmsg);
 
-  frameXtc.extent += fp->data_size();
+  frameXtc.extent += (fp->data_size()+3)&~3;
   return frameXtc.extent;
 }
 
