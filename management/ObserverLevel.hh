@@ -8,6 +8,7 @@ namespace Pds {
 
   class EventCallback;
   class ObserverStreams;
+  class WiredStreams;
   class Allocation;
   class OutletWire;
 
@@ -30,6 +31,9 @@ namespace Pds {
   private:
     void     post      (const Transition&);
     void     post      (const InDatagram&);
+
+  protected:
+    WiredStreams* streams();
 
   private:
     unsigned          _nodes;

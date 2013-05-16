@@ -142,3 +142,5 @@ void ObserverLevel::detach()
   }
   cancel();
 }
+
+WiredStreams* ObserverLevel::streams() { return _streams; }

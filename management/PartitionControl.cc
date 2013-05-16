@@ -30,6 +30,7 @@
 
 #define RECOVER_TMO
 #define USE_L1A
+#define DBUG
 
 static const unsigned MaxPayload = 0x1000;
 
@@ -345,6 +346,7 @@ PartitionControl::State PartitionControl::current_state() const { return _curren
 
 void PartitionControl::reconfigure(bool wait)
 {
+  printf("PartitionControl::reconfigure %c\n",wait?'t':'f');
   if (_target_state > Mapped) {
     _queued_target = _target_state;
     set_target_state(Mapped);
@@ -457,6 +459,10 @@ void PartitionControl::message(const Node& hdr, const Message& msg)
 
 void PartitionControl::_next()
 {
+#ifdef DBUG
+  printf("PartitionControl::_next  current %s  target %s\n",
+	 name(_current_state), name(_target_state));
+#endif
   if      (_current_state==_target_state) {
     pthread_cond_signal(&_target_cond);
   }
