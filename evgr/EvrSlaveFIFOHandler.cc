@@ -101,14 +101,14 @@ InDatagram* EvrSlaveFIFOHandler::l1accept(InDatagram* in)
   TimeStamp ts = _ts[(_rdptr++)%QSize];
 
   // check counter,fiducial match => set damage if failed
-
-  if (ts.fiducials() != in->datagram().seq.stamp().fiducials())
-  {
-    printf("EvrSlaveFIFOHandler out of order on %x : vector %x  fiducials %x  wrptr %x  rdptr %x\n",
-           in->datagram().seq.stamp().fiducials(),
-	   ts.vector(), ts.fiducials(), _wrptr, _rdptr);
-    out->datagram().xtc.damage.increase(Pds::Damage::OutOfOrder);
-  }
+  // 2013-05-17 Comment out the fiducial check until CXI problems are better understood
+//  if (ts.fiducials() != in->datagram().seq.stamp().fiducials())
+//  {
+//    printf("EvrSlaveFIFOHandler out of order on %x : vector %x  fiducials %x  wrptr %x  rdptr %x\n",
+//           in->datagram().seq.stamp().fiducials(),
+//	   ts.vector(), ts.fiducials(), _wrptr, _rdptr);
+//    out->datagram().xtc.damage.increase(Pds::Damage::OutOfOrder);
+//  }
         
   return out;
 }
