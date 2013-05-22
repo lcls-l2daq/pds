@@ -44,6 +44,7 @@ namespace Pds {
     void contains(const TypeId&);
   public:
     static void printFixups(int);
+    void require_in_order(bool);
   private:
     friend class serverRundown;
   protected:
@@ -81,6 +82,7 @@ namespace Pds {
     unsigned    _discards;     // # of discards due to aged datagram
     Client*     _ack;          // connected port to send ack on.
     VmonEb*     _vmoneb;
+    bool        _require_in_order;
   };
 }
 #endif
