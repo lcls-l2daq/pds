@@ -39,6 +39,7 @@ namespace Pds {
                             uint64_t    bld_mask,
 			    uint64_t    bld_mask_mon,
                             unsigned    options=0);
+    bool  set_partition    (const Allocation&);
     const Allocation& partition() const;
   public:
     virtual void  set_target_state (State);

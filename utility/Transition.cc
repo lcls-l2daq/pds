@@ -116,7 +116,7 @@ Allocation::Allocation(const char* partition,
   _bld_mask_mon[0] = (bld_mask_mon>> 0)&0xffffffff;
 }
 
-bool Allocation::add(const Node& node)
+bool Allocation::add   (const Node& node)
 {
   if (_nnodes < MaxNodes) {
     _nodes[_nnodes++] = node;
@@ -124,6 +124,16 @@ bool Allocation::add(const Node& node)
   } else {
     return false;
   }
+}
+
+bool Allocation::remove(const ProcInfo& info)
+{
+  for(unsigned j=0; j<_nnodes; j++)
+    if (_nodes[j].procInfo() == info) {
+      _nodes[j] = _nodes[--_nnodes];
+      return true;
+    }
+  return false;
 }
 
 unsigned Allocation::partitionid() const { return _partitionid; }
@@ -146,6 +156,15 @@ Node* Allocation::node(unsigned n)
   } else {
     return 0;
   }
+}
+
+Node* Allocation::node(const ProcInfo& info)
+{
+  for(unsigned j=0; j<_nnodes; j++)
+    if (_nodes[j].procInfo() == info) {
+      return &_nodes[j];
+    }
+  return 0;
 }
 
 unsigned Allocation::nnodes(Level::Type level) const

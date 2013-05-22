@@ -314,6 +314,12 @@ bool PartitionControl::set_partition(const char* name,
   return true;
 }
 
+bool PartitionControl::set_partition(const Allocation& alloc)
+{
+  _partition = alloc;
+  return true;
+}
+
 const Allocation& PartitionControl::partition() const
 { return _partition; }
 

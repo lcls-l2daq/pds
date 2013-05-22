@@ -66,12 +66,14 @@ namespace Pds {
                unsigned    options=0);
     */
 
-    bool add(const Node& node);
+    bool add   (const Node& node);
+    bool remove(const ProcInfo&);
 
     unsigned    nnodes() const;
     unsigned    nnodes(Level::Type) const;
     const Node* node(unsigned n) const;
     Node*       node(unsigned n);
+    Node*       node(const ProcInfo&);
     const char* partition() const;
     const char* dbpath() const;
     unsigned    partitionid() const;
