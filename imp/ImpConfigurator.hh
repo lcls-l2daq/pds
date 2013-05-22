@@ -63,7 +63,7 @@ namespace Pds {
 //        void                 resetFrontEnd(uint32_t);
         void                 resetSequenceCount();
         uint32_t             sequenceCount();
-
+        void                 runTimeConfigName(char*);
 
       private:
         unsigned             writeConfig();
@@ -79,6 +79,7 @@ namespace Pds {
         ImpDestination           _d;
         ImpStatusRegisters       _statRegs;
         uint32_t                 _runControl;
+        char                     _runTimeConfigFileName[256];
         unsigned*                _rhisto;
         //      LoopHisto*                _lhisto;
     };

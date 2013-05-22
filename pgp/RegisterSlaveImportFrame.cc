@@ -30,7 +30,7 @@ namespace Pds {
           bits._lane, bits._vc, &ocn[bits.oc][0],
           bits._addr, bits._waiting ? "waiting" : "not waiting", bits._tid);
       uint32_t* u = &_data;
-      printf("\n\tdata: ");
+      printf("\tdata: ");
       for (unsigned i=0; i<(size-2);) {  //
         printf("0x%04x ", u[i++]);
         if (!(i&7)) printf("\n\t      ");

@@ -50,7 +50,7 @@ Cspad2x2Server::Cspad2x2Server( const Pds::Src& client, Pds::TypeId& myDataType,
      _offset(0),
      _configured(false),
      _firstFetch(true),
-     _ignoreFetch(false) {
+     _ignoreFetch(true) {
   _histo = (unsigned*)calloc(sizeOfHisto, sizeof(unsigned));
   _task = new Pds::Task(Pds::TaskObject("CSPADprocessor"));
   _dummy = (unsigned*)malloc(DummySize);
@@ -131,6 +131,7 @@ unsigned Pds::Cspad2x2Server::enable() {
   } else {
     printf("Cspad2x2Server::enable found nil config!\n");
   }
+  _ignoreFetch = ret ? true : false;
   return ret;
 }
 
@@ -141,6 +142,7 @@ void Pds::Cspad2x2Server::runTimeConfigName(char* name) {
 
 unsigned Pds::Cspad2x2Server::disable() {
   _d.dest(Pds::CsPad2x2::Cspad2x2Destination::CR);
+  _ignoreFetch = true;
   unsigned ret = _configureResult;
   if (_configureResult != 0xdead) {
     ret = _pgp->writeRegister(
@@ -168,6 +170,12 @@ int Pds::Cspad2x2Server::fetch( char* payload, int flags ) {
    unsigned        xtcSize = 0;
    enum {Ignore=-1};
 
+   if (_ignoreFetch) {
+     unsigned c = this->flushInputQueue(fd());
+     if (_debug & 1) printf("Cspad2x2Server::fetch() ignored and flushed %u input buffer%s\n", c, c>1 ? "s" : "");
+     return Ignore;
+   }
+
    if (_configured == false)  {
      printf("Cspad2x2Server::fetch() called before configuration, configuration result 0x%x\n", _configureResult);
      unsigned c = this->flushInputQueue(fd());
@@ -176,11 +184,6 @@ int Pds::Cspad2x2Server::fetch( char* payload, int flags ) {
    }
 
    if (_debug & 1) printf("Cspad2x2Server::fetch called ");
-
-   if (_ignoreFetch) {
-//     printf("Cspad2x2Server::fetch() being ignored\n");
-     return Ignore;
-   }
 
    _xtc.damage = 0;
 
@@ -295,9 +298,15 @@ unsigned Cspad2x2Server::flushInputQueue(int f) {
       ::read(f, &pgpCardRx, sizeof(PgpCardRx));
       printf("-%u-", pgpCardRx.pgpLane);
     }
-  } while (ret > 0);
+  } while ((ret > 0) && (count < 100));
   if (count) {
     printf("\n");
+    if (count == 100) {
+      printf("\tCspad2x2Server::flushInputQueue: pgpCardRx lane(%u) vc(%u) rxSize(%u) eofe(%s) lengthErr(%s)\n",
+          pgpCardRx.pgpLane, pgpCardRx.pgpVc, pgpCardRx.rxSize, pgpCardRx.eofe ? "true" : "false",
+          pgpCardRx.lengthErr ? "true" : "false");
+      printf("\t\t"); for (ret=0; ret<8; ret++) printf("%u ", _dummy[ret]);  printf("/n");
+    }
   }
   return count;
 }

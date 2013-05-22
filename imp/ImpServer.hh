@@ -69,6 +69,7 @@ class Pds::ImpServer
    void     printHisto(bool);
    void     process(void);
    void     allocated();
+   void     runTimeConfigName(char*);
 
  public:
    static ImpServer* instance() { return _instance; }
@@ -79,7 +80,7 @@ class Pds::ImpServer
    static void instance(ImpServer* s) { _instance = s; }
 
  private:
-   enum     {sizeOfHisto=1000, ElementsPerSegmentLevel=1};
+   enum     {sizeOfHisto=1000, ElementsPerSegmentLevel=1, DummySize=(1<<15)};
    Xtc                            _xtc;
    Pds::Imp::ImpConfigurator* _cnfgrtr;
    unsigned                       _count;
@@ -95,6 +96,8 @@ class Pds::ImpServer
    unsigned                       _ioIndex;
    Pds::Imp::ImpDestination   _d;
    Pds::Pgp::Pgp*                 _pgp;
+   unsigned*                      _dummy;
+   char                           _runTimeConfigName[256];
    unsigned                       _unconfiguredErrors;
    unsigned                       _compensateNoCountReset;
    unsigned                       _ignoreCount;

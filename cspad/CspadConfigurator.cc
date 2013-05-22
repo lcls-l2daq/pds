@@ -188,15 +188,15 @@ namespace Pds {
         }
       }
       ret <<= 1;
-      if (mask&4 && ret==0) {
-        if (printFlag) printf("- 0x%x - \n\twriting test data[%u] ", ret, (unsigned)_config->tdi());
-        ret |= writeTestData();
-        if (printFlag) {
-          clock_gettime(CLOCK_REALTIME, &end);
-          uint64_t diff = timeDiff(&end, &start) + 50000LL;
-          printf("\tso far %lld.%lld milliseconds\t", diff/1000000LL, diff%1000000LL);
-        }
-      }
+//      if (mask&4 && ret==0) {
+//        if (printFlag) printf("- 0x%x - \n\twriting test data[%u] ", ret, (unsigned)_config->tdi());
+//        ret |= writeTestData();
+//        if (printFlag) {
+//          clock_gettime(CLOCK_REALTIME, &end);
+//          uint64_t diff = timeDiff(&end, &start) + 50000LL;
+//          printf("\tso far %lld.%lld milliseconds\t", diff/1000000LL, diff%1000000LL);
+//        }
+//      }
       ret <<= 1;
       if (mask&8 && ret==0) {
         if (printFlag) printf("- 0x%x - \n\twriting gain map ", ret);
@@ -600,7 +600,7 @@ namespace Pds {
         if ((1<<i) & _config->quadMask()) numberOfQuads += 1;
         map[i] = (Pds::CsPad::CsPadGainMapCfg::GainMap*)_config->quads()[i].gm()->map();
       }
-      Pds::Pgp::ConfigSynch mySynch(_fd, numberOfQuads, this, sizeof(Pds::Pgp::RegisterSlaveExportFrame)/sizeof(uint32_t));
+      Pds::Pgp::ConfigSynch mySynch(_fd, /*numberOfQuads*/ 1, this, sizeof(Pds::Pgp::RegisterSlaveExportFrame)/sizeof(uint32_t));
 //      printf("\n");
       for (unsigned col=0; col<Pds::CsPad::ColumnsPerASIC; col++) {
         for (unsigned i=0; i<Pds::CsPad::MaxQuadsPerSensor; i++) {

@@ -62,9 +62,11 @@ ImpServer::ImpServer( const Pds::Src& client, unsigned configMask )
      _configured(false),
      _firstFetch(true),
      _getNewComp(false),
-     _ignoreFetch(false) {
+     _ignoreFetch(true) {
   _histo = (unsigned*)calloc(sizeOfHisto, sizeof(unsigned));
   _task = new Pds::Task(Pds::TaskObject("IMPprocessor"));
+  _dummy = (unsigned*)malloc(DummySize);
+  strcpy(_runTimeConfigName, "");
   instance(this);
   printf("ImpServer::ImpServer() payload(%u)\n", _payloadSize);
 }
@@ -128,14 +130,15 @@ void Pds::ImpServer::enable() {
   _pgp->writeRegister(&d, Pds::Imp::enableTriggersAddr, Pds::Imp::enable);
   flushInputQueue(fd());
   if (_debug & 0x20) printf("ImpServer::enable\n");
+  _ignoreFetch = false;
 }
 
 void Pds::ImpServer::disable() {
+  _ignoreFetch = true;
   Pds::Imp::ImpDestination d;
   d.dest(Pds::Imp::ImpDestination::CommandVC);
   _pgp->writeRegister(&d, Pds::Imp::enableTriggersAddr, Pds::Imp::disable);
   flushInputQueue(fd());
-  _ignoreFetch = true;
   if (usleep(10000)<0) perror("ImpServer::disable ulseep 1 failed\n");
   if (_debug & 0x20) printf("ImpServer::disable\n");
 }
@@ -152,16 +155,16 @@ int Pds::ImpServer::fetch( char* payload, int flags ) {
    unsigned        offset = 0;
    enum {Ignore=-1};
 
+   if (_ignoreFetch) {
+     unsigned c = this->flushInputQueue(fd());
+     printf("ImpServer::fetch() ignored and flushed %u input buffer%s\n", c, c>1 ? "s" : "");
+     return Ignore;
+   }
+
    if (_configured == false)  {
      if (++_unconfiguredErrors<20) printf("ImpServer::fetch() called before configuration, configuration result 0x%x\n", _configureResult);
      unsigned c = this->flushInputQueue(fd());
      if (_unconfiguredErrors<20 && c) printf("\tWe flushed %u input buffer%s\n", c, c>1 ? "s" : "");
-     return Ignore;
-   }
-
-   if (_ignoreFetch) {
-     _ignoreCount += 1;
-//     printf("ImpServer::fetch() being ignored\n");
      return Ignore;
    }
 
@@ -272,7 +275,7 @@ unsigned ImpServer::flushInputQueue(int f) {
   unsigned count = 0;
   PgpCardRx       pgpCardRx;
   pgpCardRx.model   = sizeof(&pgpCardRx);
-  pgpCardRx.maxSize = 5;
+  pgpCardRx.maxSize = DummySize;
   pgpCardRx.data    = dummy;
   do {
     FD_ZERO(&fds);
@@ -282,9 +285,19 @@ unsigned ImpServer::flushInputQueue(int f) {
       count += 1;
       ::read(f, &pgpCardRx, sizeof(PgpCardRx));
     }
-  } while (ret > 0);
+  } while ((ret > 0) && (count < 100));
+  if (count) {
+    printf("\n");
+    if (count == 100) {
+      printf("\tCspadServer::flushInputQueue: pgpCardRx lane(%u) vc(%u) rxSize(%u) eofe(%s) lengthErr(%s)\n",
+          pgpCardRx.pgpLane, pgpCardRx.pgpVc, pgpCardRx.rxSize, pgpCardRx.eofe ? "true" : "false",
+                                                                pgpCardRx.lengthErr ? "true" : "false");
+      printf("\t\t"); for (ret=0; ret<8; ret++) printf("%u ", _dummy[ret]);  printf("/n");
+    }
+  }
   return count;
 }
+
 
 void ImpServer::setImp( int f ) {
   fd( f );

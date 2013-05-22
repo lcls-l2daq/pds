@@ -197,15 +197,15 @@ namespace Pds {
         }
       }
       ret <<= 1;
-      if (mask&4 && ret==0) {
-        if (printFlag) printf("- 0x%x - \n\twriting test data[%u] ", ret, (unsigned)_config->tdi());
-        ret |= writeTestData();
-        if (printFlag) {
-          clock_gettime(CLOCK_REALTIME, &end);
-          uint64_t diff = timeDiff(&end, &start) + 50000LL;
-          printf("\tso far %lld.%lld milliseconds\t", diff/1000000LL, diff%1000000LL);
-        }
-      }
+//      if (mask&4 && ret==0) {
+//        if (printFlag) printf("- 0x%x - \n\twriting test data[%u] ", ret, (unsigned)_config->tdi());
+//        ret |= writeTestData();
+//        if (printFlag) {
+//          clock_gettime(CLOCK_REALTIME, &end);
+//          uint64_t diff = timeDiff(&end, &start) + 50000LL;
+//          printf("\tso far %lld.%lld milliseconds\t", diff/1000000LL, diff%1000000LL);
+//        }
+//      }
       ret <<= 1;
       if (mask&8 && ret==0) {
         if (printFlag) printf("- 0x%x - \n\twriting gain map ", ret);

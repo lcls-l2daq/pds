@@ -72,6 +72,11 @@ uint32_t ImpConfigurator::sequenceCount() {
   return (count);
 }
 
+void ImpConfigurator::runTimeConfigName(char* name) {
+  if (name) strcpy(_runTimeConfigFileName, name);
+  printf("ImpConfigurator::runTimeConfigName(%s)\n", name);
+}
+
 void ImpConfigurator::print() {}
 
 void ImpConfigurator::printMe() {
@@ -126,6 +131,7 @@ unsigned ImpConfigurator::configure( ImpConfigType* c, unsigned mask) {
     uint64_t diff = timeDiff(&end, &start) + 50000LL;
     printf("- 0x%x - so far %lld.%lld milliseconds\t", ret, diff/1000000LL, diff%1000000LL);
   }
+  loadRunTimeConfigAdditions(_runTimeConfigFileName);
   ret <<= 1;
 //  resetSequenceCount();
 //  if (usleep(10000)<0) perror("ImpConfigurator::configure second ulseep failed\n");
