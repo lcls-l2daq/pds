@@ -35,6 +35,12 @@ ObserverStreams::ObserverStreams(CollectionObserver& cmgr,
        *stream(s)->inlet(), *_outlets[s], s, ipaddress,
        max_size, ebdepth, slowEb);
 
+    //
+    //  An observer may listen to multiple streams.
+    //  Traffic shaping only guarantees events in order on any one stream
+    //
+    eb->require_in_order(false);
+
     _inlet_wires[s] = eb;
   }
   //  _vmom_appliance = new VmonAppliance(vmon());

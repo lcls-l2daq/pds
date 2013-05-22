@@ -93,7 +93,8 @@ EbBase::EbBase(const Src& id,
   _misses(0),
   _discards(0),
   _ack(0),
-  _vmoneb(vmoneb)
+  _vmoneb(vmoneb),
+  _require_in_order(true)
 {
   if (dstack) {
     const unsigned PayloadSize = 0;
@@ -356,11 +357,14 @@ EbBitMask EbBase::_postEvent(EbEventBase* complete)
       complete->datagram()->seq.stamp().fiducials());
 #endif
 
-   while( event != empty ) {
-     _post(event);
-     if (event == complete) break;
-     event = _pending.forward();
-   }
+   if (_require_in_order)
+     while( event != empty ) {
+       _post(event);
+       if (event == complete) break;
+       event = _pending.forward();
+     }
+   else
+     _post(complete);
 
   return managed();
 }
@@ -688,3 +692,5 @@ void EbBase::_flush_outputs()
 }
 
 void EbBase::contains(const TypeId& c) { _ctns=c; }
+
+void EbBase::require_in_order(bool v) { _require_in_order = v; }
