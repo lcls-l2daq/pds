@@ -119,6 +119,11 @@ namespace Pds {
     void routine() {
       _fh.release_sync();
       delete this;
+#ifdef DBG
+      timespec ts;
+      clock_gettime(CLOCK_REALTIME, &ts);
+      printf("release_sync complete at %d.%09d\n",int(ts.tv_sec),int(ts.tv_nsec));
+#endif
     }
   private:
     EvrFIFOHandler& _fh;

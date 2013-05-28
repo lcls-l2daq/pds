@@ -48,7 +48,8 @@ namespace Pds {
 
   class Allocation {
   public:
-    enum { ShapeTmo=1 };
+    enum { ShapeTmo=1,
+           ShortDisableTmo=2 };
     Allocation();
     Allocation(const char* partition,
                const char* dbpath,

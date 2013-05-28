@@ -33,6 +33,7 @@
 #define DBUG
 
 static const unsigned MaxPayload = 0x1000;
+static timespec disable_tmo;
 
 namespace Pds {
 
@@ -103,7 +104,7 @@ namespace Pds {
           //  There is no way to know when the last L1A has passed through
           //  all levels, so wait some reasonable time.
           //
-          timespec tv;
+          timespec tv = disable_tmo;
           //          tv.tv_sec = 0; tv.tv_nsec = 200000000;
           //
           //  Cspad + Opal1k seems to need more time?
@@ -113,9 +114,11 @@ namespace Pds {
 //#else
 //          tv.tv_sec = 0; tv.tv_nsec = 300000000; // 300 ms
 //#endif
-          tv.tv_sec = 0; tv.tv_nsec = 300000000; // 300 ms
+          //  This works!
+          //          tv.tv_sec = 0; tv.tv_nsec = 300000000; // 300 ms
 
           //  20 milliseconds is apparently not long enough
+          //  But try for XPP again
           //          tv.tv_sec = 0; tv.tv_nsec = 20000000;
           nanosleep(&tv, 0);
 
@@ -308,6 +311,15 @@ bool PartitionControl::set_partition(const char* name,
                                      uint64_t    bldmask_mon,
                                      unsigned    options)
 {
+  if (options&Allocation::ShortDisableTmo) {
+    disable_tmo.tv_sec =0;
+    disable_tmo.tv_nsec= 20000000;
+  }
+  else {
+    disable_tmo.tv_sec =0;
+    disable_tmo.tv_nsec=300000000;
+  }
+
   _partition = Allocation(name,dbpath,partitionid(),bldmask,bldmask_mon,options);
   for(unsigned k=0; k<nnodes; k++)
     _partition.add(nodes[k]);
