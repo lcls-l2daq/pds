@@ -36,7 +36,7 @@ namespace Pds {
 
     enum Addresses {sequenceCountAddr=1, laneStatusAddr=12, chipIdAddr=2,
       versionAddr=23, resetAddr=25, enableTriggersAddr=26};
-    enum Masks {CountRestMask=2, enable=1, disable=0};
+    enum Masks {CountResetMask=2, enable=1, disable=0};
 
     class StatusLane {
       public:

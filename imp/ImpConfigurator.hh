@@ -60,7 +60,7 @@ namespace Pds {
         void                 dumpFrontEnd();
         void                 printMe();
         uint32_t             testModeState() { return _testModeState; };
-//        void                 resetFrontEnd(uint32_t);
+        void                 resetFrontEnd(uint32_t);
         void                 resetSequenceCount();
         uint32_t             sequenceCount();
         void                 runTimeConfigName(char*);

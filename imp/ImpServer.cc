@@ -219,7 +219,7 @@ int Pds::ImpServer::fetch( char* payload, int flags ) {
      _xtc.damage.userBits(damageMask);
      printf("ImpServer::fetch setting user damage 0x%x", damageMask);
      if (pgpCardRx.lengthErr) printf(", rxSize(%u), maxSize(%u) ret(%d) offset(%u) (bytes)",
-         (unsigned)pgpCardRx.rxSize*sizeof(uint32_t), _payloadSize, ret, offset);
+         (unsigned)pgpCardRx.rxSize*sizeof(uint32_t), (unsigned)_payloadSize, ret, offset);
      printf("\n");
    } else {
      unsigned oldCount = _count;

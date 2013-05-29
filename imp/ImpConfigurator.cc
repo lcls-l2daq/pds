@@ -49,19 +49,16 @@ ImpConfigurator::ImpConfigurator(int f, unsigned d) :
 
 ImpConfigurator::~ImpConfigurator() {}
 
-//void ImpConfigurator::resetFrontEnd(uint32_t r) {
-//  _d.dest(ImpDestination::VC2);
-//  _pgp->writeRegister(&_d, ResetAddr, r);
-//  if (!(r&MasterReset)) {
-//    microSpin(10);
-//    _pgp->writeRegister(&_d, ResetAddr, 0);
-//  }
-//}
+void ImpConfigurator::resetFrontEnd(uint32_t r) {
+  _d.dest(ImpDestination::CommandVC);
+  _pgp->writeRegister(&_d, resetAddr, r);
+  usleep(125000);
+}
 
 void ImpConfigurator::resetSequenceCount() {
   _d.dest(ImpDestination::CommandVC);
   // belt and suspenders, delete the second if and when the first works
-  _pgp->writeRegister(&_d, resetAddr, CountRestMask);
+  _pgp->writeRegister(&_d, resetAddr, CountResetMask);
   _pgp->writeRegister(&_d, sequenceCountAddr, 0);
 }
 
@@ -117,7 +114,7 @@ unsigned ImpConfigurator::configure( ImpConfigType* c, unsigned mask) {
   unsigned ret = 0;
   mask = ~mask;
   clock_gettime(CLOCK_REALTIME, &start);
-//  resetFrontEnd(Imp::MasterReset);
+  resetFrontEnd(Imp::SoftReset);
 //  _flush();
   if (printFlag) {
     clock_gettime(CLOCK_REALTIME, &end);
@@ -152,7 +149,7 @@ unsigned ImpConfigurator::writeConfig() {
   unsigned ret = Success;
   for (unsigned i=0; !ret && i<ImpConfigType::NumberOfValues; i++) {
     if (_pgp->writeRegister(&_d, configAddrs[i], u[i])) {
-      printf("ImpConfigurator::writeConfig failed writing %u\n", i);
+      printf("ImpConfigurator::writeConfig failed writing 0x%x to %u address in step %u\n", u[i], configAddrs[i], i);
       ret = Failure;
     }
   }
