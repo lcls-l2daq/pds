@@ -689,6 +689,7 @@ void EbBase::_flush_outputs()
     event = _pending.forward();
     n++;
   }
+  nEbPrints = 32;
 }
 
 void EbBase::contains(const TypeId& c) { _ctns=c; }
