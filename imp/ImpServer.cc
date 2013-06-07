@@ -271,12 +271,11 @@ unsigned ImpServer::flushInputQueue(int f) {
   timeout.tv_sec  = 0;
   timeout.tv_usec = 2500;
   int ret;
-  unsigned dummy[5];
   unsigned count = 0;
   PgpCardRx       pgpCardRx;
   pgpCardRx.model   = sizeof(&pgpCardRx);
   pgpCardRx.maxSize = DummySize;
-  pgpCardRx.data    = dummy;
+  pgpCardRx.data    = _dummy;
   do {
     FD_ZERO(&fds);
     FD_SET(f,&fds);
@@ -289,7 +288,7 @@ unsigned ImpServer::flushInputQueue(int f) {
   if (count) {
     printf("\n");
     if (count == 100) {
-      printf("\tCspadServer::flushInputQueue: pgpCardRx lane(%u) vc(%u) rxSize(%u) eofe(%s) lengthErr(%s)\n",
+      printf("\tImpServer::flushInputQueue: pgpCardRx lane(%u) vc(%u) rxSize(%u) eofe(%s) lengthErr(%s)\n",
           pgpCardRx.pgpLane, pgpCardRx.pgpVc, pgpCardRx.rxSize, pgpCardRx.eofe ? "true" : "false",
                                                                 pgpCardRx.lengthErr ? "true" : "false");
       printf("\t\t"); for (ret=0; ret<8; ret++) printf("%u ", _dummy[ret]);  printf("/n");

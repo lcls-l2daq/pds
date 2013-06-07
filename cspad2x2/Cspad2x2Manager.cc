@@ -146,13 +146,15 @@ InDatagram* Cspad2x2L1Action::fire(InDatagram* in) {
       reset(false);
       if (server->debug() & 0x80) printf("Cspad2x2L1Action::fire resetting evrFiducials(0x%x) acq(0x%x)\n", evrFiducials, acq);
     }
-    if (evrFiducials == _lastMatchedFiducial) printf("Cspad2x2L1Action::fire(in) saw duplicated evr fiducials\n"); /* This is an EVR error, so what to do? */
-    if (noWrap && ((evrFiducials-_lastMatchedFiducial) != (server->runTrigFactor() * 3 * (acq-_lastMatchedAcqCount)))) {
-      frameError |= 1;
-      if (_frameSyncErrorCount < FiducialErrorCountLimit) {
-        printf("Cspad2x2L1Action::fire(in) frame mismatch!  evr(0x%x) lastMatchedFiducial(0x%x)\n\tframeNumber(0x%x), lastMatchedFrameNumber(0x%x), ",
-            evrFiducials, _lastMatchedFiducial, data->frameNumber(), _lastMatchedFrameNumber);
-        printf("acqCount(0x%x), lastMatchedAcqCount(0x%x)\n", acq, _lastMatchedAcqCount);
+    if (evrFiducials == _lastMatchedFiducial) printf("Cspad2x2L1Action::fire(in) saw duplicated evr fiducials 0x%x\n", evrFiducials); /* This is an EVR error, so what to do? */
+    if ((server->debug() & 0x10000) == 0) {
+      if (noWrap && ((evrFiducials-_lastMatchedFiducial) != (server->runTrigFactor() * 3 * (acq-_lastMatchedAcqCount)))) {
+        frameError |= 1;
+        if (_frameSyncErrorCount < FiducialErrorCountLimit) {
+          printf("Cspad2x2L1Action::fire(in) frame mismatch!  evr(0x%x) lastMatchedFiducial(0x%x)\n\tframeNumber(0x%x), lastMatchedFrameNumber(0x%x), ",
+              evrFiducials, _lastMatchedFiducial, data->frameNumber(), _lastMatchedFrameNumber);
+          printf("acqCount(0x%x), lastMatchedAcqCount(0x%x)\n", acq, _lastMatchedAcqCount);
+        }
       }
     }
     _lastMatchedFiducial = evrFiducials;
