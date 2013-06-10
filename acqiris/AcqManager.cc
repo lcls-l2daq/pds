@@ -77,7 +77,6 @@ public:
   
   Task& task() { return *_task; }
   void acqReadEnbFlag(bool flag) {_acqReadEnb = flag;} 
-  
   virtual ~AcqReader() {}
   void routine() {
     ViStatus status;
@@ -99,9 +98,25 @@ public:
       nanosleep(&_sleepTime,NULL);
       _task->call(this);
     }	
-	
   } 
- 
+  void sinkOne() {
+    ViStatus status;
+    char message[256];
+    
+    AcqrsD1_acquire(_instrumentId);		
+    AcqrsD1_forceTrig(_instrumentId);		
+    status = AcqrsD1_waitForEndOfAcquisition(_instrumentId,ACQ_TIMEOUT_MILISEC*1000);
+    if (status == (int)ACQIRIS_ERROR_ACQ_TIMEOUT) 
+      printf("AcqReader::sinkOne timeout!\n");
+    else if (status != VI_SUCCESS) {
+	AcqrsD1_errorMessage(_instrumentId,status,message);
+	printf("AcqReader::Error = %s\n",message);
+    }
+    else
+      printf("AcqReader::sinkOne complete\n");
+    //  I don't think it's actually necessary to do the DMA
+    //      _server.headerComplete(_totalSize,_count++);   
+  }
 private:
   ViSession   _instrumentId; 
   Task*       _task;
@@ -132,6 +147,17 @@ public:
   ~AcqDisable() { }  
   void call   () { _acqReader.task().call(this);     _sem.take(); }
   void routine() { _acqReader.acqReadEnbFlag(false); _sem.give(); }
+private:
+  AcqReader& _acqReader;
+  Semaphore  _sem;
+};
+
+class AcqSinkOne : public Routine {
+public:
+  AcqSinkOne(AcqReader& reader): _acqReader(reader), _sem(Semaphore::EMPTY) { }
+  ~AcqSinkOne() { }  
+  void call   () { _acqReader.task().call(this); _sem.take(); }
+  void routine() { _acqReader.sinkOne(); _sem.give(); }
 private:
   AcqReader& _acqReader;
   Semaphore  _sem;
@@ -390,6 +416,7 @@ public:
 		  AcqManager& mgr) :
     AcqDC282Action(instrumentId),_reader(reader),_dma(dma), 
     _acqEnable(reader),
+    _acqSink  (reader),
     _cfgtc(_acqConfigType,src),
     _cfg(cfg), _mgr(mgr), _occPool(sizeof(UserMessage),1), _firstTime(1) {}
   ~AcqConfigAction() {}
@@ -610,6 +637,9 @@ public:
     _cfgtc.extent = sizeof(Xtc)+sizeof(AcqConfigType);
     _dma.setConfig(_config);
     _reader.setConfig(_config);
+
+    _acqSink.call();
+
     _reader.resetCount();
 
     _acqEnable.call();
@@ -668,6 +698,7 @@ private:
   AcqReader& _reader;  
   AcqDma&    _dma;
   AcqEnable  _acqEnable;
+  AcqSinkOne _acqSink;
   AcqConfigType _config;
   Xtc _cfgtc;
   CfgClientNfs& _cfg;
