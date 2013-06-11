@@ -474,6 +474,7 @@ CspadManager::CspadManager( CspadServer* server, unsigned d, bool c) :
      printf("CspadManager::CspadManager() illegal port mask!! 0x%x\n", ports);
    }
 
+   server->manager(this);
    server->setCspad( cspad );
 
    CspadL1Action* l1 = new CspadL1Action( server, _compressionProcessor, c );

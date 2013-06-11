@@ -327,6 +327,7 @@ ImpManager::ImpManager( ImpServer* server, unsigned d) :
      printf("ImpManager::ImpManager() illegal port mask!! 0x%x\n", ports);
    }
 
+   server->manager(this);
    server->setImp( imp );
 //   server->laneTest();
 

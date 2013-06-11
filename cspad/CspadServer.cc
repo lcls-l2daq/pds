@@ -50,6 +50,7 @@ CspadServer::CspadServer( const Pds::Src& client, Pds::TypeId& myDataType, unsig
      _configureResult(0xdead),
      _debug(0),
      _offset(0),
+     _occPool(new GenericPool(sizeof(UserMessage),4)),
      _configured(false),
      _firstFetch(true),
      _ignoreFetch(true) {
@@ -59,6 +60,9 @@ CspadServer::CspadServer( const Pds::Src& client, Pds::TypeId& myDataType, unsig
   strcpy(_runTimeConfigName, "");
   instance(this);
 }
+
+CspadServer::~CspadServer() { delete _occPool; }
+
 
 unsigned CspadServer::configure(CsPadConfigType* config) {
   if (config == 0) {
@@ -168,7 +172,7 @@ int Pds::CspadServer::fetch( char* payload, int flags ) {
    enum {Ignore=-1};
 
    if (_ignoreFetch) {
-     unsigned c = this->flushInputQueue(fd());
+     unsigned c = this->flushInputQueue(fd(), false);
      if (_debug & 1) printf("CspadServer::fetch() ignored and flushed %u input buffer%s\n", c, c>1 ? "s" : "");
      return Ignore;
    }
@@ -210,6 +214,19 @@ int Pds::CspadServer::fetch( char* payload, int flags ) {
    Pds::Pgp::DataImportFrame* data = (Pds::Pgp::DataImportFrame*)(payload + offset);
 
    if ((ret = read(fd(), &pgpCardRx, sizeof(PgpCardRx))) < 0) {
+     if (errno == ERESTART) {
+       disable();
+       char message[400];
+       sprintf(message, "Pgpcard problem! Restart the DAQ system\nIf this does not work, Power cycle %s\n",
+           getenv("HOSTNAME"));
+       UserMessage* umsg = new (_occPool) UserMessage;
+       umsg->append(message);
+       umsg->append(DetInfo::name(static_cast<const DetInfo&>(_xtc.src)));
+       _mgr->appliance().post(umsg);
+       _ignoreFetch = true;
+       printf("CspadServer::fetch exiting because of ERESETART\n");
+       exit(-ERESTART);
+     }
      perror ("CspadServer::fetch pgpCard read error");
      ret =  Ignore;
    } else ret *= sizeof(__u32);
@@ -296,7 +313,7 @@ unsigned CspadServer::count() const {
   return _count + _offset;
 }
 
-unsigned CspadServer::flushInputQueue(int f) {
+unsigned CspadServer::flushInputQueue(int f, bool printFlag) {
   fd_set          fds;
   struct timeval  timeout;
   timeout.tv_sec  = 0;
@@ -313,16 +330,16 @@ unsigned CspadServer::flushInputQueue(int f) {
     ret = select( f+1, &fds, NULL, NULL, &timeout);
     if (ret>0) {
       if (!count) {
-        printf("\n\tflushed lanes ");
+        if (printFlag) printf("\n\tflushed lanes ");
       }
       count += 1;
       ::read(f, &pgpCardRx, sizeof(PgpCardRx));
-      printf("-%u-", pgpCardRx.pgpLane);
+      if (printFlag) printf("-%u-", pgpCardRx.pgpLane);
     }
   } while ((ret > 0) && (count < 100));
   if (count) {
-    printf("\n");
-    if (count == 100) {
+    if (printFlag) printf("\n");
+    if (count == 100 && printFlag) {
       printf("\tCspadServer::flushInputQueue: pgpCardRx lane(%u) vc(%u) rxSize(%u) eofe(%s) lengthErr(%s)\n",
           pgpCardRx.pgpLane, pgpCardRx.pgpVc, pgpCardRx.rxSize, pgpCardRx.eofe ? "true" : "false",
           pgpCardRx.lengthErr ? "true" : "false");
@@ -339,10 +356,6 @@ void CspadServer::setCspad( int f ) {
   fd( f );
   _pgp = new Pds::Pgp::Pgp::Pgp(f);
   Pds::Pgp::RegisterSlaveExportFrame::FileDescr(f);
-}
-
-void CspadServer::setOccSend(CspadOccurrence* occSend) {
-  _occSend = occSend;
 }
 
 void CspadServer::printHisto(bool c) {

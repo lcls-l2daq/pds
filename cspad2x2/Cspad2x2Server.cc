@@ -16,6 +16,7 @@
 #include "pds/cspad2x2/Cspad2x2Destination.hh"
 #include "pds/cspad2x2/Processor.hh"
 #include "pgpcard/PgpCardMod.h"
+#include "pdsdata/xtc/DetInfo.hh"
 #include <unistd.h>
 #include <sys/uio.h>
 #include <string.h>
@@ -48,6 +49,7 @@ Cspad2x2Server::Cspad2x2Server( const Pds::Src& client, Pds::TypeId& myDataType,
      _configureResult(0),
      _debug(0),
      _offset(0),
+     _occPool(new GenericPool(sizeof(UserMessage),4)),
      _configured(false),
      _firstFetch(true),
      _ignoreFetch(true) {
@@ -171,7 +173,7 @@ int Pds::Cspad2x2Server::fetch( char* payload, int flags ) {
    enum {Ignore=-1};
 
    if (_ignoreFetch) {
-     unsigned c = this->flushInputQueue(fd());
+     unsigned c = this->flushInputQueue(fd(), false);
      if (_debug & 1) printf("Cspad2x2Server::fetch() ignored and flushed %u input buffer%s\n", c, c>1 ? "s" : "");
      return Ignore;
    }
@@ -207,6 +209,19 @@ int Pds::Cspad2x2Server::fetch( char* payload, int flags ) {
    pgpCardRx.data    = (__u32*)(payload + xtcSize);
 
    if ((ret = read(fd(), &pgpCardRx, sizeof(PgpCardRx))) < 0) {
+     if (errno == ERESTART) {
+       disable();
+       char message[400];
+       sprintf(message, "Pgpcard problem! Restart the DAQ system\nIf this does not work, Power cycle %s\n",
+           getenv("HOSTNAME"));
+       UserMessage* umsg = new (_occPool) UserMessage;
+       umsg->append(message);
+       umsg->append(DetInfo::name(static_cast<const DetInfo&>(_xtc.src)));
+       _mgr->appliance().post(umsg);
+       _ignoreFetch = true;
+       printf("Cspad2x2Server::fetch exiting because of ERESETART\n");
+       exit(-ERESTART);
+     }
      perror ("Cspad2x2Server::fetch pgpCard read error");
      ret =  Ignore;
    } else ret *= sizeof(__u32);  // correct for pgpcard read not returning # of bytes
@@ -275,7 +290,7 @@ unsigned Cspad2x2Server::count() const {
   return _count + _offset;
 }
 
-unsigned Cspad2x2Server::flushInputQueue(int f) {
+unsigned Cspad2x2Server::flushInputQueue(int f, bool printFlag) {
   fd_set          fds;
   struct timeval  timeout;
   timeout.tv_sec  = 0;
@@ -292,16 +307,16 @@ unsigned Cspad2x2Server::flushInputQueue(int f) {
     ret = select( f+1, &fds, NULL, NULL, &timeout);
     if (ret>0) {
       if (!count) {
-        printf("\n\tflushed lanes ");
+        if (printFlag) printf("\n\tflushed lanes ");
       }
       count += 1;
       ::read(f, &pgpCardRx, sizeof(PgpCardRx));
-      printf("-%u-", pgpCardRx.pgpLane);
+      if (printFlag) printf("-%u-", pgpCardRx.pgpLane);
     }
   } while ((ret > 0) && (count < 100));
   if (count) {
     printf("\n");
-    if (count == 100) {
+    if (count == 100 && printFlag) {
       printf("\tCspad2x2Server::flushInputQueue: pgpCardRx lane(%u) vc(%u) rxSize(%u) eofe(%s) lengthErr(%s)\n",
           pgpCardRx.pgpLane, pgpCardRx.pgpVc, pgpCardRx.rxSize, pgpCardRx.eofe ? "true" : "false",
           pgpCardRx.lengthErr ? "true" : "false");

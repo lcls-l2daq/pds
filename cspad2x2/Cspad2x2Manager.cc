@@ -384,6 +384,7 @@ Cspad2x2Manager::Cspad2x2Manager( Cspad2x2Server* server, unsigned d) :
 
    usleep(25000);
 
+   server->manager(this);
    server->setCspad2x2( cspad2x2 );
 
    Cspad2x2L1Action* l1 = new Cspad2x2L1Action( server );

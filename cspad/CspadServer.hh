@@ -7,9 +7,11 @@
 #include "pds/config/CsPadConfigType.hh"
 #include "pds/service/Task.hh"
 #include "pdsdata/cspad/ElementHeader.hh"
+#include "pdsdata/xtc/DetInfo.hh"
 #include "pds/cspad/CspadConfigurator.hh"
 #include "pds/cspad/CspadDestination.hh"
-#include "pds/cspad/CspadOccurrence.hh"
+#include "pds/cspad/CspadManager.hh"
+#include "pds/utility/Occurrence.hh"
 #include "pds/cspad/Processor.hh"
 #include "pdsdata/xtc/Xtc.hh"
 #include <fcntl.h>
@@ -27,7 +29,7 @@ class Pds::CspadServer
 {
  public:
    CspadServer( const Src&, Pds::TypeId&, unsigned configMask=0 );
-   virtual ~CspadServer() {}
+   virtual ~CspadServer();
     
    //  Eb interface
    void       dump ( int detail ) const {}
@@ -56,7 +58,7 @@ class Pds::CspadServer
 
    unsigned payloadSize(void)   { return _payloadSize; }
    unsigned numberOfQuads(void) { return _quads; }
-   unsigned flushInputQueue(int);
+   unsigned flushInputQueue(int, bool printFlag = true);
    void     enable();
    void     disable();
    void     die();
@@ -72,6 +74,7 @@ class Pds::CspadServer
    void     ignoreFetch(bool f) { _ignoreFetch = f; }
    void     runTimeConfigName(char*);
    void     printState();
+   void     manager(CspadManager* m) { _mgr = m; }
 
  public:
    static CspadServer* instance() { return _instance; }
@@ -79,7 +82,6 @@ class Pds::CspadServer
  private:
    static CspadServer*            _instance;
    static void instance(CspadServer* s) { _instance = s; }
-   void setOccSend(CspadOccurrence* occSend);
 
  private:
    enum     {sizeOfHisto=1000, DummySize=(1<<19)};
@@ -103,7 +105,8 @@ class Pds::CspadServer
    Pds::Pgp::Pgp*                 _pgp;
    unsigned*                      _dummy;
    char                           _runTimeConfigName[256];
-   CspadOccurrence*               _occSend;
+   CspadManager*                  _mgr;
+   GenericPool*                   _occPool;
    bool                           _configured;
    bool                           _firstFetch;
    bool                           _ignoreFetch;

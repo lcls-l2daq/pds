@@ -9,6 +9,9 @@
 #include "pdsdata/cspad2x2/ElementHeader.hh"
 #include "pds/cspad2x2/Cspad2x2Configurator.hh"
 #include "pds/cspad2x2/Cspad2x2Destination.hh"
+#include "pds/cspad2x2/Cspad2x2Manager.hh"
+#include "pds/utility/Occurrence.hh"
+#include "pds/service/GenericPool.hh"
 #include "pds/cspad2x2/Processor.hh"
 #include "pdsdata/xtc/Xtc.hh"
 #include <fcntl.h>
@@ -54,7 +57,7 @@ class Pds::Cspad2x2Server
    unsigned unconfigure(void);
 
    unsigned payloadSize(void)   { return _payloadSize; }
-   unsigned flushInputQueue(int);
+   unsigned flushInputQueue(int, bool printFlag = true);
    unsigned enable();
    unsigned disable();
    void     die();
@@ -71,6 +74,7 @@ class Pds::Cspad2x2Server
    void     runTimeConfigName(char*);
    void     runTrigFactor(unsigned f) { _runTrigFactor = f; }
    unsigned runTrigFactor() { return _runTrigFactor; }
+   void     manager(Cspad2x2Manager* m) { _mgr = m; }
 
  public:
    static Cspad2x2Server* instance() { return _instance; }
@@ -99,6 +103,8 @@ class Pds::Cspad2x2Server
    unsigned*                      _dummy;
    char                           _runTimeConfigName[256];
    unsigned                       _runTrigFactor;
+   GenericPool*                   _occPool;
+   Cspad2x2Manager*               _mgr;
    bool                           _configured;
    bool                           _firstFetch;
    bool                           _ignoreFetch;

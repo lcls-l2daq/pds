@@ -6,10 +6,12 @@
 #include "pds/utility/EbEventKey.hh"
 #include "pds/config/ImpConfigType.hh"
 #include "pds/service/Task.hh"
-//#include "pdsdata/imp/ElementHeader.hh"
 #include "pds/pgp/Pgp.hh"
 #include "pds/imp/ImpConfigurator.hh"
 #include "pds/imp/ImpDestination.hh"
+#include "pds/imp/ImpManager.hh"
+#include "pds/utility/Occurrence.hh"
+#include "pds/service/GenericPool.hh"
 #include "pds/imp/Processor.hh"
 #include "pdsdata/xtc/Xtc.hh"
 #include <fcntl.h>
@@ -55,7 +57,7 @@ class Pds::ImpServer
    unsigned unconfigure(void);
 
    unsigned payloadSize(void)   { return _payloadSize; }
-   unsigned flushInputQueue(int);
+   unsigned flushInputQueue(int, bool printFlag = true);
    void     enable();
    void     disable();
    void     die();
@@ -70,6 +72,7 @@ class Pds::ImpServer
    void     process(void);
    void     allocated();
    void     runTimeConfigName(char*);
+   void     manager(ImpManager* m) { _mgr = m; }
 
  public:
    static ImpServer* instance() { return _instance; }
@@ -101,6 +104,8 @@ class Pds::ImpServer
    unsigned                       _unconfiguredErrors;
    unsigned                       _compensateNoCountReset;
    unsigned                       _ignoreCount;
+   ImpManager*                    _mgr;
+   GenericPool*                   _occPool;
    bool                           _configured;
    bool                           _firstFetch;
    bool                           _getNewComp;
