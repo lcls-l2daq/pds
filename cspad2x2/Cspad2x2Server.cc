@@ -142,7 +142,7 @@ void Pds::Cspad2x2Server::runTimeConfigName(char* name) {
   printf("Pds::Cspad2x2Server::runTimeConfigName(%s)\n", name);
 }
 
-unsigned Pds::Cspad2x2Server::disable() {
+unsigned Pds::Cspad2x2Server::disable(bool flush) {
   _d.dest(Pds::CsPad2x2::Cspad2x2Destination::CR);
   _ignoreFetch = true;
   unsigned ret = _configureResult;
@@ -152,7 +152,7 @@ unsigned Pds::Cspad2x2Server::disable() {
         CsPad2x2::Cspad2x2Configurator::RunModeAddr,
         _cnfgrtr->configuration().inactiveRunMode());
     ::usleep(10000);
-    flushInputQueue(fd());
+    if (flush) flushInputQueue(fd());
     if (_debug & 0x20) printf("Cspad2x2Server::disable %s\n", ret ? "FAILED!" : "SUCCEEDED");
   } else {
     printf("Cspad2x2Server::disable found nil config!\n");
@@ -210,7 +210,7 @@ int Pds::Cspad2x2Server::fetch( char* payload, int flags ) {
 
    if ((ret = read(fd(), &pgpCardRx, sizeof(PgpCardRx))) < 0) {
      if (errno == ERESTART) {
-       disable();
+       disable(false);
        char message[400];
        sprintf(message, "Pgpcard problem! Restart the DAQ system\nIf this does not work, Power cycle %s\n",
            getenv("HOSTNAME"));
@@ -219,7 +219,7 @@ int Pds::Cspad2x2Server::fetch( char* payload, int flags ) {
        umsg->append(DetInfo::name(static_cast<const DetInfo&>(_xtc.src)));
        _mgr->appliance().post(umsg);
        _ignoreFetch = true;
-       printf("Cspad2x2Server::fetch exiting because of ERESETART\n");
+       printf("Cspad2x2Server::fetch exiting because of ERESTART\n");
        exit(-ERESTART);
      }
      perror ("Cspad2x2Server::fetch pgpCard read error");

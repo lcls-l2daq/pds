@@ -27,6 +27,8 @@
 #include "pds/pgp/DataImportFrame.hh"
 #include "pds/config/CfgClientNfs.hh"
 #include "pds/config/CfgCache.hh"
+#include "pds/utility/Occurrence.hh"
+#include "pds/service/GenericPool.hh"
 
 namespace Pds {
   class Cspad2x2ConfigCache : public CfgCache {
@@ -191,7 +193,7 @@ class Cspad2x2ConfigAction : public Action {
 
   public:
     Cspad2x2ConfigAction( Pds::Cspad2x2ConfigCache& cfg, Cspad2x2Server* server)
-    : _cfg( cfg ), _server(server), _result(0)
+    : _cfg( cfg ), _server(server), _result(0), _occPool(new GenericPool(sizeof(UserMessage),4))
       {}
 
     ~Cspad2x2ConfigAction() {}
@@ -223,6 +225,12 @@ class Cspad2x2ConfigAction : public Action {
           in->datagram().xtc.damage.increase(Damage::UserDefined);
           in->datagram().xtc.damage.userBits(_result);
         }
+        char message[400];
+        sprintf(message, "Cspad2x2  on host %s failed to configure!\n", getenv("HOSTNAME"));
+        UserMessage* umsg = new (_occPool) UserMessage;
+        umsg->append(message);
+        umsg->append(DetInfo::name(static_cast<const DetInfo&>(_server->xtc().src)));
+        _server->manager()->appliance().post(umsg);
       }
       return in;
     }
@@ -231,11 +239,13 @@ class Cspad2x2ConfigAction : public Action {
     Cspad2x2ConfigCache&   _cfg;
     Cspad2x2Server*     _server;
     unsigned            _result;
+    GenericPool*        _occPool;
 };
 
 class Cspad2x2BeginCalibCycleAction : public Action {
   public:
-    Cspad2x2BeginCalibCycleAction(Cspad2x2Server* s, Cspad2x2ConfigCache& cfg, Cspad2x2L1Action& l1) : _server(s), _cfg(cfg), _l1(l1), _result(0) {};
+    Cspad2x2BeginCalibCycleAction(Cspad2x2Server* s, Cspad2x2ConfigCache& cfg, Cspad2x2L1Action& l1) : _server(s),
+    _cfg(cfg), _l1(l1), _result(0), _occPool(new GenericPool(sizeof(UserMessage),4)) {};
 
     Transition* fire(Transition* tr) {
       printf("Cspad2x2BeginCalibCycleAction:;fire(Transition) payload size %u ", _server->payloadSize());
@@ -271,6 +281,12 @@ class Cspad2x2BeginCalibCycleAction : public Action {
           in->datagram().xtc.damage.increase(Damage::UserDefined);
           in->datagram().xtc.damage.userBits(_result);
         }
+        char message[400];
+        sprintf(message, "Cspad2x2  on host %s failed to configure!\n", getenv("HOSTNAME"));
+        UserMessage* umsg = new (_occPool) UserMessage;
+        umsg->append(message);
+        umsg->append(DetInfo::name(static_cast<const DetInfo&>(_server->xtc().src)));
+        _server->manager()->appliance().post(umsg);
       }
       return in;
     }
@@ -279,6 +295,7 @@ class Cspad2x2BeginCalibCycleAction : public Action {
     Cspad2x2ConfigCache& _cfg;
     Cspad2x2L1Action&    _l1;
     unsigned          _result;
+    GenericPool*        _occPool;
 };
 
 

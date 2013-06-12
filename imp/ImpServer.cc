@@ -133,12 +133,12 @@ void Pds::ImpServer::enable() {
   _ignoreFetch = false;
 }
 
-void Pds::ImpServer::disable() {
+void Pds::ImpServer::disable(bool flush) {
   _ignoreFetch = true;
   Pds::Imp::ImpDestination d;
   d.dest(Pds::Imp::ImpDestination::CommandVC);
   _pgp->writeRegister(&d, Pds::Imp::enableTriggersAddr, Pds::Imp::disable);
-  flushInputQueue(fd());
+  if (flush) flushInputQueue(fd());
   if (usleep(10000)<0) perror("ImpServer::disable ulseep 1 failed\n");
   if (_debug & 0x20) printf("ImpServer::disable\n");
 }
@@ -194,7 +194,7 @@ int Pds::ImpServer::fetch( char* payload, int flags ) {
 
    if ((ret = read(fd(), &pgpCardRx, sizeof(PgpCardRx))) < 0) {
      if (errno == ERESTART) {
-       disable();
+       disable(false);
        char message[400];
        sprintf(message, "Pgpcard problem! Restart the DAQ system\nIf this does not work, Power cycle %s\n",getenv("HOSTNAME"));
        UserMessage* umsg = new (_occPool) UserMessage;
@@ -202,7 +202,7 @@ int Pds::ImpServer::fetch( char* payload, int flags ) {
        umsg->append(DetInfo::name(static_cast<const DetInfo&>(_xtc.src)));
        _mgr->appliance().post(umsg);
        _ignoreFetch = true;
-       printf("ImpServer::fetch exiting because of ERESETART\n");
+       printf("ImpServer::fetch exiting because of ERESTART\n");
        exit(-ERESTART);
      }
      perror ("ImpServer::fetch pgpCard read error");

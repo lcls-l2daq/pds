@@ -60,7 +60,7 @@ class Pds::CspadServer
    unsigned numberOfQuads(void) { return _quads; }
    unsigned flushInputQueue(int, bool printFlag = true);
    void     enable();
-   void     disable();
+   void     disable(bool flash = true);
    void     die();
    void     debug(unsigned d) { _debug = d; }
    unsigned debug() { return _debug; }
@@ -75,6 +75,7 @@ class Pds::CspadServer
    void     runTimeConfigName(char*);
    void     printState();
    void     manager(CspadManager* m) { _mgr = m; }
+   CspadManager* manager() { return _mgr; }
 
  public:
    static CspadServer* instance() { return _instance; }

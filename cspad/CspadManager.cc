@@ -40,6 +40,8 @@
 #include "pds/pgp/DataImportFrame.hh"
 #include "pds/config/CfgClientNfs.hh"
 #include "pds/config/CfgCache.hh"
+#include "pds/utility/Occurrence.hh"
+#include "pds/service/GenericPool.hh"
 
 namespace Pds {
   class CspadConfigCache : public CfgCache {
@@ -271,7 +273,7 @@ class CspadConfigAction : public Action {
 
   public:
     CspadConfigAction( Pds::CspadConfigCache& cfg, CspadServer* server, CspadCompressionProcessor& processor, bool compress)
-    : _cfg( cfg ), _server(server), _processor(processor), _result(0), 
+    : _cfg( cfg ), _server(server), _occPool(new GenericPool(sizeof(UserMessage),4)),  _processor(processor), _result(0),
       //_bUseCompressor(_server->xtc().contains.id() == TypeId::Id_CspadElement)
       _bUseCompressor(compress)
       {}
@@ -306,6 +308,12 @@ class CspadConfigAction : public Action {
           in->datagram().xtc.damage.increase(Damage::UserDefined);
           in->datagram().xtc.damage.userBits(_result);
         }
+        char message[400];
+        sprintf(message, "Cspad  on host %s failed to configure!\n", getenv("HOSTNAME"));
+        UserMessage* umsg = new (_occPool) UserMessage;
+        umsg->append(message);
+        umsg->append(DetInfo::name(static_cast<const DetInfo&>(_server->xtc().src)));
+        _server->manager()->appliance().post(umsg);
       }
       
       if (in->datagram().xtc.damage.value() == 0 && _bUseCompressor) {
@@ -317,6 +325,7 @@ class CspadConfigAction : public Action {
   private:
     CspadConfigCache&   _cfg;
     CspadServer*    _server;
+    GenericPool*        _occPool;
     CspadCompressionProcessor&  _processor;
   unsigned       _result;
     bool                        _bUseCompressor;    
@@ -324,7 +333,8 @@ class CspadConfigAction : public Action {
 
 class CspadBeginCalibCycleAction : public Action {
   public:
-    CspadBeginCalibCycleAction(CspadServer* s, CspadConfigCache& cfg, CspadL1Action& l1) : _server(s), _cfg(cfg), _l1(l1), _result(0) {};
+    CspadBeginCalibCycleAction(CspadServer* s, CspadConfigCache& cfg, CspadL1Action& l1) : _server(s),
+    _cfg(cfg), _l1(l1), _result(0), _occPool(new GenericPool(sizeof(UserMessage),4)) {};
 
     Transition* fire(Transition* tr) {
       printf("CspadBeginCalibCycleAction:;fire(Transition) payload size %u ", _server->payloadSize());
@@ -358,6 +368,12 @@ class CspadBeginCalibCycleAction : public Action {
           in->datagram().xtc.damage.increase(Damage::UserDefined);
           in->datagram().xtc.damage.userBits(_result);
         }
+        char message[400];
+        sprintf(message, "Cspad  on host %s failed to configure!\n", getenv("HOSTNAME"));
+        UserMessage* umsg = new (_occPool) UserMessage;
+        umsg->append(message);
+        umsg->append(DetInfo::name(static_cast<const DetInfo&>(_server->xtc().src)));
+        _server->manager()->appliance().post(umsg);
       }
       return in;
     }
@@ -366,6 +382,7 @@ class CspadBeginCalibCycleAction : public Action {
     CspadConfigCache& _cfg;
     CspadL1Action&    _l1;
     unsigned          _result;
+    GenericPool*        _occPool;
 };
 
 

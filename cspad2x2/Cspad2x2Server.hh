@@ -59,7 +59,7 @@ class Pds::Cspad2x2Server
    unsigned payloadSize(void)   { return _payloadSize; }
    unsigned flushInputQueue(int, bool printFlag = true);
    unsigned enable();
-   unsigned disable();
+   unsigned disable(bool flush = true);
    void     die();
    void     debug(unsigned d) { _debug = d; }
    unsigned debug() { return _debug; }
@@ -75,6 +75,7 @@ class Pds::Cspad2x2Server
    void     runTrigFactor(unsigned f) { _runTrigFactor = f; }
    unsigned runTrigFactor() { return _runTrigFactor; }
    void     manager(Cspad2x2Manager* m) { _mgr = m; }
+   Cspad2x2Manager* manager() { return _mgr; }
 
  public:
    static Cspad2x2Server* instance() { return _instance; }

@@ -143,7 +143,7 @@ void Pds::CspadServer::runTimeConfigName(char* name) {
   printf("Pds::CspadServer::runTimeConfigName(%s)\n", name);
 }
 
-void Pds::CspadServer::disable() {
+void Pds::CspadServer::disable(bool flush) {
   _ignoreFetch = true;
   _d.dest(Pds::CsPad::CspadDestination::CR);
   if ((_configureResult != 0xdead) && (_cnfgrtr != 0)) {
@@ -152,7 +152,7 @@ void Pds::CspadServer::disable() {
         CsPad::CspadConfigurator::RunModeAddr,
         _cnfgrtr->configuration().inactiveRunMode());
     ::usleep(10000);
-    flushInputQueue(fd());
+    if (flush) flushInputQueue(fd());
     if (_debug & 0x20) printf("CspadServer::disable\n");
   } else {
     printf("CspadServer::disable found nil configuration, so not disabling\n");
@@ -200,10 +200,27 @@ int Pds::CspadServer::fetch( char* payload, int flags ) {
      } else {
        clock_gettime(CLOCK_REALTIME, &_thisTime);
        long long unsigned diff = timeDiff(&_thisTime, &_lastTime);
+       unsigned peak = 0;
+       unsigned max = 0;
+       unsigned count = 0;
        diff += 500000;
        diff /= 1000000;
        if (diff > sizeOfHisto-1) diff = sizeOfHisto-1;
        _histo[diff] += 1;
+       for (unsigned i=0; i<sizeOfHisto; i++) {
+         if (_histo[i]) {
+           if (_histo[i] > max) {
+             max = _histo[i];
+             peak = i;
+           }
+           count = 0;
+         }
+         if (i > count && count > 100) break;
+         count += 1;
+       }
+       if ((diff >= (peak<<1)) || (diff <= (peak>>1))) {
+         printf("CspadServer::fetch exceptional period %llu, not %u\n", diff, peak);
+       }
        memcpy(&_lastTime, &_thisTime, sizeof(timespec));
      }
    }
@@ -215,7 +232,7 @@ int Pds::CspadServer::fetch( char* payload, int flags ) {
 
    if ((ret = read(fd(), &pgpCardRx, sizeof(PgpCardRx))) < 0) {
      if (errno == ERESTART) {
-       disable();
+       disable(false);
        char message[400];
        sprintf(message, "Pgpcard problem! Restart the DAQ system\nIf this does not work, Power cycle %s\n",
            getenv("HOSTNAME"));
@@ -224,7 +241,7 @@ int Pds::CspadServer::fetch( char* payload, int flags ) {
        umsg->append(DetInfo::name(static_cast<const DetInfo&>(_xtc.src)));
        _mgr->appliance().post(umsg);
        _ignoreFetch = true;
-       printf("CspadServer::fetch exiting because of ERESETART\n");
+       printf("CspadServer::fetch exiting because of ERESTART\n");
        exit(-ERESTART);
      }
      perror ("CspadServer::fetch pgpCard read error");

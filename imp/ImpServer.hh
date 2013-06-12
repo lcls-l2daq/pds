@@ -59,7 +59,7 @@ class Pds::ImpServer
    unsigned payloadSize(void)   { return _payloadSize; }
    unsigned flushInputQueue(int, bool printFlag = true);
    void     enable();
-   void     disable();
+   void     disable(bool flush = true);
    void     die();
    void     debug(unsigned d) { _debug = d; }
    unsigned debug() { return _debug; }
@@ -73,6 +73,7 @@ class Pds::ImpServer
    void     allocated();
    void     runTimeConfigName(char*);
    void     manager(ImpManager* m) { _mgr = m; }
+   ImpManager* manager() { return _mgr; }
 
  public:
    static ImpServer* instance() { return _instance; }

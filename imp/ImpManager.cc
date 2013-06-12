@@ -30,6 +30,8 @@
 #include "pdsdata/xtc/Xtc.hh"
 #include "pdsdata/xtc/Damage.hh"
 #include "pds/config/CfgCache.hh"
+#include "pds/utility/Occurrence.hh"
+#include "pds/service/GenericPool.hh"
 
 namespace Pds {
   class Allocation;
@@ -147,7 +149,8 @@ class ImpConfigAction : public Action {
 
   public:
     ImpConfigAction( Pds::ImpConfigCache& cfg, ImpServer* server)
-    : _cfg( cfg ), _server(server), _result(0)
+    : _cfg( cfg ), _server(server), _result(0), _occPool(new GenericPool(sizeof(UserMessage),4))
+
       {}
 
     ~ImpConfigAction() {}
@@ -177,19 +180,27 @@ class ImpConfigAction : public Action {
           in->datagram().xtc.damage.increase(Damage::UserDefined);
           in->datagram().xtc.damage.userBits(_result);
         }
+        char message[400];
+        sprintf(message, "Imp  on host %s failed to configure!\n", getenv("HOSTNAME"));
+        UserMessage* umsg = new (_occPool) UserMessage;
+        umsg->append(message);
+        umsg->append(DetInfo::name(static_cast<const DetInfo&>(_server->xtc().src)));
+        _server->manager()->appliance().post(umsg);
       }
       return in;
     }
 
   private:
-    ImpConfigCache&   _cfg;
-    ImpServer*    _server;
-  unsigned       _result;
+    ImpConfigCache&              _cfg;
+    ImpServer*                   _server;
+  unsigned                       _result;
+  GenericPool*                   _occPool;
 };
 
 class ImpBeginCalibCycleAction : public Action {
   public:
-    ImpBeginCalibCycleAction(ImpServer* s, ImpConfigCache& cfg) : _server(s), _cfg(cfg), _result(0) {};
+    ImpBeginCalibCycleAction(ImpServer* s, ImpConfigCache& cfg) : _server(s),
+    _cfg(cfg), _result(0), _occPool(new GenericPool(sizeof(UserMessage),4)) {};
 
     Transition* fire(Transition* tr) {
       printf("ImpBeginCalibCycleAction:;fire(Transition) ");
@@ -222,13 +233,20 @@ class ImpBeginCalibCycleAction : public Action {
           in->datagram().xtc.damage.increase(Damage::UserDefined);
           in->datagram().xtc.damage.userBits(_result);
         }
+        char message[400];
+        sprintf(message, "Imp  on host %s failed to configure!\n", getenv("HOSTNAME"));
+        UserMessage* umsg = new (_occPool) UserMessage;
+        umsg->append(message);
+        umsg->append(DetInfo::name(static_cast<const DetInfo&>(_server->xtc().src)));
+        _server->manager()->appliance().post(umsg);
       }
       return in;
     }
   private:
-    ImpServer*      _server;
-    ImpConfigCache& _cfg;
-    unsigned          _result;
+    ImpServer*                     _server;
+    ImpConfigCache&                _cfg;
+    unsigned                       _result;
+    GenericPool*                   _occPool;
 };
 
 
