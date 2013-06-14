@@ -32,6 +32,7 @@ namespace Pds {
   public:
     static void useOMP(bool);
     static void setVerbose(bool);
+    static void setCopyPresample(unsigned);
   private:
     void  _process();
   private:

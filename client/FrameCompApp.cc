@@ -41,6 +41,8 @@
 
 static bool lUseOMP=false;
 static bool lVerbose=false;
+static unsigned copyPresample=0;
+static unsigned icopyPresample=0;
 
 static double time_since(const timespec& now, const timespec& tv)
 {
@@ -53,10 +55,17 @@ namespace Pds {
   namespace FCA {
     class Entry {
     public:
-      Entry(Transition* tr) : _state(Completed), _type(TypeT), _ptr(tr) { clock_gettime(CLOCK_REALTIME,&_start); }
+      Entry(Transition* tr) : _state(Completed), _type(TypeT), _ptr(tr), _copy(false)
+      { clock_gettime(CLOCK_REALTIME,&_start); }
       Entry(InDatagram* in) : _state(in->datagram().seq.service()==TransitionId::L1Accept ||
                                      in->datagram().seq.service()==TransitionId::Configure ? Queued:Completed),
-                              _type(TypeI), _ptr(in) { clock_gettime(CLOCK_REALTIME,&_start); }
+                              _type(TypeI), _ptr(in), _copy(false)
+      { clock_gettime(CLOCK_REALTIME,&_start); 
+        if (copyPresample!=0 && (++icopyPresample >= copyPresample)) {
+          _copy=true;
+          icopyPresample=0;
+        }
+      }
     public:
       bool is_complete  () const { return _state==Completed; }
       bool is_unassigned() const { return _state==Queued; }
@@ -71,10 +80,12 @@ namespace Pds {
     public:
       double since_start (const timespec& now) const { return time_since(now,_start); }
       double since_assign(const timespec& now) const { return time_since(now,_assign); }
+      bool   copy() const { return _copy; }
     private:
       enum { Queued, Assigned, Completed } _state;
       enum { TypeT, TypeI } _type;
       void* _ptr;
+      bool  _copy;
       timespec _start;
       timespec _assign;
     };
@@ -112,14 +123,17 @@ namespace Pds {
     class MyIter : public XtcStripper {
     public:
       enum Status {Stop, Continue};
-      MyIter(Xtc* xtc, uint32_t*& p, char* obuff, size_t max_osize) :
-        XtcStripper(xtc, p), _obuff(obuff), _max_osize(max_osize) {}
+      MyIter(Xtc* xtc, uint32_t*& p, char* obuff, size_t max_osize,bool cache) :
+        XtcStripper(xtc, p), _obuff(obuff), _max_osize(max_osize), _cache(cache), _cached(false) {}
       ~MyIter() {}
+      bool cached() const { return _cached; }
     protected:
       void process(Xtc*);
     private:
       char*  _obuff;
       size_t _max_osize;
+      bool   _cache;
+      bool   _cached;
     };
 
     class Task : public Routine {
@@ -138,8 +152,12 @@ namespace Pds {
       void routine() {
         InDatagram* in = (InDatagram*)_entry->ptr();
         uint32_t* pdg = reinterpret_cast<uint32_t*>(&(in->datagram().xtc));
-        MyIter iter(&in->datagram().xtc,pdg,(char*)_obuff,_max_size);
+        MyIter iter(&in->datagram().xtc,pdg,(char*)_obuff,_max_size,_entry->copy());
         iter.iterate();
+        if (iter.cached()) {
+          Xtc* xtc = reinterpret_cast<Xtc*>(_obuff);
+          in->insert(*xtc, xtc->payload());
+        }
         _app.mgr_task().call(new ComplEv(_entry,_app,_id));
       }
       unsigned id() const { return _id; }
@@ -297,8 +315,9 @@ void FrameCompApp::_process()
 void FCA::MyIter::process(Xtc* xtc) 
 {
   if (xtc->contains.id()==TypeId::Id_Xtc) {
-    FCA::MyIter iter(xtc,_pwrite,_obuff,_max_osize);
+    FCA::MyIter iter(xtc,_pwrite,_obuff,_max_osize,_cache);
     iter.iterate();
+    _cached |= iter.cached();
     return;
   }
 
@@ -428,8 +447,12 @@ void FCA::MyIter::process(Xtc* xtc)
   }
 
   if (cxtc && (cxtc->extent < xtc->extent)) {
-    _write(cxtc, cxtc->extent);
-    return;
+    if (_cache)
+      _cached = true;
+    else {
+      _write(cxtc, cxtc->extent);
+      return;
+    }
   }  
 
   XtcStripper::process(xtc);
@@ -510,3 +533,5 @@ FCA::OMPCompressedXtc::OMPCompressedXtc( Xtc&     xtc,
   }
 }
 #endif
+
+void FrameCompApp::setCopyPresample(unsigned v) { copyPresample=v; }
