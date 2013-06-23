@@ -8,6 +8,7 @@ ifneq ($(findstring x86_64,$(tgt_arch)),)
   packages += firewire
   packages += phasics oceanoptics fli andor usdusb ipimb evgr epicstools
   packages += pgp imp
+  packages += pnccd
 else
   packages := service collection xtc 
   packages += config mon vmon
@@ -16,4 +17,5 @@ else
               princeton epicstools pgp cspad xamps fexamp gsc16ai timepix
   packages += cspad2x2 oceanoptics fli andor usdusb
   packages += imp
+  packages += pnccd
 endif

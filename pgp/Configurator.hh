@@ -37,6 +37,7 @@ namespace Pds {
         virtual void              dumpFrontEnd() = 0;
         void                      dumpPgpCard();
         int                       fd() { return _fd; }
+        void                      fd(int f) { _fd = f; }
         void                      microSpin(unsigned);
         long long int             timeDiff(timespec*, timespec*);
         Pds::Pgp::Pgp*            pgp() { return _pgp; }

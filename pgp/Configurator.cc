@@ -89,6 +89,7 @@ namespace Pds {
       _pgp->readStatus(&status);
       printf("PGP Card Status:\n");
       printf("\tVersion               0x%x\n", status.Version);
+      printf("\tScratchPad            0x%x\n", status.ScratchPad);
       printf("\tNegotiated Link Width 0x%x\n", (status.PciLStatus>>4)&0x3f);
       printf("\tPgpLocLinkReady       ");
       for (int i=0; i<NUMBER_OF_LANES; i++) {

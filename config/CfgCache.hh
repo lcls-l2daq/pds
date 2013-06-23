@@ -29,7 +29,7 @@ namespace Pds {
     Damage&     damage ();
   private:
     virtual int _size  (void*) const = 0;
-  private:
+  protected:
     CfgClientNfs _config;
     TypeId       _type;
     Xtc          _configtc;
