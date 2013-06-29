@@ -35,7 +35,7 @@ namespace Pds {
 //    Register 12 is returned in the data frames as well as the ranges that are being used.
 
     enum Addresses {sequenceCountAddr=1, laneStatusAddr=12, chipIdAddr=2,
-      versionAddr=23, resetAddr=25, enableTriggersAddr=26};
+      versionAddr=23, resetAddr=25, enableTriggersAddr=26, unGateTriggersAddr=28};
     enum Masks {CountResetMask=2, enable=1, disable=0};
 
     class StatusLane {
