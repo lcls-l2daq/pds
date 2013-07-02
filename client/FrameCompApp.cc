@@ -325,6 +325,7 @@ void FCA::MyIter::process(Xtc* xtc)
   unsigned headerSize = 0;
   int depth = 0;
   CompressedPayload::Engine engine = CompressedPayload::None;
+  Xtc* mxtc = 0;
   
   const TypeId _FrameDataType(TypeId::Id_Frame,Camera::FrameV1::Version);
 
@@ -342,25 +343,60 @@ void FCA::MyIter::process(Xtc* xtc)
     engine     = CompressedPayload::Hist16;
   }
   else if (xtc->contains.id() == TypeId::Id_CspadElement) {
+    //
+    //  We have to sparsify unwanted elements and change id
+    //  from V1 to V2.
+    //
     const DetInfo& info = static_cast<const DetInfo&>(xtc->src);
     for(unsigned i=0; i<_info.size(); i++) {
       if (_info[i] == info) {
         const CsPadConfigType& cfg = _config[i];
-        const char* hdr = xtc->payload();
         const unsigned quadMask = cfg.quadMask();
-        for(unsigned q=0; q<4; q++) {
-          if (quadMask & (1<<q)) {
-            headerOffsets.push_back( hdr-xtc->payload() );
-            // ElementV1 is unsparsified
-            unsigned roiMask = xtc->contains.value()==1 ? 
-              (cfg.asicMask()==1 ? 0x3 : 0xff) : cfg.roiMask(q);
-            while(roiMask) {
-              hdr += sizeof(CsPad::Section);
-              roiMask &= roiMask-1;
-            }
-            hdr += sizeof(uint32_t);
-          }
-        }
+	bool v1 = (xtc->contains.version()==1);
+	if (v1) {
+	  xtc->contains = TypeId(xtc->contains.id(), 2); // change vsn
+	  mxtc = reinterpret_cast<Xtc*>(_write(xtc,sizeof(*xtc)));
+	  const char*  hdr =  xtc->payload();
+	  const char* mhdr = mxtc->payload();
+	  for(unsigned q=0; q<4; q++) {
+	    if (quadMask & (1<<q)) {
+	      unsigned roiMask = cfg.asicMask()==1 ? 0x3 : 0xff;
+	      unsigned tgtMask = cfg.roiMask(q) & roiMask;
+	      if (tgtMask) {
+		mhdr = (const char*)_write(hdr, sizeof(CsPad::ElementHeader));
+		headerOffsets.push_back( mhdr-mxtc->payload() );
+	      }
+	      hdr += sizeof(CsPad::ElementHeader);
+	      while(roiMask) {
+		unsigned newMask = roiMask & (roiMask-1);
+		if ((roiMask ^ newMask) & tgtMask)
+		  _write(hdr,sizeof(CsPad::Section));
+		hdr += sizeof(CsPad::Section);
+		roiMask = newMask;
+	      }
+	      if (tgtMask)
+		_write(hdr,sizeof(uint32_t));
+	      hdr += sizeof(uint32_t);
+	    }
+	  }
+	  mxtc->extent = (const char*)_pwrite - (const char*)mxtc;
+	}
+	else {
+	  const char*  hdr =  xtc->payload();
+	  for(unsigned q=0; q<4; q++) {
+	    if (quadMask & (1<<q)) {
+	      headerOffsets.push_back( hdr-xtc->payload() );
+	      hdr += sizeof(CsPad::ElementHeader);
+	      unsigned roiMask = cfg.roiMask(q);
+	      while(roiMask) {
+		hdr += sizeof(CsPad::Section);
+		roiMask &= roiMask-1;
+	      }
+	      hdr += sizeof(uint32_t);
+	    }
+	  }
+	}
+
         headerSize = sizeof(CsPad::ElementHeader);
 #ifdef _OPENMP
         depth      = lUseOMP ? -2 : 2;
@@ -372,6 +408,9 @@ void FCA::MyIter::process(Xtc* xtc)
       }
     }
 
+    //
+    //  retry with ConfigV4
+    //
     if (!depth)
       for(unsigned i=0; i<_infov4.size(); i++) {
         if (_infov4[i] == info) {
@@ -416,7 +455,7 @@ void FCA::MyIter::process(Xtc* xtc)
 
   Xtc* cxtc = 0;
   if (depth > 0) {
-    cxtc = new (_obuff) CompressedXtc(*xtc, 
+    cxtc = new (_obuff) CompressedXtc(mxtc ? *mxtc : *xtc, 
                                       headerOffsets,
                                       headerSize,
                                       depth,
@@ -424,7 +463,7 @@ void FCA::MyIter::process(Xtc* xtc)
   }
 #ifdef _OPENMP
   else if (depth < 0) {
-    cxtc = new (_obuff) OMPCompressedXtc(*xtc, 
+    cxtc = new (_obuff) OMPCompressedXtc(mxtc ? *mxtc : *xtc, 
                                          headerOffsets,
                                          headerSize,
                                          -depth,
@@ -447,9 +486,14 @@ void FCA::MyIter::process(Xtc* xtc)
   }
 
   if (cxtc && (cxtc->extent < xtc->extent)) {
-    if (_cache)
+    if (_cache) {  // keep uncompressed data
       _cached = true;
-    else {
+      if (mxtc)
+	return;    // already written
+    }
+    else {         // overwrite with compressed data
+      if (mxtc) 
+	_pwrite = (uint32_t*)mxtc; 
       _write(cxtc, cxtc->extent);
       return;
     }
