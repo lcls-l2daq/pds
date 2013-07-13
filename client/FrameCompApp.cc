@@ -305,7 +305,9 @@ void FrameCompApp::_process()
           lassign=true;
           break;
         }
-      if (!lassign) break;
+      //  Too busy to process now
+      //      if (!lassign) break;
+      if (!lassign) (*it)->complete();
     }
   }
 }
