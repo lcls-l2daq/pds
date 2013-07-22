@@ -173,10 +173,15 @@ void EvrMasterFIFOHandler::fifo_event(const FIFOEvent& fe)
     }
   */
 
+  //
+  //  Some events are trapped in the FIFO sometime around DAQ restart (either shutdown or allocate)
+  //  They must be ignored, else they might generate false readout events.
+  //
   if ( bEnabled == false ) 
     {
-      printf("EvrMasterFIFOHandler::xmit(): [%d] during Disabled, vector %d code %d fiducial 0x%x prev 0x%x last 0x%x timeLow 0x%x\n", 
+      printf("EvrMasterFIFOHandler::xmit(): [%d] during Disabled, vector %d code %d fiducial 0x%x prev 0x%x last 0x%x timeLow 0x%x.  Dropping\n", 
              uNumBeginCalibCycle, _evtCounter, fe.EventCode, fe.TimestampHigh, uFiducialPrev, _lastFiducial, fe.TimestampLow);
+      return;
     }
     
   /*
