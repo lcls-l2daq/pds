@@ -109,6 +109,7 @@ EvrMasterFIFOHandler::EvrMasterFIFOHandler(Evr&       er,
 					   bool       randomize,
                                            Task*      task):
   uFiducialPrev       (0),
+  bEnabled            (false),
   _er                 (er),
   _app                (app),
   _done               (new DoneTimer(app)),

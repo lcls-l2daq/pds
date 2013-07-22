@@ -149,6 +149,11 @@ EvrSyncMaster::EvrSyncMaster(EvrFIFOHandler& fifo_handler,
   _pool        (sizeof(Occurrence),1),
   _target      (0)
 {
+  //  Empty FIFO (out of context)
+  FIFOEvent tfe;
+  while( !_er.GetFIFOEvent(&tfe) )
+    ;
+
 }
 
 EvrSyncMaster::~EvrSyncMaster()
