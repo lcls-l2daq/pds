@@ -2,7 +2,7 @@ libnames := vmon
 
 libsrcs_vmon := $(filter-out vmonreaderdump.cc, $(wildcard *.cc))
 
-tgtnames := vmonreaderdump
+#tgtnames := vmonreaderdump
 
 tgtsrcs_vmonreaderdump += vmonreaderdump.cc
 tgtlibs_vmonreaderdump := pds/vmon pds/mon pds/service pds/collection 

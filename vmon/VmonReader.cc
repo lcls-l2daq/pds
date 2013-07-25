@@ -118,9 +118,9 @@ void VmonReader::process(VmonReaderCallback& callback,
     fread(&record+1, remaining, 1, _file);
     int i=0;
     for(vector<Src>::iterator it=_req_src.begin(); it!=_req_src.end(); it++,i++) {
-      const MonCds& cds = *_cds[i];
+      const MonCds& cds = *this->cds(*it);
       const MonUsage& usage = *_req_use[i];
-      for(unsigned short u = 0; u < usage.used(); u++)
+      for(unsigned short u = 0; u < usage.used(); u++) {
 	switch(cds.entry(usage.signature(u))->desc().type()) {
 	case MonDescEntry::TH1F:
 	  callback.process(record.time(), *it, usage.signature(u), 
@@ -133,6 +133,7 @@ void VmonReader::process(VmonReaderCallback& callback,
 	default:
 	  break;
 	}
+      }
     }
   }
 }

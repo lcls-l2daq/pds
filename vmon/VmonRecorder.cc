@@ -30,6 +30,7 @@ void VmonRecorder::enable ()
 
 void VmonRecorder::disable() 
 {
+  if (_state==Recording) _close();
   _state = Disabled; 
 }
 
