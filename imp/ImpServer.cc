@@ -108,7 +108,7 @@ void Pds::ImpServer::die() {
 
 void Pds::ImpServer::dumpFrontEnd() {
   disable();
-  _cnfgrtr->dumpFrontEnd();
+  if (_cnfgrtr) _cnfgrtr->dumpFrontEnd();
 }
 
 void ImpServer::process() {

@@ -162,16 +162,16 @@ unsigned ImpConfigurator::checkWrittenConfig(bool writeBack) {
   unsigned ret = Success;
   unsigned size = ImpConfigType::NumberOfValues;
   uint32_t myBuffer[size];
-  for (unsigned i=0; i<size; i++) {
+  for (unsigned i=0; i<size && _pgp; i++) {
     if (_pgp->readRegister(&_d, configAddrs[i], 0x1100+i, myBuffer+i)) {
       printf("ImpConfigurator::checkWrittenConfig failed reading %u\n", i);
       ret |= Failure;
     }
   }
-  if (ret == Success) {
+  if (ret == Success  && _config && _pgp) {
     ImpConfigType* readConfig = (ImpConfigType*) myBuffer;
     uint32_t r, c;
-    for (unsigned i=0; i<size; i++) {
+    for (unsigned i=0; i<size && _config; i++) {
       if ((r=readConfig->get((ImpConfigType::Registers)i)) !=
           (c=_config->get((ImpConfigType::Registers)i))) {
         printf("ImpConfigurator::checkWrittenConfig failed, 0x%x!=0x%x at offset %u. %sriting back to config.\n",
@@ -181,7 +181,8 @@ unsigned ImpConfigurator::checkWrittenConfig(bool writeBack) {
       }
     }
   }
-  return ret;
+  if (_config && _pgp) return ret;
+  return Failure;
 }
 
 
