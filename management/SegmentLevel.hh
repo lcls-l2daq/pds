@@ -3,6 +3,7 @@
 
 #include "PartitionMember.hh"
 #include "pds/collection/PingReply.hh"
+#include "pds/collection/AliasReply.hh"
 
 namespace Pds {
 
@@ -42,6 +43,7 @@ namespace Pds {
     WiredStreams*  _streams;
     EvrServer*     _evr;
     PingReply      _reply;
+    AliasReply     _aliasReply;
   };
 
 }

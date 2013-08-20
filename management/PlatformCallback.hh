@@ -4,10 +4,12 @@
 namespace Pds {
   class Node;
   class PingReply;
+  class AliasReply;
   class PlatformCallback {
   public:
     virtual ~PlatformCallback() {}
     virtual void available(const Node&, const PingReply&) = 0;
+    virtual void aliasCollect(const Node&, const AliasReply&) = 0;
   };
 
 };

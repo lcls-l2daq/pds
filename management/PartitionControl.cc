@@ -13,10 +13,12 @@
 #include "pds/management/Sequencer.hh"
 
 #include "pds/collection/PingReply.hh"
+#include "pds/collection/AliasReply.hh"
 #include "pds/service/Task.hh"
 #include "pds/service/Semaphore.hh"
 #include "pds/service/Routine.hh"
 #include "pds/service/GenericPool.hh"
+#include "pds/config/AliasConfigType.hh"
 
 #include "pdsdata/xtc/Sequence.hh"
 
@@ -27,6 +29,7 @@
 #include <unistd.h>
 #include <errno.h>
 #include <vector>
+#include <list>
 
 #define RECOVER_TMO
 #define USE_L1A
@@ -36,6 +39,7 @@ static const unsigned MaxPayload = 0x1000;
 static timespec disable_tmo;
 
 namespace Pds {
+  const TypeId xtcGenericType = TypeId(TypeId::Id_Xtc, 1);
 
   class SequenceJob : public Routine {
   public:
@@ -92,8 +96,13 @@ namespace Pds {
     ControlAction(PartitionControl& control) :
       _control(control),
       _pool   (sizeof(Transition)+MaxPayload,1)
-    {}
-    ~ControlAction() {}
+    {
+    _aliasBuf = new char[sizeof(AliasConfigType)+AliasConfigType::MaxPayloadSize];
+    }
+    ~ControlAction()
+    {
+    delete[] _aliasBuf;
+    }
   public:
     Transition* transitions(Transition* i) {
       if (i->phase() == Transition::Execute) {
@@ -178,6 +187,14 @@ namespace Pds {
           Transition* tr;
           const Xtc* xtc = _control._transition_xtc[i->id()];
           if (xtc && xtc->extent < MaxPayload) {
+            _pAliasConfig = NULL;
+            if ((i->id()==TransitionId::Configure) && (_control.count_src_alias() > 0)) {
+              _pAliasConfig = new(_aliasBuf) AliasConfigType(_control._src_aliases);
+              if (xtc->extent + (2*sizeof(Xtc)) +_pAliasConfig->size() > MaxPayload) {
+                printf("Alias Config payload size (0x%x) exceeds maximum.  Discarding.\n",_pAliasConfig->size());
+                _pAliasConfig = NULL;
+              }
+            }
             tr = new(&_pool) Transition(i->id(),
                                         Transition::Record,
                                         Sequence(Sequence::Event,
@@ -185,10 +202,30 @@ namespace Pds {
                                                  i->sequence().clock(),
                                                  i->sequence().stamp()),
                                         i->env(),
+                                        _pAliasConfig ?
+                                        sizeof(Transition)+xtc->extent+2*sizeof(Xtc)+_pAliasConfig->size() :
                                         sizeof(Transition)+xtc->extent);
             char* p = reinterpret_cast<char*>(tr+1);
+            Xtc *pContainerXtc = (Xtc *)NULL;
+            Xtc *pAliasXtc = (Xtc *)NULL;
+            if (_pAliasConfig) {
+              // insert container Xtc
+              pContainerXtc = (Xtc *)new(p)Xtc(xtcGenericType, xtc->src);
+              p += sizeof(Xtc);
+            }
             memcpy(p,xtc,sizeof(Xtc));
             memcpy(p += sizeof(Xtc),_control._transition_payload[i->id()],xtc->sizeofPayload());
+            p += xtc->sizeofPayload();
+            if (_pAliasConfig) {
+              // insert alias Xtc and config
+              pAliasXtc = (Xtc *)new(p)Xtc(_aliasConfigType, xtc->src);
+              p += sizeof(Xtc);
+              pAliasXtc->extent = sizeof(Xtc) + _pAliasConfig->size();
+              memcpy(p, _pAliasConfig, _pAliasConfig->size());
+              p += _pAliasConfig->size();
+              // update extent of container Xtc
+              pContainerXtc->extent = sizeof(Xtc) + xtc->extent + pAliasXtc->extent;
+            }
           }
           else {
             if (xtc)
@@ -218,6 +255,8 @@ namespace Pds {
   private:
     PartitionControl& _control;
     GenericPool _pool;
+    AliasConfigType *_pAliasConfig;
+    char *_aliasBuf;
   };
 
   class MyCallback : public ControlCallback {
@@ -295,9 +334,32 @@ PartitionControl::~PartitionControl()
   _reportTask  ->destroy();
 }
 
+void PartitionControl::add_src_alias(const SrcAlias& alias)
+{
+// _src_aliases.insert(alias);
+  _src_aliases.push_back(alias);
+  _src_aliases.sort();
+  _src_aliases.unique();
+}
+
+const char *PartitionControl::lookup_src_alias(const Src& src)
+{
+  std::list<SrcAlias>::iterator it;
+  for (it = _src_aliases.begin(); it != _src_aliases.end(); it++) {
+    if ((Src)*it == src) {
+      return (it->aliasName());
+    }
+  }
+  // no match found
+  return ((char *)NULL);
+}
+
 void PartitionControl::platform_rollcall(PlatformCallback* cb)
 {
   if ((_platform_cb = cb)) {
+    // send Message::Alias before Message::Ping, so aliases are learned first
+    Message alias(Message::Alias);
+    mcast(alias);
     Message ping(Message::Ping);
     mcast(ping);
   }
@@ -415,6 +477,11 @@ void  PartitionControl::set_transition_payload(TransitionId::Value tr, Xtc* xtc,
 void PartitionControl::message(const Node& hdr, const Message& msg)
 {
   switch(msg.type()) {
+  case Message::Alias:
+    if (!_isallocated && _platform_cb) {
+      _platform_cb->aliasCollect(hdr,static_cast<const AliasReply&>(msg));
+    }
+    break;
   case Message::Ping:
   case Message::Join:
     if (!_isallocated && _platform_cb) _platform_cb->available(hdr,static_cast<const PingReply&>(msg));

@@ -36,6 +36,7 @@ void PartitionMember::message(const Node& hdr, const Message& msg)
     switch (msg.type()) {
     case Message::Ping:
     case Message::Join:
+    case Message::Alias:
       if (header().level()!=Level::Control) {
   arpadd(hdr);
         Ins dst = msg.reply_to();
@@ -90,11 +91,10 @@ void PartitionMember::message(const Node& hdr, const Message& msg)
       }
       //  Initiate a datagram for all segment levels.
       else if (header().level()==Level::Segment) {
-        CDatagram* ndg =
-    new(&_pool) CDatagram(Datagram(tr,_contains,header().procInfo()));
+        CDatagram* ndg = new(&_pool) CDatagram(Datagram(tr,_contains,header().procInfo()));
         if (tr.size() > sizeof(Transition) && _index==0) {
-    const Xtc& tc = *reinterpret_cast<const Xtc*>(&tr+1);
-    ndg->insert(tc,tc.payload());
+          const Xtc& tc = *reinterpret_cast<const Xtc*>(&tr+1);
+          ndg->insert(tc,tc.payload());
         }
         post(*ndg);
       }

@@ -42,6 +42,12 @@ SegmentLevel::SegmentLevel(unsigned platform,
   _evr           (0),
   _reply         (settings.sources())
 {
+  if (settings.pAliases()) {
+    _aliasReply = *(settings.pAliases());
+  } else {
+    // create empty alias reply
+    new (&_aliasReply) AliasReply();
+  }
 }
 
 SegmentLevel::~SegmentLevel()
@@ -74,8 +80,16 @@ bool SegmentLevel::attach()
 
 Message& SegmentLevel::reply    (Message::Type type)
 {
-  //  Need to append L1 detector info (Src) to the reply
-  return _reply;
+  switch (type) {
+    case Message::Alias:
+      //  Need to append L1 detector alias (SrcAlias) to the reply
+      return _aliasReply;
+
+    case Message::Ping:
+    default:
+      //  Need to append L1 detector info (Src) to the reply
+      return _reply;
+  }
 }
 
 void    SegmentLevel::allocated(const Allocation& alloc,

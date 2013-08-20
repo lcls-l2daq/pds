@@ -5,8 +5,11 @@
 #include "pds/utility/ControlEb.hh"
 #include "pdsdata/xtc/TransitionId.hh"
 #include "pdsdata/xtc/Xtc.hh"
+#include "pdsdata/xtc/SrcAlias.hh"
 
 #include <pthread.h>
+// #include <set>
+#include <vector>
 
 namespace Pds {
 
@@ -64,6 +67,9 @@ namespace Pds {
     void  set_experiment   (unsigned experiment);
     void  set_sequencer    (Sequencer* seq);
     void  use_run_info(bool);
+    void  add_src_alias(const SrcAlias& alias);
+    const char *lookup_src_alias(const Src& src);
+    unsigned count_src_alias() { return _src_aliases.size(); }
   public: // Implements ControlLevel
     void  message          (const Node& hdr,
           const Message& msg);
@@ -87,6 +93,7 @@ namespace Pds {
     unsigned   _transition_env    [TransitionId::NumberOf];
     Xtc*       _transition_xtc    [TransitionId::NumberOf];
     void*      _transition_payload[TransitionId::NumberOf];
+    Xtc*       _alias_xtc;
     ControlCallback*  _control_cb;
     PlatformCallback* _platform_cb;
     RunAllocator*     _runAllocator;
@@ -104,6 +111,9 @@ namespace Pds {
 
     pthread_mutex_t _target_mutex;
     pthread_cond_t  _target_cond;
+
+  public:
+    std::list<SrcAlias> _src_aliases;
   };
 
 };

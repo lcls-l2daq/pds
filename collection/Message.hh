@@ -13,7 +13,8 @@ public:
     Resign, 
     Transition,
     Query,
-    Occurrence
+    Occurrence,
+    Alias
   };
 
   Message(Type type, unsigned size=sizeof(Message));
