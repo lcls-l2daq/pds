@@ -2,7 +2,7 @@
 #define Pds_Gsc16aiConfigType_hh
 
 #include "pdsdata/xtc/TypeId.hh"
-#include "pdsdata/gsc16ai/ConfigV1.hh"
+#include "pdsdata/psddl/gsc16ai.ddl.h"
 
 typedef Pds::Gsc16ai::ConfigV1 Gsc16aiConfigType;
 

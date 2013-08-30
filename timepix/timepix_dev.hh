@@ -6,7 +6,7 @@
 
 #include <unistd.h>
 
-#include "pdsdata/timepix/ConfigV1.hh"
+#include "pdsdata/psddl/timepix.ddl.h"
 #include "pds/service/Semaphore.hh"
 #include "mpxmodule.h"
 

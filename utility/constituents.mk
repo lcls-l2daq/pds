@@ -10,3 +10,4 @@ libnames := utility
 
 ignore_src := ZcpEb.cc ZcpEbC.cc ZcpEbS.cc ZcpEbEvent.cc
 libsrcs_utility := $(filter-out $(ignore_src),$(wildcard *.cc))
+libincs_utility := pdsdata/include

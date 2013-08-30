@@ -12,6 +12,21 @@
 
 namespace Pds {
 
+#if 1
+class CspadCompressionProcessor
+{
+public:
+  CspadCompressionProcessor(Appliance& appProcessor, unsigned iNumThreads, int iImagesPerElement, unsigned int uDebugFlag) {}
+  virtual ~CspadCompressionProcessor() {}
+  
+  int  readConfig(Xtc* xtc) { return 0; }
+  int  compressData(InDatagram& dg, bool bForceSkip = false) { return 0; }
+  int  postData(InDatagram& dg) { return 0; }
+  void routineCompression() {}
+};   
+
+#else
+
 class HistReport
 {  
 public:  
@@ -156,6 +171,7 @@ private:
   
   friend class XtcIterCspadData;
 };
+#endif
   
 }
 

@@ -163,7 +163,7 @@ unsigned OceanOpticsServer::configure(OceanOpticsConfigType& config)
   }  
 
   
-  new (&config) OceanOpticsConfigType(config.exposureTime(), lfWaveLenCalibCoeff, fStrayLightConstant, lfNonlinCorrectCoeff);
+  new (&config) OceanOpticsConfigType(config.exposureTime(), lfWaveLenCalibCoeff, lfNonlinCorrectCoeff, fStrayLightConstant);
 
   /*
    * start to configure the device 

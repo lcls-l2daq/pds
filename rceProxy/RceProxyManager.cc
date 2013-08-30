@@ -13,7 +13,6 @@
 #include "pds/service/GenericPool.hh"
 #include "pds/service/Task.hh"
 #include "pds/service/Routine.hh"
-#include "pds/service/GenericPool.hh"
 #include "pds/service/Client.hh"
 #include "pds/xtc/CDatagram.hh"
 #include "pds/client/Fsm.hh"
@@ -27,7 +26,6 @@
 #include "pds/config/pnCCDConfigType.hh"
 #include "pds/config/CsPadConfigType.hh"
 
-#include <time.h>
 #include <signal.h>
 
 using namespace Pds;

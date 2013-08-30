@@ -13,7 +13,6 @@
 #include "pds/pgp/RegisterSlaveExportFrame.hh"
 #include "pds/service/Task.hh"
 #include "pds/service/TaskObject.hh"
-#include "pds/cspad/CspadConfigurator.hh"
 #include "pds/cspad/CspadDestination.hh"
 #include "pds/cspad/Processor.hh"
 #include "pgpcard/PgpCardMod.h"
@@ -21,7 +20,6 @@
 #include <sys/uio.h>
 #include <string.h>
 #include <errno.h>
-#include <string.h>
 #include <fcntl.h>
 #include <new>
 

@@ -9,7 +9,7 @@ libsrcs_xamps := \
 		 XampsServer.cc \
 		 XampsManager.cc
 #libsinc_xamps :=
-libincs_xamps := pgpcard
+libincs_xamps := pgpcard pdsdata/include ndarray/include
 CPPFLAGS += -fno-strict-aliasing
 #CPPFLAGS += -fopenmp
 #LXFlAGS += -fopenmp

@@ -28,7 +28,7 @@ namespace Pds {
     FexConfig(const Src& src) :
       CfgCache(src,_frameFexConfigType,sizeof(FrameFexConfigType)) {}
   private:
-    int _size(void* tc) const { return reinterpret_cast<FrameFexConfigType*>(tc)->size(); }
+    int _size(void* tc) const { return reinterpret_cast<FrameFexConfigType*>(tc)->_sizeof(); }
   };
 };
 
@@ -75,15 +75,15 @@ UserMessage* FexFrameServer::validate(unsigned w, unsigned h)
 {
   const FrameFexConfigType& c = *reinterpret_cast<const FrameFexConfigType*>(_config->current());
   if (c.forwarding()==FrameFexConfigType::RegionOfInterest)
-    if (!(c.roiBegin().column < w &&
-	  c.roiBegin().row < h &&
-	  c.roiEnd().column <= w &&
-	  c.roiEnd().row <= h)) {
+    if (!(c.roiBegin().column() < w &&
+	  c.roiBegin().row() < h &&
+	  c.roiEnd().column() <= w &&
+	  c.roiEnd().row() <= h)) {
       _config->damage().increase(Damage::UserDefined);
       char buff[128];
       sprintf(buff,"FrameFexConfig ROI (col:%d-%d,row:%d-%d) exceeds frame size(col:%d,row:%d)",
-	      c.roiBegin().column,c.roiEnd().column,
-	      c.roiBegin().row   ,c.roiEnd().row,
+	      c.roiBegin().column(),c.roiEnd().column(),
+	      c.roiBegin().row   (),c.roiEnd().row   (),
 	      w,h);
       return new(_occPool) UserMessage(buff);
     }
@@ -191,10 +191,10 @@ unsigned FexFrameServer::_post_frame(void* xtc, const FrameServerMsg* fmsg) cons
     fp=new(frameXtc.alloc(sizeof(Frame))) Frame(*fmsg,
 						fmsg->data);
   else
-    fp=new(frameXtc.alloc(sizeof(Frame))) Frame (config.roiBegin().column,
-						 config.roiEnd  ().column,
-						 config.roiBegin().row,
-						 config.roiEnd  ().row,
+    fp=new(frameXtc.alloc(sizeof(Frame))) Frame (config.roiBegin().column(),
+						 config.roiEnd  ().column(),
+						 config.roiBegin().row   (),
+						 config.roiEnd  ().row   (),
 						 *fmsg);
 
   frameXtc.extent += (fp->data_size()+3)&~3;
@@ -214,10 +214,10 @@ TwoDMoments FexFrameServer::_feature_extract(const FrameServerMsg* msg) const
 		       msg->offset, frame_data);
   case FrameFexConfigType::GssRegionOfInterest:
     return TwoDMoments(msg->width,
-		       config.roiBegin().column,
-		       config.roiEnd  ().column,
-		       config.roiBegin().row,
-		       config.roiEnd  ().row,
+		       config.roiBegin().column(),
+		       config.roiEnd  ().column(),
+		       config.roiBegin().row   (),
+		       config.roiEnd  ().row   (),
 		       msg->offset,
 		       frame_data);
   case FrameFexConfigType::GssThreshold:

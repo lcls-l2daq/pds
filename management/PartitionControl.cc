@@ -15,7 +15,6 @@
 #include "pds/collection/PingReply.hh"
 #include "pds/collection/AliasReply.hh"
 #include "pds/service/Task.hh"
-#include "pds/service/Semaphore.hh"
 #include "pds/service/Routine.hh"
 #include "pds/service/GenericPool.hh"
 #include "pds/config/AliasConfigType.hh"

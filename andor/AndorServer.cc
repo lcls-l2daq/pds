@@ -482,8 +482,7 @@ int AndorServer::config(AndorConfigType& config, std::string& sConfigWarning)
     sprintf( sMessage, "!!! Andor %d ConfigSize (%d,%d) > Det Size(%d,%d)\n", iDevId, config.width(), config.height(), _iDetectorWidth, _iDetectorHeight);
     printf(sMessage);
     sConfigWarning += sMessage;
-    config.setWidth (_iDetectorWidth);
-    config.setHeight(_iDetectorHeight);
+    Pds::AndorConfig::setSize(config,_iDetectorWidth,_iDetectorHeight);
   }
 
   if ( (int) (config.orgX() + config.width()) > _iDetectorWidth ||
@@ -494,8 +493,9 @@ int AndorServer::config(AndorConfigType& config, std::string& sConfigWarning)
              config.orgX() + config.width(), config.orgY() + config.height(), _iDetectorWidth, _iDetectorHeight);
     printf(sMessage);
     sConfigWarning += sMessage;
-    config.setWidth (_iDetectorWidth - config.orgX());
-    config.setHeight(_iDetectorHeight - config.orgY());
+    Pds::AndorConfig::setSize (config,
+                               _iDetectorWidth - config.orgX(),
+                               _iDetectorHeight - config.orgY());
   }
 
   //Note: We don't send error for cooling incomplete
@@ -1304,7 +1304,7 @@ int AndorServer::getData(InDatagram* in, InDatagram*& out)
   dgOut.xtc.extent = xtcOutBkp.extent;
 
   unsigned char*  pFrameHeader  = (unsigned char*) _pDgOut + sizeof(CDatagram) + sizeof(Xtc);
-  new (pFrameHeader) AndorDataType(in->datagram().seq.stamp().fiducials(), _fReadoutTime);
+  new (pFrameHeader) AndorDataType(in->datagram().seq.stamp().fiducials(), _fReadoutTime, 0);
 
   out       = _pDgOut;
 
@@ -1460,10 +1460,10 @@ int AndorServer::processFrame()
   {
     unsigned char*  pFrameHeader    = (unsigned char*) _pDgOut + sizeof(CDatagram) + sizeof(Xtc);
     AndorDataType* pFrame           = (AndorDataType*) pFrameHeader;
-    const uint16_t*     pPixel      = pFrame->data();
+    const uint16_t*     pPixel      = pFrame->data(_config).data();
     //int                 iWidth   = (int) ( (_config.width()  + _config.binX() - 1 ) / _config.binX() );
     //int                 iHeight  = (int) ( (_config.height() + _config.binY() - 1 ) / _config.binY() );
-    const uint16_t*     pEnd        = (const uint16_t*) ( (unsigned char*) pFrame->data() + _config.frameSize() );
+    const uint16_t*     pEnd        = (const uint16_t*) ( (unsigned char*) pFrame->data(_config).data() + _config.frameSize() );
     const uint64_t      uNumPixels  = (uint64_t) (_config.frameSize() / sizeof(uint16_t) );
 
     uint64_t            uSum    = 0;
@@ -1580,7 +1580,7 @@ int AndorServer::updateTemperatureData()
   else
   {
     AndorDataType*  pAndorData       = (AndorDataType*) ((unsigned char*) _pDgOut + sizeof(CDatagram) + sizeof(Xtc));
-    pAndorData->setTemperature( (float) iTemperature );
+    Pds::AndorData::setTemperature( *pAndorData, (float) iTemperature );
   }
 
   if (  iTemperature >= _config.coolingTemp() + _fTemperatureHiTol ||

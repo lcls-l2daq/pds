@@ -23,8 +23,6 @@
 #include "pds/pgp/DataImportFrame.hh"
 #include "pdsdata/xtc/DetInfo.hh"
 #include "pds/imp/ImpManager.hh"
-#include "pds/imp/ImpServer.hh"
-#include "pds/pgp/DataImportFrame.hh"
 #include "pds/config/CfgClientNfs.hh"
 #include "pdsdata/xtc/TypeId.hh"
 #include "pdsdata/xtc/Xtc.hh"

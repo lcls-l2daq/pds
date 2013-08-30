@@ -2,7 +2,7 @@
 #define UsdUsbDataType_hh
 
 #include "pdsdata/xtc/TypeId.hh"
-#include "pdsdata/usdusb/DataV1.hh"
+#include "pdsdata/psddl/usdusb.ddl.h"
 
 typedef Pds::UsdUsb::DataV1 UsdUsbDataType;
 

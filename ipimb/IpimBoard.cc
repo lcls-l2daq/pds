@@ -593,14 +593,21 @@ bool IpimBoard::configure(Ipimb::ConfigV2& config, std::string& errmsg) {
   }
   //  CalibrationStart((unsigned) config.calStrobeLength());
 
-  config.setTriggerPreSampleDelay(HardCodedPresampleDelay);
-  config.setAdcDelay(HardCodedAdcDelay);
-
-  config.setSerialID(GetSerialID());
-  config.setErrors(GetErrors());
-  config.setStatus((ReadRegister(status) & 0xffff0000)>>16);
-  
-  config.dump();
+  *new(&config) Ipimb::ConfigV2(config.triggerCounter(),
+                                GetSerialID(),
+                                config.chargeAmpRange(),
+                                config.calibrationRange(),
+                                config.resetLength(),
+                                config.resetDelay(),
+                                config.chargeAmpRefVoltage(),
+                                config.calibrationVoltage(),
+                                config.diodeBias(),
+                                (ReadRegister(status) & 0xffff0000)>>16,
+                                GetErrors(),
+                                config.calStrobeLength(),
+                                config.trigDelay(),
+                                HardCodedPresampleDelay,
+                                HardCodedAdcDelay);
 
   flush();
   printf("have flushed fd after IpimBoard configure, damage set to %s\n", (_commandResponseDamage) ? "true" : "false");

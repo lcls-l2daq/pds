@@ -240,7 +240,7 @@ int main(int argc, char *argv[])
 						       Opal1kConfigType::Twelve_bit,
 						       Opal1kConfigType::x1,
 						       Opal1kConfigType::None,
-						       true, false);
+						       true, false, false, 0, 0, 0);
       
       oCamera->set_config_data(Config);
       pCamera = oCamera;
@@ -249,13 +249,7 @@ int main(int argc, char *argv[])
   case 2:
     {
       FccdCamera* fCamera = new FccdCamera();
-      FccdConfigType* Config = new FccdConfigType
-                                    (
-                                    0,      // outputMode: 0 == FIFO
-                                    noccd ? false : true,   // CCD Enable
-                                    ifps ? true : false,    // Focus Mode Enable
-                                    1,      // internal exposure time (ms)
-                                    6.0,    // DAC 1
+      const float dacVoltage[] = {  6.0,    // DAC 1
                                    -2.0,    // DAC 2
                                     6.0,    // DAC 3
                                    -2.0,    // DAC 4
@@ -272,7 +266,8 @@ int main(int argc, char *argv[])
                                     0.0,    // DAC 15
                                     0.0,    // DAC 16
                                     0.0,    // DAC 17
-                                    0xfe3f, // waveform0
+      };
+      const uint16_t waveform[] = { 0xfe3f, // waveform0
                                     0x0380, // waveform1
                                     0xf8ff, // waveform2
                                     0x0004, // waveform3
@@ -287,7 +282,15 @@ int main(int argc, char *argv[])
                                     0x0001, // waveform12
                                     0xf83f, // waveform13
                                     0x0020  // waveform14
-                                    );
+      };
+      FccdConfigType* Config = new FccdConfigType
+                                    (
+                                    0,      // outputMode: 0 == FIFO
+                                    noccd ? false : true,   // CCD Enable
+                                    ifps ? true : false,    // Focus Mode Enable
+                                    1,      // internal exposure time (ms)
+                                    dacVoltage,
+                                    waveform );
       fCamera->set_config_data(Config);
       pCamera = fCamera;
       break;

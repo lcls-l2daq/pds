@@ -6,7 +6,6 @@
 #include <errno.h>
 #include <string.h>
 #include <unistd.h>
-#include <sys/ioctl.h>
 #include <stdint.h>
 #include "liboopt.hh"
 

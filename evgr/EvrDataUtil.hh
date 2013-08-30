@@ -10,12 +10,13 @@ class EvrDataUtil : public EvrDataType
 {  
 public:
   /* public functions*/  
-  EvrDataUtil(uint32_t u32NumFifoEvents, const FIFOEvent* lFifoEvent);
+  EvrDataUtil(uint32_t u32NumFifoEvents, const Pds::EvrData::FIFOEvent* lFifoEvent);
   EvrDataUtil(const EvrDataType& dataCopy);
 
-  unsigned int  addFifoEvent        ( const FIFOEvent& fifoEvent ); // return the number of total fifo events, including the new one  
-  unsigned int  updateFifoEvent     ( const FIFOEvent& fifoEvent ); // return the index to the updated fifo event
-  int           updateFifoEventCheck( const FIFOEvent& fifoEvent, unsigned int iMaxSize ); // return the index to the updated fifo event
+  const Pds::EvrData::FIFOEvent& fifoEvent(unsigned i) const { return fifoEvents()[i]; }
+  unsigned int  addFifoEvent        ( const Pds::EvrData::FIFOEvent& fifoEvent ); // return the number of total fifo events, including the new one  
+  unsigned int  updateFifoEvent     ( const Pds::EvrData::FIFOEvent& fifoEvent ); // return the index to the updated fifo event
+  int           updateFifoEventCheck( const Pds::EvrData::FIFOEvent& fifoEvent, unsigned int iMaxSize ); // return the index to the updated fifo event
   void          markEventAsDeleted  ( unsigned int iEventIndex );
   unsigned int  purgeDeletedEvents  (); // return the new total number of events after the purge
   
@@ -24,7 +25,7 @@ public:
   void          clearFifoEvents ();
   void          printFifoEvents () const;
 
-  using EvrDataType::size; // unhide the size() member function
+  unsigned size() const { return _sizeof(); }
   
   /*
    * public static function

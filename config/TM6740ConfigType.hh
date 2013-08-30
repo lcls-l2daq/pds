@@ -2,7 +2,7 @@
 #define Pds_TM6740ConfigType_hh
 
 #include "pdsdata/xtc/TypeId.hh"
-#include "pdsdata/pulnix/TM6740ConfigV2.hh"
+#include "pdsdata/psddl/pulnix.ddl.h"
 
 typedef Pds::Pulnix::TM6740ConfigV2 TM6740ConfigType;
 

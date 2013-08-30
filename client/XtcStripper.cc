@@ -51,6 +51,7 @@ void XtcStripper::iterate(Xtc* root)
       unsigned extent = xtc->extent;
       if(extent==0) {
 	printf("Breaking on zero extent\n");
+        abort();
 	break; // try to skip corrupt event
       }
       process(xtc);

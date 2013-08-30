@@ -36,8 +36,6 @@
 #include "pds/pgp/DataImportFrame.hh"
 #include "pdsdata/xtc/DetInfo.hh"
 #include "pds/cspad/CspadManager.hh"
-#include "pds/cspad/CspadServer.hh"
-#include "pds/pgp/DataImportFrame.hh"
 #include "pds/config/CfgClientNfs.hh"
 #include "pds/config/CfgCache.hh"
 #include "pds/utility/Occurrence.hh"

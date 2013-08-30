@@ -119,9 +119,9 @@ private:
 static unsigned int evrConfigSize(unsigned maxNumEventCodes, unsigned maxNumPulses, unsigned maxNumOutputMaps)
 {
   return (sizeof(EvrConfigType) + 
-    maxNumEventCodes * sizeof(EvrConfigType::EventCodeType) +
-    maxNumPulses     * sizeof(EvrConfigType::PulseType) + 
-    maxNumOutputMaps * sizeof(EvrConfigType::OutputMapType));
+    maxNumEventCodes * sizeof(EventCodeType) +
+    maxNumPulses     * sizeof(PulseType) + 
+    maxNumOutputMaps * sizeof(OutputMapType));
 }
 
 class EvrConfigManager
@@ -182,7 +182,7 @@ public:
     // workaround: Set output map to the last pulse (just cleared)
     unsigned omask = 0;
     for (unsigned k = 0; k < cfg.noutputs(); k++)
-      omask |= 1<<cfg.output_map(k).conn_id();
+      omask |= 1<<cfg.output_maps()[k].conn_id();
     omask = ~omask;
 
     for (unsigned k = 0; k < EVR_MAX_UNIVOUT_MAP; k++) {
@@ -196,7 +196,7 @@ public:
 
     for (unsigned k = 0; k < cfg.npulses(); k++)
     {
-      const EvrConfigType::PulseType & pc = cfg.pulse(k);
+      const PulseType & pc = cfg.pulses()[k];
       _er.SetPulseProperties(
         pc.pulseId(),
         pc.polarity(),
@@ -230,7 +230,7 @@ public:
 
     for (unsigned k = 0; k < cfg.noutputs(); k++)
     {
-      const EvrConfigType::OutputMapType & map = cfg.output_map(k);
+      const OutputMapType & map = cfg.output_maps()[k];
       unsigned conn_id = map.conn_id();
 
       if (conn_id>9 && !slacEvr) {
@@ -242,15 +242,15 @@ public:
 
       switch (map.conn())
       {
-      case EvrConfigType::OutputMapType::FrontPanel:
-        _er.SetFPOutMap(conn_id, map.map());
+      case OutputMapType::FrontPanel:
+        _er.SetFPOutMap(conn_id, Pds::EvrConfig::map(map));
         break;
-      case EvrConfigType::OutputMapType::UnivIO:
-        _er.SetUnivOutMap(conn_id, map.map());
+      case OutputMapType::UnivIO:
+        _er.SetUnivOutMap(conn_id, Pds::EvrConfig::map(map));
         break;
       }
 
-      printf("output %d : %d %x\n", k, conn_id, map.map());
+      printf("output %d : %d %x\n", k, conn_id, Pds::EvrConfig::map(map));
     }
     
     /*
@@ -258,7 +258,7 @@ public:
      */
     for (unsigned int uEventIndex = 0; uEventIndex < cfg.neventcodes(); uEventIndex++ )
     {
-      const EvrConfigType::EventCodeType& eventCode = cfg.eventcode(uEventIndex);
+      const EventCodeType& eventCode = cfg.eventcodes()[uEventIndex];
               
       _er.SetFIFOEvent(ram, eventCode.code(), enable);
       
@@ -335,7 +335,7 @@ public:
 
     _cur_config = reinterpret_cast<const EvrConfigType*>(_configBuffer);
     _end_config = _configBuffer+len;
-    _cfgtc.extent = sizeof(Xtc) + _cur_config->size();
+    _cfgtc.extent = sizeof(Xtc) + Pds::EvrConfig::size(*_cur_config);
 
     delete msg;
     _cfgtc.damage = 0;
@@ -343,13 +343,13 @@ public:
 
   void advance()
   {
-    int len = _cur_config->size();
+    int len = Pds::EvrConfig::size(*_cur_config);
     const char* nxt_config = reinterpret_cast<const char*>(_cur_config)+len;
     if (nxt_config < _end_config)
       _cur_config = reinterpret_cast<const EvrConfigType*>(nxt_config);
     else
       _cur_config = reinterpret_cast<const EvrConfigType*>(_configBuffer);
-    _cfgtc.extent = sizeof(Xtc) + _cur_config->size();
+    _cfgtc.extent = sizeof(Xtc) + Pds::EvrConfig::size(*_cur_config);
   }
 
   void enable()
@@ -539,7 +539,7 @@ extern "C"
   void evrmgr_sig_handler(int parm)
   {
     Evr & er = erInfoGlobal->board();
-    FIFOEvent fe;
+    Pds::FIFOEvent fe;
     while( ! er.GetFIFOEvent(&fe) )
       if (_fifo_handler)
         _fifo_handler->fifo_event(fe);

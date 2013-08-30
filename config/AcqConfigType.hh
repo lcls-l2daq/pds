@@ -2,8 +2,7 @@
 #define Pds_AcqConfigType_hh
 
 #include "pdsdata/xtc/TypeId.hh"
-#include "pdsdata/acqiris/ConfigV1.hh"
-#include "pdsdata/acqiris/TdcConfigV1.hh"
+#include "pdsdata/psddl/acqiris.ddl.h"
 
 typedef Pds::Acqiris::ConfigV1 AcqConfigType;
 typedef Pds::Acqiris::TdcConfigV1 AcqTdcConfigType;

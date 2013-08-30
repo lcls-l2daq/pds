@@ -13,7 +13,6 @@
 #include "pds/mon/MonStats1D.hh"
 #include "pds/mon/MonStats2D.hh"
 
-#include "pds/vmon/VmonReader.hh"
 
 namespace Pds {
   class VmonReaderDump : public VmonReaderCallback {

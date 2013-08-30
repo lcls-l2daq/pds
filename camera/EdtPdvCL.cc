@@ -6,7 +6,6 @@
 #include "pds/camera/FrameServer.hh"
 #include "pds/camera/FrameServerMsg.hh"
 #include "pds/utility/Appliance.hh"
-#include "pds/utility/Occurrence.hh"
 #include "pds/service/Routine.hh"
 #include "pds/service/Task.hh"
 #include "pds/service/Semaphore.hh"

@@ -6,9 +6,8 @@
 #include "pds/config/DiodeFexConfigType.hh"
 #include "pds/config/CfgClientNfs.hh"
 
-#include "pdsdata/lusi/IpmFexV1.hh"
-#include "pdsdata/lusi/DiodeFexV1.hh"
-#include "pdsdata/ipimb/DataV2.hh"
+#include "pdsdata/psddl/lusi.ddl.h"
+#include "pdsdata/psddl/ipimb.ddl.h"
 #include "pdsdata/xtc/DetInfo.hh"
 
 #include <new>
@@ -85,15 +84,16 @@ int LusiDiagFex::process(Xtc* xtc)
 
     const IpmFexConfigType& cfg  = _ipm_config[det];
     const IpimbDataType& data = *reinterpret_cast<const IpimbDataType*>(xtc->payload());
-    IpmFexType& fex = *new (_odg->xtc.alloc(sizeof(IpmFexType))) IpmFexType;
+    float fex_channel[4];
     int s; // need to fetch the cap selection from the IPIMB configuration for each channel
-    s=_cap_config[det].cap[0]; fex.channel[0] = (cfg.diode[0].base[s] - data.channel0Volts())*cfg.diode[0].scale[s];
-    s=_cap_config[det].cap[1]; fex.channel[1] = (cfg.diode[1].base[s] - data.channel1Volts())*cfg.diode[1].scale[s];
-    s=_cap_config[det].cap[2]; fex.channel[2] = (cfg.diode[2].base[s] - data.channel2Volts())*cfg.diode[2].scale[s];
-    s=_cap_config[det].cap[3]; fex.channel[3] = (cfg.diode[3].base[s] - data.channel3Volts())*cfg.diode[3].scale[s];
-    fex.sum = fex.channel[0] + fex.channel[1] + fex.channel[2] + fex.channel[3];
-    fex.xpos = cfg.xscale*(fex.channel[1] - fex.channel[3])/(fex.channel[1] + fex.channel[3]);
-    fex.ypos = cfg.yscale*(fex.channel[0] - fex.channel[2])/(fex.channel[0] + fex.channel[2]);
+    s=_cap_config[det].cap[0]; fex_channel[0] = (cfg.diode()[0].base()[s] - data.channel0Volts())*cfg.diode()[0].scale()[s];
+    s=_cap_config[det].cap[1]; fex_channel[1] = (cfg.diode()[1].base()[s] - data.channel1Volts())*cfg.diode()[1].scale()[s];
+    s=_cap_config[det].cap[2]; fex_channel[2] = (cfg.diode()[2].base()[s] - data.channel2Volts())*cfg.diode()[2].scale()[s];
+    s=_cap_config[det].cap[3]; fex_channel[3] = (cfg.diode()[3].base()[s] - data.channel3Volts())*cfg.diode()[3].scale()[s];
+    float fex_sum = fex_channel[0] + fex_channel[1] + fex_channel[2] + fex_channel[3];
+    float fex_xpos = cfg.xscale()*(fex_channel[1] - fex_channel[3])/(fex_channel[1] + fex_channel[3]);
+    float fex_ypos = cfg.yscale()*(fex_channel[0] - fex_channel[2])/(fex_channel[0] + fex_channel[2]);
+    *new (_odg->xtc.alloc(sizeof(IpmFexType))) IpmFexType(fex_channel, fex_sum, fex_xpos, fex_ypos);
   }
   else if (IS_PIM(det)) {
     // keep a copy of the raw data
@@ -104,9 +104,9 @@ int LusiDiagFex::process(Xtc* xtc)
 
     const DiodeFexConfigType& cfg  = _pim_config[det];
     const IpimbDataType& data = *reinterpret_cast<const IpimbDataType*>(xtc->payload());
-    DiodeFexType& fex = *new (_odg->xtc.alloc(sizeof(DiodeFexType))) DiodeFexType;
     int s=_cap_config[det].cap[0]; // need to fetch the cap selection from the IPIMB configuration for each channel
-    fex.value = (cfg.base[s] - data.channel0Volts())*cfg.scale[s];
+    float fex_value = (cfg.base()[s] - data.channel0Volts())*cfg.scale()[s];
+    *new (_odg->xtc.alloc(sizeof(DiodeFexType))) DiodeFexType(fex_value);
   }
   else {
     // keep a copy of the raw data

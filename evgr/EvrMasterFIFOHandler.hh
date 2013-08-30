@@ -129,13 +129,13 @@ namespace Pds {
     void releaseL1Data();
 
     // Add Fifo event to the evrData with boundary check
-    int addFifoEventCheck( EvrDataUtil& evrData, const EvrDataType::FIFOEvent& fe );
+    int addFifoEventCheck( EvrDataUtil& evrData, const Pds::EvrData::FIFOEvent& fe );
 
     // Update Fifo event to the evrData with boundary check
-    int updateFifoEventCheck( EvrDataUtil& evrData, const EvrDataType::FIFOEvent& fe );
+    int updateFifoEventCheck( EvrDataUtil& evrData, const Pds::EvrData::FIFOEvent& fe );
   
     // Add a special event to the current evrData
-    int addSpecialEvent( EvrDataUtil& evrData, const EvrDataType::FIFOEvent &feCur );
+    int addSpecialEvent( EvrDataUtil& evrData, const Pds::EvrData::FIFOEvent &feCur );
   
     void addCommand( const FIFOEvent& fe );
 

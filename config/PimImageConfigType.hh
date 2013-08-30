@@ -2,7 +2,7 @@
 #define Pds_PimImageConfigType_hh
 
 #include "pdsdata/xtc/TypeId.hh"
-#include "pdsdata/lusi/PimImageConfigV1.hh"
+#include "pdsdata/psddl/lusi.ddl.h"
 
 typedef Pds::Lusi::PimImageConfigV1 PimImageConfigType;
 

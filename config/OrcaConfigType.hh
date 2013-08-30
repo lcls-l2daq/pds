@@ -2,7 +2,7 @@
 #define Pds_OrcaConfigType_hh
 
 #include "pdsdata/xtc/TypeId.hh"
-#include "pdsdata/orca/ConfigV1.hh"
+#include "pdsdata/psddl/orca.ddl.h"
 
 typedef Pds::Orca::ConfigV1 OrcaConfigType;
 

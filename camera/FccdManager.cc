@@ -6,7 +6,7 @@
 #include "pds/config/FccdConfigType.hh"
 
 #include "pds/config/CfgCache.hh"
-#include "pdsdata/camera/FrameCoord.hh"
+#include "pdsdata/psddl/camera.ddl.h"
 
 #include "pds/service/GenericPool.hh"
 #include "pds/utility/Occurrence.hh"
@@ -28,7 +28,7 @@ namespace Pds {
     FccdConfig(const Src& src) :
       CfgCache(src, _fccdConfigType, MaxConfigSize) {}
   private:
-    int _size(void* tc) const { return reinterpret_cast<FccdConfigType*>(tc)->size(); }
+    int _size(void* tc) const { return reinterpret_cast<FccdConfigType*>(tc)->_sizeof(); }
   };
 };
 

@@ -1,0 +1,96 @@
+#include "pds/config/TimepixConfigType.hh"
+
+void Pds::TimepixConfig::setConfig(TimepixConfigType& c,
+                                   const ndarray<const std::string,1>& chipNames,
+                                   const ndarray<const uint32_t   ,1>& chipIDs,
+                                   int                                 driverVersion,
+                                   unsigned                            firmwareVersion,
+                                   unsigned                            nthresh,
+                                   const uint8_t*                      threshs)
+{
+  uint8_t _threshs[TimepixConfigType::PixelThreshMax];
+  if (nthresh)
+    memcpy(_threshs, threshs, nthresh);
+
+  *new(&c) TimepixConfigType(c.readoutSpeed(),
+                             c.timepixMode(),
+                             c.timepixSpeed(),
+
+                             c.dac0Ikrum(),
+                             c.dac0Disc(),
+                             c.dac0Preamp(),
+                             c.dac0BufAnalogA(),
+                             c.dac0BufAnalogB(),
+                             c.dac0Hist(),
+                             c.dac0ThlFine(),
+                             c.dac0ThlCourse(),
+                             c.dac0Vcas(),
+                             c.dac0Fbk(),
+                             c.dac0Gnd(),
+                             c.dac0Ths(),
+                             c.dac0BiasLvds(),
+                             c.dac0RefLvds(),
+
+                             c.dac1Ikrum(),
+                             c.dac1Disc(),
+                             c.dac1Preamp(),
+                             c.dac1BufAnalogA(),
+                             c.dac1BufAnalogB(),
+                             c.dac1Hist(),
+                             c.dac1ThlFine(),
+                             c.dac1ThlCourse(),
+                             c.dac1Vcas(),
+                             c.dac1Fbk(),
+                             c.dac1Gnd(),
+                             c.dac1Ths(),
+                             c.dac1BiasLvds(),
+                             c.dac1RefLvds(),
+
+                             c.dac2Ikrum(),
+                             c.dac2Disc(),
+                             c.dac2Preamp(),
+                             c.dac2BufAnalogA(),
+                             c.dac2BufAnalogB(),
+                             c.dac2Hist(),
+                             c.dac2ThlFine(),
+                             c.dac2ThlCourse(),
+                             c.dac2Vcas(),
+                             c.dac2Fbk(),
+                             c.dac2Gnd(),
+                             c.dac2Ths(),
+                             c.dac2BiasLvds(),
+                             c.dac2RefLvds(),
+
+                             c.dac3Ikrum(),
+                             c.dac3Disc(),
+                             c.dac3Preamp(),
+                             c.dac3BufAnalogA(),
+                             c.dac3BufAnalogB(),
+                             c.dac3Hist(),
+                             c.dac3ThlFine(),
+                             c.dac3ThlCourse(),
+                             c.dac3Vcas(),
+                             c.dac3Fbk(),
+                             c.dac3Gnd(),
+                             c.dac3Ths(),
+                             c.dac3BiasLvds(),
+                             c.dac3RefLvds(),
+
+                             c.dacBias(),
+                             c.flags(),
+
+                             driverVersion,
+                             firmwareVersion,
+
+                             nthresh,
+                             _threshs,
+
+                             chipNames[0].c_str(),
+                             chipNames[1].c_str(),
+                             chipNames[2].c_str(),
+                             chipNames[3].c_str(),
+                             chipIDs[0],
+                             chipIDs[1],
+                             chipIDs[2],
+                             chipIDs[3]);
+}

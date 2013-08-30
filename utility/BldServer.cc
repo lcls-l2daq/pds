@@ -126,7 +126,6 @@ int BldServer::pend(int flag)
   return _server.pend(flag);
 }
 
-#include <stdio.h>
 
 int BldServer::fetch(char* payload, int flags)
 {

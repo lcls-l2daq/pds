@@ -2,6 +2,8 @@
 
 #include "EvrDataUtil.hh"
 
+using Pds::EvrData::FIFOEvent;
+
 namespace Pds
 {
   
@@ -17,23 +19,23 @@ EvrDataUtil::EvrDataUtil(const EvrDataType& dataCopy):
   
 void EvrDataUtil::printFifoEvents() const
 {
-  printf( "# of Fifo Events: %u\n", _u32NumFifoEvents );
+  printf( "# of Fifo Events: %u\n", numFifoEvents() );
   
-  for ( unsigned int iEventIndex=0; iEventIndex< _u32NumFifoEvents; iEventIndex++ )
+  ndarray<const EvrData::FIFOEvent,1> events = fifoEvents();
+  for ( unsigned int iEventIndex=0; iEventIndex< events.shape()[0]; iEventIndex++ )
   {
-    const FIFOEvent& event = fifoEvent(iEventIndex);
+    const FIFOEvent& event = events[iEventIndex];
     printf( "[%02u] Event Code %u  TimeStampHigh 0x%x  TimeStampLow 0x%x\n",
-      iEventIndex, event.EventCode, event.TimestampHigh, event.TimestampLow );
+            iEventIndex, event.eventCode(), event.timestampHigh(), event.timestampLow() );
   }
 }
 
 // return the number of total fifo events, including the new one
 unsigned int EvrDataUtil::addFifoEvent( const FIFOEvent& fifoEvent )
 {
-  FIFOEvent* pFifoEventNew = (FIFOEvent*) ((char*) this + EvrDataType::size()); 
+  FIFOEvent* pFifoEventNew = (FIFOEvent*) ((char*) this + size()); 
   *pFifoEventNew            = fifoEvent;  
-  _u32NumFifoEvents++;   
-  return _u32NumFifoEvents;
+  return (new (this) EvrDataType(numFifoEvents()+1))->numFifoEvents();
 }
 
 // return the index to the updated fifo event
@@ -41,9 +43,9 @@ unsigned int EvrDataUtil::updateFifoEvent( const FIFOEvent& fifoEvent )
 {
   FIFOEvent*    pFifoEvent = (FIFOEvent*) (this+1);  
   
-  for ( unsigned int iEvent = 0 ; iEvent < _u32NumFifoEvents; iEvent++, pFifoEvent++ )
+  for ( unsigned int iEvent = 0 ; iEvent < numFifoEvents(); iEvent++, pFifoEvent++ )
   {
-    if ( pFifoEvent->EventCode == fifoEvent.EventCode )
+    if ( pFifoEvent->eventCode() == fifoEvent.eventCode() )
     {
       *pFifoEvent = fifoEvent;
       return iEvent;
@@ -51,7 +53,7 @@ unsigned int EvrDataUtil::updateFifoEvent( const FIFOEvent& fifoEvent )
   }
 
   *pFifoEvent = fifoEvent;
-  return _u32NumFifoEvents++;
+  return (new (this) EvrDataType(numFifoEvents()+1))->numFifoEvents();
 }
 
 // return the index to the updated fifo event
@@ -59,20 +61,20 @@ int EvrDataUtil::updateFifoEventCheck( const FIFOEvent& fifoEvent, unsigned int 
 {
   FIFOEvent*    pFifoEvent = (FIFOEvent*) (this+1);  
   
-  for ( unsigned int iEvent = 0 ; iEvent < _u32NumFifoEvents; iEvent++, pFifoEvent++ )
+  for ( unsigned int iEvent = 0 ; iEvent < numFifoEvents(); iEvent++, pFifoEvent++ )
   {
-    if ( pFifoEvent->EventCode == fifoEvent.EventCode )
+    if ( pFifoEvent->eventCode() == fifoEvent.eventCode() )
     {
       *pFifoEvent = fifoEvent;
       return iEvent;
     }
   }
 
-  if ( _u32NumFifoEvents >= iMaxSize )
+  if ( numFifoEvents() >= iMaxSize )
     return -1;
     
   *pFifoEvent = fifoEvent;
-  return _u32NumFifoEvents++;
+  return (new (this) EvrDataType(numFifoEvents()+1))->numFifoEvents();
 }
 
 static const uint32_t giMarkEventDel = 0xFFFFFFFF;
@@ -80,7 +82,9 @@ static const uint32_t giMarkEventDel = 0xFFFFFFFF;
 void EvrDataUtil::markEventAsDeleted( unsigned int iEventIndex )
 {
   FIFOEvent* pFifoEvent = (FIFOEvent*) (this+1) + iEventIndex;    
-  pFifoEvent->EventCode = giMarkEventDel; // Mark as deleted 
+  *new(pFifoEvent) FIFOEvent(pFifoEvent->timestampHigh(),
+                             pFifoEvent->timestampLow(),
+                             giMarkEventDel); // Mark as deleted 
 }
 
 // return the new total number of events after the purge
@@ -91,9 +95,9 @@ unsigned int EvrDataUtil::purgeDeletedEvents()
 
   unsigned int iNumTotalEvents = 0;
   
-  for ( unsigned int iEvent = 0 ; iEvent < _u32NumFifoEvents; iEvent++, pFifoEventCur++ )
+  for ( unsigned int iEvent = 0 ; iEvent < numFifoEvents(); iEvent++, pFifoEventCur++ )
   {
-    if ( pFifoEventCur->EventCode != giMarkEventDel )
+    if ( pFifoEventCur->eventCode() != giMarkEventDel )
     {
       if ( pFifoEventUpdate != pFifoEventCur )
         *pFifoEventUpdate = *pFifoEventCur;
@@ -103,22 +107,21 @@ unsigned int EvrDataUtil::purgeDeletedEvents()
     }
   }
   
-  _u32NumFifoEvents = iNumTotalEvents;
-  return _u32NumFifoEvents;
+  return (new (this) EvrDataType(iNumTotalEvents))->numFifoEvents();
 }
 
 // return the number of total fifo events, after update
 unsigned int EvrDataUtil::removeTailEvent() 
 {
-  if ( _u32NumFifoEvents > 0 )
-    --_u32NumFifoEvents;
+  if ( numFifoEvents() > 0 )
+    *new(this) EvrDataType(numFifoEvents()-1);
     
-  return _u32NumFifoEvents;
+  return numFifoEvents();
 }
 
 void EvrDataUtil::clearFifoEvents()
 {
-  _u32NumFifoEvents = 0;  
+  *new(this) EvrDataType(0);
 }
 
 unsigned int EvrDataUtil::size(int iMaxNumFifoEvents)

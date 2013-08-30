@@ -23,7 +23,6 @@
 #include "pds/pnccd/FrameV0.hh"
 #include "pdsdata/xtc/DetInfo.hh"
 #include "pds/pnccd/pnCCDManager.hh"
-#include "pds/pnccd/pnCCDServer.hh"
 #include "pds/config/CfgClientNfs.hh"
 #include "pds/utility/Occurrence.hh"
 #include "pds/service/GenericPool.hh"
@@ -31,7 +30,6 @@
 #include "pdsdata/xtc/Xtc.hh"
 #include "pdsdata/xtc/Damage.hh"
 #include "pds/config/CfgCache.hh"
-#include "pds/config/pnCCDConfigType.hh"
 
 namespace Pds {
   class Allocation;
@@ -149,7 +147,8 @@ class pnCCDConfigAction : public Action {
     Transition* fire(Transition* tr) {
       _result = 0;
       try {
-        new(_cfg.allocate()) pnCCDConfigType(_sConfigFile);
+        Pds::pnCCDConfig::setNumLinks( *reinterpret_cast<pnCCDConfigType*>(_cfg.allocate()),
+                                       _sConfigFile );
       } catch (std::string& error) {
         strcpy(_errorMsg, error.c_str());
         _result = 42;

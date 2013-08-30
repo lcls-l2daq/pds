@@ -128,11 +128,11 @@ public:
       );
     printf( "  Wavelength Calibration Coefficients:\n    ");
     for (int iOrder = 0; iOrder < 4; ++iOrder)
-      printf("[%d] %lg ", iOrder, _configDevice.waveLenCalib(iOrder));
+      printf("[%d] %lg ", iOrder, _configDevice.waveLenCalib()[iOrder]);
     printf( "\n  Stray Light Constant: %lg\n", _configDevice.strayLightConstant());
     printf( "  Nonlinear Correction Coefficients:\n    ");
     for (int iOrder = 0; iOrder < 8; ++iOrder)
-      printf("[%d] %lg ", iOrder, _configDevice.nonlinCorrect(iOrder)); 
+      printf("[%d] %lg ", iOrder, _configDevice.nonlinCorrect()[iOrder]); 
     printf("\n");
     
     if (_iDebugLevel>=1) printf( "\nOutput payload size = %d\n", in->datagram().xtc.sizeofPayload());

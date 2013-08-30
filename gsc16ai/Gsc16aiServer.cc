@@ -257,12 +257,14 @@ int Pds::Gsc16aiServer::fetch( char* payload, int flags )
     }
 
     // copy the received data
-    for (int ii = 0; ii < extraChans + 1; ii++) {
-      frame->_channelValue[ii] = buf_iter->_channelValue[ii];
+    { uint16_t* cv = reinterpret_cast<uint16_t*>(frame+1);
+      for (int ii = 0; ii < extraChans + 1; ii++)
+        cv[ii] = buf_iter->_channelValue[ii];
+    }      
+    { uint16_t* ts = reinterpret_cast<uint16_t*>(frame);
+      for(int i=0; i<3; i++)
+        ts[i] = buf_iter->_timestamp[i];
     }
-    frame->_timestamp[0] = buf_iter->_timestamp[0];
-    frame->_timestamp[1] = buf_iter->_timestamp[1];
-    frame->_timestamp[2] = buf_iter->_timestamp[2];
 
     // mark buffer as empty
     buf_iter->_full = false;

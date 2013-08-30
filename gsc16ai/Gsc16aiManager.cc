@@ -14,7 +14,7 @@
 #include "pds/config/Gsc16aiConfigType.hh"
 #include "Gsc16aiManager.hh"
 #include "Gsc16aiServer.hh"
-#include "pdsdata/gsc16ai/ConfigV1.hh"
+#include "pdsdata/psddl/gsc16ai.ddl.h"
 #include "pds/config/CfgClientNfs.hh"
 #include "gsc16ai_dev.hh"
 #include "Gsc16aiOccurrence.hh"
@@ -122,7 +122,7 @@ class Gsc16aiConfigAction : public Gsc16aiAction
     _occSend->userMessage("Gsc16ai: failed to retrieve configuration.\n");
     _nerror += 1;
   } else {
-    _config.dump();
+    //    _config.dump();
     _nerror += _server->configure( _config );
     if (!_nerror) {
       _server->reset();   // clears out-of-order flag

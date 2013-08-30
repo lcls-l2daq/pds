@@ -14,7 +14,6 @@
 #include "pds/pgp/RegisterSlaveExportFrame.hh"
 #include "pds/service/Task.hh"
 #include "pds/service/TaskObject.hh"
-#include "pds/pnccd/pnCCDConfigurator.hh"
 #include "pds/pnccd/Processor.hh"
 #include "pds/pnccd/FrameV0.hh"
 #include "pds/pgp/Pgp.hh"
@@ -24,7 +23,6 @@
 #include <sys/uio.h>
 #include <string.h>
 #include <errno.h>
-#include <string.h>
 #include <fcntl.h>
 
 using namespace Pds;

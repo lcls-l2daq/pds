@@ -10,7 +10,6 @@
 #include "pds/xtc/Datagram.hh"
 #include "pds/xtc/InDatagram.hh"
 #include "pds/xtc/CDatagram.hh"
-#include "pds/xtc/Datagram.hh"
 
 using namespace Pds;
 

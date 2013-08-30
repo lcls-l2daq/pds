@@ -126,7 +126,6 @@ int NetDgServer::pend(int flag)
   return _server.pend(flag);
 }
 
-#include <stdio.h>
 
 int NetDgServer::fetch(char* payload, int flags)
 {

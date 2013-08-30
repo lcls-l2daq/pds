@@ -94,9 +94,9 @@ class Pds::TimepixServer
       {}
 
       bool                  _full;
-      unsigned char         _rawData[Pds::Timepix::DataV1::RawDataBytes];
+      unsigned char         _rawData[Pds::TimepixData::RawDataBytes];
       Pds::Timepix::DataV1  _header;
-      int16_t               _pixelData[Pds::Timepix::DataV1::DecodedDataBytes / sizeof(int16_t)];
+      int16_t               _pixelData[Pds::TimepixData::DecodedDataBytes / sizeof(int16_t)];
     };
 
     int payloadComplete(vector<BufferElement>::iterator buf_iter, bool missedTrigger);

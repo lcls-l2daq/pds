@@ -46,7 +46,7 @@
 #include "pds/config/AcqConfigType.hh"
 #include "AcqManager.hh"
 #include "AcqServer.hh"
-#include "pdsdata/acqiris/DataDescV1.hh"
+#include "pdsdata/psddl/acqiris.ddl.h"
 #include "pdsdata/xtc/DetInfo.hh"
 #include "pds/config/CfgClientNfs.hh"
 #include "acqiris/aqdrv4/AcqirisImport.h"
@@ -61,6 +61,26 @@ using namespace Pds;
 static unsigned cpol1=0; 
 static unsigned nprint =0;
 
+static inline unsigned _waveformSize(const Acqiris::HorizV1& hconfig)
+{
+  return (hconfig.nbrSamples()*hconfig.nbrSegments()+Acqiris::DataDescV1Elem::_extraSize)*sizeof(short);
+}
+
+static inline int16_t* _waveform(Acqiris::DataDescV1Elem* data, const Acqiris::HorizV1& hconfig)
+{
+  return reinterpret_cast<int16_t*>(reinterpret_cast<char*>(data)+64+hconfig.nbrSegments()*sizeof(Acqiris::TimestampV1));
+}
+
+static inline Acqiris::TimestampV1* _timestamp(Acqiris::DataDescV1Elem* data) 
+{
+  return reinterpret_cast<Acqiris::TimestampV1*>(reinterpret_cast<char*>(data)+64);
+}
+
+static inline Acqiris::DataDescV1Elem* _nextChannel(Acqiris::DataDescV1Elem* data, const Acqiris::HorizV1& hconfig) 
+{
+  return reinterpret_cast<Acqiris::DataDescV1Elem*>(reinterpret_cast<char*>(_waveform(data,hconfig))+_waveformSize(hconfig));
+}
+
 class AcqReader : public Routine {
 public:
   AcqReader(ViSession instrumentId, AcqServer& server, Task* task) :
@@ -70,7 +90,9 @@ public:
   }
   void setConfig(const AcqConfigType& config) {
     _nbrSamples=config.horiz().nbrSamples();
-    _totalSize=Acqiris::DataDescV1::totalSize(config.horiz())*config.nbrChannels();
+    //    _totalSize=Acqiris::DataDescV1::totalSize(config.horiz())*config.nbrChannels();
+    Acqiris::DataDescV1Elem e;
+    _totalSize=e._sizeof(config)*config.nbrChannels();
   }
   void resetCount() {_count=0;}
   void start() {_task->call(this);}
@@ -173,7 +195,7 @@ public:
     ViStatus status=0;
     // ### Readout the data ###
     unsigned channelMask = _config->channelMask();
-    Acqiris::HorizV1& hconfig = _config->horiz();
+    const Acqiris::HorizV1& hconfig = _config->horiz();
     unsigned nbrSegments   = hconfig.nbrSegments();
     unsigned nbrSamples    = hconfig.nbrSamples();
 
@@ -192,8 +214,8 @@ public:
     readParams.segmentOffset    = 0;
     readParams.segDescArraySize = (long)sizeof(AqSegmentDescriptor) * nbrSegments;
     readParams.nbrSamplesInSeg  = nbrSamples;
-    Acqiris::DataDescV1* data = (Acqiris::DataDescV1*)_destination;
-    readParams.dataArraySize = data->waveformSize(hconfig);
+    Acqiris::DataDescV1Elem* data = (Acqiris::DataDescV1Elem*)_destination;
+    readParams.dataArraySize = _waveformSize(hconfig);
 
     for (unsigned i=0;i<32;i++) {
       // note that analysis software will depend on the vertical configurations
@@ -202,9 +224,9 @@ public:
       unsigned channel = i+1;      
       _sem.take();
       status = AcqrsD1_readData(_instrumentId, channel, &readParams,
-                                data->waveform(hconfig),
+                                _waveform(data,hconfig),
                                 (AqDataDescriptor*)data, 
-                                &(data->timestamp(0)));
+                                _timestamp(data));
       _sem.give();
 
       // for SAR mode
@@ -223,7 +245,7 @@ public:
         printf("*** Received %d segments, expected %d.\n",
                data->nbrSegments(),nbrSegments);
       }
-      data = data->nextChannel(hconfig);
+      data = _nextChannel(data,hconfig);
     }    
     _server.payloadComplete();  	
     _task->call(&_reader);
@@ -294,8 +316,8 @@ public:
   unsigned validate(Xtc* pxtc) {
     cpol1++;
     Xtc& xtc = *pxtc;
-    Acqiris::DataDescV1& data = *(Acqiris::DataDescV1*)(xtc.payload());
-    unsigned long long acqts = data.timestamp(0).value();
+    Acqiris::DataDescV1Elem& data = *(Acqiris::DataDescV1Elem*)(xtc.payload());
+    unsigned long long acqts = _timestamp(&data)->value();
     unsigned evrfid = _seq.stamp().fiducials();
     unsigned long long nsPerFiducial = 2777777ULL;
     unsigned long long evrdiff = ((evrfid > _lastEvrFid) ? (evrfid-_lastEvrFid) : (evrfid-_lastEvrFid+Pds::TimeStamp::MaxFiducials))*nsPerFiducial;    
@@ -456,7 +478,7 @@ public:
       msg->append("Failed to open config file\n");
       _nerror++;
     }
-    _config.dump();
+    //    _config.dump();
 
     // non-SAR mode
     if (_check("AcqrsD1_configMemory",
@@ -521,34 +543,34 @@ public:
       uint32_t channelMask = _config.channelMask();
       if (channelMask&(1<<i)) {
         if (_check("AcqrsD1_configVertical",
-                   AcqrsD1_configVertical(_instrumentId, i+1, _config.vert(nchan).fullScale(),
-                                          _config.vert(nchan).offset(), _config.vert(nchan).coupling(),
-                                          _config.vert(nchan).bandwidth()),
+                   AcqrsD1_configVertical(_instrumentId, i+1, _config.vert()[nchan].fullScale(),
+                                          _config.vert()[nchan].offset(), _config.vert()[nchan].coupling(),
+                                          _config.vert()[nchan].bandwidth()),
                    msg)) _nerror++;
         AcqrsD1_getVertical(_instrumentId, i+1, (ViReal64*)&fullScale,
                             (ViReal64*)&offset, (ViInt32*)(void*)&coupling,
                             (ViInt32*)(void*)&bandwidth);
-        if (fabs(fullScale-_config.vert(nchan).fullScale())>epsilon) {
+        if (fabs(fullScale-_config.vert()[nchan].fullScale())>epsilon) {
           printf("*** Requested %e fullscale, received %e\n",
-                 _config.vert(nchan).fullScale(),fullScale);
+                 _config.vert()[nchan].fullScale(),fullScale);
 	  msg->append("Incorrect scale\n");
           _nerror++;
         }
-        if (fabs(offset-_config.vert(nchan).offset())>epsilon) {
+        if (fabs(offset-_config.vert()[nchan].offset())>epsilon) {
           printf("*** Requested %e fullscale, received %e\n",
-                 _config.vert(nchan).offset(),offset);
+                 _config.vert()[nchan].offset(),offset);
 	  msg->append("Incorrect scale\n");
           _nerror++;
         }
-        if (coupling != _config.vert(nchan).coupling()) {
+        if (coupling != _config.vert()[nchan].coupling()) {
           printf("*** Requested coupling %d, received %d\n",
-                 _config.vert(nchan).coupling(),coupling);
+                 _config.vert()[nchan].coupling(),coupling);
 	  msg->append("Incorrect coupling\n");
           _nerror++;
         }
-        if (bandwidth != _config.vert(nchan).bandwidth()) {
+        if (bandwidth != _config.vert()[nchan].bandwidth()) {
           printf("*** Requested bandwidth %d, received %d\n",
-                 _config.vert(nchan).bandwidth(),bandwidth);
+                 _config.vert()[nchan].bandwidth(),bandwidth);
 	  msg->append("Incorrect bandwidth\n");
           _nerror++;
         }

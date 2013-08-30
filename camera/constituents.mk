@@ -8,9 +8,9 @@ libsrcs_camera := CameraBase.cc \
 		  CameraManager.cc \
 		  FexCameraManager.cc \
 		  FrameHandle.cc \
-		  Frame.cc \
 		  TwoDMoments.cc \
 		  TwoDGaussian.cc \
+		  Frame.cc \
 	          FrameServer.cc \
 	          FexFrameServer.cc \
 	          FccdFrameServer.cc \
@@ -28,12 +28,15 @@ libsrcs_camera := CameraBase.cc \
 		  OrcaCamera.cc \
 		  OrcaManager.cc
 
+libincs_camera := pdsdata/include ndarray/include 
+
 libsrcs_camleutron := PicPortCL.cc
 libsinc_camleutron := /usr/include/lvsds
 libincs_camleutron := leutron/include
+libincs_camleutron += pdsdata/include
 
 libsrcs_camedt := EdtPdvCL.cc
-libincs_camedt := edt/include
+libincs_camedt := edt/include pdsdata/include
 
 #tgtnames := camreceiver
 #tgtnames += camsend
@@ -65,15 +68,16 @@ leutron_libs += leutron/LvSerialCommunication.34.${ARCHCODE}
 tgtsrcs_camsend := camsend.cc
 tgtincs_camsend := pds/zerocopy/kmemory pds/camera
 tgtlibs_camsend := pds/service pds/collection pds/utility pds/config pds/client pds/camera pds/xtc
-tgtlibs_camsend += pds/vmon pds/mon pds/camleutron
-tgtlibs_camsend += pdsdata/xtcdata pdsdata/camdata pdsdata/opal1kdata pdsdata/quartzdata pdsdata/orcadata pdsdata/pulnixdata pdsdata/fccddata pdsdata/quartzdata
+tgtlibs_camsend += pds/vmon pds/mon pds/camleutron pds/configdata
+tgtlibs_camsend += pdsdata/xtcdata pdsdata/psddl_pdsdata
 tgtlibs_camsend += $(leutron_libs)
 tgtincs_camsend += leutron/include
+tgtincs_camsend += pdsdata/include ndarray/include 
 
 tgtsrcs_camsendm := camsendm.cc
 tgtlibs_camsendm := pds/service pds/collection pds/utility pds/config pds/camera pds/client pds/xtc
 tgtlibs_camsendm += pds/vmon pds/mon pds/camleutron
-tgtlibs_camsendm += pdsdata/xtcdata pdsdata/camdata pdsdata/opal1kdata pdsdata/pulnixdata pdsdata/fccddata 
+tgtlibs_camsendm += pdsdata/xtcdata pdsdata/psddl_pdsdata
 tgtincs_camsendm := pds/zerocopy/kmemory pds/camera
 tgtlibs_camsendm += $(leutron_libs)
 tgtincs_camsendm += leutron/include
@@ -97,10 +101,10 @@ tgtlibs_pdvserialcmd := edt/pdv
 tgtslib_pdvserialcmd := $(USRLIBDIR)/rt dl
 
 tgtsrcs_pdvcamsend := pdvcamsend.cc
-tgtincs_pdvcamsend := edt/include
+tgtincs_pdvcamsend := edt/include pdsdata/include ndarray/include 
 tgtlibs_pdvcamsend := pds/service pds/collection pds/utility pds/config pds/client pds/xtc
-tgtlibs_pdvcamsend += pds/vmon pds/mon pds/camera pds/camedt
-tgtlibs_pdvcamsend += pdsdata/xtcdata pdsdata/camdata pdsdata/opal1kdata pdsdata/quartzdata pdsdata/pulnixdata pdsdata/fccddata pdsdata/orcadata
+tgtlibs_pdvcamsend += pds/vmon pds/mon pds/camera pds/camedt pds/configdata
+tgtlibs_pdvcamsend += pdsdata/xtcdata pdsdata/psddl_pdsdata
 tgtlibs_pdvcamsend += edt/pdv
 tgtslib_pdvcamsend := $(USRLIBDIR)/rt dl
 

@@ -7,7 +7,7 @@
 #include <fcntl.h>
 #include <errno.h>
 
-#include "pdsdata/gsc16ai/ConfigV1.hh"
+#include "pdsdata/psddl/gsc16ai.ddl.h"
 #include "gsc16ai_dev.hh"
 
 using namespace Pds;

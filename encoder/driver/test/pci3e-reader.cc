@@ -5,7 +5,6 @@
 #include <fcntl.h>
 #include <signal.h>
 #include <sys/ioctl.h>
-#include <signal.h>
 #include <sys/select.h>
 #include <sys/time.h>
 #include "pci3e.h"

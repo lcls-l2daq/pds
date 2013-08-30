@@ -120,7 +120,7 @@ class TimepixConfigAction : public TimepixAction
     _nerror += 1;
   } else {
     _nerror += _server->configure( _config );
-    _config.dump();
+    //    _config.dump();
     if (!_nerror) {
       _server->reset();   // clears out-of-order flag
     }

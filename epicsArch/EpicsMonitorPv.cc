@@ -1,8 +1,9 @@
+#include "EpicsMonitorPv.hh"
+
 #define epicsAlarmGLOBAL
 #include <alarm.h>
 #undef epicsAlarmGLOBAL
 
-#include "EpicsMonitorPv.hh"
 
 namespace Pds
 {
@@ -264,6 +265,24 @@ namespace Pds
     return 0;
   }
 
+  template<int T>
+  int EpicsMonitorPv::writeXtcCtrlValueByDbrId(char*& p, int &isize) const 
+  {
+    typedef typename EpicsDbrTools::DbrTypeTraits<T>::TPdsCtrl TPdsCtrl;
+    typedef typename EpicsDbrTools::DbrTypeTraits<T>::TDbrCtrl TDbrCtrl;
+    typedef typename EpicsDbrTools::DbrTypeTraits<T>::TDbrOrgP TDbrOrgP;
+
+    const TDbrCtrl* v = reinterpret_cast<const TDbrCtrl*>(_pCtrlValue);
+    TPdsCtrl* q = new(p) TPdsCtrl(_iPvId, 
+                                  EpicsDbrTools::DbrTypeTraits<T>::iDbrCtrlType, 
+                                 _ulNumElems,
+                                  _sPvName.c_str(),
+                                  *v, reinterpret_cast<TDbrOrgP>(v+1));
+
+    isize = q->_sizeof();
+    return 0;
+  }
+
   const EpicsMonitorPv::TWriteXtcValueFuncPointer EpicsMonitorPv::
     lfuncWriteXtcCtrlValueFunctionTable[] = {
     &EpicsMonitorPv::writeXtcCtrlValueByDbrId < DBR_STRING >,
@@ -274,6 +293,21 @@ namespace Pds
     &EpicsMonitorPv::writeXtcCtrlValueByDbrId < DBR_LONG   >,
     &EpicsMonitorPv::writeXtcCtrlValueByDbrId < DBR_DOUBLE >
   };
+
+  template <int T>
+  int EpicsMonitorPv::writeXtcTimeValueByDbrId(char*& p, int &isize) const 
+  {
+    typedef typename EpicsDbrTools::DbrTypeTraits<T>::TPdsTime TPdsTime;
+    typedef typename EpicsDbrTools::DbrTypeTraits<T>::TDbrTime TDbrTime;
+    typedef typename EpicsDbrTools::DbrTypeTraits<T>::TDbrOrgP TDbrOrgP;
+
+    const TDbrTime* v = reinterpret_cast<const TDbrTime*>(_pTimeValue);
+    TPdsTime* q = new(p) TPdsTime(_iPvId, EpicsDbrTools::DbrTypeTraits<T>::iDbrCtrlType, _ulNumElems,
+                                  *v, reinterpret_cast<const TDbrOrgP>(v+1));
+
+    isize = q->_sizeof();
+    return 0;
+  }
 
   const EpicsMonitorPv::TWriteXtcValueFuncPointer EpicsMonitorPv::
     lfuncWriteXtcTimeValueFunctionTable[] = {

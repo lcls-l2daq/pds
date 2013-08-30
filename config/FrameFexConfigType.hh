@@ -2,7 +2,7 @@
 #define Pds_FrameFexConfigType_hh
 
 #include "pdsdata/xtc/TypeId.hh"
-#include "pdsdata/camera/FrameFexConfigV1.hh"
+#include "pdsdata/psddl/camera.ddl.h"
 
 typedef Pds::Camera::FrameFexConfigV1 FrameFexConfigType;
 

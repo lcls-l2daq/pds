@@ -7,7 +7,7 @@
 #include "pds/config/PhasicsConfigType.hh"
 #include "pds/service/Task.hh"
 #include "pds/service/Routine.hh"
-#include "pdsdata/camera/FrameV1.hh"
+#include "pdsdata/psddl/camera.ddl.h"
 #include "pds/phasics/PhasicsConfigurator.hh"
 #include "pdsdata/xtc/Xtc.hh"
 #include <fcntl.h>

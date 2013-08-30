@@ -1,13 +1,16 @@
 #ifndef EPICS_MONITOR_PV_H
 #define EPICS_MONITOR_PV_H
 
+#include "pds/epicsArch/EpicsDbrTools.hh"
+#include "pdsdata/psddl/epics.ddl.h"
+
 #include <vector>
 #include <string>
 
 #include <alarm.h>
 #include <epicsTime.h>
 #include "cadef.h"
-#include "pdsdata/epics/EpicsPvData.hh"
+#define EPICS_HEADERS_INCLUDED
 
 namespace Pds
 {
@@ -25,7 +28,7 @@ namespace Pds
     }
 
     int init(int iPvId, const std::string & sPvName,
-       const std::string & sPvDescription, float fUpdateInterval, int iNumEventNode);
+             const std::string & sPvDescription, float fUpdateInterval, int iNumEventNode);
     int reconnect();
     void resetUpdates(int iNumEventNode);
     bool checkWriteEvent(const struct timespec& tsCurrent, unsigned int uVectorCur);
@@ -152,26 +155,26 @@ namespace Pds
     unsigned short int usSeverity = 0;
     if (_lDbrLastUpdateType == _lDbrTimeType)
     {
-      pValue = (char *) &pvTimeVal.value;
-      usStatus = pvTimeVal.status;
-      usSeverity = pvTimeVal.severity;
+      pValue = (char *) (&pvTimeVal + 1);
+      usStatus = pvTimeVal.status();
+      usSeverity = pvTimeVal.severity();
     }
     else if (_lDbrLastUpdateType == _lDbrCtrlType)
     {
-      pValue = (char *) &pvCtrlVal.value;
-      usStatus = pvCtrlVal.status;
-      usSeverity = pvCtrlVal.severity;
+      pValue = (char *) (&pvCtrlVal + 1);
+      usStatus = pvCtrlVal.status();
+      usSeverity = pvCtrlVal.severity();
     }
 
-    printf("Status: %s\n", epicsAlarmConditionStrings[usStatus]);
-    printf("Severity: %s\n", epicsAlarmSeverityStrings[usSeverity]);
+    printf("Status: %s\n", Epics::epicsAlarmConditionStrings[usStatus]);
+    printf("Severity: %s\n", Epics::epicsAlarmSeverityStrings[usSeverity]);
 
     if (_bTimeValueUpdated)
     {
       static const char timeFormatStr[40] = "%04Y-%02m-%02d %02H:%02M:%02S.%09f"; /* Time format string */
       char sTimeText[40];
       epicsTimeToStrftime(sTimeText, sizeof(sTimeText), timeFormatStr,
-        &pvTimeVal.stamp);
+                          reinterpret_cast<const epicsTimeStamp*>(&pvTimeVal.stamp()));
       printf("TimeStamp: %s\n", sTimeText);
     }
 
@@ -190,22 +193,6 @@ namespace Pds
 
     return 0;
   }       // int EpicsMonitorPv::printPvByDbrId() const
-
-  template < int iDbrType >
-    int EpicsMonitorPv::writeXtcTimeValueByDbrId(char *&pcXtcMem,
-             int &iSizeXtc) const
-  {
-    new(pcXtcMem) EpicsPvTime < iDbrType > (_iPvId, _ulNumElems, _pTimeValue, &iSizeXtc);
-
-    return 0;
-  }       // int EpicsMonitorPv::writeXtcByDbrId() const
-
-  template < int iDbrType >
-    int EpicsMonitorPv::writeXtcCtrlValueByDbrId(char *&pcXtcMem, int &iSizeXtc) const
-  {
-    new(pcXtcMem) EpicsPvCtrl < iDbrType > (_iPvId, _ulNumElems, _sPvName.c_str(), _pCtrlValue, &iSizeXtc);
-    return 0;
-  }       // int EpicsMonitorPv::writeXtcByDbrId() const
 
 }       // namespace Pds
 

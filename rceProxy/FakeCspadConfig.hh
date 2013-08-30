@@ -1,4 +1,4 @@
-#include "pdsdata/cspad/ElementV1.hh"
+#include "pdsdata/psddl/cspad.ddl.h"
 namespace Pds {
 
   enum {compBias1=0xff, compBias2=0xc8, iss2=0x3c, iss5=0x25, vref=0xba};

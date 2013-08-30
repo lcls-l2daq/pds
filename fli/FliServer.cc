@@ -216,8 +216,7 @@ int FliServer::config(FliConfigType& config, std::string& sConfigWarning)
     sprintf( sMessage, "!!! FLI %d ConfigSize (%d,%d) > Det Size(%d,%d)\n", iDevId, config.width(), config.height(), _iDetectorWidth, _iDetectorHeight);
     printf(sMessage);
     sConfigWarning += sMessage;
-    config.setWidth (_iDetectorWidth);
-    config.setHeight(_iDetectorHeight);
+    Pds::FliConfig::setSize(config,_iDetectorWidth,_iDetectorHeight);
   }
 
   if ( (int) (config.orgX() + config.width()) > _iDetectorWidth ||
@@ -228,8 +227,9 @@ int FliServer::config(FliConfigType& config, std::string& sConfigWarning)
              config.orgX() + config.width(), config.orgY() + config.height(), _iDetectorWidth, _iDetectorHeight);
     printf(sMessage);
     sConfigWarning += sMessage;
-    config.setWidth (_iDetectorWidth - config.orgX());
-    config.setHeight(_iDetectorHeight - config.orgY());
+    Pds::FliConfig::setSize (config,
+                             _iDetectorWidth - config.orgX(),
+                             _iDetectorHeight - config.orgY());
   }
 
   //Note: We don't send error for cooling incomplete
@@ -979,7 +979,7 @@ int FliServer::getData(InDatagram* in, InDatagram*& out)
   dgOut.xtc.extent = xtcOutBkp.extent;
 
   unsigned char*  pFrameHeader  = (unsigned char*) _pDgOut + sizeof(CDatagram) + sizeof(Xtc);
-  new (pFrameHeader) FliDataType(in->datagram().seq.stamp().fiducials(), _fReadoutTime);
+  new (pFrameHeader) FliDataType(in->datagram().seq.stamp().fiducials(), _fReadoutTime, 0);
 
   out       = _pDgOut;
 
@@ -1122,10 +1122,10 @@ int FliServer::processFrame()
   {
     unsigned char*  pFrameHeader   = (unsigned char*) _pDgOut + sizeof(CDatagram) + sizeof(Xtc);
     FliDataType* pFrame     = (FliDataType*) pFrameHeader;
-    const uint16_t*     pPixel     = pFrame->data();
+    const uint16_t*     pPixel     = pFrame->data(_config).data();
     //int                 iWidth   = (int) ( (_config.width()  + _config.binX() - 1 ) / _config.binX() );
     //int                 iHeight  = (int) ( (_config.height() + _config.binY() - 1 ) / _config.binY() );
-    const uint16_t*     pEnd       = (const uint16_t*) ( (unsigned char*) pFrame->data() + _config.frameSize() );
+    const uint16_t*     pEnd       = (const uint16_t*) ( (unsigned char*) pFrame->data(_config).data() + _config.frameSize() );
     const uint64_t      uNumPixels = (uint64_t) (_config.frameSize() / sizeof(uint16_t) );
 
     uint64_t            uSum    = 0;
@@ -1262,7 +1262,7 @@ int FliServer::updateTemperatureData()
   else
   {
     FliDataType*  pFliData       = (FliDataType*) ((unsigned char*) _pDgOut + sizeof(CDatagram) + sizeof(Xtc));
-    pFliData->setTemperature( (float) fTemperature );
+    Pds::FliData::setTemperature( *pFliData, (float) fTemperature );
   }
 
   if ( fTemperature >= _config.coolingTemp() + _fTemperatureHiTol ||

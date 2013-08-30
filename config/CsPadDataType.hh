@@ -2,11 +2,12 @@
 #define CSPADDATATYPE_HH
 
 #include "pdsdata/xtc/TypeId.hh"
-#include "pdsdata/cspad/ElementV2.hh"
+#include "pdsdata/psddl/cspad.ddl.h"
 
-typedef Pds::CsPad::ElementV2 CsPadDataType;
+typedef Pds::CsPad::ElementV2 CsPadElementType;
+typedef Pds::CsPad::DataV2 CsPadDataType;
 
 static Pds::TypeId _CsPadDataType(Pds::TypeId::Id_CspadElement,
-                                    Pds::CsPad::ElementV2::Version);
+                                  CsPadDataType::Version);
 
 #endif

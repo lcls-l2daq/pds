@@ -2,7 +2,7 @@
 #define CSPAD2x2DATATYPE_HH
 
 #include "pdsdata/xtc/TypeId.hh"
-#include "pdsdata/cspad2x2/ElementV1.hh"
+#include "pdsdata/psddl/cspad2x2.ddl.h"
 
 typedef Pds::CsPad2x2::ElementV1 CsPad2x2DataType;
 

@@ -9,7 +9,7 @@
 #include "pds/camera/FccdCamera.hh"
 #include "pds/camera/FrameServerMsg.hh"
 #include "pds/camera/CameraDriver.hh"
-#include "pdsdata/camera/FrameCoord.hh"
+#include "pdsdata/psddl/camera.ddl.h"
 
 #include <stdio.h>
 #include <errno.h>
@@ -574,80 +574,17 @@ int FccdCamera::configure(CameraDriver& driver,
 
   printf(">> Set wave form portion of FCCD configuration...\n");
 
-  if ((makeWaveCommand(0, _inputConfig->waveform0(), sendBuf) != 0) ||
-      (SendFccdCommand(driver,sendBuf) < 0)) {
-      printf(">> Failed to configure wave form 0\n");
+  ndarray<const uint16_t,1> wf = _inputConfig->waveforms();
+  if (wf.shape()[0]==15) { // array size should be 15
+    for(unsigned k=0; k<wf.shape()[0]; k++) { 
+      if ((makeWaveCommand(k, wf[k], sendBuf) != 0) ||
+          (SendFccdCommand(driver,sendBuf) < 0)) {
+        printf(">> Failed to configure wave form %d\n",k);
+      }
+    }
   }
-
-  if ((makeWaveCommand(1, _inputConfig->waveform1(), sendBuf) != 0) ||
-      (SendFccdCommand(driver,sendBuf) < 0)) {
-      printf(">> Failed to configure wave form 1\n");
-  }
-
-  if ((makeWaveCommand(2, _inputConfig->waveform2(), sendBuf) != 0) ||
-      (SendFccdCommand(driver,sendBuf) < 0)) {
-      printf(">> Failed to configure wave form 2\n");
-  }
-
-  if ((makeWaveCommand(3, _inputConfig->waveform3(), sendBuf) != 0) ||
-      (SendFccdCommand(driver,sendBuf) < 0)) {
-      printf(">> Failed to configure wave form 3\n");
-  }
-
-  if ((makeWaveCommand(4, _inputConfig->waveform4(), sendBuf) != 0) ||
-      (SendFccdCommand(driver,sendBuf) < 0)) {
-      printf(">> Failed to configure wave form 4\n");
-  }
-
-  if ((makeWaveCommand(5, _inputConfig->waveform5(), sendBuf) != 0) ||
-      (SendFccdCommand(driver,sendBuf) < 0)) {
-      printf(">> Failed to configure wave form 5\n");
-  }
-
-  if ((makeWaveCommand(6, _inputConfig->waveform6(), sendBuf) != 0) ||
-      (SendFccdCommand(driver,sendBuf) < 0)) {
-      printf(">> Failed to configure wave form 6\n");
-  }
-
-  if ((makeWaveCommand(7, _inputConfig->waveform7(), sendBuf) != 0) ||
-      (SendFccdCommand(driver,sendBuf) < 0)) {
-      printf(">> Failed to configure wave form 7\n");
-  }
-
-  if ((makeWaveCommand(8, _inputConfig->waveform8(), sendBuf) != 0) ||
-      (SendFccdCommand(driver,sendBuf) < 0)) {
-      printf(">> Failed to configure wave form 8\n");
-  }
-
-  if ((makeWaveCommand(9, _inputConfig->waveform9(), sendBuf) != 0) ||
-      (SendFccdCommand(driver,sendBuf) < 0)) {
-      printf(">> Failed to configure wave form 9\n");
-  }
-
-  if ((makeWaveCommand(10, _inputConfig->waveform10(), sendBuf) != 0) ||
-      (SendFccdCommand(driver,sendBuf) < 0)) {
-      printf(">> Failed to configure wave form 10\n");
-  }
-
-  if ((makeWaveCommand(11, _inputConfig->waveform11(), sendBuf) != 0) ||
-      (SendFccdCommand(driver,sendBuf) < 0)) {
-      printf(">> Failed to configure wave form 11\n");
-  }
-
-  if ((makeWaveCommand(12, _inputConfig->waveform12(), sendBuf) != 0) ||
-      (SendFccdCommand(driver,sendBuf) < 0)) {
-      printf(">> Failed to configure wave form 12\n");
-  }
-
-  if ((makeWaveCommand(13, _inputConfig->waveform13(), sendBuf) != 0) ||
-      (SendFccdCommand(driver,sendBuf) < 0)) {
-      printf(">> Failed to configure wave form 13\n");
-  }
-
-  if ((makeWaveCommand(14, _inputConfig->waveform14(), sendBuf) != 0) ||
-      (SendFccdCommand(driver,sendBuf) < 0)) {
-      printf(">> Failed to configure wave form 14\n");
-  }
+  else
+    printf("Failed to retrieve waveform configuration (size=%d)\n",wf.shape()[0]);
 
   printf(">> Set fixed portion of FCCD configuration...\n");
   for (trace = 0; *initCmd[trace]; trace++) {
@@ -662,89 +599,12 @@ int FccdCamera::configure(CameraDriver& driver,
     if (_inputConfig->ccdEnable()) {
       printf(" >> Set the voltages... \n");
 
-      if ((makeDACWriteCommand(0x00, _inputConfig->dacVoltage1(), FCCD_DAC1_V_START, FCCD_DAC1_V_END, sendBuf) != 0) ||
+      ndarray<const float,1> dacs = _inputConfig->dacVoltages();
+      for(unsigned k=0; k<dacs.shape()[0]; k++) {
+        if ((makeDACWriteCommand(k*2, dacs[k], FCCD_DAC[k].v_start, FCCD_DAC[k].v_end, sendBuf) != 0) ||
           (SendFccdCommand(driver,sendBuf) < 0)) {
-        printf(">> Failed to configure DAC 1\n");
-      }
-
-      if ((makeDACWriteCommand(0x02, _inputConfig->dacVoltage2(), FCCD_DAC2_V_START, FCCD_DAC2_V_END, sendBuf) != 0) ||
-          (SendFccdCommand(driver,sendBuf) < 0)) {
-        printf(">> Failed to configure DAC 2\n");
-      }
-
-      if ((makeDACWriteCommand(0x04, _inputConfig->dacVoltage3(), FCCD_DAC3_V_START, FCCD_DAC3_V_END, sendBuf) != 0) ||
-          (SendFccdCommand(driver,sendBuf) < 0)) {
-        printf(">> Failed to configure DAC 3\n");
-      }
-
-      if ((makeDACWriteCommand(0x06, _inputConfig->dacVoltage4(), FCCD_DAC4_V_START, FCCD_DAC4_V_END, sendBuf) != 0) ||
-          (SendFccdCommand(driver,sendBuf) < 0)) {
-        printf(">> Failed to configure DAC 4\n");
-      }
-
-      if ((makeDACWriteCommand(0x08, _inputConfig->dacVoltage5(), FCCD_DAC5_V_START, FCCD_DAC5_V_END, sendBuf) != 0) ||
-          (SendFccdCommand(driver,sendBuf) < 0)) {
-        printf(">> Failed to configure DAC 5\n");
-      }
-
-      if ((makeDACWriteCommand(0x0a, _inputConfig->dacVoltage6(), FCCD_DAC6_V_START, FCCD_DAC6_V_END, sendBuf) != 0) ||
-          (SendFccdCommand(driver,sendBuf) < 0)) {
-        printf(">> Failed to configure DAC 6\n");
-      }
-
-      if ((makeDACWriteCommand(0x0c, _inputConfig->dacVoltage7(), FCCD_DAC7_V_START, FCCD_DAC7_V_END, sendBuf) != 0) ||
-          (SendFccdCommand(driver,sendBuf) < 0)) {
-        printf(">> Failed to configure DAC 7\n");
-      }
-
-      if ((makeDACWriteCommand(0x0e, _inputConfig->dacVoltage8(), FCCD_DAC8_V_START, FCCD_DAC8_V_END, sendBuf) != 0) ||
-          (SendFccdCommand(driver,sendBuf) < 0)) {
-        printf(">> Failed to configure DAC 8\n");
-      }
-
-      if ((makeDACWriteCommand(0x10, _inputConfig->dacVoltage9(), FCCD_DAC9_V_START, FCCD_DAC9_V_END, sendBuf) != 0) ||
-          (SendFccdCommand(driver,sendBuf) < 0)) {
-        printf(">> Failed to configure DAC 9\n");
-      }
-
-      if ((makeDACWriteCommand(0x12, _inputConfig->dacVoltage10(), FCCD_DAC10_V_START, FCCD_DAC10_V_END, sendBuf) != 0) ||
-          (SendFccdCommand(driver,sendBuf) < 0)) {
-        printf(">> Failed to configure DAC 10\n");
-      }
-
-      if ((makeDACWriteCommand(0x14, _inputConfig->dacVoltage11(), FCCD_DAC11_V_START, FCCD_DAC11_V_END, sendBuf) != 0) ||
-          (SendFccdCommand(driver,sendBuf) < 0)) {
-        printf(">> Failed to configure DAC 11\n");
-      }
-
-      if ((makeDACWriteCommand(0x16, _inputConfig->dacVoltage12(), FCCD_DAC12_V_START, FCCD_DAC12_V_END, sendBuf) != 0) ||
-          (SendFccdCommand(driver,sendBuf) < 0)) {
-        printf(">> Failed to configure DAC 12\n");
-      }
-
-      if ((makeDACWriteCommand(0x18, _inputConfig->dacVoltage13(), FCCD_DAC13_V_START, FCCD_DAC13_V_END, sendBuf) != 0) ||
-          (SendFccdCommand(driver,sendBuf) < 0)) {
-        printf(">> Failed to configure DAC 13\n");
-      }
-
-      if ((makeDACWriteCommand(0x1a, _inputConfig->dacVoltage14(), FCCD_DAC14_V_START, FCCD_DAC14_V_END, sendBuf) != 0) ||
-          (SendFccdCommand(driver,sendBuf) < 0)) {
-        printf(">> Failed to configure DAC 14\n");
-      }
-
-      if ((makeDACWriteCommand(0x1c, _inputConfig->dacVoltage15(), FCCD_DAC15_V_START, FCCD_DAC15_V_END, sendBuf) != 0) ||
-          (SendFccdCommand(driver,sendBuf) < 0)) {
-        printf(">> Failed to configure DAC 15\n");
-      }
-
-      if ((makeDACWriteCommand(0x1e, _inputConfig->dacVoltage16(), FCCD_DAC16_V_START, FCCD_DAC16_V_END, sendBuf) != 0) ||
-          (SendFccdCommand(driver,sendBuf) < 0)) {
-        printf(">> Failed to configure DAC 16\n");
-      }
-
-      if ((makeDACWriteCommand(0x20, _inputConfig->dacVoltage17(), FCCD_DAC17_V_START, FCCD_DAC17_V_END, sendBuf) != 0) ||
-          (SendFccdCommand(driver,sendBuf) < 0)) {
-        printf(">> Failed to configure DAC 17\n");
+          printf(">> Failed to configure DAC %d\n",k+1);
+        }
       }
 
       printf(" >> Enable CCD... \n");

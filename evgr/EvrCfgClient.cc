@@ -44,9 +44,9 @@ int EvrCfgClient::fetch(const Transition& tr,
     int len = _c.fetch(tr, id, _buffer, BufferSize);
     if (len <= 0) return len;
     
-    EvrConfigType::EventCodeType etb[EvrCodes  ];
-    EvrConfigType::PulseType     ptb[EvrOutputs];
-    EvrConfigType::OutputMapType omb[EvrOutputs];
+    EventCodeType   etb[EvrCodes  ];
+    PulseType       ptb[EvrOutputs];
+    OutputMapType   omb[EvrOutputs];
 
     unsigned modid = reinterpret_cast<const DetInfo&>(_c.src()).devId();
     char*       pdst       = reinterpret_cast<char*>(dst);
@@ -55,9 +55,9 @@ int EvrCfgClient::fetch(const Transition& tr,
     
     while( psrc < pend ) {
       
-      EvrConfigType::EventCodeType* et = etb;
-      EvrConfigType::PulseType*     pt = ptb;
-      EvrConfigType::OutputMapType* om = omb;
+      EventCodeType* et = etb;
+      PulseType*     pt = ptb;
+      OutputMapType* om = omb;
     
       unsigned npulses = 0;
       const EvrConfigType& tc = *reinterpret_cast<const EvrConfigType*>(psrc);      
@@ -66,21 +66,23 @@ int EvrCfgClient::fetch(const Transition& tr,
         printf("EvrCfgClient::fetch(): Too many event codes. buffer size = %d \n", EvrCodes);
         return -1;
       }
-      EvrConfigType::EventCodeType* peBase = et;
+      EventCodeType* peBase = et;
+      ndarray<const EventCodeType,1> eventcodes = tc.eventcodes();
       for (unsigned i=0; i<tc.neventcodes(); ++i)
       {
-        const EvrConfigType::EventCodeType& e = tc.eventcode(i);
-        EvrConfigType::EventCodeType& eNew = 
-          *new (et++) EvrConfigType::EventCodeType(e);
-        eNew.clearMask(0x7);
+        const EventCodeType& e = eventcodes[i];
+        *new (et++) EventCodeType(e.code(), e.isReadout(), e.isCommand(), e.isLatch(), e.reportDelay(), e.reportWidth(), 
+                                  0, 0, 0, e.desc(), e.readoutGroup());
       }
                 
+      ndarray<const PulseType,1> pulses = tc.pulses();
       for(unsigned j=0; j<tc.npulses(); j++) {
-        const EvrConfigType::PulseType& p = tc.pulse(j);
+        const PulseType& p = pulses[j];
         bool lUsed=false;
+        ndarray<const OutputMapType,1> omaps = tc.output_maps();
         for(unsigned k=0; k<tc.noutputs(); k++) {
-          const EvrConfigType::OutputMapType& o = tc.output_map(k);
-          if ( o.source()==EvrConfigType::OutputMapType::Pulse &&
+          const OutputMapType& o = omaps[k];
+          if ( o.source()==OutputMapType::Pulse &&
                o.source_id()==j )
             if (o.module() == modid) {              
               if (om >= omb + EvrOutputs)
@@ -88,7 +90,7 @@ int EvrCfgClient::fetch(const Transition& tr,
                 printf("EvrCfgClient::fetch(): Too many output mappings. Max buffer size = %d.\n", EvrOutputs);
                 return -1;
               }              
-              *new (om++) EvrConfigType::OutputMapType
+              *new (om++) OutputMapType
                 (o.source(), npulses,
                  o.conn  (), o.conn_id(), modid);
               lUsed=true;
@@ -101,18 +103,19 @@ int EvrCfgClient::fetch(const Transition& tr,
             printf("EvrCfgClient::fetch(): Too many pulses. Max buffer size = %d.\n", EvrOutputs);
             return -1;
           }                        
-          *new (pt++) EvrConfigType::PulseType(npulses++,
-                                               p.polarity(),
-                                               p.prescale(),
-                                               p.delay(),
-                                               p.width());
+          *new (pt++) PulseType(npulses++,
+                                p.polarity(),
+                                p.prescale(),
+                                p.delay(),
+                                p.width());
                         
-          EvrConfigType::EventCodeType* pe = peBase;
+          EventCodeType* pe = peBase;
+          ndarray<const EventCodeType,1> eventcodes = tc.eventcodes();
           for (unsigned i=0; i<tc.neventcodes(); ++i, ++pe)
           {
-            const EvrConfigType::EventCodeType& e = tc.eventcode(i);            
+            const EventCodeType& e = eventcodes[i];
             if (e.maskTrigger() & (1<<p.pulseId()))
-              pe->setMaskBit( 0x1, 1 << (npulses-1) );
+              Pds::EvrConfig::setMask(*pe, 0x1, 1<<(npulses-1));
             //printf("EvrCfgClient::fetch() set event [%d] %d (org %d) masktrigger pulse %d (org %d) current mask 0x%x (org 0x%x)\n",
             //  i, pe->code(), e.code(), npulses-1, p.pulseId(), pe->maskTrigger(), e.maskTrigger() );
           }                                               
@@ -120,21 +123,22 @@ int EvrCfgClient::fetch(const Transition& tr,
       }
 
       if (pdst + 
-          (et-etb)*sizeof(EvrConfigType::EventCodeType) +
-          (pt-ptb)*sizeof(EvrConfigType::PulseType)   +
-          (om-omb)*sizeof(EvrConfigType::OutputMapType) > 
+          (et-etb)*sizeof(EventCodeType) +
+          (pt-ptb)*sizeof(PulseType)   +
+          (om-omb)*sizeof(OutputMapType) > 
           reinterpret_cast<char*>(dst) + maxSize )
       {
         printf("EvrCfgClient::fetch exceeding maxSize %d bytes\n",maxSize);
         return -1;
       }
 
-      EvrConfigType& ntc = *new(pdst) EvrConfigType(et-etb, etb,
-                                                    pt-ptb, ptb,
-                                                    om-omb, omb,
-                                                    tc.seq_config());
-      psrc +=  tc.size();
-      pdst += ntc.size();
+      EvrConfigType& ntc = *new(pdst) EvrConfigType(et-etb, 
+                                                    pt-ptb,
+                                                    om-omb,
+                                                    etb, ptb, omb, tc.seq_config());
+
+      psrc += Pds::EvrConfig::size(tc);
+      pdst += Pds::EvrConfig::size(ntc);
     }
     return pdst - reinterpret_cast<char*>(dst);
   }

@@ -4,8 +4,7 @@
 #include <sys/stat.h>
 #include <fcntl.h>
 
-#include "pdsdata/encoder/ConfigV2.hh"
-#include "pdsdata/encoder/DataV2.hh"
+#include "pdsdata/psddl/encoder.ddl.h"
 #include "driver/pci3e-wrapper.hh"
 #include "driver/pci3e.h"
 
@@ -42,8 +41,8 @@ int Pds::PCI3E_dev::configure( const Pds::Encoder::ConfigV2& config )
    BAIL_ON_FAIL( _pci3e.disable_fifo() );
    BAIL_ON_FAIL( _pci3e.clear_fifo() );
 
-   regval  = config._count_mode << CTRL_COUNT_MODE;
-   regval |= config._quadrature_mode << CTRL_QUAD_MODE;
+   regval  = config.count_mode() << CTRL_COUNT_MODE;
+   regval |= config.quadrature_mode() << CTRL_QUAD_MODE;
    regval |= mask( CTRL_ENABLE );
    regval |= mask( CTRL_ENABLE_CAP );
 
@@ -61,9 +60,9 @@ int Pds::PCI3E_dev::configure( const Pds::Encoder::ConfigV2& config )
 
    // Make an edge on the specified external input cause a trigger.
    // The logic is inverted because the PCI-3E uses active low inputs.
-   regval  = TRIG_CTRL_ENABLE << config._input_num;
-   regval |= ( config._input_rising ? TRIG_CTRL_FALLING : TRIG_CTRL_RISING )
-                << ( TRIG_CTRL_INVERT0 + config._input_num );
+   regval  = TRIG_CTRL_ENABLE << config.input_num();
+   regval |= ( config.input_rising() ? TRIG_CTRL_FALLING : TRIG_CTRL_RISING )
+     << ( TRIG_CTRL_INVERT0 + config.input_num() );
    BAIL_ON_FAIL( _pci3e.reg_write( REG_TRIG_CTRL, regval ) );
 
    BAIL_ON_FAIL( _pci3e.reg_write( REG_TRIG_STAT, STAT_RESET_FLAGS ) );
@@ -111,11 +110,7 @@ int Pds::PCI3E_dev::get_data( Pds::Encoder::DataV2& data )
 
    BAIL_ON_FAIL( _pci3e.read_fifo( &entry ) );
 
-   data._33mhz_timestamp = entry.timestamp;
-   for ( int c = 0; c < NUM_CHAN; ++c )
-   {
-      data._encoder_count[c] = entry.count[c];
-   }
-
+   *new(&data) Pds::Encoder::DataV2(entry.timestamp,
+                                    entry.count);
    return 0;
 }

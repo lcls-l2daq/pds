@@ -2,8 +2,7 @@
 #define Pds_EvrIOConfigType_hh
 
 #include "pdsdata/xtc/TypeId.hh"
-#include "pdsdata/evr/IOConfigV1.hh"
-#include "pdsdata/evr/IOChannel.hh"
+#include "pdsdata/psddl/evr.ddl.h"
 
 typedef Pds::EvrData::IOConfigV1  EvrIOConfigType;
 

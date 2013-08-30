@@ -15,8 +15,7 @@
 #include "pci3e_dev.hh"
 #include "EncoderManager.hh"
 #include "EncoderServer.hh"
-#include "pdsdata/encoder/DataV2.hh"
-#include "pdsdata/encoder/ConfigV2.hh"
+#include "pdsdata/psddl/encoder.ddl.h"
 #include "pds/config/CfgClientNfs.hh"
 // FIXME: Only for initial bringup - when the configuration database
 // is in place, this isn't needed.
@@ -166,7 +165,7 @@ void EncoderL1Action::validate( InDatagram* in )
    data = (Encoder::DataV2*) ( dg.xtc.payload() + sizeof(Xtc) );
 
    curr_fiducial = dg.seq.stamp().fiducials();
-   curr_enc_timestamp = data->_33mhz_timestamp;
+   curr_enc_timestamp = data->timestamp();
 
    curr_evr_timestamp_ns =  dg.seq.clock().seconds() * NS_PER_SEC
                           + dg.seq.clock().nanoseconds();
@@ -295,12 +294,12 @@ class EncoderConfigAction : public EncoderAction
       }
       else
       {
-         _config.dump();
+        //         _config.dump();
          _nerror += _server->configure( _config );
          _L1.reconfigure();
       }
 
-      curr_enc_tick_per_sec = _config._ticks_per_sec;
+      curr_enc_tick_per_sec = _config.ticks_per_sec();
 
       return tr;
    }

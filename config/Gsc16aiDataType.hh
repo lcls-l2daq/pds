@@ -2,7 +2,7 @@
 #define GSC16AIDATATYPE_HH
 
 #include "pdsdata/xtc/TypeId.hh"
-#include "pdsdata/gsc16ai/DataV1.hh"
+#include "pdsdata/psddl/gsc16ai.ddl.h"
 
 typedef Pds::Gsc16ai::DataV1 Gsc16aiDataType;
 

@@ -6,6 +6,8 @@
 #include "pds/utility/EbEventKey.hh"
 #include "pds/config/OceanOpticsConfigType.hh"
 
+#include <stdexcept>
+
 namespace Pds
 {
 

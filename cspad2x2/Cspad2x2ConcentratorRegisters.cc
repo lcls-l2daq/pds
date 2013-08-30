@@ -11,9 +11,8 @@
 #include "pds/pgp/RegisterSlaveImportFrame.hh"
 #include "pds/pgp/RegisterSlaveExportFrame.hh"
 #include "pds/pgp/Destination.hh"
-#include "pds/cspad2x2/Cspad2x2Configurator.hh"
 #include "pds/cspad2x2/Cspad2x2Destination.hh"
-#include "pdsdata/cspad2x2/Detector.hh"
+#include "pdsdata/psddl/cspad2x2.ddl.h"
 #include <time.h>
 
 //   version.setAddr          (0x000000);

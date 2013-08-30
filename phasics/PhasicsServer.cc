@@ -13,9 +13,8 @@
 #include "pds/camera/FrameType.hh"
 #include "pds/service/Task.hh"
 #include "pds/service/TaskObject.hh"
-#include "pds/phasics/PhasicsConfigurator.hh"
 #include "pdsdata/xtc/DetInfo.hh"
-#include "pdsdata/camera/FrameV1.hh"
+#include "pdsdata/psddl/camera.ddl.h"
 #include <dc1394/dc1394.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -23,7 +22,6 @@
 #include <sys/uio.h>
 #include <string.h>
 #include <errno.h>
-#include <string.h>
 #include <fcntl.h>
 #include <signal.h>
 

@@ -3,6 +3,7 @@
 
 #include "pds/evgr/EvrFIFOHandler.hh"
 #include "pds/evgr/EvrSync.hh"
+#include "pds/service/GenericPool.hh"
 #include "pds/service/Semaphore.hh"
 #include "pdsdata/xtc/TimeStamp.hh"
 /*
@@ -74,6 +75,9 @@ namespace Pds {
     Transition*           _tr;
 
     bool                  bShowFirst;
+
+    GenericPool           _occPool;
+    bool                  _outOfOrder;
 
   private:
     void startL1Accept(const FIFOEvent& fe, bool bEvrDataIncomplete);

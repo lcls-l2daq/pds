@@ -61,10 +61,10 @@ Pds::TimepixServer::TimepixServer( const Src& client, unsigned moduleId, unsigne
   }
 
   // calculate aux data xtc extent
-  _xtc.extent = sizeof(TimepixDataType) + sizeof(Xtc) + Pds::Timepix::DataV1::DecodedDataBytes;
+  _xtc.extent = sizeof(TimepixDataType) + sizeof(Xtc) + Pds::TimepixData::DecodedDataBytes;
 
   // alternate aux data xtc is used for damaged events
-  _xtcDamaged.extent = sizeof(TimepixDataType) + sizeof(Xtc) + Pds::Timepix::DataV1::DecodedDataBytes;
+  _xtcDamaged.extent = sizeof(TimepixDataType) + sizeof(Xtc) + Pds::TimepixData::DecodedDataBytes;
   _xtcDamaged.damage.increase(Pds::Damage::UserDefined);
 
   // create completed pipe
@@ -189,6 +189,8 @@ static int decisleep(int count)
 void Pds::TimepixServer::ReadRoutine::routine()
 {
   uint32_t ss;
+  uint32_t timestamp;
+  uint16_t frameCounter;
   int lostRowBuf;
   vector<BufferElement>::iterator buf_iter;
   command_t sendCommand;
@@ -256,8 +258,7 @@ void Pds::TimepixServer::ReadRoutine::routine()
 
       // read frame
       int rv = _server->_timepix->readMatrixRawPlus(buf_iter->_rawData, &ss, &lostRowBuf,
-                                                    &buf_iter->_header._frameCounter,
-                                                    &buf_iter->_header._timestamp);
+                                                    &frameCounter, &timestamp);
       // give semaphore
       _server->_readTaskMutex->give();
       // ------------ END CRITICAL SECTION -------------------
@@ -265,18 +266,18 @@ void Pds::TimepixServer::ReadRoutine::routine()
       if (rv) {
         fprintf(stderr, "Error: readMatrixRawPlus() failed (read task %d)\n", _taskNum);
         // FIXME _server->setReadDamage(DeviceError);
-      } else if ((ss != Pds::Timepix::DataV1::RawDataBytes) || (lostRowBuf != 0)) {
+      } else if ((ss != Pds::TimepixData::RawDataBytes) || (lostRowBuf != 0)) {
         fprintf(stderr, "Error: readMatrixRawPlus: sz=%u lost_rows=%d (read task %d)\n",
                 ss, lostRowBuf, _taskNum);
       }
 
-      // fill in lost_rows
-      buf_iter->_header._lostRows = lostRowBuf;
+      // fill in header
+      *new(&buf_iter->_header) Pds::Timepix::DataV1(timestamp, frameCounter, lostRowBuf);
 
       // decode frame
       if (_server->_testData) {
         // use test image in place of real data
-        memcpy(buf_iter->_pixelData, _server->_testData, Pds::Timepix::DataV1::DecodedDataBytes);
+        memcpy(buf_iter->_pixelData, _server->_testData, Pds::TimepixData::DecodedDataBytes);
       } else if (!(_server->_debug & TIMEPIX_DEBUG_NOCONVERT)) {
         // decode to pixels
         _server->_timepix->decode2Pixels(buf_iter->_rawData, buf_iter->_pixelData);
@@ -383,44 +384,23 @@ unsigned Pds::TimepixServer::configure(TimepixConfigType& config)
   }
 
   // fill in configuration values which come from device
-
-  config.chip0Name(tpx->getChipName(0).c_str());
-  config.chip1Name(tpx->getChipName(1).c_str());
-  config.chip2Name(tpx->getChipName(2).c_str());
-  config.chip3Name(tpx->getChipName(3).c_str());
-
-  uint32_t uu;
-  if (tpx->getChipID(0, &uu) == 0) {
-    config.chip0ID(uu);
-  } else {
-    printf("Error: failed to read Timepix chip 0 ID\n");
-    ++numErrs;
-  }
-  if (tpx->getChipID(1, &uu) == 0) {
-    config.chip1ID(uu);
-  } else {
-    printf("Error: failed to read Timepix chip 1 ID\n");
-    ++numErrs;
-  }
-  if (tpx->getChipID(2, &uu) == 0) {
-    config.chip2ID(uu);
-  } else {
-    printf("Error: failed to read Timepix chip 2 ID\n");
-    ++numErrs;
-  }
-  if (tpx->getChipID(3, &uu) == 0) {
-    config.chip3ID(uu);
-  } else {
-    printf("Error: failed to read Timepix chip 3 ID\n");
-    ++numErrs;
-  }
-
-  config.driverVersion(tpx->getDriverVersion());
-
+  ndarray<std::string,1> chipNames = make_ndarray<std::string>(4);
+  ndarray<uint32_t   ,1> chipIDs   = make_ndarray<uint32_t   >(4);
+  int32_t  driverVersion;
   uint32_t firm;
-  if (tpx->getFirmwareVersion(&firm) == 0) {
-    config.firmwareVersion(firm);
-  } else {
+
+  for(unsigned i=0; i<4; i++)
+    chipNames[i] = tpx->getChipName(i);
+
+  for(unsigned i=0; i<4; i++)
+    if (tpx->getChipID(0, &chipIDs[i]) != 0) {
+      printf("Error: failed to read Timepix chip %d ID\n",i);
+      ++numErrs;
+    }
+
+  driverVersion = tpx->getDriverVersion();
+
+  if (tpx->getFirmwareVersion(&firm) != 0) {
     printf("Error: failed to read Timepix firmware version\n");
     ++numErrs;
   }
@@ -515,7 +495,6 @@ unsigned Pds::TimepixServer::configure(TimepixConfigType& config)
 
   // set pixels configuration
 
-  config.pixelThresh(0, NULL);  // default: empty pixel configuration
   if (_timepixMode) {
     printf("Timepix Mode: Time Over Threshold (TOT)\n");
   } else {
@@ -527,13 +506,15 @@ unsigned Pds::TimepixServer::configure(TimepixConfigType& config)
       ++numErrs;
     } else {
       // success: store pixel configuration
-      config.pixelThresh(TimepixConfigType::PixelThreshMax, pixelsCfg());
+      Pds::TimepixConfig::setConfig(config, chipNames, chipIDs, driverVersion, firm, 
+                                    TimepixConfigType::PixelThreshMax, pixelsCfg());
       printf("Pixels configuraton successful (individual thresholds)\n");
     }
   } else if (_timepix->setPixelsCfgTOT()) {
     fprintf(stderr, "Error: failed to set pixels configuraton (common thresholds)\n");
     ++numErrs;
   } else {
+    Pds::TimepixConfig::setConfig(config, chipNames, chipIDs, driverVersion, firm);
     printf("Pixels configuraton successful (common thresholds)\n");
   }
 
@@ -729,11 +710,11 @@ int Pds::TimepixServer::fetch( char* payload, int flags )
       return (-1);
     }
 
-      frame->_width = Pds::Timepix::DataV1::Width;
-      frame->_height = Pds::Timepix::DataV1::Height;
-      frame->_lostRows = receiveCommand.buf_iter->_header._lostRows;
-      frame->_frameCounter = receiveCommand.buf_iter->_header._frameCounter;
-      frame->_timestamp = receiveCommand.buf_iter->_header._timestamp;
+    *new(frame) TimepixDataType(Pds::Timepix::DataV1::Width,
+                                Pds::Timepix::DataV1::Height,
+                                receiveCommand.buf_iter->_header.timestamp(),
+                                receiveCommand.buf_iter->_header.frameCounter(),
+                                receiveCommand.buf_iter->_header.lostRows());
 
     if (_resetHwCount) {
       _count = 0;
@@ -763,7 +744,7 @@ int Pds::TimepixServer::fetch( char* payload, int flags )
     }
 
     // copy xtc to payload
-    if (frame->_lostRows == 0) {
+    if (frame->lostRows() == 0) {
       // ...undamaged
       memcpy(payload, &_xtc, sizeof(Xtc));
     } else {
@@ -772,10 +753,7 @@ int Pds::TimepixServer::fetch( char* payload, int flags )
     }
 
     // shuffle and copy pixels to payload
-    shuffleTimepixQuad((int16_t *)frame->data(), receiveCommand.buf_iter->_pixelData);
-
-//  memcpy((void *)frame->data(), (void *)receiveCommand.buf_iter->_pixelData,
-//         frame->data_size());
+    shuffleTimepixQuad((int16_t *)frame->data().data(), receiveCommand.buf_iter->_pixelData);
 
     if (!receiveCommand.missedTrigger) {
       // mark buffer as empty

@@ -2,8 +2,7 @@
 #define ENCODERDATATYPE_HH
 
 #include "pdsdata/xtc/TypeId.hh"
-#include "pdsdata/encoder/DataV1.hh"
-#include "pdsdata/encoder/DataV2.hh"
+#include "pdsdata/psddl/encoder.ddl.h"
 
 typedef Pds::Encoder::DataV2 EncoderDataType;
 

@@ -4,8 +4,8 @@
 #include <string>
 #include <vector>
 #include <set>
-#include "pdsdata/epics/EpicsXtcSettings.hh"
-#include "EpicsMonitorPv.hh"
+#include "pds/epicsArch/EpicsXtcSettings.hh"
+#include "pds/epicsArch/EpicsMonitorPv.hh"
 
 namespace Pds
 {

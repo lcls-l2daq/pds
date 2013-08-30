@@ -8,18 +8,15 @@
 
 #include "pds/config/CsPadConfigType.hh"
 #include "pds/config/CsPadDataType.hh"
-#include "pdsdata/cspad/ConfigV4.hh"
-//#include "pdsdata/cspad/ConfigV5.hh"
-#include "pdsdata/cspad/ElementHeader.hh"
-#include "pdsdata/cspad/ElementIterator.hh"
+#include "pdsdata/psddl/cspad.ddl.h"
+//#include "pdsdata/psddl/cspad.ddl.h"
 
 #include "pdsdata/compress/CompressedPayload.hh"
 #include "pdsdata/compress/CompressedXtc.hh"
-#include "pdsdata/camera/FrameV1.hh"
+#include "pdsdata/psddl/camera.ddl.h"
 
 #include "pdsdata/xtc/DetInfo.hh"
 
-#include "pdsdata/compress/CompressedXtc.hh"
 #include "pdsdata/compress/CompressedData.hh"
 #include "pdsdata/compress/HistNEngine.hh"
 #include "pdsdata/compress/Hist16Engine.hh"
@@ -335,12 +332,12 @@ void FCA::MyIter::process(Xtc* xtc)
     const Camera::FrameV1& frame = *reinterpret_cast<const Camera::FrameV1*>(xtc->payload());
     headerOffsets.push_back(0);
     headerSize = sizeof(Camera::FrameV1);
-    depth      = frame.depth_bytes();
+    depth      = (frame.depth()+7)/8;
     engine     = CompressedPayload::HistN;
   }
   else if (xtc->contains.value() == _CsPad2x2DataType.value()) {
     headerOffsets.push_back(0);
-    headerSize = sizeof(CsPad2x2::ElementHeader);
+    headerSize = sizeof(CsPad2x2DataType);
     depth      = 2;
     engine     = CompressedPayload::Hist16;
   }
@@ -358,48 +355,41 @@ void FCA::MyIter::process(Xtc* xtc)
 	if (v1) {
 	  xtc->contains = TypeId(xtc->contains.id(), 2); // change vsn
 	  mxtc = reinterpret_cast<Xtc*>(_write(xtc,sizeof(*xtc)));
-	  const char*  hdr =  xtc->payload();
+          const CsPad::DataV1& d = *reinterpret_cast<const CsPad::DataV1*>(xtc->payload());
 	  const char* mhdr = mxtc->payload();
-	  for(unsigned q=0; q<4; q++) {
+	  for(int q=0; q<d.quads_shape(cfg)[0]; q++) {
 	    if (quadMask & (1<<q)) {
+              const CsPad::ElementV1& e = d.quads(cfg,q);
 	      unsigned roiMask = cfg.asicMask()==1 ? 0x3 : 0xff;
 	      unsigned tgtMask = cfg.roiMask(q) & roiMask;
 	      if (tgtMask) {
-		mhdr = (const char*)_write(hdr, sizeof(CsPad::ElementHeader));
+		mhdr = (const char*)_write(&e, sizeof(e));
 		headerOffsets.push_back( mhdr-mxtc->payload() );
-	      }
-	      hdr += sizeof(CsPad::ElementHeader);
-	      while(roiMask) {
-		unsigned newMask = roiMask & (roiMask-1);
-		if ((roiMask ^ newMask) & tgtMask)
-		  _write(hdr,sizeof(CsPad::Section));
-		hdr += sizeof(CsPad::Section);
-		roiMask = newMask;
-	      }
-	      if (tgtMask)
-		_write(hdr,sizeof(uint32_t));
-	      hdr += sizeof(uint32_t);
+
+                ndarray<const int16_t, 3> s = e.data(cfg);
+                for(unsigned i=0; i<s.shape()[0]; i++) {
+                  unsigned newMask = roiMask & (roiMask-1);
+                  if ((roiMask ^ newMask) & tgtMask)
+                    _write(&s[i][0][0],s.strides()[0]*sizeof(int16_t));
+                  roiMask = newMask;
+                }
+		_write(s.data()+s.size(),sizeof(uint32_t));
+              }
 	    }
 	  }
 	  mxtc->extent = (const char*)_pwrite - (const char*)mxtc;
 	}
 	else {
-	  const char*  hdr =  xtc->payload();
-	  for(unsigned q=0; q<4; q++) {
+          const CsPad::DataV2& d = *reinterpret_cast<const CsPad::DataV2*>(xtc->payload());
+	  for(int q=0; q<d.quads_shape(cfg)[0]; q++) {
 	    if (quadMask & (1<<q)) {
-	      headerOffsets.push_back( hdr-xtc->payload() );
-	      hdr += sizeof(CsPad::ElementHeader);
-	      unsigned roiMask = cfg.roiMask(q);
-	      while(roiMask) {
-		hdr += sizeof(CsPad::Section);
-		roiMask &= roiMask-1;
-	      }
-	      hdr += sizeof(uint32_t);
+              const CsPad::ElementV2& e = d.quads(cfg,q);
+	      headerOffsets.push_back( reinterpret_cast<const char*>(&e) - xtc->payload() );
 	    }
 	  }
 	}
 
-        headerSize = sizeof(CsPad::ElementHeader);
+        headerSize = sizeof(CsPad::ElementV2);
 #ifdef _OPENMP
         depth      = lUseOMP ? -2 : 2;
 #else
@@ -417,11 +407,11 @@ void FCA::MyIter::process(Xtc* xtc)
       for(unsigned i=0; i<_infov4.size(); i++) {
         if (_infov4[i] == info) {
           const Pds::CsPad::ConfigV4& cfg = _configv4[i];
-          CsPad::ElementIterator iter(cfg, *xtc);
-          const Pds::CsPad::ElementHeader* hdr;
-          while( (hdr=iter.next()) ) {
-            headerOffsets.push_back( reinterpret_cast<const char*>(hdr)-xtc->payload() );
-            headerSize = sizeof(CsPad::ElementHeader);
+          const CsPad::DataV2& d = *reinterpret_cast<const CsPad::DataV2*>(xtc->payload());
+          for(int q=0; q<d.quads_shape(cfg)[0]; q++) {
+            const CsPad::ElementV2& e = d.quads(cfg,q);
+            headerOffsets.push_back( reinterpret_cast<const char*>(&e)-xtc->payload() );
+            headerSize = sizeof(CsPad::ElementV2);
 #ifdef _OPENMP
             depth      = lUseOMP ? -2 : 2;
 #else

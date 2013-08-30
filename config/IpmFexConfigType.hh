@@ -2,7 +2,7 @@
 #define Pds_IpmFexConfigType_hh
 
 #include "pdsdata/xtc/TypeId.hh"
-#include "pdsdata/lusi/IpmFexConfigV2.hh"
+#include "pdsdata/psddl/lusi.ddl.h"
 
 typedef Pds::Lusi::IpmFexConfigV2 IpmFexConfigType;
 

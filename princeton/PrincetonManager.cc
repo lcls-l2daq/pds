@@ -656,7 +656,7 @@ int PrincetonManager::map(const Allocation& alloc)
 int PrincetonManager::config(PrincetonConfigType& config, std::string& sConfigWarning)
 {
   if ( !_bDelayMode )
-    config.setNumDelayShots(0);
+    Pds::PrincetonConfig::setNumDelayShots(config,0);
 
   return _pServer->config(config, sConfigWarning);
 }

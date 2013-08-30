@@ -3,8 +3,7 @@
 
 #include <unistd.h>
 
-#include "pdsdata/encoder/ConfigV2.hh"
-#include "pdsdata/encoder/DataV2.hh"
+#include "pdsdata/psddl/encoder.ddl.h"
 #include "driver/pci3e-wrapper.hh"
 
 namespace Pds

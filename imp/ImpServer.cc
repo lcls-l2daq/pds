@@ -15,7 +15,6 @@
 #include "pds/pgp/RegisterSlaveExportFrame.hh"
 #include "pds/service/Task.hh"
 #include "pds/service/TaskObject.hh"
-#include "pds/imp/ImpConfigurator.hh"
 #include "pds/imp/ImpDestination.hh"
 #include "pds/imp/Processor.hh"
 #include "pds/imp/ImpStatusRegisters.hh"
@@ -26,7 +25,6 @@
 #include <sys/uio.h>
 #include <string.h>
 #include <errno.h>
-#include <string.h>
 #include <fcntl.h>
 
 using namespace Pds;
@@ -76,7 +74,7 @@ unsigned ImpServer::configure(ImpConfigType* config) {
     _cnfgrtr = new Imp::ImpConfigurator::ImpConfigurator(fd(), _debug);
   }
   // First calculate payload size in uint32s, 8 for the header 2 for each sample and 1 at the end
-  _payloadSize = ImpDataType::Uint32sPerHeader + config->get(Imp::ConfigV1::NumberOfSamples) * ImpDataType::Uint32sPerSample + 1;
+  _payloadSize = Pds::ImpData::Uint32sPerHeader + Pds::ImpConfig::get(*config,Imp::ConfigV1::NumberOfSamples) * Pds::ImpData::Uint32sPerSample + 1;
   // then convert to bytes
   _payloadSize *= sizeof(uint32_t);
   printf("ImpServer::configure, payload size %u\n", _payloadSize);
@@ -210,7 +208,7 @@ int Pds::ImpServer::fetch( char* payload, int flags ) {
      perror ("ImpServer::fetch pgpCard read error");
      ret =  Ignore;
    } else ret *= sizeof(__u32);
-   Pds::Imp::ElementHeader* data = (Pds::Imp::ElementHeader*)(payload + offset);
+   ImpDataType* data = (ImpDataType*)(payload + offset);
 
    if ((ret > 0) && (ret < (int)_payloadSize)) {
      printf("ImpServer::fetch() returning Ignore, ret was %d, looking for %u\n", ret, _payloadSize);

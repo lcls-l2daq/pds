@@ -2,7 +2,7 @@
 #include "pds/camera/CameraDriver.hh"
 #include "pds/camera/FrameServerMsg.hh"
 #include "pds/utility/Occurrence.hh"
-#include "pdsdata/camera/FrameCoord.hh"
+#include "pdsdata/psddl/camera.ddl.h"
 #include "pdsdata/xtc/DetInfo.hh"
 
 #include <stdio.h>

@@ -212,8 +212,7 @@ int PrincetonServer::config(PrincetonConfigType& config, std::string& sConfigWar
     sprintf( sMessage, "PI %d ConfigSize (%d,%d) > Det Size(%d,%d)\n", iDevId, config.width(), config.height(), _i16DetectorWidth, _i16DetectorHeight);
     printf(sMessage);
     sConfigWarning += sMessage;
-    config.setWidth (_i16DetectorWidth);
-    config.setHeight(_i16DetectorHeight);
+    Pds::PrincetonConfig::setSize(config,_i16DetectorWidth,_i16DetectorHeight);
   }
   else if
   ( _i16DetectorWidth == 2048 && _i16DetectorHeight == 2048 &&
@@ -224,8 +223,7 @@ int PrincetonServer::config(PrincetonConfigType& config, std::string& sConfigWar
     sprintf( sMessage, "PI %d ConfigSize (%d,%d) != Det Size(%d,%d)\n", iDevId, config.width(), config.height(), _i16DetectorWidth, _i16DetectorHeight);
     printf(sMessage);
     sConfigWarning += sMessage;
-    config.setWidth (_i16DetectorWidth);
-    config.setHeight(_i16DetectorHeight);
+    Pds::PrincetonConfig::setSize(config,_i16DetectorWidth,_i16DetectorHeight);
   }
 
   if ( (int) (config.orgX() + config.width()) > _i16DetectorWidth ||
@@ -236,8 +234,7 @@ int PrincetonServer::config(PrincetonConfigType& config, std::string& sConfigWar
       config.orgX() + config.width(), config.orgY() + config.height(), _i16DetectorWidth, _i16DetectorHeight);
     printf(sMessage);
     sConfigWarning += sMessage;
-    config.setWidth (_i16DetectorWidth - config.orgX());
-    config.setHeight(_i16DetectorHeight - config.orgY());
+    Pds::PrincetonConfig::setSize(config, _i16DetectorWidth - config.orgX(), _i16DetectorHeight - config.orgY());
   }
 
   if ( config.maskedHeight() != 0 && config.height() > config.maskedHeight() )
@@ -246,7 +243,7 @@ int PrincetonServer::config(PrincetonConfigType& config, std::string& sConfigWar
     sprintf( sMessage, "PI %d H %d > Masked H %d\n", iDevId, config.height(), config.maskedHeight());
     printf(sMessage);
     sConfigWarning += sMessage;
-    config.setHeight(config.maskedHeight());
+    Pds::PrincetonConfig::setHeight(config,config.maskedHeight());
   }
 
   //Note: We don't send error for cooling incomplete
@@ -533,7 +530,7 @@ int PrincetonServer::configCamera(PrincetonConfigType& config, std::string& sCon
     printf(sMessage);
     sConfigWarning += sMessage;
     iSpeedTableIndex = _i16MaxSpeedTableIndex;
-    config.setReadoutSpeedIndex(iSpeedTableIndex);
+    Pds::PrincetonConfig::setReadoutSpeedIndex(config,iSpeedTableIndex);
   }
 
   setAnyParam(_hCam, PARAM_SPDTAB_INDEX, &iSpeedTableIndex );
@@ -1187,7 +1184,7 @@ int PrincetonServer::getData(InDatagram* in, InDatagram*& out)
   dgOut.xtc.extent = xtcOutBkp.extent;
 
   unsigned char*  pFrameHeader  = (unsigned char*) _pDgOut + sizeof(CDatagram) + sizeof(Xtc);
-  new (pFrameHeader) PrincetonDataType(in->datagram().seq.stamp().fiducials(), _fReadoutTime);
+  new (pFrameHeader) PrincetonDataType(in->datagram().seq.stamp().fiducials(), _fReadoutTime, 0);
 
   out       = _pDgOut;
 
@@ -1347,10 +1344,10 @@ int PrincetonServer::processFrame()
   {
     unsigned char*  pFrameHeader   = (unsigned char*) _pDgOut + sizeof(CDatagram) + sizeof(Xtc);
     PrincetonDataType* pFrame      = (PrincetonDataType*) pFrameHeader;
-    const uint16_t*     pPixel     = pFrame->data();
+    const uint16_t*     pPixel     = pFrame->data(_config).begin();
     //int                 iWidth   = (int) ( (_config.width()  + _config.binX() - 1 ) / _config.binX() );
     //int                 iHeight  = (int) ( (_config.height() + _config.binY() - 1 ) / _config.binY() );
-    const uint16_t*     pEnd       = (const uint16_t*) ( (unsigned char*) pFrame->data() + _config.frameSize() );
+    const uint16_t*     pEnd       = pFrame->data(_config).end();
     const uint64_t      uNumPixels = (uint64_t) (_config.frameSize() / sizeof(uint16_t) );
 
     uint64_t            uSum    = 0;
@@ -1467,7 +1464,7 @@ int PrincetonServer::updateTemperatureData()
 {
   float fCoolingTemp;
   if (_config.infoReportInterval() <= 0 || ((_iNumExposure-1) % _config.infoReportInterval()) != 0)
-    fCoolingTemp = PrincetonDataType::TemperatureNotDefined;
+    fCoolingTemp = TemperatureNotDefined;
   else
   {
     const int16 iCoolingTemp = (int)( _config.coolingTemp() * 100 );
@@ -1499,7 +1496,7 @@ int PrincetonServer::updateTemperatureData()
   else
   {
     PrincetonDataType*  pData       = (PrincetonDataType*) ((unsigned char*) _pDgOut + sizeof(CDatagram) + sizeof(Xtc));
-    pData->setTemperature( (float) fCoolingTemp );
+    Pds::PrincetonData::setTemperature(*pData,(float)fCoolingTemp);
   }
 
   return 0;

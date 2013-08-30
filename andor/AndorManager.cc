@@ -653,7 +653,7 @@ int AndorManager::map(const Allocation& alloc)
 int AndorManager::config(AndorConfigType& config, std::string& sConfigWarning)
 {
   if ( !_bDelayMode )
-    config.setNumDelayShots(0);
+    Pds::AndorConfig::setNumDelayShots(config,0);
 
   return _pServer->config(config, sConfigWarning);
 }

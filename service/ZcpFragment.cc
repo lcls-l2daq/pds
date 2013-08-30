@@ -14,7 +14,6 @@
 #include <errno.h>
 #include <stdio.h>
 //#include <stropts.h>
-#include <stdio.h>
 
 
 using namespace Pds;

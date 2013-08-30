@@ -2,7 +2,7 @@
 #define UsdUsbConfigType_hh
 
 #include "pdsdata/xtc/TypeId.hh"
-#include "pdsdata/usdusb/ConfigV1.hh"
+#include "pdsdata/psddl/usdusb.ddl.h"
 
 typedef Pds::UsdUsb::ConfigV1 UsdUsbConfigType;
 

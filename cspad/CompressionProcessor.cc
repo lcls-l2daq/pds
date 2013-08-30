@@ -5,13 +5,10 @@
 #include "pdsdata/xtc/XtcIterator.hh"
 #include "pdsdata/xtc/DetInfo.hh"
 #include "pdsdata/xtc/ProcInfo.hh"
-#include "pdsdata/cspad/ElementV2.hh"
-#include "pdsdata/cspad/ElementIterator.hh"
+#include "pdsdata/psddl/cspad.ddl.h"
 #include "pds/cspad/CompressionProcessor.hh"
 #include "pds/config/CsPadConfigType.hh"
 #include "pds/xtc/CDatagram.hh"
-#include "pdsdata/cspad/CompressorOMP.hh"
-#include "pdsdata/cspad/CspadCompressor.hh"
 
 namespace Pds {  
 

@@ -1,7 +1,7 @@
 #include "pds/camera/TM6740Camera.hh"
 #include "pds/camera/CameraDriver.hh"
 #include "pds/camera/FrameServerMsg.hh"
-#include "pdsdata/camera/FrameCoord.hh"
+#include "pdsdata/psddl/camera.ddl.h"
 
 #include <stdio.h>
 #include <stdlib.h>

@@ -15,7 +15,6 @@
 #include "pds/pgp/RegisterSlaveExportFrame.hh"
 #include "pds/service/Task.hh"
 #include "pds/service/TaskObject.hh"
-#include "pds/fexamp/FexampConfigurator.hh"
 #include "pds/fexamp/FexampDestination.hh"
 #include "pds/fexamp/Processor.hh"
 #include "pdsdata/xtc/DetInfo.hh"
@@ -24,7 +23,6 @@
 #include <sys/uio.h>
 #include <string.h>
 #include <errno.h>
-#include <string.h>
 #include <fcntl.h>
 
 using namespace Pds;

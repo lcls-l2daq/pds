@@ -6,7 +6,7 @@
 #include "pds/utility/EbEventKey.hh"
 #include "pds/config/CsPadConfigType.hh"
 #include "pds/service/Task.hh"
-#include "pdsdata/cspad/ElementHeader.hh"
+#include "pdsdata/psddl/cspad.ddl.h"
 #include "pdsdata/xtc/DetInfo.hh"
 #include "pds/cspad/CspadConfigurator.hh"
 #include "pds/cspad/CspadDestination.hh"

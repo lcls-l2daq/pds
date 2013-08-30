@@ -7,7 +7,7 @@
 #include "pds/config/Opal1kConfigType.hh"
 #include "pds/config/CfgCache.hh"
 
-#include "pdsdata/camera/FrameCoord.hh"
+#include "pdsdata/psddl/camera.ddl.h"
 
 #include <stdio.h>
 
@@ -25,7 +25,7 @@ namespace Pds {
     Opal1kConfig(const Src& src) :
       CfgCache(src, _opal1kConfigType, MaxConfigSize) {}
   private:
-    int _size(void* tc) const { return reinterpret_cast<Opal1kConfigType*>(tc)->size(); }
+    int _size(void* tc) const { return reinterpret_cast<Opal1kConfigType*>(tc)->_sizeof(); }
   };
 };
 

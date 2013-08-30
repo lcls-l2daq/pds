@@ -21,8 +21,7 @@
 #include "pds/pgp/RegisterSlaveExportFrame.hh"
 #include "pds/pgp/PgpRSBits.hh"
 #include "pds/config/CsPad2x2ConfigType.hh"
-#include "pdsdata/cspad2x2/Detector.hh"
-#include "pds/cspad2x2/Cspad2x2Destination.hh"
+#include "pdsdata/psddl/cspad2x2.ddl.h"
 
 #include "TestData.cc"
 
@@ -292,24 +291,29 @@ namespace Pds {
 
     unsigned Cspad2x2Configurator::readRegs() {
       unsigned ret = Success;
+      Pds::CsPad::CsPadReadOnlyCfg ro;
+      unsigned cvsn;
       _d.dest(Cspad2x2Destination::Q0);
-      uint32_t* u = (uint32_t*) _config->quad()->readOnly();
+      uint32_t* u = (uint32_t*) &ro;
        for (unsigned j=0; j<sizeOfQuadReadOnly; j++) {
         if (Failure == _pgp->readRegister(&_d, _quadReadOnlyAddrs[j], 0x55000 | j, u+j)) {
           ret = Failure;
         }
       }
       if (_debug & 0x10) printf("Cspad2x2Configurator Quad read only 0x%x 0x%x %p %p\n",
-          (unsigned)u[0], (unsigned)u[1], u, _config->quad()->readOnly());
+                                (unsigned)u[0], (unsigned)u[1], u, &ro);
       _d.dest(Cspad2x2Destination::CR);
      if (Failure == _pgp->readRegister(
           &_d,
           ConcentratorVersionAddr,
           0x55000,
-          _config->concentratorVersionAddr())) {
+          &cvsn)) {
         ret = Failure;
       }
-      if (_debug & 0x10) printf("\nCspad2x2Configurator concentrator version 0x%x\n", *_config->concentratorVersionAddr());
+
+      Pds::CsPad2x2Config::setConfig(*_config,ro,cvsn);
+
+     if (_debug & 0x10) printf("\nCspad2x2Configurator concentrator version 0x%x\n", cvsn);
       return ret;
     }
 
@@ -317,7 +321,7 @@ namespace Pds {
       uint32_t* u;
       _d.dest(Cspad2x2Destination::CR);
       unsigned size = QuadsPerSensor*sizeof(ProtectionSystemThreshold)/sizeof(uint32_t);
-      if (_pgp->writeRegisterBlock(&_d, protThreshBase, (uint32_t*)_config->protectionThreshold(), size)) {
+      if (_pgp->writeRegisterBlock(&_d, protThreshBase, (uint32_t*)&_config->protectionThreshold(), size)) {
         printf("Cspad2x2Configurator::writeRegisterBlock failed on protThreshBase\n");
         return Failure;
       }
@@ -338,7 +342,7 @@ namespace Pds {
         printf("Cspad2x2Configurator::writeRegs failed on ProtEnableAddr\n");
         return Failure;
       }
-      u = (uint32_t*)(_config->quad());
+      u = (uint32_t*)(&_config->quad());
       _d.dest(Cspad2x2Destination::Q0);
       for (unsigned j=0; j<sizeOfQuadWrite; j++) {
         if(_pgp->writeRegister(&_d, _quadAddrs[j], u[j])) {
@@ -385,20 +389,20 @@ namespace Pds {
         printf("Cspad2x2Configurator::writeRegs concentrator read back failed at protThreshBase\n");
         return Failure;
       }
-      ProtectionSystemThreshold* pw = _config->protectionThreshold();
+      const ProtectionSystemThreshold& pw = _config->protectionThreshold();
       for (unsigned i=0; i<QuadsPerSensor; i++) {
-        if ((pw->adcThreshold != pr.adcThreshold) | (pw->pixelCountThreshold != pr.pixelCountThreshold)) {
+        if ((pw.adcThreshold() != pr.adcThreshold()) | (pw.pixelCountThreshold() != pr.pixelCountThreshold())) {
           ret = Failure;
           printf("Cspad2x2Configurator::writeRegs concentrator read back Protection threshold (%u,%u) != (%u,%u)\n",
-              pw->adcThreshold, pw->pixelCountThreshold, pr.adcThreshold, pr.pixelCountThreshold);
+                 pw.adcThreshold(), pw.pixelCountThreshold(), pr.adcThreshold(), pr.pixelCountThreshold());
         }
         if (_debug & 0x1000 && !ret) {
           printf("Cspad2x2Configurator::checkWrittenRegs matching protection sys %8u %8u\n",
-              pw->adcThreshold, pw->pixelCountThreshold);
+                 pw.adcThreshold(), pw.pixelCountThreshold());
         }
       }
       _d.dest(Cspad2x2Destination::Q0);
-      u = (uint32_t*)(_config->quad());
+      u = (uint32_t*)(&_config->quad());
       for (unsigned j=0; j<sizeOfQuadWrite; j++) {
 //        printf("checkWrittenRegs reguesting address 0x%x from %s at index %u\n", _quadAddrs[j], _d.name(), j);
         result |= _checkReg(&_d, _quadAddrs[j], 0xb000+j, u[j]);
@@ -415,7 +419,7 @@ namespace Pds {
       Pds::Pgp::ConfigSynch mySynch(_fd, 0, this, sizeof(Pds::Pgp::RegisterSlaveExportFrame)/sizeof(uint32_t));
       _d.dest(Cspad2x2Destination::Q0);
       for (unsigned j=0; j<Pds::CsPad2x2::PotsPerQuad; j++) {
-        myArray[j] = (uint32_t)_config->quad()->dp().value(j);
+        myArray[j] = (uint32_t)_config->quad().dp().pots()[j];
       }
       if (_pgp->writeRegisterBlock(&_d, _digPot.base, myArray, size) != Success) {
         printf("Writing quad pots failed\n");
@@ -450,11 +454,11 @@ namespace Pds {
       //          } printf("\n");
       if (myRet == Success) {
         for (unsigned j=0; j<Pds::CsPad2x2::PotsPerQuad; j++) {
-          if (myArray[j] != (uint32_t)_config->quad()->dp().value(j)) {
+          if (myArray[j] != (uint32_t)_config->quad().dp().pots()[j]) {
             ret = Failure;
             printf("Cspad2x2Configurator::checkDigPots mismatch 0x%02x!=0x%0x at offset %u in quad\n",
-                _config->quad()->dp().value(j), myArray[j], j);
-            _config->quad()->dp().pots[j] = (uint8_t) (myArray[j] & 0xff);
+                   _config->quad().dp().pots()[j], myArray[j], j);
+            //  _config->quad()->dp().pots[j] = (uint8_t) (myArray[j] & 0xff);
           }
         }
       } else {
@@ -535,14 +539,14 @@ namespace Pds {
     }
 
     unsigned Cspad2x2Configurator::writeGainMap() {
-      Pds::CsPad2x2::CsPad2x2GainMapCfg::GainMap* map[1];
+      Pds::CsPad2x2Config::GainMap* map[1];
       Pds::Pgp::RegisterSlaveExportFrame* rsef;
       unsigned len = (((Pds::CsPad2x2::RowsPerBank-1)<<3) + Pds::CsPad2x2::BanksPerASIC -1) ;  // there are only 6 banks in the last row
       unsigned size = (sizeof(Pds::Pgp::RegisterSlaveExportFrame)/sizeof(uint32_t)) + len + 1 - 2; // last one for the DNC - the two already in the header
       unsigned col;
       uint32_t myArray[size];
       memset(myArray, 0, size*sizeof(uint32_t));
-      map[0] = (Pds::CsPad2x2::CsPad2x2GainMapCfg::GainMap*)_config->quad()->gm()->map();
+      map[0] = (Pds::CsPad2x2Config::GainMap*)_config->quad().gm().gainMap().data();
       Pds::Pgp::ConfigSynch mySynch(_fd, QuadsPerSensor, this, sizeof(Pds::Pgp::RegisterSlaveExportFrame)/sizeof(uint32_t));
 //      printf("\n");
       for (col=0; col<Pds::CsPad2x2::ColumnsPerASIC; col++) {
@@ -585,12 +589,12 @@ namespace Pds {
       printf("\n");
          // 194 is first column for vacant line writes for ASIC rev 1.5
       unsigned ret = Success;
-      uint32_t rce = _config->quad()->biasTuning();
-      if      (_internalColWrite(_config->quad()->dp().pots[iss2addr] & 0xff,      rce &    0x1, rce &    0x2, rsef, 194)) {ret = Failure;}
-      else if (_internalColWrite(_config->quad()->dp().pots[iss5addr] & 0xff,      rce &   0x10, rce &   0x20, rsef, 195)) {ret = Failure;}
-      else if (_internalColWrite(_config->quad()->dp().pots[CompBias1addr] & 0xff, rce &  0x100, rce &  0x200, rsef, 196)) {ret = Failure;}
-      else if (_internalColWrite(_config->quad()->dp().pots[CompBias2addr] & 0xff, rce & 0x1000, rce & 0x2000, rsef, 197)) {ret = Failure;}
-      else if (_internalColWrite(_config->quad()->pdpmndnmBalance(),      _config->quad()->prstSel() != 0,     rsef, 198)) {ret = Failure;}
+      uint32_t rce = _config->quad().biasTuning();
+      if      (_internalColWrite(_config->quad().dp().pots()[iss2addr] & 0xff,      rce &    0x1, rce &    0x2, rsef, 194)) {ret = Failure;}
+      else if (_internalColWrite(_config->quad().dp().pots()[iss5addr] & 0xff,      rce &   0x10, rce &   0x20, rsef, 195)) {ret = Failure;}
+      else if (_internalColWrite(_config->quad().dp().pots()[CompBias1addr] & 0xff, rce &  0x100, rce &  0x200, rsef, 196)) {ret = Failure;}
+      else if (_internalColWrite(_config->quad().dp().pots()[CompBias2addr] & 0xff, rce & 0x1000, rce & 0x2000, rsef, 197)) {ret = Failure;}
+      else if (_internalColWrite(_config->quad().pdpmndnmBalance(),      _config->quad().prstSel() != 0,     rsef, 198)) {ret = Failure;}
       return ret;
     }
   } // namespace CsPad2x2

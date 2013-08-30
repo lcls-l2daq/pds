@@ -2,7 +2,7 @@
 #define Pds_IpimbDataType_hh
 
 #include "pdsdata/xtc/TypeId.hh"
-#include "pdsdata/ipimb/DataV2.hh"
+#include "pdsdata/psddl/ipimb.ddl.h"
 
 typedef Pds::Ipimb::DataV2 IpimbDataType;
 

@@ -2,7 +2,7 @@
 #define Pds_SequencerConfigType_hh
 
 #include "pdsdata/xtc/TypeId.hh"
-#include "pdsdata/evr/SequencerConfigV1.hh"
+#include "pdsdata/psddl/evr.ddl.h"
 
 typedef Pds::EvrData::SequencerConfigV1  SeqConfigType;
 

@@ -2,6 +2,7 @@
 
 #include "pds/xtc/InDatagram.hh"
 #include "pds/utility/Appliance.hh"
+#include "pds/utility/Occurrence.hh"
 #include "pds/utility/StreamPorts.hh"
 #include "pds/service/Ins.hh"
 #include "pds/service/Task.hh"
@@ -42,7 +43,9 @@ EvrSlaveFIFOHandler::EvrSlaveFIFOHandler(Evr&       er,
   _rdptr              (0),
   _wrptr              (0),
   _sync               (*this, er, partition, task, sync_task),
-  _tr                 (0)
+  _tr                 (0),
+  _occPool            (sizeof(UserMessage),8),
+  _outOfOrder         (false)
 {
   memset( _lEventCodeState, 0, sizeof(_lEventCodeState) );
 }
@@ -103,12 +106,27 @@ InDatagram* EvrSlaveFIFOHandler::l1accept(InDatagram* in)
   // check counter,fiducial match => set damage if failed
   // 2013-05-17 Comment out the fiducial check until CXI problems are better understood
   // 2013-07-08 Seems we may be ignoring an error in XPP by not making this check.  Put it back.
-  if (ts.fiducials() != in->datagram().seq.stamp().fiducials())
+  //            I find these errors originate from the slave handling the disable "eventcode" 
+  //            ~8.5 msec too late.
+  if (_outOfOrder) {
+    out->datagram().xtc.damage.increase(Pds::Damage::OutOfOrder);
+  }
+  else if (ts.fiducials() != in->datagram().seq.stamp().fiducials())
   {
+    _outOfOrder = true;
     printf("EvrSlaveFIFOHandler out of order on %x : vector %x  fiducials %x  wrptr %x  rdptr %x\n",
            in->datagram().seq.stamp().fiducials(),
 	   ts.vector(), ts.fiducials(), _wrptr, _rdptr);
     out->datagram().xtc.damage.increase(Pds::Damage::OutOfOrder);
+
+    if (_occPool.numberOfFreeObjects()>=2) {
+      Occurrence* occ = new (&_occPool) Occurrence(OccurrenceId::ClearReadout);
+      _app.post(occ);
+    
+      UserMessage* umsg = new (&_occPool) UserMessage;
+      umsg->append("Slave EVR out-of-order.  Reconfigure.");
+      _app.post(umsg);
+    }
   }
         
   return out;
@@ -153,7 +171,7 @@ void        EvrSlaveFIFOHandler::set_config  (const EvrConfigType* pEvrConfig)
   unsigned int uEventIndex = 0; 
   for ( ; uEventIndex < _pEvrConfig->neventcodes(); uEventIndex++ )
     {
-      const EvrConfigType::EventCodeType& eventCode = _pEvrConfig->eventcode( uEventIndex );
+      const EventCodeType& eventCode = _pEvrConfig->eventcodes()[uEventIndex];
       if ( eventCode.code() >= guNumTypeEventCode )
         {
           printf( "EvrSlaveFIFOHandler::setEvrConfig(): event code out of range: %d\n", eventCode.code() );
@@ -177,6 +195,7 @@ void        EvrSlaveFIFOHandler::set_config  (const EvrConfigType* pEvrConfig)
              eventCode.reportDelay(),
              eventCode.reportWidth());
     }    
+  _outOfOrder = false;
 }  
 
 Transition* EvrSlaveFIFOHandler::config      (Transition* tr)

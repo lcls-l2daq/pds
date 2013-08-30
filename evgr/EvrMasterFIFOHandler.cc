@@ -213,14 +213,14 @@ void EvrMasterFIFOHandler::fifo_event(const FIFOEvent& fe)
            uEventCode == (unsigned) EvrManager::EVENT_CODE_BYKIK || // special event: Dark frame   -> always included in the report
            uEventCode == (unsigned) EvrManager::EVENT_CODE_ALKIK    // special event: Dark frame   -> always included in the report
            )
-        addSpecialEvent( _L1DataUpdated, *(const EvrDataType::FIFOEvent*) &fe );
+        addSpecialEvent( _L1DataUpdated, *(const Pds::EvrData::FIFOEvent*) &fe );
         
       return;
     }
     
   if ( codeState.uMaskReadout != 0 ) 
     {
-      addFifoEventCheck( _L1DataUpdated, *(const EvrDataType::FIFOEvent*) &fe );      
+      addFifoEventCheck( _L1DataUpdated, *(const Pds::EvrData::FIFOEvent*) &fe );      
       _lastFiducial = fe.TimestampHigh;
       _uMaskReadout |= codeState.uMaskReadout;
       //printf("event %d readout [0x%x]\n", uEventCode, codeState.uMaskReadout);//!!!debug
@@ -246,8 +246,8 @@ void EvrMasterFIFOHandler::fifo_event(const FIFOEvent& fe)
     bool eventDeleted = false;
     for (unsigned int uEventIndex = 0; uEventIndex < _L1DataLatchQ.numFifoEvents(); uEventIndex++ )
       {
-        const EvrDataType::FIFOEvent& fifoEvent = _L1DataLatchQ.fifoEvent( uEventIndex );
-        EventCodeState&               codeState = _lEventCodeState[fifoEvent.EventCode];
+        const Pds::EvrData::FIFOEvent& fifoEvent = _L1DataLatchQ.fifoEvent( uEventIndex );
+        EventCodeState&               codeState = _lEventCodeState[fifoEvent.eventCode()];
         if (codeState.iReportWidth == -int(uEventCode)) 
           {
             _L1DataLatchQ.markEventAsDeleted( uEventIndex );
@@ -256,8 +256,8 @@ void EvrMasterFIFOHandler::fifo_event(const FIFOEvent& fe)
       }
     for (unsigned int uEventIndex = 0; uEventIndex < _L1DataLatch.numFifoEvents(); uEventIndex++ )
       {
-        const EvrDataType::FIFOEvent& fifoEvent = _L1DataLatch.fifoEvent( uEventIndex );
-        EventCodeState&               codeState = _lEventCodeState[fifoEvent.EventCode];
+        const Pds::EvrData::FIFOEvent& fifoEvent = _L1DataLatch.fifoEvent( uEventIndex );
+        EventCodeState&               codeState = _lEventCodeState[fifoEvent.eventCode()];
         if (codeState.iReportWidth == -int(uEventCode)) 
           {
             _L1DataLatch.markEventAsDeleted( uEventIndex );
@@ -274,7 +274,7 @@ void EvrMasterFIFOHandler::fifo_event(const FIFOEvent& fe)
       
   if (codeState.iReportWidth > 0) {
     if (codeState.iReportDelayQ <= 0) {
-      updateFifoEventCheck( _L1DataLatchQ, *(const EvrDataType::FIFOEvent*) &fe );
+      updateFifoEventCheck( _L1DataLatchQ, *(const Pds::EvrData::FIFOEvent*) &fe );
       codeState.iReportDelayQ = codeState.iDefReportDelay;
     }
     else {
@@ -282,7 +282,7 @@ void EvrMasterFIFOHandler::fifo_event(const FIFOEvent& fe)
     }
   }
   else {
-    updateFifoEventCheck( _L1DataLatch, *(const EvrDataType::FIFOEvent*) &fe );
+    updateFifoEventCheck( _L1DataLatch, *(const Pds::EvrData::FIFOEvent*) &fe );
     codeState.iReportDelay = codeState.iDefReportDelay;
     codeState.iReportWidth = codeState.iDefReportWidth;
   }
@@ -478,7 +478,7 @@ void        EvrMasterFIFOHandler::set_config  (const EvrConfigType* pEvrConfig)
   
   for ( unsigned int uEventIndex = 0; uEventIndex < _pEvrConfig->neventcodes(); uEventIndex++ )
     {
-      const EvrConfigType::EventCodeType& eventCode = _pEvrConfig->eventcode( uEventIndex );
+      const EventCodeType& eventCode = _pEvrConfig->eventcodes()[uEventIndex];
       if ( eventCode.code() >= guNumTypeEventCode )
         {
           printf( "EvrMasterFIFOHandler::setEvrConfig(): event code out of range: %d\n", eventCode.code() );
@@ -628,8 +628,8 @@ void EvrMasterFIFOHandler::startL1Accept(const FIFOEvent& fe, bool bEvrDataIncom
           bool bAnyLatchedEventDeleted = false;
           for (unsigned int uEventIndex = 0; uEventIndex < _L1DataLatchQ.numFifoEvents(); uEventIndex++ )
             {
-              const EvrDataType::FIFOEvent& fifoEvent = _L1DataLatchQ.fifoEvent( uEventIndex );
-              EventCodeState&               codeState = _lEventCodeState[fifoEvent.EventCode];
+              const Pds::EvrData::FIFOEvent& fifoEvent = _L1DataLatchQ.fifoEvent( uEventIndex );
+              EventCodeState&               codeState = _lEventCodeState[fifoEvent.eventCode()];
             
               if ( codeState.iReportWidth  <= 0 ||
                    codeState.iReportDelayQ <= 0 )
@@ -653,8 +653,8 @@ void EvrMasterFIFOHandler::startL1Accept(const FIFOEvent& fe, bool bEvrDataIncom
           
           for (unsigned int uEventIndex = 0; uEventIndex < _L1DataLatch.numFifoEvents(); uEventIndex++ )
             {
-              const EvrDataType::FIFOEvent& fifoEvent = _L1DataLatch.fifoEvent( uEventIndex );
-              EventCodeState&               codeState = _lEventCodeState[fifoEvent.EventCode];
+              const Pds::EvrData::FIFOEvent& fifoEvent = _L1DataLatch.fifoEvent( uEventIndex );
+              EventCodeState&               codeState = _lEventCodeState[fifoEvent.eventCode()];
                                        
               if ( codeState.iReportDelay > 0 )
                 {
@@ -687,7 +687,7 @@ void EvrMasterFIFOHandler::startL1Accept(const FIFOEvent& fe, bool bEvrDataIncom
         
           for (unsigned int uEventIndex = 0; uEventIndex < _L1DataUpdated.numFifoEvents(); uEventIndex++ )
             {
-              const EvrDataType::FIFOEvent& fifoEvent =  _L1DataUpdated.fifoEvent( uEventIndex );
+              const Pds::EvrData::FIFOEvent& fifoEvent =  _L1DataUpdated.fifoEvent( uEventIndex );
               addFifoEventCheck( _lL1DataFianl, fifoEvent );
             }                    
         
@@ -947,7 +947,7 @@ void EvrMasterFIFOHandler::releaseL1Data()
 }
     
 // Add Fifo event to the evrData with boundary check
-int EvrMasterFIFOHandler::addFifoEventCheck( EvrDataUtil& evrData, const EvrDataType::FIFOEvent& fe )
+int EvrMasterFIFOHandler::addFifoEventCheck( EvrDataUtil& evrData, const Pds::EvrData::FIFOEvent& fe )
 {
   if ( (int) evrData.numFifoEvents() < giMaxNumFifoEvent )
     return evrData.addFifoEvent(fe);
@@ -957,7 +957,7 @@ int EvrMasterFIFOHandler::addFifoEventCheck( EvrDataUtil& evrData, const EvrData
 }
 
 // Update Fifo event to the evrData with boundary check
-int EvrMasterFIFOHandler::updateFifoEventCheck( EvrDataUtil& evrData, const EvrDataType::FIFOEvent& fe )
+int EvrMasterFIFOHandler::updateFifoEventCheck( EvrDataUtil& evrData, const Pds::EvrData::FIFOEvent& fe )
 {
   int iNewEventIndex = evrData.updateFifoEventCheck(fe, giMaxNumFifoEvent);
 
@@ -978,19 +978,19 @@ int EvrMasterFIFOHandler::updateFifoEventCheck( EvrDataUtil& evrData, const EvrD
  *   - All the "interesting" events occurs later than "special" events
  *      - Current settings: All "interesting" event codes (67 - 98) occurs after all special events (140, 162)
  */
-int EvrMasterFIFOHandler::addSpecialEvent( EvrDataUtil& evrData, const EvrDataType::FIFOEvent &feCur )
+int EvrMasterFIFOHandler::addSpecialEvent( EvrDataUtil& evrData, const Pds::EvrData::FIFOEvent &feCur )
 {
-  uint32_t uFiducialCur  = feCur.TimestampHigh;
+  uint32_t uFiducialCur  = feCur.timestampHigh();
     
   for (int iEventIndex = evrData.numFifoEvents()-1; iEventIndex >= 0; iEventIndex-- )
     {
-      const EvrDataType::FIFOEvent& fifoEvent  = evrData.fifoEvent( iEventIndex );
-      uint32_t                      uFiducial  = fifoEvent.TimestampHigh;
+      const Pds::EvrData::FIFOEvent& fifoEvent  = evrData.fifoEvent( iEventIndex );
+      uint32_t                      uFiducial  = fifoEvent.timestampHigh();
 
       if ( uFiducial == uFiducialCur ) // still in the same timestamp. this event will be checked again in later iteration.
         break;
       
-      uint32_t        uEventCode = fifoEvent.EventCode;
+      uint32_t        uEventCode = fifoEvent.eventCode();
       EventCodeState& codeState  = _lEventCodeState[uEventCode];
     
       if ( codeState.iDefReportWidth != 0 ) // interesting event

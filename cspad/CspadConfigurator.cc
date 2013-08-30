@@ -293,9 +293,11 @@ namespace Pds {
 
     unsigned CspadConfigurator::readRegs() {
       unsigned ret = Success;
+      Pds::CsPad::CsPadReadOnlyCfg ro[Pds::CsPad::MaxQuadsPerSensor];
+      unsigned cvsn;
       for (unsigned i=0; i<Pds::CsPad::MaxQuadsPerSensor; i++) {
         if ((1<<i) & _config->quadMask()) {
-          uint32_t* u = (uint32_t*) _config->quads()[i].readOnly();
+          uint32_t* u = (uint32_t*) &ro[i];
           _d.dest(i);
           for (unsigned j=0; j<sizeOfQuadReadOnly; j++) {
             if (Failure == _pgp->readRegister(&_d, _quadReadOnlyAddrs[j], 0x55000 | (i<<4) | j, u+j)) {
@@ -303,7 +305,7 @@ namespace Pds {
             }
           }
           if (_debug & 0x10) printf("CspadConfigurator Quad %u read only 0x%x 0x%x %p %p\n",
-              i, (unsigned)u[0], (unsigned)u[1], u, _config->quads()[i].readOnly());
+                                    i, (unsigned)u[0], (unsigned)u[1], u, &ro[i]);
         }
       }
       _d.dest(CspadDestination::CR);
@@ -311,10 +313,13 @@ namespace Pds {
           &_d,
           ConcentratorVersionAddr,
           0x55000,
-          _config->concentratorVersionAddr())) {
+          &cvsn)) {
         ret = Failure;
       }
-      if (_debug & 0x10) printf("\nCspadConfigurator concentrator version 0x%x\n", *_config->concentratorVersionAddr());
+
+      Pds::CsPadConfig::setConfig(*_config,ro,cvsn);
+
+      if (_debug & 0x10) printf("\nCspadConfigurator concentrator version 0x%x\n", cvsn);
       return ret;
     }
 
@@ -334,7 +339,7 @@ namespace Pds {
         return Failure;
       }
       unsigned size = MaxQuadsPerSensor*sizeof(ProtectionSystemThreshold)/sizeof(uint32_t);
-      if (_pgp->writeRegisterBlock(&_d, protThreshBase, (uint32_t*)_config->protectionThresholds(), size)) {
+      if (_pgp->writeRegisterBlock(&_d, protThreshBase, (uint32_t*)&_config->protectionThresholds()[0], size)) {
         printf("CspadConfigurator::writeRegisterBlock failed on protThreshBase\n");
                 return Failure;
       }
@@ -357,7 +362,7 @@ namespace Pds {
       }
       for (unsigned i=0; i<Pds::CsPad::MaxQuadsPerSensor; i++) {
         if ((1<<i) & _config->quadMask()) {
-          u = (uint32_t*)&(_config->quads()[i]);
+          u = (uint32_t*)&(_config->quads(i));
           _d.dest(i);
           for (unsigned j=0; j<sizeOfQuadWrite; j++) {
             if(_pgp->writeRegister(&_d, _quadAddrs[j], u[j])) {
@@ -405,19 +410,19 @@ namespace Pds {
         printf("CspadConfigurator::writeRegs concentrator read back failed at protThreshBase\n");
         return Failure;
       }
-      ProtectionSystemThreshold* pw = _config->protectionThresholds();
+      ndarray<const ProtectionSystemThreshold,1> pw = _config->protectionThresholds();
       for (unsigned i=0; i<MaxQuadsPerSensor; i++) {
-        if ((pw[i].adcThreshold != pr[i].adcThreshold) | (pw[i].pixelCountThreshold != pr[i].pixelCountThreshold)) {
+        if ((pw[i].adcThreshold() != pr[i].adcThreshold()) | (pw[i].pixelCountThreshold() != pr[i].pixelCountThreshold())) {
           ret = Failure;
           printf("CspadConfigurator::writeRegs concentrator read back Protection tresholds (%u,%u) != (%u,%u) for quad %u\n",
-              pw[i].adcThreshold, pw[i].pixelCountThreshold, pr[i].adcThreshold, pr[i].pixelCountThreshold, i);
+                 pw[i].adcThreshold(), pw[i].pixelCountThreshold(), pr[i].adcThreshold(), pr[i].pixelCountThreshold(), i);
         }
       }
 
       for (unsigned i=0; i<MaxQuadsPerSensor; i++) {
         if ((1<<i) & _config->quadMask()) {
           _d.dest(i);
-          u = (uint32_t*)&(_config->quads()[i]);
+          u = (uint32_t*)&(_config->quads(i));
           for (unsigned j=0; j<sizeOfQuadWrite; j++) {
             result |= _checkReg(&_d, _quadAddrs[j], 0xb000+(i<<8)+j, u[j]);
           }
@@ -443,7 +448,7 @@ namespace Pds {
           quadCount += 1;
           _d.dest(i);
           for (unsigned j=0; j<Pds::CsPad::PotsPerQuad; j++) {
-           myArray[j] = (uint32_t)_config->quads()[i].dp().value(j);
+            myArray[j] = (uint32_t)_config->quads(i).dp().pots()[j];
           }
           if (_pgp->writeRegisterBlock(&_d, _digPot.base, myArray, size) != Success) {
             printf("Writing pots failed\n");
@@ -484,11 +489,11 @@ namespace Pds {
 //          } printf("\n");
           if (myRet == Success) {
             for (unsigned j=0; j<Pds::CsPad::PotsPerQuad; j++) {
-              if (myArray[j] != (uint32_t)_config->quads()[i].dp().value(j)) {
+              if (myArray[j] != (uint32_t)_config->quads(i).dp().pots()[j]) {
                 ret = Failure;
                 printf("CspadConfigurator::checkDigPots mismatch 0x%02x!=0x%0x at offset %u in quad %u\n",
-                    _config->quads()[i].dp().value(j), myArray[j], j, i);
-                _config->quads()[i].dp().pots[j] = (uint8_t) (myArray[j] & 0xff);
+                       _config->quads(i).dp().pots()[j], myArray[j], j, i);
+                //                _config->quads(i).dp().pots[j] = (uint8_t) (myArray[j] & 0xff);
               }
             }
           } else {
@@ -591,14 +596,14 @@ namespace Pds {
     unsigned CspadConfigurator::writeGainMap() {
       //    printf(" quadMask(0x%x) ", (unsigned)_config->quadMask());
       unsigned numberOfQuads = 0;
-      Pds::CsPad::CsPadGainMapCfg::GainMap* map[Pds::CsPad::MaxQuadsPerSensor];
+      Pds::CsPadConfig::GainMap* map[Pds::CsPad::MaxQuadsPerSensor];
       unsigned len = (((Pds::CsPad::RowsPerBank-1)<<3) + Pds::CsPad::BanksPerASIC -1) ;  // there are only 6 banks in the last row
       unsigned size = (sizeof(Pds::Pgp::RegisterSlaveExportFrame)/sizeof(uint32_t)) + len + 1 - 2; // last one for the DNC - the two already in the header
       uint32_t myArray[size];
       memset(myArray, 0, size*sizeof(uint32_t));
       for (int i=0; i<Pds::CsPad::MaxQuadsPerSensor; i++) {
         if ((1<<i) & _config->quadMask()) numberOfQuads += 1;
-        map[i] = (Pds::CsPad::CsPadGainMapCfg::GainMap*)_config->quads()[i].gm()->map();
+        map[i] = (Pds::CsPadConfig::GainMap*)_config->quads(i).gm().gainMap().data();
       }
       Pds::Pgp::ConfigSynch mySynch(_fd, /*numberOfQuads*/ 1, this, sizeof(Pds::Pgp::RegisterSlaveExportFrame)/sizeof(uint32_t));
 //      printf("\n");
@@ -648,12 +653,12 @@ namespace Pds {
           Pds::Pgp::RegisterSlaveExportFrame* rsef = new (myArray) Pds::Pgp::RegisterSlaveExportFrame::RegisterSlaveExportFrame(
               Pds::Pgp::PgpRSBits::write, &_d, _gainMap.base, i);
           unsigned ret = Success;
-          uint32_t rce = _config->quads()[i].biasTuning();
-          if      (_internalColWrite(_config->quads()[i].dp().pots[iss2addr] & 0xff,      rce &    0x1, rce &    0x2, rsef, 194)) {ret = Failure;}
-          else if (_internalColWrite(_config->quads()[i].dp().pots[iss5addr] & 0xff,      rce &   0x10, rce &   0x20, rsef, 195)) {ret = Failure;}
-          else if (_internalColWrite(_config->quads()[i].dp().pots[CompBias1addr] & 0xff, rce &  0x100, rce &  0x200, rsef, 196)) {ret = Failure;}
-          else if (_internalColWrite(_config->quads()[i].dp().pots[CompBias2addr] & 0xff, rce & 0x1000, rce & 0x2000, rsef, 197)) {ret = Failure;}
-          else if (_internalColWrite(_config->quads()[i].pdpmndnmBalance(), _config->quads()[i].prstSel() != 0,       rsef, 198)) {ret = Failure;}
+          uint32_t rce = _config->quads(i).biasTuning();
+          if      (_internalColWrite(_config->quads(i).dp().pots()[iss2addr] & 0xff,      rce &    0x1, rce &    0x2, rsef, 194)) {ret = Failure;}
+          else if (_internalColWrite(_config->quads(i).dp().pots()[iss5addr] & 0xff,      rce &   0x10, rce &   0x20, rsef, 195)) {ret = Failure;}
+          else if (_internalColWrite(_config->quads(i).dp().pots()[CompBias1addr] & 0xff, rce &  0x100, rce &  0x200, rsef, 196)) {ret = Failure;}
+          else if (_internalColWrite(_config->quads(i).dp().pots()[CompBias2addr] & 0xff, rce & 0x1000, rce & 0x2000, rsef, 197)) {ret = Failure;}
+          else if (_internalColWrite(_config->quads(i).pdpmndnmBalance(), _config->quads(i).prstSel() != 0,       rsef, 198)) {ret = Failure;}
           if (ret) return Failure;
         }
       }

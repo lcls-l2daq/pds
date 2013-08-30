@@ -118,8 +118,8 @@ int EpicsArchMonitor::writeToXtc(Datagram & dg, UserMessage ** msg, const struct
     for (int iPvName = 0; iPvName < iNumPv; iPvName++)
     {
       EpicsMonitorPv & epicsPvCur = _lpvPvList[iPvName];      
-      new  (pXtcConfig->alloc(sizeof(EpicsConfigType::PvConfig)) )
-        EpicsConfigType::PvConfig( epicsPvCur.getPvId(), epicsPvCur.getPvDescription().c_str(),
+      new  (pXtcConfig->alloc(sizeof(Pds::EpicsConfig::PvConfigType)) )
+        Pds::EpicsConfig::PvConfigType( epicsPvCur.getPvId(), epicsPvCur.getPvDescription().c_str(),
           epicsPvCur.getUpdateInterval() );
     }    
         

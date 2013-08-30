@@ -3,7 +3,7 @@
 
 #include <unistd.h>
 
-#include "pdsdata/gsc16ai/ConfigV1.hh"
+#include "pdsdata/psddl/gsc16ai.ddl.h"
 #include "16ai32ssc_dsl.hh"
 
 namespace Pds

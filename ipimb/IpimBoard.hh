@@ -12,7 +12,7 @@
 #include <time.h>
 #include <string>
 
-#include "pdsdata/ipimb/ConfigV2.hh"
+#include "pdsdata/psddl/ipimb.ddl.h"
 
 #define BAUDRATE B115200
 #define DataPackets 16

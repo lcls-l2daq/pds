@@ -17,8 +17,7 @@
 #include "IpimbManager.hh"
 #include "IpimbServer.hh"
 #include "IpimbFex.hh"
-#include "pdsdata/ipimb/DataV2.hh"
-#include "pdsdata/ipimb/ConfigV2.hh"
+#include "pdsdata/psddl/ipimb.ddl.h"
 #include "pdsdata/xtc/DetInfo.hh"
 #include "pds/config/CfgClientNfs.hh"
 #include "pds/service/GenericPool.hh"
@@ -110,7 +109,7 @@ public:
 	_nDamagedConfigures += 1;
 	continue;
       }
-      _config[i].dump();
+      //      _config[i].dump();
       std::string emsg;
       if (!_server[i]->configure(_config[i],emsg)) {
 	printf("Ipimb server %d configuration was damaged\n", i);

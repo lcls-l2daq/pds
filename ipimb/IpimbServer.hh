@@ -10,7 +10,7 @@
 
 #include <string>
 
-#include "pdsdata/ipimb/DataV1.hh"
+#include "pdsdata/psddl/ipimb.ddl.h"
 typedef Pds::Ipimb::DataV1 OldIpimbDataType;
 static Pds::TypeId  oldIpimbDataType(Pds::TypeId::Id_IpimbData,
                                   OldIpimbDataType::Version);

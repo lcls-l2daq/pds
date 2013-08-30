@@ -1,10 +1,11 @@
 #ifndef XTC_EPICS_PV_H
 #define XTC_EPICS_PV_H
-#include "cadef.h"
 #include "pds/xtc/Datagram.hh"
 #include "pds/service/GenericPool.hh"
 #include "pdsdata/xtc/TypeId.hh"
 #include "EpicsMonitorPv.hh"
+
+#include "cadef.h"
 
 namespace Pds
 {

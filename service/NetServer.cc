@@ -296,8 +296,6 @@ int NetServer::commit(char* key,
   return 1;
 }
 
-#include <stdio.h>
-#include <string.h>
 
 int NetServer::handleError(int value)
 {

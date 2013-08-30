@@ -54,7 +54,7 @@ EvrDataUtil& EvrL1Data::getDataWrite()
   EvrDataUtil& data = *(EvrDataUtil*)
     ( _lDataCircBuffer + _iDataWriteIndex * EvrDataUtil::size( _iMaxNumFifoEvent ) );
   
-  new (&data) EvrDataType( 0, NULL );
+  new (&data) EvrDataUtil( 0, NULL );
   return data;
 }
 

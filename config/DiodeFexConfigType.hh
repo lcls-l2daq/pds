@@ -2,7 +2,7 @@
 #define Pds_DiodeFexConfigType_hh
 
 #include "pdsdata/xtc/TypeId.hh"
-#include "pdsdata/lusi/DiodeFexConfigV2.hh"
+#include "pdsdata/psddl/lusi.ddl.h"
 
 typedef Pds::Lusi::DiodeFexConfigV2 DiodeFexConfigType;
 

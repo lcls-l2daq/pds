@@ -24,7 +24,7 @@ using namespace Pds::Imp;
 
 class ImpDestination;
 
-static uint32_t configAddrs[ImpConfigType::NumberOfValues] = {
+static uint32_t configAddrs[Pds::ImpConfig::NumberOfValues] = {
       0x6, //    Range,
       0x7, //    Cal_range,
       0x8, //    Reset,
@@ -38,8 +38,8 @@ static uint32_t configAddrs[ImpConfigType::NumberOfValues] = {
 };
 
 ImpConfigurator::ImpConfigurator(int f, unsigned d) :
-                           Pds::Pgp::Configurator(f, d),
-                           _testModeState(0), _runControl(0), _rhisto(0) {
+  Pds::Pgp::Configurator(f, d),
+  _testModeState(0), _runControl(0), _rhisto(0) {
   _statRegs.pgp = pgp();
   printf("ImpConfigurator constructor\n");
   //    printf("\tlocations _pool(%p), _config(%p)\n", _pool, &_config);
@@ -147,7 +147,7 @@ unsigned ImpConfigurator::writeConfig() {
   uint32_t* u = (uint32_t*)_config;
   _testModeState = *u;
   unsigned ret = Success;
-  for (unsigned i=0; !ret && i<ImpConfigType::NumberOfValues; i++) {
+  for (unsigned i=0; !ret && i<Pds::ImpConfig::NumberOfValues; i++) {
     if (_pgp->writeRegister(&_d, configAddrs[i], u[i])) {
       printf("ImpConfigurator::writeConfig failed writing 0x%x to %u address in step %u\n", u[i], configAddrs[i], i);
       ret = Failure;
@@ -160,7 +160,7 @@ unsigned ImpConfigurator::writeConfig() {
 unsigned ImpConfigurator::checkWrittenConfig(bool writeBack) {
   _d.dest(ImpDestination::CommandVC);
   unsigned ret = Success;
-  unsigned size = ImpConfigType::NumberOfValues;
+  unsigned size = Pds::ImpConfig::NumberOfValues;
   uint32_t myBuffer[size];
   for (unsigned i=0; i<size && _pgp; i++) {
     if (_pgp->readRegister(&_d, configAddrs[i], 0x1100+i, myBuffer+i)) {
@@ -171,12 +171,12 @@ unsigned ImpConfigurator::checkWrittenConfig(bool writeBack) {
   if (ret == Success  && _config && _pgp) {
     ImpConfigType* readConfig = (ImpConfigType*) myBuffer;
     uint32_t r, c;
-    for (unsigned i=0; i<size && _config; i++) {
-      if ((r=readConfig->get((ImpConfigType::Registers)i)) !=
-          (c=_config->get((ImpConfigType::Registers)i))) {
+    for (unsigned i=0; i<size; i++) {
+      if ((r=Pds::ImpConfig::get(*readConfig,(ImpConfigType::Registers)i)) !=
+          (c=Pds::ImpConfig::get(*_config   ,(ImpConfigType::Registers)i))) {
         printf("ImpConfigurator::checkWrittenConfig failed, 0x%x!=0x%x at offset %u. %sriting back to config.\n",
             c, r, i, writeBack ? "W" : "Not w");
-        if (writeBack) _config->set((ImpConfigType::Registers)i, r);
+        if (writeBack) Pds::ImpConfig::set(*_config,(ImpConfigType::Registers)i, r);
         ret |= Failure;
       }
     }

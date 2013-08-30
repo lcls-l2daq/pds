@@ -2,7 +2,7 @@
 #define Pds_OceanOpticsConfigType_hh
 
 #include "pdsdata/xtc/TypeId.hh"
-#include "pdsdata/oceanoptics/ConfigV1.hh"
+#include "pdsdata/psddl/oceanoptics.ddl.h"
 
 typedef Pds::OceanOptics::ConfigV1 OceanOpticsConfigType;
 

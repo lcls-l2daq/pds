@@ -2,7 +2,7 @@
 #define ENCODERCONFIGTYPE_HH
 
 #include "pdsdata/xtc/TypeId.hh"
-#include "pdsdata/encoder/ConfigV2.hh"
+#include "pdsdata/psddl/encoder.ddl.h"
 
 typedef Pds::Encoder::ConfigV2 EncoderConfigType;
 

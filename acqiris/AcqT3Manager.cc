@@ -55,6 +55,7 @@
 #include "pds/utility/Occurrence.hh"
 #include "pds/utility/OccurrenceId.hh"
 #include "pdsdata/xtc/DetInfo.hh"
+#include "pdsdata/xtc/TypeId.hh"
 
 #define ACQ_TIMEOUT_MILISEC 4000
 //#define DBUG
@@ -318,8 +319,9 @@ public:
     //    status = AcqrsT3_configMemorySwitch(_instrumentId, 2, 1, 1024*1024, 0);
     dumpStatus(_instrumentId, status,"AcqT3Config::configMemorySwitch");
 
-    for(unsigned i=0; i<AcqTdcConfigType::NChannels; i++) {
-      const Pds::Acqiris::TdcChannel& c = _config.channel(i);
+    ndarray<const Pds::Acqiris::TdcChannel,1> channels = _config.channels();
+    for(unsigned i=0; i<channels.shape()[0]; i++) {
+      const Pds::Acqiris::TdcChannel& c = channels[i];
       ViInt32 channel    = c.channel();
       ViInt32 slope      = (c.mode()<<31) | (c.slope());
       ViReal64 threshold = c.level();
@@ -329,8 +331,9 @@ public:
       dumpStatus(_instrumentId, status,"AcqT3Config::configChannel");
     }
 
-    for(unsigned i=0; i<AcqTdcConfigType::NAuxIO; i++) {
-      const Pds::Acqiris::TdcAuxIO& c = _config.auxio(i);
+    ndarray<const Pds::Acqiris::TdcAuxIO,1> auxio = _config.auxio();
+    for(unsigned i=0; i<auxio.shape()[0]; i++) {
+      const Pds::Acqiris::TdcAuxIO& c = auxio[i];
       ViInt32 channel    = c.channel();
       ViInt32 signal     = c.mode();
       ViInt32 qualifier  = c.term();

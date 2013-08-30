@@ -19,7 +19,7 @@ namespace Pds {
     OrcaConfig(const Src& src) :
       CfgCache(src, _orcaConfigType, MaxConfigSize) {}
   private:
-    int _size(void* tc) const { return reinterpret_cast<OrcaConfigType*>(tc)->size(); }
+    int _size(void* tc) const { return reinterpret_cast<OrcaConfigType*>(tc)->_sizeof(); }
   };
 };
 

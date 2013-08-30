@@ -1,7 +1,7 @@
 #include "pds/camera/QuartzCamera.hh"
 #include "pds/camera/CameraDriver.hh"
 #include "pds/camera/FrameServerMsg.hh"
-#include "pdsdata/camera/FrameCoord.hh"
+#include "pdsdata/psddl/camera.ddl.h"
 #include "pdsdata/xtc/DetInfo.hh"
 
 #include <stdio.h>
@@ -213,10 +213,9 @@ int QuartzCamera::configure(CameraDriver& driver,
 
   if (_inputConfig->output_lookup_table_enabled()) {
     SetCommand("Output LUT Begin","OLUTBGN");
-    const unsigned short* lut = _inputConfig->output_lookup_table();
-    const unsigned short* end = lut + 4096;
-    while( lut < end ) {
-      snprintf(szCommand, SZCOMMAND_MAXLEN, "OLUT%hu", *lut++);
+    ndarray<const uint16_t,1> olut = _inputConfig->output_lookup_table();
+    for(unsigned k=0; k<olut.shape()[0]; k++) {
+      snprintf(szCommand, SZCOMMAND_MAXLEN, "OLUT%hu", olut[k]);
       if ((ret = driver.SendCommand(szCommand, NULL, 0))<0)
 	return ret;
     }
@@ -231,15 +230,31 @@ int QuartzCamera::configure(CameraDriver& driver,
     unsigned n,col,row;
     char cmdb[8];
     GetParameter("DP0",n);
-    Pds::Camera::FrameCoord* pc = outputConfig->defect_pixel_coordinates();
-    for(unsigned k=1; k<=n; k++,pc++) {
-      sprintf(cmdb,"DP%d",k);
-      GetParameters(cmdb,col,row);
-      pc->column = col;
-      pc->row = row;
+
+    if (n) {
+      Pds::Camera::FrameCoord* dps = new Pds::Camera::FrameCoord[n];
+      
+      for(unsigned k=0; k<n; k++) {
+        sprintf(cmdb,"DP%d",k+1);
+        GetParameters(cmdb,col,row);
+        dps[k] = Pds::Camera::FrameCoord(col,row);
+      }
+
+      SetParameter("Defect Pixel Correction","DPE",1);
+    
+      *new(outputConfig) QuartzConfigType(_inputConfig->output_offset(),
+                                          _inputConfig->gain_percent(),
+                                          _inputConfig->output_resolution(),
+                                          _inputConfig->horizontal_binning(),
+                                          _inputConfig->vertical_binning(),
+                                          _inputConfig->output_mirroring(),
+                                          _inputConfig->defect_pixel_correction_enabled(),
+                                          _inputConfig->output_lookup_table_enabled(),
+                                          n,
+                                          _inputConfig->output_lookup_table().data(),
+                                          dps);
+      delete[] dps;
     }
-    outputConfig->set_number_of_defect_pixels(n);
-    SetParameter("Defect Pixel Correction","DPE",1);
   }
   else
     SetParameter("Defect Pixel Correction","DPE",0);
@@ -352,8 +367,8 @@ char          QuartzCamera::sof     () const { return '@'; }
 char          QuartzCamera::eof     () const { return '\r'; }
 unsigned long QuartzCamera::timeout_ms() const { return 40; }
 
-int  QuartzCamera::camera_width () const { return QuartzConfigType::max_column_pixels(_src); }
-int  QuartzCamera::camera_height() const { return QuartzConfigType::max_row_pixels   (_src); }
+int  QuartzCamera::camera_width () const { return Pds::Quartz::max_column_pixels(_src); }
+int  QuartzCamera::camera_height() const { return Pds::Quartz::max_row_pixels   (_src); }
 int  QuartzCamera::camera_depth () const { return _inputConfig ? _inputConfig->output_resolution_bits() : 8; }
 int  QuartzCamera::camera_taps  () const { 
   if (_inputConfig && 

@@ -210,8 +210,8 @@ namespace Pds {
           _cfgtc.extent = sizeof(Xtc) + sizeof(UsdUsbConfigType);
 
 	  for(unsigned i=0; i<UsdUsbConfigType::NCHANNELS; i++) {
-	    _nerror += USB4_SetMultiplier    (_dev, i, (int)_config.quadrature_mode(i)) != USB4_SUCCESS;
-	    _nerror += USB4_SetCounterMode   (_dev, i, (int)_config.counting_mode  (i)) != USB4_SUCCESS;
+	    _nerror += USB4_SetMultiplier    (_dev, i, (int)_config.quadrature_mode()[i]) != USB4_SUCCESS;
+	    _nerror += USB4_SetCounterMode   (_dev, i, (int)_config.counting_mode  ()[i]) != USB4_SUCCESS;
 	    _nerror += USB4_SetForward       (_dev, i, 0) != USB4_SUCCESS; // A/B assignment (normal)
 	    _nerror += USB4_SetCaptureEnabled(_dev, i, 1) != USB4_SUCCESS;
 	    _nerror += USB4_SetCounterEnabled(_dev, i, 1) != USB4_SUCCESS;

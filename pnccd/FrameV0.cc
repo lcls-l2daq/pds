@@ -6,7 +6,7 @@
  */
 
 #include "pds/pnccd/FrameV0.hh"
-#include "pdsdata/pnCCD/ConfigV2.hh"
+#include "pdsdata/psddl/pnccd.ddl.h"
 
 using namespace Pds;
 using namespace Pds::PNCCD;

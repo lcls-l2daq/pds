@@ -25,11 +25,21 @@ namespace Pds {
     Frame(const Frame&);
   public:
     unsigned char* data();
+    unsigned       data_size() const;
+    unsigned       depth_bytes() const;
   };
 
   inline unsigned char* Frame::data()
   {
-    return const_cast<unsigned char*>(FrameType::data());
+    return const_cast<unsigned char*>(FrameType::data8().data());
+  }
+  inline unsigned Frame::data_size() const
+  {
+    return _sizeof()-sizeof(*this);
+  }
+  inline unsigned Frame::depth_bytes() const
+  {
+    return (depth()+7)/8;
   }
 };
 

@@ -1,7 +1,7 @@
 #include "EncoderServer.hh"
 #include "pds/xtc/CDatagram.hh"
 #include "pds/xtc/ZcpDatagram.hh"
-#include "pdsdata/encoder/DataV2.hh"
+#include "pdsdata/psddl/encoder.ddl.h"
 #include "pds/config/EncoderDataType.hh"
 
 #include <unistd.h>

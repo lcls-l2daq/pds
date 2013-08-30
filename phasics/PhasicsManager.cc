@@ -24,7 +24,6 @@
 #include "pds/phasics/PhasicsServer.hh"
 #include "pdsdata/xtc/DetInfo.hh"
 #include "pds/phasics/PhasicsManager.hh"
-#include "pds/phasics/PhasicsServer.hh"
 #include "pds/pgp/DataImportFrame.hh"
 #include "pds/config/CfgClientNfs.hh"
 #include "pdsdata/xtc/TypeId.hh"

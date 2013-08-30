@@ -8,14 +8,14 @@
 using namespace Pds;
 
 
-VmonRecorder::VmonRecorder() :
+VmonRecorder::VmonRecorder(const char* base) :
   _state  (Disabled),
   _buff   (new char[0x10000]),
   _record (0),
+  _base   (base),
   _size   (0),
   _output (0)
 {
-  sprintf(_path,"None");
 }
 
 VmonRecorder::~VmonRecorder()
@@ -93,10 +93,12 @@ void VmonRecorder::_open()
   time_t tm_t(::time(NULL));
   struct tm tm_s;
   localtime_r(&tm_t,&tm_s);
-  strftime(_path,128,"vmon_%F_%T.dat",&tm_s);
-  printf("Opening %s\n",_path);
+  char path[256];
+  strftime(_path,MAX_FNAME_SIZE,"vmon_%F_%T.dat",&tm_s);
+  sprintf(path,"%s/%s",_base,_path);
+  printf("Opening %s\n",path);
   _size   = 0;
-  _output = ::fopen(_path,"w");
+  _output = ::fopen(path,"w");
   _record = new (_buff) VmonRecord(VmonRecord::Description,ctime);
 }
 

@@ -87,7 +87,8 @@ public:
           25.0f,  // Cooling temperature
           1,  // Gain index
           1,  // Readout speed index
-          1   // Redout event code
+          1,  // Redout event code
+          -1 // Num delay shots
         );
       }
 
@@ -145,13 +146,13 @@ public:
     }
 
 private:
-    FliManager&   _manager;
+    FliManager&         _manager;
     CfgClientNfs&       _cfg;
     GenericPool         _occPool;
     bool                _bDelayMode;
     const int           _iDebugLevel;
     Xtc                 _cfgtc;
-    FliConfigType _config;
+    FliConfigType       _config;
     int                 _iConfigCameraFail;
 
     /*
@@ -649,7 +650,7 @@ int FliManager::map(const Allocation& alloc)
 int FliManager::config(FliConfigType& config, std::string& sConfigWarning)
 {
   if ( !_bDelayMode )
-    config.setNumDelayShots(0);
+    Pds::FliConfig::setNumDelayShots(config,0);
 
   return _pServer->config(config, sConfigWarning);
 }

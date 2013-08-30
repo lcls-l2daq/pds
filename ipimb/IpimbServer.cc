@@ -2,7 +2,7 @@
 #include "pds/xtc/CDatagram.hh"
 #include "pds/xtc/ZcpDatagram.hh"
 #include "pds/config/IpimbDataType.hh"
-#include "pdsdata/ipimb/DataV1.hh"
+#include "pdsdata/psddl/ipimb.ddl.h"
 
 #include <unistd.h>
 #include <sys/uio.h>
