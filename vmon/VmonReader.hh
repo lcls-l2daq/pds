@@ -29,6 +29,7 @@ namespace Pds {
 			 const Src&, 
 			 int signature, 
 			 const MonStats2D&) = 0;
+    virtual void end_record() {}
   };
 
   class VmonReader {
