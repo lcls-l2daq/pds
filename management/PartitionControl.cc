@@ -11,6 +11,7 @@
 #include "pds/management/PlatformCallback.hh"
 #include "pds/management/RunAllocator.hh"
 #include "pds/management/Sequencer.hh"
+#include "pds/xtc/XtcType.hh"
 
 #include "pds/collection/PingReply.hh"
 #include "pds/collection/AliasReply.hh"
@@ -34,12 +35,10 @@
 #define USE_L1A
 #define DBUG
 
-static const unsigned MaxPayload = 0x1000;
+static const unsigned MaxPayload = 0x1800;
 static timespec disable_tmo;
 
 namespace Pds {
-  const TypeId xtcGenericType = TypeId(TypeId::Id_Xtc, 1);
-
   class SequenceJob : public Routine {
   public:
     SequenceJob(PartitionControl& control,
@@ -96,11 +95,9 @@ namespace Pds {
       _control(control),
       _pool   (sizeof(Transition)+MaxPayload,1)
     {
-    _aliasBuf = new char[sizeof(AliasConfigType)+AliasConfigType::MaxPayloadSize];
     }
     ~ControlAction()
     {
-    delete[] _aliasBuf;
     }
   public:
     Transition* transitions(Transition* i) {
@@ -185,50 +182,16 @@ namespace Pds {
         else {
           Transition* tr;
           const Xtc* xtc = _control._transition_xtc[i->id()];
-          if (xtc && xtc->extent < MaxPayload) {
-            _pAliasConfig = NULL;
-            if ((i->id()==TransitionId::Configure) && (_control.count_src_alias() > 0)) {
-              _pAliasConfig = new(_aliasBuf) AliasConfigType(_control._src_aliases);
-              if (xtc->extent + (2*sizeof(Xtc)) +_pAliasConfig->size() > MaxPayload) {
-                printf("Alias Config payload size (0x%x) exceeds maximum.  Discarding.\n",_pAliasConfig->size());
-                _pAliasConfig = NULL;
-              }
-            }
-            tr = new(&_pool) Transition(i->id(),
-                                        Transition::Record,
-                                        Sequence(Sequence::Event,
-                                                 i->id(),
-                                                 i->sequence().clock(),
-                                                 i->sequence().stamp()),
-                                        i->env(),
-                                        _pAliasConfig ?
-                                        sizeof(Transition)+xtc->extent+2*sizeof(Xtc)+_pAliasConfig->size() :
-                                        sizeof(Transition)+xtc->extent);
-            char* p = reinterpret_cast<char*>(tr+1);
-            Xtc *pContainerXtc = (Xtc *)NULL;
-            Xtc *pAliasXtc = (Xtc *)NULL;
-            if (_pAliasConfig) {
-              // insert container Xtc
-              pContainerXtc = (Xtc *)new(p)Xtc(xtcGenericType, xtc->src);
-              p += sizeof(Xtc);
-            }
-            memcpy(p,xtc,sizeof(Xtc));
-            memcpy(p += sizeof(Xtc),_control._transition_payload[i->id()],xtc->sizeofPayload());
-            p += xtc->sizeofPayload();
-            if (_pAliasConfig) {
-              // insert alias Xtc and config
-              pAliasXtc = (Xtc *)new(p)Xtc(_aliasConfigType, xtc->src);
-              p += sizeof(Xtc);
-              pAliasXtc->extent = sizeof(Xtc) + _pAliasConfig->size();
-              memcpy(p, _pAliasConfig, _pAliasConfig->size());
-              p += _pAliasConfig->size();
-              // update extent of container Xtc
-              pContainerXtc->extent = sizeof(Xtc) + xtc->extent + pAliasXtc->extent;
-            }
-          }
-          else {
-            if (xtc)
-              printf("PartitionControl transition payload size (0x%x) exceeds maximum.  Discarding.\n",xtc->extent);
+	  bool append_alias = (i->id()==TransitionId::Configure) && (_control.count_src_alias() > 0);
+
+	  if (xtc && append_alias) {
+	    unsigned payload_size = xtc->extent + 2*sizeof(Xtc);
+	    payload_size += sizeof(AliasConfigType)+_control.count_src_alias()*sizeof(Pds::SrcAlias);
+
+	    if (payload_size > MaxPayload) {
+              printf("PartitionControl transition payload size (0x%x) exceeds maximum.  Aborting.\n",payload_size);
+	      abort();
+	    }
 
             tr = new(&_pool) Transition(i->id(),
                                         Transition::Record,
@@ -236,8 +199,54 @@ namespace Pds {
                                                  i->id(),
                                                  i->sequence().clock(),
                                                  i->sequence().stamp()),
+                                        i->env(),
+					sizeof(Transition)+payload_size);
+
+	    Xtc* top = new(reinterpret_cast<char*>(tr+1)) Xtc(_xtcType,xtc->src);
+	    //  Attach the control_transition header and payload
+	    { 
+	      Xtc* cxtc = new(reinterpret_cast<char*>(top->next())) Xtc(*xtc);
+	      memcpy(cxtc->alloc(xtc->sizeofPayload()),_control._transition_payload[i->id()],xtc->sizeofPayload());
+	      top->extent += cxtc->extent; 
+	    }
+	    //  Attach the alias configuration header and payload
+	    { 
+	      Xtc* alias = new(reinterpret_cast<char*>(top->next())) Xtc(_aliasConfigType,xtc->src);
+	      *reinterpret_cast<uint32_t*>(alias->alloc(sizeof(uint32_t))) = _control.count_src_alias();
+	      for(std::list<SrcAlias>::const_iterator it=_control._src_aliases.begin(); it!=_control._src_aliases.end(); it++)
+		new(alias->alloc(sizeof(SrcAlias))) SrcAlias(*it);
+	      top->extent += alias->extent; 
+	    }
+	  }
+
+	  else if (xtc) { 
+	    if (xtc->extent > MaxPayload) {
+              printf("PartitionControl transition payload size (0x%x) exceeds maximum.  Aborting.\n",xtc->extent);
+	      abort();
+	    }
+
+	    tr = new(&_pool) Transition(i->id(),
+                                        Transition::Record,
+                                        Sequence(Sequence::Event,
+                                                 i->id(),
+                                                 i->sequence().clock(),
+                                                 i->sequence().stamp()),
+                                        i->env(),
+					sizeof(Transition)+xtc->extent);
+	    Xtc* top = new(reinterpret_cast<char*>(tr+1)) Xtc(*xtc);
+	    memcpy(top->alloc(xtc->sizeofPayload()),_control._transition_payload[i->id()],xtc->sizeofPayload());
+	  }
+
+	  else {
+            tr = new(&_pool) Transition(i->id(),
+                                        Transition::Record,
+                                        Sequence(Sequence::Event,
+                                                 i->id(),
+                                                 i->sequence().clock(),
+                                                 i->sequence().stamp()),
                                         i->env());
-          }
+	  }
+
           _control.mcast(*tr);
           delete tr;
         }
@@ -254,8 +263,6 @@ namespace Pds {
   private:
     PartitionControl& _control;
     GenericPool _pool;
-    AliasConfigType *_pAliasConfig;
-    char *_aliasBuf;
   };
 
   class MyCallback : public ControlCallback {

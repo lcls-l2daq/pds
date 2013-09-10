@@ -2,7 +2,7 @@
 #define Pds_AliasConfigType_hh
 
 #include "pdsdata/xtc/TypeId.hh"
-#include "pdsdata/alias/ConfigV1.hh"
+#include "pdsdata/psddl/alias.ddl.h"
 
 typedef Pds::Alias::ConfigV1 AliasConfigType;
 
