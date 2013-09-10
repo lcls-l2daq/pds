@@ -30,6 +30,23 @@ void MonStats1D::stats(unsigned nbins,
   } while (con < end);
 }
 
+void MonStats1D::setto(const MonStats1D& s)
+{
+  _sumw   = s._sumw  ;
+  _sumw2  = s._sumw2 ;
+  _sumwx  = s._sumwx ;
+  _sumwx2 = s._sumwx2;
+}
+
+void MonStats1D::setto(const MonStats1D& curr,
+		       const MonStats1D& prev)
+{
+  _sumw   = curr._sumw   - prev._sumw  ;
+  _sumw2  = curr._sumw2  - prev._sumw2 ;
+  _sumwx  = curr._sumwx  - prev._sumwx ;
+  _sumwx2 = curr._sumwx2 - prev._sumwx2;
+}
+
 double MonStats1D::sum() const 
 {
   return _sumw;

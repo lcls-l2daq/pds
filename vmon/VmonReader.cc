@@ -139,3 +139,31 @@ void VmonReader::process(VmonReaderCallback& callback,
     callback.end_record();
   }
 }
+
+unsigned         VmonReader::nrecords(const ClockTime& begin,
+				      const ClockTime& end) const
+{
+  unsigned n=0;
+  unsigned nbytes = _seek_pos;
+  fseek(_file, _seek_pos, SEEK_SET);
+  while( !feof(_file) ) {
+    fread(_buff, sizeof(VmonRecord), 1, _file);
+    nbytes += sizeof(VmonRecord);
+
+    if (feof(_file)) break;
+
+    VmonRecord& record = *new(_buff) VmonRecord;
+    int remaining = record.len() - sizeof(record);
+    if (record.time() > end)
+      break;
+
+    if (begin > record.time())
+      ;
+    else
+      n++;
+    fseek(_file, remaining, SEEK_CUR);
+    nbytes += remaining;
+  }
+  return n;
+}
+

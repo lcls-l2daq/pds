@@ -41,6 +41,8 @@ namespace Pds {
     const MonCds* cds(const Src&) const;
     const ClockTime& begin() const;
     const ClockTime& end  () const;
+    unsigned nrecords(const ClockTime& begin,
+		      const ClockTime& end) const;
   public:    
     void reset();
     void use  (const Src&, const MonUsage&);
@@ -58,9 +60,10 @@ namespace Pds {
     std::vector<int*>      _offsets;
     unsigned             _seek_pos; // start of payload
     unsigned             _len;      // length of each payload record
-
+    
     ClockTime            _begin;
     ClockTime            _end;
+
     //  requests
     std::vector<Src>             _req_src;
     std::vector<const MonUsage*> _req_use;
