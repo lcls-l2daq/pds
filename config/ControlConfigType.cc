@@ -14,7 +14,7 @@ static PVLabel  * list_to_array(const std::list<PVLabel  >&);
 
 ControlConfigType* Pds::ControlConfig::_new(void* p)
 {
-  return new(p) ControlConfigType(1,0,0,ClockTime(0,0),0,0,0,0,0,0);
+  return new(p) ControlConfigType(0,0,1,ClockTime(0,0),0,0,0,0,0,0);
 }
 
 ControlConfigType* Pds::ControlConfig::_new(void* p, 

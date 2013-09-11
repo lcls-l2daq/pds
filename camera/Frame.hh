@@ -31,7 +31,7 @@ namespace Pds {
 
   inline unsigned char* Frame::data()
   {
-    return const_cast<unsigned char*>(FrameType::data8().data());
+    return reinterpret_cast<uint8_t*>(this+1);
   }
   inline unsigned Frame::data_size() const
   {
