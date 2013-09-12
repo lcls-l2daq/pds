@@ -33,6 +33,11 @@ const ClockTime& VmonRecord::time() const
   return _time;
 }
 
+void VmonRecord::time(const ClockTime& t)
+{
+  _time = t;
+}
+
 int VmonRecord::append(const MonClient& client)
 {
   int rval(0);

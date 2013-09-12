@@ -17,6 +17,8 @@ namespace Pds {
   public:
     void enable();
     void disable();
+    void begin(int);
+    void end();
   public:
     void description(MonClient&);
     void payload    (MonClient&);
@@ -25,15 +27,17 @@ namespace Pds {
     const char* filename() const { return _path; }
     unsigned    filesize() const { return _size; }
   private:
-    void _open();
+    void _open(int);
     void _close();
-    void _flush();
+    void _flush(const VmonRecord*);
   private:
     enum State { Disabled, Enabled, Describing, Recording };
     State _state;
 
-    char*       _buff;   // where the update is stored
-    VmonRecord* _record; // the record update under construction
+    char*       _dbuff;   // where the description update is stored
+    char*       _pbuff;   // where the payload update is stored
+    VmonRecord* _drecord; // the description record update under construction
+    VmonRecord* _precord; // the payload record update under construction
 
     std::map<MonClient*,int> _clients;
     unsigned                 _len;

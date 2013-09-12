@@ -10,8 +10,10 @@ using namespace Pds;
 
 VmonRecorder::VmonRecorder(const char* base) :
   _state  (Disabled),
-  _buff   (new char[0x10000]),
-  _record (0),
+  _dbuff  (new char[0x10000]),
+  _pbuff  (new char[0x10000]),
+  _drecord(0),
+  _precord(0),
   _base   (base),
   _size   (0),
   _output (0)
@@ -20,7 +22,8 @@ VmonRecorder::VmonRecorder(const char* base) :
 
 VmonRecorder::~VmonRecorder()
 {
-  delete[] _buff;
+  delete[] _dbuff;
+  delete[] _pbuff;
 }
 
 void VmonRecorder::enable () 
@@ -34,19 +37,37 @@ void VmonRecorder::disable()
   _state = Disabled; 
 }
 
+void VmonRecorder::begin(int n)
+{
+  _open(n);
+  _state = Recording;
+}
+
+void VmonRecorder::end()
+{
+  _close();
+  _state = Enabled;
+}
+
 void VmonRecorder::description(MonClient& client)
 {
   switch(_state) {
   case Recording : 
-    _close();
+    printf("Received description while recording\n");
+    break;
   case Enabled   : 
-    _open(); 
-    _state = Describing; 
-    _clients.clear();
-    _len = 0;
+    printf("Resetting description\n");
+    { _state = Describing; 
+      _clients.clear();
+      _len = 0;
+      timespec ts;
+      clock_gettime(CLOCK_REALTIME, &ts);
+      ClockTime ctime(ts.tv_sec,ts.tv_nsec);
+      _drecord = new (_dbuff) VmonRecord(VmonRecord::Description,ctime);
+    }
   case Describing: 
     _clients.insert(std::pair<MonClient*,int>(&client,_len));
-    _len += _record->append(client);
+    _len += _drecord->append(client);
   default:
     break;
   }
@@ -55,13 +76,11 @@ void VmonRecorder::description(MonClient& client)
 void VmonRecorder::payload(MonClient& client)
 {
   switch(_state) {
-  case Describing:
-    _state = Recording;
-    _flush();
+  case Enabled:
   case Recording:
     { std::map<MonClient*,int>::iterator it = _clients.find(&client);
       if (it != _clients.end())
-	_record->append(client,it->second);
+	_precord->append(client,it->second);
     }
   default:
     break;
@@ -70,22 +89,23 @@ void VmonRecorder::payload(MonClient& client)
 
 void VmonRecorder::flush()
 {
-  if (_state==Recording && _record->len()!=sizeof(*_record)) 
-    _flush();
-}
+  if (_state==Recording && _precord->len()!=sizeof(*_precord))
+    _flush(_precord);
 
-void VmonRecorder::_flush()
-{
-  ::fwrite(_record,_record->len(),1,_output);
-  _size += _record->len();
-  //  delete _record;
   timespec ts;
   clock_gettime(CLOCK_REALTIME, &ts);
   ClockTime ctime(ts.tv_sec,ts.tv_nsec);
-  _record = new (_buff)VmonRecord(VmonRecord::Payload,ctime,_len);
+  _precord = new (_pbuff)VmonRecord(VmonRecord::Payload,ctime,_len);
 }
 
-void VmonRecorder::_open()
+void VmonRecorder::_flush(const VmonRecord* record)
+{
+  ::fwrite(record,record->len(),1,_output);
+  _size += record->len();
+
+}
+
+void VmonRecorder::_open(int n)
 {
   timespec ts;
   clock_gettime(CLOCK_REALTIME, &ts);
@@ -94,17 +114,20 @@ void VmonRecorder::_open()
   struct tm tm_s;
   localtime_r(&tm_t,&tm_s);
   char path[256];
-  strftime(_path,MAX_FNAME_SIZE,"vmon_%F_%T.dat",&tm_s);
+  if (n>=0)
+    sprintf(_path,"vmon_run%04d",n);
+  else
+    sprintf(_path,"vmon");
+  strftime(_path+strlen(_path),MAX_FNAME_SIZE,"_%F_%T.dat",&tm_s);
   sprintf(path,"%s/%s",_base,_path);
   printf("Opening %s\n",path);
   _size   = 0;
   _output = ::fopen(path,"w");
-  _record = new (_buff) VmonRecord(VmonRecord::Description,ctime);
+  _drecord->time(ctime);
+  _flush(_drecord);
 }
 
 void VmonRecorder::_close()
 {
-  flush();
-  //  delete _record;
   ::fclose(_output);
 }

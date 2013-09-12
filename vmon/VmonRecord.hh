@@ -26,6 +26,7 @@ namespace Pds {
   public:
     int  append(const MonClient& client);
     void append(const MonClient& client,int);
+    void time  (const ClockTime&);
   public:
     int extract(vector<Src    >& src_vector, 
 		vector<MonCds*>& cds_vector, 
