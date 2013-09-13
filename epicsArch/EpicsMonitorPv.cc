@@ -302,7 +302,7 @@ namespace Pds
     typedef typename EpicsDbrTools::DbrTypeTraits<T>::TDbrOrgP TDbrOrgP;
 
     const TDbrTime* v = reinterpret_cast<const TDbrTime*>(_pTimeValue);
-    TPdsTime* q = new(p) TPdsTime(_iPvId, EpicsDbrTools::DbrTypeTraits<T>::iDbrCtrlType, _ulNumElems,
+    TPdsTime* q = new(p) TPdsTime(_iPvId, EpicsDbrTools::DbrTypeTraits<T>::iDbrTimeType, _ulNumElems,
                                   *v, reinterpret_cast<const TDbrOrgP>(v+1));
 
     isize = q->_sizeof();
