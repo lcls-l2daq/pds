@@ -41,6 +41,7 @@ namespace Pds {
     std::vector<FCA::Task*> _tasks;
     MonEntryTH1F* _start_to_complete;
     MonEntryTH1F* _assign_to_complete;
+    MonEntryTH1F* _compress_ratio;
   };
 };
 

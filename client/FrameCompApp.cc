@@ -52,11 +52,11 @@ namespace Pds {
   namespace FCA {
     class Entry {
     public:
-      Entry(Transition* tr) : _state(Completed), _type(TypeT), _ptr(tr), _copy(false)
+      Entry(Transition* tr) : _state(Completed), _type(TypeT), _ptr(tr), _copy(false), _insize(0)
       { clock_gettime(CLOCK_REALTIME,&_start); }
       Entry(InDatagram* in) : _state(in->datagram().seq.service()==TransitionId::L1Accept ||
                                      in->datagram().seq.service()==TransitionId::Configure ? Queued:Completed),
-                              _type(TypeI), _ptr(in), _copy(false)
+                              _type(TypeI), _ptr(in), _copy(false), _insize(in->datagram().xtc.sizeofPayload())
       { clock_gettime(CLOCK_REALTIME,&_start); 
         if (copyPresample!=0 && (++icopyPresample >= copyPresample)) {
           _copy=true;
@@ -78,6 +78,9 @@ namespace Pds {
       double since_start (const timespec& now) const { return time_since(now,_start); }
       double since_assign(const timespec& now) const { return time_since(now,_assign); }
       bool   copy() const { return _copy; }
+      double compr_ratio () const {
+        return _type==TypeT ? 1 : reinterpret_cast<InDatagram*>(_ptr)->datagram().xtc.sizeofPayload()/_insize;
+      }
     private:
       enum { Queued, Assigned, Completed } _state;
       enum { TypeT, TypeI } _type;
@@ -85,6 +88,7 @@ namespace Pds {
       bool  _copy;
       timespec _start;
       timespec _assign;
+      double   _insize;
     };
     
     typedef std::list<Entry*> EList;
@@ -192,6 +196,7 @@ static std::vector<DetInfo>         _info;
 
 static const unsigned nbins = 64;
 static const double ms_per_bin = 64./64.;
+static const double rat_per_bin = 1.28/64.;
 
 FrameCompApp::FrameCompApp(size_t max_size, unsigned nthreads) :
   _mgr_task(new Task(TaskObject("FCAmgr"))),
@@ -208,6 +213,9 @@ FrameCompApp::FrameCompApp(size_t max_size, unsigned nthreads) :
   _assign_to_complete = new MonEntryTH1F(assign_to_complete);
   group->add(_assign_to_complete);
 
+  MonDescTH1F compress_ratio("Compr Ratio","[fraction]", "", nbins, 0., double(nbins)*rat_per_bin);
+  _compress_ratio = new MonEntryTH1F(compress_ratio);
+  group->add(_compress_ratio);
 
   for(unsigned id=0; id<_tasks.size(); id++)
     _tasks[id] = new FCA::Task(id,*this,max_size);
@@ -274,6 +282,14 @@ void FrameCompApp::completeEntry(FCA::Entry* e, unsigned id)
     else
       _assign_to_complete->addinfo(1,MonEntryTH1F::Overflow);
     _assign_to_complete->time(time);
+  }
+    
+  { unsigned bin = unsigned(e->compr_ratio()/rat_per_bin);
+    if (bin < nbins)
+      _compress_ratio->addcontent(1,bin);
+    else
+      _compress_ratio->addinfo(1,MonEntryTH1F::Overflow);
+    _compress_ratio->time(time);
   }
     
   e->complete();
