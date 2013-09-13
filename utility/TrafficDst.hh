@@ -13,6 +13,7 @@ namespace Pds {
   public:
     virtual ~TrafficDst() {}
     virtual bool send_next(Client&) = 0;
+    virtual void send_copy(Client&,const Ins&) = 0;
     virtual TrafficDst* clone() const = 0;
   };
 
@@ -22,6 +23,7 @@ namespace Pds {
     ~CTraffic();
   public:
     bool send_next(Client&);
+    void send_copy(Client&,const Ins&);
   public:
     TrafficDst* clone() const;
   private:

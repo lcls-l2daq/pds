@@ -11,6 +11,7 @@ namespace Pds {
     ~VirtualTraffic();
   public:
     bool send_next(Client&);
+    void send_copy(Client&,const Ins&) {}
   public:
     TrafficDst* clone() const;
   private:
@@ -61,6 +62,28 @@ bool CTraffic::send_next(Client& client)
 			     _dst)))
       ;
     return false;
+  }
+}
+
+void CTraffic::send_copy(Client& client, const Ins& dst)
+{
+  if (_iter) {
+    int error;
+    if((error = client.send((char*)_iter->header(),
+			    (char*)_iter->payload(),
+			    _iter->payloadSize(),
+			    dst)))
+      ;
+  }
+  else {
+    const Datagram& datagram = _dg->datagram();
+    unsigned size = datagram.xtc.extent;
+    int error;
+    if ((error = client.send((char*)&datagram,
+			     (char*)&datagram.xtc,
+			     size,
+			     dst)))
+      ;
   }
 }
 

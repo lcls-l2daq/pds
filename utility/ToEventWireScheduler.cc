@@ -5,6 +5,7 @@
 #include "pds/utility/Transition.hh"
 #include "pds/utility/Occurrence.hh"
 #include "pds/utility/OutletWireHeader.hh"
+#include "pds/utility/StreamPorts.hh"
 #include "pds/utility/TrafficDst.hh"
 #include "pds/collection/CollectionManager.hh"
 #include "pds/xtc/Datagram.hh"
@@ -16,6 +17,8 @@
 #include <errno.h>
 #include <poll.h>
 #include <unistd.h>
+
+static unsigned _maxscheduled = 4;
 
 namespace Pds {
   class FlushRoutine : public Routine {
@@ -37,9 +40,17 @@ namespace Pds {
       if (_scheduler)
   clock_gettime(CLOCK_REALTIME, &start);
 #endif
+      unsigned cnt=_maxscheduled;
       TrafficDst* t = _list.forward();
       while(t != _list.empty()) {
+        //  Fill in
+        while(cnt < _maxscheduled) {
+          t->send_copy(_client,StreamPorts::sink());
+          cnt++;
+        }
+        cnt = 0;
         do {
+          cnt++;
           TrafficDst* n = t->forward();
 
 //#ifdef BUILD_PACKAGE_SPACE
@@ -76,8 +87,6 @@ namespace Pds {
 };
 
 using namespace Pds;
-
-static unsigned _maxscheduled = 4;
 
 static int      _idol_timeout  = 150;  // idol time [ms] which forces flush of queued events.
 
@@ -227,6 +236,7 @@ void ToEventWireScheduler::routine()
       }
     }
     else {  // timeout
+#if 0
       if (_shape_tmo && (_list.forward() != _list.empty())) {
         //
         //  Workaround to shape transmission of an additional event (clone of an existing one and
@@ -241,7 +251,7 @@ void ToEventWireScheduler::routine()
         list.insertList(&_list);
         _list.insertList(&list);
       }
-
+#endif
       _flush();
     }
   }
