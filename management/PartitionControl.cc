@@ -33,7 +33,7 @@
 
 #define RECOVER_TMO
 #define USE_L1A
-#define DBUG
+//#define DBUG
 
 static const unsigned MaxPayload = 0x1800;
 static timespec disable_tmo;
@@ -348,9 +348,9 @@ void PartitionControl::add_src_alias(const SrcAlias& alias)
   _src_aliases.unique();
 }
 
-const char *PartitionControl::lookup_src_alias(const Src& src)
+const char *PartitionControl::lookup_src_alias(const Src& src) const
 {
-  std::list<SrcAlias>::iterator it;
+  std::list<SrcAlias>::const_iterator it;
   for (it = _src_aliases.begin(); it != _src_aliases.end(); it++) {
     if ((Src)*it == src) {
       return (it->aliasName());

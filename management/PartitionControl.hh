@@ -68,7 +68,7 @@ namespace Pds {
     void  set_sequencer    (Sequencer* seq);
     void  use_run_info(bool);
     void  add_src_alias(const SrcAlias& alias);
-    const char *lookup_src_alias(const Src& src);
+    const char *lookup_src_alias(const Src& src) const;
     unsigned count_src_alias() { return _src_aliases.size(); }
   public: // Implements ControlLevel
     void  message          (const Node& hdr,

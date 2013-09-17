@@ -26,7 +26,7 @@ ControlConfigType* Pds::ControlConfig::_new(void* p,
   PVControl* c = list_to_array(controls);
   PVMonitor* m = list_to_array(monitors);
   PVLabel  * l = list_to_array(labels);
-  ControlConfigType* r = new(p) ControlConfigType(0, 0, 1, ctime,
+  ControlConfigType* r = new(p) ControlConfigType(0, 1, 0, ctime,
                                                   controls.size(),
                                                   monitors.size(),
                                                   labels  .size(),
@@ -48,7 +48,7 @@ ControlConfigType* Pds::ControlConfig::_new(void* p,
   PVControl* c = list_to_array(controls);
   PVMonitor* m = list_to_array(monitors);
   PVLabel  * l = list_to_array(labels);
-  ControlConfigType* r = new(p) ControlConfigType(1, events, 0, ClockTime(0,0),
+  ControlConfigType* r = new(p) ControlConfigType(events, 0, 1, ClockTime(0,0),
                                                   controls.size(),
                                                   monitors.size(),
                                                   labels  .size(),
