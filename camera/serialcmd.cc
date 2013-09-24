@@ -100,7 +100,7 @@ int main(int argc, char *argv[])
 
     // Parse arguments
     for(i=1; i<argc; i++) {
-        if(strcmp(argv[i], "--help") == 0) {
+        if ((strcmp(argv[i], "--help") == 0) || (strcmp(argv[i], "-h") == 0)) {
             help(argv[0]);
             return 0;
         } else if(strcmp(argv[i], "--grabber") == 0) {
