@@ -34,7 +34,8 @@ namespace Pds {
     static void setVerbose(bool);
     static void setCopyPresample(unsigned);
   private:
-    void  _process();
+    void  _process ();
+    void  _complete(FCA::Entry*);
   private:
     Pds::Task*              _mgr_task;
     std::list<FCA::Entry*>  _list;

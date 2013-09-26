@@ -263,7 +263,7 @@ void FrameCompApp::queueEvent(InDatagram* in)
   _process();
 }
 
-void FrameCompApp::completeEntry(FCA::Entry* e, unsigned id)
+void FrameCompApp::_complete(FCA::Entry* e)
 {
   timespec now;
   clock_gettime(CLOCK_REALTIME,&now);
@@ -293,6 +293,11 @@ void FrameCompApp::completeEntry(FCA::Entry* e, unsigned id)
   }
     
   e->complete();
+}
+
+void FrameCompApp::completeEntry(FCA::Entry* e, unsigned id)
+{
+  _complete(e);
   _tasks[id]->unassign();
   _process();
 }
@@ -320,7 +325,7 @@ void FrameCompApp::_process()
         }
       //  Too busy to process now
       //      if (!lassign) break;
-      if (!lassign) (*it)->complete();
+      if (!lassign) _complete(*it);
     }
   }
 }
