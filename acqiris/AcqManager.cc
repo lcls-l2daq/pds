@@ -54,6 +54,11 @@
 #include "pds/utility/OccurrenceId.hh"
 #include "pdsdata/xtc/XtcIterator.hh"
 
+#include "pds/mon/MonDescTH1F.hh"
+#include "pds/mon/MonEntryTH1F.hh"
+#include "pds/mon/MonGroup.hh"
+#include "pds/vmon/VmonServerManager.hh"
+
 #define ACQ_TIMEOUT_MILISEC 1000
 
 using namespace Pds;
@@ -81,6 +86,86 @@ static inline Acqiris::DataDescV1Elem* _nextChannel(Acqiris::DataDescV1Elem* dat
   return reinterpret_cast<Acqiris::DataDescV1Elem*>(reinterpret_cast<char*>(_waveform(data,hconfig))+_waveformSize(hconfig));
 }
 
+class VmonTHist {
+public:
+  VmonTHist(const char* title,Pds::MonGroup* group) {
+    float t_ms = float(1<<20)*1.e-6;
+    Pds::MonDescTH1F desc(title, "[ms]", "", 64, -0.25*t_ms, 31.75*t_ms);
+    _h = new Pds::MonEntryTH1F(desc);
+    group->add(_h);
+  }
+  ~VmonTHist() { delete _h; }
+public:
+  void fill(const timespec& begin, const timespec& end)
+  {
+    unsigned dsec(end.tv_sec - begin.tv_sec);
+    if (dsec<2) {
+      unsigned nsec(end.tv_nsec);
+      if (dsec==1) nsec += 1000000000;
+      unsigned b = (nsec-begin.tv_nsec)>>19;
+      if (b < _h->desc().nbins())
+        _h->addcontent(1.,b);
+      else
+        _h->addinfo(1.,Pds::MonEntryTH1F::Overflow);
+
+      Pds::ClockTime clock(end.tv_sec,end.tv_nsec);
+      _h->time(clock);
+    }
+  }
+private:
+  MonEntryTH1F* _h;
+};  
+
+class VmonAcq {
+public:
+  VmonAcq() {
+    Pds::MonGroup* group = new Pds::MonGroup("Acq");
+    Pds::VmonServerManager::instance()->cds().add(group);
+    
+    _ready_to_acq = new VmonTHist("Ready to Acq",group);
+    _acq_to_dma   = new VmonTHist("Acq to DMA"  ,group);
+    _dma_time     = new VmonTHist("DMA time"    ,group);
+    _acq_to_ready = new VmonTHist("Acq to Ready",group);
+  }    
+  ~VmonAcq()
+  {
+    delete _ready_to_acq;
+    delete _acq_to_dma;
+    delete _dma_time;
+    delete _acq_to_ready;
+  }
+public:
+  void ready() 
+  {
+    clock_gettime(CLOCK_REALTIME, &_ts_ready); 
+    _acq_to_ready->fill(_ts_acq,_ts_ready);
+  }
+  void acquired()
+  {
+    clock_gettime(CLOCK_REALTIME, &_ts_acq);
+    _ready_to_acq->fill(_ts_ready,_ts_acq);
+  }
+  void dma_start()
+  {
+    clock_gettime(CLOCK_REALTIME, &_ts_start);
+    _acq_to_dma->fill(_ts_acq,_ts_start);
+  }
+  void dma_finish()
+  {
+    timespec ts;
+    clock_gettime(CLOCK_REALTIME, &ts);
+    _dma_time->fill(_ts_start,ts);
+  }
+private:
+  VmonTHist* _ready_to_acq;
+  VmonTHist* _acq_to_dma;
+  VmonTHist* _dma_time;
+  VmonTHist* _acq_to_ready;
+  timespec   _ts_ready;
+  timespec   _ts_acq;
+  timespec   _ts_start;
+};
+
 class AcqReader : public Routine {
 public:
   AcqReader(ViSession instrumentId, AcqServer& server, Task* task) :
@@ -105,6 +190,7 @@ public:
     char message[256];
 	
     if (_acqReadEnb) {
+      _vmon.ready();
       AcqrsD1_acquire(_instrumentId);		
       status = AcqrsD1_waitForEndOfAcquisition(_instrumentId,ACQ_TIMEOUT_MILISEC);
       if (status == (int)ACQIRIS_ERROR_ACQ_TIMEOUT) 
@@ -114,6 +200,7 @@ public:
           AcqrsD1_errorMessage(_instrumentId,status,message);
           printf("AcqReader::Error = %s\n",message);
         }
+        _vmon.acquired();
         _server.headerComplete(_totalSize,_count++);   
       }
     } else {
@@ -139,6 +226,8 @@ public:
     //  I don't think it's actually necessary to do the DMA
     //      _server.headerComplete(_totalSize,_count++);   
   }
+public:
+  VmonAcq& vmon() { return _vmon; }
 private:
   ViSession   _instrumentId; 
   Task*       _task;
@@ -148,6 +237,7 @@ private:
   unsigned    _totalSize;
   bool        _acqReadEnb; 
   timespec    _sleepTime;
+  VmonAcq     _vmon;
 };
 
 
@@ -192,6 +282,7 @@ public:
     _lastAcqTS(0),_count(0) {}
   void setConfig(AcqConfigType& config) {_config=&config;}
   void routine() {
+    _reader.vmon().dma_start();
     ViStatus status=0;
     // ### Readout the data ###
     unsigned channelMask = _config->channelMask();
@@ -247,6 +338,7 @@ public:
       }
       data = _nextChannel(data,hconfig);
     }    
+    _reader.vmon().dma_finish();
     _server.payloadComplete();  	
     _task->call(&_reader);
   }
