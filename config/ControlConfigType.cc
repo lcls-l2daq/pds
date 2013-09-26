@@ -14,7 +14,7 @@ static PVLabel  * list_to_array(const std::list<PVLabel  >&);
 
 ControlConfigType* Pds::ControlConfig::_new(void* p)
 {
-  return new(p) ControlConfigType(0,0,1,ClockTime(0,0),0,0,0,0,0,0);
+  return new(p) ControlConfigType(0,0,0,1,ClockTime(0,0),0,0,0,0,0,0);
 }
 
 ControlConfigType* Pds::ControlConfig::_new(void* p, 
@@ -26,7 +26,7 @@ ControlConfigType* Pds::ControlConfig::_new(void* p,
   PVControl* c = list_to_array(controls);
   PVMonitor* m = list_to_array(monitors);
   PVLabel  * l = list_to_array(labels);
-  ControlConfigType* r = new(p) ControlConfigType(0, 1, 0, ctime,
+  ControlConfigType* r = new(p) ControlConfigType(0, 0, 1, 0, ctime,
                                                   controls.size(),
                                                   monitors.size(),
                                                   labels  .size(),
@@ -48,7 +48,29 @@ ControlConfigType* Pds::ControlConfig::_new(void* p,
   PVControl* c = list_to_array(controls);
   PVMonitor* m = list_to_array(monitors);
   PVLabel  * l = list_to_array(labels);
-  ControlConfigType* r = new(p) ControlConfigType(events, 0, 1, ClockTime(0,0),
+  ControlConfigType* r = new(p) ControlConfigType(events, 0, 0, 1, ClockTime(0,0),
+                                                  controls.size(),
+                                                  monitors.size(),
+                                                  labels  .size(),
+                                                  c, m, l);
+
+  if (c) delete[] c;
+  if (m) delete[] m;
+  if (l) delete[] l;
+  
+  return r;
+}
+
+ControlConfigType* Pds::ControlConfig::_new(void* p, 
+                                            const std::list<PVControl>& controls,
+                                            const std::list<PVMonitor>& monitors,
+                                            const std::list<PVLabel>&   labels,
+                                            L3TEvents events)
+{
+  PVControl* c = list_to_array(controls);
+  PVMonitor* m = list_to_array(monitors);
+  PVLabel  * l = list_to_array(labels);
+  ControlConfigType* r = new(p) ControlConfigType(events, 1, 0, 0, ClockTime(0,0),
                                                   controls.size(),
                                                   monitors.size(),
                                                   labels  .size(),
