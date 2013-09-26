@@ -5,6 +5,7 @@
 #include "pds/camera/EdtPdvCL.hh"
 #include "pds/camera/FrameServer.hh"
 #include "pds/camera/FrameServerMsg.hh"
+#include "pds/camera/VmonCam.hh"
 #include "pds/utility/Appliance.hh"
 #include "pds/service/Routine.hh"
 #include "pds/service/Task.hh"
@@ -60,7 +61,8 @@ namespace Pds {
       _disable(new EdtReaderEnable(this,false)),
       _last_timeouts  (0),
       _recover_timeout(false),
-      _running        (false)
+      _running        (false),
+      _vmon           (n_ring_buffers)
     {
       _sleepTime.tv_sec = 0;
       _sleepTime.tv_nsec = (long) 0.5e9;  //0.5 sec
@@ -99,6 +101,8 @@ namespace Pds {
 
       int timeouts = pdv_timeouts(pdv_p);
 
+      _vmon.event(edt_get_todo(pdv_p)-edt_done_count(pdv_p));
+
       if (nPrint) {
         nPrint--;
         int nfv = pdv_cl_get_fv_counter(pdv_p);
@@ -135,6 +139,7 @@ namespace Pds {
     bool      _recover_timeout;
     bool      _running;
     timespec  _sleepTime;
+    VmonCam   _vmon;
   };
 };
 

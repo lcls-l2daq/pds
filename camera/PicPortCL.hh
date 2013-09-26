@@ -18,6 +18,7 @@
 #include "pds/camera/CameraDriver.hh"
 //#include "pds/camera/LvCamera.hh"
 #include "pds/camera/FrameHandle.hh"
+#include "pds/camera/VmonCam.hh"
 #include "pds/mon/THist.hh"
 
 //#define PICPORTCL_NAME    "PicPortX CL Mono"
@@ -127,11 +128,7 @@ namespace PdsLeutron {
     unsigned char*      _frameBufferBase;
     FrameHandle::Format _frameFormat;
   private:
-    Pds::MonEntryTH1F* _depth;
-    Pds::MonEntryTH1F* _interval;
-    Pds::MonEntryTH1F* _interval_w;
-    unsigned           _sample_sec;
-    unsigned           _sample_nsec;
+    Pds::VmonCam        _vmon;
   };
 
 }

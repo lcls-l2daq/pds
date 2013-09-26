@@ -6,6 +6,7 @@ endif
 
 libsrcs_camera := CameraBase.cc \
 		  CameraManager.cc \
+		  VmonCam.cc \
 		  FexCameraManager.cc \
 		  FrameHandle.cc \
 		  TwoDMoments.cc \
