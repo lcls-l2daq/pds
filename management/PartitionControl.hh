@@ -5,11 +5,13 @@
 #include "pds/utility/ControlEb.hh"
 #include "pdsdata/xtc/TransitionId.hh"
 #include "pdsdata/xtc/Xtc.hh"
-#include "pdsdata/xtc/SrcAlias.hh"
+#include "pdsdata/psddl/alias.ddl.h"
 
 #include <pthread.h>
 // #include <set>
 #include <vector>
+
+using Pds::Alias::SrcAlias;
 
 namespace Pds {
 

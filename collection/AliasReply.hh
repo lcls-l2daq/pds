@@ -2,9 +2,11 @@
 #define Pds_AliasReply_hh
 
 #include "pds/collection/Message.hh"
-#include "pdsdata/xtc/SrcAlias.hh"
+#include "pdsdata/psddl/alias.ddl.h"
 
 #include <list>
+
+using Pds::Alias::SrcAlias;
 
 namespace Pds {
   class AliasReply : public Message {

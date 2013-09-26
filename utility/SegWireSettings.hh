@@ -2,8 +2,10 @@
 #define PDS_SEGWIRESETTINGS_HH
 
 #include "StreamParams.hh"
-#include "pdsdata/xtc/SrcAlias.hh"
+#include "pdsdata/psddl/alias.ddl.h"
 #include <list>
+
+using Pds::Alias::SrcAlias;
 
 namespace Pds {
 

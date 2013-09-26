@@ -186,7 +186,7 @@ namespace Pds {
 
 	  if (xtc && append_alias) {
 	    unsigned payload_size = xtc->extent + 2*sizeof(Xtc);
-	    payload_size += sizeof(AliasConfigType)+_control.count_src_alias()*sizeof(Pds::SrcAlias);
+	    payload_size += sizeof(AliasConfigType)+_control.count_src_alias()*sizeof(SrcAlias);
 
 	    if (payload_size > MaxPayload) {
               printf("PartitionControl transition payload size (0x%x) exceeds maximum.  Aborting.\n",payload_size);
@@ -352,7 +352,7 @@ const char *PartitionControl::lookup_src_alias(const Src& src) const
 {
   std::list<SrcAlias>::const_iterator it;
   for (it = _src_aliases.begin(); it != _src_aliases.end(); it++) {
-    if ((Src)*it == src) {
+    if (it->src() == src) {
       return (it->aliasName());
     }
   }
