@@ -18,6 +18,7 @@ VmonRecorder::VmonRecorder(const char* base) :
   _size   (0),
   _output (0)
 {
+  sprintf(_path,"%s/",base);
 }
 
 VmonRecorder::~VmonRecorder()
@@ -102,7 +103,6 @@ void VmonRecorder::_flush(const VmonRecord* record)
 {
   ::fwrite(record,record->len(),1,_output);
   _size += record->len();
-
 }
 
 void VmonRecorder::_open(int n)
