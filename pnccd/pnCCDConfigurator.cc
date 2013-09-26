@@ -89,7 +89,7 @@ unsigned pnCCDConfigurator::configure( pnCCDConfigType* c, unsigned mask) {
   if (printFlag) {
     clock_gettime(CLOCK_REALTIME, &end);
     uint64_t diff = timeDiff(&end, &start) + 50000LL;
-    printf("\tret(%u) size(%u) - done, %s \n", ret, sizeof(p), ret ? "FAILED" : "SUCCEEDED");
+    printf("\tret(%u) size(%zu) - done, %s \n", ret, sizeof(p), ret ? "FAILED" : "SUCCEEDED");
     printf(" it took %lld.%lld milliseconds with mask 0x%x\n", diff/1000000LL, diff%1000000LL, mask&0x1f);
   }
   dumpFrontEnd();

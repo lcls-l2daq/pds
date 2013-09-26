@@ -7,7 +7,7 @@ using namespace Pds;
 
 L3FilterDriver::L3FilterDriver(L3FilterModule* module) :
   _m     (module),
-  _lVeto (true)
+  _lVeto (false)
 {
 }
 

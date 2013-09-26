@@ -335,7 +335,7 @@ int EpicsArchMonitor::_setupPvList(const TPvList & vPvList,
     return 0;
   if ((int) vPvList.size() >= iMaxNumPv)
     printf(
-      "EpicsArchMonitor::_setupPvList(): Number of PVs (%d) has reached the system capacity (%d), "
+      "EpicsArchMonitor::_setupPvList(): Number of PVs (%zd) has reached the system capacity (%d), "
       "some PVs in the list may have been skipped.\n", vPvList.size(),
       iMaxNumPv);
 
