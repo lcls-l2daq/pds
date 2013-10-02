@@ -234,13 +234,14 @@ int main(int argc, char *argv[])
   switch(camera_choice) {
   case 0:
     {
-      Opal1kConfigType* Config = new Opal1kConfigType( 32, 100, 
-                   bitsperpixel==8 ? Opal1kConfigType::Eight_bit : 
-                   bitsperpixel==10 ? Opal1kConfigType::Ten_bit :
-                   Opal1kConfigType::Twelve_bit,
-                   Opal1kConfigType::x1,
-                   Opal1kConfigType::None,
-                   true, false);
+      Opal1kConfigType* Config = 
+        new Opal1kConfigType( 32, 100, 
+                              bitsperpixel==8 ? Opal1kConfigType::Eight_bit : 
+                              bitsperpixel==10 ? Opal1kConfigType::Ten_bit :
+                              Opal1kConfigType::Twelve_bit,
+                              Opal1kConfigType::x1,
+                              Opal1kConfigType::None,
+                              true, false, false, 0, 0, 0);
       
       for(unsigned i=0; i<grabberid.size(); i++) {
         Opal1kCamera* oCamera = new Opal1kCamera( "OpalId0", grabberid[i] );
