@@ -200,7 +200,7 @@ static const double rat_per_bin = 1.28/64.;
 
 FrameCompApp::FrameCompApp(size_t max_size, unsigned nthreads) :
   _mgr_task(new Task(TaskObject("FCAmgr"))),
-  _tasks   (nthreads)
+  _tasks   (nthreads ? nthreads : 4)
 {
   MonGroup* group = new MonGroup("FCA");
   VmonServerManager::instance()->cds().add(group);
