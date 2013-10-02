@@ -25,7 +25,7 @@ VmonReader::VmonReader(const char* name) :
 
   fread(_buff,sizeof(VmonRecord),1,_file);
   _begin = record->time();
-  unsigned len = record->len();
+  int len = record->len();
 
   fseek(_file, -len, SEEK_END);
   fread(_buff,sizeof(VmonRecord),1,_file);
