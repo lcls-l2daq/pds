@@ -36,7 +36,7 @@ using namespace Pds;
 ** --
 */
 
-int XtcIterator::iterate(const Xtc& xtc, InDatagramIterator* root) 
+int PdsClient::XtcIterator::iterate(const Xtc& xtc, InDatagramIterator* root) 
   {
     int sizeofPayload = xtc.sizeofPayload();
 

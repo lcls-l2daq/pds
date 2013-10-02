@@ -1,14 +1,14 @@
 #ifndef PDS_BROWSER
 #define PDS_BROWSER
 
-#include "XtcIterator.hh"
+#include "pds/client/XtcIterator.hh"
 
 namespace Pds {
 
 class Datagram;
 class InDatagram;
 
-class Browser : public XtcIterator
+  class Browser : public PdsClient::XtcIterator
   {
   public:
     Browser(const Datagram&,

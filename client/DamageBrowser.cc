@@ -6,7 +6,7 @@
 #include "pds/service/GenericPool.hh"
 
 namespace Pds {
-  class MyIterator : public XtcIterator {
+  class MyIterator : public PdsClient::XtcIterator {
   public:
     MyIterator(const Xtc& xtc,
 	       InDatagramIterator* it,

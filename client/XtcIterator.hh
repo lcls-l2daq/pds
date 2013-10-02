@@ -60,8 +60,6 @@ namespace PdsClient {
   };
 }
 
-using PdsClient::XtcIterator;
-
 /*
 ** ++
 **
@@ -72,8 +70,8 @@ using PdsClient::XtcIterator;
 ** --
 */
 
-inline XtcIterator::XtcIterator(const Pds::Xtc& xtc,
-				Pds::InDatagramIterator* root) :
+inline PdsClient::XtcIterator::XtcIterator(const Pds::Xtc& xtc,
+                                           Pds::InDatagramIterator* root) :
   _xtc (&xtc),
   _root(root)
   {
@@ -87,7 +85,7 @@ inline XtcIterator::XtcIterator(const Pds::Xtc& xtc,
 ** --
 */
 
-inline const Pds::InDatagramIterator* XtcIterator::root() const
+inline const Pds::InDatagramIterator* PdsClient::XtcIterator::root() const
   {
   return _root;
   } 
@@ -101,7 +99,7 @@ inline const Pds::InDatagramIterator* XtcIterator::root() const
 ** --
 */
 
-inline int  XtcIterator::iterate() 
+inline int  PdsClient::XtcIterator::iterate() 
 {
   return iterate(*_xtc, _root);
 } 
