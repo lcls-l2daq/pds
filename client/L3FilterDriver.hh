@@ -2,6 +2,7 @@
 #define Pds_L3FilterDriver_hh
 
 #include "pds/utility/Appliance.hh"
+#include "pdsdata/app/L3FilterModule.hh"
 #include "pdsdata/xtc/XtcIterator.hh"
 
 namespace Pds {

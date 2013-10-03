@@ -1,12 +1,12 @@
 #include "pds/client/L3FilterDriver.hh"
-#include "pdsdata/app/L3FilterModule.hh"
+
 #include "pdsdata/xtc/XtcIterator.hh"
 #include "pdsdata/psddl/l3t.ddl.h"
 
 using namespace Pds;
 
-L3FilterDriver::L3FilterDriver(L3FilterModule* module) :
-  _m     (module),
+L3FilterDriver::L3FilterDriver(L3FilterModule* m) :
+  _m     (m),
   _lVeto (false)
 {
 }
@@ -21,8 +21,10 @@ Transition* L3FilterDriver::transitions(Transition* tr) { return tr; }
 InDatagram* L3FilterDriver::events     (InDatagram* dg)
 {
   if (dg->datagram().seq.service() == TransitionId::Configure) {
+    _m->pre_configure();
     _event = false;
     iterate(&dg->datagram().xtc);
+    _m->post_configure();
     
     std::string sname(_m->name());
     std::string sconf(_m->configuration());
