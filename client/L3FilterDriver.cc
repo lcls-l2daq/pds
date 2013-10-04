@@ -3,6 +3,8 @@
 #include "pdsdata/xtc/XtcIterator.hh"
 #include "pdsdata/psddl/l3t.ddl.h"
 
+//#define DBUG
+
 using namespace Pds;
 
 L3FilterDriver::L3FilterDriver(L3FilterModule* m) :
@@ -28,6 +30,11 @@ InDatagram* L3FilterDriver::events     (InDatagram* dg)
     
     std::string sname(_m->name());
     std::string sconf(_m->configuration());
+#ifdef DBUG
+    printf("L3FilterDriver inserting configuration\n");
+    printf("%s:\n",sname.c_str());
+    printf("%s\n", sconf.c_str());
+#endif
     char* buff = new char[sizeof(L3T::ConfigV1)+sname.size()+sconf.size()+4];
     L3T::ConfigV1& c = *new(buff)L3T::ConfigV1(sname.size() , sconf.size(),
                                                sname.c_str(), sconf.c_str());
@@ -52,6 +59,11 @@ InDatagram* L3FilterDriver::events     (InDatagram* dg)
              dg->datagram().xtc.src);
     dxtc.extent = sizeof(Xtc)+payload._sizeof();
     dg->insert(dxtc,&payload);
+
+#ifdef DBUG
+    printf("L3FilterDriver::event accept %c payload %d\n",
+	   lAccept ? 't':'f', dg->datagram().xtc.sizeofPayload());
+#endif
   }
   return dg;
 }
