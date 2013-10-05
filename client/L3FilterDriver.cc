@@ -5,6 +5,29 @@
 
 //#define DBUG
 
+namespace Pds {
+  class EpicsFinder : public XtcIterator {
+  public:
+    EpicsFinder(InDatagram& dg) : _dg(dg) {}
+  public:
+    int process(Xtc* xtc)
+    {
+      if (xtc->src.level()==Level::Segment) {
+        const DetInfo& info = static_cast<const DetInfo&>(xtc->src);
+        if (info.detector()==DetInfo::EpicsArch)
+          _dg.insert(*xtc,xtc->payload());
+      }
+      else if (xtc->contains.id()==TypeId::Id_Xtc) {
+        iterate(xtc);
+      }
+      return 1;
+    }
+  private:
+    InDatagram& _dg;
+    Xtc*        _xtc;
+  };
+};
+
 using namespace Pds;
 
 L3FilterDriver::L3FilterDriver(L3FilterModule* m) :
@@ -45,25 +68,33 @@ InDatagram* L3FilterDriver::events     (InDatagram* dg)
     delete[] buff;
   }
   else if (dg->datagram().seq.service() == TransitionId::L1Accept) {
+    _m->pre_event();
     _event = true;
     iterate(&dg->datagram().xtc);
 
-    bool lAccept = _m->accept();
-    if (_lVeto && !lAccept) {
-      dg->datagram().xtc.extent = sizeof(Xtc);
-      dg->datagram().xtc.damage = Damage(0);
-    }
+    if (_m->complete()) {
+      bool lAccept = _m->accept();
+      if (_lVeto && !lAccept) {
+        dg->datagram().xtc.extent = sizeof(Xtc);
+        dg->datagram().xtc.damage = Damage(0);
 
-    L3T::DataV1 payload(lAccept);
-    Xtc dxtc(TypeId(TypeId::Type(payload.TypeId),payload.Version),
-             dg->datagram().xtc.src);
-    dxtc.extent = sizeof(Xtc)+payload._sizeof();
-    dg->insert(dxtc,&payload);
+        // insert EPICS data!!
+        //   this data may be needed by later events
+        EpicsFinder finder(*dg);
+        finder.iterate();
+      }
+      
+      L3T::DataV1 payload(lAccept);
+      Xtc dxtc(TypeId(TypeId::Type(payload.TypeId),payload.Version),
+               dg->datagram().xtc.src);
+      dxtc.extent = sizeof(Xtc)+payload._sizeof();
+      dg->insert(dxtc,&payload);
 
 #ifdef DBUG
-    printf("L3FilterDriver::event accept %c payload %d\n",
-	   lAccept ? 't':'f', dg->datagram().xtc.sizeofPayload());
+      printf("L3FilterDriver::event accept %c payload %d\n",
+             lAccept ? 't':'f', dg->datagram().xtc.sizeofPayload());
 #endif
+    }
   }
   return dg;
 }
