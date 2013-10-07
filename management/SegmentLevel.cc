@@ -59,7 +59,9 @@ bool SegmentLevel::attach()
 {
   start();
   if (connect()) {
-    _streams = new SegStreams(*this);
+    _streams = new SegStreams(*this,
+                              _settings.max_event_size (),
+                              _settings.max_event_depth());
     _streams->connect();
 
     _callback.attached(*_streams);

@@ -18,11 +18,16 @@ using namespace Pds;
 //static const unsigned MaxSize = 0xa00000;
 //#endif
 //static const unsigned MaxSize = 48*1024*1024;
-static const unsigned MaxSize = 10*1024*1024;
+static const unsigned MaxSize = 16*1024*1024;
 
-SegStreams::SegStreams(PartitionMember& cmgr) :
+SegStreams::SegStreams(PartitionMember& cmgr,
+                       unsigned max_event_size,
+                       unsigned max_event_depth) :
   WiredStreams(VmonSourceId(cmgr.header().level(), cmgr.header().ip()))
 {
+  if (!max_event_size)
+    max_event_size = MaxSize;
+
   const Node& node = cmgr.header();
   Level::Type level  = node.level();
   unsigned ipaddress = node.ip();
@@ -33,7 +38,7 @@ SegStreams::SegStreams(PartitionMember& cmgr) :
              //    _outlets[s] = new ToEventWire(*stream(s)->outlet(),
           cmgr,
           ipaddress,
-          MaxSize*ebdepth,
+          max_event_size*max_event_depth,
           cmgr.occurrences());
 
     _inlet_wires[s] = new L1EventBuilder(src,
@@ -43,9 +48,9 @@ SegStreams::SegStreams(PartitionMember& cmgr) :
            *_outlets[s],
            s,
            ipaddress,
-           MaxSize, ebdepth,
+           max_event_size, max_event_depth,
            cmgr.slowEb(),
-           new VmonEb(src,32,ebdepth,(1<<24),(1<<22)));
+           new VmonEb(src,32,max_event_depth,(1<<24),(1<<22)));
 
     (new VmonServerAppliance(src))->connect(stream(s)->inlet());
   }

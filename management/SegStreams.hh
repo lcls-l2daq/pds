@@ -9,9 +9,9 @@ namespace Pds {
 
   class SegStreams : public WiredStreams {
   public:
-    enum { ebdepth     = 32 };
-
-    SegStreams(PartitionMember&);
+    SegStreams(PartitionMember&, 
+               unsigned max_event_size,
+               unsigned max_event_depth);
 
     virtual ~SegStreams();
   };

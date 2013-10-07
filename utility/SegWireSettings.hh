@@ -24,6 +24,9 @@ public:
   virtual const std::list<SrcAlias>* pAliases() const {
     return ((std::list<SrcAlias>*)NULL);
   }
+
+  virtual unsigned max_event_size () const { return 16*1024*1024; }
+  virtual unsigned max_event_depth() const { return 32; }
 };
 }
 #endif
