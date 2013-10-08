@@ -58,8 +58,8 @@ InDatagram* L3FilterDriver::events     (InDatagram* dg)
     printf("%s:\n",sname.c_str());
     printf("%s\n", sconf.c_str());
 #endif
-    char* buff = new char[sizeof(L3T::ConfigV1)+sname.size()+sconf.size()+4];
-    L3T::ConfigV1& c = *new(buff)L3T::ConfigV1(sname.size() , sconf.size(),
+    char* buff = new char[sizeof(L3T::ConfigV1)+sname.size()+sconf.size()+8];
+    L3T::ConfigV1& c = *new(buff)L3T::ConfigV1(sname.size()+1, sconf.size()+1,
                                                sname.c_str(), sconf.c_str());
     Xtc cxtc(TypeId(TypeId::Type(c.TypeId),c.Version),
              dg->datagram().xtc.src);
