@@ -311,6 +311,7 @@ void FrameCompApp::_process()
 
     _list.pop_front();
     e->post(*this);
+    delete e;
   }
 
   //  Next assign entries in order that haven't yet been
