@@ -31,6 +31,7 @@ namespace Pds {
     MonEntryTH1F*     _fixup;
     MonEntryTH1F*     _depth;
     MonEntryTH1F*     _fetch_time;
+    MonEntryTH1F*     _fetch_time_long;
     MonEntryTH1F*     _damage_count;
     MonEntryTH1F*     _post_time;
     MonEntryTH1F*     _post_time_log;
@@ -38,6 +39,7 @@ namespace Pds {
     unsigned          _tshift;
     unsigned          _sshift;
     unsigned          _fshift;
+    unsigned          _lshift;
   };
 
 };

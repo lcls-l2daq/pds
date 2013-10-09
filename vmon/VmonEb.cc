@@ -83,6 +83,17 @@ VmonEb::VmonEb(const Src& src,
     group->add(_fetch_time);
   }
 
+  { unsigned maxf;
+    _lshift = time_scale(maxtime>>2, maxf);
+    
+    float ft0 = -0.5*1.e-3;
+    float ft1 = (float(maxf)-0.5)*1.e-3;
+    MonDescTH1F fetch_time("Fetch Time Long", "[us]", "",
+                           maxf>>_lshift,ft0,ft1);
+    _fetch_time_long = new MonEntryTH1F(fetch_time);
+    group->add(_fetch_time_long);
+  }
+
   MonDescTH1F damage_count("Damage", "bit #", "",
 			 32, -0.5, 31.5);
   _damage_count = new MonEntryTH1F(damage_count);
@@ -138,6 +149,12 @@ void VmonEb::fetch_time(unsigned t)
     _fetch_time->addcontent(1, bin);
   else
     _fetch_time->addinfo(1, MonEntryTH1F::Overflow);
+
+  bin = t>>_lshift;
+  if (bin < _fetch_time_long->desc().nbins())
+    _fetch_time_long->addcontent(1, bin);
+  else
+    _fetch_time_long->addinfo(1, MonEntryTH1F::Overflow);
 }
 
 // damage histogram
@@ -172,6 +189,7 @@ void VmonEb::update(const ClockTime& now)
   _post_time ->time(now);
   _post_time_log ->time(now);
   _fetch_time->time(now);
+  _fetch_time_long->time(now);
   _damage_count->time(now);
   _post_size ->time(now);
 }

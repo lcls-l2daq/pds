@@ -14,13 +14,19 @@
 #include "pds/mon/MonEntryTH1F.hh"
 #include "pds/mon/MonDescTH1F.hh"
 
+#include <math.h>
+#include <signal.h>
 #include <time.h>
 
 #include <list>
 #include <vector>
+#include <exception>
+
+//#define DBUG
+//#define RECOVER_POOL
 
 static const unsigned nbins = 64;
-static const double ms_per_bin = 64./64.;
+static const double ms_per_bin = 256./64.;
 
 static double time_since(const timespec& now, const timespec& tv)
 {
@@ -39,7 +45,7 @@ namespace Pds {
         _state(in->datagram().seq.service()==TransitionId::L1Accept ||
                in->datagram().seq.service()==TransitionId::Configure ? 
                Queued : Completed),
-                              _type(TypeI), _ptr(in)
+	_type(TypeI), _ptr(in)
       { clock_gettime(CLOCK_REALTIME,&_start); }
     public:
       bool is_complete  () const { return _state==Completed; }
@@ -103,7 +109,10 @@ namespace Pds {
       void unassign() { _entry = 0; }
       bool unassigned() const { return _entry==0; }
       void routine();
+      void process(InDatagram* dg) { _driver->events(dg); }
       unsigned id() const { return _id; }
+      const L3F::Entry* entry() const { return _entry; }
+      void interrupt();
     private:
       unsigned        _id;
       L3F::Manager&   _app;
@@ -125,6 +134,11 @@ namespace Pds {
         MonDescTH1F start_to_complete("Start to Complete","[ms]", "", nbins, 0., double(nbins)*ms_per_bin);
         _start_to_complete = new MonEntryTH1F(start_to_complete);
         group->add(_start_to_complete);
+
+        MonDescTH1F start_to_complete_log("Log Start to Complete","log10 [ms]", "", 
+					  nbins, 1., 4.);
+        _start_to_complete_log = new MonEntryTH1F(start_to_complete_log);
+        group->add(_start_to_complete_log);
       }
       ~Manager() {
         for(unsigned id=0; id<_tasks.size(); id++)
@@ -140,8 +154,21 @@ namespace Pds {
       }
       void queueEvent     (InDatagram* in)
       {
-        _list.push_back(new Entry(in));
-        _process();
+	//  Configure needs to go to every instance
+	if (in->datagram().seq.service()==TransitionId::Configure) {
+	  unsigned extent = in->datagram().xtc.extent;
+	  for(unsigned id=1; id<_tasks.size(); id++) {
+	    _tasks[id]->process(in);
+	    in->datagram().xtc.extent = extent;  // remove any insertions
+	  }
+	  Entry* e = new Entry(in);
+	  _list.push_back(e);
+	  _tasks[0]->assign(e);
+	}
+	else {
+	  _list.push_back(new Entry(in));
+	}
+	_process();
       }
       void completeEntry  (Entry* e, unsigned id)
       {
@@ -155,10 +182,29 @@ namespace Pds {
         //  First post the entries in order that are complete
         while( !_list.empty() ) {
           Entry* e=_list.front();
-          if (!e->is_complete()) break;
+          if (!e->is_complete()) {
+	    //  If the datagram pool is empty, force completion
+#ifdef RECOVER_POOL
+#ifdef DBUG
+	    printf("L3FilterDriver entry still queued with pool depth %d\n",
+		   Pool::numberOfFreeObjects(e->ptr()));
+#endif
+	    if (Pool::numberOfFreeObjects(e->ptr()) < 1) {
+	      printf("L3FilterDriver input pool is (near) empty\n");
+	      for(unsigned id=0; id<_tasks.size(); id++)
+		if (_tasks[id]->entry() == e) {
+		  printf("L3FilterDriver interrupting task %d\n",id);
+		  _tasks[id]->interrupt();
+		  break;
+		}
+	    }
+#endif
+	    break;
+	  }
 
           _list.pop_front();
           e->post(_app);
+	  delete e;
         }
 
         //  Next assign entries in order that haven't yet been
@@ -170,10 +216,18 @@ namespace Pds {
               if (_tasks[id]->unassigned()) {
                 _tasks[id]->assign(*it);
                 lassign=true;
+#ifdef DBUG
+		printf("L3FilterThreads assign to thread %d\n",id);
+#endif
                 break;
               }
             //  Too busy to process now
-            if (!lassign) _complete(*it);
+            if (!lassign) {
+#ifdef DBUG
+	      printf("L3FilterThreads unassigned\n");
+#endif
+	      _complete(*it);
+	    }
           }
         }
       }
@@ -182,13 +236,12 @@ namespace Pds {
         timespec now;
         clock_gettime(CLOCK_REALTIME,&now);
         ClockTime time(now.tv_sec,now.tv_nsec);
-        { unsigned bin = unsigned(e->since_start(now)/ms_per_bin);
-          if (bin < nbins)
-            _start_to_complete->addcontent(1,bin);
-          else
-            _start_to_complete->addinfo(1,MonEntryTH1F::Overflow); 
-          _start_to_complete->time(time);
-        }
+	double dt = e->since_start(now);
+	_start_to_complete->addcontent(1.,dt);
+	_start_to_complete->time(time);
+	_start_to_complete_log->addcontent(1.,log10f(dt));
+	_start_to_complete_log->time(time);
+
         e->complete();
       }
     private:
@@ -197,6 +250,7 @@ namespace Pds {
       Pds::Task&                _mgr_task;
       std::list  <L3F::Entry*>  _list;
       MonEntryTH1F*             _start_to_complete;
+      MonEntryTH1F*             _start_to_complete_log;
     };
   };
 };
@@ -208,6 +262,22 @@ void L3F::Task::routine() {
   _app.mgr_task().call(new L3F::ComplEv(_entry,_app,_id));
 }
 
+class sigusr_exception : public std::exception {
+public:
+  sigusr_exception() {}
+public:
+  const char* what() const throw() { return "sigusr_exception"; }
+};
+
+static void sigusr_handler(int signum)
+{
+  throw sigusr_exception();
+}
+
+void L3F::Task::interrupt() {
+  _task->signal(SIGUSR1);
+}
+
 void L3F::QueueTr::routine() { _app.queueTransition(_tr); delete this; }
 void L3F::QueueEv::routine() { _app.queueEvent(_in); delete this; }
 void L3F::ComplEv::routine() { _app.completeEntry(_in,_id); delete this; }
@@ -216,12 +286,27 @@ L3FilterThreads::L3FilterThreads(create_m* c_user, unsigned nthreads) :
   _mgr_task(new Task(TaskObject("L3Fmgr")))
 {
   _mgr = new L3F::Manager(*this, *_mgr_task);
+  
+  if (!nthreads) nthreads=4;
 
-  std::vector<L3F::Task*> tasks(nthreads ? nthreads : 4);
-  for(unsigned id=0; id<tasks.size(); id++)
+  std::vector<L3F::Task*> tasks(nthreads);
+  for(unsigned id=0; id<nthreads; id++)
     tasks[id] = new L3F::Task(id,*_mgr,
                               new L3FilterDriver(c_user()));
+#ifdef DBUG
+  printf("L3FilterThreads making %d [%d] threads\n",nthreads,tasks.size());
+#endif
+
   _mgr->tasks(tasks);
+
+#ifdef RECOVER_POOL
+  struct sigaction act;
+  act.sa_handler  = &sigusr_handler;
+  sigemptyset(&act.sa_mask);
+  act.sa_flags    = 0;
+  if (sigaction(SIGUSR1, &act, NULL) < 0)
+    perror("L3FilterThreads failed to install SIGUSR1 handler");
+#endif
 }
 
 L3FilterThreads::~L3FilterThreads()

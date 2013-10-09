@@ -60,6 +60,7 @@ inline Pds::SummaryDg::Dg::Dg(const Datagram& dg) :
   CDatagram(dg,Pds::SummaryDg::Xtc::typeId(),dg.xtc.src),
   _payload(dg.xtc.sizeofPayload())
 {
+  datagram().xtc.damage.increase(dg.xtc.damage.value());
   datagram().xtc.alloc(sizeof(_payload));
 }
 

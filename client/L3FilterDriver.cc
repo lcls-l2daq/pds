@@ -3,6 +3,8 @@
 #include "pdsdata/xtc/XtcIterator.hh"
 #include "pdsdata/psddl/l3t.ddl.h"
 
+#include <exception>
+
 //#define DBUG
 
 namespace Pds {
@@ -54,7 +56,7 @@ InDatagram* L3FilterDriver::events     (InDatagram* dg)
     std::string sname(_m->name());
     std::string sconf(_m->configuration());
 #ifdef DBUG
-    printf("L3FilterDriver inserting configuration\n");
+    printf("L3FilterDriver [%p] inserting configuration\n",this);
     printf("%s:\n",sname.c_str());
     printf("%s\n", sconf.c_str());
 #endif
@@ -68,32 +70,50 @@ InDatagram* L3FilterDriver::events     (InDatagram* dg)
     delete[] buff;
   }
   else if (dg->datagram().seq.service() == TransitionId::L1Accept) {
-    _m->pre_event();
-    _event = true;
-    iterate(&dg->datagram().xtc);
-
-    if (_m->complete()) {
-      bool lAccept = _m->accept();
-      if (_lVeto && !lAccept) {
-        dg->datagram().xtc.extent = sizeof(Xtc);
-        dg->datagram().xtc.damage = Damage(0);
-
-        // insert EPICS data!!
-        //   this data may be needed by later events
-        EpicsFinder finder(*dg);
-        finder.iterate();
-      }
-      
-      L3T::DataV1 payload(lAccept);
-      Xtc dxtc(TypeId(TypeId::Type(payload.TypeId),payload.Version),
-               dg->datagram().xtc.src);
-      dxtc.extent = sizeof(Xtc)+payload._sizeof();
-      dg->insert(dxtc,&payload);
 
 #ifdef DBUG
-      printf("L3FilterDriver::event accept %c payload %d\n",
-             lAccept ? 't':'f', dg->datagram().xtc.sizeofPayload());
+    printf("L3FilterDriver [%p] l1accept %d.%09d\n",this,
+	   dg->datagram().seq.clock().seconds(),
+	   dg->datagram().seq.clock().nanoseconds());
 #endif
+
+    unsigned extent = dg->datagram().xtc.extent;
+    try {
+      _m->pre_event();
+      _event = true;
+      iterate(&dg->datagram().xtc);
+
+      if (_m->complete()) {
+	bool lAccept = _m->accept();
+	if (_lVeto && !lAccept) {
+	  dg->datagram().xtc.extent = sizeof(Xtc);
+	  dg->datagram().xtc.damage = Damage(0);
+
+	  // insert EPICS data!!
+	  //   this data may be needed by later events
+	  EpicsFinder finder(*dg);
+	  finder.iterate();
+	}
+      
+	L3T::DataV1 payload(lAccept);
+	Xtc dxtc(TypeId(TypeId::Type(payload.TypeId),payload.Version),
+		 dg->datagram().xtc.src);
+	dxtc.extent = sizeof(Xtc)+payload._sizeof();
+	dg->insert(dxtc,&payload);
+
+#ifdef DBUG
+	printf("L3FilterDriver::event accept %c payload %d\n",
+	       lAccept ? 't':'f', dg->datagram().xtc.sizeofPayload());
+#endif
+      }
+    } 
+    catch (std::exception& e) {
+      printf("L3FilterDriver caught exception %s\n",e.what());
+      dg->datagram().xtc.extent = extent;
+    }
+    catch (...) {
+      printf("L3FilterDriver caught unknown exception\n");
+      dg->datagram().xtc.extent = extent;
     }
   }
   return dg;
