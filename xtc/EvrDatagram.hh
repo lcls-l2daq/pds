@@ -2,7 +2,7 @@
 #define EvrDatagram_hh
 
 #include "pdsdata/xtc/Sequence.hh"
-#include "pds/xtc/L1AcceptEnv.hh"
+#include "pdsdata/xtc/L1AcceptEnv.hh"
 
 #include <stdint.h>
 
@@ -16,7 +16,7 @@ namespace Pds {
     ~EvrDatagram() {}
     
   public:  
-    void setL1AcceptEnv(unsigned int uReadoutGroup) { env = uReadoutGroup; }
+    void setL1AcceptEnv(unsigned int uReadoutGroup) { env = L1AcceptEnv(uReadoutGroup); }
   public:
     Sequence    seq;
     L1AcceptEnv env;

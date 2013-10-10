@@ -1,6 +1,7 @@
 #include "pds/client/L3FilterDriver.hh"
 
 #include "pdsdata/xtc/XtcIterator.hh"
+#include "pdsdata/xtc/L1AcceptEnv.hh"
 #include "pdsdata/psddl/l3t.ddl.h"
 
 #include <exception>
@@ -95,11 +96,15 @@ InDatagram* L3FilterDriver::events     (InDatagram* dg)
 	  finder.iterate();
 	}
       
-	L3T::DataV1 payload(lAccept);
-	Xtc dxtc(TypeId(TypeId::Type(payload.TypeId),payload.Version),
-		 dg->datagram().xtc.src);
-	dxtc.extent = sizeof(Xtc)+payload._sizeof();
-	dg->insert(dxtc,&payload);
+        const L1AcceptEnv& l1 = static_cast<const L1AcceptEnv&>(dg->datagram().env);
+        dg->datagram().env = L1AcceptEnv(l1.clientGroupMask(), 
+                                         lAccept ? L1AcceptEnv::Pass : L1AcceptEnv::Fail);
+      
+        L3T::DataV1 payload(lAccept);
+        Xtc dxtc(TypeId(TypeId::Type(payload.TypeId),payload.Version),
+                 dg->datagram().xtc.src);
+        dxtc.extent = sizeof(Xtc)+payload._sizeof();
+        dg->insert(dxtc,&payload);
 
 #ifdef DBUG
 	printf("L3FilterDriver::event accept %c payload %d\n",

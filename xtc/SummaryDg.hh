@@ -4,6 +4,7 @@
 #include "pds/xtc/CDatagram.hh"
 #include "pds/xtc/XtcType.hh"
 #include "pdsdata/xtc/BldInfo.hh"
+#include "pdsdata/xtc/L1AcceptEnv.hh"
 
 //#define DBUG
 
@@ -11,8 +12,6 @@ static Pds::BldInfo EBeamBPM(uint32_t(-1UL),Pds::BldInfo::EBeam);
 
 namespace Pds {
   namespace SummaryDg {
-    enum L3TResult { None, Pass, Fail };
-
     class Xtc : public Pds::Xtc {
     public:
       static TypeId typeId() { return _l3SummaryType; }
@@ -21,7 +20,7 @@ namespace Pds {
       ~Xtc() {}
     public:
       unsigned payload() const;
-      L3TResult l3tresult() const;
+      L1AcceptEnv::L3TResult l3tresult() const;
       unsigned nSources() const;
       const Pds::Src& source(unsigned i) const;
     };
@@ -32,7 +31,7 @@ namespace Pds {
       ~Dg() {}
     public:
       void append(const Pds::Src& info, const Pds::Damage& dmg);
-      void append(L3TResult v);
+      void append(L1AcceptEnv::L3TResult v);
     private:
       uint32_t _payload;
       char     _info[32*sizeof(Pds::Src)];
@@ -44,8 +43,8 @@ namespace Pds {
 inline unsigned Pds::SummaryDg::Xtc::payload() const 
 { return *reinterpret_cast<const uint32_t*>(Pds::Xtc::payload())&0x3fffffff; }
 
-inline Pds::SummaryDg::L3TResult Pds::SummaryDg::Xtc::l3tresult() const
-{ return L3TResult(*reinterpret_cast<const uint32_t*>(Pds::Xtc::payload())>>30); }
+inline Pds::L1AcceptEnv::L3TResult Pds::SummaryDg::Xtc::l3tresult() const
+{ return L1AcceptEnv::L3TResult(*reinterpret_cast<const uint32_t*>(Pds::Xtc::payload())>>30); }
 
 inline unsigned Pds::SummaryDg::Xtc::nSources() const
 { return (sizeofPayload()-sizeof(uint32_t))/sizeof(Pds::Src); }
@@ -62,6 +61,7 @@ inline Pds::SummaryDg::Dg::Dg(const Datagram& dg) :
 {
   datagram().xtc.damage.increase(dg.xtc.damage.value());
   datagram().xtc.alloc(sizeof(_payload));
+  datagram().xtc.damage.increase(dg.xtc.damage.value());
 }
 
 inline void Pds::SummaryDg::Dg::append(const Pds::Src& info, 
@@ -75,7 +75,7 @@ inline void Pds::SummaryDg::Dg::append(const Pds::Src& info,
   *static_cast<Pds::Src*>(datagram().xtc.alloc(sizeof(info))) = info;
 }
 
-inline void Pds::SummaryDg::Dg::append(Pds::SummaryDg::L3TResult v)
+inline void Pds::SummaryDg::Dg::append(Pds::L1AcceptEnv::L3TResult v)
 { _payload |= (unsigned(v)<<30); }
 
 #endif

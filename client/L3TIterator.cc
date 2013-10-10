@@ -11,8 +11,8 @@ int L3TIterator::process(Xtc* xtc)
   }
   if (xtc->contains.value()==SummaryDg::Xtc::typeId().value()) {
     const SummaryDg::Xtc& s = *static_cast<SummaryDg::Xtc*>(xtc);
-    _found = (s.l3tresult()!=SummaryDg::None);
-    _pass  = (s.l3tresult()==SummaryDg::Pass);
+    _found = (s.l3tresult()!=L1AcceptEnv::None);
+    _pass  = (s.l3tresult()==L1AcceptEnv::Pass);
   }
   return 0;
 }

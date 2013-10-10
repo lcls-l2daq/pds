@@ -1,5 +1,7 @@
 #include "StreamPorts.hh"
 
+#include "pdsdata/xtc/L1AcceptEnv.hh"
+
 using namespace Pds;
 
 //
@@ -7,7 +9,7 @@ using namespace Pds;
 //    Max Partitions       = 16
 //    Max Level2/partition = 32
 //
-static const int MaxSegGroups    = 16;
+static const int MaxSegGroups    = Pds::L1AcceptEnv::MaxReadoutGroups;
 static const int MaxPartitionL1s = 32;
 static const int MaxPartitionL2s = 64;
 static const int MaxBLDServers   = 32;
