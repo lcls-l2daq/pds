@@ -34,7 +34,7 @@ namespace Pds {
       void append(L1AcceptEnv::L3TResult v);
     private:
       uint32_t _payload;
-      char     _info[32*sizeof(Pds::Src)];
+      Src      _info[32];
     };
   };
 };
