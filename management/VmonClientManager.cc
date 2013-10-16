@@ -148,9 +148,12 @@ MonClient* VmonClientManager::lookup(const Src& src)
   }
   else {
     const ProcInfo& info = static_cast<const ProcInfo&>(src);
-    sprintf(buff,"%s[%08x/%d]",
+    sprintf(buff,"%10.10s[%d.%d.%d.%d : %d]",
 	    Level::name(info.level()),
-	    info.ipAddr(),
+	    (info.ipAddr()>>24)&0xff,
+	    (info.ipAddr()>>16)&0xff,
+	    (info.ipAddr()>> 8)&0xff,
+	    (info.ipAddr()>> 0)&0xff,
 	    info.processId());
   }
 
