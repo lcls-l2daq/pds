@@ -31,7 +31,7 @@ VmonClientManager::VmonClientManager(unsigned char platform,
   _partition(-1),
   _state    (Disconnected)
 {
-  _socket->setrcvbuf(0x8000);
+  _socket->setrcvbuf(0x80000);
 }
 
 

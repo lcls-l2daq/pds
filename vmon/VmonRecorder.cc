@@ -7,11 +7,11 @@
 
 using namespace Pds;
 
-
+static const unsigned RECORD_LEN = 0x100000;
 VmonRecorder::VmonRecorder(const char* base) :
   _state  (Disabled),
-  _dbuff  (new char[0x10000]),
-  _pbuff  (new char[0x10000]),
+  _dbuff  (new char[RECORD_LEN]),
+  _pbuff  (new char[RECORD_LEN]),
   _drecord(0),
   _precord(0),
   _base   (base),
@@ -69,6 +69,11 @@ void VmonRecorder::description(MonClient& client)
   case Describing: 
     _clients.insert(std::pair<MonClient*,int>(&client,_len));
     _len += _drecord->append(client);
+    if (_len > RECORD_LEN) {
+      printf("Description record len = %d, exceeds max RECORD_LEN(%d)\n",
+	     _len,RECORD_LEN);
+      abort();
+    }
   default:
     break;
   }
@@ -123,6 +128,8 @@ void VmonRecorder::_open(int n)
   printf("Opening %s\n",path);
   _size   = 0;
   _output = ::fopen(path,"w");
+
+
   _drecord->time(ctime);
   _flush(_drecord);
 }
