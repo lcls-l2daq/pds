@@ -1,5 +1,5 @@
 #include "pds/evgr/EvrSlaveFIFOHandler.hh"
-
+#include "pds/evgr/EvrFifoServer.hh"
 #include "pds/xtc/InDatagram.hh"
 #include "pds/utility/Appliance.hh"
 #include "pds/utility/Occurrence.hh"
@@ -16,6 +16,8 @@
 
 using namespace Pds;
 
+static unsigned _nPrint;
+
 static bool evrHasEvent(Evr& er);
 
 /*
@@ -30,16 +32,17 @@ static bool evrHasEvent(Evr& er);
  */
 EvrSlaveFIFOHandler::EvrSlaveFIFOHandler(Evr&       er,
 					 Appliance& app,
+                                         EvrFifoServer& srv,
 					 unsigned   partition,
 					 Task*      task,
                                          Task*      sync_task) :
   bEnabled            (false),
   _er                 (er),
   _app                (app),
+  _srv                (srv),
   _evtCounter         (0), 
   _bReadout           (false),
   _pEvrConfig         (NULL),
-  _sem                (Semaphore::EMPTY),
   _rdptr              (0),
   _wrptr              (0),
   _sync               (*this, er, partition, task, sync_task),
@@ -99,36 +102,49 @@ InDatagram* EvrSlaveFIFOHandler::l1accept(InDatagram* in)
 {
   InDatagram* out = in;
 
-  _sem.take();
-
   TimeStamp ts = _ts[(_rdptr++)%QSize];
 
-  // check counter,fiducial match => set damage if failed
-  // 2013-05-17 Comment out the fiducial check until CXI problems are better understood
-  // 2013-07-08 Seems we may be ignoring an error in XPP by not making this check.  Put it back.
-  //            I find these errors originate from the slave handling the disable "eventcode" 
-  //            ~8.5 msec too late.
-  if (_outOfOrder) {
-    out->datagram().xtc.damage.increase(Pds::Damage::OutOfOrder);
+  if (out->datagram().xtc.damage.value()) {
   }
-  else if (ts.fiducials() != in->datagram().seq.stamp().fiducials())
-  {
-    _outOfOrder = true;
-    printf("EvrSlaveFIFOHandler out of order on %x : vector %x  fiducials %x  wrptr %x  rdptr %x\n",
-           in->datagram().seq.stamp().fiducials(),
-	   ts.vector(), ts.fiducials(), _wrptr, _rdptr);
-    out->datagram().xtc.damage.increase(Pds::Damage::OutOfOrder);
+  else {
+    unsigned slave_fiducial = 
+      *reinterpret_cast<uint32_t*>(in->datagram().xtc.payload()+
+                                   in->datagram().xtc.sizeofPayload()-sizeof(uint32_t));
 
-    if (_occPool.numberOfFreeObjects()>=2) {
-      Occurrence* occ = new (&_occPool) Occurrence(OccurrenceId::ClearReadout);
-      _app.post(occ);
-    
-      UserMessage* umsg = new (&_occPool) UserMessage;
-      umsg->append("Slave EVR out-of-order.  Reconfigure.");
-      _app.post(umsg);
+    out->datagram().xtc.extent = sizeof(Xtc);
+
+    // check counter,fiducial match => set damage if failed
+    // 2013-05-17 Comment out the fiducial check until CXI problems are better understood
+    // 2013-07-08 Seems we may be ignoring an error in XPP by not making this check.  Put it back.
+    //            I find these errors originate from the slave handling the disable "eventcode" 
+    //            ~8.5 msec too late.
+    if (slave_fiducial != in->datagram().seq.stamp().fiducials()) {
+      _outOfOrder = true;
+      printf("EvrSlaveFIFOHandler out of order on %x : slave %x  buffer %x  wrptr %x  rdptr %x\n",
+             in->datagram().seq.stamp().fiducials(),
+             slave_fiducial, ts.fiducials(), _wrptr, _rdptr);
+
+      if (_occPool.numberOfFreeObjects()>=2) {
+        Occurrence* occ = new (&_occPool) Occurrence(OccurrenceId::ClearReadout);
+        _app.post(occ);
+        
+        UserMessage* umsg = new (&_occPool) UserMessage;
+        umsg->append("Slave EVR out-of-order.  Reconfigure.");
+        _app.post(umsg);
+      }
     }
   }
-        
+
+  if (ts.fiducials() != in->datagram().seq.stamp().fiducials() && _nPrint) {
+    printf("EvrSlaveFIFOHandler out of order on %x : buffer %x  wrptr %x  rdptr %x  count %x  vector %x\n",
+           in->datagram().seq.stamp().fiducials(),
+           ts.fiducials(), _wrptr, _rdptr, _evtCounter, ts.vector());
+    _nPrint--;
+  }
+
+  if (_outOfOrder)
+    out->datagram().xtc.damage.increase(Pds::Damage::OutOfOrder);
+
   return out;
 }
 
@@ -136,9 +152,9 @@ Transition* EvrSlaveFIFOHandler::enable      (Transition* tr)
 {
   clear();
   _wrptr = _rdptr = 0;
-  _sem   = Semaphore(Semaphore::EMPTY);  
   bEnabled = true; 
   bShowFirst = true;
+  _nPrint = 20;
   return tr;
 }
 
@@ -253,7 +269,7 @@ void EvrSlaveFIFOHandler::startL1Accept(const FIFOEvent& fe, bool bEvrDataIncomp
   if (_bReadout) 
     {
       _ts[(_wrptr++)%QSize] = TimeStamp(fe.TimestampLow, fe.TimestampHigh, _evtCounter);
-      _sem.give();
+      _srv.post(_evtCounter++,fe.TimestampHigh);
     }
 
   _bReadout  = false;

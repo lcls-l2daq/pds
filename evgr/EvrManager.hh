@@ -10,6 +10,8 @@ namespace Pds {
   class Appliance;
   class Evr;
   class DoneTimer;
+  class Server;
+  class EvrFifoServer;
   template <class T> class EvgrBoardInfo;
 
   class EvrManager {
@@ -22,9 +24,11 @@ namespace Pds {
     static void randomize_nodes(bool);
     
     Appliance&  appliance();
+    Server&     server();
   private:
     Evr&        _er;
     Fsm&        _fsm;
+    EvrFifoServer* _server;
     bool        _bTurnOffBeamCodes;
     
   public:

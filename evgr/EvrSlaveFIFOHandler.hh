@@ -25,13 +25,15 @@ namespace Pds {
   class InDatagram;
   class Transition;
   class Task;
+  class EvrFifoServer;
 
   class EvrSlaveFIFOHandler : public EvrFIFOHandler {
   public:
     enum { guNumTypeEventCode = 256 };
     enum { TERMINATOR         = 1 };
   public:
-    EvrSlaveFIFOHandler(Evr&, Appliance&, unsigned, Task*, Task*);
+    EvrSlaveFIFOHandler(Evr&, Appliance&, EvrFifoServer&,
+                        unsigned, Task*, Task*);
     virtual ~EvrSlaveFIFOHandler();
   public:
     virtual void        fifo_event  (const FIFOEvent&);  // formerly 'xmit'
@@ -60,13 +62,13 @@ namespace Pds {
   private:
     Evr &                 _er;
     Appliance&            _app;
+    EvrFifoServer&        _srv;
     unsigned              _evtCounter;
     bool                  _bReadout;
     const EvrConfigType*  _pEvrConfig;
     EventCodeState        _lEventCodeState[guNumTypeEventCode];
     unsigned              _lastFiducial;
     enum { QSize=32 };
-    Semaphore             _sem;
     unsigned              _rdptr;
     unsigned              _wrptr;
     TimeStamp             _ts[QSize];

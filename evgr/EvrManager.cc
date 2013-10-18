@@ -11,6 +11,7 @@
 #include "EvgrBoardInfo.hh"
 #include "EvrManager.hh"
 #include "EvrCfgClient.hh"
+#include "EvrFifoServer.hh"
 
 #include "pds/evgr/EvrMasterFIFOHandler.hh"
 #include "pds/evgr/EvrSlaveFIFOHandler.hh"
@@ -441,8 +442,9 @@ public:
   EvrAllocAction(CfgClientNfs& cfg, 
                  Evr&          er,
                  Appliance&         app,
-                 EvrConfigManager&  cmgr) :
-    _cfg(cfg), _er(er), _app(app), _cmgr(cmgr),
+                 EvrConfigManager&  cmgr,
+                 EvrFifoServer&     srv) :
+    _cfg(cfg), _er(er), _app(app), _cmgr(cmgr), _srv(srv),
     _task     (new Task(TaskObject("evrsync"))),
     _sync_task(new Task(TaskObject("slvsync")))
   {
@@ -486,6 +488,7 @@ public:
 							 _er,
 							 _cfg.src(),
 							 _app,
+                                                         _srv,
 							 alloc.allocation().partitionid(),
 							 iMaxGroup,
 							 alloc.allocation().nnodes(Level::Event),
@@ -498,6 +501,7 @@ public:
 		_fifo_handler = new EvrSlaveFIFOHandler(
 							_er, 
 							_app,
+                                                        _srv,
 							alloc.allocation().partitionid(),
 							_task,
 							_sync_task);
@@ -516,6 +520,7 @@ private:
   Evr&          _er;
   Appliance&    _app;
   EvrConfigManager& _cmgr;
+  EvrFifoServer& _srv;
   Task*         _task;
   Task*         _sync_task;
 };
@@ -553,12 +558,19 @@ Appliance & EvrManager::appliance()
   return _fsm;
 }
 
+Server& EvrManager::server()
+{
+  return *_server;
+}
+
 EvrManager::EvrManager(EvgrBoardInfo < Evr > &erInfo, CfgClientNfs & cfg, bool bTurnOffBeamCodes):
-  _er(erInfo.board()), _fsm(*new Fsm), _bTurnOffBeamCodes(bTurnOffBeamCodes)
+  _er(erInfo.board()), _fsm(*new Fsm),
+  _server(new EvrFifoServer(cfg.src())),
+  _bTurnOffBeamCodes(bTurnOffBeamCodes)
 {
   EvrConfigManager* cmgr = new EvrConfigManager(_er, cfg, _fsm, bTurnOffBeamCodes);
 
-  _fsm.callback(TransitionId::Map            , new EvrAllocAction     (cfg,_er,_fsm, *cmgr));
+  _fsm.callback(TransitionId::Map            , new EvrAllocAction     (cfg,_er,_fsm, *cmgr, *_server));
   _fsm.callback(TransitionId::Unmap          , new EvrShutdownAction);
   _fsm.callback(TransitionId::Configure      , new EvrConfigAction    (*cmgr));
   _fsm.callback(TransitionId::BeginCalibCycle, new EvrBeginCalibAction(*cmgr));

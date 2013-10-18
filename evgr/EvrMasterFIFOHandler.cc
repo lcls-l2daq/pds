@@ -1,4 +1,5 @@
 #include "pds/evgr/EvrMasterFIFOHandler.hh"
+#include "pds/evgr/EvrFifoServer.hh"
 
 #include "pds/evgr/EvrDataUtil.hh"
 #include "pds/service/Timer.hh"
@@ -103,6 +104,7 @@ static bool evrHasEvent(Evr& er);
 EvrMasterFIFOHandler::EvrMasterFIFOHandler(Evr&       er, 
                                            const Src& src,
                                            Appliance& app,
+                                           EvrFifoServer& srv,
                                            unsigned   partition,
                                            int        iMaxGroup,
 					   unsigned   neventnodes,
@@ -112,6 +114,7 @@ EvrMasterFIFOHandler::EvrMasterFIFOHandler(Evr&       er,
   bEnabled            (false),
   _er                 (er),
   _app                (app),
+  _srv                (srv),
   _done               (new DoneTimer(app)),
   _outlet             (sizeof(EvrDatagram), 0, Ins   (Route::interface())),  
   _swtrig_out         (Route::interface(), Mtu::Size, 16),
@@ -291,6 +294,7 @@ void EvrMasterFIFOHandler::fifo_event(const FIFOEvent& fe)
 InDatagram* EvrMasterFIFOHandler::l1accept(InDatagram* in)
 {
   InDatagram* out = in;
+  out->datagram().xtc.extent = sizeof(Xtc);
 
   do {
     if ( _poolEvrData.numberOfFreeObjects() <= 0 )
@@ -721,6 +725,8 @@ void EvrMasterFIFOHandler::startL1Accept(const FIFOEvent& fe, bool bEvrDataIncom
        * Note: As soon as the send() function is called, the other polling thread may
        *   race with this thread to get the evr data and send it out immediately.
        */
+
+      _srv.post(_lSegEvtCounter[0],datagram.seq.stamp().fiducials());
    
       _uMaskReadout |= 0x1; // Readout group 0 is always triggered
       datagram.setL1AcceptEnv(_uMaskReadout);

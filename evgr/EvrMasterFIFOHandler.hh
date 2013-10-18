@@ -34,6 +34,7 @@ namespace Pds {
   class Task;
   class Transition;
   class EvrDataUtil;
+  class EvrFifoServer;
   class DoneTimer;
 
   class EvrMasterFIFOHandler : public EvrFIFOHandler {
@@ -47,6 +48,7 @@ namespace Pds {
     EvrMasterFIFOHandler(Evr&, 
 			 const Src&, 
 			 Appliance&, 
+                         EvrFifoServer&,
 			 unsigned partition,
 			 int      iMaxGroup,
 			 unsigned neventnodes,
@@ -85,6 +87,7 @@ namespace Pds {
   private:
     Evr &                 _er;
     Appliance&            _app;
+    EvrFifoServer&        _srv;
     DoneTimer*            _done;
     Client                _outlet;
     std::vector<Ins>      _ldst;
