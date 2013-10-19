@@ -68,7 +68,7 @@ void VmonRecorder::description(MonClient& client)
   case Describing: 
     _clients.insert(std::pair<MonClient*,int>(&client,_len));
     _len += _drecord->append(client);
-    if (_len > RECORD_LEN) {
+    if (_len > VmonRecord::MaxLength) {
       printf("Description record len = %d, exceeds max RECORD_LEN(%d)\n",
 	     _len,VmonRecord::MaxLength);
       abort();
