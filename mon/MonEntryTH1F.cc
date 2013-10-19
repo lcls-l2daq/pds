@@ -40,6 +40,7 @@ void MonEntryTH1F::params(const MonDescTH1F& desc)
 void MonEntryTH1F::build(unsigned nbins)
 {
   _y = static_cast<double*>(allocate(sizeof(double)*SIZE(nbins)));
+  stats();
 }
 
 const MonDescTH1F& MonEntryTH1F::desc() const {return _desc;}

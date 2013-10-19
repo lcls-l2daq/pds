@@ -42,6 +42,7 @@ void MonEntryWaveform::params(const MonDescWaveform& desc)
 void MonEntryWaveform::build(unsigned nbins)
 {
   _y = static_cast<double*>(allocate(sizeof(double)*SIZE(nbins)));
+  stats();
 }
 
 const MonDescWaveform& MonEntryWaveform::desc() const {return _desc;}

@@ -44,6 +44,7 @@ void MonEntryTH2F::params(const MonDescTH2F& desc)
 void MonEntryTH2F::build(unsigned nbinsx, unsigned nbinsy)
 {
   _y = static_cast<float*>(allocate(sizeof(float)*SIZE(nbinsx,nbinsy)));
+  stats();
 }
 
 const MonDescTH2F& MonEntryTH2F::desc() const {return _desc;}

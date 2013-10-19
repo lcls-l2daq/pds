@@ -15,6 +15,7 @@ namespace Pds {
   class VmonRecord {
   public:
     enum Type { Description, Payload };
+    enum { MaxLength = 0x100000 };
     VmonRecord() {}
     VmonRecord(Type             type,
 	       const ClockTime& time,

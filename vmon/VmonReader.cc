@@ -11,13 +11,15 @@
 using namespace Pds;
 
 VmonReader::VmonReader(const char* name) :
-  _buff(new char[0x10000])
+  _buff(new char[VmonRecord::MaxLength])
 {
   _file = fopen(name,"r");
 
   fread(_buff,sizeof(VmonRecord),1,_file);
   VmonRecord* record = new (_buff) VmonRecord;
   unsigned size = record->len()-sizeof(VmonRecord);
+
+  record = new (_buff) VmonRecord;
   fread(record+1,size,1,_file);
 
   _seek_pos = record->len();
