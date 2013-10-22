@@ -98,7 +98,8 @@ InDatagram* L3FilterDriver::events     (InDatagram* dg)
       
         const L1AcceptEnv& l1 = static_cast<const L1AcceptEnv&>(dg->datagram().env);
         dg->datagram().env = L1AcceptEnv(l1.clientGroupMask(), 
-                                         lAccept ? L1AcceptEnv::Pass : L1AcceptEnv::Fail);
+                                         lAccept ? L1AcceptEnv::Pass : L1AcceptEnv::Fail,
+                                         _lVeto && !lAccept);
       
         L3T::DataV1 payload(lAccept);
         Xtc dxtc(TypeId(TypeId::Type(payload.TypeId),payload.Version),
