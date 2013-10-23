@@ -130,7 +130,7 @@ bool EbEvent::consume(const EbServer* srv,
     unsigned   offset  = srv->offset();
     EbSegment* segment = hasSegment(client);
     if(segment) {
-      segment->consume(sizeofPayload, offset);
+      segment->consume(sizeofPayload, offset, xtc);
       switch(segment->complete()) {
       case EbSegment::IsComplete:
 	segments() &= ~client;

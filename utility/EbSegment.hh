@@ -55,7 +55,7 @@ class EbSegment : public LinkedList<EbSegment>
   public:
    ~EbSegment() {}
   public:
-    void       consume(int sizeofFragment, int offsetExpected);
+    void       consume(int sizeofFragment, int offsetExpected, const Xtc&);
     char*      payload();
     char*      base();
     int        remaining() const;

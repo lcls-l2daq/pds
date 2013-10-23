@@ -287,13 +287,17 @@ bool Opal1kCamera::validate(Pds::FrameServerMsg& msg)
 #ifdef DBUG
   printf("Camera frame number(%x). Server number(%x), Count(%x), Last count(%x)\n",
 	 CurrentCount, msg.count, Count, LastCount);
-#else
-  if (CurrentCount != msg.count) {
-    printf("Camera frame number(%d) != Server number(%d)\n",
-           CurrentCount, msg.count);
-    return false;
-  }
 #endif
+  if (CurrentCount != msg.count) {
+    //
+    //  Use the tag in the frame data for the msg.count field.
+    //  Allow some frames to be dropped.  
+    //
+    //    printf("Camera frame number(%d) != Server number(%d)\n",
+    //           CurrentCount, msg.count);
+    //    return false;
+    msg.count = CurrentCount;
+  }
 
   msg.offset = _inputConfig->output_offset();
   return true;

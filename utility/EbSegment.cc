@@ -96,7 +96,7 @@ EbSegment::EbSegment(const Xtc& header,
 ** --
 */
 
-void EbSegment::consume(int sizeofFragment, int expected)
+void EbSegment::consume(int sizeofFragment, int expected, const Xtc& xtc)
 {
   int offset = _offset;
 
@@ -118,6 +118,19 @@ void EbSegment::consume(int sizeofFragment, int expected)
     _offset     = sizeofFragment + offset;
 
   _remaining -= sizeofFragment;
+
+  //
+  //  This is a hack to update the damage in the contained xtc header.
+  //  It is needed for segment levels that don't know the damage until
+  //  after they have read the data (e.g. the read fails).
+  //
+  Xtc& bxtc = *reinterpret_cast<Xtc*>(_base);
+  if (bxtc.src == xtc.src)
+    bxtc.damage.increase(xtc.damage.value());
+  else
+    printf("EbSegment::consume src does not match [%08x.%08x v %08x.%08x]\n",
+           bxtc.src.log(),bxtc.src.phy(),
+           xtc .src.log(),xtc .src.phy());
 }
 
 
