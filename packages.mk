@@ -6,6 +6,7 @@ packages += ipimb camera evgr epicstools pgp imp
 packages += pnccd epicsArch
 packages += oceanoptics fli andor usdusb
 packages += cspad cspad2x2
+packages += ioc
 
 ifneq ($(findstring x86_64,$(tgt_arch)),)
   packages += firewire
