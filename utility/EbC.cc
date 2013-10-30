@@ -41,9 +41,9 @@ EbEventBase* EbC::_new_event(const EbBitMask& serverId, char* payload, unsigned 
 
   if (_vmoneb) _vmoneb->depth(depth);
 
-  if (depth==0)
-    _postEvent(_pending.forward());
-  //    arm(_postEvent(_pending.forward()));
+  if (depth==0 && _pending.forward()!=_pending.empty())
+    _post(_pending.forward());
+  //    arm(_post(_pending.forward()));
 
   return event;
 }
@@ -54,9 +54,9 @@ EbEventBase* EbC::_new_event(const EbBitMask& serverId)
 
   if (_vmoneb) _vmoneb->depth(depth);
 
-  if (depth<=1)
-    _postEvent(_pending.forward());
-  //    arm(_postEvent(_pending.forward()));
+  if (depth<=1 && _pending.forward()!=_pending.empty())
+    _post(_pending.forward());
+  //    arm(_post(_pending.forward()));
 
   CDatagram* datagram = new(&_datagrams) CDatagram(_ctns, _id);
   EbCountKey* key = new(&_keys) EbCountKey(datagram->dg());

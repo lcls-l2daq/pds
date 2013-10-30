@@ -127,7 +127,7 @@ void EbSegment::consume(int sizeofFragment, int expected, const Xtc& xtc)
   Xtc& bxtc = *reinterpret_cast<Xtc*>(_base);
   if (bxtc.src == xtc.src)
     bxtc.damage.increase(xtc.damage.value());
-  else
+  else if (nEbPrints)
     printf("EbSegment::consume src does not match [%08x.%08x v %08x.%08x]\n",
            bxtc.src.log(),bxtc.src.phy(),
            xtc .src.log(),xtc .src.phy());

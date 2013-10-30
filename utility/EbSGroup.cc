@@ -21,6 +21,9 @@ EbSGroup::EbSGroup(const Src& id,
      stream, ipaddress,
      eventsize, eventpooldepth, slowEb, vmoneb)
 {
+  // groups means that an earlier event is not necessarily completed
+  // before a later event, when fragments dont contribute to both groups
+  require_in_order(false);
 }
 
 EbSGroup::~EbSGroup()
