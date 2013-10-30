@@ -1,12 +1,14 @@
 #include "pds/ioc/IocControl.hh"
 #include "pds/ioc/IocNode.hh"
 #include "pds/ioc/IocHostCallback.hh"
+#include "pds/utility/Occurrence.hh"
 
 using namespace Pds;
 
 IocControl::IocControl() :
   _station(0),
-  _expt_id(0)
+  _expt_id(0),
+  _pool      (sizeof(UserMessage),4)
 {
   /**  Example list of IOCs [IP,port,phy,alias] **/
   /**  I don't know the source of this list     **/
@@ -20,7 +22,8 @@ IocControl::IocControl(const char* offlinerc,
   _offlinerc (offlinerc),
   _instrument(instrument),
   _station   (station),
-  _expt_id   (expt_id)
+  _expt_id   (expt_id),
+  _pool      (sizeof(UserMessage),4)
 {
   /**
      Example constructor parameters may be:
@@ -81,4 +84,10 @@ Transition* IocControl::transitions(Transition* tr)
     break;
   }
   return tr;
+}
+
+void IocControl::_report_error(const std::string& msg)
+{
+  UserMessage* usr = new(&_pool) UserMessage(msg.c_str());
+  post(usr);
 }

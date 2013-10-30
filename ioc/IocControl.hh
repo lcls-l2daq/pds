@@ -2,6 +2,7 @@
 #define Pds_IocControl_hh
 
 #include "pds/utility/Appliance.hh"
+#include "pds/service/GenericPool.hh"
 #include "pdsdata/xtc/DetInfo.hh"
 
 #include <list>
@@ -30,6 +31,10 @@ namespace Pds {
     /// Act on a DAQ transition
     Transition* transitions(Transition*);
     InDatagram* events     (InDatagram* dg) { return dg; }
+
+  private:
+    void _report_error(const std::string&);
+
   private:
     std::string         _offlinerc;  /// Logbook credentials
     std::string         _instrument; /// Instrument
@@ -38,6 +43,8 @@ namespace Pds {
 
     std::list<IocNode*> _nodes;      /// Available IOCs
     std::list<IocNode*> _selected_nodes; /// Selected IOCs
+
+    GenericPool         _pool;
   };
 
 };
