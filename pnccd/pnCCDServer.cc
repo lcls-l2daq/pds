@@ -179,6 +179,19 @@ int Pds::pnCCDServer::fetch( char* payload, int flags ) {
   Pds::PNCCD::FrameV0* data = (Pds::PNCCD::FrameV0*)(payload + xtcOffset);
 
   if ((ret = read(fd(), &pgpCardRx, sizeof(PgpCardRx))) < 0) {
+    if (errno == ERESTART) {
+      disable();
+      char message[400];
+      sprintf(message, "Pgpcard problem! Restart the DAQ system\nIf this does not work, Power cycle %s\n",
+          getenv("HOSTNAME"));
+      UserMessage* umsg = new (_occPool) UserMessage;
+      umsg->append(message);
+      umsg->append(DetInfo::name(static_cast<const DetInfo&>(_xtc.src)));
+      _mgr->appliance().post(umsg);
+      _ignoreFetch = true;
+      printf("CspadServer::fetch exiting because of ERESTART\n");
+      exit(-ERESTART);
+    }
     perror ("pnCCDServer::fetch pgpCard read error");
     ret =  Ignore;
   } else ret *= sizeof(__u32);

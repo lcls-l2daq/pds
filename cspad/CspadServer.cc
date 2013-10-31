@@ -128,7 +128,7 @@ void Pds::CspadServer::enable() {
         _cnfgrtr->configuration().activeRunMode());
     ::usleep(10000);
     _firstFetch = true;
-    flushInputQueue(fd());
+    flushInputQueue(fd(), false);
     if (_debug & 0x20) printf("CspadServer::enable\n");
     _ignoreFetch = false;
   } else {
@@ -150,7 +150,7 @@ void Pds::CspadServer::disable(bool flush) {
         CsPad::CspadConfigurator::RunModeAddr,
         _cnfgrtr->configuration().inactiveRunMode());
     ::usleep(10000);
-    if (flush) flushInputQueue(fd());
+    if (flush) flushInputQueue(fd(), false);
     if (_debug & 0x20) printf("CspadServer::disable\n");
   } else {
     printf("CspadServer::disable found nil configuration, so not disabling\n");
@@ -345,7 +345,7 @@ unsigned CspadServer::flushInputQueue(int f, bool printFlag) {
     ret = select( f+1, &fds, NULL, NULL, &timeout);
     if (ret>0) {
       if (!count) {
-        if (printFlag) printf("\n\tflushed lanes ");
+        if (printFlag) printf("\tflushed lanes ");
       }
       count += 1;
       ::read(f, &pgpCardRx, sizeof(PgpCardRx));
@@ -354,7 +354,7 @@ unsigned CspadServer::flushInputQueue(int f, bool printFlag) {
   } while ((ret > 0) && (count < 100));
   if (count) {
     if (printFlag) printf("\n");
-    if (count == 100 && printFlag) {
+    if (count == 100) {
       printf("\tCspadServer::flushInputQueue: pgpCardRx lane(%u) vc(%u) rxSize(%u) eofe(%s) lengthErr(%s)\n",
           pgpCardRx.pgpLane, pgpCardRx.pgpVc, pgpCardRx.rxSize, pgpCardRx.eofe ? "true" : "false",
           pgpCardRx.lengthErr ? "true" : "false");

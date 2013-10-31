@@ -77,6 +77,62 @@ class CspadAllocAction : public Action {
    CspadConfigCache& _cfg;
 };
 
+class CspadEnableAction : public Action {
+  public:
+    CspadEnableAction(CspadServer* s) : server(s) {};
+
+    Transition* fire(Transition* tr) {
+      printf("CspadEnableAction::fire(tr) enabling front end\n");
+      server->enable();
+      return tr;
+    }
+
+  private:
+    CspadServer* server;
+};
+
+class CspadDisableAction : public Action {
+  public:
+    CspadDisableAction(CspadServer* s) : server(s) {};
+
+    Transition* fire(Transition* tr) {
+      printf("CspadDisableAction::fire(tr) disabling front end\n");
+      server->disable();
+      return tr;
+    }
+
+  private:
+    CspadServer* server;
+};
+
+class CspadBeginRunAction : public Action {
+  public:
+    CspadBeginRunAction(CspadServer* s) : server(s) {};
+
+    Transition* fire(Transition* tr) {
+      printf("CspadBeginRunAction::fire(tr) enabling front end\n");
+      server->enable();
+      return tr;
+    }
+
+  private:
+    CspadServer* server;
+};
+
+class CspadEndRunAction : public Action {
+  public:
+    CspadEndRunAction(CspadServer* s) : server(s) {};
+
+    Transition* fire(Transition* tr) {
+      printf("CspadEndRunAction::fire(tr) disabling front end\n");
+      server->disable();
+      return tr;
+    }
+
+  private:
+    CspadServer* server;
+};
+
 class CspadUnmapAction : public Action {
   public:
     CspadUnmapAction(CspadServer* s) : server(s) {};
@@ -495,17 +551,14 @@ CspadManager::CspadManager( CspadServer* server, unsigned d, bool c) :
    CspadL1Action* l1 = new CspadL1Action( server, _compressionProcessor, c );
    _fsm.callback( TransitionId::L1Accept, l1 );
 
-   _fsm.callback( TransitionId::Map, new CspadAllocAction( _cfg ) );
-   _fsm.callback( TransitionId::Unmap, new CspadUnmapAction( server ) );
+   _fsm.callback( TransitionId::Map,       new CspadAllocAction( _cfg ) );
+   _fsm.callback( TransitionId::Unmap,     new CspadUnmapAction( server ) );
    _fsm.callback( TransitionId::Configure, new CspadConfigAction(_cfg, server, _compressionProcessor, c ) );
-   //   _fsm.callback( TransitionId::Enable, new CspadEnableAction( server ) );
-   //   _fsm.callback( TransitionId::Disable, new CspadDisableAction( server ) );
+   _fsm.callback( TransitionId::Enable,          new CspadEnableAction( server ) );
+   _fsm.callback( TransitionId::Disable,         new CspadDisableAction( server ) );
    _fsm.callback( TransitionId::BeginCalibCycle, new CspadBeginCalibCycleAction( server, _cfg, *l1 ) );
-   _fsm.callback( TransitionId::EndCalibCycle, new CspadEndCalibCycleAction( server, _cfg ) );
-   //   _fsm.callback( TransitionId::EndCalibCycle, new CspadEndCalibCycleAction( server ) );
-   _fsm.callback( TransitionId::Unconfigure, new CspadUnconfigAction( server, _cfg ) );
-   // _fsm.callback( TransitionId::BeginRun,
-   //                new CspadBeginRunAction( server ) );
-   // _fsm.callback( TransitionId::EndRun,
-   //                new CspadEndRunAction( server ) );
+   _fsm.callback( TransitionId::EndCalibCycle,   new CspadEndCalibCycleAction( server, _cfg ) );
+   _fsm.callback( TransitionId::Unconfigure,     new CspadUnconfigAction( server, _cfg ) );
+   _fsm.callback( TransitionId::BeginRun,        new CspadBeginRunAction( server ) );
+   _fsm.callback( TransitionId::EndRun,          new CspadEndRunAction( server ) );
 }
