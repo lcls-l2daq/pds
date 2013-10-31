@@ -106,6 +106,7 @@ void IocControl::write_config(IocConnection *c, unsigned run, unsigned stream)
         c->transmit(*it);
     sprintf(buf, "output daq/e%03d-r%04d-s%02d\n", _expt_id, run, stream);
     c->transmit(buf);
+    c->transmit("quiet\n");
     c->transmit(_trans);
 }
 
