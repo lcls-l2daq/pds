@@ -9,8 +9,6 @@
 #include "rnxlog.h"
 #include <syslog.h>
 
-int                 _udp_socket = 0;
-struct sockaddr_in  _to_addr;
 int                 _initDone = 0;
 int                 _reportLevel = LEVEL_DEBUG;
 
