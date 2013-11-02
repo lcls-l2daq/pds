@@ -7,6 +7,7 @@ packages += pnccd epicsArch
 packages += oceanoptics fli andor usdusb
 packages += cspad cspad2x2
 packages += ioc
+packages += rayonix
 
 ifneq ($(findstring x86_64,$(tgt_arch)),)
   packages += firewire
