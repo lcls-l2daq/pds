@@ -10,8 +10,10 @@
 #define NUM_WORK_THREADS  2
 
 #define WORK_ARGV_MAXLEN  243
-#define DETECTOR_NAME  "MX170HS"
-// #define DETECTOR_NAME     "Sim-MX170HS"
+
+#define DETECTOR_NAME_HW  "MX170HS"
+#define DETECTOR_NAME_SIM "Sim-MX170HS"
+
 #define CONFIG_FILE_NAME  "RxDetector.conf"
 
 /* workCmd_t is used for both command and reply */

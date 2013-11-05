@@ -2,6 +2,8 @@
 #ifndef _RNX_LOG_H
 #define _RNX_LOG_H
 
+#define SYSLOG_PORT   514
+#define SYSLOG_IPADDR "10.0.1.1"
 #define LOGBUF_SIZE   256
 
 #define FACILITY_USER 1

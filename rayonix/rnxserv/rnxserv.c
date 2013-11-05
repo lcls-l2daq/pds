@@ -68,6 +68,8 @@ static int _rnxLogLevel = 7;
 int _workPipeFd[2];
 int _controlPipeFd[2];
 static sem_t configSem;       /* semaphore protects config and calib operations */
+static unsigned _verbosity = 0;
+static bool _simFlag = false;
 
 void rnxStateReply(char *buf);
 void rnxLogReply(char *buf);
@@ -81,7 +83,7 @@ int configSemInit();
 int main(int argc, char *argv[]) {
   int       list_s;                /*  listening socket          */
   int       conn_s;                /*  connection socket         */
-  short int port;                  /*  port number               */
+  short int port = RNX_CONTROL_PORT;
   struct    sockaddr_in servaddr;  /*  socket address structure  */
   char      inbuf[MAX_LINE];       /*  character inbuf          */
   char      outbuf[MAX_LINE];      /*  character outbuf          */
@@ -95,34 +97,42 @@ int main(int argc, char *argv[]) {
   workCmd_t workCmd;
   workCmd_t workReply;
   bool      singleWorker = false;
+  bool helpFlag = false;
+//char *endPtr;
+//extern char* optarg;
+
+  int c;
+  while( ( c = getopt( argc, argv, "vhs" ) ) != EOF ) {
+    switch(c) {
+      case 'h':
+        helpFlag = true;
+        printf("%s: use -s for simulator\n", argv[0]);
+        exit(0);
+      case 'v':
+        ++_verbosity;
+        break;
+      case 's':
+        _simFlag = true;
+        break;
+      }
+   }
 
   /* init logging */
   rnxlogInit(7, argv[0]);	/* 7=DEBUG */
+
+  /* advertize simulation mode */
+  if (_simFlag) {
+    char lilbuf[200];
+    sprintf(lilbuf, "%s: SIMULATION flag is set", argv[0]);
+    printf("%s\n", lilbuf);
+    INFO_LOG(lilbuf);
+  }
 
   /* init frame count and semaphore */
   frameCountInit();
 
   /* init config semaphore */
   configSemInit();
-
-  /*  Get port number from the command line, and
-      set to default port if no arguments were supplied  */
-
-  if ( argc == 2 ) {
-      port = strtol(argv[1], &endptr, 0);
-      if ( *endptr ) {
-          fprintf(stderr, "%s: Invalid port number.\n", argv[0]);
-          exit(EXIT_FAILURE);
-      }
-  }
-  else if ( argc < 2 ) {
-      port = RNX_CONTROL_PORT;
-  }
-  else {
-      fprintf(stderr, "%s: Invalid arguments.\n", argv[0]);
-      exit(EXIT_FAILURE);
-  }
-  // singleWorker = true;    // FIXME make this a command line option
 
   /* create work pipe */
   if (pipe(_workPipeFd) == -1) {
@@ -149,7 +159,6 @@ int main(int argc, char *argv[]) {
     fprintf(stderr, "%s: Error creating listening socket.\n", argv[0]);
     exit(EXIT_FAILURE);
   }
-
 
   /*  Set all bytes in socket address structure to
       zero, and fill in the relevant data members   */
@@ -239,7 +248,7 @@ int main(int argc, char *argv[]) {
             Writeline(conn_s, RNX_REPLY_FAILED, strlen(RNX_REPLY_FAILED));
             /* reset after config error, to avoid partially configured state */
             ERROR_LOG("config error - calling rnxReset()");
-            rnxReset(true);
+            rnxReset(false);
             break;
           default:
             sprintf(lilbuf, "received unknown workReply = %d\n", workReply.cmd);
@@ -276,7 +285,7 @@ int main(int argc, char *argv[]) {
           break;
 
         case RNX_CMD_HELLO:
-          rnxReset((_rnxState != RNX_STATE_UNCONFIGURED));  /* reset state */
+          rnxReset(false);    /* reset state */
           sprintf(outbuf, "%s", RNX_REPLY_HELO);
           break;
 
@@ -292,6 +301,7 @@ int main(int argc, char *argv[]) {
               break;
             case RNX_STATE_UNCONFIGURED:
               workCmd.cmd = RNX_WORK_OPENDEV;
+              workCmd.arg1 = _simFlag ? 1 : 0;
               workCmd.epoch = _rnxEpoch;
               /* skip initial space char, if any */
               endptr = index(inbuf, ' ');
@@ -388,7 +398,7 @@ int main(int argc, char *argv[]) {
           break;
 
         case RNX_CMD_RESET:
-          rnxReset(true);       /* reset state */
+          rnxReset(false);    /* reset state */
           sprintf(outbuf, "%s", RNX_REPLY_OK);
           break;
 
@@ -406,7 +416,7 @@ close_now:
       if (closeFlag) {
         if (_rnxState != RNX_STATE_UNCONFIGURED) {
           /* reset state */
-          rnxReset(true);
+          rnxReset(false);
         }
         /*  Close the connected socket  */
         if ( close(conn_s) < 0 ) {
@@ -475,11 +485,21 @@ void rnxReset(bool closeDevice)
 
   /* advance epoch counter (to detect replies from old commands) */
   _rnxEpoch++;
-  workCmd.cmd = RNX_WORK_CLOSEDEV;
-  workCmd.epoch = _rnxEpoch;
+
+  if (_rnxState == RNX_STATE_ENABLED) {
+    /* end acquisition */
+    workCmd.cmd = RNX_WORK_ENDACQ;
+    workCmd.epoch = _rnxEpoch;
+    if (write(_workPipeFd[1], &workCmd, sizeof(workCmd)) == -1) {
+      perror("write");
+      ERROR_LOG("error writing to work pipe");
+    }
+  }
 
   if (closeDevice) {
     /* close device */
+    workCmd.cmd = RNX_WORK_CLOSEDEV;
+    workCmd.epoch = _rnxEpoch;
     if (write(_workPipeFd[1], &workCmd, sizeof(workCmd)) == -1) {
       perror("write");
       ERROR_LOG("error writing to work pipe");
@@ -487,8 +507,6 @@ void rnxReset(bool closeDevice)
       printf("%s: sent RNX_WORK_CLOSEDEV to work thread (epoch=%d)\n", __FUNCTION__, workCmd.epoch);
     }
   }
-
-  /* TODO more may be needed */
 
   if (_rnxState != RNX_STATE_UNCONFIGURED) {
     _rnxState = RNX_STATE_UNCONFIGURED;

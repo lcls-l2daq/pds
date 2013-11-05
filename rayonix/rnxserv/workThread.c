@@ -34,6 +34,11 @@ static int _binning_s = 2;
 static double _exposure = 0.0;
 static int _testPattern = 0;
 static bool _rawFlag = false;
+static bool _darkFlag = false;
+static craydl::ReadoutMode_t  _readoutMode = craydl::RM_Standard;
+
+// forward declaration
+int sendFrame(int frameNumber, uint16_t timeStamp, uint16_t *frame);
 
 // All craydl classes, functions, etc, reside in the craydl namespace
 using namespace craydl;
@@ -43,16 +48,13 @@ class FrameHandlerCB : public VirtualFrameCallback
 {
    public:
       FrameHandlerCB(RxDetector& detector) :
-	 detector_(detector),
-	 multi_sequence_(false),
-	 sequence_number_(0),
-	 sequence_number_width_(2),
-	 sequence_seperator_("_"),
-	 write_frames(false),
-	 frame_number_width_(4),
-	 filename_(""),
-	 filename_root_("dummy."),
-	 raw_filename_root_("dummy_raw.")
+         detector_(detector),
+	       multi_sequence_(false),
+         sequence_number_(0),
+         sequence_number_width_(2),
+         sequence_seperator_("_"),
+         write_frames(false),
+         frame_number_width_(4)
       {
       }
       ~FrameHandlerCB() {}
@@ -62,55 +64,42 @@ class FrameHandlerCB : public VirtualFrameCallback
       void ExposureEnded(int frame_number) {RxLog(LOG_DEBUG) << "CB: Exposure " << frame_number << " ended." << std::endl;}
       void ReadoutStarted(int frame_number) {RxLog(LOG_DEBUG) << "CB: Readout " << frame_number << " started." << std::endl;}
       void ReadoutEnded(int frame_number) {RxLog(LOG_DEBUG) << "CB: Readout " << frame_number << " ended." << std::endl;}
+//    void BackgroundFrameReady(RxFrame *frame_p) { RxLog(LOG_DEBUG) << "CB: Background Frame " << " buffer address: " << frame_p->getBufferAddress() << std::endl; }
       void BackgroundFrameReady(const RxFrame *frame_p) { RxLog(LOG_DEBUG) << "CB: Background Frame " << " buffer address: " << frame_p->getBufferAddress() << std::endl; }
-      void RawFrameReady(int frame_number, const RxFrame *frame_p)
-      { 
-	 RxLog(LOG_DEBUG) << "CB: Raw Frame " << frame_number << " ready. (" << frame_p->getNFast() << "x" <<frame_p->getNSlow() << "x" << frame_p->getDepth() << ") at " <<    frame_p->getBufferAddress() << ")" << std::endl;
-	 RxLog(LOG_DEBUG) << "CB: Raw Frame " << frame_number << " Timestamp: " << frame_p->constMetaData().HardwareTimestamp() << std::endl;
 
-	 return;
+      void RawFrameReady(int frame_number, const RxFrame *frame_p)
+      {
+         if (_rawFlag) {
+           boost::posix_time::ptime ppp = frame_p->constMetaData().HardwareTimestamp();
+           boost::posix_time::time_duration duration( ppp.time_of_day() );
+           unsigned short timeStamp = duration.total_milliseconds() % 0xffff;
+
+           printf("%s: Raw Frame #%d  size=%u  timestamp=%hu ms\n", __FUNCTION__, frame_number, (unsigned)frame_p->getSize(), timeStamp);
+
+           sendFrame(frame_number, timeStamp, (uint16_t *)(frame_p->getBufferAddress()));
+         }
+         return;
       }
 
       void FrameReady(int frame_number, const RxFrame *frame_p)
       {
+         if (!_rawFlag) {
+           boost::posix_time::ptime ppp = frame_p->constMetaData().HardwareTimestamp();
+           boost::posix_time::time_duration duration( ppp.time_of_day() );
+           unsigned short timeStamp = duration.total_milliseconds() % 0xffff;
 
-	 RxLog(LOG_DEBUG) << "CB: Frame " << frame_number << " ready. (" << frame_p->getNFast() << "x" <<frame_p->getNSlow() << "x" << frame_p->getDepth() << ") at " <<    frame_p->getBufferAddress() << ")" << std::endl;
+           printf("%s: Frame #%d  size=%u  timestamp=%hu ms\n", __FUNCTION__, frame_number, (unsigned)frame_p->getSize(), timeStamp);
 
-	 RxLog(LOG_DEBUG) << "CB: Frame " << frame_number << " ready. (" << frame_p->getNFast() << "x" <<frame_p->getNSlow() << "x" << frame_p->getDepth() << ") at " <<    frame_p->getBufferAddress() << ")" << std::endl;
-	 RxLog(LOG_DEBUG) << "CB: Frame " << frame_number << " size is " << frame_p->getSize() << std::endl;
-
-	 return;
+           sendFrame(frame_number, timeStamp, (uint16_t *)(frame_p->getBufferAddress()));
+         }
+         return;
       }
+
       void FrameAborted(int frame_number) {RxLog(LOG_WARNING) << "CB: Frame " << frame_number << " aborted." << std::endl;}
       void FrameCompleted(int frame_number) {RxLog(LOG_DEBUG) << "CB: Frame " << frame_number << " completed." << std::endl;}
       void FrameError(int frame_number, const int error_code, const std::string& error_string) {RxLog(LOG_ERROR) << "CB: Frame " << frame_number << " reported error " << error_code << ":" << error_string << std::endl;}
 
       void set_write_frames(const bool write_frames = true) {
-      }
-
-      void set_filename(const std::string &filename) {
-      }
-      void set_filename_sequence(bool multi_sequence, int sequence_number = 0, int width = 2, std::string seperator = "_")
-      {
-      }
-      void set_filename_generator(const std::string& raw_root, const std::string& root, int width, const std::string& suffix)
-      {
-      }
-      void set_filename_generator(const std::string& root, int width, const std::string& suffix)
-      {
-      }
-      std::string get_background_filename()
-      {
-	 return string("");
-      }
-      std::string get_raw_filename(int frame_number)
-      {
-	 return string("");
-      }
-
-      std::string get_filename(int frame_number)
-      {
-	 return string("");
       }
 
    private:
@@ -122,20 +111,20 @@ class FrameHandlerCB : public VirtualFrameCallback
       std::string sequence_seperator_;
       bool write_frames;
       int frame_number_width_;
-      std::string filename_;
-      std::string filename_root_;
-      std::string filename_suffix_;
-      std::string raw_filename_;
-      std::string raw_filename_root_;
-      std::string raw_filename_suffix_;
 };
 
-RxDetector *openDetector(const char *configFileName);
+RxDetector *openDetector(const char *configFileName, const char *detectorName);
 int closeDetector(RxDetector *pDetector);
-int decodeConfigArgs(char *argstr, int *binning_f, int *binning_s, int *exposure_ms, bool *rawFlag, int *testPattern, int *readoutMode, int *triggerMode);
+int decodeConfigArgs(char *argstr, int *binning_f, int *binning_s, int *exposure_ms, bool *rawFlag, bool *darkFlag, int *testPattern, int *readoutMode, int *triggerMode);
 
 static uint16_t linebuf0[LINEBUF_WORDS * 2];
 static uint16_t linebuf1[LINEBUF_WORDS * 2];
+
+static RxDetector *pDetector = NULL;
+static VirtualFrameCallback* pFrameCallback = NULL;
+
+static int notifyFd, dataFdEven, dataFdOdd;
+static struct sockaddr_in notifyaddr, dataaddreven, dataaddrodd;
 
 void *workRoutine(void *arg)
 {
@@ -148,9 +137,6 @@ void *workRoutine(void *arg)
   char logbuf2[LOGBUF_SIZE];
   uint16_t *linebuf = (tid == 0) ? linebuf0 : linebuf1;
   int writeSize, sent;
-  int notifyFd, dataFdEven, dataFdOdd;
-  struct sockaddr_in notifyaddr, dataaddreven, dataaddrodd;
-  RxDetector *pDetector = NULL;
   RxReturnStatus error;
 
   sprintf(logbuf, "Thread #%d started", tid);
@@ -249,14 +235,22 @@ void *workRoutine(void *arg)
       int binning_s = 2;
       int exposure_ms = 0;
       bool rawFlag = false;
+      bool darkFlag = false;
+      bool simFlag = false;
       int testPattern = 0;
-      int readoutMode = 1;
+      int readoutMode = craydl::RM_Standard;
       int triggerMode = 0;
       int fast, slow, depth;
       int errorCount = 0;
       /* interpret arguments */
-      if (decodeConfigArgs(workCommand.argv, &binning_f, &binning_s, &exposure_ms, &rawFlag, &testPattern, &readoutMode, &triggerMode) == -1) {
-        snprintf(logbuf, sizeof(logbuf), "%s: decodeConfigArgs(\"%s\") returned -1", __FUNCTION__, workCommand.argv);
+      if (workCommand.arg1 != 0) {
+        simFlag = true;
+        snprintf(logbuf, sizeof(logbuf), "%s: Simulation flag is set", __FUNCTION__);
+        printf("%s\n", logbuf);
+        INFO_LOG(logbuf);
+      }
+      if (decodeConfigArgs(workCommand.argv, &binning_f, &binning_s, &exposure_ms, &rawFlag, &darkFlag, &testPattern, &readoutMode, &triggerMode) == -1) {
+        snprintf(logbuf, sizeof(logbuf), "%s: decodeConfigArgs() returned -1", __FUNCTION__);
         printf("%s\n", logbuf);
         ERROR_LOG(logbuf);
         workReply.cmd = 5;  /* error */
@@ -266,19 +260,27 @@ void *workRoutine(void *arg)
         }
         continue;   /* did not take semaphore */
       }
+
       /* semaphore take */
       if (sem_wait(myState->pConfigSem) == -1) {
         perror("sem_wait pConfigSem");
         ERROR_LOG("sem_wait() failed");
-      } else if (rnxEpoch() != workCommand.epoch) {
+      }
+
+      if (rnxEpoch() != workCommand.epoch) {
         ERROR_LOG("epoch changed before configuration - skipping config");
       } else if (rnxEpoch() == _lastConfigEpoch) {
         ERROR_LOG("duplicate config for single epoch - skipping config");
       } else {
-        pDetector = openDetector(CONFIG_FILE_NAME);
         if (!pDetector) {
-          printf("%s: openDetector() returned NULL\n", __FUNCTION__);
-          ERROR_LOG("openDetector() failed");
+          /* if not already open... */
+          pDetector = openDetector(CONFIG_FILE_NAME, simFlag ? DETECTOR_NAME_SIM : DETECTOR_NAME_HW);
+        }
+        if (!pDetector) {
+          snprintf(logbuf, sizeof(logbuf), "%s: openDetector(%s, %s) returned NULL", __FUNCTION__,
+                   CONFIG_FILE_NAME, simFlag ? DETECTOR_NAME_SIM : DETECTOR_NAME_HW);
+          printf("%s\n", logbuf);
+          ERROR_LOG(logbuf);
           errorCount++;
           workReply.cmd = 5;
           if (write(myState->control_pipe_fd, &workReply, sizeof(workReply)) == -1) {
@@ -319,23 +321,79 @@ void *workRoutine(void *arg)
               INFO_LOG(logbuf);
             }
 
-            /* set exposure */
-            _exposure = exposure_ms / 1000.0;
-            error = pDetector->SetExposureTime(_exposure);
+            /* set trigger mode */
+            error = pDetector->SetFrameTriggerMode(std::string("Frame"));
             if (error.IsError()) {
-              sprintf(logbuf, "Error: SetExposureTime(%6.3f) failed", _exposure);
+              sprintf(logbuf, "Error: SetTriggerMode(Frame) failed");
               printf("%s\n", logbuf);
               ERROR_LOG(logbuf);
               errorCount++;
             } else {
-              sprintf(logbuf, "SetExposureTime(%6.3f) done", _exposure);
+              sprintf(logbuf, "SetTriggerMode(Frame) done");
               printf("%s\n", logbuf);
               INFO_LOG(logbuf);
             }
 
-            /* set raw mode */
+            /* set sequence gate */
+            error = pDetector->SetSequenceGate(std::string("None"));
+            if (error.IsError()) {
+              sprintf(logbuf, "Error: SetSequenceGate(None) failed");
+              printf("%s\n", logbuf);
+              ERROR_LOG(logbuf);
+              errorCount++;
+            } else {
+              sprintf(logbuf, "SetSequenceGate(None) done");
+              printf("%s\n", logbuf);
+              INFO_LOG(logbuf);
+            }
+
+            /* set exposure */
+            _exposure = exposure_ms / 1000.0;
+            error = pDetector->SetExposureTime(_exposure);
+            if (error.IsError()) {
+              sprintf(logbuf, "Error: SetExposureTime(%5.3f) failed", _exposure);
+              printf("%s\n", logbuf);
+              ERROR_LOG(logbuf);
+              errorCount++;
+            } else {
+              sprintf(logbuf, "SetExposureTime(%5.3f) done", _exposure);
+              printf("%s\n", logbuf);
+              INFO_LOG(logbuf);
+            }
+
+            // Check - will print to log file
+            // ? pDetector->TriggerType();
+
+            /* set modes */
             _rawFlag = rawFlag;
-            /* FIXME */
+            _darkFlag = darkFlag;
+            switch (readoutMode) {
+              case RM_HighGain:
+                _readoutMode = RM_HighGain;
+                break;
+              case RM_HDR:
+                _readoutMode = RM_HDR;
+                break;
+              default:
+                sprintf(logbuf, "Warning: Readout mode %d not supported", (int) readoutMode);
+                printf("%s\n", logbuf);
+                WARNING_LOG(logbuf);
+                /* fall through */
+              case RM_Standard:
+                _readoutMode = RM_Standard;
+                break;
+            }
+            error = pDetector->SetReadoutMode(_readoutMode);
+            if (error.IsError()) {
+              sprintf(logbuf, "Error: SetReadoutMode(%d) failed", (int) _readoutMode);
+              printf("%s\n", logbuf);
+              ERROR_LOG(logbuf);
+              errorCount++;
+            } else {
+              sprintf(logbuf, "SetReadoutMode(%d) done", (int) _readoutMode);
+              printf("%s\n", logbuf);
+              INFO_LOG(logbuf);
+            }
 
             /* set test pattern */
             if (testPattern) {
@@ -371,7 +429,23 @@ void *workRoutine(void *arg)
                 errorCount++;
               } else {
                 _testPattern = 0;
+                sprintf(logbuf, "UseTestPattern(false) done");
+                printf("%s\n", logbuf);
+                INFO_LOG(logbuf);
               }
+            }
+
+            /* send parameters */
+            error = pDetector->SendParameters();
+            if (error.IsError()) {
+              sprintf(logbuf, "Error: SendParameters() failed");
+              printf("%s\n", logbuf);
+              ERROR_LOG(logbuf);
+              errorCount++;
+            } else {
+              sprintf(logbuf, "SendParameters() done");
+              printf("%s\n", logbuf);
+              INFO_LOG(logbuf);
             }
           }
 
@@ -495,7 +569,7 @@ void *workRoutine(void *arg)
       }
 
       /* write to notification socket */
-      sprintf(logbuf, "Thread #%d: Send frame #%d notification...\n", tid, notifyMsg.frameNumber);
+      sprintf(logbuf, "Thread #%d: Send frame #%d notification...", tid, notifyMsg.frameNumber);
       DEBUG_LOG(logbuf);
       sent = sendto(notifyFd, (void *)&notifyMsg, sizeof(notifyMsg), 0,
                  (struct sockaddr *)&notifyaddr, sizeof(notifyaddr));
@@ -510,25 +584,64 @@ void *workRoutine(void *arg)
     }
 
     if (workCommand.cmd == RNX_WORK_STARTACQ) {
+      // RxFrameAcquisitionType frame_type;
+      FrameAcquisitionType frame_type;
+      int n_frames = 1000000000;
+
       /* check epoch */
       if (rnxEpoch() != workCommand.epoch) {
         DEBUG_LOG("RNX_WORK_STARTACQ ignored - epoch changed");
         continue;
       }
-      /* semaphore take */
-      if (sem_wait(myState->pConfigSem) == -1) {
-        perror("sem_wait pConfigSem");
-        ERROR_LOG("sem_wait() failed");
-      }
-      if (pDetector) {
-        ERROR_LOG("RNX_WORK_STARTACQ not yet implemented"); /* FIXME */
+
+      if (pDetector && pFrameCallback) {
+        sprintf(logbuf, "STARTACQ: _darkFlag=%s  _readoutMode=%d", _darkFlag ? "true" : "false", (int)_readoutMode);
+        INFO_LOG(logbuf);
+//      frame_type = _darkFlag ? ACQUIRE_DARK : ACQUIRE_DARK;
+        frame_type = _darkFlag ? DarkFrameAcquisitionType : LightFrameAcquisitionType;
+
+        error = pDetector->SetAcquisitionUserCB(pFrameCallback);
+        if (error.IsError()) {
+          sprintf(logbuf, "Error: SetAcquisitionUserCB() failed");
+          printf("%s\n", logbuf);
+          ERROR_LOG(logbuf);
+        } else {
+          sprintf(logbuf, "SetAcquisitionUserCB() done");
+          printf("%s\n", logbuf);
+          INFO_LOG(logbuf);
+        }
+        error = pDetector->SetupAcquisitionSequence(n_frames);
+        if (error.IsError()) {
+          sprintf(logbuf, "Error: SetupAcquisitionSequence(%d) failed", n_frames);
+          printf("%s\n", logbuf);
+          ERROR_LOG(logbuf);
+        } else {
+          sprintf(logbuf, "SetupAcquisitionSequence(%d) done", n_frames);
+          printf("%s\n", logbuf);
+          INFO_LOG(logbuf);
+        }
+        error = pDetector->StartAcquisition(frame_type);
+        if (error.IsError()) {
+          sprintf(logbuf, "Thread #%d: Error: StartAcquisition() failed", tid);
+          printf("%s\n", logbuf);
+          ERROR_LOG(logbuf);
+        } else {
+          sprintf(logbuf, "Thread #%d: StartAcquisition() done", tid);
+          printf("%s\n", logbuf);
+          INFO_LOG(logbuf);
+        }
+        error = pDetector->EndAcquisition();
+        if (error.IsError()) {
+          sprintf(logbuf, "Thread #%d: Error: EndAcquisition() failed", tid);
+          printf("%s\n", logbuf);
+          ERROR_LOG(logbuf);
+        } else {
+          sprintf(logbuf, "Thread #%d: EndAcquisition() done", tid);
+          printf("%s\n", logbuf);
+          INFO_LOG(logbuf);
+        }
       } else {
-        DEBUG_LOG("RNX_WORK_STARTACQ ignored - device not open");
-      }
-      /* semaphore give */
-      if (sem_post(myState->pConfigSem) == -1) {
-        perror("sem_post pConfigSem");
-        ERROR_LOG("sem_post() failed");
+        ERROR_LOG("RNX_WORK_STARTACQ ignored - device not open");
       }
       continue;
     }
@@ -539,20 +652,22 @@ void *workRoutine(void *arg)
         DEBUG_LOG("RNX_WORK_ENDACQ ignored - epoch changed");
         continue;
       }
-      /* semaphore take */
-      if (sem_wait(myState->pConfigSem) == -1) {
-        perror("sem_wait pConfigSem");
-        ERROR_LOG("sem_wait() failed");
-      }
       if (pDetector) {
-        ERROR_LOG("RNX_WORK_ENDACQ not yet implemented"); /* FIXME */
+        sprintf(logbuf, "Thread #%d Calling EndAcquisition(true) ...", tid);
+        printf("%s\n", logbuf);
+        INFO_LOG(logbuf);
+        error = pDetector->EndAcquisition(true);
+        if (error.IsError()) {
+          sprintf(logbuf, "Thread #%d: Error: EndAcquisition(true) failed", tid);
+          printf("%s\n", logbuf);
+          ERROR_LOG(logbuf);
+        } else {
+          sprintf(logbuf, "Thread #%d: EndAcquisition(true) done", tid);
+          printf("%s\n", logbuf);
+          INFO_LOG(logbuf);
+        }
       } else {
         DEBUG_LOG("RNX_WORK_ENDACQ ignored - device not open");
-      }
-      /* semaphore give */
-      if (sem_post(myState->pConfigSem) == -1) {
-        perror("sem_post pConfigSem");
-        ERROR_LOG("sem_post() failed");
       }
       continue;
     }
@@ -563,6 +678,7 @@ void *workRoutine(void *arg)
 
   printf("Bye from workThread #%d!\n", tid);
 
+  // remove?
   if (close(notifyFd) == -1) {
     perror("close");
   }
@@ -574,7 +690,7 @@ using std::cerr;
 using std::endl;
 using std::string;
 
-RxDetector *openDetector(const char *configFileName)
+RxDetector *openDetector(const char *configFileName, const char *detectorName)
 {
   RxReturnStatus error;
   RxDetector *pDetector;
@@ -586,7 +702,14 @@ RxDetector *openDetector(const char *configFileName)
     return (NULL);
   }
 
-  error = pDetector->Open(DETECTOR_NAME);
+  // static VirtualFrameCallback* pFrameCallback = NULL;
+  pFrameCallback = new FrameHandlerCB(*pDetector);
+  if (!pFrameCallback) {
+    std::cerr << "new FrameHandlerCB is NULL" << std::endl;
+    return (NULL);
+  }
+
+  error = pDetector->Open(detectorName);
   if (error.IsError()) {
     std::cerr << "Open: " << error.ErrorText() << std::endl;
     return (NULL);
@@ -610,7 +733,7 @@ int closeDetector(RxDetector *pDetector)
   return (rv);
 }
 
-int decodeConfigArgs(char *argstr, int *binning_f, int *binning_s, int *exposure, bool *rawFlag, int *testPattern, int *readoutMode, int *triggerMode)
+int decodeConfigArgs(char *argstr, int *binning_f, int *binning_s, int *exposure, bool *rawFlag, bool *darkFlag, int *testPattern, int *readoutMode, int *triggerMode)
 {
   char lilbuf[80];
   int rv = 0;
@@ -646,6 +769,10 @@ int decodeConfigArgs(char *argstr, int *binning_f, int *binning_s, int *exposure
           rr = atoi(xx+2);
           *rawFlag = (rr != 0);
           break;
+        case 'd':
+          rr = atoi(xx+2);
+          *darkFlag = (rr != 0);
+          break;
         case 'p':
           *testPattern = atoi(xx+2);
           break;
@@ -677,4 +804,84 @@ int setsndbuf(int socketFd, unsigned size)
 {
   // NOP
   return 0;
+}
+
+int sendFrame(int frame_number, uint16_t timeStamp, uint16_t *frame)
+{
+  int ii, jj;
+  data_footer_t *pFooter;
+  int writeSize, sent;
+  char logbuf[LOGBUF_SIZE];
+  uint16_t frameNumber = (uint16_t)frame_number;
+  uint16_t linebuf[4000];
+
+  /* init footer */
+  pFooter = (data_footer_t *)(linebuf + MAX_LINE_PIXELS);
+  pFooter->cmd = 0;
+  pFooter->frameNumber = frameNumber;
+  pFooter->damage = 0;
+  pFooter->epoch = _lastConfigEpoch;
+  pFooter->binning_f = _binning_f;
+  pFooter->binning_s = _binning_s;
+  pFooter->pad = 0;
+
+  /* send lines */
+  sprintf(logbuf, "Send frame #%d lines...\n", frameNumber);
+  // DEBUG_LOG(logbuf);
+  INFO_LOG(logbuf);
+  writeSize = (MAX_LINE_PIXELS * 2) + sizeof(data_footer_t);
+  for (jj = 0; jj < MAX_LINE_PIXELS/_binning_s; jj += _binning_s) {
+
+    /* copy pixels to output buffer */
+    for (ii = 0; ii < MAX_LINE_PIXELS; ii++) {
+      linebuf[ii] = *frame++;
+    }
+
+    /* first 2 pixels of frame hold frame # and timestamp */
+    if (jj == 0) {
+      linebuf[0] = frameNumber;
+      linebuf[1] = timeStamp;
+    }
+
+    /* update data footer */
+    pFooter->lineNumber = jj;
+
+    /* write to data socket */
+    if (frameNumber & 1) {
+      // odd frame -> odd data port
+      sent = sendto(dataFdOdd, (void *)linebuf, writeSize, 0,
+                 (struct sockaddr *)&dataaddrodd, sizeof(dataaddrodd));
+    } else {
+      // even frame -> even data port
+      sent = sendto(dataFdEven, (void *)linebuf, writeSize, 0,
+                 (struct sockaddr *)&dataaddreven, sizeof(dataaddreven));
+    }
+    if (sent == -1) {
+      perror("sendto");
+      sprintf(logbuf, "Frame #%d sendto() failed (errno=%d)",
+              frameNumber, errno);
+      printf("%s\n", logbuf);
+      ERROR_LOG(logbuf);
+      break;
+    } else if (sent != writeSize) {
+      sprintf(logbuf, "Error: Sent %d of %d bytes for Frame #%d Line #%d",
+              sent, writeSize, frameNumber, jj);
+      printf("%s\n", logbuf);
+      ERROR_LOG(logbuf);
+    }
+  }
+
+  /* write to notification socket */
+  sprintf(logbuf, "Send frame #%d notification...", frameNumber);
+  DEBUG_LOG(logbuf);
+  sent = sendto(notifyFd, (void *)pFooter, sizeof(data_footer_t), 0,
+             (struct sockaddr *)&notifyaddr, sizeof(notifyaddr));
+  if (sent == -1) {
+    perror("sendto");
+    ERROR_LOG("Failed sendto() on notify socket");
+  } else if (sent != sizeof(data_footer_t)) {
+    printf("sent %d of %lu bytes\n", sent, sizeof(data_footer_t));
+    ERROR_LOG("sendto() notify socket returned incorrect size");
+  }
+  return (0);
 }
