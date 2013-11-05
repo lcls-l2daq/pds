@@ -168,7 +168,7 @@ public:
   }
 
   Transition* fire(Transition* tr) {
-    printf("%s:  RayonixUnconfigAction fire\n", __PRETTY_FUNCTION__);
+    printf("Entered %s\n", __PRETTY_FUNCTION__);
     _nerror = 0;
     _nerror += _server->unconfigure();
     return tr;
