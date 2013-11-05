@@ -77,7 +77,7 @@ public:
   uint16_t  _darkFlag;
   uint16_t  _readoutMode;
   uint32_t  _trigger;
-  char *    _deviceID;
+  char      _deviceID[Pds::rayonix_control::DeviceIDMax + 1];
   rayonix_control * _rnxctrl;
 };
 

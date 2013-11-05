@@ -24,7 +24,7 @@ Pds::RayonixServer::RayonixServer( const Src& client, bool verbose)
     _binning_f(0),
     _binning_s(0),
     _darkFlag(0),
-    _readoutMode(0),
+    _readoutMode(1),
     _trigger(0),
     _rnxctrl(NULL)
 {
@@ -64,7 +64,16 @@ unsigned Pds::RayonixServer::configure(RayonixConfigType& config)
 
   // If the binning is not the same in both fast and slow directions, send an occurrence
   if (_binning_f != _binning_s) {
-    snprintf(msgBuf, sizeof(msgBuf), "ERROR: binning_f is not equal to binning_s; Rayonix is not calibrated for this\n");
+     snprintf(msgBuf, sizeof(msgBuf), "ERROR: binning_f is not equal to binning_s; Rayonix is not calibrated for this\n");
+     fprintf(stderr, "%s: %s", __PRETTY_FUNCTION__, msgBuf);
+     if (_occSend != NULL) {
+        _occSend->userMessage(msgBuf);
+     }
+  }
+     
+  // If the readoutMode is Unknown, send an occurrence
+  if (readoutMode == 0) {
+    snprintf(msgBuf, sizeof(msgBuf), "ERROR: readoutMode 0 (Unknown) is unsupported");
     fprintf(stderr, "%s: %s", __PRETTY_FUNCTION__, msgBuf);
     if (_occSend != NULL) {
       _occSend->userMessage(msgBuf);
@@ -75,20 +84,19 @@ unsigned Pds::RayonixServer::configure(RayonixConfigType& config)
 
   // create rayonix control object (to be deleted in unconfigure())
   _rnxctrl = new rayonix_control((verbose() > 0), RNX_IPADDR, RNX_CONTROL_PORT);
-  printf("Created rayonix control object with IP addr = %s, Port = %d\n", RNX_IPADDR, RNX_CONTROL_PORT);
 
   if (_rnxctrl) {
     do {
-      printf("Calling _rnxctrl->connect()...\n");
+       printf("Calling _rnxctrl->connect()...\n");
       _rnxctrl->connect();
       status = _rnxctrl->status();
       if (status == Pds::rayonix_control::Unconfigured) {
-         
         if (_rnxctrl->config(binning_f, binning_s, exposure, rawMode, readoutMode, trigger,
                              testPattern, darkFlag, deviceBuf)) {
           printf("ERROR: _rnxctrl->config() failed\n");
           break;    /* ERROR */
         } else {
+          status = _rnxctrl->status();
           _binning_f = binning_f;
           _binning_s = binning_s;
           _exposure  = exposure;
@@ -103,12 +111,12 @@ unsigned Pds::RayonixServer::configure(RayonixConfigType& config)
         }
         printf("Calling _rnxctrl->enable()...\n");
         if (_rnxctrl->enable()) {
-          printf("ERROR: _rnxctrl->enable() failed\n");
+           printf("ERROR: _rnxctrl->enable() failed (status==%d)\n", _rnxctrl->status());
           break;    /* ERROR */
         }
         numErrs = 0;  /* Success */
       } else {
-        printf("ERROR: _rnxctrl->connect() failed (status==%d) in %s\n", status, __PRETTY_FUNCTION__);
+         printf("ERROR: _rnxctrl->connect() failed (status==%d) in %s\n", _rnxctrl->status(), __PRETTY_FUNCTION__);
       }
     } while (0);
   } else {
@@ -116,7 +124,7 @@ unsigned Pds::RayonixServer::configure(RayonixConfigType& config)
   }
 
   return (numErrs);
-}
+ }
 
 unsigned Pds::RayonixServer::unconfigure(void)
 {
@@ -147,7 +155,6 @@ unsigned Pds::RayonixServer::unconfigure(void)
 
 unsigned Pds::RayonixServer::endrun(void)
 {
-  printf("Rayonix endrun called\n");
   return(0);
 }
 
