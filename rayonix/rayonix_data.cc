@@ -81,9 +81,6 @@ int Pds::rayonix_data::drainFd(int fd) const
   while ((rv = recvfrom(fd, _discard, _bufsize, MSG_DONTWAIT, 0, 0)) > 0) {
     ;
   }
-  if (rv == -1) {
-    perror("recvfrom");
-  }
   return (rv);
 }
 
@@ -117,7 +114,7 @@ int Pds::rayonix_data::readFrame(uint16_t& frameNumber, char *payload, int paylo
   char    mybuf[sizeof(data_footer_t)];
   data_footer_t *pNotifyMsg;
   data_footer_t *pFooter;
-  uint16_t firstValue, lastValue;
+  uint16_t firstValue;
   char *tmpload = payload;
   int     rv = 0;
 
@@ -141,7 +138,7 @@ int Pds::rayonix_data::readFrame(uint16_t& frameNumber, char *payload, int paylo
       recvlen = recvfrom(dataFd, tmpload, payloadMax, MSG_DONTWAIT, 0, 0);
       // verify len
       if (recvlen <= 0) {
-        perror("recvfrom");
+        perror("readFrame() recvfrom");
         rv = -1;
         break;
       }
@@ -190,10 +187,10 @@ int Pds::rayonix_data::readFrame(uint16_t& frameNumber, char *payload, int paylo
     frameNumber = pNotifyMsg->frameNumber;
     // check frame number in data
     firstValue = *((uint16_t *) payload);
-    lastValue = *((uint16_t *) (payload + recvlen - 2 - sizeof(data_footer_t)));
-    if ((firstValue != frameNumber) || (lastValue != frameNumber)) {
-      printf("%s: frame # mismatch: notify=%hu first=%hu last=%hu\n\r",
-             __FUNCTION__, frameNumber, firstValue, lastValue);
+
+    if (firstValue != frameNumber) {
+      printf("%s: frame # mismatch: notify=%hu first=%hu\n\r",
+             __FUNCTION__, frameNumber, firstValue);
       rv = -1;
     }
   } else {
