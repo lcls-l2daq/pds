@@ -11,6 +11,16 @@
 namespace Pds
 {
   class rayonix_data;
+
+  namespace Rayonix_MX170HS {
+    enum { depth_bytes = 2 };
+    enum { n_pixels = 14745600 };
+    enum { n_pixels_fast = 3840 };
+    enum { n_pixels_slow = 3840 };
+    enum { n_sensors = 4 };
+    enum { n_sensors_fast = 2 };
+    enum { n_sensors_slow = 2 };
+  }
 }
 
 class Pds::rayonix_data {
