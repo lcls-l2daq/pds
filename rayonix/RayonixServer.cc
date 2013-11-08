@@ -13,7 +13,7 @@ using namespace Pds;
 #define MAX_LINE_PIXELS     3840
 #define MAX_FRAME_PIXELS    (MAX_LINE_PIXELS * MAX_LINE_PIXELS)
 #define RAYONIX_DEPTH       16
-#define PAYLOAD_MAX         10000
+#define BUFSIZE             10000
 
 
 Pds::RayonixServer::RayonixServer( const Src& client, bool verbose)
@@ -26,17 +26,18 @@ Pds::RayonixServer::RayonixServer( const Src& client, bool verbose)
     _darkFlag(0),
     _readoutMode(1),
     _trigger(0),
-    _rnxctrl(NULL)
+    _rnxctrl(NULL),
+    _rnxdata(NULL)
 {
-  // Calculate xtc extent
-  _xtc.extent = sizeof(Pds::Camera::FrameV1) + sizeof(Xtc);
-  
   // xtc extent in case of damaged event
   _xtcDamaged.extent = sizeof(Xtc);
   _xtcDamaged.damage.increase(Pds::Damage::UserDefined);
 
+  // set up to read data from socket
+  _rnxdata = new Pds::rayonix_data::rayonix_data(MAX_FRAME_PIXELS, _verbose);
+  fd(_rnxdata->fd());
+  _rnxdata->reset(_verbose);
 }
-
 
 unsigned Pds::RayonixServer::configure(RayonixConfigType& config)
 {
@@ -53,7 +54,7 @@ unsigned Pds::RayonixServer::configure(RayonixConfigType& config)
   // FIX this - for now, testPattern is 0
   int testPattern = 0;
   char msgBuf[100];
-
+  
   if (verbose() > 0) {
     printf(" *** entered %s\n", __PRETTY_FUNCTION__);
   }
@@ -163,36 +164,57 @@ int Pds::RayonixServer::fetch( char* payload, int flags )
 {
   uint16_t frameNumber;
   // Fix this - where do we define the width, height, and depth in bytes?
-  int width = MAX_LINE_PIXELS/Pds::RayonixServer::_binning_f;
-  int height =MAX_LINE_PIXELS/Pds::RayonixServer::_binning_s;
-  int depth = RAYONIX_DEPTH;
+  int width  = MAX_LINE_PIXELS/_binning_f;
+  int height = MAX_LINE_PIXELS/_binning_s;
+  int depth  = RAYONIX_DEPTH;
   int offset = 0;
+  int size = width*height*depth;
+  int binning_f = 0;
+  int binning_s = 0;
+  //  int verbose = RayonixServer::verbose();
+  int verbose = true;
+  int rv;
+  int damage = 0;
 
-  Pds::rayonix_data * rnxdata = new Pds::rayonix_data::rayonix_data(MAX_FRAME_PIXELS, RayonixServer::verbose());
-
-  printf(" *** entered %s\n", __PRETTY_FUNCTION__);
+  printf("Entered %s\n", __PRETTY_FUNCTION__);
 
   if (_outOfOrder) {
     return(-1);
   }
 
-    
-  // copy xtc to payload
-  memcpy(payload, &_xtc, sizeof(Xtc));
+  // read data from UDP socket
   offset += sizeof(Xtc);
-
-  //  Pds::Camera::FrameV1::FrameV1 *frame = (Pds::Camera::FrameV1::FrameV1 *)(payload + sizeof(Xtc));
-
-  *new(payload+offset) Pds::Camera::FrameV1::FrameV1(width, height, depth, 0);
-
-  rnxdata->readFrame(frameNumber, (payload+offset), PAYLOAD_MAX, RayonixServer::_binning_f, 
-            RayonixServer::_binning_s, RayonixServer::verbose());
-  if (RayonixServer::verbose()) {
-    printf("%s: received frame #%u\n", __PRETTY_FUNCTION__, frameNumber);
+  rv = _rnxdata->readFrame(frameNumber, (payload+offset), BUFSIZE, binning_f, binning_s, verbose);
+  if (verbose) {
+     printf("%s: received frame #%u (0x%x)\n", __PRETTY_FUNCTION__, frameNumber, rv);
   }
-    // if error, damaged
-    //    memcpy(payload, &_xtcDamaged, sizeof(Xtc));
-    
+
+  // error checking, mark event as damaged
+  if ((binning_f != _binning_f) || (binning_s != _binning_s)) {
+     printf ("ERROR:  Rayonix device binning is %dx%d, expected %dx%d\n", 
+             binning_f, binning_s, _binning_f, _binning_s);
+     damage++;
+  }
+  else if (rv == -1) {
+     printf("ERROR:  readFrame return value is -1\n");
+     damage++;
+  }
+  else if (rv != size) {
+     printf("ERROR:  Returned frame size 0x%x != expected frame size 0x%x\n", rv, size);
+     damage++;
+
+  }
+  
+  if (damage) {
+     memcpy(payload, &_xtcDamaged, sizeof(Xtc));
+  }
+  else {
+     // Calculate xtc extent
+     _xtc.extent = rv + sizeof(Xtc);
+     
+     // copy xtc header to payload
+     memcpy(payload, &_xtc, sizeof(Xtc));
+  }
 
   return (_xtc.extent);
 }

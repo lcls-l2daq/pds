@@ -79,6 +79,7 @@ public:
   uint32_t  _trigger;
   char      _deviceID[Pds::rayonix_control::DeviceIDMax + 1];
   rayonix_control * _rnxctrl;
+  rayonix_data *    _rnxdata;
 };
 
 #endif
