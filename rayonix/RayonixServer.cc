@@ -9,12 +9,7 @@
 
 using namespace Pds;
 
-
-#define MAX_LINE_PIXELS     3840
-#define MAX_FRAME_PIXELS    (MAX_LINE_PIXELS * MAX_LINE_PIXELS)
-#define RAYONIX_DEPTH       16
 #define BUFSIZE             10000
-
 
 Pds::RayonixServer::RayonixServer( const Src& client, bool verbose)
   : _xtc        ( _frameType, client ),
@@ -34,7 +29,7 @@ Pds::RayonixServer::RayonixServer( const Src& client, bool verbose)
   _xtcDamaged.damage.increase(Pds::Damage::UserDefined);
 
   // set up to read data from socket
-  _rnxdata = new Pds::rayonix_data::rayonix_data(MAX_FRAME_PIXELS, _verbose);
+  _rnxdata = new Pds::rayonix_data::rayonix_data(Pds::Rayonix_MX170HS::n_pixels, _verbose);
   fd(_rnxdata->fd());
   _rnxdata->reset(_verbose);
 }
@@ -164,14 +159,14 @@ int Pds::RayonixServer::fetch( char* payload, int flags )
 {
   uint16_t frameNumber;
   // Fix this - where do we define the width, height, and depth in bytes?
-  int width  = MAX_LINE_PIXELS/_binning_f;
-  int height = MAX_LINE_PIXELS/_binning_s;
-  int depth  = RAYONIX_DEPTH;
+  int width  = Pds::Rayonix_MX170HS::n_pixels_fast/_binning_f;
+  int height = Pds::Rayonix_MX170HS::n_pixels_slow/_binning_s;
+  int depth  = Pds::Rayonix_MX170HS::depth_bytes;
   int offset = 0;
   int size = width*height*depth;
   int binning_f = 0;
   int binning_s = 0;
-  //  int verbose = RayonixServer::verbose();
+  //int verbose = RayonixServer::verbose();
   int verbose = true;
   int rv;
   int damage = 0;
