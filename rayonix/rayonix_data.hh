@@ -13,6 +13,7 @@ namespace Pds
   class rayonix_data;
 
   namespace Rayonix_MX170HS {
+    enum { depth_bits = 16 };
     enum { depth_bytes = 2 };
     enum { n_pixels = 14745600 };
     enum { n_pixels_fast = 3840 };
@@ -26,13 +27,15 @@ namespace Pds
 class Pds::rayonix_data {
 
 public:
-  rayonix_data(unsigned bufsize, bool verbose);
+  rayonix_data(bool verbose);
   ~rayonix_data();
 
   int fd() const                  { return (_notifyFd); }
   int drainFd(int fd) const;
   int reset(bool verbose) const;
   int readFrame(uint16_t& frameNumber, char *payload, int payloadMax, int &binning_f, int &binning_s, bool verbose) const;
+
+  enum { DiscardBufSize = 10000 };
 
 private:
   //

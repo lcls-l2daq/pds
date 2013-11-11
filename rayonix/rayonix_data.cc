@@ -24,11 +24,10 @@ int setrcvbuf(int socketFd, unsigned size);
 
 using namespace Pds;
 
-Pds::rayonix_data::rayonix_data(unsigned bufsize, bool verbose) :
-  _bufsize(bufsize)
+Pds::rayonix_data::rayonix_data(bool verbose)
 {
   // allocate buffers
-  _discard = new char[_bufsize];  // buffer for draining input buffers
+  _discard = new char[DiscardBufSize];
 
   // create notify socket
   _notifyFd = createUdpSocket(RNX_NOTIFY_PORT);
@@ -72,13 +71,14 @@ Pds::rayonix_data::~rayonix_data()
   if (_dataFdOdd) {
     close(_dataFdOdd);
   }
+  delete[] _discard;
 }
 
 int Pds::rayonix_data::drainFd(int fd) const
 {
   int rv;
 
-  while ((rv = recvfrom(fd, _discard, _bufsize, MSG_DONTWAIT, 0, 0)) > 0) {
+  while ((rv = recvfrom(fd, _discard, DiscardBufSize, MSG_DONTWAIT, 0, 0)) > 0) {
     ;
   }
   return (rv);
