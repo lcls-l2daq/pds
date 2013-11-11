@@ -5,6 +5,7 @@
 #include "pds/service/Client.hh"
 #include "pds/utility/Inlet.hh"
 #include "pds/vmon/VmonEb.hh"
+#include "pds/utility/Occurrence.hh"
 
 using namespace Pds;
 
@@ -146,6 +147,14 @@ int Eb::processIo(Server* serverGeneric)
   }
 
   _hits++;
+
+  //  If we have overrun the event buffer, then the pool has been corrupted
+  if (event->datagram()->xtc.extent + sizeof(Datagram) > _datagrams.sizeofObject()) {
+    const char* msg = "EventBuilder overrun.  Restart DAQ to recover.";
+    printf("%s\n",msg);
+    _output.post(new(&_datagrams) UserMessage(msg));
+    abort();
+  }
 
   switch (_is_complete(event, serverId)) {
   case Complete:
