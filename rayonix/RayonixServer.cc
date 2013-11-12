@@ -29,7 +29,7 @@ Pds::RayonixServer::RayonixServer( const Src& client, bool verbose)
   _xtcDamaged.damage.increase(Pds::Damage::UserDefined);
 
   // set up to read data from socket
-  _rnxdata = new Pds::rayonix_data::rayonix_data(Pds::Rayonix_MX170HS::n_pixels, _verbose);
+  _rnxdata = new Pds::rayonix_data::rayonix_data(_verbose);
   fd(_rnxdata->fd());
   _rnxdata->reset(_verbose);
 }
