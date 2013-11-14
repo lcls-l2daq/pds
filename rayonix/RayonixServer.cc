@@ -9,7 +9,7 @@
 
 using namespace Pds;
 
-#define BUFSIZE             10000
+#define MAXFRAME             (32 * 1024 * 1024)
 
 Pds::RayonixServer::RayonixServer( const Src& client, bool verbose)
   : _xtc        ( _frameType, client ),
@@ -158,20 +158,21 @@ unsigned Pds::RayonixServer::endrun(void)
 int Pds::RayonixServer::fetch( char* payload, int flags )
 {
   uint16_t frameNumber;
-  // Fix this - where do we define the width, height, and depth in bytes?
   int width  = Pds::Rayonix_MX170HS::n_pixels_fast/_binning_f;
   int height = Pds::Rayonix_MX170HS::n_pixels_slow/_binning_s;
   int depth  = Pds::Rayonix_MX170HS::depth_bytes;
   int offset = 0;
   int size = width*height*depth;
+  int size_n16bitpixels = size/2;
   int binning_f = 0;
   int binning_s = 0;
-  //int verbose = RayonixServer::verbose();
-  int verbose = true;
+  int verbose = RayonixServer::verbose();
   int rv;
   int damage = 0;
 
-  printf("Entered %s\n", __PRETTY_FUNCTION__);
+  if (verbose) {
+     printf("Entered %s\n", __PRETTY_FUNCTION__);
+  }
 
   if (_outOfOrder) {
     return(-1);
@@ -179,23 +180,36 @@ int Pds::RayonixServer::fetch( char* payload, int flags )
 
   // read data from UDP socket
   offset += sizeof(Xtc);
-  rv = _rnxdata->readFrame(frameNumber, (payload+offset), BUFSIZE, binning_f, binning_s, verbose);
+  new (payload+offset) Pds::Camera::FrameV1::FrameV1(width, height, depth, 0);
+
+  rv = _rnxdata->readFrame(frameNumber, (payload+offset), MAXFRAME, binning_f, binning_s, verbose);
+  _count++;
+
   if (verbose) {
-     printf("%s: received frame #%u (0x%x)\n", __PRETTY_FUNCTION__, frameNumber, rv);
+     printf("%s: received frame #%u/%u (0x%x)\n", __PRETTY_FUNCTION__, frameNumber, _count, rv);
+  }
+  
+  // Error checking, mark event as damaged
+  if ((_count & 0xffff) != frameNumber) {
+    printf("ERROR:  count %d (0x%x) != frameNumber %d (0x%x)\n", _count,_count,(_count & 0xffff),(_count & 0xffff)); 
+    damage++;
+    // if the frameNumber and count do not agree, we are out of order and should stop the run?
   }
 
-  // error checking, mark event as damaged
   if ((binning_f != _binning_f) || (binning_s != _binning_s)) {
      printf ("ERROR:  Rayonix device binning is %dx%d, expected %dx%d\n", 
              binning_f, binning_s, _binning_f, _binning_s);
      damage++;
   }
+  // readFrame return -1 on ERROR, otherwise the number of 16-bit pixels read.
   else if (rv == -1) {
      printf("ERROR:  readFrame return value is -1\n");
      damage++;
   }
-  else if (rv != size) {
-     printf("ERROR:  Returned frame size 0x%x != expected frame size 0x%x\n", rv, size);
+  // size is # of bytes, while readFrame returns # of 16-bit pixels read.
+  else if (rv != size_n16bitpixels) {
+     printf("ERROR:  Returned frame size (# of 16 bit pixels) 0x%x != expected frame size 0x%x\n", 
+            rv, size_n16bitpixels);
      damage++;
 
   }
