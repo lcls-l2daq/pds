@@ -94,7 +94,7 @@ EbBase::EbBase(const Src& id,
   _discards(0),
   _ack(0),
   _vmoneb(vmoneb),
-  _require_in_order(true)
+  _require_in_order(false)
 {
   if (dstack) {
     const unsigned PayloadSize = 0;
@@ -223,6 +223,8 @@ EbBitMask EbBase::_armMask()
 
 void EbBase::_post(EbEventBase* event)
 {
+  event->post(false);
+
   InDatagram* indatagram = event->finalize();
   Datagram*   datagram   = const_cast<Datagram*>(&indatagram->datagram());
   EbBitMask   remaining  = event->remaining();
@@ -365,18 +367,11 @@ EbBitMask EbBase::_postEvent(EbEventBase* complete)
      }
    else {
      //  They don't complete in order, but we must post them in order
-     //  Mark this as complete
      complete->post(true);
      while( event != empty ) {
-       EbEventBase* next = event->forward();
-       if (event->post()) {
-         _post(event);
-         event->post(false);
-         if (event == complete) break;
-       }
-       else
-         break;
-       event = next;
+       if (!event->post()) break;
+       _post(event);
+       event = _pending.forward();
      }
    }
 
