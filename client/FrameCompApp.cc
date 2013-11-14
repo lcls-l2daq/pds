@@ -9,7 +9,10 @@
 #include "pds/config/CsPadConfigType.hh"
 #include "pds/config/CsPadDataType.hh"
 #include "pdsdata/psddl/cspad.ddl.h"
-//#include "pdsdata/psddl/cspad.ddl.h"
+
+#include "pds/config/pnCCDConfigType.hh"
+#include "pds/pnccd/FrameV0.hh"
+#include "pdsdata/psddl/pnccd.ddl.h"
 
 #include "pdsdata/compress/CompressedPayload.hh"
 #include "pdsdata/compress/CompressedXtc.hh"
@@ -188,6 +191,9 @@ namespace Pds {
 
 using namespace Pds;
 
+static std::vector<pnCCDConfigType> _configp;
+static std::vector<DetInfo>         _infop;
+
 static std::vector<CsPad::ConfigV4> _configv4;
 static std::vector<DetInfo>         _infov4;
 
@@ -349,6 +355,7 @@ void FCA::MyIter::process(Xtc* xtc)
   Xtc* mxtc = 0;
   
   const TypeId _FrameDataType(TypeId::Id_Frame,Camera::FrameV1::Version);
+  const DetInfo& info = static_cast<const DetInfo&>(xtc->src);
 
   if (xtc->contains.value() == _FrameDataType.value()) {
     const Camera::FrameV1& frame = *reinterpret_cast<const Camera::FrameV1*>(xtc->payload());
@@ -368,7 +375,6 @@ void FCA::MyIter::process(Xtc* xtc)
     //  We have to sparsify unwanted elements and change id
     //  from V1 to V2.
     //
-    const DetInfo& info = static_cast<const DetInfo&>(xtc->src);
     for(unsigned i=0; i<_info.size(); i++) {
       if (_info[i] == info) {
         const CsPadConfigType& cfg = _config[i];
@@ -449,6 +455,38 @@ void FCA::MyIter::process(Xtc* xtc)
                                         xtc->src.log(),xtc->src.phy(),
                                         TypeId::name(xtc->contains.id()),
                                         xtc->contains.version());
+  }
+  else if (xtc->contains.id() == TypeId::Id_pnCCDframe &&
+           xtc->contains.version() == 0) {
+    // shuffle
+    for(unsigned i=0; i<_infop.size(); i++) {
+      if (_infop[i] == info) {
+        PNCCD::FrameV0* f = reinterpret_cast<PNCCD::FrameV0*>(xtc->payload());
+        const pnCCDConfigType& cfg = _configp[i];
+        headerSize = sizeof(*f);
+        depth = 2;
+        std::vector<PNCCD::ImageQuadrant*> p(cfg.numLinks());
+        std::vector<PNCCD::ImageQuadrant*> q(cfg.numLinks());
+        for (unsigned i=0;i<cfg.numLinks();i++) {
+          headerOffsets.push_back( reinterpret_cast<const char*>(f)-xtc->payload() );
+          unsigned iq = f->elementId();
+          q[iq] = (PNCCD::ImageQuadrant*)f->data();
+          p[iq] = new PNCCD::ImageQuadrant;
+          f->shuffle(p[iq]);
+          f->convertThisToFrameV1();
+          f = f->next(cfg);
+        }
+        for (unsigned i=0;i<cfg.numLinks();i++) {
+          memcpy(q[i], p[i], sizeof(PNCCD::ImageQuadrant));
+          delete p[i];
+        }
+        break;
+      }
+    }   
+  }
+  else if (xtc->contains.value() == _pnCCDConfigType.value()) {
+    _configp.push_back(*reinterpret_cast<const pnCCDConfigType*>(xtc->payload()));
+    _infop  .push_back(static_cast<DetInfo&>(xtc->src));
   }
   else if (xtc->contains.value() == _CsPadConfigType.value()) {
     _config.push_back(*reinterpret_cast<const CsPadConfigType*>(xtc->payload()));
