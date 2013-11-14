@@ -40,7 +40,8 @@ EbEventBase::EbEventBase(EbBitMask creator,
   _segments         (),
   _timeouts         (MaxTimeouts),
   _datagram         (datagram),
-  _bClientGroupSet  (false)
+  _bClientGroupSet  (false),
+  _post             (false)
   {
   }
 
@@ -67,7 +68,8 @@ EbEventBase::EbEventBase() :
   _segments         (),
   _timeouts         (MaxTimeouts),
   _datagram         (0),
-  _bClientGroupSet  (false)
+  _bClientGroupSet  (false),
+  _post             (false)
   {
   }
 

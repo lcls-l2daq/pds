@@ -366,20 +366,16 @@ EbBitMask EbBase::_postEvent(EbEventBase* complete)
    else {
      //  They don't complete in order, but we must post them in order
      //  Mark this as complete
-     complete->remaining(EbBitMask(EbBitMask::FULL));
+     complete->post(true);
      while( event != empty ) {
        EbEventBase* next = event->forward();
-       EbBitMask rem = event->remaining();
-       rem &= ~complete->allocated().remaining();
-       if (rem.isZero())  // if complete
+       if (event->post()) {
          _post(event);
-       else if (nEbPrints) {
-         printf("complete out-of-order  rem %08x[%p]  cmp %08x[%p]\n",
-                event   ->remaining().value(), event,
-                complete->allocated().remaining().value(), complete);
-         nEbPrints--;
+         event->post(false);
+         if (event == complete) break;
        }
-       if (event == complete) break;
+       else
+         break;
        event = next;
      }
    }

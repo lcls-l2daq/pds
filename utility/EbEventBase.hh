@@ -30,6 +30,8 @@ class EbEventBase : public LinkedList<EbEventBase>
     EbBitMask&       segments  ();
     EbClients&       allocated ();
     Datagram*        datagram  ();
+    void             post      (bool);
+    bool             post      () const;
   public:
     virtual InDatagram* finalize() = 0;
   public:
@@ -42,12 +44,12 @@ class EbEventBase : public LinkedList<EbEventBase>
     EbBitMask     _segments;      // Clients for which a segment already exists
     int           _timeouts;      // How many counts before event timeouts
     Datagram*     _datagram;
-    
   public:
     void          setClientGroup(EbBitMask maskClientGroup);
     bool          isClientGroupSet();
   private:
     bool          _bClientGroupSet; // if client group has been updated. Used by EbSGroup to update the contribution list
+    bool          _post;
   };
 }
 
@@ -144,5 +146,9 @@ inline Pds::Datagram* Pds::EbEventBase::datagram()
 {
   return _datagram;
 }
+
+inline void Pds::EbEventBase::post(bool v) { _post=v; }
+
+inline bool Pds::EbEventBase::post() const { return _post; }
 
 #endif
