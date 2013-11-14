@@ -169,6 +169,7 @@ int Pds::RayonixServer::fetch( char* payload, int flags )
   int verbose = RayonixServer::verbose();
   int rv;
   int damage = 0;
+  char msgBuf[80];
 
   if (verbose) {
      printf("Entered %s\n", __PRETTY_FUNCTION__);
@@ -189,11 +190,19 @@ int Pds::RayonixServer::fetch( char* payload, int flags )
      printf("%s: received frame #%u/%u (0x%x)\n", __PRETTY_FUNCTION__, frameNumber, _count, rv);
   }
   
-  // Error checking, mark event as damaged
+  // Check for out of order condition
   if ((_count & 0xffff) != frameNumber) {
-    printf("ERROR:  count %d (0x%x) != frameNumber %d (0x%x)\n", _count,_count,(_count & 0xffff),(_count & 0xffff)); 
-    damage++;
-    // if the frameNumber and count do not agree, we are out of order and should stop the run?
+     snprintf(msgBuf, sizeof(msgBuf), "Rayonix ERROR:  count 0x%x != frameNumber 0x%x in %s\n", 
+              _count,(_count & 0xffff),__FUNCTION__);
+     fprintf(stderr, "%s: %s", __PRETTY_FUNCTION__, msgBuf);
+     // latch error
+     _outOfOrder = 1;
+     if (_occSend) { 
+        // send occurrence
+        _occSend->userMessage(msgBuf);
+        _occSend->outOfOrder();
+     }
+     return(-1);
   }
 
   if ((binning_f != _binning_f) || (binning_s != _binning_s)) {
@@ -203,17 +212,22 @@ int Pds::RayonixServer::fetch( char* payload, int flags )
   }
   // readFrame return -1 on ERROR, otherwise the number of 16-bit pixels read.
   else if (rv == -1) {
-     printf("ERROR:  readFrame return value is -1\n");
+     if (verbose) {
+        printf("ERROR:  readFrame return value is -1\n");
+     }
      damage++;
   }
   // size is # of bytes, while readFrame returns # of 16-bit pixels read.
   else if (rv != size_n16bitpixels) {
-     printf("ERROR:  Returned frame size (# of 16 bit pixels) 0x%x != expected frame size 0x%x\n", 
+     if (verbose) {
+        printf("ERROR:  Returned frame size (# of 16 bit pixels) 0x%x != expected frame size 0x%x\n", 
             rv, size_n16bitpixels);
-     damage++;
-
+     }
+     // I don't know what to expect for frame size...until I do, don't mark damage
+     //     damage++;
   }
-  
+
+
   if (damage) {
      memcpy(payload, &_xtcDamaged, sizeof(Xtc));
   }
