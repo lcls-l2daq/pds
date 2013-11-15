@@ -6,7 +6,7 @@ typedef struct {
 } RegisterV1;
 
 static const RegisterV1 _regs[ImpConfigType::NumberOfRegisters] = {
-  //addr     mask           default
+  // mask           default
   { 0xffff,        0x0       },   //    Gain_range
   { 0xffff,        0x5555    },   //    Cal_range
   { 0xffffffff,    0x98968200},   //    Reset
