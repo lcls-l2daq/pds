@@ -8,7 +8,7 @@ libsrcs_fexamp := \
 		 FexampServer.cc \
 		 FexampManager.cc
 #libsinc_fexamp :=
-libincs_fexamp := pgpcard pdsdata/include ndarray/include
+libincs_fexamp := pgpcard pdsdata/include ndarray/include boost/include 
 CPPFLAGS += -fno-strict-aliasing
 #CPPFLAGS += -fopenmp
 #LXFlAGS += -fopenmp

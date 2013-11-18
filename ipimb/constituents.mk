@@ -1,6 +1,6 @@
 libnames := ipimb
 
 libsrcs_ipimb := $(wildcard *.cc)
-libincs_ipimb := pdsdata/include ndarray/include
+libincs_ipimb := pdsdata/include ndarray/include boost/include 
 
 

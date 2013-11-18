@@ -29,7 +29,7 @@ libsrcs_camera := CameraBase.cc \
 		  OrcaCamera.cc \
 		  OrcaManager.cc
 
-libincs_camera := pdsdata/include ndarray/include 
+libincs_camera := pdsdata/include ndarray/include boost/include 
 
 libsrcs_camleutron := PicPortCL.cc
 libsinc_camleutron := /usr/include/lvsds
@@ -73,7 +73,7 @@ tgtlibs_camsend += pds/vmon pds/mon pds/camleutron pds/configdata
 tgtlibs_camsend += pdsdata/xtcdata pdsdata/psddl_pdsdata
 tgtlibs_camsend += $(leutron_libs)
 tgtincs_camsend += leutron/include
-tgtincs_camsend += pdsdata/include ndarray/include 
+tgtincs_camsend += pdsdata/include ndarray/include boost/include 
 
 tgtsrcs_camsendm := camsendm.cc
 tgtlibs_camsendm := pds/service pds/collection pds/utility pds/config pds/camera pds/client pds/xtc
@@ -102,7 +102,7 @@ tgtlibs_pdvserialcmd := edt/pdv
 tgtslib_pdvserialcmd := $(USRLIBDIR)/rt dl
 
 tgtsrcs_pdvcamsend := pdvcamsend.cc
-tgtincs_pdvcamsend := edt/include pdsdata/include ndarray/include 
+tgtincs_pdvcamsend := edt/include pdsdata/include ndarray/include boost/include 
 tgtlibs_pdvcamsend := pds/service pds/collection pds/utility pds/config pds/client pds/xtc
 tgtlibs_pdvcamsend += pds/vmon pds/mon pds/camera pds/camedt pds/configdata
 tgtlibs_pdvcamsend += pdsdata/xtcdata pdsdata/psddl_pdsdata

@@ -2,7 +2,7 @@ libnames := pnccd pnccdFrameV0
 
 libsrcs_pnccdFrameV0 := \
 		 FrameV0.cc
-libincs_pnccdFrameV0 := pdsdata/include ndarray/include
+libincs_pnccdFrameV0 := pdsdata/include ndarray/include boost/include 
 
 libsrcs_pnccd := \
 		 pnCCDConfigurator.cc \
@@ -10,7 +10,7 @@ libsrcs_pnccd := \
 		 pnCCDServer.cc \
 		 pnCCDManager.cc
 #libsinc_pnccd :=
-libincs_pnccd := pgpcard pdsdata/include ndarray/include
+libincs_pnccd := pgpcard pdsdata/include ndarray/include boost/include 
 CPPFLAGS += -fno-strict-aliasing
 #CPPFLAGS += -fopenmp
 #LXFlAGS += -fopenmp

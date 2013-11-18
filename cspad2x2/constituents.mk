@@ -11,7 +11,7 @@ libsrcs_cspad2x2 := \
 		 Cspad2x2Server.cc \
 		 Cspad2x2Manager.cc
 #libsinc_cspad2x2 :=
-libincs_cspad2x2 := pgpcard pdsdata/include ndarray/include
+libincs_cspad2x2 := pgpcard pdsdata/include ndarray/include boost/include 
 CPPFLAGS += -fno-strict-aliasing
 #CPPFLAGS += -fopenmp
 #LXFlAGS += -fopenmp
