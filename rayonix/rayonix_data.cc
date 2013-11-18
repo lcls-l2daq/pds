@@ -131,6 +131,18 @@ int Pds::rayonix_data::readFrame(uint16_t& frameNumber, char *payload, int paylo
     binning_s = pNotifyMsg->binning_s;
     expectlen = MAX_LINE_PIXELS * 2;
 
+    // sanity check binning
+    if ((binning_f < Rayonix_MX170HS::min_binning_f) ||
+        (binning_s < Rayonix_MX170HS::min_binning_s) ||
+        (binning_f > Rayonix_MX170HS::max_binning_f) ||
+        (binning_s > Rayonix_MX170HS::max_binning_s)) {
+      if (verbose) {
+        printf(" ** ERROR %s: invalid binning (%d:%d)\n\r",
+               __FUNCTION__, binning_f, binning_s);
+      }
+      return (-1);
+    }
+
     // fetch frame data
     recvsum = 0;
     dataFd = (pNotifyMsg->frameNumber & 1) ? _dataFdOdd : _dataFdEven;
@@ -197,7 +209,7 @@ int Pds::rayonix_data::readFrame(uint16_t& frameNumber, char *payload, int paylo
     printf(" *** ERROR %s: received %d bytes from notifyFd\n\r", __PRETTY_FUNCTION__, recvlen);
     rv = -1;
   }
-  return (rv == 0 ? pixelsReceived : rv);
+  return (rv == 0 ? MAX_FRAME_PIXELS/binning_s/binning_f : rv);
 }
 
 int createUdpSocket(int port)

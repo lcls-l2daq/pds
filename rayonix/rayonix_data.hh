@@ -21,6 +21,9 @@ namespace Pds
     enum { n_sensors = 4 };
     enum { n_sensors_fast = 2 };
     enum { n_sensors_slow = 2 };
+    enum { offset = 0 };
+    enum { min_binning_f = 2, max_binning_f = 10 };
+    enum { min_binning_s = 2, max_binning_s = 10 };
   }
 }
 
