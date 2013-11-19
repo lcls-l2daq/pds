@@ -94,7 +94,7 @@ EbBase::EbBase(const Src& id,
   _discards(0),
   _ack(0),
   _vmoneb(vmoneb),
-  _require_in_order(false)
+  _require_in_order(true)
 {
   if (dstack) {
     const unsigned PayloadSize = 0;
