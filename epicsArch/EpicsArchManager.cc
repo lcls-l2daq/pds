@@ -10,7 +10,7 @@
 
 #include "pds/service/Task.hh"
 #include "pds/service/Routine.hh"
-#include "pds/service/GenericPool.hh"
+#include "pds/service/GenericPoolW.hh"
 #include "pds/xtc/CDatagram.hh"
 #include "pds/utility/Occurrence.hh"
 #include "pds/client/Fsm.hh"
@@ -263,7 +263,7 @@ EpicsArchManager::EpicsArchManager(CfgClientNfs & cfg, const std::string & sFnCo
   _pFsm->callback(TransitionId::L1Accept, _pActionL1Accept);
   _pFsm->callback(TransitionId::Disable, _pActionDisable);
 
-  _pPool    = new GenericPool(EpicsArchMonitor::iMaxXtcSize, 32);
+  _pPool    = new GenericPoolW(EpicsArchMonitor::iMaxXtcSize, 32);
   _occPool  = new GenericPool(sizeof(UserMessage), 4);
 
   //  string s;
