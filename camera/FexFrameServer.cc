@@ -73,6 +73,9 @@ void FexFrameServer::doConfigure(Transition* tr)
 
 UserMessage* FexFrameServer::validate(unsigned w, unsigned h)
 {
+  if (_config->damage().value())
+    return 0;
+
   const FrameFexConfigType& c = *reinterpret_cast<const FrameFexConfigType*>(_config->current());
   if (c.forwarding()==FrameFexConfigType::RegionOfInterest)
     if (!(c.roiBegin().column() < w &&
