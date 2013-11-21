@@ -30,7 +30,7 @@ Cspad2x2QuadRegisters::~Cspad2x2QuadRegisters() {}
 //  injTotal       (0x300006);
 //  acqCount       (0x300007);
 //  cmdCount       (0x300008);
-//  shiftTest      (0x400000);
+//  shiftTest      (0x400000);    !!! commented out
 //  rowColShiftPer (0x400001);
 //  version        (0x500000);
 //  cntRxCellError (0x500001);
@@ -53,7 +53,7 @@ unsigned Cspad2x2QuadRegisters::_foo[][2] = {
     {0x300004, 1},   //  acqTimer
     {0x300007, 1},   //  acqCount
     {0x300008, 1},   //  cmdCount
-    {0x400000, 1},   //  shiftTest
+//    {0x400000, 1},   //  shiftTest
     {0x500000, 1},   //  version
     {0x500001, 1},   //  RxCounters cell errors
     {0x500002, 1},   //     ..      link down
@@ -88,7 +88,7 @@ void Cspad2x2QuadRegisters::print() {
     printf("\treadTimer(%u)(%uns)\n", (unsigned)readTimer, (unsigned)readTimer<<5);
     printf("\tacqCount(%u)\n", (unsigned)acqCount);
     printf("\tcmdCount(%u)\n", (unsigned)cmdCount);
-    printf("\tshiftTest(0x%x)\n", (unsigned)shiftTest);
+//    printf("\tshiftTest(0x%x)\n", (unsigned)shiftTest);
     printf("\tRx "); RxCounters.print(); printf("\n");
     printf("\tbufferError(%u)\n", (unsigned)bufferError);
     printf("\ttemperatures(");

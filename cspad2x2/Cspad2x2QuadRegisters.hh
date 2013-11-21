@@ -44,7 +44,7 @@ namespace Pds {
         uint32_t           acqTimer;
         uint32_t           acqCount;
         uint32_t           cmdCount;
-        uint32_t           shiftTest;  // also read only config
+//        uint32_t           shiftTest;  // also read only config
         uint32_t           version;    // also read only config
         Cspad2x2LinkCounters  RxCounters;
         uint32_t           readTimer;

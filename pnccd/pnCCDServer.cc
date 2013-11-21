@@ -91,14 +91,14 @@ unsigned pnCCDServer::configure(pnCCDConfigType* config) {
 }
 
 void Pds::pnCCDServer::die() {
-  if (_pgp != 0) {
-    printf("pnCCDServer::die has been called !!!!!!!\n");
-   }
+  printf("pnCCDServer::die has been called !!!!!!!\n");
 }
 
 void Pds::pnCCDServer::dumpFrontEnd() {
-  disable();
-  _cnfgrtr->dumpFrontEnd();
+  if (_pgp) {
+    disable();
+    _cnfgrtr->dumpFrontEnd();
+  }
 }
 
 void pnCCDServer::process() {
