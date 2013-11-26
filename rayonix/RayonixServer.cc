@@ -46,11 +46,11 @@ unsigned Pds::RayonixServer::configure(RayonixConfigType& config)
   int darkFlag = (int)config.darkFlag();
   int readoutMode = (int)config.readoutMode();    
   char deviceBuf[Pds::rayonix_control::DeviceIDMax+1];
-  // FIX this - for now, testPattern is 0
+  //  int testPattern = (int) config.testPattern();
   int testPattern = 0;
   char msgBuf[100];
   
-  if (verbose() > 0) {
+  if (_verbose) {
     printf(" *** entered %s\n", __PRETTY_FUNCTION__);
   }
 
@@ -79,7 +79,7 @@ unsigned Pds::RayonixServer::configure(RayonixConfigType& config)
   _count = 0;
 
   // create rayonix control object (to be deleted in unconfigure())
-  _rnxctrl = new rayonix_control((verbose() > 0), RNX_IPADDR, RNX_CONTROL_PORT);
+  _rnxctrl = new rayonix_control(_verbose, RNX_IPADDR, RNX_CONTROL_PORT);
 
   if (_rnxctrl) {
     do {
@@ -126,7 +126,7 @@ unsigned Pds::RayonixServer::unconfigure(void)
 {
   unsigned numErrs = 0;
 
-  if (verbose() > 0) {
+  if (_verbose) {
     printf(" *** entered %s\n", __PRETTY_FUNCTION__);
   }
 
@@ -160,10 +160,8 @@ int Pds::RayonixServer::fetch( char* payload, int flags )
   uint16_t frameNumber;
   int width  = Pds::Rayonix_MX170HS::n_pixels_fast/_binning_f;
   int height = Pds::Rayonix_MX170HS::n_pixels_slow/_binning_s;
-  int depth  = Pds::Rayonix_MX170HS::depth_bytes;
   int offset = 0;
-  int size = width*height*depth;
-  int size_n16bitpixels = size/2;
+  int size_npixels = width*height;
   int binning_f = 0;
   int binning_s = 0;
   int verbose = RayonixServer::verbose();
@@ -181,7 +179,7 @@ int Pds::RayonixServer::fetch( char* payload, int flags )
 
   // read data from UDP socket
   offset += sizeof(Xtc);
-  new (payload+offset) Pds::Camera::FrameV1::FrameV1(width, height, depth, 0);
+  new (payload+offset) Pds::Camera::FrameV1::FrameV1(width, height, Pds::Rayonix_MX170HS::depth_bits, 0);
 
   rv = _rnxdata->readFrame(frameNumber, (payload+offset), MAXFRAME, binning_f, binning_s, verbose);
   _count++;
@@ -193,7 +191,7 @@ int Pds::RayonixServer::fetch( char* payload, int flags )
   // Check for out of order condition
   if ((_count & 0xffff) != frameNumber) {
      snprintf(msgBuf, sizeof(msgBuf), "Rayonix ERROR:  count 0x%x != frameNumber 0x%x in %s\n", 
-              _count,(_count & 0xffff),__FUNCTION__);
+              _count, frameNumber, __FUNCTION__);
      fprintf(stderr, "%s: %s", __PRETTY_FUNCTION__, msgBuf);
      // latch error
      _outOfOrder = 1;
@@ -218,22 +216,20 @@ int Pds::RayonixServer::fetch( char* payload, int flags )
      damage++;
   }
   // size is # of bytes, while readFrame returns # of 16-bit pixels read.
-  else if (rv != size_n16bitpixels) {
+  else if (rv != size_npixels) {
      if (verbose) {
         printf("ERROR:  Returned frame size (# of 16 bit pixels) 0x%x != expected frame size 0x%x\n", 
-            rv, size_n16bitpixels);
+            rv, size_npixels);
      }
-     // I don't know what to expect for frame size...until I do, don't mark damage
-     //     damage++;
+     damage++;
   }
-
 
   if (damage) {
      memcpy(payload, &_xtcDamaged, sizeof(Xtc));
   }
   else {
-     // Calculate xtc extent
-     _xtc.extent = rv + sizeof(Xtc);
+     // Calculate xtc extent (rv is number of pixels -> convert to bytes)
+     _xtc.extent = rv*Pds::Rayonix_MX170HS::depth_bytes + sizeof(Xtc);
      
      // copy xtc header to payload
      memcpy(payload, &_xtc, sizeof(Xtc));
