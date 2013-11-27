@@ -10,7 +10,6 @@
 
 #include "EvgrBoardInfo.hh"
 #include "EvrManager.hh"
-#include "EvrCfgClient.hh"
 #include "EvrFifoServer.hh"
 
 #include "pds/evgr/EvrMasterFIFOHandler.hh"
@@ -22,6 +21,7 @@
 #include "pds/client/Action.hh"
 #include "pds/xtc/EvrDatagram.hh"
 #include "pds/config/EvrConfigType.hh" // typedefs for the Evr config data types
+#include "pds/config/CfgClientNfs.hh"
 
 #include "pds/service/GenericPool.hh"
 #include "pds/service/Task.hh"
@@ -369,7 +369,7 @@ public:
   
 private:
   Evr&            _er;
-  EvrCfgClient    _cfg;
+  CfgClientNfs&   _cfg;
   Xtc             _cfgtc;
   char *          _configBuffer;
   const EvrConfigType* _cur_config;

@@ -12,17 +12,17 @@ namespace Pds {
   class CfgClientNfs {
   public:
     CfgClientNfs( const Src& src );
-    ~CfgClientNfs() {}
+    virtual ~CfgClientNfs() {}
 
     const Src& src() const;
 
     void initialize(const Allocation&);
 
-    int fetch(const Transition& tr, 
-	      const TypeId&     id, 
-	      void*             dst,
-	      unsigned          maxSize=0x100000);
-
+    virtual int fetch(const Transition& tr, 
+                      const TypeId&     id, 
+                      void*             dst,
+                      unsigned          maxSize=0x100000);
+    
   private:
     enum { PathSize=128 };
     Src      _src;
