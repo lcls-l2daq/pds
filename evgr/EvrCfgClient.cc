@@ -18,35 +18,37 @@ EvrCfgClient::EvrCfgClient( const Src&  src,
   CfgClientNfs(src),
   _buffer(new char[BufferSize])
 {
-  char *n;
-  char *p = strtok_r(eclist,",",&n);
-  while(p) {
-    printf("\tparsing %s\n",p);
-    char* endp;
-    char* q = strchr(p,'-');
-    if (q) {
-      unsigned v0 = strtoul(p,&endp,0);
-      if (endp!=q) {
-        printf("EvrCfgClient::error parsing default eventcode range %s\n",p);
-        exit(1);
+  if (eclist) {
+    char *n;
+    char *p = strtok_r(eclist,",",&n);
+    while(p) {
+      printf("\tparsing %s\n",p);
+      char* endp;
+      char* q = strchr(p,'-');
+      if (q) {
+	unsigned v0 = strtoul(p,&endp,0);
+	if (endp!=q) {
+	  printf("EvrCfgClient::error parsing default eventcode range %s\n",p);
+	  exit(1);
+	}
+	unsigned v1 = strtoul(q+1,&endp,0);
+	if (*endp) {
+	  printf("EvrCfgClient::error parsing default eventcode range %s\n",p);
+	  exit(1);
+	}
+	while(v0 <= v1)
+	  _default_codes.push_back(v0++);
       }
-      unsigned v1 = strtoul(q+1,&endp,0);
-      if (*endp) {
-        printf("EvrCfgClient::error parsing default eventcode range %s\n",p);
-        exit(1);
+      else {
+	unsigned v0 = strtoul(p,&endp,0);
+	if (*endp) {
+	  printf("EvrCfgClient::error parsing default eventcode %s\n",p);
+	  exit(1);
+	}
+	_default_codes.push_back(v0);
       }
-      while(v0 <= v1)
-        _default_codes.push_back(v0++);
+      p = strtok_r(0,",",&n);
     }
-    else {
-      unsigned v0 = strtoul(p,&endp,0);
-      if (*endp) {
-        printf("EvrCfgClient::error parsing default eventcode %s\n",p);
-        exit(1);
-      }
-      _default_codes.push_back(v0);
-    }
-    p = strtok_r(0,",",&n);
   }
 }
 

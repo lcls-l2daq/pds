@@ -9,7 +9,7 @@ namespace Pds {
 
   class EvrCfgClient : public CfgClientNfs {
   public:
-    EvrCfgClient( const Src& src, char* eclist );
+    EvrCfgClient( const Src& src, char* eclist=0 );
     ~EvrCfgClient();
 
     int fetch(const Transition& tr, 
