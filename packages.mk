@@ -8,6 +8,7 @@ packages += oceanoptics fli andor usdusb
 packages += cspad cspad2x2
 packages += ioc
 packages += rayonix
+packages += epixSampler
 
 ifneq ($(findstring x86_64,$(tgt_arch)),)
   packages += firewire
