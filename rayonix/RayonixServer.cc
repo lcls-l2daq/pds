@@ -160,7 +160,6 @@ int Pds::RayonixServer::fetch( char* payload, int flags )
   uint16_t frameNumber;
   int width  = Pds::Rayonix_MX170HS::n_pixels_fast/_binning_f;
   int height = Pds::Rayonix_MX170HS::n_pixels_slow/_binning_s;
-  int offset = 0;
   int size_npixels = width*height;
   int binning_f = 0;
   int binning_s = 0;
@@ -178,9 +177,10 @@ int Pds::RayonixServer::fetch( char* payload, int flags )
   }
 
   // read data from UDP socket
-  offset += sizeof(Xtc);
+  int offset = sizeof(Xtc);
   new (payload+offset) Pds::Camera::FrameV1::FrameV1(width, height, Pds::Rayonix_MX170HS::depth_bits, 0);
 
+  offset += sizeof(Pds::Camera::FrameV1);
   rv = _rnxdata->readFrame(frameNumber, (payload+offset), MAXFRAME, binning_f, binning_s, verbose);
   _count++;
 
@@ -229,7 +229,7 @@ int Pds::RayonixServer::fetch( char* payload, int flags )
   }
   else {
      // Calculate xtc extent (rv is number of pixels -> convert to bytes)
-     _xtc.extent = rv*Pds::Rayonix_MX170HS::depth_bytes + sizeof(Xtc);
+     _xtc.extent = rv*Pds::Rayonix_MX170HS::depth_bytes + offset;
      
      // copy xtc header to payload
      memcpy(payload, &_xtc, sizeof(Xtc));
