@@ -230,10 +230,10 @@ unsigned EpixSamplerConfigurator::writeConfig() {
     printf("EpixSamplerConfigurator::writeConfig kludge failed writing 3 to address 8\n");
     ret = Failure;
   }
-//  if (_pgp->writeRegister(&_d, configAddrs[r-1], u[r-1] | 0x80)) {
-//    printf("EpixSamplerConfigurator::writeConfig kludge failed writing 1 to bit 7 of pin control\n");
-//    ret = Failure;
-//  }
+  if (_pgp->writeRegister(&_d, configAddrs[r-1], u[r-1] | 0x80)) {
+    printf("EpixSamplerConfigurator::writeConfig kludge failed writing 1 to bit 7 of pin control\n");
+    ret = Failure;
+  }
   if (ret == Success) return checkWrittenConfig(true);
   else return ret;
 }
