@@ -20,6 +20,7 @@
 #include "pds/client/Action.hh"
 #include "pds/config/EpixSamplerConfigType.hh"
 #include "pds/epixSampler/EpixSamplerServer.hh"
+#include "pds/pgp/Pgp.hh"
 #include "pds/pgp/DataImportFrame.hh"
 #include "pdsdata/xtc/DetInfo.hh"
 #include "pds/epixSampler/EpixSamplerManager.hh"
@@ -381,6 +382,13 @@ EpixSamplerManager::EpixSamplerManager( EpixSamplerServer* server, unsigned d) :
    } else {
      sprintf(devName, "/dev/pgpcard_%u_%u", d & 0xf, ports);
    }
+
+   unsigned offset = 0;
+   while ((((ports>>offset) & 1) == 0) && (offset < 5)) {
+     offset += 1;
+   }
+
+   Pds::Pgp::Pgp::portOffset(offset);
 
    int epixSampler = open( devName,  O_RDWR);
    printf("pgpcard file number %d\n pgpcard number %u, portmask 0x%x", epixSampler, d & 0xf, ports);
