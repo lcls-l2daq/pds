@@ -44,7 +44,7 @@ unsigned Pds::RayonixServer::configure(RayonixConfigType& config)
   int trigger = (int)config.trigger();
   int rawMode = (int)config.rawMode();
   int darkFlag = (int)config.darkFlag();
-  int readoutMode = (int)config.readoutMode();    
+  int readoutMode = (int)config.readoutMode() + 1;  // convert 0-based to 1-based
   char deviceBuf[Pds::rayonix_control::DeviceIDMax+1];
   //  int testPattern = (int) config.testPattern();
   int testPattern = 0;
@@ -66,10 +66,13 @@ unsigned Pds::RayonixServer::configure(RayonixConfigType& config)
         _occSend->userMessage(msgBuf);
      }
   }
-     
+
+  // /opt/rayonix/include/craydl/RxDetector.h:
+  //   enum ReadoutMode_t {RM_Unknown, RM_Standard, RM_HighGain, RM_LowNoise, RM_HDR};
+  //   
   // If the readoutMode is Unknown, send an occurrence
-  if (readoutMode == 0) {
-    snprintf(msgBuf, sizeof(msgBuf), "ERROR: readoutMode 0 (Unknown) is unsupported");
+  if ((readoutMode < 1) || (readoutMode > 4)) {
+    snprintf(msgBuf, sizeof(msgBuf), "ERROR: 1-based readoutMode %d (Unknown) is unsupported\n", readoutMode);
     fprintf(stderr, "%s: %s", __PRETTY_FUNCTION__, msgBuf);
     if (_occSend != NULL) {
       _occSend->userMessage(msgBuf);
