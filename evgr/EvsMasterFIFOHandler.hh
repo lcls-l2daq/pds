@@ -1,10 +1,8 @@
-#ifndef Pds_EvrMasterFIFOHandler_hh
-#define Pds_EvrMasterFIFOHandler_hh
+#ifndef Pds_EvsMasterFIFOHandler_hh
+#define Pds_EvsMasterFIFOHandler_hh
 
 #include <vector>
 #include <time.h>
-
-#include "pds/evgr/EvrFIFOHandler.hh"
 
 /*
  * Signal handler, for processing the incoming event codes, and providing interfaces for
@@ -23,6 +21,7 @@
 #include "pds/service/GenericPool.hh"
 #include "pds/evgr/EvrL1Data.hh"
 #include "pds/evgr/EvrSync.hh"
+#include "pds/config/EvsConfigType.hh"
 
 namespace Pds {
 
@@ -37,34 +36,32 @@ namespace Pds {
   class EvrFifoServer;
   class EvrTimer;
 
-  class EvrMasterFIFOHandler : public EvrFIFOHandler {
+  class EvsMasterFIFOHandler {
   public:
     enum { guNumTypeEventCode = 256 };
     enum { giMaxCommands      = 32 };
     enum { giMaxNumFifoEvent  = 32 };
     enum { giNumL1Buffers     = 32 };
-    enum { TERMINATOR         = 1 };
   public:
-    EvrMasterFIFOHandler(Evr&, 
-			 const Src&, 
-			 Appliance&, 
-                         EvrFifoServer&,
-			 unsigned partition,
-			 int      iMaxGroup,
-			 unsigned neventnodes,
-			 bool     randomize,
-			 Task*    task);
-    virtual ~EvrMasterFIFOHandler();
+    EvsMasterFIFOHandler(Evr&, 
+			   const Src&, 
+			   Appliance&, 
+			   EvrFifoServer&,
+			   unsigned partition,
+			   int      iMaxGroup,
+			   unsigned neventnodes,
+			   bool     randomize,
+			   Task*    task);
+    virtual ~EvsMasterFIFOHandler();
   public:
     virtual void        fifo_event  (const FIFOEvent&);  // formerly 'xmit'
     virtual InDatagram* l1accept    (InDatagram*);
     virtual Transition* enable      (Transition*);
     virtual Transition* disable     (Transition*);
-    virtual void        set_config  (const EvrConfigType*);
+    virtual void        set_config  (const EvsConfigType*);
     virtual Transition* config      (Transition*); // config action
     virtual Transition* endcalib    (Transition*);
     virtual void        get_sync    ();
-    virtual void        release_sync();
 
   private:
     unsigned int          uFiducialPrev; // public data for checking fiducial increasing steps
@@ -96,14 +93,13 @@ namespace Pds {
     Ins                   _swtrig_dst;
     const Src&            _src;
 
-    GenericPool           _poolEvrData;    
+    GenericPool           _pool;    
     
     unsigned              _evtCounter;
     std::vector<unsigned> _lSegEvtCounter;
     unsigned              _evtStop;
     int                   _iMaxGroup;
     uint32_t              _uMaskReadout;
-    const EvrConfigType*  _pEvrConfig;
     EvrDataUtil&          _L1DataUpdated;     // codes that contribute to the coming L1Accept
     EvrDataUtil&          _L1DataLatchQ;      // codes that contribute to later L1Accepts. Holding first-order transient events.
     EvrDataUtil&          _L1DataLatch;       // codes that contribute to later L1Accepts. Holding second-order transient events and first-order latch events
@@ -115,7 +111,6 @@ namespace Pds {
 
     unsigned              _lastFiducial;
 
-    EvrSyncMaster         _sync;
     Transition*           _tr;
     timespec              _thisTime;
     timespec              _lastTime;
@@ -136,9 +131,6 @@ namespace Pds {
 
     // Update Fifo event to the evrData with boundary check
     int updateFifoEventCheck( EvrDataUtil& evrData, const Pds::EvrData::FIFOEvent& fe );
-  
-    // Add a special event to the current evrData
-    int addSpecialEvent( EvrDataUtil& evrData, const Pds::EvrData::FIFOEvent &feCur );
   
     void addCommand( const FIFOEvent& fe );
 

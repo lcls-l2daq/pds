@@ -9,18 +9,17 @@
 #include <stdlib.h>
 
 #include "EvgrBoardInfo.hh"
-#include "EvrManager.hh"
+#include "EvsManager.hh"
 #include "EvrFifoServer.hh"
 
-#include "pds/evgr/EvrMasterFIFOHandler.hh"
-#include "pds/evgr/EvrSlaveFIFOHandler.hh"
+#include "pds/evgr/EvsMasterFIFOHandler.hh"
 
 #include "evgr/evr/evr.hh"
 
 #include "pds/client/Fsm.hh"
 #include "pds/client/Action.hh"
 #include "pds/xtc/EvrDatagram.hh"
-#include "pds/config/EvrConfigType.hh" // typedefs for the Evr config data types
+#include "pds/config/EvsConfigType.hh" // typedefs for the Evr config data types
 #include "pds/config/CfgClientNfs.hh"
 
 #include "pds/service/GenericPool.hh"
@@ -36,29 +35,31 @@
 using namespace Pds;
 
 static bool _randomize_nodes = false;
-static EvrFIFOHandler* _fifo_handler;
+static EvsMasterFIFOHandler* _fifo_handler;
 
 static const int      giMaxEventCodes   = 64; // max number of event code configurations
 static const int      giMaxPulses       = 10; 
 static const int      giMaxOutputMaps   = 80; 
 static const int      giMaxCalibCycles  = 500;
-static const unsigned TERMINATOR        = 1;
 static EvgrBoardInfo < Evr > *erInfoGlobal; // yuck
 
-class EvrAction:public Action
+static const unsigned running_ram    = 0;
+static const unsigned persistent_ram = 1;
+
+class EvsAction:public Action
 {
 public:
-  EvrAction(Evr & er):_er(er)
+  EvsAction(Evr & er):_er(er)
   {
   }
   Evr & _er;
 };
 
-class EvrL1Action:public EvrAction
+class EvsL1Action:public EvsAction
 {
 public:
-  EvrL1Action(Evr & er, const Src& src, Appliance* app) :
-    EvrAction(er),
+  EvsL1Action(Evr & er, const Src& src, Appliance* app) :
+    EvsAction(er),
     _occPool        (sizeof(Occurrence),2), 
     _app            (app),
     _outOfOrder     (false) {}
@@ -90,11 +91,11 @@ private:
   bool        _outOfOrder;
 };
 
-class EvrEnableAction:public EvrAction
+class EvsEnableAction:public EvsAction
 {
 public:
-  EvrEnableAction(Evr&       er,
-      Appliance& app) : EvrAction(er), _app(app) {}
+  EvsEnableAction(Evr&       er,
+      Appliance& app) : EvsAction(er), _app(app) {}
     
   Transition* fire(Transition* tr)
   {
@@ -125,24 +126,23 @@ static unsigned int evrConfigSize(unsigned maxNumEventCodes, unsigned maxNumPuls
     maxNumOutputMaps * sizeof(OutputMapType));
 }
 
-class EvrConfigManager
+class EvsConfigManager
 {
 public:
-  EvrConfigManager(Evr & er, CfgClientNfs & cfg, Appliance& app, bool bTurnOffBeamCodes):
+  EvsConfigManager(Evr & er, CfgClientNfs & cfg, Appliance& app):
     _er (er),
     _cfg(cfg),
-    _cfgtc(_evrConfigType, cfg.src()),
+    _cfgtc(_evsConfigType, cfg.src()),
     _configBuffer(
       new char[ giMaxCalibCycles* evrConfigSize( giMaxEventCodes, giMaxPulses, giMaxOutputMaps ) ] ),
     _cur_config(0),
     _end_config(0),
     _occPool   (new GenericPool(sizeof(UserMessage),1)),
-    _app       (app),
-    _bTurnOffBeamCodes(_bTurnOffBeamCodes)
+    _app       (app)
   {
   }
 
-   ~EvrConfigManager()
+   ~EvsConfigManager()
   {
     delete   _occPool;
     delete[] _configBuffer;
@@ -158,13 +158,15 @@ public:
     if (!_cur_config)
       return;
 
+    _disable();
+
     bool slacEvr     = reinterpret_cast<uint32_t*>(&_er)[11] == 0x1f;
     unsigned nerror  = 0;
     UserMessage* msg = new(_occPool) UserMessage;
     msg->append(DetInfo::name(static_cast<const DetInfo&>(_cfgtc.src)));
     msg->append(":");
 
-    const EvrConfigType& cfg = *_cur_config;
+    const EvsConfigType& cfg = *_cur_config;
 
     printf("Configuring evr : %d/%d/%d\n",
            cfg.npulses(),cfg.neventcodes(),cfg.noutputs());
@@ -195,112 +197,121 @@ public:
     }
 
     // setup map ram
-    int ram = 0;
     int enable = 1;
 
     for (unsigned k = 0; k < cfg.npulses(); k++)
-    {
-      const PulseType & pc = cfg.pulses()[k];
-      _er.SetPulseProperties(
-        pc.pulseId(),
-        pc.polarity(),
-        1, // Enable reset from event code
-        1, // Enable set from event code
-        1, // Enable trigger from event code        
-        1  // Enable pulse
-        );
-        
-      unsigned prescale=pc.prescale();
-      unsigned delay   =pc.delay()*prescale;
-      unsigned width   =pc.width()*prescale;
-
-      if (pc.pulseId()>3 && (width>>16)!=0 && !slacEvr) 
       {
-        nerror++;
-        char buff[64];
-        sprintf(buff,"EVR pulse %d width %gs exceeds maximum.\n",
-          pc.pulseId(), double(width)/119e6);
-        msg->append(buff);
+	const PulseType & pc = cfg.pulses()[k];
+	_er.SetPulseProperties(
+			       pc.pulseId(),
+			       pc.polarity(),
+			       1, // Enable reset from event code
+			       1, // Enable set from event code
+			       1, // Enable trigger from event code        
+			       1  // Enable pulse
+			       );
+        
+	unsigned prescale=pc.prescale();
+	unsigned delay   =pc.delay()*prescale;
+	unsigned width   =pc.width()*prescale;
+	
+	if (pc.pulseId()>3 && (width>>16)!=0 && !slacEvr) 
+	  {
+	    nerror++;
+	    char buff[64];
+	    sprintf(buff,"EVR pulse %d width %gs exceeds maximum.\n",
+		    pc.pulseId(), double(width)/119e6);
+	    msg->append(buff);
+	  }
+	
+	_er.SetPulseParams(pc.pulseId(), prescale, delay, width);
+	
+	printf("pulse %d :%d %c %d/%8d/%8d\n",
+	       k, pc.pulseId(), pc.polarity() ? '-':'+', 
+	       prescale, delay, width);
       }
-
-      _er.SetPulseParams(pc.pulseId(), prescale, delay, width);
-
-      printf("pulse %d :%d %c %d/%8d/%8d\n",
-             k, pc.pulseId(), pc.polarity() ? '-':'+', 
-             prescale, delay, width);
-    }
-
+    
     _er.DumpPulses(cfg.npulses());
 
     for (unsigned k = 0; k < cfg.noutputs(); k++)
-    {
-      const OutputMapType & map = cfg.output_maps()[k];
-      unsigned conn_id = map.conn_id();
-
-      if (conn_id>9 && !slacEvr) {
-        nerror++;
-        char buff[64];
-        sprintf(buff,"EVR output %d out of range [0-9].\n", conn_id);
-        msg->append(buff);
-      }
-
-      switch (map.conn())
       {
-      case OutputMapType::FrontPanel:
-        _er.SetFPOutMap(conn_id, Pds::EvrConfig::map(map));
-        break;
-      case OutputMapType::UnivIO:
-        _er.SetUnivOutMap(conn_id, Pds::EvrConfig::map(map));
-        break;
+	const OutputMapType & map = cfg.output_maps()[k];
+	unsigned conn_id = map.conn_id();
+	
+	if (conn_id>9 && !slacEvr) {
+	  nerror++;
+	  char buff[64];
+	  sprintf(buff,"EVR output %d out of range [0-9].\n", conn_id);
+	  msg->append(buff);
+	}
+	
+	switch (map.conn())
+	  {
+	  case OutputMapType::FrontPanel:
+	    _er.SetFPOutMap(conn_id, Pds::EvsConfig::map(map));
+	    break;
+	  case OutputMapType::UnivIO:
+	    _er.SetUnivOutMap(conn_id, Pds::EvsConfig::map(map));
+	    break;
+	  }
+	
+	printf("output %d : %d %x\n", k, conn_id, Pds::EvsConfig::map(map));
       }
-
-      printf("output %d : %d %x\n", k, conn_id, Pds::EvrConfig::map(map));
-    }
     
     /*
      * enable event codes, and setup each event code's pulse mapping
      */
-    for (unsigned int uEventIndex = 0; uEventIndex < cfg.neventcodes(); uEventIndex++ )
-    {
-      const EventCodeType& eventCode = cfg.eventcodes()[uEventIndex];
+    if (cfg.neventcodes() != 1) {
+      nerror++;
+      char buff[64];
+      sprintf(buff,"EVR neventcodes(%d) != 1 for internal sequence setup.\n", cfg.neventcodes());
+      msg->append(buff);
+    }
+    else {
+      int uEventIndex=0;
+
+      const EvsCodeType& eventCode = cfg.eventcodes()[uEventIndex];
               
-      _er.SetFIFOEvent(ram, eventCode.code(), enable);
+      for(unsigned ram=0; ram<2; ram++) 
+	{
+	  _er.SetFIFOEvent(ram, eventCode.code(), enable);
       
-      unsigned int  uPulseBit     = 0x0001;
-      uint32_t      u32TotalMask  = ( eventCode.maskTrigger() | eventCode.maskSet() | eventCode.maskClear() );
+	  unsigned int  uPulseBit     = 0x0001;
+	  uint32_t      u32Mask  = eventCode.maskTriggerP();
+	  if (ram == running_ram)
+	    u32Mask |= eventCode.maskTriggerR();
       
-      for ( int iPulseIndex = 0; iPulseIndex < EVR_MAX_PULSES; iPulseIndex++, uPulseBit <<= 1 )
-      {
-        if ( (u32TotalMask & uPulseBit) == 0 ) continue;
+	  for ( int iPulseIndex = 0; iPulseIndex < EVR_MAX_PULSES; iPulseIndex++, uPulseBit <<= 1 )
+	    {
+	      if ( (u32Mask & uPulseBit) == 0 ) continue;
         
-        _er.SetPulseMap(ram, eventCode.code(), 
-          ((eventCode.maskTrigger() & uPulseBit) != 0 ? iPulseIndex : -1 ),
-          ((eventCode.maskSet()     & uPulseBit) != 0 ? iPulseIndex : -1 ),
-          ((eventCode.maskClear()   & uPulseBit) != 0 ? iPulseIndex : -1 )
-          );          
+	      _er.SetPulseMap(ram, eventCode.code(), 
+			      ((u32Mask & uPulseBit) != 0 ? iPulseIndex : -1 ),
+			      -1, -1);
+	    }
+	}
+
+      if (eventCode.period()) {
+	_er.InternalSequenceSetCode    ( eventCode.code() );
+	_er.InternalSequenceSetPrescale( eventCode.period()-1 );
+	_er.InternalSequenceEnable     (1);
+      }
+      else {
+	_er.ExternalSequenceSetCode    ( eventCode.code() );
+	_er.ExternalSequenceEnable     (1);
       }
 
-      printf("event %d : %d %x/%x/%x readout %d group %d\n",
+      printf("event %d : %d %x/%x group %d\n",
        uEventIndex, eventCode.code(), 
-       eventCode.maskTrigger(),
-       eventCode.maskSet(),
-       eventCode.maskClear(),
-       (int) eventCode.isReadout(),
+       eventCode.maskTriggerP(),
+       eventCode.maskTriggerR(),
        eventCode.readoutGroup());       
     }
-    
-    if (!_bTurnOffBeamCodes)
-    {
-      _er.SetFIFOEvent(ram, EvrManager::EVENT_CODE_BEAM,  enable);
-      _er.SetFIFOEvent(ram, EvrManager::EVENT_CODE_BYKIK, enable);
-      _er.SetFIFOEvent(ram, EvrManager::EVENT_CODE_ALKIK, enable);
-      _er.SetFIFOEvent(ram, EvrSyncMaster::EVENT_CODE_SYNC, enable);
-    }
-    
-    _er.SetFIFOEvent(ram, TERMINATOR, enable);
 
-    unsigned dummyram = 1;
-    _er.MapRamEnable(dummyram, 1);
+    for(unsigned ram=0; ram<2; ram++)
+      _er.DumpMapRam(ram);
+
+    _er.MapRamEnable(persistent_ram, 1);
 
     if (_fifo_handler)
       _fifo_handler->set_config( &cfg );
@@ -311,6 +322,8 @@ public:
     }
     else
       delete msg;
+
+    _enable();
   }
 
   //
@@ -325,7 +338,7 @@ public:
     _cfgtc.damage = 0;
     _cfgtc.damage.increase(Damage::UserDefined);
 
-    int len = _cfg.fetch(*tr, _evrConfigType, _configBuffer);
+    int len = _cfg.fetch(*tr, _evsConfigType, _configBuffer);
     if (len <= 0)
     {
       _cur_config = 0;
@@ -337,9 +350,9 @@ public:
       return;
     }
 
-    _cur_config = reinterpret_cast<const EvrConfigType*>(_configBuffer);
+    _cur_config = reinterpret_cast<const EvsConfigType*>(_configBuffer);
     _end_config = _configBuffer+len;
-    _cfgtc.extent = sizeof(Xtc) + Pds::EvrConfig::size(*_cur_config);
+    _cfgtc.extent = sizeof(Xtc) + Pds::EvsConfig::size(*_cur_config);
 
     delete msg;
     _cfgtc.damage = 0;
@@ -347,27 +360,28 @@ public:
 
   void advance()
   {
-    int len = Pds::EvrConfig::size(*_cur_config);
+    int len = Pds::EvsConfig::size(*_cur_config);
     const char* nxt_config = reinterpret_cast<const char*>(_cur_config)+len;
     if (nxt_config < _end_config)
-      _cur_config = reinterpret_cast<const EvrConfigType*>(nxt_config);
+      _cur_config = reinterpret_cast<const EvsConfigType*>(nxt_config);
     else
-      _cur_config = reinterpret_cast<const EvrConfigType*>(_configBuffer);
-    _cfgtc.extent = sizeof(Xtc) + Pds::EvrConfig::size(*_cur_config);
+      _cur_config = reinterpret_cast<const EvsConfigType*>(_configBuffer);
+    _cfgtc.extent = sizeof(Xtc) + Pds::EvsConfig::size(*_cur_config);
   }
 
-  void enable()
+private:
+  void _enable()
   {
-    _er.IrqEnable(EVR_IRQ_MASTER_ENABLE | EVR_IRQFLAG_EVENT);
-    _er.EnableFIFO(1);
+    //    _er.IrqEnable(EVR_IRQ_MASTER_ENABLE | EVR_IRQFLAG_EVENT);
+    //    _er.EnableFIFO(1);
     _er.Enable(1);
   }
 
-  void disable()
+  void _disable()
   {
-    _er.IrqEnable(0);
+    //    _er.IrqEnable(0);
     _er.Enable(0);
-    _er.EnableFIFO(0);
+    //    _er.EnableFIFO(0);
   }
   
 private:
@@ -375,16 +389,15 @@ private:
   CfgClientNfs&   _cfg;
   Xtc             _cfgtc;
   char *          _configBuffer;
-  const EvrConfigType* _cur_config;
+  const EvsConfigType* _cur_config;
   const char*          _end_config;
   GenericPool*         _occPool;
   Appliance&           _app;
-  bool                 _bTurnOffBeamCodes;
 };
 
-class EvrConfigAction: public Action {
+class EvsConfigAction: public Action {
 public:
-  EvrConfigAction(EvrConfigManager& cfg) : _cfg(cfg) {}
+  EvsConfigAction(EvsConfigManager& cfg) : _cfg(cfg) {}
 public:
   Transition* fire(Transition* tr) 
   { 
@@ -401,51 +414,44 @@ public:
     return dg; 
   }
 private:
-  EvrConfigManager& _cfg;
+  EvsConfigManager& _cfg;
 };
 
-class EvrBeginCalibAction: public Action {
+class EvsBeginCalibAction: public Action {
 public:
-  EvrBeginCalibAction(EvrConfigManager& cfg) : _cfg(cfg) {}
+  EvsBeginCalibAction(EvsConfigManager& cfg) : _cfg(cfg) {}
 public:
   Transition* fire(Transition* tr) { 
     _cfg.configure(); 
-    _cfg.enable(); 
-      
-    // sleep for 4 millisecond to update fiducial from MapRam 1
-    timeval timeSleepMicro = {0, 4000}; // 2 milliseconds  
-    select( 0, NULL, NULL, NULL, &timeSleepMicro);       
-      
     return tr; }
   InDatagram* fire(InDatagram* dg) { _cfg.insert(dg); return dg; }
 private:
-  EvrConfigManager& _cfg;
+  EvsConfigManager& _cfg;
 };
 
-class EvrEndCalibAction: public Action
+class EvsEndCalibAction: public Action
 {
 public:
-  EvrEndCalibAction(EvrConfigManager& cfg): _cfg(cfg) {}
+  EvsEndCalibAction(EvsConfigManager& cfg): _cfg(cfg) {}
 public:
   Transition *fire(Transition * tr) { 
-    _cfg.disable(); 
     if (_fifo_handler)
       _fifo_handler->endcalib(tr);
     return tr; 
   }
   InDatagram *fire(InDatagram * dg) { _cfg.advance(); return dg; }
 private:
-  EvrConfigManager& _cfg;
+  EvsConfigManager& _cfg;
 };
 
 
-class EvrAllocAction:public Action
+class EvsAllocAction:public Action
 {
 public:
-  EvrAllocAction(CfgClientNfs& cfg, 
+  EvsAllocAction(CfgClientNfs& cfg, 
                  Evr&          er,
                  Appliance&         app,
-                 EvrConfigManager&  cmgr,
+                 EvsConfigManager&  cmgr,
                  EvrFifoServer&     srv) :
     _cfg(cfg), _er(er), _app(app), _cmgr(cmgr), _srv(srv),
     _task     (new Task(TaskObject("evrsync"))),
@@ -472,66 +478,32 @@ public:
       }
     }
 
-    //
-    //  Test if we own the primary EVR for this partition
-    //
-    int pid = getpid();
-    bool lmaster = true;
-    for (unsigned n = 0; n < nnodes; n++)
-    {
-      const Node *node = alloc.allocation().node(n);
-      if (node->level() == Level::Segment) 
-      {
-        if (node->pid() == pid)
-	  {
-	    if (lmaster) 
-	      {
-		printf("Found master EVR\n");
-		_fifo_handler = new EvrMasterFIFOHandler(
-							 _er,
-							 _cfg.src(),
-							 _app,
-                                                         _srv,
-							 alloc.allocation().partitionid(),
-							 iMaxGroup,
-							 alloc.allocation().nnodes(Level::Event),
-							 _randomize_nodes,
-							 _task);
-	      }
-	    else
-	      {
-		printf("Found slave EVR\n");
-		_fifo_handler = new EvrSlaveFIFOHandler(
-							_er, 
-							_app,
-                                                        _srv,
-							alloc.allocation().partitionid(),
-							_task,
-							_sync_task);
-	      }
-	    break;
-	  }
-        else
-	  lmaster = false;
-      } // if (node->level() == Level::Segment) 
-    } // for (unsigned n = 0; n < nnodes; n++)
-    
+    _fifo_handler = new EvsMasterFIFOHandler(
+					     _er,
+					     _cfg.src(),
+					     _app,
+					     _srv,
+					     alloc.allocation().partitionid(),
+					     iMaxGroup,
+					     alloc.allocation().nnodes(Level::Event),
+					     _randomize_nodes,
+					     _task);
     return tr;
   }
 private:
   CfgClientNfs& _cfg;
   Evr&          _er;
   Appliance&    _app;
-  EvrConfigManager& _cmgr;
+  EvsConfigManager& _cmgr;
   EvrFifoServer& _srv;
   Task*         _task;
   Task*         _sync_task;
 };
 
-class EvrShutdownAction:public Action
+class EvsShutdownAction:public Action
 {
 public:
-  EvrShutdownAction() {}
+  EvsShutdownAction() {}
   Transition *fire(Transition * tr) {
     if (_fifo_handler) {
       delete _fifo_handler;
@@ -544,50 +516,55 @@ public:
 
 extern "C"
 {
-  void evrmgr_sig_handler(int parm)
+  void evsmgr_sig_handler(int parm)
   {
+    static int _fiducial=0;
     Evr & er = erInfoGlobal->board();
     Pds::FIFOEvent fe;
-    while( ! er.GetFIFOEvent(&fe) )
+    while( ! er.GetFIFOEvent(&fe) ) {
+      _fiducial++;
+      if (_fiducial >= TimeStamp::MaxFiducials)
+	_fiducial=0;
+      fe.TimestampHigh = _fiducial;
       if (_fifo_handler)
         _fifo_handler->fifo_event(fe);
+    }
     int fdEr = erInfoGlobal->filedes();
     er.IrqHandled(fdEr);
   }
 }
 
-Appliance & EvrManager::appliance()
+Appliance & EvsManager::appliance()
 {
   return _fsm;
 }
 
-Server& EvrManager::server()
+Server& EvsManager::server()
 {
   return *_server;
 }
 
-EvrManager::EvrManager(EvgrBoardInfo < Evr > &erInfo, CfgClientNfs & cfg, bool bTurnOffBeamCodes):
+EvsManager::EvsManager(EvgrBoardInfo < Evr > &erInfo, CfgClientNfs & cfg) :
   _er(erInfo.board()), _fsm(*new Fsm),
-  _server(new EvrFifoServer(cfg.src())),
-  _bTurnOffBeamCodes(bTurnOffBeamCodes)
+  _server(new EvrFifoServer(cfg.src()))
 {
-  EvrConfigManager* cmgr = new EvrConfigManager(_er, cfg, _fsm, bTurnOffBeamCodes);
+  EvsConfigManager* cmgr = new EvsConfigManager(_er, cfg, _fsm);
 
-  _fsm.callback(TransitionId::Map            , new EvrAllocAction     (cfg,_er,_fsm, *cmgr, *_server));
-  _fsm.callback(TransitionId::Unmap          , new EvrShutdownAction);
-  _fsm.callback(TransitionId::Configure      , new EvrConfigAction    (*cmgr));
-  _fsm.callback(TransitionId::BeginCalibCycle, new EvrBeginCalibAction(*cmgr));
-  _fsm.callback(TransitionId::EndCalibCycle  , new EvrEndCalibAction  (*cmgr));
-  _fsm.callback(TransitionId::Enable         , new EvrEnableAction    (_er,_fsm));
-  _fsm.callback(TransitionId::L1Accept       , new EvrL1Action(_er, cfg.src(), &_fsm));
+  _fsm.callback(TransitionId::Map            , new EvsAllocAction     (cfg,_er,_fsm, *cmgr, *_server));
+  _fsm.callback(TransitionId::Unmap          , new EvsShutdownAction);
+  _fsm.callback(TransitionId::Configure      , new EvsConfigAction    (*cmgr));
+  _fsm.callback(TransitionId::BeginCalibCycle, new EvsBeginCalibAction(*cmgr));
+  _fsm.callback(TransitionId::EndCalibCycle  , new EvsEndCalibAction  (*cmgr));
+  _fsm.callback(TransitionId::Enable         , new EvsEnableAction    (_er,_fsm));
+  _fsm.callback(TransitionId::L1Accept       , new EvsL1Action(_er, cfg.src(), &_fsm));
 
-  _er.IrqAssignHandler(erInfo.filedes(), &evrmgr_sig_handler);
+  _er.IrqAssignHandler(erInfo.filedes(), &evsmgr_sig_handler);
   erInfoGlobal = &erInfo;
 
   // Unix signal support
   struct sigaction int_action;
 
-  int_action.sa_handler = EvrManager::sigintHandler;
+  int_action.sa_handler = EvsManager::sigintHandler;
   sigemptyset(&int_action.sa_mask);
   int_action.sa_flags = 0;
   int_action.sa_flags |= SA_RESTART;
@@ -605,11 +582,11 @@ EvrManager::EvrManager(EvgrBoardInfo < Evr > &erInfo, CfgClientNfs & cfg, bool b
     
 }
 
-EvrManager::~EvrManager()
+EvsManager::~EvsManager()
 {
 }
 
-void EvrManager::sigintHandler(int iSignal)
+void EvsManager::sigintHandler(int iSignal)
 {
   printf("signal %d received\n", iSignal);
 
@@ -617,9 +594,7 @@ void EvrManager::sigintHandler(int iSignal)
   {
     Evr & er = erInfoGlobal->board();
     printf("Stopping triggers and multicast... ");
-    // switch to the "dummy" map ram so we can still get eventcodes 0x70,0x71,0x7d for timestamps
-    unsigned dummyram=1;
-    er.MapRamEnable(dummyram,1);
+    er.MapRamEnable(persistent_ram,1);
     printf("stopped\n");
   }
   else
@@ -629,7 +604,5 @@ void EvrManager::sigintHandler(int iSignal)
   exit(0);
 }
 
-void EvrManager::randomize_nodes(bool v) { _randomize_nodes=v; }
+void EvsManager::randomize_nodes(bool v) { _randomize_nodes=v; }
 
-const int EvrManager::EVENT_CODE_BEAM;  // value is defined in the header file
-const int EvrManager::EVENT_CODE_BYKIK; // value is defined in the header file
