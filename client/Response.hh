@@ -9,6 +9,13 @@ namespace Pds {
     virtual ~Response() {}
     virtual Occurrence* fire(Occurrence* tr) { return 0; }
   };
+
+  class Pass : public Response {
+  public:
+    Pass() {}
+  public:
+    Occurrence* fire(Occurrence* occ) { return occ; }
+  };
 }
 
 #endif

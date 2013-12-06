@@ -5,15 +5,6 @@
 
 #include <stdlib.h>
 
-namespace Pds {
-  class Pass : public Response {
-  public:
-    Pass() {}
-  public:
-    Occurrence* fire(Occurrence* occ) { return occ; }
-  };
-}
-
 using namespace Pds;
 
 const char* Fsm::_stateName()

@@ -47,8 +47,8 @@ void CollectionObserver::message(const Node& hdr, const Message& msg)
 	else if (!(_isallocated && hdr==_allocator))
 	  return;
 	
-	printf("CollectionObserver::message tr %s pool depth %d\n",
-	       TransitionId::name(tr.id()), _pool.depth());
+	//	printf("CollectionObserver::message tr %s pool depth %d\n",
+	//	       TransitionId::name(tr.id()), _pool.depth());
 
 	Transition* ntr = new(&_pool) Transition(tr);
 	post(*ntr);
