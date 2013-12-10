@@ -4,7 +4,7 @@
 #include "pdsdata/xtc/TypeId.hh"
 #include "pdsdata/psddl/rayonix.ddl.h"
 
-typedef Pds::Rayonix::ConfigV1 RayonixConfigType;
+typedef Pds::Rayonix::ConfigV2 RayonixConfigType;
 
 static Pds::TypeId _rayonixConfigType(Pds::TypeId::Id_RayonixConfig,
                                       RayonixConfigType::Version);
