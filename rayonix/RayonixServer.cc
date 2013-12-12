@@ -40,14 +40,13 @@ unsigned Pds::RayonixServer::configure(RayonixConfigType& config)
   int status;
   int binning_f = (int)config.binning_f();
   int binning_s = (int)config.binning_s();
+  int testPattern = (int)config.testPattern();
   int exposure = (int)config.exposure();
   int trigger = (int)config.trigger();
   int rawMode = (int)config.rawMode();
   int darkFlag = (int)config.darkFlag();
   int readoutMode = (int)config.readoutMode() + 1;  // convert 0-based to 1-based
   char deviceBuf[Pds::rayonix_control::DeviceIDMax+1];
-  //  int testPattern = (int) config.testPattern();
-  int testPattern = 0;
   char msgBuf[100];
   
   if (_verbose) {
