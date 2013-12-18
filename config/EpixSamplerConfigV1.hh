@@ -5,8 +5,8 @@
  *      Author: jackp
  */
 
-#ifndef EPIXCONFIGV1_HH_
-#define EPIXCONFIGV1_HH_
+#ifndef EPIXSAMPLERCONFIGV1_HH_
+#define EPIXSAMPLERCONFIGV1_HH_
 #include "pdsdata/psddl/epixsampler.ddl.h"
 #include <stdint.h>
 
@@ -56,4 +56,4 @@ namespace Pds {
   } /* namespace EpixSamplerConfig */
 } /* namespace Pds */
 
-#endif /* EPIXCONFIGV1_HH_ */
+#endif /* EPIXSAMPLERCONFIGV1_HH_ */
