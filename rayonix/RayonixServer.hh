@@ -73,6 +73,7 @@ public:
   bool      _verbose;
   int       _binning_f;
   int       _binning_s;
+  int16_t   _testPattern;
   uint32_t  _exposure;
   uint16_t  _darkFlag;
   uint16_t  _readoutMode;

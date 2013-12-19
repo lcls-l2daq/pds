@@ -18,6 +18,8 @@ Pds::RayonixServer::RayonixServer( const Src& client, bool verbose)
     _verbose(verbose),
     _binning_f(0),
     _binning_s(0),
+    _testPattern(0),
+    _exposure(0),
     _darkFlag(0),
     _readoutMode(1),
     _trigger(0),
@@ -55,6 +57,16 @@ unsigned Pds::RayonixServer::configure(RayonixConfigType& config)
 
   if (_rnxctrl) {
     printf("ERROR: _rnxctrl is not NULL at beginning of %s\n", __PRETTY_FUNCTION__);
+  }
+
+  if (_verbose) {
+     printf("Rayonix Configuration passed into RayonixServer::configure:\n");
+     printf("   Binning:  %dx%d\n", (int)config.binning_f(), (int)config.binning_s());
+     printf("   testPattern: %d\n", (int)config.testPattern());
+     printf("   exposure:    %d\n", (int)config.exposure());
+     printf("   darkFlag:    %d\n", (int)config.darkFlag());
+     printf("   readoutMode: %d\n", (int)config.readoutMode()+1);
+     printf("   trigger:   0x%x\n", (int)config.trigger());
   }
 
   // If the binning is not the same in both fast and slow directions, send an occurrence
@@ -97,6 +109,7 @@ unsigned Pds::RayonixServer::configure(RayonixConfigType& config)
           status = _rnxctrl->status();
           _binning_f = binning_f;
           _binning_s = binning_s;
+          _testPattern = testPattern;
           _exposure  = exposure;
           _darkFlag  = darkFlag;
           _readoutMode = readoutMode;
@@ -105,6 +118,16 @@ unsigned Pds::RayonixServer::configure(RayonixConfigType& config)
             // copy to _deviceID
             strncpy(_deviceID, deviceBuf, Pds::rayonix_control::DeviceIDMax);
             printf("Rayonix Device ID: \"%s\"\n", _deviceID);
+            //            Pds::RayonixConfig::setDeviceID(config,_deviceID);
+          }
+          if (_verbose) {
+             printf("Rayonix Device ID: %s\n", _deviceID);
+             printf("Binning:  %dx%d\n", binning_f, binning_s);
+             printf("testPattern: %d\n", testPattern);
+             printf("exposure:    %d\n", exposure);
+             printf("darkFlag:    %d\n", darkFlag);
+             printf("readoutMode: %d\n", readoutMode);
+             printf("trigger:   0x%x\n", trigger);
           }
         }
         printf("Calling _rnxctrl->enable()...\n");
