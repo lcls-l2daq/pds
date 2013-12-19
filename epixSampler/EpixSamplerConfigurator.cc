@@ -24,38 +24,21 @@ using namespace Pds::EpixSampler;
 
 class EpixSamplerDestination;
 
-//static unsigned configAddrs[EpixSamplerConfigShadow::NumberOfValues] = {
-//    0x1000000,
-//    0x1000002,
-//    0x1000004,
-//    0x1000007,
-//    0x1000026,
-//    0x100002c,
-//    0x1000030,
-//    0x1000001,
-//    0x1000032,
-//    0x1000033,
-//    0,
-//    0,
-//    0x1000010,
-//    0x100002a
-//};
-
 static unsigned configAddrs[EpixSamplerConfigShadow::NumberOfValues] = {
-    0x00,
-    0x02,
-    0x04,
-    0x07,
-    0x26,
-    0x2c,
-    0x30,
-    0x31,
-    0x32,
-    0x33,
-    0,
-    0,
-    0x10,
-    0x2a
+    0x00,    //  version
+    0x02,    //  RunTrigDelay
+    0x04,    //  DaqTrigDelay
+    0x07,    //  DacSetting
+    0x26,    //  AdcClkHalfT
+    0x2c,    //  AdcPipelineDelay
+    0x30,    //  DigitalCardId0
+    0x31,    //  DigitalCardId1
+    0x32,    //  AnalogCardId0
+    0x33,    //  AnalogCardId1
+    0,       //  NumberOfChannels
+    0,       //  SamplesPerChannel
+    0x10,    //  BaseClockFrequency
+    0x2a     //  TestPatternEnable
 };
 
 EpixSamplerConfigurator::EpixSamplerConfigurator(int f, unsigned d) :
@@ -193,6 +176,10 @@ unsigned EpixSamplerConfigurator::writeConfig() {
     printf("%x ", u[i]);
   }
   printf("\n");
+  if (_pgp->writeRegister(&_d, PowerEnableAddr, PowerEnableValue)) {
+    printf("EpixSamplerConfigurator::writeConfig kludge failed PowerEnable\n");
+    ret = Failure;
+  }
   if (_pgp->writeRegister(&_d, RunTriggerEnable, Enable)) {
     printf("EpixSamplerConfigurator::writeConfig failed writing RunTriggerEnable\n");
     ret = Failure;
@@ -225,11 +212,7 @@ unsigned EpixSamplerConfigurator::writeConfig() {
     }
     microSpin(1000);
   }
-  // Kludge, let's see if it works !!!!
-  if (_pgp->writeRegister(&_d, 8, 3)) {
-    printf("EpixSamplerConfigurator::writeConfig kludge failed writing 3 to address 8\n");
-    ret = Failure;
-  }
+  // turn on adcStreamMode bit
   if (_pgp->writeRegister(&_d, configAddrs[r-1], u[r-1] | 0x80)) {
     printf("EpixSamplerConfigurator::writeConfig kludge failed writing 1 to bit 7 of pin control\n");
     ret = Failure;
@@ -245,6 +228,7 @@ unsigned EpixSamplerConfigurator::checkWrittenConfig(bool writeBack) {
   uint32_t myBuffer[size];
   for (unsigned i=0; i<size; i++) {
     if (_s->readOnly((EpixSamplerConfigShadow::Registers)i) == EpixSamplerConfigShadow::ReadWrite) {
+      if (_pgp == 0) { return Success; }
       if (_pgp->readRegister(&_d, configAddrs[i], 0x1100+i, myBuffer+i)) {
         printf("EpixSamplerConfigurator::checkWrittenConfig failed reading %u\n", i);
         ret |= Failure;
@@ -283,26 +267,36 @@ void EpixSamplerConfigurator::dumpFrontEnd() {
 //    for (int i=0; i<EpixSamplerConfigShadow::NumberOfRegisters; i++ ) {
 //      printf("%x ", u[i]);
 //    } printf("\n");
-    _pgp->readRegister(&_d, ReadFrameCounter, 0xedfa, &count);
-    printf("Epix Sampler state:\n\tSequenceCount      (%u)\n", count);
-    _pgp->readRegister(&_d, DaqTriggerEnable, 0xedfb, &count);
-    printf("\tDaqTriggerEnable   (%u)\n", count);
-    _pgp->readRegister(&_d, ReadAcqCounter, 0xedfc, &count);
-    printf("\tAcquisitionCount   (%u)\n", count);
-    _pgp->readRegister(&_d, RunTriggerEnable, 0xedfd, &count);
-    printf("\tRunTriggerEnable   (%u)\n", count);
-    if (_s) {
+    if (_pgp) {
+      _pgp->readRegister(&_d, ReadFrameCounter, 0xedfa, &count);
+      printf("Epix Sampler state:\n\tSequenceCount      (%u)\n", count);
+    }
+    if (_pgp) {
+      _pgp->readRegister(&_d, DaqTriggerEnable, 0xedfb, &count);
+      printf("\tDaqTriggerEnable   (%u)\n", count);
+    }
+    if (_pgp) {
+      _pgp->readRegister(&_d, ReadAcqCounter, 0xedfc, &count);
+      printf("\tAcquisitionCount   (%u)\n", count);
+    }
+    if (_pgp) {
+      _pgp->readRegister(&_d, RunTriggerEnable, 0xedfd, &count);
+      printf("\tRunTriggerEnable   (%u)\n", count);
+    }
+   if (_s) {
       for (int i=0; i<EpixSamplerConfigShadow::NumberOfRegisters; i++ ) {
         EpixSamplerConfigShadow::Registers r = (EpixSamplerConfigShadow::Registers)i;
         printf("\t%s(0x%x)\n", _s->name(r), _s->get(r));
       }
-    }
-    for (int i=0; i<EpixSamplerConfigShadow::NumberOfRegisters; i++ ) {
-      printf("%x ", u[i]);
-    }
-    printf("\n");
-//    printf("\tnumberOfChannels   (0x%x)\n", _config->numberOfChannels());
-//    printf("\tsamplesPerChanne   (0x%x)\n", _config->samplesPerChannel());
+   }
+   if (u) {
+     for (int i=0; i<EpixSamplerConfigShadow::NumberOfRegisters; i++ ) {
+       printf("%x ", u[i]);
+     }
+     printf("\n");
+   }
+   //    printf("\tnumberOfChannels   (0x%x)\n", _config->numberOfChannels());
+   //    printf("\tsamplesPerChanne   (0x%x)\n", _config->samplesPerChannel());
   }
   if (_debug & 0x400) {
     printf("Checking Configuration, no news is good news ...\n");

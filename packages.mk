@@ -9,6 +9,7 @@ packages += cspad cspad2x2
 packages += ioc
 packages += rayonix
 packages += epixSampler
+packages += epix
 
 ifneq ($(findstring x86_64,$(tgt_arch)),)
   packages += firewire

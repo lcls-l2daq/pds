@@ -26,7 +26,7 @@ namespace Pds {
 
       public:
         unsigned            lane() { return  0; }
-        unsigned            vc() {return _dest; }
+        unsigned            vc() {return _dest & 1; }
         const char*         name();
     };
   }
