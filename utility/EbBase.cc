@@ -242,6 +242,28 @@ void EbBase::_post(EbEventBase* event)
 #endif
   if (value.isZero() || required!=_required_clients) {  // sink
 
+        if (nEbPrints) {
+          const int buffsize=256;
+          char buff[buffsize];
+          EbBitMask r = remaining;
+          sprintf(buff,"EbBase::_post sink seq %08x remaining ",
+            datagram->seq.stamp().fiducials());
+          r.write(&buff[strlen(buff)]);
+          EbBitMask id(EbBitMask::ONE);
+          for(unsigned i=0; !r.isZero(); i++, id <<= 1) {
+      if ( !(r & id).isZero() ) {
+        EbServer* srv = (EbServer*)server(i);
+        if (srv)
+          snprintf(buff+strlen(buff),buffsize-strlen(buff)," [%x/%x]",
+             srv->client().log(),srv->client().phy());
+        else
+          snprintf(buff+strlen(buff),buffsize-strlen(buff)," [?/?]");
+        r &= ~id;
+      }
+          }
+          printf("%s\n",buff);
+          --nEbPrints;
+        }
     // statistics
     if (_vmoneb) {
       EbBitMask id(EbBitMask::ONE);
@@ -271,19 +293,19 @@ void EbBase::_post(EbEventBase* event)
       char buff[buffsize];
       EbBitMask r = remaining;
       sprintf(buff,"EbBase::_post fixup seq %08x remaining ",
-        datagram->seq.stamp().fiducials());
+          datagram->seq.stamp().fiducials());
       r.write(&buff[strlen(buff)]);
       EbBitMask id(EbBitMask::ONE);
       for(unsigned i=0; !r.isZero(); i++, id <<= 1) {
-  if ( !(r & id).isZero() ) {
-    EbServer* srv = (EbServer*)server(i);
-    if (srv)
-      snprintf(buff+strlen(buff),buffsize-strlen(buff)," [%x/%x]",
-         srv->client().log(),srv->client().phy());
-    else
-      snprintf(buff+strlen(buff),buffsize-strlen(buff)," [?/?]");
-    r &= ~id;
-  }
+        if ( !(r & id).isZero() ) {
+          EbServer* srv = (EbServer*)server(i);
+          if (srv)
+            snprintf(buff+strlen(buff),buffsize-strlen(buff)," [%x/%x]",
+                srv->client().log(),srv->client().phy());
+          else
+            snprintf(buff+strlen(buff),buffsize-strlen(buff)," [?/?]");
+          r &= ~id;
+        }
       }
       printf("%s\n",buff);
       --nEbPrints;

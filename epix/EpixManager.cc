@@ -199,10 +199,12 @@ class EpixConfigAction : public Action {
       printf("EpixConfigAction::fire(Transition) fetched %d\n", i);
       _server->resetOffset();
       if (_cfg.scanning() == false) {
-        if ((_result = _server->configure( (EpixConfigType*)_cfg.current()))) {
+        if ((_result = _server->configure( (EpixConfigType*)_cfg.current(), true))) {
           printf("\nEpixConfigAction::fire(tr) failed configuration\n");
         };
         if (_server->debug() & 0x10) _cfg.printCurrent();
+      } else {
+        _server->offset(0);
       }
       return tr;
     }
@@ -222,9 +224,9 @@ class EpixConfigAction : public Action {
     }
 
   private:
-    EpixConfigCache&   _cfg;
-    EpixServer*    _server;
-  unsigned       _result;
+    EpixConfigCache&  _cfg;
+    EpixServer*      _server;
+  unsigned           _result;
 };
 
 class EpixBeginCalibCycleAction : public Action {
@@ -232,11 +234,14 @@ class EpixBeginCalibCycleAction : public Action {
     EpixBeginCalibCycleAction(EpixServer* s, EpixConfigCache& cfg) : _server(s), _cfg(cfg), _result(0) {};
 
     Transition* fire(Transition* tr) {
-      printf("EpixBeginCalibCycleAction:;fire(Transition) ");
+      printf("EpixBeginCalibCycleAction:;fire(tr) ");
       if (_cfg.scanning()) {
         if (_cfg.changed()) {
           printf("configured and \n");
-//          _server->offset(_server->offset()+_server->myCount()+1);
+          if (_server->resetOnEveryConfig()) {
+            _server->offset(_server->offset()+_server->myCount()+1);
+            printf("EpixBeginCalibCycleAction:;fire(tr) setting offset %u\n", _server->offset());
+          }
           unsigned count = 0;
           if ((_result = _server->configure( (EpixConfigType*)_cfg.current())) && count++<1) {
             printf("\nEpixBeginCalibCycleAction::fire(tr) failed config\n");
@@ -244,7 +249,7 @@ class EpixBeginCalibCycleAction : public Action {
           if (_server->debug() & 0x10) _cfg.printCurrent();
         }
       }
-      printf("enabled\n");
+      printf("EpixBeginCalibCycleAction:;fire(tr) enabled\n");
       _server->enable();
       return tr;
     }
@@ -266,8 +271,8 @@ class EpixBeginCalibCycleAction : public Action {
       return in;
     }
   private:
-    EpixServer*      _server;
-    EpixConfigCache& _cfg;
+    EpixServer*       _server;
+    EpixConfigCache&  _cfg;
     unsigned          _result;
 };
 

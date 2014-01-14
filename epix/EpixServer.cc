@@ -45,12 +45,13 @@ long long int timeDiff(timespec* end, timespec* start) {
   return diff;
 }
 
+
+
 EpixServer::EpixServer( const Pds::Src& client, unsigned configMask )
    : _xtc( _epixDataType, client ),
      _cnfgrtr(0),
      _elements(ElementsPerSegmentLevel),
      _payloadSize(0),
-     _configMask(configMask),
      _configureResult(0),
      _debug(0),
      _offset(0),
@@ -58,35 +59,38 @@ EpixServer::EpixServer( const Pds::Src& client, unsigned configMask )
      _processorBuffer(0),
      _configured(false),
      _firstFetch(true),
-     _ignoreFetch(true)  {
+     _ignoreFetch(true),
+     _resetOnEveryConfig(false) {
   _histo = (unsigned*)calloc(sizeOfHisto, sizeof(unsigned));
   _task = new Pds::Task(Pds::TaskObject("EPIXprocessor"));
   instance(this);
   printf("EpixServer::EpixServer() payload(%u)\n", _payloadSize);
 }
 
-unsigned EpixServer::configure(EpixConfigType* config) {
+unsigned EpixServer::configure(EpixConfigType* config, bool forceConfig) {
+  unsigned firstConfig = _resetOnEveryConfig || forceConfig;
   if (_cnfgrtr == 0) {
+    firstConfig = 1;
     _cnfgrtr = new Pds::Epix::EpixConfigurator::EpixConfigurator(fd(), _debug);
+    printf("EpixServer::configure making new configurator %p, firstConfig %u\n", _cnfgrtr, firstConfig);
   }
   _payloadSize = EpixDataType::_sizeof(*config);
   if (_processorBuffer) free(_processorBuffer);
   _processorBuffer = (char*) calloc(1, _payloadSize);
-  printf("EpixServer::configure allocated processorBuffer size %u\n", _payloadSize);
+  printf("EpixServer::configure allocated processorBuffer size %u, firstConfig %u\n", _payloadSize, firstConfig);
   if (!_processorBuffer) {
     printf("EpixServer::configure FAILED to allocated processor buffer!!!\n");
     return 0xdeadbeef;
   }
-  // then convert to bytes and add the size of the element header
-   unsigned c = flushInputQueue(fd());
+  unsigned c = flushInputQueue(fd());
   if (c) printf("EpixServer::configure flushed %u event%s before configuration\n", c, c>1 ? "s" : "");
 
-  if ((_configureResult = _cnfgrtr->configure(config, _configMask))) {
-    printf("EpixServer::configure failed 0x%x\n", _configureResult);
+  if ((_configureResult = _cnfgrtr->configure(config, firstConfig))) {
+    printf("EpixServer::configure failed 0x%x, first %u\n", _configureResult, firstConfig);
   } else {
     _xtc.extent = (_payloadSize * _elements) + sizeof(Xtc);
-    printf("CspadServer::configure _elements(%u) _payloadSize(%u) _xtc.extent(%u)\n",
-        _elements, _payloadSize, _xtc.extent);
+    printf("EpixServer::configure _elements(%u) _payloadSize(%u) _xtc.extent(%u) firstConfig(%u)\n",
+        _elements, _payloadSize, _xtc.extent, firstConfig);
   }
   _firstFetch = true;
   _count = _elementsThisCount = 0;
@@ -147,13 +151,14 @@ void Pds::EpixServer::enable() {
   if (usleep(10000)<0) perror("EpixServer::enable ulseep failed\n");
   usleep(10000);
   _cnfgrtr->enableExternalTrigger(true);
+  flushInputQueue(fd());
   _firstFetch = true;
   _ignoreFetch = false;
-  flushInputQueue(fd());
   if (_debug & 0x20) printf("EpixServer::enable\n");
 }
 
 void Pds::EpixServer::disable() {
+  _ignoreFetch = true;
   _cnfgrtr->enableExternalTrigger(false);
   flushInputQueue(fd());
   if (usleep(10000)<0) perror("EpixServer::disable ulseep 1 failed\n");
@@ -218,12 +223,15 @@ int Pds::EpixServer::fetch( char* payload, int flags ) {
        umsg->append(DetInfo::name(static_cast<const DetInfo&>(_xtc.src)));
        _mgr->appliance().post(umsg);
        _ignoreFetch = true;
-       printf("CspadServer::fetch exiting because of ERESTART\n");
+       printf("EpixServer::fetch exiting because of ERESTART\n");
        exit(-ERESTART);
      }
      perror ("EpixServer::fetch pgpCard read error");
      ret =  Ignore;
    } else ret *= sizeof(__u32);
+
+   if (_ignoreFetch) return Ignore;
+
    Pds::Pgp::DataImportFrame* data = (Pds::Pgp::DataImportFrame*)(_processorBuffer);
 
    if ((ret > 0) && (ret < (int)_payloadSize)) {
@@ -315,24 +323,30 @@ void EpixServer::setEpix( int f ) {
   if (unsigned c = this->flushInputQueue(f)) {
     printf("EpixServer::setEpix read %u time%s after opening pgpcard driver\n", c, c==1 ? "" : "s");
   }
-  if (_cnfgrtr == 0) {
-    _cnfgrtr = new Pds::Epix::EpixConfigurator::EpixConfigurator(fd(), _debug);
-  }
+//  if (_cnfgrtr == 0) {
+//    _cnfgrtr = new Pds::Epix::EpixConfigurator::EpixConfigurator(fd(), _debug);
+//  }
 }
 
 void EpixServer::printHisto(bool c) {
+  unsigned histoSum = 0;
   printf("EpixServer event fetch periods\n");
   for (unsigned i=0; i<sizeOfHisto; i++) {
     if (_histo[i]) {
       printf("\t%3u ms   %8u\n", i, _histo[i]);
+      histoSum += _histo[i];
       if (c) _histo[i] = 0;
     }
   }
+  printf("\tHisto Sum was %u\n", histoSum);
+  histoSum = 0;
   printf("EpixServer unshuffle event periods\n");
   for (unsigned i=0; i<1000; i++) {
     if (procHisto[i]) {
       printf("\t%3u 0.1ms   %8u\n", i, procHisto[i]);
+      histoSum += procHisto[i];
       if (c) procHisto[i] = 0;
     }
   }
+  printf("\tProchisto (events) Sum was %u\n", histoSum);
 }

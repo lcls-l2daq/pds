@@ -58,7 +58,7 @@ namespace Pds {
 
         enum resultReturn {Success=0, Failure=1, Terminate=2};
 
-        unsigned             configure(EpixConfigType*, unsigned mask=0);
+        unsigned             configure(EpixConfigType*, unsigned first=0);
         EpixConfigType&      configuration() { return *_config; };
         void                 print();
         void                 dumpFrontEnd();

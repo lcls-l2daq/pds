@@ -156,7 +156,7 @@ void EpixConfigurator::printMe() {
 }
 
 bool EpixConfigurator::_flush(unsigned index) {
-  enum {numberOfTries=5};
+  enum {numberOfTries=50};
   unsigned version = 0;
   unsigned failCount = 0;
   bool ret = false;
@@ -170,12 +170,12 @@ bool EpixConfigurator::_flush(unsigned index) {
   }
   else {
     ret = true;
-    printf("\n\t");
+    printf("_flush FAILED!!\n\t");
   }
   return ret;
 }
 
-unsigned EpixConfigurator::configure( EpixConfigType* c, unsigned mask) {
+unsigned EpixConfigurator::configure( EpixConfigType* c, unsigned first) {
   _config = c;
   _s = (EpixConfigShadow*) c;
   timespec      start, end, sleepTime, shortSleepTime;
@@ -183,14 +183,19 @@ unsigned EpixConfigurator::configure( EpixConfigType* c, unsigned mask) {
   sleepTime.tv_nsec = 25000000; // 25ms
   shortSleepTime.tv_sec = 0;
   shortSleepTime.tv_nsec = 5000000;  // 5ms (10 ms is shortest sleep on some computers
-  bool printFlag = !(mask & 0x2000);
+  bool printFlag = true;
   if (printFlag) printf("Epix Config size(%u)", c->_sizeof());
-  printf(" config(%p) mask(0x%x)\n", _config, ~mask);
+  printf(" config(%p) first(%u)\n", _config, first);
   unsigned ret = 0;
-  mask = ~mask;
   clock_gettime(CLOCK_REALTIME, &start);
-  resetFrontEnd();
-  _flush();
+  if (first) {
+    printf("EpixConfigurator::configure reseting front end\n");
+    resetFrontEnd();
+  }
+  if (_flush()) {
+    printf("EpixConfigurator::configure determined that we lost contact with the front end, exiting!\n");
+    return 1;
+  }
   if (printFlag) {
     clock_gettime(CLOCK_REALTIME, &end);
     uint64_t diff = timeDiff(&end, &start) + 50000LL;
@@ -221,7 +226,7 @@ unsigned EpixConfigurator::configure( EpixConfigType* c, unsigned mask) {
     clock_gettime(CLOCK_REALTIME, &end);
     uint64_t diff = timeDiff(&end, &start) + 50000LL;
     printf("- 0x%x - \n\tdone \n", ret);
-    printf(" it took %lld.%lld milliseconds with mask 0x%x\n", diff/1000000LL, diff%1000000LL, mask&0x1f);
+    printf(" it took %lld.%lld milliseconds with first %u\n", diff/1000000LL, diff%1000000LL, first);
     if (ret) dumpFrontEnd();
   }
   return ret;

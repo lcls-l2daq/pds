@@ -604,13 +604,14 @@ void PartitionControl::_complete(TransitionId::Value id)
   switch(id) {
   case TransitionId::Unmap          : _current_state = Unmapped  ; break;
   case TransitionId::Unconfigure    :
+  case TransitionId::Map            : _current_state = Mapped    ;
     if (_target_state==Mapped) {
       _current_state = _target_state;
       set_target_state(_queued_target);
       _queued_target=Mapped;
       return;
     }
-  case TransitionId::Map            : _current_state = Mapped    ; break;
+    break;
   case TransitionId::Configure      :
   case TransitionId::EndRun         : _current_state = Configured; break;
   case TransitionId::BeginRun       :

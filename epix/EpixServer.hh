@@ -58,7 +58,7 @@ class Pds::EpixServer
    unsigned count() const;
    void setEpix( int fd );
 
-   unsigned configure(EpixConfigType*);
+   unsigned configure(EpixConfigType*, bool forceConfig = false);
    unsigned unconfigure(void);
 
    unsigned payloadSize(void)   { return _payloadSize; }
@@ -79,6 +79,7 @@ class Pds::EpixServer
    EpixManager* manager() { return _mgr; }
    void     process(char*);
    void     allocated();
+   bool     resetOnEveryConfig() { return _resetOnEveryConfig; }
 
  public:
    static EpixServer* instance() { return _instance; }
@@ -96,7 +97,6 @@ class Pds::EpixServer
    unsigned                       _count;
    unsigned                       _elementsThisCount;
    unsigned                       _payloadSize;
-   unsigned                       _configMask;
    unsigned                       _configureResult;
    unsigned                       _debug;
    unsigned                       _offset;
@@ -114,6 +114,7 @@ class Pds::EpixServer
    bool                           _configured;
    bool                           _firstFetch;
    bool                           _ignoreFetch;
+   bool                           _resetOnEveryConfig;
 };
 
 #endif
