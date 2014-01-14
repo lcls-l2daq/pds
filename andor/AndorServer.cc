@@ -420,6 +420,20 @@ int AndorServer::printInfo()
   GetTemperatureStatus(&fSensorTemp, &fTargetTemp, &fAmbientTemp, &fCoolerVolts);
   printf("Advanced Temperature: Sensor %f Target %f Ambient %f CoolerVolts %f\n", fSensorTemp, fTargetTemp, fAmbientTemp, fCoolerVolts);
 
+  int iMaxBinH = -1;
+  int iMaxBinV = -1;
+  GetMaximumBinning(4, 0, &iMaxBinH);
+  GetMaximumBinning(4, 1, &iMaxBinV);
+  printf("Max binning in Image mode: H %d V %d\n", iMaxBinH, iMaxBinV);
+
+  float fTimeMaxExposure;
+  GetMaximumExposure(&fTimeMaxExposure);
+  printf("Max exposure time: %f s\n", fTimeMaxExposure);
+
+  int iMinImageLen = -1;
+  GetMinimumImageLength (&iMinImageLen);
+  printf("MinImageLen: %d\n", iMinImageLen);
+
   return 0;
 }
 
@@ -624,7 +638,7 @@ int AndorServer::initCapture()
     return ERROR_SDK_FUNC_FAIL;
   }
 
-  if ( _config.frameSize() - (int) sizeof(AndorDataType) + _iFrameHeaderSize > _iMaxFrameDataSize )
+  if ( (int) _config.frameSize() - (int) sizeof(AndorDataType) + _iFrameHeaderSize > _iMaxFrameDataSize )
   {
     printf( "AndorServer::initCapture(): Frame size (%i) + Frame header size (%d)"
      "is larger than internal data frame buffer size (%d)\n",
@@ -640,7 +654,8 @@ int AndorServer::initCapture()
   float fTimeAccumulate = -1;
   float fTimeKinetic    = -1;
   GetAcquisitionTimings(&fTimeExposure, &fTimeAccumulate, &fTimeKinetic);
-  printf("Exposure time: %f s  Accumulate time: %f s  Kinetic time: %f s\n", fTimeExposure, fTimeAccumulate, fTimeKinetic);
+  //printf("Exposure time: %f s  Accumulate time: %f s  Kinetic time: %f s\n", fTimeExposure, fTimeAccumulate, fTimeKinetic);
+  printf("Exposure time: %f s  Accumulate time: %f s\n", fTimeExposure, fTimeAccumulate);
 
   float fTimeReadout = -1;
   GetReadOutTime(&fTimeReadout);
@@ -1548,15 +1563,31 @@ int AndorServer::setupROI()
 
   _iImageWidth  = _config.width()  / _config.binX();
   _iImageHeight = _config.height() / _config.binY();
-  printf("image size: W %d H %d\n", _iImageWidth, _iImageHeight);
+  printf("Image size: W %d H %d\n", _iImageWidth, _iImageHeight);
 
-  int iError;
-  iError = SetImage(_config.binX(), _config.binY(), _config.orgX() + 1, _config.orgX() + _config.width(),
-    _config.orgY() + 1, _config.orgY() + _config.height());
-  if (!isAndorFuncOk(iError))
+  /*
+   * Read Mode:
+   *   0: Full Vertical Binning 1: MultiTrack 2: Random Track
+   *   3: Single Track 4: Image
+   */
+  int iReadMode = 4;
+  if ( _iImageWidth == _iDetectorWidth &&
+       _iImageHeight == 1 )
+    iReadMode = 0;
+
+  SetReadMode(iReadMode);
+  printf("Read mode: %d\n", iReadMode);
+
+  if (iReadMode == 4)
   {
-    printf("AndorServer::setupROI(): SetImage(): %s\n", AndorErrorCodes::name(iError));
-    return ERROR_SDK_FUNC_FAIL;
+    int iError;
+    iError = SetImage(_config.binX(), _config.binY(), _config.orgX() + 1, _config.orgX() + _config.width(),
+      _config.orgY() + 1, _config.orgY() + _config.height());
+    if (!isAndorFuncOk(iError))
+    {
+      printf("AndorServer::setupROI(): SetImage(): %s\n", AndorErrorCodes::name(iError));
+      return ERROR_SDK_FUNC_FAIL;
+    }
   }
 
   return 0;
