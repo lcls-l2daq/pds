@@ -301,11 +301,11 @@ public:
 	_er.ExternalSequenceEnable     (1);
       }
 
-      printf("event %d : %d %x/%x group %d\n",
-       uEventIndex, eventCode.code(), 
-       eventCode.maskTriggerP(),
-       eventCode.maskTriggerR(),
-       eventCode.readoutGroup());       
+      printf("event %d : %d period %d %x/%x group %d\n",
+	     uEventIndex, eventCode.code(), eventCode.period(),
+	     eventCode.maskTriggerP(),
+	     eventCode.maskTriggerR(),
+	     eventCode.readoutGroup());       
     }
 
     for(unsigned ram=0; ram<2; ram++)

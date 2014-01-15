@@ -606,7 +606,6 @@ void PartitionControl::_complete(TransitionId::Value id)
   case TransitionId::Unconfigure    :
   case TransitionId::Map            : _current_state = Mapped    ;
     if (_target_state==Mapped) {
-      _current_state = _target_state;
       set_target_state(_queued_target);
       _queued_target=Mapped;
       return;
