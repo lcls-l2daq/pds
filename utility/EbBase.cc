@@ -69,6 +69,7 @@ static const char* TaskName(Level::Type level, int stream, Inlet& inlet)
 }
 
 int nEbPrints=32;
+static bool lEbPrintSink=true;
 
 EbBase::EbBase(const Src& id,
          const TypeId& ctns,
@@ -242,7 +243,7 @@ void EbBase::_post(EbEventBase* event)
 #endif
   if (value.isZero() || required!=_required_clients) {  // sink
 
-        if (nEbPrints) {
+    if (nEbPrints && lEbPrintSink) {
           const int buffsize=256;
           char buff[buffsize];
           EbBitMask r = remaining;
@@ -264,6 +265,7 @@ void EbBase::_post(EbEventBase* event)
           printf("%s\n",buff);
           --nEbPrints;
         }
+
     // statistics
     if (_vmoneb) {
       EbBitMask id(EbBitMask::ONE);
@@ -668,6 +670,7 @@ EbBase::IsComplete EbBase::_is_complete( EbEventBase* event,
 }
 
 void EbBase::printFixups(int n) { nEbPrints=n; }
+void EbBase::printSinks (bool v) { lEbPrintSink=v; }
 
 static const int FLUSH_SIZE=0x1000000;
 static char _flush_buff[FLUSH_SIZE];

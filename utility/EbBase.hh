@@ -44,6 +44,7 @@ namespace Pds {
     void contains(const TypeId&);
   public:
     static void printFixups(int);
+    static void printSinks (bool);
     void require_in_order(bool);
   private:
     friend class serverRundown;
