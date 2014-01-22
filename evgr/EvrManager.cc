@@ -214,6 +214,14 @@ public:
       unsigned delay   =pc.delay()*prescale;
       unsigned width   =pc.width()*prescale;
 
+      //  Set negative delays to zero
+      if (delay & (1<<31)) 
+      {
+        printf("EVR pulse %d delay (%d) set to 0\n",
+               pc.pulseId(), (int)delay);
+        delay = 0;
+      }
+
       if (pc.pulseId()>3 && (width>>16)!=0 && !slacEvr) 
       {
         nerror++;
