@@ -6,6 +6,8 @@
 
 using namespace Pds;
 
+extern unsigned nEbPrints;
+
 EbS::EbS(const Src& id,
    const TypeId& ctns,
    Level::Type level,
@@ -50,6 +52,10 @@ EbEventBase* EbS::_new_event(const EbBitMask& serverId, char* payload, unsigned 
   if (_vmoneb) _vmoneb->depth(depth);
 
   if (depth<=1 && _pending.forward()!=_pending.empty()) {
+    if (nEbPrints)
+      printf("EbC::new_event claiming buffer for srv %08x payload %d\n",
+             serverId.value(),sizeofPayload);
+
     _post(_pending.forward());
   //    arm(_post(_pending.forward()));
   }
@@ -66,9 +72,14 @@ EbEventBase* EbS::_new_event(const EbBitMask& serverId)
   if (_vmoneb) _vmoneb->depth(depth);
 
   if (depth==1 && _pending.forward()!=_pending.empty()) { // keep one buffer for recopy possibility
+    if (nEbPrints)
+      printf("EbC::new_event claiming buffer for srv %08x\n",
+             serverId.value());
+
     _post(_pending.forward());
   //    arm(_post(_pending.forward()));
   }
+
   CDatagram* datagram = new(&_datagrams) CDatagram(_ctns, _id);
   EbSequenceKey* key = new(&_keys) EbSequenceKey(datagram->dg());
   return new(&_events) EbEvent(serverId, _clients, datagram, key);
