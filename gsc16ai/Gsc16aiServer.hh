@@ -107,6 +107,7 @@ class Pds::Gsc16aiServer
     vector<BufferElement>*   _buffer;
     bool     _shutdownFlag;
     Task *_task;
+    Gsc16aiConfigType _config;
     uint16_t _firstChan;
     uint16_t _lastChan;
     bool     _timeTagEnable;

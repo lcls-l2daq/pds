@@ -179,6 +179,7 @@ unsigned Pds::Gsc16aiServer::configure(const Gsc16aiConfigType& config)
 {
   unsigned numErrs = 0;
 
+  _config     = config; 
   _count      = 0;
   _firstChan  = config.firstChan();
   _lastChan   = config.lastChan();
@@ -224,15 +225,9 @@ int Pds::Gsc16aiServer::fetch( char* payload, int flags )
 
   Gsc16aiDataType *frame = (Gsc16aiDataType *)(payload + sizeof(Xtc));
 
-  // calculate extent assuming one channel configured
-  _xtc.extent = sizeof(Gsc16aiDataType) + sizeof(Xtc);
+  // calculate extent maintaining longword alignment
+  _xtc.extent = (sizeof(Xtc) + Gsc16aiDataType::_sizeof(_config) + 3) & ~0x3;
 
-  // adjust extent if more than one channel configured
-  if (extraChans > 0) {
-    // maintain longword alignment
-    _xtc.extent += ((extraChans * sizeof(int16_t)) + 3) & ~0x3; 
-  }
-  
   memcpy(payload, &_xtc, sizeof(Xtc));  // copy after adjusting extent
 
   // read from pipe
