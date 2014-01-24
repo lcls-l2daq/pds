@@ -11,7 +11,7 @@
 #include<iostream>
 #include<vector>
 
-#define DBUG
+//#define DBUG
 
 using namespace Pds;
 
@@ -153,20 +153,29 @@ void IocControl::set_partition(const std::list<DetInfo>& iocs)
 
 Transition* IocControl::transitions(Transition* tr)
 {
+  char trans[1024];
+#ifdef DBUG
+  printf("IocControl::transitions %s %d.%09d\n",
+         TransitionId::name(tr->id()), 
+         tr->sequence().clock().seconds(),
+         tr->sequence().clock().nanoseconds());
+#endif  
   switch(tr->id()) {
   case TransitionId::Configure:
-      /* Make connections to the world, and send them our configuration. */
-      for(std::list<IocNode*>::iterator it=_selected_nodes.begin();
-          it!=_selected_nodes.end(); it++) {
-          IocConnection *c = (*it)->get_connection(this);
-          (*it)->write_config(c);
-      }
       sprintf(_trans, "trans %d %d %d %d\n",
               TransitionId::Configure, tr->sequence().clock().seconds(), 
               tr->sequence().clock().nanoseconds(), tr->sequence().stamp().fiducials());
       break;
   case TransitionId::BeginRun: 
       if (tr->size() != sizeof(Transition)) {
+
+          /* Make connections to the world, and send them our configuration. */
+          for(std::list<IocNode*>::iterator it=_selected_nodes.begin();
+              it!=_selected_nodes.end(); it++) {
+            IocConnection *c = (*it)->get_connection(this);
+            (*it)->write_config(c);
+          }
+
           unsigned run = tr->env().value();
           unsigned stream = 80;
 
@@ -186,19 +195,19 @@ Transition* IocControl::transitions(Transition* tr)
   case TransitionId::EndCalibCycle:
       if (!_recording)
           break;
-      sprintf(_trans, "trans %d %d %d %d\n",
+      sprintf(trans, "trans %d %d %d %d\n",
               tr->id(), tr->sequence().clock().seconds(), 
               tr->sequence().clock().nanoseconds(), tr->sequence().stamp().fiducials());
-      IocConnection::transmit_all(_trans);
+      IocConnection::transmit_all(trans);
       break;
   case TransitionId::EndRun:
       if (!_recording)
           break;
       /* Pass along the transition, and then tear down all of the connections. */
-      sprintf(_trans, "trans %d %d %d %d\n",
+      sprintf(trans, "trans %d %d %d %d\n",
               tr->id(), tr->sequence().clock().seconds(), 
               tr->sequence().clock().nanoseconds(), tr->sequence().stamp().fiducials());
-      IocConnection::transmit_all(_trans);
+      IocConnection::transmit_all(trans);
       IocConnection::clear_all();
       _recording = 0;
       break;
