@@ -63,6 +63,10 @@ IocControl::IocControl(const char* offlinerc,
         return;
     }
     while (getline(*in, line)) {
+        size_t p = line.find("opr");
+        if (p != std::string::npos && p>=3)
+          line = line.replace(p-3,3,"dia");
+
         _offlinerc.push_back("logbook " + line + "\n");
     }
     delete in;
