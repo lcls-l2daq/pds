@@ -5,6 +5,8 @@
 #include "pds/ioc/IocControl.hh"
 #include<list>
 
+//#define DBUG
+
 using namespace Pds;
 
 std::list<IocConnection*> IocConnection::_connections = std::list<IocConnection*>();
@@ -46,6 +48,9 @@ IocConnection *IocConnection::get_connection(std::string host, uint32_t host_ip,
 
 void IocConnection::transmit(char *s)
 {
+#ifdef DBUG
+    printf("IocConnection::transmit %s\n",s);
+#endif
     int len = strlen(s), wlen;
     if (_sock < 0)
         return;
@@ -54,6 +59,7 @@ void IocConnection::transmit(char *s)
          * In principle, we might not have written everything.
          * In practice, we're writing short stuff, and the write totally failed.
          */
+        perror("IocConnection write failed:");
         _cntl->_report_error("Connection to " + _host + " controls recorder has died.");
         close(_sock);
         _sock = -1;
@@ -62,6 +68,9 @@ void IocConnection::transmit(char *s)
 
 void IocConnection::transmit(std::string s)
 {
+#ifdef DBUG
+    printf("IocConnection::transmit %s\n",s.c_str());
+#endif
     int wlen;
     if (_sock < 0)
         return;
@@ -70,6 +79,7 @@ void IocConnection::transmit(std::string s)
          * In principle, we might not have written everything.
          * In practice, we're writing short stuff, and the write totally failed.
          */
+        perror("IocConnection write failed:");
         _cntl->_report_error("Connection to " + _host + " controls recorder has died.");
         close(_sock);
         _sock = -1;

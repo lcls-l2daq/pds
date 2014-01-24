@@ -27,7 +27,7 @@ IocNode::IocNode(std::string host_and_port, std::string config, std::string alia
         _host = host_and_port;
         _port = 12350;
     } else {
-        _host = host_and_port.substr(0, pos - 1);
+        _host = host_and_port.substr(0, pos);
         _port = atoi(host_and_port.substr(pos + 1, std::string::npos).c_str());
     }
 

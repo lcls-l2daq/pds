@@ -11,6 +11,8 @@
 #include<iostream>
 #include<vector>
 
+#define DBUG
+
 using namespace Pds;
 
 IocControl::IocControl() :
@@ -19,6 +21,9 @@ IocControl::IocControl() :
   _recording(0),
   _pool      (sizeof(UserMessage),4)
 {
+#ifdef DBUG
+  printf("IocControl::ctor empty\n");
+#endif
 }
 
 IocControl::IocControl(const char* offlinerc,
@@ -32,14 +37,21 @@ IocControl::IocControl(const char* offlinerc,
   _recording (0),
   _pool      (sizeof(UserMessage),4)
 {
+#ifdef DBUG
+  printf("IocControl::ctor offlinerc %s  instrument %s  controlrc %s\n",
+         offlinerc, instrument, controlrc);
+#endif
+
     std::ifstream *in;
     std::string line, host;
 
     /*
      * If we don't have a configuration file, we're not doing anything!
      */
-    if (!controlrc)
+    if (!controlrc) {
+        _report_error("IocControl: no configuration file provided");
         return;
+    }
 
     /*
      * Read in the logbook parameters.
@@ -77,11 +89,16 @@ IocControl::IocControl(const char* offlinerc,
             host = arrayTokens[1];
         } else if (arrayTokens[0] == "camera" && arrayTokens.size() >= 5) {
             /* Skip the cameras that want to be recorded as BLD. */
-            if (arrayTokens[2].compare(0, 4, "BLD-"))
-                _nodes.push_back(new IocNode(host, line, arrayTokens[1], arrayTokens[2],
-                                             arrayTokens[3], arrayTokens[4],
-                                             arrayTokens.size() >= 6 ? arrayTokens[5]
-                                                                     : (std::string)""));
+          if (arrayTokens[2].compare(0, 4, "BLD-")) {
+#ifdef DBUG
+            printf("IocControl::ctor adding IocNode host: %s  line: %s\n",
+                   host.c_str(), line.c_str());
+#endif
+            _nodes.push_back(new IocNode(host, line, arrayTokens[1], arrayTokens[2],
+                                         arrayTokens[3], arrayTokens[4],
+                                         arrayTokens.size() >= 6 ? arrayTokens[5]
+                                         : (std::string)""));
+          }
         }
     }
     delete in;
@@ -189,6 +206,7 @@ Transition* IocControl::transitions(Transition* tr)
 
 void IocControl::_report_error(const std::string& msg)
 {
-  UserMessage* usr = new(&_pool) UserMessage(msg.c_str());
-  post(usr);
+  printf("%s\n",msg.c_str());
+  //  UserMessage* usr = new(&_pool) UserMessage(msg.c_str());
+  //  post(usr);
 }
