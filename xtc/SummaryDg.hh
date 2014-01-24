@@ -33,6 +33,8 @@ namespace Pds {
       void append(const Pds::Src& info, const Pds::Damage& dmg);
       void append(L1AcceptEnv::L3TResult v);
     private:
+      static Dgram _dgram(const Pds::Datagram& dg);
+    private:
       uint32_t _payload;
       Src      _info[32];
     };
@@ -55,8 +57,23 @@ inline const Pds::Src& Pds::SummaryDg::Xtc::source(unsigned i) const
   return reinterpret_cast<const Pds::Src*>(p+1)[i];
 }
 
+#define ExtendedBit (1<<7)
+
+inline Pds::Dgram Pds::SummaryDg::Dg::_dgram(const Datagram& dg)
+{
+  Dgram d;
+  d.seq = Pds::Sequence(dg.seq.clock(),
+                        Pds::TimeStamp(dg.seq.stamp(),
+                                       dg.seq.stamp().control()&~ExtendedBit));
+  d.env = dg.env;
+  d.xtc = Pds::Xtc(Pds::SummaryDg::Xtc::typeId(),dg.xtc.src);
+  return d;
+}
+
+#undef ExtendedBit
+
 inline Pds::SummaryDg::Dg::Dg(const Datagram& dg) : 
-  CDatagram(dg,Pds::SummaryDg::Xtc::typeId(),dg.xtc.src),
+  CDatagram(_dgram(dg)),
   _payload(dg.xtc.sizeofPayload())
 {
   datagram().xtc.alloc(sizeof(_payload));

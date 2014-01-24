@@ -66,8 +66,8 @@ EbSegment::EbSegment(const Xtc& header,
   if(offset != 0)
     {
       if (nEbPrints)
-	printf("EbSegment::ctor offset %d/%d  %x\n",
-	       offset,length,_client.value());
+ 	printf("EbSegment::ctor offset %d/%d  %x\n",
+ 	       offset,length,_client.value());
 
       unsigned remaining = (unsigned)sizeofFragment >> 2;
       unsigned* in       = ((unsigned*) base)           + remaining;
