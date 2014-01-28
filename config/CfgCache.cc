@@ -45,7 +45,7 @@ int CfgCache::fetch  (Transition* tr)
     _configtc.damage = 0;
     _configtc.extent = sizeof(Xtc) + _size(_cur_config);
     _scanning = len >= _size(_cur_config) << 1;
-    printf("CfgCache::fetch len(%d) size(%d)\n", len, _size(_cur_config) << 1);
+    printf("CfgCache::fetch len(%d) size(%d)\n", len, _size(_cur_config));
   }
   else
     _configtc.damage.increase(Damage::UserDefined);
