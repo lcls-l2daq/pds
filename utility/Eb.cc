@@ -68,6 +68,11 @@ unsigned Eb::_fixup( EbEventBase* event, const Src& client, const EbBitMask& id 
   return ev->fixup ( client, id );
 }
 
+void Eb::_insert( EbEventBase* event )
+{
+  _pending.insert(event);
+}
+
 int Eb::processIo(Server* serverGeneric)
 {
   EbServer* server = (EbServer*)serverGeneric;
@@ -112,6 +117,7 @@ int Eb::processIo(Server* serverGeneric)
 
   if(event == event->forward()) {   // case (1)
     _pending.insert(event);
+    server->assign(event->key());
   }
   else if(!server->coincides(event->key())) {
     // case (2):  Remove the contribution from this event.  Now that we have the contribution's
@@ -128,17 +134,17 @@ int Eb::processIo(Server* serverGeneric)
     event = (EbEvent*)_seek(server);
     if (event == (EbEvent*)_pending.empty()) {
       event = (EbEvent*)_new_event(serverId, payload, sizeofPayload); // copies payload into new event
-      _pending.insert(event);
+      server->assign(event->key());
+      _insert(event);
     }
     else {
       event->allocated().insert(serverId);
       event->recopy(payload, sizeofPayload, serverId);
+      server->assign(event->key());
     }
   }
   else
-    ;
-
-  server->assign(event->key());
+    server->assign(event->key());
 
   //  Allow the event-under-construction to account for the added contribution
   if(sizeofPayload && event->consume(server, sizeofPayload, serverId)) {  // expect more fragments?

@@ -26,6 +26,9 @@ public:
 protected:
   virtual EbBase::IsComplete _is_complete( EbEventBase*, const EbBitMask& );
 
+private:
+  void                       _insert     ( EbEventBase* );
+
 public:
   void setClientMask(std::vector<EbBitMask>& lGroupClientMask) {_lGroupClientMask = lGroupClientMask;}
 

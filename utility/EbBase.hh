@@ -64,6 +64,7 @@ namespace Pds {
     virtual unsigned     _fixup      ( EbEventBase*, const Src&, const EbBitMask& ) = 0;
     virtual EbEventBase* _new_event  ( const EbBitMask& ) = 0;
     virtual EbEventBase* _new_event  ( const EbBitMask&, char*, unsigned ) = 0;
+    virtual void         _insert     ( EbEventBase* ) = 0;
     enum IsComplete { Complete, NoBuild, Incomplete };
     virtual IsComplete   _is_complete( EbEventBase*, const EbBitMask& );
     virtual void         _dump       ( int detail ) = 0;

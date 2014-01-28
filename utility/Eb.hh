@@ -34,6 +34,7 @@ class Eb : public EbBase
     int  processIo(Server*);
   private:
     unsigned     _fixup      ( EbEventBase*, const Src&, const EbBitMask& );
+    void         _insert     ( EbEventBase* );
     void         _dump       ( int detail );
   protected:
     GenericPoolW _datagrams;    // Datagram freelist
