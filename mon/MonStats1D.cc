@@ -28,6 +28,20 @@ void MonStats1D::stats(unsigned nbins,
     _sumwx2 += w*x*x;
     x += dx;
   } while (con < end);
+
+  x = xlo - 0.5*dx;
+  double w = _under;
+  _sumw   += w;
+  _sumw2  += w*w;
+  _sumwx  += w*x;
+  _sumwx2 += w*x*x; 
+
+  x = xup + 0.5*dx;
+  w = _over;
+  _sumw   += w;
+  _sumw2  += w*w;
+  _sumwx  += w*x;
+  _sumwx2 += w*x*x; 
 }
 
 void MonStats1D::setto(const MonStats1D& s)

@@ -12,6 +12,12 @@
 #include "pds/xtc/InDatagram.hh"
 #include "pds/service/Task.hh"
 
+#include "pds/vmon/VmonServerManager.hh"
+#include "pds/mon/MonCds.hh"
+#include "pds/mon/MonGroup.hh"
+#include "pds/mon/MonEntryTH1F.hh"
+#include "pds/mon/MonDescTH1F.hh"
+
 #include <stdlib.h>
 #include <string.h>
 #include <errno.h>
@@ -19,6 +25,9 @@
 #include <unistd.h>
 
 static unsigned _maxscheduled = 4;
+
+static unsigned tbin_shift =  8; // 1<<tbin_shift microseconds/bin
+static unsigned tbin_range = 17; // 1<<tbin_range microseconds full range
 
 namespace Pds {
   class FlushRoutine : public Routine {
@@ -35,11 +44,10 @@ namespace Pds {
   public:
     void routine()
     {
-#ifdef HISTO_TRANSMIT_TIMES
       timespec start, end;
       if (_scheduler)
-  clock_gettime(CLOCK_REALTIME, &start);
-#endif
+        clock_gettime(CLOCK_REALTIME, &start);
+
       unsigned cnt=_maxscheduled;
       TrafficDst* t = _list.forward();
       while(t != _list.empty()) {
@@ -53,29 +61,17 @@ namespace Pds {
           cnt++;
           TrafficDst* n = t->forward();
 
-//#ifdef BUILD_PACKAGE_SPACE
-//    static int iDgCount = 0;
-//    if (++iDgCount > 100)
-//      {
-//        timeval timeSleepMicro = {0, 1000};
-//        // Use select() to simulate nanosleep(), because experimentally select() controls the sleeping time more precisely
-//        select( 0, NULL, NULL, NULL, &timeSleepMicro);
-//        iDgCount = 0;
-//      }
-//#endif
-
           if (!t->send_next(_client))
             delete t->disconnect();
           t = n;
         } while( t != _list.empty());
         t = _list.forward();
       }
-#ifdef HISTO_TRANSMIT_TIMES
+
       if (_scheduler) {
-  clock_gettime(CLOCK_REALTIME, &end);
-  _scheduler->histo(start,end);
+        clock_gettime(CLOCK_REALTIME, &end);
+        _scheduler->histo(start,end);
       }
-#endif
 
       delete this;
     }
@@ -94,14 +90,6 @@ static int      _disable_buffer = 100; // time [ms] inserted between flushed L1 
 static unsigned _phase = 0;
 
 static bool _shape_tmo = false;
-
-static long long int timeDiff(timespec* end, timespec* start) {
-  long long int diff;
-  diff =  (end->tv_sec - start->tv_sec) * 1000000000LL;
-  diff += end->tv_nsec;
-  diff -= start->tv_nsec;
-  return diff;
-}
 
 void ToEventWireScheduler::setMaximum(unsigned m) { _maxscheduled = m; }
 void ToEventWireScheduler::setPhase  (unsigned m) { _phase = m; }
@@ -122,7 +110,15 @@ ToEventWireScheduler::ToEventWireScheduler(Outlet& outlet,
   _flush_task  (new Task(TaskObject("TxFlush")))
 {
   _flushCount = 0;
-  _histo = (unsigned*) calloc(10000, sizeof(unsigned));
+
+  MonGroup* group = new MonGroup("ToEvent");
+  VmonServerManager::instance()->cds().add(group);
+
+  MonDescTH1F sendtime("Send Time", "[us]", "", 
+                       1<<(tbin_range-tbin_shift), 0., float(1<<tbin_range));
+  _histo = new MonEntryTH1F(sendtime);
+  group->add(_histo);
+
   if (::pipe(_schedfd) < 0)
     printf("ToEventWireScheduler pipe open error : %s\n",strerror(errno));
   else
@@ -274,15 +270,14 @@ void ToEventWireScheduler::unbind(unsigned id)
 
 void ToEventWireScheduler::histo(timespec& start, timespec& end)
 {
-  long long int interval = timeDiff(&end, &start)/100000LL;
-  if (interval > 9999) interval = 9999;
-  _histo[interval] += 1;
-  if ((++_flushCount % 10000) == 0) {
-    printf("ToEventWireScheduler time histo in ms %u\n", _flushCount);
-    for (int i=0; i<1000; i++) {
-      if (_histo[i]) {
-        printf("\t%5.1f - %8u\n", i/10.0, _histo[i]);
-      }
-    }
-  }
+  double diff = double(end.tv_sec - start.tv_sec);
+  diff += double(end.tv_nsec)*1.e-9;
+  diff -= double(start.tv_nsec)*1.e-9;
+  unsigned udiff = unsigned(diff*1.e6);
+  if (udiff >> tbin_range)
+    _histo->addinfo(1.,MonEntryTH1F::Overflow);
+  else
+    _histo->addcontent(1.,udiff >> tbin_shift);
+
+  _histo ->time(ClockTime(end.tv_sec,end.tv_nsec));
 }

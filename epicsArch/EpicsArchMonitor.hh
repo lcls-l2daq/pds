@@ -20,7 +20,8 @@ namespace Pds
     ~EpicsArchMonitor();
   public:
     int writeToXtc(Datagram & dg, UserMessage ** msg, const struct timespec& tsCurrent, unsigned int uVectorCur);
-    int validate  (int iNumEventNode);
+    int validate    (int iNumEventNode);
+    int resetUpdates(int iNumEventNode);
 
     static const int iXtcVersion = EpicsXtcSettings::iXtcVersion;
     static const int iMaxNumPv = EpicsXtcSettings::iMaxNumPv;

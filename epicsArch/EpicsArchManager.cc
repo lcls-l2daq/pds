@@ -179,12 +179,8 @@ public:
   {
     // Check delta time
     timespec tsCurrent;
-    int iStatus = clock_gettime(CLOCK_REALTIME, &tsCurrent);
-    if (iStatus)
-    {
-      printf("EpicsArchL1AcceptAction::fire():clock_gettime() Failed: %s\n",
-       strerror(iStatus));
-    }
+    tsCurrent.tv_sec  = in->datagram().seq.clock().seconds();
+    tsCurrent.tv_nsec = in->datagram().seq.clock().nanoseconds();
     
     unsigned int uVectorCur = in->seq.stamp().vector();  
     
@@ -225,15 +221,16 @@ private:
   timespec tsPrev;
 };
 
-class EpicsArchDisableAction:public Action
+class EpicsArchUpdateAction:public Action
 {
 public:
-  EpicsArchDisableAction(EpicsArchManager & manager):_manager(manager)
+  EpicsArchUpdateAction(EpicsArchManager & manager):_manager(manager)
   {
   }
 
   virtual Transition *fire(Transition * in)
   {
+    _manager.update();
     return in;
   }
 private:
@@ -254,14 +251,14 @@ EpicsArchManager::EpicsArchManager(CfgClientNfs & cfg, const std::string & sFnCo
   _pActionConfig = new EpicsArchConfigAction(*this, EpicsArchManager::srcLevel, cfg, _iDebugLevel); // Level::Reporter for Epics Archiver
   _pActionL1Accept =
     new EpicsArchL1AcceptAction(*this, _fMinTriggerInterval, _iDebugLevel);
-  _pActionDisable = new EpicsArchDisableAction(*this);
+  _pActionUpdate = new EpicsArchUpdateAction(*this);
 
   _pFsm->callback(TransitionId::Reset, _pActionReset);
   _pFsm->callback(TransitionId::Map, _pActionMap);
   _pFsm->callback(TransitionId::Unmap, _pActionUnmap);
   _pFsm->callback(TransitionId::Configure, _pActionConfig);
+  _pFsm->callback(TransitionId::BeginCalibCycle, _pActionUpdate);
   _pFsm->callback(TransitionId::L1Accept, _pActionL1Accept);
-  _pFsm->callback(TransitionId::Disable, _pActionDisable);
 
   _pPool    = new GenericPoolW(EpicsArchMonitor::iMaxXtcSize, 32);
   _occPool  = new GenericPool(sizeof(UserMessage), 4);
@@ -276,7 +273,7 @@ EpicsArchManager::~EpicsArchManager()
   delete _pPool;
   if (_pMonitor)  delete _pMonitor;
 
-  delete _pActionDisable;
+  delete _pActionUpdate;
   delete _pActionL1Accept;
   delete _pActionConfig;
   delete _pActionMap;
@@ -359,4 +356,9 @@ int EpicsArchManager::writeMonitoredContent(Datagram & dg, UserMessage ** msg, c
 int EpicsArchManager::validate()
 {
   return _pMonitor->validate(_iNumEventNode);
+}
+
+int EpicsArchManager::update()
+{
+  return _pMonitor->resetUpdates(_iNumEventNode);
 }

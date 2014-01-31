@@ -264,6 +264,19 @@ int EpicsArchMonitor::validate(int iNumEventNode)
   return nNotConnected;
 }
 
+int EpicsArchMonitor::resetUpdates(int iNumEventNode)
+{
+  const int iNumPv = _lpvPvList.size();
+  for (int iPvName = 0; iPvName < iNumPv; iPvName++)
+  {
+    EpicsMonitorPv & epicsPvCur = _lpvPvList[iPvName];
+
+    if (epicsPvCur.isConnected())
+      epicsPvCur.resetUpdates(iNumEventNode);
+  }
+  return 0;
+}
+
 /*
 * private static member functions
 */

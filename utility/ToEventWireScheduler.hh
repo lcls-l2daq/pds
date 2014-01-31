@@ -17,6 +17,7 @@ namespace Pds {
   class Task;
   class TrafficDst;
   class TrafficScheduler;
+  class MonEntryTH1F;
 
   class ToEventWireScheduler : public OutletWire,
 			       public Routine {
@@ -61,7 +62,7 @@ namespace Pds {
     Task*                  _flush_task;
     int                    _schedfd[2];
     unsigned               _flushCount;
-    unsigned*              _histo;
+    MonEntryTH1F*          _histo;
   };
 }
 

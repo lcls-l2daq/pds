@@ -25,6 +25,7 @@ namespace Pds
       return *_pFsm;
     }
     int validate();
+    int update  ();
     int writeMonitoredContent(Datagram & dg, UserMessage ** msg, const struct timespec& tsCurrent, unsigned int uVectorCur);
 
     GenericPool *getPool()
@@ -50,7 +51,7 @@ namespace Pds
     Action *_pActionMap;
     Action *_pActionUnmap;
     Action *_pActionL1Accept;
-    Action *_pActionDisable;
+    Action *_pActionUpdate;
 
     std::string       _sFnConfig;
     float             _fMinTriggerInterval;
