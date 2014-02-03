@@ -537,6 +537,13 @@ void FCA::MyIter::process(Xtc* xtc)
                      xtc->sizeofPayload());
   }
 
+  if (cxtc && cxtc->extent > _max_osize) {
+    printf("FrameCompApp::MyIter compressed image exceeded buffer size [%d/%d]\n",
+	   cxtc->extent, _max_osize);
+    cxtc = 0;
+    abort();
+  }
+
   if (cxtc && (cxtc->extent < xtc->extent)) {
     if (_cache) {  // keep uncompressed data
       _cached = true;
