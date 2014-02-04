@@ -106,6 +106,7 @@ ToEventWireScheduler::ToEventWireScheduler(Outlet& outlet,
                 //                (1 + maxbuf / Mtu::Size)*_maxscheduled),
                 ((1 + maxbuf) / Mtu::Size)),
   _occurrences (occurrences),
+  _nscheduled  (0),
   _task        (new Task(TaskObject("TxScheduler"))),
   _flush_task  (new Task(TaskObject("TxFlush")))
 {
