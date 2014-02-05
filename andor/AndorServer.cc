@@ -646,6 +646,52 @@ int AndorServer::initCapture()
     return ERROR_INVALID_CONFIG;
   }
 
+  //
+  // Acquisition Mode: 1 Single Scan , 2 Accumulate , 3 Kinetics , 4 Fast Kinetics , 5 Run till abort
+  //
+  iError = SetAcquisitionMode(1);
+  if (!isAndorFuncOk(iError))
+  {
+    printf("AndorServer::initCapture(): SetAcquisitionMode(): %s\n", AndorErrorCodes::name(iError));
+    return ERROR_SDK_FUNC_FAIL;
+  }
+
+  //
+  // Trigger Mode: 0 Internel , 1 External , 6 External Start
+  //               7 External Exposure (Bulb) , 9 Ext FVB EM
+  //               10 Software Trigger  12 Ext Charge Shifting
+  //
+  iError = SetTriggerMode(0);
+  if (!isAndorFuncOk(iError))
+  {
+    printf("AndorServer::initCapture(): SetTriggerMode(): %s\n", AndorErrorCodes::name(iError));
+    return ERROR_SDK_FUNC_FAIL;
+  }
+
+  //
+  // SetShutter(int typ, int mode, int closingtime, int openingtime)
+  // 
+  //  typ: 0 Output TTL low signal to open shutter 1 Output TTL high signal to open shutter
+  // mode: 0 Auto , 1 Open , 2 Close
+  iError = SetShutter(1, 0, 0, 0);
+  if (!isAndorFuncOk(iError))
+  {
+    printf("AndorServer::initCapture(): SetShutter(): %s\n", AndorErrorCodes::name(iError));
+    return ERROR_SDK_FUNC_FAIL;
+  }
+
+  //
+  // SetShutterEx(int typ, int mode, int closingtime, int openingtime, int extmode)
+  // 
+  //          typ: 0 Output TTL low signal to open shutter 1 Output TTL high signal to open shutter
+  // mode/extmode: 0 Auto , 1 Open , 2 Close
+  iError = SetShutterEx(1, 0, 0, 0, 0);
+  if (!isAndorFuncOk(iError))
+  {
+    printf("AndorServer::initCapture(): SetShutterEx(): %s\n", AndorErrorCodes::name(iError));
+    return ERROR_SDK_FUNC_FAIL;
+  }
+
   float fTimeKeepClean = -1;
   GetKeepCleanTime(&fTimeKeepClean);
   printf("Keep clean time: %f s\n", fTimeKeepClean);
@@ -1574,7 +1620,7 @@ int AndorServer::setupROI()
   if ( _iImageWidth == _iDetectorWidth &&
        _iImageHeight == 1 )
     iReadMode = 0;
-
+  
   SetReadMode(iReadMode);
   printf("Read mode: %d\n", iReadMode);
 
