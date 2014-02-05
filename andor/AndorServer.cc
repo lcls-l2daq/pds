@@ -670,7 +670,7 @@ int AndorServer::initCapture()
 
   //
   // SetShutter(int typ, int mode, int closingtime, int openingtime)
-  // 
+  //
   //  typ: 0 Output TTL low signal to open shutter 1 Output TTL high signal to open shutter
   // mode: 0 Auto , 1 Open , 2 Close
   iError = SetShutter(1, 0, 0, 0);
@@ -682,7 +682,7 @@ int AndorServer::initCapture()
 
   //
   // SetShutterEx(int typ, int mode, int closingtime, int openingtime, int extmode)
-  // 
+  //
   //          typ: 0 Output TTL low signal to open shutter 1 Output TTL high signal to open shutter
   // mode/extmode: 0 Auto , 1 Open , 2 Close
   iError = SetShutterEx(1, 0, 0, 0, 0);
@@ -1620,7 +1620,7 @@ int AndorServer::setupROI()
   if ( _iImageWidth == _iDetectorWidth &&
        _iImageHeight == 1 )
     iReadMode = 0;
-  
+
   SetReadMode(iReadMode);
   printf("Read mode: %d\n", iReadMode);
 
