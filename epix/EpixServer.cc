@@ -96,6 +96,7 @@ unsigned EpixServer::configure(EpixConfigType* config, bool forceConfig) {
   _count = _elementsThisCount = 0;
   _configured = _configureResult == 0;
   c = this->flushInputQueue(fd());
+  clearHisto();
   if (c) printf("EpixServer::configure flushed %u event%s after confguration\n", c, c>1 ? "s" : "");
 
   return _configureResult;
@@ -199,10 +200,29 @@ int Pds::EpixServer::fetch( char* payload, int flags ) {
      } else {
        clock_gettime(CLOCK_REALTIME, &_thisTime);
        long long unsigned diff = timeDiff(&_thisTime, &_lastTime);
+       unsigned peak = 0;
+       unsigned max = 0;
+       unsigned count = 0;
        diff += 500000;
        diff /= 1000000;
        if (diff > sizeOfHisto-1) diff = sizeOfHisto-1;
        _histo[diff] += 1;
+       for (unsigned i=0; i<sizeOfHisto; i++) {
+         if (_histo[i]) {
+           if (_histo[i] > max) {
+             max = _histo[i];
+             peak = i;
+           }
+           count = 0;
+         }
+         if (i > count && count > 200) break;
+         count += 1;
+       }
+       if (max > 100) {
+         if ((diff >= (peak<<1)) || (diff <= (peak>>1))) {
+           printf("EpixServer::fetch exceptional period %llu, not %u\n", diff, peak);
+         }
+       }
        memcpy(&_lastTime, &_thisTime, sizeof(timespec));
      }
    }
@@ -326,6 +346,12 @@ void EpixServer::setEpix( int f ) {
 //  if (_cnfgrtr == 0) {
 //    _cnfgrtr = new Pds::Epix::EpixConfigurator::EpixConfigurator(fd(), _debug);
 //  }
+}
+
+void EpixServer::clearHisto() {
+  for (unsigned i=0; i<sizeOfHisto; i++) {
+    _histo[i] = 0;
+  }
 }
 
 void EpixServer::printHisto(bool c) {

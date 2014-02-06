@@ -42,12 +42,13 @@ namespace Pds {
       bits._tid     = transID & ((1<<23)-1);
       bits._waiting = w;
 //      printf("RegisterSlaveExportFrame::RegisterSlaveExportFrame() lane %u offset %u\n", dest->lane(), Pgp::portOffset());
-      bits._lane    = (dest->lane() & 3) + Pgp::portOffset();
-      bits.mbz    = 0;
-      bits._vc      = dest->vc() & 3;
+      bits._lane   = (dest->lane() & 3) + Pgp::portOffset();
+      bits.mbz     = 0;
+      bits._vc     = dest->vc() & 3;
       bits.oc      = o;
-      bits._addr    = a & addrMask;
-      _data         = da;  // NB, for read request size of block requested minus one is placed in data field
+      bits._addr   = a & addrMask;
+      bits.dnc     = 0;
+      _data        = da;  // NB, for read request size of block requested minus one is placed in data field
       NotSupposedToCare = 0;
     }
 

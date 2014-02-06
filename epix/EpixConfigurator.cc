@@ -196,6 +196,7 @@ unsigned EpixConfigurator::configure( EpixConfigType* c, unsigned first) {
     printf("EpixConfigurator::configure determined that we lost contact with the front end, exiting!\n");
     return 1;
   }
+  resetSequenceCount();
   if (printFlag) {
     clock_gettime(CLOCK_REALTIME, &end);
     uint64_t diff = timeDiff(&end, &start) + 50000LL;

@@ -146,12 +146,17 @@ unsigned Pds::Cspad2x2Server::disable(bool flush) {
   _ignoreFetch = true;
   unsigned ret = _configureResult;
   if (_configureResult != 0xdead) {
-    ret = _pgp->writeRegister(
-        &_d,
-        CsPad2x2::Cspad2x2Configurator::RunModeAddr,
-        _cnfgrtr->configuration().inactiveRunMode());
-    ::usleep(10000);
-    if (flush) flushInputQueue(fd());
+    if (_pgp && _cnfgrtr) {
+      ret = _pgp->writeRegister(
+          &_d,
+          CsPad2x2::Cspad2x2Configurator::RunModeAddr,
+          _cnfgrtr->configuration().inactiveRunMode());
+      ::usleep(10000);
+    } else {
+      printf("Cspad2x2Server::disable found nil _pgp %p pointer or _cnfgrtr %p\n", _pgp, _cnfgrtr);
+      ret = 0xffffffff;
+    }
+    if (flush && _pgp) flushInputQueue(fd());
     if (_debug & 0x20) printf("Cspad2x2Server::disable %s\n", ret ? "FAILED!" : "SUCCEEDED");
   } else {
     printf("Cspad2x2Server::disable found nil config!\n");

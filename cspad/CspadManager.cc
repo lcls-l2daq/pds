@@ -526,7 +526,7 @@ CspadManager::CspadManager( CspadServer* server, unsigned d, bool c) :
    }
 
    int cspad = open( devName,  O_RDWR | O_NONBLOCK);
-   printf("pgpcard file number %d\n", cspad);
+   printf("pgpcard device name %s, file number %d\n", devName, cspad);
    if (cspad < 0) {
      sprintf(err, "CspadManager::CspadManager() opening %s failed", devName);
      perror(err);

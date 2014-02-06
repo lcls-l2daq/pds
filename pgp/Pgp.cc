@@ -23,6 +23,7 @@ namespace Pds {
     Pgp::Pgp(int f, bool pf) : _fd(f) {
       if (pf) printf("Pgp::Pgp(fd(%d)), offset(%u)\n", f, _portOffset);
       Pds::Pgp::RegisterSlaveExportFrame::FileDescr(f);
+      for (int i=0; i<BufferWords; i++) _readBuffer[i] = i;
     }
 
     Pgp::~Pgp() {}

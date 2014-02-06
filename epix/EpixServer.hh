@@ -75,11 +75,13 @@ class Pds::EpixServer
    unsigned myCount() { return _count; }
    void     dumpFrontEnd();
    void     printHisto(bool);
+   void     clearHisto();
    void     manager(EpixManager* m) { _mgr = m; }
    EpixManager* manager() { return _mgr; }
    void     process(char*);
    void     allocated();
    bool     resetOnEveryConfig() { return _resetOnEveryConfig; }
+   void     resetOnEveryConfig(bool r) { _resetOnEveryConfig = r; }
 
  public:
    static EpixServer* instance() { return _instance; }
