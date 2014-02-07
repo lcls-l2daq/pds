@@ -17,7 +17,8 @@ Node::Node(const Node& rhs) :
   _platform (rhs._platform), 
   _group    (rhs._group),
   _uid      (rhs._uid),
-  _procInfo (rhs._procInfo)
+  _procInfo (rhs._procInfo),
+  _ether    (rhs._ether)
 {}
 
 Node::Node(Level::Type level, uint16_t platform) :
@@ -25,7 +26,7 @@ Node::Node(Level::Type level, uint16_t platform) :
   _group   (0),
   _uid(getuid()),
   _procInfo(level,getpid(),0)
-{}
+{ memset(&_ether, 0, sizeof(_ether)); }
 
 Level::Type Node::level () const {return _procInfo.level();}
 unsigned Node::platform () const {return _platform;}

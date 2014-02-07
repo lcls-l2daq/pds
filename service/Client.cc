@@ -297,6 +297,7 @@ int Client::send(char* datagram, char* payload, int sizeofPayload)
   hdr.msg_namelen      = 0;
   hdr.msg_control      = (caddr_t)0;
   hdr.msg_controllen   = 0;
+  hdr.msg_flags        = 0;
 
 #ifdef ODF_LITTLE_ENDIAN
   struct iovec iov_swap;
@@ -357,6 +358,7 @@ int Client::send(char*         datagram,
   hdr.msg_namelen      = sa.sizeofName();
   hdr.msg_control      = (caddr_t)0;
   hdr.msg_controllen   = 0;
+  hdr.msg_flags        = 0;
 
 
 #ifdef ODF_LITTLE_ENDIAN
@@ -423,6 +425,7 @@ int Client::send(char*         datagram,
   hdr.msg_namelen      = sa.sizeofName();
   hdr.msg_control      = (caddr_t)0;
   hdr.msg_controllen   = 0;
+  hdr.msg_flags        = 0;
 
 
 #ifdef ODF_LITTLE_ENDIAN
@@ -487,6 +490,7 @@ int Client::send(char*         datagram,
   hdr.msg_namelen      = 0;
   hdr.msg_control      = (caddr_t)0;
   hdr.msg_controllen   = 0;
+  hdr.msg_flags        = 0;
 
 #ifdef ODF_LITTLE_ENDIAN
   struct iovec iov_swap;
@@ -532,6 +536,7 @@ int Client::send(char*         datagram,
   hdr.msg_namelen      = sa.sizeofName();
   hdr.msg_control      = (caddr_t)0;
   hdr.msg_controllen   = 0;
+  hdr.msg_flags        = 0;
 
 
 #ifdef ODF_LITTLE_ENDIAN
@@ -574,6 +579,7 @@ int Client::send(char*        datagram,
   hdr.msg_controllen   = 0;
   hdr.msg_iov          = iov;
   hdr.msg_iovlen       = 1;
+  hdr.msg_flags        = 0;
 
   int length = ::sendmsg(_socket, &hdr, MSG_MORE);
   if (length == -1) {
@@ -617,6 +623,7 @@ int Client::send(char*        datagram,
   hdr.msg_controllen   = 0;
   hdr.msg_iov          = iov;
   hdr.msg_iovlen       = 2;
+  hdr.msg_flags        = 0;
 
   int length = ::sendmsg(_socket, &hdr, MSG_MORE);
   if (length == -1) {

@@ -332,6 +332,7 @@ int NetServer::unblock(char* datagram)
   hdr.msg_controllen   = 0;
   hdr.msg_iovlen    = 1;
   hdr.msg_iov       = &iov[0];
+  hdr.msg_flags     = 0;
 
   return sendmsg(_socket, &hdr, SendFlags) != - 1 ? 0 : errno;
   }
@@ -353,6 +354,7 @@ int NetServer::unblock(char* datagram, char* payload, int sizeofPayload)
   hdr.msg_controllen   = 0;
   hdr.msg_iovlen    = 2;
   hdr.msg_iov       = &iov[0];
+  hdr.msg_flags     = 0;
 
   return sendmsg(_socket, &hdr, SendFlags) != - 1 ? 0 : errno;
   }
