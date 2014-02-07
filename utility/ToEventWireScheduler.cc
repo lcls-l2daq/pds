@@ -26,8 +26,8 @@
 
 static unsigned _maxscheduled = 4;
 
-static unsigned tbin_shift =  8; // 1<<tbin_shift microseconds/bin
-static unsigned tbin_range = 17; // 1<<tbin_range microseconds full range
+static unsigned tbin_shift = 10; // 1<<tbin_shift microseconds/bin
+static unsigned tbin_range = 16; // 1<<tbin_range microseconds full range
 
 namespace Pds {
   class FlushRoutine : public Routine {
@@ -107,6 +107,7 @@ ToEventWireScheduler::ToEventWireScheduler(Outlet& outlet,
                 ((1 + maxbuf) / Mtu::Size)),
   _occurrences (occurrences),
   _nscheduled  (0),
+  _scheduled   (0),
   _task        (new Task(TaskObject("TxScheduler"))),
   _flush_task  (new Task(TaskObject("TxFlush")))
 {

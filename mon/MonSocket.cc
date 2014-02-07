@@ -16,6 +16,7 @@ MonSocket::MonSocket(int socket) :
   _hdr.msg_namelen    = 0;
   _hdr.msg_control    = 0;
   _hdr.msg_controllen = 0;
+  _hdr.msg_flags      = 0;
 }
 
 MonSocket::~MonSocket()

@@ -15,6 +15,7 @@ VmonSocket::VmonSocket() :
 {
   _rhdr.msg_control    = 0;
   _rhdr.msg_controllen = 0;
+  _rhdr.msg_flags      = 0;
 }
 
 VmonSocket::~VmonSocket()

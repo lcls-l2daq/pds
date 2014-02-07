@@ -3,6 +3,7 @@
 #include "pds/client/XtcStripper.hh"
 #include "pds/xtc/InDatagram.hh"
 #include "pds/service/Task.hh"
+#include "pds/service/Timer.hh"
 
 #include "pds/config/CsPad2x2DataType.hh"
 
@@ -70,8 +71,8 @@ namespace Pds {
       bool is_complete  () const { return _state==Completed; }
       bool is_unassigned() const { return _state==Queued; }
     public:
-      void assign  () { _state=Assigned; clock_gettime(CLOCK_REALTIME,&_assign); }
-      void complete() { _state=Completed; }
+      void assign  () { _state=Assigned; }
+      void complete() { _state=Completed; clock_gettime(CLOCK_REALTIME,&_complete); }
       void post    (FrameCompApp& app) { 
         if (_type == TypeT) app.post((Transition*)_ptr);
         else                app.post((InDatagram*)_ptr);
@@ -79,10 +80,11 @@ namespace Pds {
       void* ptr() { return _ptr; }
     public:
       double since_start (const timespec& now) const { return time_since(now,_start); }
-      double since_assign(const timespec& now) const { return time_since(now,_assign); }
+      double start_to_complete() const               { return time_since(_complete,_start); }
       bool   copy() const { return _copy; }
       double compr_ratio () const {
-        return _type==TypeT ? 1 : reinterpret_cast<InDatagram*>(_ptr)->datagram().xtc.sizeofPayload()/_insize;
+        return _type==TypeT ? 1 : 
+	  double(reinterpret_cast<InDatagram*>(_ptr)->datagram().xtc.sizeofPayload())/_insize;
       }
     private:
       enum { Queued, Assigned, Completed } _state;
@@ -90,7 +92,7 @@ namespace Pds {
       void* _ptr;
       bool  _copy;
       timespec _start;
-      timespec _assign;
+      timespec _complete;
       double   _insize;
     };
     
@@ -186,6 +188,19 @@ namespace Pds {
                         Pds::CompressedPayload::Engine engine );
     };
 #endif
+
+    class Timer : public Pds::Timer {
+    public:
+      Timer(FrameCompApp& app, Pds::Task& task) : _app(app), _task(task) {}
+    public:
+      void expired() { _app.process(); _app.audit(); }
+      Pds::Task* task  () { return &_task; }
+      unsigned duration() const { return 200; }
+      unsigned repetitive() const { return 1; }
+    private:
+      FrameCompApp& _app;
+      Pds::Task&    _task;
+    };
   };
 };
 
@@ -203,29 +218,56 @@ static std::vector<DetInfo>         _info;
 static const unsigned nbins = 64;
 static const double ms_per_bin = 64./64.;
 static const double rat_per_bin = 1.28/64.;
+static const double evt_per_bin = 1.;
+
+static MonEntryTH1F* _mon_entry_th1f( const char* name )
+{
+  MonDescTH1F desc(name,"[events]","", 32, 0., double(32)*evt_per_bin);
+  return new MonEntryTH1F(desc);
+}
+
+static void _dump_th1f( MonEntryTH1F* h)
+{
+  const MonDescTH1F& d = h->desc();
+  printf("%s  nbins %d  xlo %f  xhi %f\n",
+	 d.name(), d.nbins(), d.xlow(), d.xup());
+  for(unsigned i=0; i<d.nbins(); i++)
+    printf("%f%c", h->content(i), (i%10)==9 ? '\n':' ');
+  printf("\n");
+}
 
 FrameCompApp::FrameCompApp(size_t max_size, unsigned nthreads) :
   _mgr_task(new Task(TaskObject("FCAmgr"))),
-  _tasks   (nthreads ? nthreads : 4)
+  _tasks   (nthreads ? nthreads : 4),
+  _timer   (new FCA::Timer(*this,*_mgr_task))
 {
   MonGroup* group = new MonGroup("FCA");
   VmonServerManager::instance()->cds().add(group);
 
   MonDescTH1F start_to_complete("Start to Complete","[ms]", "", nbins, 0., double(nbins)*ms_per_bin);
   _start_to_complete = new MonEntryTH1F(start_to_complete);
-  group->add(_start_to_complete);
 
-  MonDescTH1F assign_to_complete("Assign to Complete","[ms]", "", nbins, 0., double(nbins)*ms_per_bin);
-  _assign_to_complete = new MonEntryTH1F(assign_to_complete);
-  group->add(_assign_to_complete);
+  MonDescTH1F start_to_post("Start to Post","[ms]", "", nbins, 0., double(nbins)*ms_per_bin);
+  _start_to_post = new MonEntryTH1F(start_to_post);
 
   MonDescTH1F compress_ratio("Compr Ratio","[fraction]", "", nbins, 0., double(nbins)*rat_per_bin);
   _compress_ratio = new MonEntryTH1F(compress_ratio);
+
+  _queued   =_mon_entry_th1f("Queued");
+  _assigned =_mon_entry_th1f("Assigned");
+  _completed=_mon_entry_th1f("Completed");
+
+  group->add(_queued);
+  group->add(_assigned);
+  group->add(_completed);
+  group->add(_start_to_complete);
+  group->add(_start_to_post);
   group->add(_compress_ratio);
 
   for(unsigned id=0; id<_tasks.size(); id++)
     _tasks[id] = new FCA::Task(id,*this,max_size);
 
+  //  _timer->start();
 }
 
 FrameCompApp::~FrameCompApp()
@@ -253,12 +295,17 @@ InDatagram* FrameCompApp::events(InDatagram* in)
 void FrameCompApp::queueTransition(Transition* tr)
 {
   _list.push_back(new FCA::Entry(tr));
-  _process();
+  process();
 }
 
 void FrameCompApp::queueEvent(InDatagram* in)
 {
   if (in->datagram().seq.service()==TransitionId::Configure) {
+    _dump_th1f( _start_to_complete );
+    _dump_th1f( _compress_ratio );
+    _dump_th1f( _queued );
+    _dump_th1f( _assigned );
+    _dump_th1f( _completed );
     _config.clear();
     _info  .clear();
     _configv4.clear();
@@ -266,49 +313,52 @@ void FrameCompApp::queueEvent(InDatagram* in)
     if (lVerbose)    printf("FCA::queue Configure\n");
   }
   _list.push_back(new FCA::Entry(in));
-  _process();
+  process();
+  audit();
 }
 
-void FrameCompApp::_complete(FCA::Entry* e)
+void FrameCompApp::_post(FCA::Entry* e)
 {
   timespec now;
   clock_gettime(CLOCK_REALTIME,&now);
-  ClockTime time(now.tv_sec,now.tv_nsec);
-  { unsigned bin = unsigned(e->since_start(now)/ms_per_bin);
+
+  { unsigned bin = unsigned(e->start_to_complete()/ms_per_bin);
     if (bin < nbins)
       _start_to_complete->addcontent(1,bin);
     else
       _start_to_complete->addinfo(1,MonEntryTH1F::Overflow); 
-    _start_to_complete->time(time);
   }
 
-  { unsigned bin = unsigned(e->since_assign(now)/ms_per_bin);
+  { unsigned bin = unsigned(e->since_start(now)/ms_per_bin);
     if (bin < nbins)
-      _assign_to_complete->addcontent(1,bin);
+      _start_to_post->addcontent(1,bin);
     else
-      _assign_to_complete->addinfo(1,MonEntryTH1F::Overflow);
-    _assign_to_complete->time(time);
+      _start_to_post->addinfo(1,MonEntryTH1F::Overflow);
   }
-    
+
   { unsigned bin = unsigned(e->compr_ratio()/rat_per_bin);
     if (bin < nbins)
       _compress_ratio->addcontent(1,bin);
     else
       _compress_ratio->addinfo(1,MonEntryTH1F::Overflow);
-    _compress_ratio->time(time);
   }
     
-  e->complete();
+  ClockTime time(now.tv_sec,now.tv_nsec);
+  _start_to_complete ->time(time);
+  _start_to_post     ->time(time);
+  _compress_ratio    ->time(time);
+
+  e->post(*this);
 }
 
 void FrameCompApp::completeEntry(FCA::Entry* e, unsigned id)
 {
-  _complete(e);
+  e->complete();
   _tasks[id]->unassign();
-  _process();
+  process();
 }
 
-void FrameCompApp::_process()
+void FrameCompApp::process()
 {
   //  First post the entries in order that are complete
   while( !_list.empty() ) {
@@ -316,7 +366,7 @@ void FrameCompApp::_process()
     if (!e->is_complete()) break;
 
     _list.pop_front();
-    e->post(*this);
+    _post(e);
     delete e;
   }
 
@@ -332,9 +382,34 @@ void FrameCompApp::_process()
         }
       //  Too busy to process now
       //      if (!lassign) break;
-      if (!lassign) _complete(*it);
+      if (!lassign)
+	(*it)->complete();
     }
   }
+}
+
+void FrameCompApp::audit()
+{
+  unsigned assigned=0, completed=0;
+  //  Next assign entries in order that haven't yet been
+  for(std::list<FCA::Entry*>::iterator it=_list.begin(); it!=_list.end(); it++) {
+    if ((*it)->is_complete())
+      completed++;
+    else
+      assigned++;
+  }
+
+  _queued   ->addcontent(1.,double(assigned+completed));
+  _assigned ->addcontent(1.,double(assigned));
+  _completed->addcontent(1.,double(completed));
+
+  timespec now;
+  clock_gettime(CLOCK_REALTIME,&now);
+  ClockTime time(now.tv_sec,now.tv_nsec);
+
+  _queued   ->time(time);
+  _assigned ->time(time);
+  _completed->time(time);
 }
 
 
@@ -370,7 +445,8 @@ void FCA::MyIter::process(Xtc* xtc)
     depth      = 2;
     engine     = CompressedPayload::Hist16;
   }
-  else if (xtc->contains.id() == TypeId::Id_CspadElement) {
+  else if (xtc->contains.id() == TypeId::Id_CspadElement &&
+	   !xtc->contains.compressed()) {
     //
     //  We have to sparsify unwanted elements and change id
     //  from V1 to V2.
@@ -536,19 +612,20 @@ void FCA::MyIter::process(Xtc* xtc)
                      xtc->contains.version(),
                      xtc->sizeofPayload());
   }
-
+  
   if (cxtc && cxtc->extent > _max_osize) {
-    printf("FrameCompApp::MyIter compressed image exceeded buffer size [%d/%d]\n",
+    printf("FrameCompApp::MyIter compressed image exceeded buffer size [%d/%zd]\n",
 	   cxtc->extent, _max_osize);
     cxtc = 0;
     abort();
   }
-
+  
   if (cxtc && (cxtc->extent < xtc->extent)) {
     if (_cache) {  // keep uncompressed data
       _cached = true;
-      if (mxtc)
-	return;    // already written
+      if (!mxtc)
+	_write(xtc, xtc->extent);
+      return;
     }
     else {         // overwrite with compressed data
       if (mxtc) 
@@ -556,18 +633,19 @@ void FCA::MyIter::process(Xtc* xtc)
       _write(cxtc, cxtc->extent);
       return;
     }
-  }  
-
+  }
+  else if (mxtc)
+    return;
+  
   XtcStripper::process(xtc);
 }
-
-
+  
 #ifdef _OPENMP
 FCA::OMPCompressedXtc::OMPCompressedXtc( Xtc&     xtc,
-                                         const std::list<unsigned>& headerOffsets,
-                                         unsigned headerSize,
-                                         unsigned depth,
-                                         CompressedPayload::Engine engine ) :
+					 const std::list<unsigned>& headerOffsets,
+					 unsigned headerSize,
+					 unsigned depth,
+					 CompressedPayload::Engine engine ) :
   Xtc( TypeId(xtc.contains.id(), xtc.contains.version(), true),
        xtc.src,
        xtc.damage )
@@ -601,13 +679,13 @@ FCA::OMPCompressedXtc::OMPCompressedXtc( Xtc&     xtc,
       unsigned dsize = img[i].depth*img[i].width;
 
       if      (engine == CompressedPayload::HistN &&
-               Compress::HistNEngine().compress(ibuff[i],depth,dsize,obuff[i],csize[i]) == Compress::HistNEngine::Success)
-        ;
+	       Compress::HistNEngine().compress(ibuff[i],depth,dsize,obuff[i],csize[i]) == Compress::HistNEngine::Success)
+	;
       else if (engine == CompressedPayload::Hist16 &&
-               Compress::Hist16Engine().compress(ibuff[i],img[i],obuff[i],csize[i]) == Compress::Hist16Engine::Success)
-        ;
+	       Compress::Hist16Engine().compress(ibuff[i],img[i],obuff[i],csize[i]) == Compress::Hist16Engine::Success)
+	;
       else {
-        csize[i] = 0;
+	csize[i] = 0;
       }
     }
   }

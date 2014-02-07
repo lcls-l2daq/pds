@@ -80,7 +80,7 @@ VmonEb::VmonEb(const Src& src,
     MonDescTH1F fetch_time("Fetch Time", "[us]", "",
                            maxf>>_fshift,ft0,ft1);
     _fetch_time = new MonEntryTH1F(fetch_time);
-    group->add(_fetch_time);
+    //    group->add(_fetch_time);
   }
 
   { unsigned maxf;
@@ -91,7 +91,7 @@ VmonEb::VmonEb(const Src& src,
     MonDescTH1F fetch_time("Fetch Time Long", "[us]", "",
                            maxf>>_lshift,ft0,ft1);
     _fetch_time_long = new MonEntryTH1F(fetch_time);
-    group->add(_fetch_time_long);
+    //    group->add(_fetch_time_long);
   }
 
   MonDescTH1F damage_count("Damage", "bit #", "",

@@ -15,7 +15,8 @@
 namespace Pds {
   class MonEntryTH1F;
   class Task;
-  namespace FCA { class Entry; class Task; }
+
+  namespace FCA { class Entry; class Task; class Timer; }
 
   class FrameCompApp : public Appliance {
   public:
@@ -29,20 +30,25 @@ namespace Pds {
     void  queueTransition(Transition*);
     void  queueEvent     (InDatagram*);
     void  completeEntry  (FCA::Entry*,unsigned);
+    void  process        ();
+    void  audit          ();
   public:
     static void useOMP(bool);
     static void setVerbose(bool);
     static void setCopyPresample(unsigned);
   private:
-    void  _process ();
-    void  _complete(FCA::Entry*);
+    void  _post(FCA::Entry*);
   private:
     Pds::Task*              _mgr_task;
     std::list<FCA::Entry*>  _list;
     std::vector<FCA::Task*> _tasks;
+    FCA::Timer*             _timer;
     MonEntryTH1F* _start_to_complete;
-    MonEntryTH1F* _assign_to_complete;
+    MonEntryTH1F* _start_to_post;
     MonEntryTH1F* _compress_ratio;
+    MonEntryTH1F* _queued;
+    MonEntryTH1F* _assigned;
+    MonEntryTH1F* _completed;
   };
 };
 

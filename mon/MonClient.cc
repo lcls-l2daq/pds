@@ -9,6 +9,9 @@
 #include "pds/mon/MonDescEntry.hh"
 #include "pds/mon/MonConsumerClient.hh"
 #include "pds/mon/MonEntryFactory.hh"
+#include "pds/utility/Mtu.hh"
+
+#include <stdlib.h>
 
 using namespace Pds;
 
@@ -154,6 +157,7 @@ void MonClient::read_description(int descsize)
   adjustdesc();
   _socket.read(_desc, _descsize);
 
+  unsigned payload_sz=0;
   const char* d = _desc;
   const char* last = d+_descsize;
   if (d < last) {
@@ -172,6 +176,7 @@ void MonClient::read_description(int descsize)
       const MonDescEntry* entrydesc = (const MonDescEntry*)d;
       MonEntry* entry = MonEntryFactory::entry(*entrydesc);
       group->add(entry);
+      iovec t; entry->payload(t); payload_sz += t.iov_len;
       d += entrydesc->size();
     }
   }
@@ -179,4 +184,10 @@ void MonClient::read_description(int descsize)
   adjustload();
   
   _consumer.process(*this, MonConsumerClient::Description);
+
+  if (payload_sz>Mtu::Size) {
+    printf("MonClient payload size %d > max (%d).  Aborting\n",
+	   payload_sz, Mtu::Size);
+    abort();
+  }
 }
