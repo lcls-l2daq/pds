@@ -226,16 +226,6 @@ static MonEntryTH1F* _mon_entry_th1f( const char* name )
   return new MonEntryTH1F(desc);
 }
 
-static void _dump_th1f( MonEntryTH1F* h)
-{
-  const MonDescTH1F& d = h->desc();
-  printf("%s  nbins %d  xlo %f  xhi %f\n",
-	 d.name(), d.nbins(), d.xlow(), d.xup());
-  for(unsigned i=0; i<d.nbins(); i++)
-    printf("%f%c", h->content(i), (i%10)==9 ? '\n':' ');
-  printf("\n");
-}
-
 FrameCompApp::FrameCompApp(size_t max_size, unsigned nthreads) :
   _mgr_task(new Task(TaskObject("FCAmgr"))),
   _tasks   (nthreads ? nthreads : 4),
@@ -301,11 +291,6 @@ void FrameCompApp::queueTransition(Transition* tr)
 void FrameCompApp::queueEvent(InDatagram* in)
 {
   if (in->datagram().seq.service()==TransitionId::Configure) {
-    _dump_th1f( _start_to_complete );
-    _dump_th1f( _compress_ratio );
-    _dump_th1f( _queued );
-    _dump_th1f( _assigned );
-    _dump_th1f( _completed );
     _config.clear();
     _info  .clear();
     _configv4.clear();
@@ -432,7 +417,9 @@ void FCA::MyIter::process(Xtc* xtc)
   const TypeId _FrameDataType(TypeId::Id_Frame,Camera::FrameV1::Version);
   const DetInfo& info = static_cast<const DetInfo&>(xtc->src);
 
-  if (xtc->contains.value() == _FrameDataType.value()) {
+  if (xtc->damage.value())
+    ;
+  else if (xtc->contains.value() == _FrameDataType.value()) {
     const Camera::FrameV1& frame = *reinterpret_cast<const Camera::FrameV1*>(xtc->payload());
     headerOffsets.push_back(0);
     headerSize = sizeof(Camera::FrameV1);

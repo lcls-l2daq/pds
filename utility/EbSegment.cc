@@ -65,9 +65,9 @@ EbSegment::EbSegment(const Xtc& header,
 
   if(offset != 0)
     {
-      if (nEbPrints)
- 	printf("EbSegment::ctor offset %d/%d  %x\n",
- 	       offset,length,_client.value());
+//       if (nEbPrints)
+//  	printf("EbSegment::ctor offset %d/%d  %x\n",
+//  	       offset,length,_client.value());
 
       unsigned remaining = (unsigned)sizeofFragment >> 2;
       unsigned* in       = ((unsigned*) base)           + remaining;
@@ -131,10 +131,10 @@ void EbSegment::consume(int sizeofFragment, int expected, const Xtc& xtc)
   Xtc& bxtc = *reinterpret_cast<Xtc*>(_base);
   if (bxtc.src == xtc.src)
     bxtc.damage.increase(xtc.damage.value());
-  else if (nEbPrints)
-    printf("EbSegment::consume src does not match [%08x.%08x v %08x.%08x]\n",
-           bxtc.src.log(),bxtc.src.phy(),
-           xtc .src.log(),xtc .src.phy());
+//   else if (nEbPrints)
+//     printf("EbSegment::consume src does not match [%08x.%08x v %08x.%08x]\n",
+//            bxtc.src.log(),bxtc.src.phy(),
+//            xtc .src.log(),xtc .src.phy());
 }
 
 
