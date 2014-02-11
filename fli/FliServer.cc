@@ -10,8 +10,7 @@
 #include "pds/service/Task.hh"
 #include "pds/service/Routine.hh"
 #include "pds/config/EvrConfigType.hh"
-#include "pds/config/CfgPath.hh"
-#include "pdsapp/config/Path.hh"
+#include "pds/config/CfgClientNfs.hh"
 #include "pdsapp/config/Experiment.hh"
 #include "pdsapp/config/Table.hh"
 
@@ -368,7 +367,7 @@ int FliServer::initCapture()
     return 3;
   }
 
-  if ( _config.frameSize() - (int) sizeof(FliDataType) + _iFrameHeaderSize > _iMaxFrameDataSize )
+  if ( int(_config.frameSize() - sizeof(FliDataType) + _iFrameHeaderSize) > _iMaxFrameDataSize )
   {
     printf( "FliServer::initCapture():Frame size (%i) + Frame header size (%d)"
      "is larger than internal data frame buffer size (%d)\n",
@@ -537,7 +536,7 @@ int FliServer::initCameraBeforeConfig()
 
   // Setup ConfigDB and Run Key
   int runKey;
-  { Pds_ConfigDb::Experiment expt((const Pds_ConfigDb::Path&)Pds_ConfigDb::Path(sConfigPath),
+  { Pds_ConfigDb::Experiment expt(sConfigPath.c_str(),
                                   Pds_ConfigDb::Experiment::NoLock);
     expt.read();
     const Pds_ConfigDb::TableEntry* entry = expt.table().get_top_entry(sConfigType);
@@ -551,15 +550,12 @@ int FliServer::initCameraBeforeConfig()
 
   const TypeId typeFliConfig = TypeId(TypeId::Id_FliConfig, FliConfigType::Version);
 
-  char strConfigPath[128];
-  sprintf(strConfigPath,"%s/keys/%s",sConfigPath.c_str(),CfgPath::path(runKey,_src,typeFliConfig).c_str());
-  printf("Config Path: %s\n", strConfigPath);
-
-  int fdConfig = open(strConfigPath, O_RDONLY);
+  CfgClientNfs client(_src);
+  client.initialize(Allocation("none",sConfigPath.c_str(),0));
+  Transition tr(TransitionId::BeginRun, Env(runKey));
   FliConfigType config;
-  int iSizeRead = read(fdConfig, &config, sizeof(config));
-  if (iSizeRead != sizeof(config))
-  {
+  int iSizeRead=client.fetch(tr, typeFliConfig, &config, sizeof(config));
+  if (iSizeRead != sizeof(config)) {
     printf("FliServer::initCameraBeforeConfig(): Read config data of incorrect size. Read size = %d (should be %d) bytes\n",
       iSizeRead, (int) sizeof(config));
     return 2;

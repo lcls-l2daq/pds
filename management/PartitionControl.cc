@@ -182,16 +182,22 @@ namespace Pds {
         else {
           Transition* tr;
           const Xtc* xtc = _control._transition_xtc[i->id()];
-	  bool append_alias = (i->id()==TransitionId::Configure) && (_control.count_src_alias() > 0);
 
-	  if (xtc && append_alias) {
-	    unsigned payload_size = xtc->extent + 2*sizeof(Xtc);
-	    payload_size += sizeof(AliasConfigType)+_control.count_src_alias()*sizeof(SrcAlias);
+          if (i->id()==TransitionId::Configure) {
+            unsigned payload_size = 0;
+            if (xtc)                                 // Transition payload
+              payload_size += xtc->extent;
+            if (_control._partition_xtc)             // Partition configuration
+              payload_size += _control._partition_xtc->extent;
+            if (_control.count_src_alias())          // Alias configuration
+              payload_size += sizeof(AliasConfigType)+_control.count_src_alias()*sizeof(SrcAlias)+sizeof(Xtc);
 
-	    if (payload_size > MaxPayload) {
+	    if (payload_size+sizeof(Xtc) > MaxPayload) {
               printf("PartitionControl transition payload size (0x%x) exceeds maximum.  Aborting.\n",payload_size);
 	      abort();
 	    }
+
+            if (payload_size) payload_size += sizeof(Xtc);
 
             tr = new(&_pool) Transition(i->id(),
                                         Transition::Record,
@@ -202,21 +208,31 @@ namespace Pds {
                                         i->env(),
 					sizeof(Transition)+payload_size);
 
-	    Xtc* top = new(reinterpret_cast<char*>(tr+1)) Xtc(_xtcType,xtc->src);
-	    //  Attach the control_transition header and payload
-	    { 
-	      Xtc* cxtc = new(reinterpret_cast<char*>(top->next())) Xtc(*xtc);
-	      memcpy(cxtc->alloc(xtc->sizeofPayload()),_control._transition_payload[i->id()],xtc->sizeofPayload());
-	      top->extent += cxtc->extent; 
-	    }
-	    //  Attach the alias configuration header and payload
-	    { 
-	      Xtc* alias = new(reinterpret_cast<char*>(top->next())) Xtc(_aliasConfigType,xtc->src);
-	      *reinterpret_cast<uint32_t*>(alias->alloc(sizeof(uint32_t))) = _control.count_src_alias();
-	      for(std::list<SrcAlias>::const_iterator it=_control._src_aliases.begin(); it!=_control._src_aliases.end(); it++)
-		new(alias->alloc(sizeof(SrcAlias))) SrcAlias(*it);
-	      top->extent += alias->extent; 
-	    }
+            if (payload_size) {
+              Xtc* top = new(reinterpret_cast<char*>(tr+1)) Xtc(_xtcType,_control.header().procInfo());
+              //  Attach the control_transition header and payload
+              if (xtc) { 
+                Xtc* cxtc = new(reinterpret_cast<char*>(top->next())) Xtc(*xtc);
+                memcpy(cxtc->alloc(xtc->sizeofPayload()),_control._transition_payload[i->id()],xtc->sizeofPayload());
+                top->extent += cxtc->extent; 
+              }
+              //  Attach the partition configuration
+              if (_control._partition_xtc) {
+                Xtc* cxtc = new(reinterpret_cast<char*>(top->next())) Xtc(*_control._partition_xtc);
+                memcpy(cxtc->alloc(_control._partition_xtc->sizeofPayload()),
+                       _control._partition_xtc->payload(), 
+                       _control._partition_xtc->sizeofPayload());
+                top->extent += cxtc->extent;
+              }
+              //  Attach the alias configuration header and payload
+              if (_control.count_src_alias()) { 
+                Xtc* alias = new(reinterpret_cast<char*>(top->next())) Xtc(_aliasConfigType,xtc->src);
+                *reinterpret_cast<uint32_t*>(alias->alloc(sizeof(uint32_t))) = _control.count_src_alias();
+                for(std::list<SrcAlias>::const_iterator it=_control._src_aliases.begin(); it!=_control._src_aliases.end(); it++)
+                  new(alias->alloc(sizeof(SrcAlias))) SrcAlias(*it);
+                top->extent += alias->extent; 
+              }
+            }
 	  }
 
 	  else if (xtc) { 
@@ -329,6 +345,7 @@ PartitionControl::PartitionControl(unsigned platform,
 {
   memset(_transition_env,0,TransitionId::NumberOf*sizeof(unsigned));
   memset(_transition_xtc,0,TransitionId::NumberOf*sizeof(Xtc*));
+  _partition_xtc = 0;
 
   pthread_mutex_init(&_target_mutex, NULL);
   pthread_cond_init (&_target_cond , NULL);
@@ -336,6 +353,9 @@ PartitionControl::PartitionControl(unsigned platform,
 
 PartitionControl::~PartitionControl()
 {
+  if (_partition_xtc)
+    delete[] reinterpret_cast<char*>(_partition_xtc);
+
   _sequenceTask->destroy();
   _reportTask  ->destroy();
 }
@@ -377,7 +397,8 @@ bool PartitionControl::set_partition(const char* name,
                                      unsigned    nnodes,
                                      uint64_t    bldmask,
                                      uint64_t    bldmask_mon,
-                                     unsigned    options)
+                                     unsigned    options,
+                                     const PartitionConfigType* cfg)
 {
   if (options&Allocation::ShortDisableTmo) {
     disable_tmo.tv_sec =0;
@@ -391,12 +412,39 @@ bool PartitionControl::set_partition(const char* name,
   _partition = Allocation(name,dbpath,partitionid(),bldmask,bldmask_mon,options);
   for(unsigned k=0; k<nnodes; k++)
     _partition.add(nodes[k]);
+
+  if (_partition_xtc) 
+    delete[] reinterpret_cast<char*>(_partition_xtc);
+
+  if (cfg) {
+    unsigned sz = cfg->_sizeof();
+    _partition_xtc = 
+      new (new char[sizeof(Xtc)+sz]) Xtc(_partitionConfigType,header().procInfo());
+    new (_partition_xtc->alloc(sz)) PartitionConfigType(*cfg);
+  }
+  else
+    _partition_xtc = 0;
+
   return true;
 }
 
-bool PartitionControl::set_partition(const Allocation& alloc)
+bool PartitionControl::set_partition(const Allocation& alloc,
+                                     const PartitionConfigType* cfg)
 {
   _partition = alloc;
+
+  if (_partition_xtc) 
+    delete[] reinterpret_cast<char*>(_partition_xtc);
+
+  if (cfg) {
+    unsigned sz = cfg->_sizeof();
+    _partition_xtc = 
+      new (new char[sizeof(Xtc)+sz]) Xtc(_partitionConfigType,header().procInfo());
+    new (_partition_xtc->alloc(sz)) PartitionConfigType(*cfg);
+  }
+  else
+    _partition_xtc = 0;
+
   return true;
 }
 

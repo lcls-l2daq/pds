@@ -276,8 +276,6 @@ int QuartzCamera::configure(CameraDriver& driver,
   SetParameter ("Request Mode","RQM",0);
 #endif
 
-  CurrentCount = RESET_COUNT;
-
   return 0;
 }
 
@@ -320,42 +318,12 @@ bool QuartzCamera::validate(Pds::FrameServerMsg& msg)
     Count = (data[0]<<24) | (data[1]<<16) | (data[2]<<8) | data[3];
   }
 
-#if 1
-  //  Allow single frame drops
-  CurrentCount = Count;
+  if (Count != msg.count) {
+    //  Missing frame will be detected by eventbuilder
+    // return false;   
+  }
 
-  /*
-  printf("Camera frame number(%d) : Server number(%d)\n",
-         CurrentCount, msg.count);
-  printf("  width (%d), height (%d), depth (%d) extent (%d)\n",
-         msg.width, msg.height, msg.depth, msg.extent);
-  const uint32_t* p = reinterpret_cast<const uint32_t*>(msg.data);
-  printf("  data (%p) : %08x %08x %08x %08x\n", msg.data,
-         p[0], p[1], p[2], p[3]);
-  */
-  if (CurrentCount != msg.count+LastCount) {
-    printf("Camera frame number(%d) != Server number(%d)\n",
-           CurrentCount, msg.count+LastCount);
-    LastCount++;
-    if (CurrentCount != msg.count+LastCount) {
-      return false;
-    }
-  }
-  msg.count = CurrentCount;
-#else
-  if (CurrentCount==RESET_COUNT) {
-    CurrentCount = 0;
-    LastCount = Count;
-  }
-  else
-    CurrentCount = Count - LastCount;
-
-  if (CurrentCount != msg.count) {
-    printf("Camera frame number(%d) != Server number(%d)\n",
-           CurrentCount, msg.count);
-    return false;
-  }
-#endif
+  msg.count  = Count;
   msg.offset = _inputConfig->output_offset();
   return true;
 }

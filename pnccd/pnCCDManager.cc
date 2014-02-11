@@ -41,7 +41,7 @@ namespace Pds {
       enum {NumberOfConfigurations=1};
       pnCCDConfigCache(const Src& src) :
         CfgCache(src, _pnCCDConfigType, NumberOfConfigurations * sizeof(pnCCDConfigType)) {
-        printf("pnCCDConfigCache contuctor space %u bytes\n",
+        printf("pnCCDConfigCache contuctor space %zu bytes\n",
             NumberOfConfigurations * sizeof(pnCCDConfigType));
       }
     public:

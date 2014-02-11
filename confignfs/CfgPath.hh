@@ -1,6 +1,7 @@
 #ifndef Pds_CfgPath_hh
 #define Pds_CfgPath_hh
 
+#include "pdsdata/xtc/Src.hh"
 #include "pdsdata/xtc/TypeId.hh"
 
 #include <string>
@@ -12,19 +13,22 @@ using std::setw;
 using std::setfill;
 
 namespace Pds {
-
   class Src;
   class TypeId;
+};
 
+namespace Pds_ConfigDb {
   class CfgPath {
   public:
-    static std::string src_key(const Src& src);
-    static std::string path(unsigned      key,
-			    const Src&    src,
-			    const TypeId& type);
+    static std::string src_key(const Pds::Src& src);
+    static std::string path(unsigned           key,
+			    const Pds::Src&    src,
+			    const Pds::TypeId& type);
   };
 
-  inline string CfgPath::path(unsigned key, const Src& src, const TypeId& type)
+  inline string CfgPath::path(unsigned           key, 
+                              const Pds::Src&    src, 
+                              const Pds::TypeId& type)
   {
     ostringstream o;
     o << std::hex << setfill('0') << setw(8) << key << '/' 
@@ -34,9 +38,9 @@ namespace Pds {
   }
 
 
-  inline string CfgPath::src_key(const Src& src) {
+  inline string CfgPath::src_key(const Pds::Src& src) {
     ostringstream o;
-    if (src.level()==Level::Source) {
+    if (src.level()==Pds::Level::Source) {
       o << std::hex << setfill('0') << setw(8) << src.phy();
     }
     else {
@@ -44,7 +48,6 @@ namespace Pds {
     }
     return o.str();
   }
-
 };
 
 #endif

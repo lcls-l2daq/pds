@@ -174,7 +174,7 @@ int Eb::processIo(Server* serverGeneric)
     break;
   }
 
-  return 0;
+  return _require_in_order ? 0 : 1;
   //  Remain armed to build future events.
   //  In general, events will be flushed by later complete events
   //  (or a full queue) rather than timing out.

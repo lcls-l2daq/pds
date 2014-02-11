@@ -94,3 +94,13 @@ double MonStats1D::over() const
 {
   return _over;
 }
+
+void MonStats1D::reset()
+{
+  _sumw   = 0; 
+  _sumw2  = 0; 
+  _sumwx  = 0; 
+  _sumwx2 = 0;
+  _under  = 0;
+  _over   = 0;
+}

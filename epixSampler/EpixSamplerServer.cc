@@ -200,7 +200,7 @@ int Pds::EpixSamplerServer::fetch( char* payload, int flags ) {
      _xtc.damage.increase(Pds::Damage::UserDefined);
      _xtc.damage.userBits(damageMask);
      printf("EpixSamplerServer::fetch setting user damage 0x%x", damageMask);
-     if (pgpCardRx.lengthErr) printf(", rxSize(%u), maxSize(%u) ret(%d) offset(%u) (bytes)",
+     if (pgpCardRx.lengthErr) printf(", rxSize(%zu), maxSize(%u) ret(%d) offset(%u) (bytes)",
          (unsigned)pgpCardRx.rxSize*sizeof(uint32_t), _payloadSize, ret, offset);
      printf("\n");
    } else {

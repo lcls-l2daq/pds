@@ -12,8 +12,7 @@
 #include "pds/service/Task.hh"
 #include "pds/service/Routine.hh"
 #include "pds/config/EvrConfigType.hh"
-#include "pds/config/CfgPath.hh"
-#include "pdsapp/config/Path.hh"
+#include "pds/config/CfgClientNfs.hh"
 #include "pdsapp/config/Experiment.hh"
 #include "pdsapp/config/Table.hh"
 
@@ -659,7 +658,7 @@ int PrincetonServer::initCameraBeforeConfig()
 
   // Setup ConfigDB and Run Key
   int runKey;
-  { Pds_ConfigDb::Experiment expt((const Pds_ConfigDb::Path&)Pds_ConfigDb::Path(sConfigPath),
+  { Pds_ConfigDb::Experiment expt(sConfigPath.c_str(),
                                   Pds_ConfigDb::Experiment::NoLock);
     expt.read();
     const Pds_ConfigDb::TableEntry* entry = expt.table().get_top_entry(sConfigType);
@@ -672,32 +671,15 @@ int PrincetonServer::initCameraBeforeConfig()
     runKey = strtoul(entry->key().c_str(),NULL,16);
   }
 
-  //const TypeId typePrincetonConfig = TypeId(TypeId::Id_PrincetonConfig, PrincetonConfigType::Version);
-
-  char strConfigPath[128];
-  sprintf(strConfigPath,"%s/keys/%s",sConfigPath.c_str(),CfgPath::path(runKey,_src,_princetonConfigType).c_str());
-  printf("Config Path: %s\n", strConfigPath);
-
-  int fdConfig = ::open(strConfigPath, O_RDONLY);
-  if ( fdConfig == -1 )
-  {
-    printf("PrincetonServer::initCameraBeforeConfig(): Read config file (%s) failed\n", strConfigPath);
-    return 2;
-  }
-
+  CfgClientNfs client(_src);
+  client.initialize(Allocation("none",sConfigPath.c_str(),0));
+  Transition tr(TransitionId::BeginRun, Env(runKey));
   PrincetonConfigType config;
-  int iSizeRead = ::read(fdConfig, &config, sizeof(config));
-  if (iSizeRead != sizeof(config))
-  {
+  int iSizeRead=client.fetch(tr, _princetonConfigType, &config, sizeof(config));
+  if (iSizeRead != sizeof(config)) {
     printf("PrincetonServer::initCameraBeforeConfig(): Read config data of incorrect size. Read size = %d (should be %d) bytes\n",
-           iSizeRead, (int) sizeof(config));
-    return 3;
-  }
-  int iCloseFail = ::close(fdConfig);
-  if ( iCloseFail == -1 )
-  {
-    printf("PrincetonServer::initCameraBeforeConfig(): close config file (%s) failed\n", strConfigPath);
-    return 4;
+      iSizeRead, (int) sizeof(config));
+    return 2;
   }
 
   printf("Setting cooling temperature: %f\n", config.coolingTemp());

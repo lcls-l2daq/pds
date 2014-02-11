@@ -8,7 +8,6 @@ namespace Pds {
 
   class ControlCallback;
   class ControlStreams;
-  class Partition;
   class Arp;
 
   class ControlLevel: public PartitionMember {

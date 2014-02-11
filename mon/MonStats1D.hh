@@ -20,6 +20,8 @@ namespace Pds {
     double sumx() const;
     double sumx2() const;
 
+    void reset();
+
   private:
     double _sumw; 
     double _sumw2; 

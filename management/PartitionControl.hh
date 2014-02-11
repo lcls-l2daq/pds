@@ -3,6 +3,7 @@
 
 #include "pds/management/ControlLevel.hh"
 #include "pds/utility/ControlEb.hh"
+#include "pds/config/PartitionConfigType.hh"
 #include "pdsdata/xtc/TransitionId.hh"
 #include "pdsdata/xtc/Xtc.hh"
 #include "pdsdata/psddl/alias.ddl.h"
@@ -43,8 +44,10 @@ namespace Pds {
                             unsigned    nnodes,
                             uint64_t    bld_mask,
 			    uint64_t    bld_mask_mon,
-                            unsigned    options=0);
-    bool  set_partition    (const Allocation&);
+                            unsigned    options =0,
+                            const       PartitionConfigType* =0);
+    bool  set_partition    (const Allocation&,
+                            const       PartitionConfigType* =0);
     const Allocation& partition() const;
   public:
     virtual void  set_target_state (State);
@@ -95,7 +98,8 @@ namespace Pds {
     unsigned   _transition_env    [TransitionId::NumberOf];
     Xtc*       _transition_xtc    [TransitionId::NumberOf];
     void*      _transition_payload[TransitionId::NumberOf];
-    Xtc*       _alias_xtc;
+    Xtc*       _partition_xtc;
+    //    Xtc*       _alias_xtc;
     ControlCallback*  _control_cb;
     PlatformCallback* _platform_cb;
     RunAllocator*     _runAllocator;

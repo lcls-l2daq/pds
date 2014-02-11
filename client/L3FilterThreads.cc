@@ -262,6 +262,7 @@ void L3F::Task::routine() {
   _app.mgr_task().call(new L3F::ComplEv(_entry,_app,_id));
 }
 
+#ifdef RECOVER_POOL
 class sigusr_exception : public std::exception {
 public:
   sigusr_exception() {}
@@ -273,6 +274,7 @@ static void sigusr_handler(int signum)
 {
   throw sigusr_exception();
 }
+#endif
 
 void L3F::Task::interrupt() {
   _task->signal(SIGUSR1);
