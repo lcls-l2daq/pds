@@ -43,7 +43,7 @@ IocNode::IocNode(std::string host_and_port, std::string config, std::string alia
 
 Node IocNode::node() const
 {
-  Node n(Level::Segment,0);
+  Node n(Level::Segment,src().phy());
   n.fixup(_host_ip,Ether());
   return n;
 }
