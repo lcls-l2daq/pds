@@ -68,10 +68,14 @@ int PvConfigFile::_readConfigFile(const std::string & sFnConfig,
       _getPvDescription(sLine, sPvDescription);
       continue;
     }
-    if (sLine[0] == '#')
+
+    // trim comments that begin with '#'
+    _trimComments(sLine);
+
+    if (sLine.empty())
     {
       sPvDescription.clear();
-      continue;   // skip comment lines that begin with '#'
+      continue;   // skip empty lines
     }
     if (sLine[0] == '<')
     {
@@ -184,6 +188,20 @@ int PvConfigFile::_splitFileList(const std::string & sFileList,
     uOffsetStart = sFileList.find_first_not_of(sFileListSeparators, uOffsetEnd + 1);
   }
   return 0;
+}
+
+void PvConfigFile::_trimComments(std::string & sLine)
+{
+  // erase comment beginning with #
+  size_t uOffsetComment = sLine.find("#");
+  if (uOffsetComment != string::npos) {
+    sLine.erase(uOffsetComment);
+  }
+
+  // if only whitespace remains, clear the line
+  if (sLine.find_first_not_of(" \t") == string::npos) {
+    sLine.clear();
+  }
 }
 
 int PvConfigFile::_getPvDescription(const std::string & sLine, std::string & sPvDescription)
