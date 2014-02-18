@@ -38,6 +38,7 @@ namespace Pds {
     virtual const MonDescTH1F& desc() const;
     virtual MonDescTH1F& desc();
 
+    void dump() const;
   private:
     void build(unsigned nbins);
 

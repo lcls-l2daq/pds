@@ -625,7 +625,10 @@ void PartitionControl::_next()
       break;
     }
     case Running   : _queue(TransitionId::BeginCalibCycle); break;
-    case Disabled  : _queue(TransitionId::Enable         ); break;
+    case Disabled  : 
+      if (_sequencer) _sequencer->stop();
+      _queue(TransitionId::Enable);
+      break;
     default: break;
     }
   else if (_target_state < _current_state)

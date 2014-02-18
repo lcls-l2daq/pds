@@ -7,6 +7,16 @@ using namespace Pds;
 MonStats1D::MonStats1D() {}
 MonStats1D::~MonStats1D() {}
 
+void MonStats1D::reset() 
+{
+  _sumw   = 0; 
+  _sumw2  = 0; 
+  _sumwx  = 0; 
+  _sumwx2 = 0;
+  _under  = 0;
+  _over   = 0;
+}
+  
 void MonStats1D::stats(unsigned nbins, 
 		       float xlo, float xup, 
 		       const double* con)

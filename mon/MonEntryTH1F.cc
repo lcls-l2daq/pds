@@ -1,5 +1,7 @@
 #include "pds/mon/MonEntryTH1F.hh"
 
+#include <stdio.h>
+
 static const unsigned DefaultNbins = 1;
 static const float DefaultLo = 0;
 static const float DefaultUp = 1;
@@ -88,3 +90,13 @@ void MonEntryTH1F::addcontent(double y, double x)
   }
 }
 
+void MonEntryTH1F::dump() const
+{
+  printf("--- %s ---\n",_desc.name());
+  printf("nbins %d  xlow %f  xup %f  uflow %d  ovlow %d\n", 
+         _desc.nbins(), _desc.xlow(), _desc.xup(),
+         int(info(Underflow)), int(info(Overflow)));
+  for(unsigned i=0; i<_desc.nbins(); i++)
+    printf("%f%c", content(i), (i%10)==9 ? '\n':' ');
+  printf("\n");
+}

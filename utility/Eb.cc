@@ -9,6 +9,8 @@
 
 using namespace Pds;
 
+extern unsigned nEbPrints;
+
 /*
 ** ++
 **
@@ -134,6 +136,13 @@ int Eb::processIo(Server* serverGeneric)
     event = (EbEvent*)_seek(server);
     if (event == (EbEvent*)_pending.empty()) {
       event = (EbEvent*)_new_event(serverId, payload, sizeofPayload); // copies payload into new event
+      if (!event) {
+        if (nEbPrints) {
+          printf("Eb::processIo unable to reclaim buffer\n");
+          nEbPrints--;
+        }
+        return 1;
+      }
       server->assign(event->key());
       _insert(event);
     }
