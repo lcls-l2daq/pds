@@ -27,7 +27,7 @@ namespace Pds {
     ~FexFrameServer();
   public:
     void                            allocate       (Transition*);
-    void                            doConfigure    (Transition*);
+    bool                            doConfigure    (Transition*);
     void                            nextConfigure  (Transition*);
     InDatagram*                     recordConfigure(InDatagram*);
     UserMessage*                    validate       (unsigned,unsigned);

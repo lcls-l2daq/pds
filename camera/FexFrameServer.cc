@@ -60,14 +60,16 @@ void FexFrameServer::allocate   (Transition* tr)
   _config ->init(alloc.allocation());
 }
 
-void FexFrameServer::doConfigure(Transition* tr)
+bool FexFrameServer::doConfigure(Transition* tr)
 {
   if (_config->fetch(tr) > 0) {
     _framefwd_count = 0;
+    return true;
   }
   else {
     printf("Config::configure failed to retrieve FrameFex configuration\n");
     _config->damage().increase(Damage::UserDefined);
+    return false;
   }
 }
 

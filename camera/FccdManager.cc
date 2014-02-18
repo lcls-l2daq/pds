@@ -50,9 +50,9 @@ void FccdManager::allocate (Transition* tr)
   CameraManager::allocate(tr);
 }
 
-void FccdManager::doConfigure(Transition* tr)
+bool FccdManager::doConfigure(Transition* tr)
 {
-  CameraManager::doConfigure(tr);
+  return CameraManager::doConfigure(tr);
 }
 
 void FccdManager::nextConfigure    (Transition* tr)

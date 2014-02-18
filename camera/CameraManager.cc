@@ -124,7 +124,7 @@ void CameraManager::allocate (Transition* tr)
   _camConfig->init(alloc.allocation());
 }
 
-void CameraManager::doConfigure(Transition* tr)
+bool CameraManager::doConfigure(Transition* tr)
 {
   UserMessage* msg = new(_occPool) UserMessage;
   msg->append(DetInfo::name(static_cast<const DetInfo&>(_src)));
@@ -145,7 +145,7 @@ void CameraManager::doConfigure(Transition* tr)
       else {
         _configured = true;
 	delete msg;
-        return;
+        return true;
       }
     }
   }
@@ -157,6 +157,8 @@ void CameraManager::doConfigure(Transition* tr)
   appliance().post(msg);
 
   _camConfig->damage().increase(Damage::UserDefined);
+
+  return false;
 }
 
 void CameraManager::unconfigure(Transition* tr)

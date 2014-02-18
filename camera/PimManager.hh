@@ -14,7 +14,7 @@ namespace Pds {
 
   public:
     virtual void        allocate         (Transition* tr);
-    virtual void        doConfigure      (Transition* tr);
+    virtual bool        doConfigure      (Transition* tr);
     virtual InDatagram* recordConfigure  (InDatagram* in);
 
   private:

@@ -26,14 +26,20 @@ void FexCameraManager::allocate (Transition* tr)
   _server      ->allocate(tr);
 }
 
-void FexCameraManager::doConfigure(Transition* tr)
+bool FexCameraManager::doConfigure(Transition* tr)
 {
-  CameraManager::doConfigure(tr);
-  _server      ->doConfigure(tr);
+  if (!CameraManager::doConfigure(tr) ||
+      !_server      ->doConfigure(tr)) 
+    return false;
+
   UserMessage* msg = _server->validate(driver().camera().camera_width(),
 				       driver().camera().camera_height());
-  if (msg)
+  if (msg) {
     appliance().post(msg);
+    return false;
+  }
+
+  return true;
 }
 
 void FexCameraManager::nextConfigure    (Transition* tr)

@@ -38,16 +38,19 @@ void PimManager::allocate (Transition* tr)
   _fexConfig->init(alloc.allocation());
 }
 
-void PimManager::doConfigure(Transition* tr)
+bool PimManager::doConfigure(Transition* tr)
 {
-  TM6740Manager::doConfigure(tr);
+  if (!TM6740Manager::doConfigure(tr))
+    return false;
 
   if (_fexConfig->fetch(tr) > 0) {
   }
   else {
     printf("Config::configure failed to retrieve PimImage configuration\n");
     _fexConfig->damage().increase(Damage::UserDefined);
+    return false;
   }
+  return true;-
 }
 
 InDatagram* PimManager::recordConfigure  (InDatagram* in) 

@@ -30,7 +30,7 @@ namespace Pds {
     
   public:
     virtual void allocate      (Transition* tr);
-    virtual void doConfigure   (Transition* tr);
+    virtual bool doConfigure   (Transition* tr);
     virtual void nextConfigure (Transition* tr);
     virtual void unconfigure   (Transition* tr);
 
