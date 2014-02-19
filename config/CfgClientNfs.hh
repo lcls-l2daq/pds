@@ -3,10 +3,6 @@
 
 #include "pdsdata/xtc/Src.hh"
 
-#include <string>
-
-namespace Pds_ConfigDb { class XtcClient; };
-
 namespace Pds {
 
   class Allocation;
@@ -16,7 +12,7 @@ namespace Pds {
   class CfgClientNfs {
   public:
     CfgClientNfs( const Src& src );
-    virtual ~CfgClientNfs();
+    virtual ~CfgClientNfs() {}
 
     const Src& src() const;
 
@@ -28,9 +24,9 @@ namespace Pds {
                       unsigned          maxSize=0x100000);
     
   private:
-    Src _src;
-    Pds_ConfigDb::XtcClient* _db;
-    std::string _path;
+    enum { PathSize=128 };
+    Src      _src;
+    char     _path[PathSize];
   };
 
 };

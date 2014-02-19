@@ -10,8 +10,9 @@
 #include "pds/service/Task.hh"
 #include "pds/service/Routine.hh"
 #include "pds/config/EvrConfigType.hh"
-#include "pds/config/CfgClientNfs.hh"
+#include "pds/config/CfgPath.hh"
 #include "pds/andor/AndorErrorCodes.hh"
+#include "pdsapp/config/Path.hh"
 #include "pdsapp/config/Experiment.hh"
 #include "pdsapp/config/Table.hh"
 
@@ -637,7 +638,7 @@ int AndorServer::initCapture()
     return ERROR_SDK_FUNC_FAIL;
   }
 
-  if ( int(_config.frameSize() - sizeof(AndorDataType) + _iFrameHeaderSize) > _iMaxFrameDataSize )
+  if ( (int) _config.frameSize() - (int) sizeof(AndorDataType) + _iFrameHeaderSize > _iMaxFrameDataSize )
   {
     printf( "AndorServer::initCapture(): Frame size (%i) + Frame header size (%d)"
      "is larger than internal data frame buffer size (%d)\n",
@@ -903,7 +904,7 @@ int AndorServer::initCameraBeforeConfig()
 
   // Setup ConfigDB and Run Key
   int runKey;
-  { Pds_ConfigDb::Experiment expt(sConfigPath.c_str(),
+  { Pds_ConfigDb::Experiment expt((const Pds_ConfigDb::Path&)Pds_ConfigDb::Path(sConfigPath),
                                   Pds_ConfigDb::Experiment::NoLock);
     expt.read();
     const Pds_ConfigDb::TableEntry* entry = expt.table().get_top_entry(sConfigType);
@@ -917,15 +918,18 @@ int AndorServer::initCameraBeforeConfig()
 
   const TypeId typeAndorConfig = TypeId(TypeId::Id_AndorConfig, AndorConfigType::Version);
 
-  CfgClientNfs client(_src);
-  client.initialize(Allocation("none",sConfigPath.c_str(),0));
-  Transition tr(TransitionId::BeginRun, Env(runKey));
+  char strConfigPath[128];
+  sprintf(strConfigPath,"%s/keys/%s",sConfigPath.c_str(),CfgPath::path(runKey,_src,typeAndorConfig).c_str());
+  printf("Config Path: %s\n", strConfigPath);
+
+  int fdConfig = open(strConfigPath, O_RDONLY);
   AndorConfigType config;
-  int iSizeRead=client.fetch(tr, typeAndorConfig, &config, sizeof(config));
-  if (iSizeRead != sizeof(config)) {
+  int iSizeRead = read(fdConfig, &config, sizeof(config));
+  if (iSizeRead != sizeof(config))
+  {
     printf("AndorServer::initCameraBeforeConfig(): Read config data of incorrect size. Read size = %d (should be %d) bytes\n",
       iSizeRead, (int) sizeof(config));
-    return 2;
+    return ERROR_FUNCTION_FAILURE;
   }
 
   printf("Setting cooling temperature: %f\n", config.coolingTemp());
