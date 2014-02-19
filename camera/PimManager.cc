@@ -50,7 +50,7 @@ bool PimManager::doConfigure(Transition* tr)
     _fexConfig->damage().increase(Damage::UserDefined);
     return false;
   }
-  return true;-
+  return true;
 }
 
 InDatagram* PimManager::recordConfigure  (InDatagram* in) 
