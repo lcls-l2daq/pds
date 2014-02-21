@@ -58,26 +58,29 @@ SegmentLevel::~SegmentLevel()
 bool SegmentLevel::attach()
 {
   start();
-  if (connect()) {
-    _streams = new SegStreams(*this,
-                              _settings.max_event_size (),
-                              _settings.max_event_depth());
-    _streams->connect();
+  while(1) {
+    if (connect()) {
+      _streams = new SegStreams(*this,
+                                _settings.max_event_size (),
+                                _settings.max_event_depth());
+      _streams->connect();
 
-    _callback.attached(*_streams);
+      _callback.attached(*_streams);
 
-    //  Add the L1 Data servers
-    _settings.connect(*_streams->wire(StreamParams::FrameWork),
-                      StreamParams::FrameWork,
-                      header().ip());
+      //  Add the L1 Data servers
+      _settings.connect(*_streams->wire(StreamParams::FrameWork),
+                        StreamParams::FrameWork,
+                        header().ip());
 
-    _reply.ready(true);
-    mcast(_reply);
-    return true;
-  } else {
-    _callback.failed(EventCallback::PlatformUnavailable);
-    return false;
+      _reply.ready(true);
+      mcast(_reply);
+      return true;
+    } else {
+      _callback.failed(EventCallback::PlatformUnavailable);
+      sleep(1);
+    }
   }
+  return false;
 }
 
 Message& SegmentLevel::reply    (Message::Type type)

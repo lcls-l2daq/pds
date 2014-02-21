@@ -43,27 +43,30 @@ EventLevel::~EventLevel()
 bool EventLevel::attach()
 {
   start();
-  if (connect()) {
-    if (_max_eventsize)
-      _streams = new EventStreams(*this,
-                                  slowEb(),
-                                  _max_eventsize,
-                                  EventStreams::netbufdepth,
-                                  _max_buffers);
-    else
-      _streams = new EventStreams(*this, slowEb());
+  while(1) {
+    if (connect()) {
+      if (_max_eventsize)
+        _streams = new EventStreams(*this,
+                                    slowEb(),
+                                    _max_eventsize,
+                                    EventStreams::netbufdepth,
+                                    _max_buffers);
+      else
+        _streams = new EventStreams(*this, slowEb());
 
-    _streams->connect();
+      _streams->connect();
 
-    _callback.attached(*_streams);
+      _callback.attached(*_streams);
 
-    _reply.ready(true);
-    mcast(_reply);
-    return true;
-  } else {
-    _callback.failed(EventCallback::PlatformUnavailable);
-    return false;
+      _reply.ready(true);
+      mcast(_reply);
+      return true;
+    } else {
+      _callback.failed(EventCallback::PlatformUnavailable);
+      sleep(1);
+    }
   }
+  return false;
 }
 
 void EventLevel::dissolved()
