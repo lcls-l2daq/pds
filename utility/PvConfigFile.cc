@@ -26,7 +26,7 @@ PvConfigFile::~PvConfigFile()
 }
 
 const string PvConfigFile::helpText =
-  "Config File Format:\n"
+  "PV Config File Format:\n"
   "  - Each line of the file can contain one PV name\n"
   "  - Use '#' at the beginning of the line to comment out whole line\n"
   "  - Use '#' in the middle of the line to comment out the remaining characters\n"
