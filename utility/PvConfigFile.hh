@@ -43,8 +43,6 @@ namespace Pds
 
     int read(TPvList & vPvList, std::string& sConfigFileWarning);
 
-    static const std::string helpText;
-
   private:
 
     int _addPv            (const std::string & sPvList, std::string & sPvDescription, 

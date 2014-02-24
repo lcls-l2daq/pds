@@ -25,22 +25,6 @@ PvConfigFile::~PvConfigFile()
 {
 }
 
-const string PvConfigFile::helpText =
-  "PV Config File Format:\n"
-  "  - Each line of the file can contain one PV name\n"
-  "  - Use '#' at the beginning of the line to comment out whole line\n"
-  "  - Use '#' in the middle of the line to comment out the remaining characters\n"
-  "  - Use '*' at the beginning of the line to define an alias for the immediately following PV(s)\n"
-  "  - Use '<' to include file(s)\n\n"
-  "Example:\n"
-  "  % cat epicsArch.txt\n"
-  "  < PvList0.txt, PvList1.txt # Include Two Files\n"
-  "  iocTest:aiExample          # PV Name\n"
-  "  # This is a comment line\n"
-  "  iocTest:calcExample1\n"
-  "  * electron beam energy     # Alias for BEND:DMP1:400:BDES\n"
-  "  BEND:DMP1:400:BDES\n";
-
 int PvConfigFile::read(TPvList & vPvList, std::string& sConfigFileWarning)
 {
   return (_readConfigFile(_sFnConfig, vPvList, sConfigFileWarning, _iMaxDepth));
