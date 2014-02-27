@@ -43,6 +43,7 @@ namespace Pds {
     virtual void add(MonClient&) = 0;
   protected:
     virtual void clear();
+  private:
     MonClient* lookup(const Src&);
   private:
     MonConsumerClient& _consumer;

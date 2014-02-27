@@ -22,6 +22,7 @@ MonDesc::MonDesc(const MonDesc& desc) :
 MonDesc::~MonDesc() {}
 
 const char* MonDesc::name() const {return _name;}
+void MonDesc::name(const char* n) { strncpy(_name,n,NameSize-1); }
 int short MonDesc::id() const {return _id;}
 unsigned short MonDesc::nentries() const {return _nentries;}
 

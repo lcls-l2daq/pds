@@ -17,7 +17,7 @@ namespace Pds {
   class VmonServerManager : public VmonPoll,
 			    public MonFd {
   public:
-    static VmonServerManager* instance();
+    static VmonServerManager* instance(const char* =0);
   public:
     MonCds& cds();
     void listen(const Src&, const Ins&);
@@ -26,7 +26,7 @@ namespace Pds {
     virtual int fd() const;
     virtual int processIo();
   private:
-    VmonServerManager();
+    VmonServerManager(const char*);
     ~VmonServerManager();
   private:
     MonCds     _cds;

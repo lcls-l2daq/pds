@@ -11,7 +11,8 @@ namespace Pds {
   public:
     SegStreams(PartitionMember&, 
                unsigned max_event_size,
-               unsigned max_event_depth);
+               unsigned max_event_depth,
+               const char* name);
 
     virtual ~SegStreams();
   };

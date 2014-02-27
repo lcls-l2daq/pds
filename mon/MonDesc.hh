@@ -9,6 +9,7 @@ namespace Pds {
     MonDesc(const MonDesc& desc);
     ~MonDesc();
 
+    void name(const char*);
     const char* name() const;
     int short id() const;
     unsigned short nentries() const;

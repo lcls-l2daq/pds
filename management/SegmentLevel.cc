@@ -62,7 +62,9 @@ bool SegmentLevel::attach()
     if (connect()) {
       _streams = new SegStreams(*this,
                                 _settings.max_event_size (),
-                                _settings.max_event_depth());
+                                _settings.max_event_depth(),
+                                _settings.pAliases() && !_settings.pAliases()->empty() ?
+                                _settings.pAliases()->front().aliasName() : 0);
       _streams->connect();
 
       _callback.attached(*_streams);

@@ -24,6 +24,10 @@ namespace Pds {
 	      MonCds* cds,
 	      MonSocket& socket,
 	      const Src& src);
+    MonClient(MonConsumerClient& consumer, 
+	      int                descsize,
+	      MonSocket& socket,
+	      const Src& src);
     virtual ~MonClient();
 
     MonSocket& socket();

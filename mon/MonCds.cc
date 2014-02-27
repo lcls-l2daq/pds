@@ -8,15 +8,12 @@ static const unsigned short Step = 16;
 
 using namespace Pds;
 
-//MonCds::MonCds(MonPort::Type type) :
-//  _desc(MonPort::name(type)),
 MonCds::MonCds(const char* name) :
   _desc(name),
   _maxgroups(Step),
   _groups(new MonGroup*[_maxgroups]),
   _payload_sem(Semaphore::FULL)
 {
-  //  _desc.id(type);
   _desc.id(0);
 }
 
@@ -50,8 +47,6 @@ void MonCds::remove(MonGroup* group)
     k++;
   }
 }
-
-//MonPort::Type MonCds::type() const {return MonPort::Type(_desc.id());}
 
 const MonDesc& MonCds::desc() const {return _desc;}
 

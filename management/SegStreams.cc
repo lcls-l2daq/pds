@@ -22,7 +22,8 @@ static const unsigned MaxSize = 16*1024*1024;
 
 SegStreams::SegStreams(PartitionMember& cmgr,
                        unsigned max_event_size,
-                       unsigned max_event_depth) :
+                       unsigned max_event_depth,
+                       const char* name) :
   WiredStreams(VmonSourceId(cmgr.header().level(), cmgr.header().ip()))
 {
   if (!max_event_size)
@@ -52,7 +53,7 @@ SegStreams::SegStreams(PartitionMember& cmgr,
            cmgr.slowEb(),
            new VmonEb(src,32,max_event_depth,(1<<24),(1<<22)));
 
-    (new VmonServerAppliance(src))->connect(stream(s)->inlet());
+    (new VmonServerAppliance(src,name))->connect(stream(s)->inlet());
   }
 }
 

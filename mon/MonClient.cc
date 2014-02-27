@@ -36,6 +36,29 @@ MonClient::MonClient(MonConsumerClient& consumer,
   _iovreq[0].iov_len = sizeof(_request);
 }
 
+MonClient::MonClient(MonConsumerClient& consumer, 
+		     int                descsize,
+		     MonSocket&         socket,
+		     const Src&         src) :
+  _src    (src),
+  _consumer(consumer),
+  _cds    (0),
+  _socket (socket),
+  _request(MonMessage::NoOp),
+  _reply  (MonMessage::NoOp),
+  _iovload(0),
+  _iovcnt (0),
+  _desc   (0),
+  _descsize(0),
+  _maxdescsize(0),
+  _usage()
+{
+  _iovreq[0].iov_base = &_request;
+  _iovreq[0].iov_len = sizeof(_request);
+
+  read_description(descsize);
+}
+
 MonClient::~MonClient() 
 {
   delete _cds;
@@ -162,9 +185,14 @@ void MonClient::read_description(int descsize)
   const char* last = d+_descsize;
   if (d < last) {
     const MonDesc* cdsdesc = (const MonDesc*)d;
+    if (!_cds)
+      _cds = new MonCds(cdsdesc->name());
     assert(cdsdesc->id() == _cds->desc().id());
     _cds->reset();
     d += sizeof(MonDesc);
+  }
+  else if (!_cds) {
+    _cds = new MonCds("Unknown");
   }
   while (d < last) {
     const MonDesc* groupdesc = (const MonDesc*)d;

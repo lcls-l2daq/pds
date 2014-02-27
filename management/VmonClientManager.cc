@@ -13,7 +13,6 @@
 #include "pds/mon/MonMessage.hh"
 #include "pds/mon/MonConsumerClient.hh"
 #include "pds/vmon/VmonClientSocket.hh"
-#include "pdsdata/xtc/DetInfo.hh"
 #include "pds/xtc/InDatagram.hh"
 
 #include <errno.h>
@@ -109,10 +108,25 @@ int VmonClientManager::processIo()
   MonClient* client = lookup(reply.src());
   switch (reply.type()) {
   case MonMessage::Description: 
-    client->read_description(reply.payload());
+    { if (!client) {
+        const Src& src = reply.src();
+        client = new MonClient(_consumer,
+                               reply.payload(),
+                               *_socket,
+                               src);
+        add(*client);
+        _client_list.push_back(client);
+      }
+      else 
+        client->read_description(reply.payload());
+    }
     client->use_all();
     break;
   case MonMessage::Payload:     
+    if (!client) {
+      printf("Unknown client contributes payload\n");
+      abort();
+    }
     client->read_payload(); 
     break;
   default:          
@@ -136,34 +150,7 @@ MonClient* VmonClientManager::lookup(const Src& src)
       iter != _client_list.end(); iter++) {
     if ((*iter)->src()==src) return (*iter);
   }
-
-  char buff[128];
-  if (src.level()==Level::Source) {
-    const DetInfo& info = static_cast<const DetInfo&>(src);
-    sprintf(buff,"%s.%d.%s.%d",
-	    DetInfo::name(info.detector()),
-	    info.detId(),
-	    DetInfo::name(info.device()),
-	    info.devId());
-  }
-  else {
-    const ProcInfo& info = static_cast<const ProcInfo&>(src);
-    sprintf(buff,"%10.10s[%d.%d.%d.%d : %d]",
-	    Level::name(info.level()),
-	    (info.ipAddr()>>24)&0xff,
-	    (info.ipAddr()>>16)&0xff,
-	    (info.ipAddr()>> 8)&0xff,
-	    (info.ipAddr()>> 0)&0xff,
-	    info.processId());
-  }
-
-  MonClient* client = new MonClient(_consumer,
-				    new MonCds(buff),
-				    *_socket,
-				    src);
-  add(*client);
-  _client_list.push_back(client);
-  return client;
+  return 0;
 }
 
 void VmonClientManager::clear()

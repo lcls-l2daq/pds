@@ -11,8 +11,8 @@
 using namespace Pds;
 
 
-VmonServerManager::VmonServerManager() :
-  _cds   (MonPort::name(MonPort::Vmon)),
+VmonServerManager::VmonServerManager(const char* name) :
+  _cds   (name),
   _socket(0)
 {
 }
@@ -21,7 +21,6 @@ VmonServerManager::VmonServerManager() :
 VmonServerManager::~VmonServerManager()
 {
 }
-
 
 MonCds& VmonServerManager::cds()
 { return _cds; }
@@ -66,9 +65,11 @@ int VmonServerManager::processIo()
 
 static VmonServerManager* _instance = 0;
 
-VmonServerManager* VmonServerManager::instance()
+VmonServerManager* VmonServerManager::instance(const char* name)
 {
   if (!_instance)
-    _instance = new VmonServerManager;
+    _instance = new VmonServerManager(name ? name : "Unknown");
+  else if (name)
+    const_cast<MonDesc&>(_instance->cds().desc()).name(name);
   return _instance;
 }
