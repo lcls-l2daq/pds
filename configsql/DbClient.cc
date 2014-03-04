@@ -33,6 +33,13 @@ static void _handle_no_lock(const char* s)
   throw _no_lock_exception;
 }
 
+static std::string trunc(const std::string& name)
+{
+  unsigned len = name.size();
+  if (len>32) return name.substr(0,32);
+  return name;
+}
+
 //-------------
 // Functions --
 //-------------
@@ -608,7 +615,7 @@ void                 DbClient::_updateKey(const std::string& alias,
               std::ostringstream sql;
               sql << "SELECT xtctime FROM xtc "
                   << "WHERE xtc.typeid=" << x_it->type_id.value()
-                  << " AND xtc.xtcname='" << x_it->name 
+                  << " AND xtc.xtcname='" << trunc(x_it->name)
                   << "' ORDER BY xtc.xtctime DESC;";
               QueryProcessor q(_mysql);
               q.execute(sql.str());
@@ -741,11 +748,19 @@ int                  DbClient::setKey(const Key& key,
     { std::ostringstream sql;
       sql << "SELECT xtctime FROM xtc"
           << " WHERE typeid=" << it->xtc.type_id.value()
-          << " AND xtcname='" << it->xtc.name 
+          << " AND xtcname='" << trunc(it->xtc.name)
           << "' ORDER BY xtctime DESC;";
       QueryProcessor query(_mysql);
       query.execute(sql.str());
       query.next_row();
+      if (query.empty()) {
+        printf("No %s_v%u/%s found [%s]\n",
+               Pds::TypeId::name(it->xtc.type_id.id()),
+               it->xtc.type_id.version(),
+               it->xtc.name.c_str(),
+               sql.str().c_str());
+        continue;
+      }
       query.get_time(xtctime,"xtctime"); }
 
     { std::ostringstream sql;
@@ -836,7 +851,7 @@ int                  DbClient::getXTC(const    XtcEntry& x)
   std::ostringstream sql;
   sql << "SELECT LENGTH(payload) FROM xtc"
       << " WHERE xtc.typeid=" << x.type_id.value()
-      << " AND xtc.xtcname='" << x.name 
+      << " AND xtc.xtcname='" << trunc(x.name)
       << "' ORDER BY xtc.xtctime DESC;";
   QueryProcessor query(_mysql);
   query.execute(sql.str());
@@ -863,7 +878,7 @@ int                  DbClient::getXTC(const    XtcEntry& x,
   std::ostringstream sql;
   sql << "SELECT payload FROM xtc"
       << " WHERE xtc.typeid=" << x.type_id.value()
-      << " AND xtc.xtcname='" << x.name 
+      << " AND xtc.xtcname='" << trunc(x.name)
       << "' ORDER BY xtc.xtctime DESC;";
   QueryProcessor query(_mysql);
   query.execute(sql.str());
@@ -892,7 +907,7 @@ int                  DbClient::setXTC(const XtcEntry& x,
   { std::ostringstream sql;
     sql << "SELECT xtctime FROM xtc"
         << " WHERE xtc.typeid=" << x.type_id.value()
-        << " AND xtc.xtcname='" << x.name 
+        << " AND xtc.xtcname='" << trunc(x.name)
         << "' ORDER BY xtc.xtctime DESC;";
     query.execute(sql.str()); }
     
@@ -904,7 +919,7 @@ int                  DbClient::setXTC(const XtcEntry& x,
     { std::ostringstream sql;
       sql << "SELECT runkey FROM runkeys"
           << " WHERE runkeys.typeid=" << x.type_id.value()
-          << " AND runkeys.xtcname='" << x.name
+          << " AND runkeys.xtcname='" << trunc(x.name)
           << "' AND runkeys.xtctime=" << timestamp(xtctime) << ";";
       query.execute(sql.str()); }
     
@@ -912,7 +927,7 @@ int                  DbClient::setXTC(const XtcEntry& x,
       std::ostringstream sql;
       sql << "DELETE from xtc"
           << " WHERE xtc.typeid=" << x.type_id.value()
-          << " AND xtc.xtcname='" << x.name
+          << " AND xtc.xtcname='" << trunc(x.name)
           << "' AND xtc.xtctime=" << timestamp(xtctime) << ";";
       simpleQuery(_mysql,sql.str()); 
     }
