@@ -58,9 +58,19 @@ const char* IocNode::alias() const
   return _alias.c_str();
 }
 
+void IocNode::addPV(std::string alias, std::string line)
+{
+    _extra_aliases.push_back(alias);
+    _extra_lines.push_back(line);
+}
+
 void IocNode::write_config(IocConnection *c)
 {
     c->transmit(_config);
     c->transmit("record " + _alias + "\n");
-}
 
+    for (unsigned int i = 0; i < _extra_aliases.size(); i++) {
+        c->transmit(_extra_lines[i] + "\n");
+        c->transmit("record " + _extra_aliases[i] + "\n");
+    }
+}

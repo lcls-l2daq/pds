@@ -6,6 +6,7 @@
 #include "pds/ioc/IocConnection.hh"
 
 #include <string>
+#include <vector>
 
 namespace Pds {
   class Src;
@@ -27,6 +28,7 @@ namespace Pds {
     IocConnection *get_connection(IocControl *ctrl) { 
         return IocConnection::get_connection(_host, _host_ip, _port, ctrl); 
     };
+    void addPV(std::string alias, std::string line);
     void write_config(IocConnection *c);
   private:
     std::string _host;
@@ -37,6 +39,8 @@ namespace Pds {
     std::string _device;
     std::string _pvname;
     std::string _flags;
+    std::vector<std::string> _extra_lines;
+    std::vector<std::string> _extra_aliases;
 
     uint32_t    _host_ip;
     uint32_t    _src[2];

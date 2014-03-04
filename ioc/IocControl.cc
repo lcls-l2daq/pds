@@ -44,6 +44,7 @@ IocControl::IocControl(const char* offlinerc,
 
     std::ifstream *in;
     std::string line, host;
+    IocNode *curnode = NULL;
 
     /*
      * If we don't have a configuration file, we're not doing anything!
@@ -98,11 +99,14 @@ IocControl::IocControl(const char* offlinerc,
             printf("IocControl::ctor adding IocNode host: %s  line: %s\n",
                    host.c_str(), line.c_str());
 #endif
-            _nodes.push_back(new IocNode(host, line, arrayTokens[1], arrayTokens[2],
-                                         arrayTokens[3], arrayTokens[4],
-                                         arrayTokens.size() >= 6 ? arrayTokens[5]
-                                         : (std::string)""));
+            curnode = new IocNode(host, line, arrayTokens[1], arrayTokens[2],
+                                  arrayTokens[3], arrayTokens[4],
+                                  arrayTokens.size() >= 6 ? arrayTokens[5]
+                                                          : (std::string)"");
+            _nodes.push_back(curnode);
           }
+        } else if (arrayTokens[0] == "pv" && arrayTokens.size() >= 3 && curnode != NULL) {
+            curnode->addPV(arrayTokens[1], line);
         }
     }
     delete in;
