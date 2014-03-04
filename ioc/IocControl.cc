@@ -125,7 +125,7 @@ void IocControl::write_config(IocConnection *c, unsigned run, unsigned stream)
     for(std::list<std::string>::iterator it=_offlinerc.begin();
         it!=_offlinerc.end(); it++)
         c->transmit(*it);
-    sprintf(buf, "output daq/e%d-r%04d-s%02d\n", _expt_id, run, stream);
+    sprintf(buf, "output daq/xtc/e%d-r%04d-s%02d\n", _expt_id, run, stream);
     c->transmit(buf);
     c->transmit("quiet\n");
     c->transmit(_trans);
