@@ -1,3 +1,4 @@
+#include <stdio.h>
 #include "pds/config/pnCCDConfigType.hh"
 
 void Pds::pnCCDConfig::setNumLinks( pnCCDConfigType& c,

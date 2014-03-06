@@ -2,6 +2,7 @@
 #include "pdsdata/xtc/Level.hh"
 #include<netdb.h>
 #include<arpa/inet.h>
+#include <stdlib.h>
 
 class MyInfo : public Pds::Src {
 public:

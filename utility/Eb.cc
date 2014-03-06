@@ -1,3 +1,5 @@
+#include <stdlib.h>
+
 #include "pds/utility/Eb.hh"
 #include "pds/utility/EbServer.hh"
 #include "pds/xtc/CDatagram.hh"

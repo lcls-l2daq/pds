@@ -15,6 +15,7 @@
 #include "pds/vmon/VmonClientSocket.hh"
 #include "pds/xtc/InDatagram.hh"
 
+#include <stdlib.h>
 #include <errno.h>
 #include <string.h>
 

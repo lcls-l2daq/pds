@@ -390,7 +390,7 @@ int FliServer::deinitCapture()
 {
   if ( !_bCaptureInited )
     return 0;
-  
+
   LockCameraData lockDeinitCapture(const_cast<char*>("FliServer::deinitCapture()"));
 
   _bCaptureInited = false;
@@ -526,7 +526,7 @@ int FliServer::initCameraBeforeConfig()
   if (iIndexComma == string::npos)
   {
     sConfigPath = _sConfigDb;
-    sConfigType = "PRINCETON_BURST";
+    sConfigType = "BEAM";
   }
   else
   {
@@ -718,7 +718,7 @@ int FliServer::setupCooling(double fCoolingTemperature)
   {
     printf("FliServer::setupCooling(): Cooling failed, final temperature = %.1lf C",
      fTemperature );
-    return ERROR_COOLING_FAILURE;
+    return ERROR_TEMPERATURE;
   }
 
   return 0;

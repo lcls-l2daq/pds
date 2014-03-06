@@ -5,6 +5,7 @@
 
 #include <stdio.h>
 #include <fcntl.h>
+#include <string.h>
 #include <errno.h>
 
 using namespace Pds_ConfigDb::Nfs;

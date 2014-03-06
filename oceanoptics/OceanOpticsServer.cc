@@ -1,3 +1,4 @@
+#include <stdio.h>
 #include <fcntl.h>
 #include <unistd.h>
 #include <sys/uio.h>
@@ -16,8 +17,8 @@
 /*
  * local functions
  */
-static int initSpectraCheck();
-static int checkSpectraInfo(OceanOpticsDataType* pData);
+static int initSpectraCheck(int iDevceType);
+static int checkSpectraInfo(void* pData);
 static int finalSpectraReport();
 static int printSpectraHeaderInfo(LIBOOPT::SpectraPostheader* pSpectraPostheader);
 
@@ -48,30 +49,45 @@ namespace Pds
 {
 
 OceanOpticsServer::OceanOpticsServer(const Src& client, int iDevice, int iDebugLevel)
-   : _xtc( _oceanOpticsDataType, client ), _count(0), _iDebugLevel(iDebugLevel)
+   : _count(0), _iDebugLevel(iDebugLevel)
 {
-  _xtc.extent = sizeof(Xtc) + sizeof(OceanOpticsDataType);  
-  
   char sDevOopt[32];
   sprintf(sDevOopt, "/dev/oopt%d", iDevice);
-  int fdDevice = open(sDevOopt, O_RDWR);  
-  
+  int fdDevice = open(sDevOopt, O_RDWR);
+
   if (_iDebugLevel >= 1)
     printf("Opening %s. fd = %d\n", sDevOopt, fdDevice);
-  
+
   char sError[128];
   if (fdDevice == -1)
-  {    
+  {
     sprintf(sError, "OceanOpticsServer::OceanOpticsServer(): open() failed. [%d] %s", errno, strerror(errno));
     throw OceanOpticsServerException(sError);
   }
 
-  if (LIBOOPT::initHR4000(fdDevice) != 0)
+  if (LIBOOPT::initDevice(fdDevice, _iDeviceType) != 0)
   {
     close(fdDevice);
-    throw OceanOpticsServerException("OceanOpticsServer::OceanOpticsServer(): initHR4000() failed");
+    throw OceanOpticsServerException("OceanOpticsServer::OceanOpticsServer(): initDevice() failed");
   }
-  
+
+  if (_iDebugLevel >= 1)
+    printf("Device type = %d\n", _iDeviceType);
+
+  if (_iDeviceType == 0) // HR4000
+  {
+    _xtc            = Xtc( _oopt_HR4000_DataType  , client );
+    _iDataReadSize  = OOpt_HR4000_DataType::iDataReadSize;
+    _iOutDataSize   = sizeof(OOpt_HR4000_DataType);
+  }
+  else
+  {
+    _xtc = Xtc( _oopt_USB2000P_DataType, client );
+    _iDataReadSize  = OOpt_USB2000P_DataType::iDataReadSize;
+    _iOutDataSize   = sizeof(OOpt_USB2000P_DataType);
+  }
+  _xtc.extent     = sizeof(Xtc) + _iOutDataSize;
+
   LIBOOPT::SpecStatus status;
   if (LIBOOPT::queryStatus(fdDevice, status) != 0)
   {
@@ -79,9 +95,9 @@ OceanOpticsServer::OceanOpticsServer(const Src& client, int iDevice, int iDebugL
     throw OceanOpticsServerException("OceanOpticsServer::OceanOpticsServer(): queryStatus() failed");
   }
   printf("Device Status:\n");
-  LIBOOPT::printStatus(status);     
-        
-  fd(fdDevice);  
+  LIBOOPT::printStatus(status);
+
+  fd(fdDevice);
 }
 
 OceanOpticsServer::~OceanOpticsServer()
@@ -89,7 +105,7 @@ OceanOpticsServer::~OceanOpticsServer()
   int iError = LIBOOPT::clearDataBuffer(fd());
   if (iError != 0)
     printf("OceanOpticsServer::~OceanOpticsServer(): clearDataBuffer() failed: %d\n", iError);
-  
+
   if (fd() >= 0)
   {
     iError = close(fd());
@@ -97,7 +113,7 @@ OceanOpticsServer::~OceanOpticsServer()
       printf("OceanOpticsServer::~OceanOpticsServer(): close() failed. %s\n", strerror(errno));
     fd(-1);
   }
-  
+
   printf("device closed successfully.\n");
 }
 
@@ -110,22 +126,22 @@ unsigned OceanOpticsServer::configure(OceanOpticsConfigType& config)
 {
   if (!devicePresent())
     return ERR_DEVICE_NOT_PRESENT;
-    
-  // todo: read out the other config values (such as calibration coefficients) and pass back 
+
+  // todo: read out the other config values (such as calibration coefficients) and pass back
   // note: read the values before setting the exposure is better for the device
-  
+
   /*
-   * Read back the config values. Fill them into the config object.   
-   */  
+   * Read back the config values. Fill them into the config object.
+   */
   printf("Reading config variables:\n");
   const int iWaveLenCalibStart  = 1;
   const int iWaveLenCalibLen    = 4;
   const int iftrayLightConstant = 5;
   const int iNonlinCorrectStart = 6;
   const int iNonlinCorrectLen   = 8;
-  double    lfNonlinCorrectCoeff [8];  
-  double    lfWaveLenCalibCoeff  [4];  
-  double    fStrayLightConstant = -1;  
+  double    lfNonlinCorrectCoeff [8];
+  double    lfWaveLenCalibCoeff  [4];
+  double    fStrayLightConstant = -1;
   for (int iConfigVar = 0; iConfigVar < LIBOOPT::getNumConfigVars(); ++iConfigVar)
   {
     char  lbAnswer[20];
@@ -136,38 +152,38 @@ unsigned OceanOpticsServer::configure(OceanOpticsConfigType& config)
       return 1;
     }
     lbAnswer[19] = 0;
-    
+
     if ( iConfigVar >= iWaveLenCalibStart && iConfigVar < iWaveLenCalibStart+iWaveLenCalibLen)
-    {    
+    {
         lfWaveLenCalibCoeff[iConfigVar - iWaveLenCalibStart] = strtod(lbAnswer, NULL);
-      if (_iDebugLevel >= 1)    
-        printf("  [%02d] %s\n    = %s (%lg)\n", iConfigVar, LIBOOPT::getConfigVarName(iConfigVar), lbAnswer, lfWaveLenCalibCoeff[iConfigVar - iWaveLenCalibStart]);        
-    }        
+      if (_iDebugLevel >= 1)
+        printf("  [%02d] %s\n    = %s (%lg)\n", iConfigVar, LIBOOPT::getConfigVarName(iConfigVar), lbAnswer, lfWaveLenCalibCoeff[iConfigVar - iWaveLenCalibStart]);
+    }
     else if ( iConfigVar >= iNonlinCorrectStart && iConfigVar < iNonlinCorrectStart+iNonlinCorrectLen)
     {
       lfNonlinCorrectCoeff[iConfigVar - iNonlinCorrectStart] = strtod(lbAnswer, NULL);
-      if (_iDebugLevel >= 1)    
-        printf("  [%02d] %s\n    = %s (%lg)\n", iConfigVar, LIBOOPT::getConfigVarName(iConfigVar), lbAnswer, lfNonlinCorrectCoeff[iConfigVar - iNonlinCorrectStart]);        
+      if (_iDebugLevel >= 1)
+        printf("  [%02d] %s\n    = %s (%lg)\n", iConfigVar, LIBOOPT::getConfigVarName(iConfigVar), lbAnswer, lfNonlinCorrectCoeff[iConfigVar - iNonlinCorrectStart]);
     }
     else if ( iConfigVar == iftrayLightConstant )
     {
       fStrayLightConstant = strtod(lbAnswer, NULL);
       if (_iDebugLevel >= 1)
         printf("  [%02d] %s\n    = %s (%lg)\n", iConfigVar, LIBOOPT::getConfigVarName(iConfigVar), lbAnswer, fStrayLightConstant);
-    }        
+    }
     else
     {
-      if (_iDebugLevel >= 1)    
-        printf("  [%02d] %s\n    = %s\n", iConfigVar, LIBOOPT::getConfigVarName(iConfigVar), lbAnswer);              
+      if (_iDebugLevel >= 1)
+        printf("  [%02d] %s\n    = %s\n", iConfigVar, LIBOOPT::getConfigVarName(iConfigVar), lbAnswer);
     }
-  }  
+  }
 
-  
-  new (&config) OceanOpticsConfigType(config.exposureTime(), lfWaveLenCalibCoeff, lfNonlinCorrectCoeff, fStrayLightConstant);
+
+  new (&config) OceanOpticsConfigType(config.exposureTime(), _iDeviceType, lfWaveLenCalibCoeff, lfNonlinCorrectCoeff, fStrayLightConstant);
 
   /*
-   * start to configure the device 
-   */  
+   * start to configure the device
+   */
   int iError = LIBOOPT::clearDataBuffer(fd());
   if (iError != 0)
   {
@@ -182,13 +198,16 @@ unsigned OceanOpticsServer::configure(OceanOpticsConfigType& config)
     printf("OceanOpticsServer::configure(): setIntegrationTime() failed: %d\n", iError);
     return ERR_LIBOOPT_FAIL;
   }
-  
-  iError = LIBOOPT::setTriggerMode(fd(), LIBOOPT::TRIGGER_MODE_EXT_HW);
+
+  if (_iDeviceType == 0) // HR4000
+    iError = LIBOOPT::setTriggerMode(fd(), LIBOOPT::TRIGGER_MODE_EXT_HW);
+  else
+    iError = LIBOOPT::setTriggerMode(fd(), LIBOOPT::TRIGGER_USB2000P_EXT_HW_EDGE);
   if (iError != 0)
   {
     printf("OceanOpticsServer::configure(): setTriggerMode() failed: %d\n", iError);
     return ERR_LIBOOPT_FAIL;
-  }            
+  }
 
   bool    bReadOk;
   double  fTemperatureInC;
@@ -199,8 +218,8 @@ unsigned OceanOpticsServer::configure(OceanOpticsConfigType& config)
     return 1;
   }
   printf("Reading Temperature: Read status %s. Value = %.2lf C\n", (bReadOk? "OK" : "Fail"), fTemperatureInC);
-  
-  printf("Reading registers:\n");  
+
+  printf("Reading registers:\n");
   for (int iRegister = 0; iRegister < LIBOOPT::getNumRegisters(); ++iRegister)
   {
     int iAddr = LIBOOPT::getRegisterAddr(iRegister);
@@ -215,7 +234,7 @@ unsigned OceanOpticsServer::configure(OceanOpticsConfigType& config)
 
     printf("  [%02d] <0x%02x> %s\n    = %d (0x%04x)\n", iRegister, iAddr, LIBOOPT::getRegisterName(iRegister), u16RegVal, u16RegVal);
   }
-  
+
   LIBOOPT::SpecStatus status;
   if (LIBOOPT::queryStatus(fd(), status) != 0)
   {
@@ -223,39 +242,39 @@ unsigned OceanOpticsServer::configure(OceanOpticsConfigType& config)
     return ERR_LIBOOPT_FAIL;
   }
   printf("Device Status:\n");
-  LIBOOPT::printStatus(status);       
-  
+  LIBOOPT::printStatus(status);
+
   iError = LIBOOPT::arm(fd(), true, 0);
   if (iError != 0)
   {
     printf("OceanOpticsServer::configure(): arm() failed: %d\n", iError);
     return ERR_LIBOOPT_FAIL;
-  }     
+  }
 
   iError = LIBOOPT::setPollEnable(fd(), 1);
   if (iError != 0)
   {
     printf("OceanOpticsServer::configure(): setPollEnable() failed: %d\n", iError);
     return ERR_LIBOOPT_FAIL;
-  }     
-  
+  }
+
   _count = 0;
-  initSpectraCheck();
+  initSpectraCheck(_iDeviceType);
   return 0;
 }
 
 unsigned OceanOpticsServer::unconfigure()
-{   
+{
   if (!devicePresent())
     return ERR_DEVICE_NOT_PRESENT;
-    
+
   int iError = LIBOOPT::setPollEnable(fd(), 0);
   if (iError != 0)
   {
     printf("OceanOpticsServer::unconfigure(): setPollEnable() failed: %d\n", iError);
     return ERR_LIBOOPT_FAIL;
-  }         
-  
+  }
+
   uint64_t u64NumTotalFrames, u64NumDelayedFrames, u64NumDiscardFrames;
   iError = LIBOOPT::unarm(fd(), u64NumTotalFrames, u64NumDelayedFrames, u64NumDiscardFrames);
   if (iError != 0)
@@ -263,19 +282,19 @@ unsigned OceanOpticsServer::unconfigure()
     printf("OceanOpticsServer::unconfigure(): unarm() failed: %d\n", iError);
     return ERR_LIBOOPT_FAIL;
   }
-  
-  if (_iDebugLevel >= 2 && u64NumTotalFrames > 0)  
+
+  if (_iDebugLevel >= 2 && u64NumTotalFrames > 0)
     finalSpectraReport();
-    
+
   printf("Count %Lu Captured frames %Lu delayed %Lu discarded %Lu\n", (long long unsigned) _count, (long long unsigned) u64NumTotalFrames, (long long unsigned) u64NumDelayedFrames, (long long unsigned) u64NumDiscardFrames);
-  
+
   iError = LIBOOPT::clearDataBuffer(fd());
   if (iError != 0)
   {
     printf("OceanOpticsServer::unconfigure(): clearDataBuffer() failed: %d\n", iError);
     return ERR_LIBOOPT_FAIL;
   }
-  
+
   return 0;
 }
 
@@ -283,24 +302,27 @@ int OceanOpticsServer::fetch( char* payload, int flags )
 {
   if (!devicePresent())
     return 0;
-    
-  OceanOpticsDataType data;
-  
-  OceanOpticsDataType* pData = (OceanOpticsDataType*) (payload + sizeof(_xtc));
-  int iNumBytesRead = read(fd(), pData, OceanOpticsDataType::iDataReadSize);    
-  if (iNumBytesRead != OceanOpticsDataType::iDataReadSize)
+
+  void* pData = (void*) (payload + sizeof(_xtc));
+
+  int iNumBytesRead = read(fd(), pData, _iDataReadSize);
+  if (iNumBytesRead != _iDataReadSize)
   {
     printf("OceanOpticsServer::fetch(): read() failed: %d %s\n", iNumBytesRead, strerror(errno));
     return ERR_READ_FAIL;
   }
 
   *(Xtc*) payload = _xtc; // setup the Xtc header
-  _count = pData->frameCounter(); // setup the counter for event building matching
-  
+
+  if (_iDeviceType == 0) // HR4000
+    _count = ((OOpt_HR4000_DataType*)pData)->frameCounter(); // setup the counter for event building matching
+  else
+    _count = ((OOpt_USB2000P_DataType*)pData)->frameCounter(); // setup the counter for event building matching
+
   if (_iDebugLevel >= 2)
     checkSpectraInfo(pData);
-     
-   return sizeof(_xtc) + sizeof(OceanOpticsDataType);
+
+   return sizeof(_xtc) + _iOutDataSize;
 }
 
 unsigned OceanOpticsServer::count() const
@@ -310,14 +332,14 @@ unsigned OceanOpticsServer::count() const
 
 } // namespace pds
 
-static int initSpectraCheck()
+static int initSpectraCheck(int iDeviceType)
 {
   int iPixelDataSize, iNumTotalPixels;
-  LIBOOPT::getSpectraDataInfo(iPixelDataSize, iNumTotalPixels, iPostheaderOffset);
-  
+  LIBOOPT::getSpectraDataInfo(iDeviceType, iPixelDataSize, iNumTotalPixels, iPostheaderOffset);
+
   clock_gettime(CLOCK_REALTIME, &tsPrevReport);
   tsPrevFetch = tsPrevReport;
-  
+
   histTimeFrame.reset();
   histFetchInterval.reset();
   histTimeStart.reset();
@@ -327,14 +349,14 @@ static int initSpectraCheck()
   histTimeGap.reset();
   histNumSpectraInQueue.reset();
   histLongIntervalShot.reset();
-  
+
   return 0;
 }
 
-static int checkSpectraInfo(OceanOpticsDataType* pData)
+static int checkSpectraInfo(void* pData)
 {
   LIBOOPT::SpectraPostheader* pSpectraPostheader = (LIBOOPT::SpectraPostheader*) ((char*)pData + iPostheaderOffset);
-    
+
   double  fTimeFrame      = pSpectraPostheader->tsTimeFrameEnd.tv_sec - pSpectraPostheader->tsTimeFrameInit.tv_sec + pSpectraPostheader->tsTimeFrameEnd.tv_nsec * 1e-9 - pSpectraPostheader->tsTimeFrameInit.tv_nsec * 1e-9;
   double  fTimeFrameStart = pSpectraPostheader->tsTimeFrameStart.tv_sec - pSpectraPostheader->tsTimeFrameInit.tv_sec + pSpectraPostheader->tsTimeFrameStart.tv_nsec * 1e-9 - pSpectraPostheader->tsTimeFrameInit.tv_nsec * 1e-9;
   double  fTimeFirstData  = pSpectraPostheader->tsTimeFrameFirstData.tv_sec - pSpectraPostheader->tsTimeFrameInit.tv_sec + pSpectraPostheader->tsTimeFrameFirstData.tv_nsec * 1e-9 - pSpectraPostheader->tsTimeFrameInit.tv_nsec * 1e-9;
@@ -344,13 +366,13 @@ static int checkSpectraInfo(OceanOpticsDataType* pData)
 
   tsPrevInit = pSpectraPostheader->tsTimeFrameInit;
   tsPrevEnd  = pSpectraPostheader->tsTimeFrameEnd;
-  
+
   struct timespec tsCur;
   clock_gettime(CLOCK_REALTIME, &tsCur);
-  
-  double  fFetchInterval      = (tsCur.tv_sec - tsPrevFetch.tv_sec) + (tsCur.tv_nsec - tsPrevFetch.tv_nsec) * 1e-9;  
+
+  double  fFetchInterval      = (tsCur.tv_sec - tsPrevFetch.tv_sec) + (tsCur.tv_nsec - tsPrevFetch.tv_nsec) * 1e-9;
   tsPrevFetch = tsCur;
-  
+
   double  fLongIntervalBound;
   if (pSpectraPostheader->u64FrameCounter == 0)
   {
@@ -364,45 +386,46 @@ static int checkSpectraInfo(OceanOpticsDataType* pData)
     histTimeFirstData .addValue(fTimeFirstData * 1e3);
     histTimeGetData   .addValue(fTimeGetData * 1e3);
     histFetchInterval .addValue(fFetchInterval * 1e3);
-    
+
     histTimeInterval.addValue(fTimeInterval * 1e3);
     histTimeGap.addValue(fTimeGap * 1e3);
-    
-    fLongIntervalBound  = (histFetchInterval.avgInRange() * fLongIntervalRatio) * 1e-3;
-  }  
-  
+
+    fLongIntervalBound  = (histFetchInterval.avg() * fLongIntervalRatio) * 1e-3;
+  }
+
   bool    bLongIntervalReport = fTimeFirstData >= fLongIntervalBound;
   if (bLongIntervalReport)
   {
     ++iNumLongInterval;
     histLongIntervalShot.addValue(pSpectraPostheader->u64FrameCounter);
     //histLongIntervalShot.report("Long Interval Shot");
-  }    
-  
+  }
+
   bool bRegularReport = (tsCur.tv_sec >= tsPrevReport.tv_sec + iReportInterval);
-  
+
   int iNumSpectraInQueue = pSpectraPostheader->dataInfo.i8NumSpectraInQueue;
   histNumSpectraInQueue.addValue(iNumSpectraInQueue);
-  
+
   if (bLongIntervalReport || bRegularReport || iNumSpectraInQueue > 0)
   {
-    tsPrevReport = tsCur;  
-    
+    tsPrevReport = tsCur;
+
     if (bLongIntervalReport)
       printf("\n***");
     else
       printf("\n");
-      
-    printf("Frame %Lu (Long Interval %d)\n", (long long unsigned) pSpectraPostheader->u64FrameCounter, iNumLongInterval);
-      
+
+    printf("Frame %Lu (Long Interval %d (Fetch Avg %.3f bound %.3f)\n", (long long unsigned) pSpectraPostheader->u64FrameCounter, iNumLongInterval,
+          histFetchInterval.avgInRange(), fLongIntervalBound);
+
     printf("  Frame time %.3f fetch %.3f bound %.3f interval %.3f start %.3f first data %.3f get data %.3f gap %.3f\n",
       fTimeFrame * 1e3, fFetchInterval * 1e3, fLongIntervalBound * 1e3, fTimeInterval * 1e3, fTimeFrameStart * 1e3, fTimeFirstData * 1e3, fTimeGetData * 1e3, fTimeGap * 1e3);
 
     if (iNumSpectraInQueue > 0)
-      printf("*** Frame %Lu  Spectra in queue %d\n", (long long unsigned) pSpectraPostheader->u64FrameCounter, pSpectraPostheader->dataInfo.i8NumSpectraInQueue);        
-      
+      printf("*** Frame %Lu  Spectra in queue %d\n", (long long unsigned) pSpectraPostheader->u64FrameCounter, pSpectraPostheader->dataInfo.i8NumSpectraInQueue);
+
     printSpectraHeaderInfo(pSpectraPostheader);
-      
+
     histTimeFrame.report("Frame Time");
     histFetchInterval.report("Fetch Interval");
     histTimeStart.report("Frame Start");
@@ -413,7 +436,7 @@ static int checkSpectraInfo(OceanOpticsDataType* pData)
     histNumSpectraInQueue.report("Spectra In Queue");
     printf("\n");
   }
-      
+
   return 0;
 }
 
@@ -427,8 +450,8 @@ static int finalSpectraReport()
   histTimeGetData.report("Frame Get Data Time");
   histTimeGap.report("Frame Gap");
   histNumSpectraInQueue.report("Spectra In Queue");
-  histLongIntervalShot.report("Long Interval Shot");  
-  
+  histLongIntervalShot.report("Long Interval Shot");
+
   return 0;
 }
 

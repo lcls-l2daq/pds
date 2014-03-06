@@ -1,6 +1,8 @@
 #include "pds/confignfs/XtcClient.hh"
 #include "pds/configsql/XtcClient.hh"
 
+#include <stdio.h>
+#include <errno.h>
 #include <sys/stat.h>
 
 using namespace Pds_ConfigDb;

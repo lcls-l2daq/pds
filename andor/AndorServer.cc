@@ -893,7 +893,7 @@ int AndorServer::initCameraBeforeConfig()
   if (iIndexComma == string::npos)
   {
     sConfigPath = _sConfigDb;
-    sConfigType = "PRINCETON_BURST";
+    sConfigType = "BEAM";
   }
   else
   {
@@ -925,7 +925,7 @@ int AndorServer::initCameraBeforeConfig()
   if (iSizeRead != sizeof(config)) {
     printf("AndorServer::initCameraBeforeConfig(): Read config data of incorrect size. Read size = %d (should be %d) bytes\n",
       iSizeRead, (int) sizeof(config));
-    return 2;
+    return ERROR_INVALID_CONFIG;
   }
 
   printf("Setting cooling temperature: %f\n", config.coolingTemp());
@@ -1029,7 +1029,7 @@ int AndorServer::setupCooling(double fCoolingTemperature)
   if ( fCoolingTemperature < _iTempMin || fCoolingTemperature > _iTempMax )
   {
     printf("Cooling temperature %f out of range (min %d max %d)\n", fCoolingTemperature, _iTempMin, _iTempMax);
-    return ERROR_COOLING_FAILURE;
+    return ERROR_TEMPERATURE;
   }
   else
   {
@@ -1104,7 +1104,7 @@ int AndorServer::setupCooling(double fCoolingTemperature)
   {
     printf("AndorServer::setupCooling(): Cooling temperature not reached yet; final temperature = %d C",
      iTemperature );
-    return ERROR_COOLING_FAILURE;
+    return ERROR_TEMPERATURE;
   }
 
   return 0;

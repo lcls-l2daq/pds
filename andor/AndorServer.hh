@@ -53,9 +53,8 @@ public:
     ERROR_SDK_FUNC_FAIL     = 5,
     ERROR_SERVER_INIT_FAIL  = 6,
     ERROR_INVALID_CONFIG    = 7,
-    ERROR_COOLING_FAILURE   = 8,
-    ERROR_TEMPERATURE       = 9,
-    ERROR_SEQUENCE_ERROR    = 10,
+    ERROR_TEMPERATURE       = 8,
+    ERROR_SEQUENCE_ERROR    = 9,
   };
 
 private:

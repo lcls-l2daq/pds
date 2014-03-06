@@ -8,7 +8,7 @@ namespace LIBOOPT
 
 #define OOPT_CONFIGVAR_RETLEN 15
 
-int initHR4000        (int fd);
+int initDevice        (int fd, int& iDeviceType); // device type: 0 - HR4000, 1 - USB2000P
 int queryConfig       (int fd, int iConfigVar, char lbConfigVal[OOPT_CONFIGVAR_RETLEN]);
 int setConfig         (int fd, int iConfigVar, const char lbConfigVal[OOPT_CONFIGVAR_RETLEN]);
 int readRegister      (int fd, int iRegisterAddr, uint16_t& u16RegisterVal);
@@ -46,10 +46,14 @@ int printStatus(const SpecStatus& status);
 
 enum TriggerMode
 {
-  TRIGGER_MODE_CONTINUOUS   = 0,
-  TRIGGER_MODE_SOFT_ENABLE  = 1,
-  TRIGGER_MODE_EXT_SYNC     = 2,
-  TRIGGER_MODE_EXT_HW       = 3,
+  TRIGGER_MODE_CONTINUOUS       = 0,
+  TRIGGER_MODE_SOFT_ENABLE      = 1,
+  TRIGGER_MODE_EXT_SYNC         = 2,
+  TRIGGER_MODE_EXT_HW           = 3,
+
+  TRIGGER_USB2000P_EXT_HW_LEVEL = 2,
+  TRIGGER_USB2000P_EXT_SYNC     = 3,
+  TRIGGER_USB2000P_EXT_HW_EDGE  = 4,
 };
 int setTriggerMode    (int fd, TriggerMode eTriggerMode);
 
@@ -91,7 +95,7 @@ typedef struct
 
 #pragma pack()
 
-int getSpectraDataInfo(int& iFrameDataSize, int &iNumTotalPixels, int& iPostheaderOffset);
+int getSpectraDataInfo(int iDeviceType, int& iFrameDataSize, int &iNumTotalPixels, int& iPostheaderOffset);
 int clearDataBuffer   (int fd);
 
 enum ErrorCode

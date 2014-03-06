@@ -18,7 +18,7 @@ class OceanOpticsServer
  public:
    OceanOpticsServer( const Src& client, int iDevice, int iDebugLevel );
    virtual ~OceanOpticsServer();
-    
+
    //  Eb interface
    virtual void       dump    (int detail)  const {}
    virtual bool       isValued()            const { return true; }
@@ -39,25 +39,28 @@ class OceanOpticsServer
 
    // EbCountSrv interface
    virtual unsigned count() const;
-   
+
    bool     devicePresent () const;
 
    unsigned configure     (OceanOpticsConfigType& config);
    unsigned unconfigure   ();
-   
-   enum 
+
+   enum
    {
      ERR_DEVICE_NOT_PRESENT = 100,
      ERR_LIBOOPT_FAIL       = 101,
      ERR_OPEN_FAIL          = 102,
      ERR_READ_FAIL          = 103,
-     ERR_OTHER              = 104          
+     ERR_OTHER              = 104
    };
 
- private:   
+ private:
    Xtc          _xtc;
-   uint64_t     _count;   
-   int          _iDebugLevel;   
+   int          _iDeviceType; // based on LIBOOPT: 0 - HR4000, 1 - USB2000P
+   int          _iDataReadSize;
+   int          _iOutDataSize;
+   uint64_t     _count;
+   int          _iDebugLevel;
 }; //class OceanOpticsServer
 
 class OceanOpticsServerException : public std::runtime_error
@@ -65,7 +68,7 @@ class OceanOpticsServerException : public std::runtime_error
 public:
   explicit OceanOpticsServerException( const std::string& sDescription ) :
     std::runtime_error( sDescription )
-  {}  
+  {}
 };
 
 } //namespace Pds

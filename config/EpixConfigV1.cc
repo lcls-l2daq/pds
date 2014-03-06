@@ -5,6 +5,7 @@
  *      Author: jackp
  */
 
+#include <stdio.h>
 #include "pds/config/EpixConfigV1.hh"
 #include "pds/config/EpixASICConfigV1.hh"
 

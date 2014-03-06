@@ -9,11 +9,6 @@
 #include <stdint.h>
 #include "liboopt.hh"
 
-#define OOPT_DATA_BULK_SIZE   512
-#define OOPT_CMD_BULK_SIZE    64
-
-#define OOPT_SEPCTRA_DATASIZE 8192
-
 #define OOPT_IOCTL_MAGIC      'k' // 0x6b , not used by official drivers
 #define OOPT_IOCTL_BASE       128
 #define OOPT_IOCTL_CMD_NORET  _IOW ( OOPT_IOCTL_MAGIC, OOPT_IOCTL_BASE + 0, IoctlInfo )
@@ -21,6 +16,7 @@
 #define OOPT_IOCTL_ARM        _IOWR( OOPT_IOCTL_MAGIC, OOPT_IOCTL_BASE + 2, ArmInfo )
 #define OOPT_IOCTL_UNARM      _IOWR( OOPT_IOCTL_MAGIC, OOPT_IOCTL_BASE + 3, ArmInfo )
 #define OOPT_IOCTL_POLLENABLE _IOWR( OOPT_IOCTL_MAGIC, OOPT_IOCTL_BASE + 4, PollInfo )
+#define OOPT_IOCTL_DEVICEINFO _IOWR( OOPT_IOCTL_MAGIC, OOPT_IOCTL_BASE + 5, QueryDeviceInfo )
 
 namespace LIBOOPT
 {
@@ -33,6 +29,7 @@ typedef enum
 } ArmLimitType;
 
 #pragma pack(4)
+#define OOPT_CMD_BULK_SIZE    64
 
 typedef struct tagIoctlInfo
 {
@@ -57,6 +54,11 @@ typedef struct
   int       iPollEnable;
 } PollInfo;
 
+typedef struct
+{
+  int       iProductId;
+} QueryDeviceInfo;
+
 #pragma pack()
 
 const int iDefaultCmdTimeoutInMs = 500;
@@ -69,7 +71,10 @@ static void sleepInSeconds(double fSleep)
   select( 0, NULL, NULL, NULL, &timeSleepMicro);
 }
 
-int initHR4000(int fd)
+static int getDeviceType(int fd, int& iDevType);
+
+// device type: 0 - HR4000, 1 - USB2000P
+int initDevice(int fd, int& iDeviceType)
 {
   IoctlInfo ioctlInfo;
   ioctlInfo.u8LenCommand      = 1;
@@ -82,11 +87,16 @@ int initHR4000(int fd)
   int iError = ioctl(fd, OOPT_IOCTL_CMD_NORET, &ioctlInfo);
   if (iError != 0)
   {
-    printf("liboopt::initHR4000(): ioctl() failed, error = %d, %s\n", iError, strerror(errno));
+    printf("liboopt::initDevice(): ioctl() failed, error = %d, %s\n", iError, strerror(errno));
     return iError;
   }
 
   sleepInSeconds(0.0001); // 100 us
+
+  iError = getDeviceType(fd, iDeviceType);
+  if (iError != 0)
+    printf("liboopt::initDevice(): getDeviceType() failed, error = %d\n", iError);
+
   return iError;
 }
 
@@ -433,6 +443,30 @@ int setPollEnable(int fd, int iEnable)
   return 0;
 }
 
+int getDeviceType(int fd, int& iDevType)
+{
+  QueryDeviceInfo queryDeviceInfo = {0};
+
+  int iError = ioctl(fd, OOPT_IOCTL_DEVICEINFO, &queryDeviceInfo);
+  if (iError != 0)
+  {
+    printf("liboopt::getDeviceType(): ioctl() failed, error = %d, %s\n", iError, strerror(errno));
+    return iError;
+  }
+
+  if (queryDeviceInfo.iProductId == 0x1012)
+    iDevType = 0;
+  else if (queryDeviceInfo.iProductId == 0x101E)
+    iDevType =  1;
+  else
+  {
+    printf("liboopt::getDeviceType(): Unsupported device, product id = 0x%x\n", queryDeviceInfo.iProductId);
+    return 1;
+  }
+
+  return 0;
+}
+
 int clearDataBuffer(int fd)
 {
   SpecStatus status;
@@ -601,13 +635,22 @@ const char* getRegisterName(int iIndex)
   return lRegisterInfo[iIndex].sRegisterName;
 }
 
-int getSpectraDataInfo(int& iFrameDataSize, int &iNumTotalPixels, int& iPostheaderOffset)
+int getSpectraDataInfo(int iDeviceType, int& iFrameDataSize, int &iNumTotalPixels, int& iPostheaderOffset)
 {
-  const int iHR4000NumTotalPixels = 3840;
+  switch (iDeviceType)
+  {
+  case 0: // HR4000
+    iFrameDataSize    = 8192;
+    iNumTotalPixels   = 3840;
+    break;
+  case 1:
+    iFrameDataSize    = 4608;
+    iNumTotalPixels   = 2048;
+    break;
+  }
 
-  iFrameDataSize    = OOPT_SEPCTRA_DATASIZE;
-  iNumTotalPixels   = iHR4000NumTotalPixels;
-  iPostheaderOffset = iFrameDataSize - OOPT_DATA_BULK_SIZE;
+  const int iDataBulkSize = 512;
+  iPostheaderOffset = iFrameDataSize - iDataBulkSize;
   return 0;
 }
 

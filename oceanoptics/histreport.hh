@@ -1,3 +1,4 @@
+#include <stdio.h>
 #include <vector>
 
 class HistReport

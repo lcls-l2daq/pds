@@ -1,5 +1,5 @@
-TARGET = hr4000
-OBJS = hr4000.o
+TARGET = ooptDriver
+OBJS = ooptDriver.o
 MDIR = drivers/daq
 
 EXTRA_CFLAGS = -DEXPORT_SYMTAB
@@ -10,7 +10,7 @@ DEST = /lib/modules/$(CURRENT)/kernel/$(MDIR)
 
 obj-m      := $(TARGET).o
 
-hr4000:
+ooptDriver:
 	make -C $(KDIR) SUBDIRS=$(PWD)
 
 

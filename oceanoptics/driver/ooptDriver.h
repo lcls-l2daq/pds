@@ -1,4 +1,4 @@
-/* hr4000.h */
+/* ooptDriver.h */
 
 #include <linux/ioctl.h>
 #include <linux/version.h>
@@ -7,10 +7,11 @@
 /* Version Information */
 #define DRIVER_VERSION        "V1.1.8"
 #define DRIVER_AUTHOR         "SLAC National Acceleratory Laboratory"
-#define DRIVER_DESC           "Ocean Optics HR4000 USB2.0 Device Driver for Linux"
+#define DRIVER_DESC           "Ocean Optics USB2.0 Device Driver for Linux"
 /* Define these values to match your devices */
 #define VENDOR_ID             0x2457
 #define PRODUCT_ID_HR4000     0x1012
+#define PRODUCT_ID_USB2000P   0x101E
 /* Get a minor range for your devices from the usb maintainer */
 #ifdef CONFIG_USB_DYNAMIC_MINORS
 #define OOPT_MINOR_BASE       0
@@ -23,26 +24,30 @@
  */
 #define MAX_OOPT_DEVICES    8
 
-#define OOPT_SPECTRA_PAGEORDER      1  // Each spectra contains 2^(OOPT_SPECTRA_PAGE_ORDER) pages
-#define OOPT_SPECTRA_PAGESIZE       (1<<OOPT_SPECTRA_PAGEORDER)
-#define OOPT_SEPCTRA_DATASIZE       (PAGE_SIZE * OOPT_SPECTRA_PAGESIZE)
+//#define OOPT_SPECTRA_PAGEORDER      1  // Each spectra contains 2^(OOPT_SPECTRA_PAGE_ORDER) pages
+//#define OOPT_SPECTRA_PAGESIZE       (1<<OOPT_SPECTRA_PAGEORDER)
+//#define OOPT_SEPCTRA_DATASIZE       (PAGE_SIZE * OOPT_SPECTRA_PAGESIZE)
+//#define OOPT_SEPCTRA_DATASIZE       4608 // 2048 * 2 + 512
+#define OOPT_SEPCTRA_MAXDATASIZE    8192
 
-#define OOPT_SPECTRABUF_COUNTORDER  6  // The spctra ring buffer contrains 2^(OOPT_SPECTRA_RING_ORDER) spectrum
-#define OOPT_SPECTRABUF_PAGEORDER   (OOPT_SPECTRA_PAGEORDER+OOPT_SPECTRABUF_COUNTORDER)
-#define OOPT_SPECTRABUF_COUNT       (1<<OOPT_SPECTRABUF_COUNTORDER)
+
+//#define OOPT_SPECTRABUF_COUNTORDER  6  // The spctra ring buffer contrains 2^(OOPT_SPECTRA_RING_ORDER) spectrum
+#define OOPT_SPECTRABUF_PAGEORDER   7
+#define OOPT_SPECTRABUF_SIZE        ((1<<OOPT_SPECTRABUF_PAGEORDER) * PAGE_SIZE)
+//#define OOPT_SPECTRABUF_COUNT     (1<<OOPT_SPECTRABUF_COUNTORDER)
 
 enum Device_Endpoint
 {
   ENDPOINT_COMMAND        = 0,
-  ENDPOINT_DATA_REMAIN    = 1,
-  ENDPOINT_DATA_FIRST2K   = 2,
+  ENDPOINT_DATA           = 1,
+  ENDPOINT_RESERVED       = 2,
   ENDPOINT_COMMAND_RESULT = 3,
   ENDPOINT_NUMBER         = 4
 };
 
-#define OOPT_DATA_BULK_SIZE   512
-#define OOPT_CMD_BULK_SIZE    64
-#define OOPT_DATA_BULK_NUM    (OOPT_SEPCTRA_DATASIZE / OOPT_DATA_BULK_SIZE)
+#define OOPT_DATA_BULK_SIZE    512
+#define OOPT_CMD_BULK_SIZE     64
+#define OOPT_DATA_BULK_MAXNUM  (OOPT_SEPCTRA_MAXDATASIZE / OOPT_DATA_BULK_SIZE)
 
 struct tagIoctlInfo;  // forward declaration
 
@@ -63,13 +68,17 @@ typedef enum
 typedef struct tagDeviceInfo
 {
     struct  kref            kref;
-    int                     iProductId;               /*0x1012 for HR4000*/
+    int                     iProductId;               /*0x1012 for HR4000, 0x101e for USB2000+*/
     unsigned char           minor;
     struct usb_device*      udev;
     struct usb_interface*   interface;
     int                     present;                  /* if the device is connected */
     int                     iDeviceIndex;             /* serial number among all OOPT devices */
+    int                     iSpectraDataSize;
+    int                     iNumDataBulk;
+    int                     iNumSpectraInBuf;
     unsigned int            luEpAddr[ENDPOINT_NUMBER];/* index defined in enum Device_Endpoint */
+    int                     iEpFirst2K;
     struct tagIoctlInfo*    pIoctlInfo;               /* buffer for exchanging Iotctl commands */
     uint8_t*                pSpectraBuffer;           /* buffer for capturing spectra frames */
     int                     iSpectraBufferIndexRead;  /* frame index for buffer reading */
@@ -77,8 +86,8 @@ typedef struct tagDeviceInfo
 
     int                     iUrbOrder;
     struct urb*             pUrbArm;
-    uint8_t                 luUrbId     [OOPT_DATA_BULK_NUM];
-    struct urb*             lUrb        [OOPT_DATA_BULK_NUM];
+    uint8_t                 luUrbId     [OOPT_DATA_BULK_MAXNUM];
+    struct urb*             lUrb        [OOPT_DATA_BULK_MAXNUM];
 
     wait_queue_head_t       wait_single_data;
     wait_queue_head_t       wait_final_arm;
@@ -105,6 +114,7 @@ typedef struct tagDeviceInfo
 #define OOPT_IOCTL_ARM        _IOWR( OOPT_IOCTL_MAGIC, OOPT_IOCTL_BASE + 2, ArmInfo )
 #define OOPT_IOCTL_UNARM      _IOWR( OOPT_IOCTL_MAGIC, OOPT_IOCTL_BASE + 3, ArmInfo )
 #define OOPT_IOCTL_POLLENABLE _IOWR( OOPT_IOCTL_MAGIC, OOPT_IOCTL_BASE + 4, PollInfo )
+#define OOPT_IOCTL_DEVICEINFO _IOWR( OOPT_IOCTL_MAGIC, OOPT_IOCTL_BASE + 5, QueryDeviceInfo )
 
 #pragma pack(4)
 
@@ -130,6 +140,11 @@ typedef struct
 {
   int       iPollEnable;
 } PollInfo;
+
+typedef struct
+{
+  int       iProductId;
+} QueryDeviceInfo;
 
 #pragma pack()
 
@@ -177,7 +192,8 @@ static struct usb_class_driver oopt_class = {
 
 /* table of devices that work with this driver */
 static struct usb_device_id oopt_device_table [] = {
-  { USB_DEVICE( VENDOR_ID, PRODUCT_ID_HR4000 ) },
+  { USB_DEVICE( VENDOR_ID, PRODUCT_ID_HR4000   ) },
+  { USB_DEVICE( VENDOR_ID, PRODUCT_ID_USB2000P ) },
   { }         /* Terminating entry */
 };
 MODULE_DEVICE_TABLE (usb, oopt_device_table);

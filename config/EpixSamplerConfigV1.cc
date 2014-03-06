@@ -5,6 +5,7 @@
  *      Author: jackp
  */
 
+#include <stdio.h>
 #include "pds/config/EpixSamplerConfigV1.hh"
 
 namespace Pds {

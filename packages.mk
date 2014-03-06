@@ -22,3 +22,8 @@ endif
 ##  No DDL
 #  packages += xamps
 #  packages += fexamp
+
+ifneq ($(findstring x86_64-rhel6,$(tgt_arch)),)
+  packages += pimax
+endif
+

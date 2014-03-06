@@ -12,15 +12,15 @@
 #include <linux/mm.h>
 #include <linux/pci.h>    //for scatterlist macros
 #include <linux/pagemap.h>
-#include "hr4000.h"
+#include "ooptDriver.h"
 
 /*
- * hr4000.c
+ * ooptDriver.c
  *
- *                         Copyright (C) 2012 SLAC National Accelerator Laboratory
+ *                         Copyright (C) 2012-2014 SLAC National Accelerator Laboratory
  *
  *                 Author: Chang-Ming Tsai
- * Last Modification Date: 03/09/2012
+ * Last Modification Date: 03/05/2014
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -75,6 +75,7 @@ static int oopt_runCommandRet(DeviceInfo* pDevInfo, IoctlInfo* pIoctlInfo, void 
 static int oopt_runArm(DeviceInfo* pDevInfo, ArmInfo* pArmInfo, void __user * arg);
 static int oopt_runUnarm(DeviceInfo* pDevInfo, ArmInfo* pArmInfo, void __user * arg);
 static int oopt_runPollEnable(DeviceInfo* pDevInfo, PollInfo* pPollInfo, void __user * arg);
+static int oopt_runQueryDevice(DeviceInfo* pDevInfo, QueryDeviceInfo* pQueryDeviceInfo, void __user * arg);
 
 static int oopt_reset_data(DeviceInfo *pDevInfo);
 static void oopt_finish_frame(DeviceInfo* pDevInfo, int iUrbId);
@@ -111,7 +112,7 @@ static int __init oopt_init(void)
   //!!!debug
   info("HZ                   = %d", HZ);
   info("PAGE_SIZE            = %ld", PAGE_SIZE);
-  info("OOPT_DATA_BULK_NUM   = %ld", OOPT_DATA_BULK_NUM);
+  info("OOPT_DATA_BULK_MAXUM = %ld", (long) OOPT_DATA_BULK_MAXNUM);
   info("OOPT_IOCTL_CMD_NORET = 0x%lx", OOPT_IOCTL_CMD_NORET);
   info("OOPT_IOCTL_CMD_RET   = 0x%lx", OOPT_IOCTL_CMD_RET);
   info("size of SpectraPostheader  = %ld", sizeof(SpectraPostheader));
@@ -150,7 +151,6 @@ static void __exit oopt_exit(void)
 static int oopt_initDeviceInfo(DeviceInfo* pDevInfo)
 {
   const int iNumFirst2kBulk   = 4;
-  const int iNumTotalBulk     = OOPT_DATA_BULK_NUM;
   int       i;
   int       iBulk;
   uint8_t*  pUrbArmBuffer;
@@ -201,7 +201,21 @@ static int oopt_initDeviceInfo(DeviceInfo* pDevInfo)
     1, oopt_arm_callback1, pDevInfo);
   pDevInfo->pUrbArm->transfer_flags |= URB_NO_TRANSFER_DMA_MAP;
 
-  for (iBulk = 0; iBulk < iNumTotalBulk; ++iBulk)
+  switch (pDevInfo->udev->descriptor.idProduct)
+  {
+  case PRODUCT_ID_HR4000:
+    pDevInfo->iSpectraDataSize = 8192;
+    pDevInfo->iEpFirst2K       = ENDPOINT_RESERVED;
+    break;
+  case PRODUCT_ID_USB2000P:
+    pDevInfo->iSpectraDataSize = 4608;
+    pDevInfo->iEpFirst2K       = ENDPOINT_DATA;
+    break;
+  }
+  pDevInfo->iNumDataBulk     = pDevInfo->iSpectraDataSize / OOPT_DATA_BULK_SIZE;
+  pDevInfo->iNumSpectraInBuf = (int) (OOPT_SPECTRABUF_SIZE / pDevInfo->iSpectraDataSize);
+
+  for (iBulk = 0; iBulk < pDevInfo->iNumDataBulk; ++iBulk)
   {
     struct urb* urb = usb_alloc_urb(0, GFP_KERNEL);
     uint8_t*    pUrbBuffer;
@@ -221,14 +235,20 @@ static int oopt_initDeviceInfo(DeviceInfo* pDevInfo)
       return -ENOMEM;
     }
 
-    iEndpSpectra= (iBulk < iNumFirst2kBulk ? pDevInfo->luEpAddr[ENDPOINT_DATA_FIRST2K] : pDevInfo->luEpAddr[ENDPOINT_DATA_REMAIN]);
+    iEndpSpectra= (iBulk < iNumFirst2kBulk ? pDevInfo->luEpAddr[pDevInfo->iEpFirst2K] : pDevInfo->luEpAddr[ENDPOINT_DATA]);
     usb_fill_bulk_urb(urb, pDevInfo->udev, iEndpSpectra, pUrbBuffer,
       OOPT_DATA_BULK_SIZE, oopt_arm_callback2, &pDevInfo->luUrbId[iBulk]);
 
-    if (iBulk == iNumTotalBulk-1)
+    if (iBulk == pDevInfo->iNumDataBulk-1)
       urb->transfer_flags |= URB_NO_TRANSFER_DMA_MAP;
     else
       urb->transfer_flags |= URB_NO_TRANSFER_DMA_MAP | URB_NO_INTERRUPT;
+  }
+
+  for (;iBulk < OOPT_DATA_BULK_MAXNUM; ++iBulk)
+  {
+    pDevInfo->lUrb   [iBulk] = NULL;
+    pDevInfo->luUrbId[iBulk] = 0;
   }
 
   init_waitqueue_head(&pDevInfo->wait_single_data);
@@ -257,7 +277,8 @@ static int oopt_probe(struct usb_interface *interface, const struct usb_device_i
 
   /* See if the device offered us matches what we can accept */
   if ((pDevInfo->udev->descriptor.idVendor != VENDOR_ID)
-      || (pDevInfo->udev->descriptor.idProduct != PRODUCT_ID_HR4000))
+      || (pDevInfo->udev->descriptor.idProduct != PRODUCT_ID_HR4000 &&
+          pDevInfo->udev->descriptor.idProduct != PRODUCT_ID_USB2000P))
   {
     iRetVal = -ENODEV;
     goto error;
@@ -364,7 +385,6 @@ static void oopt_disconnect(struct usb_interface *interface)
  */
 static void oopt_deleteDeviceInfo(struct kref *kref)
 {
-  const int   iNumTotalBulk = OOPT_DATA_BULK_NUM;
   DeviceInfo *pDevInfo      = container_of( kref, DeviceInfo, kref );
   int         iBulk;
 
@@ -385,7 +405,7 @@ static void oopt_deleteDeviceInfo(struct kref *kref)
     usb_free_urb(pDevInfo->pUrbArm);
   }
 
-  for (iBulk = 0; iBulk < iNumTotalBulk; ++iBulk)
+  for (iBulk = 0; iBulk < OOPT_DATA_BULK_MAXNUM; ++iBulk)
   {
     struct urb* urb = pDevInfo->lUrb[iBulk];
     if (urb == NULL)
@@ -522,6 +542,10 @@ static int oopt_ioctl(struct inode *inode, struct file *file,
   case OOPT_IOCTL_POLLENABLE:
     copy_from_user(pDevInfo->pIoctlInfo, (void __user *) arg, sizeof(PollInfo));
     iRetVal = oopt_runPollEnable(pDevInfo, (PollInfo*) pDevInfo->pIoctlInfo, (void __user *) arg);
+    break;
+  case OOPT_IOCTL_DEVICEINFO:
+    copy_from_user(pDevInfo->pIoctlInfo, (void __user *) arg, sizeof(QueryDeviceInfo));
+    iRetVal = oopt_runQueryDevice(pDevInfo, (QueryDeviceInfo*) pDevInfo->pIoctlInfo, (void __user *) arg);
     break;
   default:
     /* return that we did not understand this ioctl call */
@@ -662,10 +686,9 @@ static int oopt_reset_data(DeviceInfo *pDevInfo)
 static void oopt_arm_callback1(struct urb *urb, struct pt_regs *regs )
 {
   DeviceInfo*         pDevInfo        = (DeviceInfo*) urb->context;
-  const int           iNumTotalBulk   = OOPT_DATA_BULK_NUM;
   SpectraPostheader*  pPostheader     = (SpectraPostheader*) ( pDevInfo->pSpectraBuffer +
-                                          pDevInfo->iSpectraBufferIndexWrite * OOPT_SEPCTRA_DATASIZE +
-                                          (OOPT_DATA_BULK_NUM-1) * OOPT_DATA_BULK_SIZE );
+                                          pDevInfo->iSpectraBufferIndexWrite * pDevInfo->iSpectraDataSize +
+                                          (pDevInfo->iNumDataBulk-1) * OOPT_DATA_BULK_SIZE );
   int                 iRetVal;
   int                 iBulk;
 
@@ -699,7 +722,7 @@ static void oopt_arm_callback1(struct urb *urb, struct pt_regs *regs )
 
 
   pDevInfo->iArmState = 2;
-  for (iBulk = 0; iBulk < iNumTotalBulk; ++iBulk)
+  for (iBulk = 0; iBulk < pDevInfo->iNumDataBulk; ++iBulk)
   {
     iRetVal = usb_submit_urb( pDevInfo->lUrb[iBulk], GFP_ATOMIC );
 
@@ -740,14 +763,14 @@ static void oopt_arm_callback2(struct urb *urb, struct pt_regs *regs )
 
   if (likely(urb->actual_length == OOPT_DATA_BULK_SIZE))
   {
-    pbSpectraBulk = pDevInfo->pSpectraBuffer + pDevInfo->iSpectraBufferIndexWrite * OOPT_SEPCTRA_DATASIZE
+    pbSpectraBulk = pDevInfo->pSpectraBuffer + pDevInfo->iSpectraBufferIndexWrite * pDevInfo->iSpectraDataSize
       + iUrbId * OOPT_DATA_BULK_SIZE;
     memcpy(pbSpectraBulk, urb->transfer_buffer, urb->actual_length);
 
     if (pDevInfo->iUrbOrder == 0)
     {
       SpectraPostheader* pPostheader = (SpectraPostheader*) ( pDevInfo->pSpectraBuffer +
-        pDevInfo->iSpectraBufferIndexWrite * OOPT_SEPCTRA_DATASIZE + (OOPT_DATA_BULK_NUM-1) * OOPT_DATA_BULK_SIZE );
+        pDevInfo->iSpectraBufferIndexWrite * pDevInfo->iSpectraDataSize + (pDevInfo->iNumDataBulk-1) * OOPT_DATA_BULK_SIZE );
 
 #ifdef __x86_64__
       getnstimeofday((struct timespec*) &pPostheader->tsTimeFrameFirstData);
@@ -771,17 +794,17 @@ static void oopt_arm_callback2(struct urb *urb, struct pt_regs *regs )
 
   ++pDevInfo->iUrbOrder;
 
-  if (pDevInfo->iUrbOrder >= OOPT_DATA_BULK_NUM)
+  if (pDevInfo->iUrbOrder >= pDevInfo->iNumDataBulk)
     oopt_finish_frame(pDevInfo, iUrbId);
 }
 
 static void oopt_finish_frame(DeviceInfo* pDevInfo, int iUrbId)
 {
   SpectraPostheader* pPostheader = (SpectraPostheader*) ( pDevInfo->pSpectraBuffer +
-    pDevInfo->iSpectraBufferIndexWrite * OOPT_SEPCTRA_DATASIZE + (OOPT_DATA_BULK_NUM-1) * OOPT_DATA_BULK_SIZE );
+    pDevInfo->iSpectraBufferIndexWrite * pDevInfo->iSpectraDataSize + (pDevInfo->iNumDataBulk-1) * OOPT_DATA_BULK_SIZE );
   bool               bRearm = (pDevInfo->eArmLimitType == LIMIT_NONE || pDevInfo->u64FrameCounter+1 < pDevInfo->u64FrameLimit);
 
-  pDevInfo->iSpectraBufferIndexWrite = ((pDevInfo->iSpectraBufferIndexWrite+1) % OOPT_SPECTRABUF_COUNT);
+  pDevInfo->iSpectraBufferIndexWrite = ((pDevInfo->iSpectraBufferIndexWrite+1) % pDevInfo->iNumSpectraInBuf);
 
   if (bRearm)
     oopt_rearm(pDevInfo);
@@ -792,7 +815,7 @@ static void oopt_finish_frame(DeviceInfo* pDevInfo, int iUrbId)
 
   if (
     unlikely(
-      pDevInfo->iSpectraBufferIndexWrite != ((pDevInfo->iSpectraBufferIndexRead+1)%OOPT_SPECTRABUF_COUNT)
+      pDevInfo->iSpectraBufferIndexWrite != ((pDevInfo->iSpectraBufferIndexRead+1) % pDevInfo->iNumSpectraInBuf)
     ))
   {
     ++pDevInfo->u64NumDelayedFrames;
@@ -800,7 +823,7 @@ static void oopt_finish_frame(DeviceInfo* pDevInfo, int iUrbId)
     if (unlikely(pDevInfo->iSpectraBufferIndexWrite == pDevInfo->iSpectraBufferIndexRead))
     {
       ++pDevInfo->u64NumDiscardFrames;
-      pDevInfo->iSpectraBufferIndexRead = ((pDevInfo->iSpectraBufferIndexRead+1) % OOPT_SPECTRABUF_COUNT);
+      pDevInfo->iSpectraBufferIndexRead = ((pDevInfo->iSpectraBufferIndexRead+1) % pDevInfo->iNumSpectraInBuf);
     }
   }
 
@@ -836,8 +859,8 @@ static void oopt_finish_frame(DeviceInfo* pDevInfo, int iUrbId)
 static int oopt_rearm(DeviceInfo* pDevInfo)
 {
   SpectraPostheader*  pPostheader     = (SpectraPostheader*) ( pDevInfo->pSpectraBuffer +
-                                          pDevInfo->iSpectraBufferIndexWrite * OOPT_SEPCTRA_DATASIZE +
-                                          (OOPT_DATA_BULK_NUM-1) * OOPT_DATA_BULK_SIZE );
+                                          pDevInfo->iSpectraBufferIndexWrite * pDevInfo->iSpectraDataSize +
+                                          (pDevInfo->iNumDataBulk-1) * OOPT_DATA_BULK_SIZE );
   int iRetVal;
 
 #ifdef __x86_64__
@@ -947,6 +970,21 @@ unsigned int oopt_poll( struct file* file, poll_table* wait )
   return poll_mask;
 }
 
+
+static int oopt_runQueryDevice(DeviceInfo* pDevInfo, QueryDeviceInfo* pQueryDeviceInfo, void __user * arg)
+{
+  int iRetVal;
+
+  pQueryDeviceInfo->iProductId = pDevInfo->iProductId;
+  iRetVal                      = copy_to_user(arg, pQueryDeviceInfo, sizeof(*pQueryDeviceInfo));
+  if (iRetVal != 0)
+  {
+    err("copy_to_user() failed");
+    return -EFAULT;
+  }
+  return 0;
+}
+
 static ssize_t oopt_read(struct file *file, char *buffer, size_t count, loff_t *ppos)
 {
   DeviceInfo* pDevInfo = (DeviceInfo *) file->private_data;
@@ -969,10 +1007,10 @@ static ssize_t oopt_read(struct file *file, char *buffer, size_t count, loff_t *
   if (liSimpleRead[pDevInfo->iDeviceIndex] == 2)
     return oopt_read_urb(file, buffer, count, ppos);
 
-  iNumSpctraAvailable = ( (pDevInfo->iSpectraBufferIndexWrite + OOPT_SPECTRABUF_COUNT -
-    pDevInfo->iSpectraBufferIndexRead) % OOPT_SPECTRABUF_COUNT );
+  iNumSpctraAvailable = ( (pDevInfo->iSpectraBufferIndexWrite + pDevInfo->iNumSpectraInBuf -
+    pDevInfo->iSpectraBufferIndexRead) % pDevInfo->iNumSpectraInBuf );
 
-  iMaxSpectraInData   = (int) (count/ OOPT_SEPCTRA_DATASIZE);
+  iMaxSpectraInData   = (int) (count / pDevInfo->iSpectraDataSize);
   if (iMaxSpectraInData > iNumSpctraAvailable)
     iMaxSpectraInData = iNumSpctraAvailable;
 
@@ -980,7 +1018,7 @@ static ssize_t oopt_read(struct file *file, char *buffer, size_t count, loff_t *
     return 0;
 
   pPostheader = (SpectraPostheader*) ( pDevInfo->pSpectraBuffer +
-    pDevInfo->iSpectraBufferIndexRead * OOPT_SEPCTRA_DATASIZE + (OOPT_DATA_BULK_NUM-1) * OOPT_DATA_BULK_SIZE );
+    pDevInfo->iSpectraBufferIndexRead * pDevInfo->iSpectraDataSize + (pDevInfo->iNumDataBulk-1) * OOPT_DATA_BULK_SIZE );
 
   dbg("In frame %Lu, read frame %Lu index %d size %d", pDevInfo->u64FrameCounter, pPostheader->u64FrameCounter,
     pDevInfo->iSpectraBufferIndexRead, iMaxSpectraInData);
@@ -988,13 +1026,13 @@ static ssize_t oopt_read(struct file *file, char *buffer, size_t count, loff_t *
   pPostheader->dataInfo.i32Version           = 0x00010001;
   pPostheader->dataInfo.i8NumSpectraInData   = iMaxSpectraInData;
   pPostheader->dataInfo.i8NumSpectraInQueue  = iNumSpctraAvailable - iMaxSpectraInData;
-  pPostheader->dataInfo.i8NumSpectraUnused   = OOPT_SPECTRABUF_COUNT - iNumSpctraAvailable;
+  pPostheader->dataInfo.i8NumSpectraUnused   = pDevInfo->iNumSpectraInBuf - iNumSpctraAvailable;
 
   iSpectraBufferIndexReadEnd = pDevInfo->iSpectraBufferIndexRead + iMaxSpectraInData;
-  if (iSpectraBufferIndexReadEnd <= OOPT_SPECTRABUF_COUNT)
+  if (iSpectraBufferIndexReadEnd <= pDevInfo->iNumSpectraInBuf)
   {
-    const uint8_t*  pSpetraBufferReadStart  = pDevInfo->pSpectraBuffer + pDevInfo->iSpectraBufferIndexRead * OOPT_SEPCTRA_DATASIZE;
-    const int       iCopyLen                = OOPT_SEPCTRA_DATASIZE * iMaxSpectraInData;
+    const uint8_t*  pSpetraBufferReadStart  = pDevInfo->pSpectraBuffer + pDevInfo->iSpectraBufferIndexRead * pDevInfo->iSpectraDataSize;
+    const int       iCopyLen                = pDevInfo->iSpectraDataSize * iMaxSpectraInData;
     iRetVal = copy_to_user(buffer, pSpetraBufferReadStart, iCopyLen);
     if (iRetVal != 0)
     {
@@ -1004,8 +1042,8 @@ static ssize_t oopt_read(struct file *file, char *buffer, size_t count, loff_t *
   }
   else
   {
-    const uint8_t*  pSpetraBufferReadStart  = pDevInfo->pSpectraBuffer + pDevInfo->iSpectraBufferIndexRead * OOPT_SEPCTRA_DATASIZE;
-    int             iCopyLen                = OOPT_SEPCTRA_DATASIZE * (OOPT_SPECTRABUF_COUNT - pDevInfo->iSpectraBufferIndexRead);
+    const uint8_t*  pSpetraBufferReadStart  = pDevInfo->pSpectraBuffer + pDevInfo->iSpectraBufferIndexRead * pDevInfo->iSpectraDataSize;
+    int             iCopyLen                = pDevInfo->iSpectraDataSize * (pDevInfo->iNumSpectraInBuf - pDevInfo->iSpectraBufferIndexRead);
     int             iCopyLen2;
     iRetVal = copy_to_user(buffer, pSpetraBufferReadStart, iCopyLen);
     if (iRetVal != 0)
@@ -1014,7 +1052,7 @@ static ssize_t oopt_read(struct file *file, char *buffer, size_t count, loff_t *
       return -EFAULT;
     }
 
-    iCopyLen2 = OOPT_SEPCTRA_DATASIZE * (iSpectraBufferIndexReadEnd - OOPT_SPECTRABUF_COUNT);
+    iCopyLen2 = pDevInfo->iSpectraDataSize * (iSpectraBufferIndexReadEnd - pDevInfo->iNumSpectraInBuf);
     iRetVal   = copy_to_user(buffer + iCopyLen, pDevInfo->pSpectraBuffer, iCopyLen2);
     if (iRetVal != 0)
     {
@@ -1023,8 +1061,8 @@ static ssize_t oopt_read(struct file *file, char *buffer, size_t count, loff_t *
     }
   }
 
-  pDevInfo->iSpectraBufferIndexRead = (iSpectraBufferIndexReadEnd % OOPT_SPECTRABUF_COUNT);
-  return OOPT_SEPCTRA_DATASIZE * iMaxSpectraInData;
+  pDevInfo->iSpectraBufferIndexRead = (iSpectraBufferIndexReadEnd % pDevInfo->iNumSpectraInBuf);
+  return pDevInfo->iSpectraDataSize * iMaxSpectraInData;
 }
 
 static ssize_t oopt_read_urb(struct file *file, char *buffer, size_t count, loff_t *ppos)
@@ -1035,9 +1073,9 @@ static ssize_t oopt_read_urb(struct file *file, char *buffer, size_t count, loff
   struct timespec ts0, ts1;
 
   getnstimeofday(&ts0);
-  if (count < OOPT_SEPCTRA_DATASIZE)
+  if (count < pDevInfo->iSpectraDataSize)
   {
-    dbg("Buffer size %ld is not big enough to hold the device data size %ld", count, OOPT_SEPCTRA_DATASIZE);
+    dbg("Buffer size %ld is not big enough to hold the device data size %ld", count, (long) pDevInfo->iSpectraDataSize);
     return -EFAULT;
   }
 
@@ -1066,11 +1104,11 @@ static ssize_t oopt_read_urb(struct file *file, char *buffer, size_t count, loff
   if ( pDevInfo->eWaitState == WS_DATA_READY)
   {
     /* if the read was successful, copy the data to userspace */
-    uint8_t* pbSpectraBulk = pDevInfo->pSpectraBuffer + pDevInfo->iSpectraBufferIndexRead * OOPT_SEPCTRA_DATASIZE;
-    pDevInfo->iSpectraBufferIndexRead = ((pDevInfo->iSpectraBufferIndexRead+1) %  OOPT_SPECTRABUF_COUNT);
+    uint8_t* pbSpectraBulk = pDevInfo->pSpectraBuffer + pDevInfo->iSpectraBufferIndexRead * pDevInfo->iSpectraDataSize;
+    pDevInfo->iSpectraBufferIndexRead = ((pDevInfo->iSpectraBufferIndexRead+1) %  pDevInfo->iNumSpectraInBuf);
 
     pDevInfo->eWaitState = WS_NO_WAIT;
-    iRetVal = copy_to_user(buffer, pbSpectraBulk, OOPT_SEPCTRA_DATASIZE);
+    iRetVal = copy_to_user(buffer, pbSpectraBulk, pDevInfo->iSpectraDataSize);
     if (iRetVal != 0)
     {
       err("copy_to_user() failed");
@@ -1091,7 +1129,7 @@ static ssize_t oopt_read_urb(struct file *file, char *buffer, size_t count, loff
     dbg("read index = %d time = %d us", pDevInfo->iSpectraBufferIndexRead, iTimeFunc);
   }
 
-  return OOPT_SEPCTRA_DATASIZE;
+  return pDevInfo->iSpectraDataSize;
 }
 
 static ssize_t oopt_read_simple(struct file *file, char *buffer, size_t count, loff_t *ppos)
@@ -1101,7 +1139,6 @@ static ssize_t oopt_read_simple(struct file *file, char *buffer, size_t count, l
   const int       iRetFirstTimeoutInJiffy = HZ * 0.1; // 0.1 sec
 
   const int       iNumFirst2kBulk   = 4;
-  const int       iNumTotalBulk     = OOPT_DATA_BULK_NUM;
   const int       iMaxTry           = 5;
 
   DeviceInfo*     pDevInfo          = (DeviceInfo *) file->private_data;
@@ -1115,9 +1152,9 @@ static ssize_t oopt_read_simple(struct file *file, char *buffer, size_t count, l
   int             iCommand;
   int             iBulk;
 
-  if (count < OOPT_SEPCTRA_DATASIZE)
+  if (count < pDevInfo->iSpectraDataSize)
   {
-    dbg("Buffer size %ld is not big enough to hold the device data size %ld", count, OOPT_SEPCTRA_DATASIZE);
+    dbg("Buffer size %ld is not big enough to hold the device data size %d", count, pDevInfo->iSpectraDataSize);
     return -EFAULT;
   }
 
@@ -1150,9 +1187,9 @@ static ssize_t oopt_read_simple(struct file *file, char *buffer, size_t count, l
   }
 
   pbSpectraBulk = pDevInfo->pSpectraBuffer;
-  for (iBulk = 0; iBulk < iNumTotalBulk; ++iBulk, pbSpectraBulk += OOPT_DATA_BULK_SIZE)
+  for (iBulk = 0; iBulk < pDevInfo->iNumDataBulk; ++iBulk, pbSpectraBulk += OOPT_DATA_BULK_SIZE)
   {
-    int iEndpSpectra    = (iBulk < iNumFirst2kBulk ? pDevInfo->luEpAddr[ENDPOINT_DATA_FIRST2K] : pDevInfo->luEpAddr[ENDPOINT_DATA_REMAIN]);
+    int iEndpSpectra    = (iBulk < iNumFirst2kBulk ? pDevInfo->luEpAddr[pDevInfo->iEpFirst2K] : pDevInfo->luEpAddr[ENDPOINT_DATA]);
     int iTimeoutInJiffy = (iBulk == 0? iRetFirstTimeoutInJiffy: iRetTimeoutInJiffy);
     int iRetLen;
 
@@ -1181,7 +1218,7 @@ static ssize_t oopt_read_simple(struct file *file, char *buffer, size_t count, l
 
     if (iRetLen != OOPT_DATA_BULK_SIZE )
     {
-      if ( iBulk == iNumTotalBulk -1 && iRetLen == 1 )
+      if ( iBulk == pDevInfo->iNumDataBulk -1 && iRetLen == 1 )
       {
         if (pbSpectraBulk[0] != 0x69)
           dbg("Invalid Spectra bulk %d end byte : 0x%x", iBulk, pbSpectraBulk[0]);
@@ -1201,10 +1238,10 @@ static ssize_t oopt_read_simple(struct file *file, char *buffer, size_t count, l
   }
 
   /* if the read was successful, copy the data to userspace */
-  iRetVal = copy_to_user(buffer, pDevInfo->pSpectraBuffer, OOPT_SEPCTRA_DATASIZE);
+  iRetVal = copy_to_user(buffer, pDevInfo->pSpectraBuffer, pDevInfo->iSpectraDataSize);
   if (iRetVal != 0) goto error;
 
-  return OOPT_SEPCTRA_DATASIZE;
+  return pDevInfo->iSpectraDataSize;
 
 error:
   return iRetVal;

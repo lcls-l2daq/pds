@@ -1,14 +1,14 @@
-#ifndef FLI_SERVER_HH
-#define FLI_SERVER_HH
+#ifndef PIMAX_SERVER_HH
+#define PIMAX_SERVER_HH
 
 #include <time.h>
 #include <pthread.h>
 #include <string>
 #include <stdexcept>
 
-#include "fli/include/libfli.h"
+#include "picam/include/picam.h"
 #include "pdsdata/xtc/DetInfo.hh"
-#include "pds/config/FliConfigType.hh"
+#include "pds/config/PimaxConfigType.hh"
 #include "pds/xtc/InDatagram.hh"
 #include "pds/xtc/Datagram.hh"
 #include "pds/xtc/CDatagram.hh"
@@ -19,17 +19,17 @@ namespace Pds
 {
 
 class Task;
-class FliServer;
+class PimaxServer;
 
-class FliServer
+class PimaxServer
 {
 public:
-  FliServer(int iCamera, bool bUseCaptureTask, bool bInitTest, const Src& src, std::string sConfigDb, int iSleepInt, int iDebugLevel);
-  ~FliServer();
+  PimaxServer(int iCamera, bool bUseCaptureTask, bool bInitTest, const Src& src, std::string sConfigDb, int iSleepInt, int iDebugLevel);
+  ~PimaxServer();
 
   int   initSetup();
   int   map();
-  int   config(FliConfigType& config, std::string& sConfigWarning);
+  int   config(PimaxConfigType& config, std::string& sConfigWarning);
   int   unconfig();
   int   beginRun();
   int   endRun();
@@ -41,7 +41,7 @@ public:
   int   getData (InDatagram* in, InDatagram*& out);
   int   waitData(InDatagram* in, InDatagram*& out);
   bool  IsCapturingData();
-  FliConfigType&
+  PimaxConfigType&
         config() { return _config; }
 
   enum  ErrorCodeEnum
@@ -72,7 +72,7 @@ private:
    * private static consts
    */
   static const int      _iMaxCoolingTime        = 100;        // in miliseconds
-  static const int      _fTemperatureHiTol      = 1;          // 1 degree Celcius
+  static const int      _fTemperatureHiTol      = 5;          // 5 degree Celcius
   static const int      _fTemperatureLoTol      = 200;        // 200 degree Celcius -> Do not use Low Tolerance now
   static const int      _iClockSavingExpTime    = 24*60*60*1000;// 24 hours -> Long exposure time for clock saving
   static const int      _iFrameHeaderSize;                      // Buffer header used to store the CDatagram, Xtc and FrameV1 object
@@ -91,10 +91,10 @@ private:
   class CaptureRoutine : public Routine
   {
   public:
-    CaptureRoutine(FliServer& server);
+    CaptureRoutine(PimaxServer& server);
     void routine(void);
   private:
-    FliServer& _server;
+    PimaxServer& _server;
   };
 
   /*
@@ -106,21 +106,21 @@ private:
    */
   int   initDevice();
   int   deinit();
+  int   printInfo();
 
   int   initCapture();
   int   startCapture();
+  int   stopCapture();
   int   deinitCapture();
 
   int   initCaptureTask(); // for delay mode use only
   int   runCaptureTask();
 
   int   initCameraBeforeConfig();
-  int   configCamera(FliConfigType& config, std::string& sConfigWarning);
+  int   configCamera(PimaxConfigType& config, std::string& sConfigWarning);
 
   int   initTest();
   int   setupROI();
-
-  static int  getCamera(flidomain_t domain, int iCameraId, std::string& strCameraDev);
 
   /*
    * Frame handling functions
@@ -149,7 +149,8 @@ private:
   /*
    * Camera basic status control
    */
-  flidev_t            _hCam;
+  PicamHandle         _hCam;
+  PicamCameraID       _piCameraId;
   bool                _bCameraInited;
   bool                _bCaptureInited;
 
@@ -158,13 +159,15 @@ private:
    */
   int                 _iDetectorWidth;
   int                 _iDetectorHeight;
-  int                 _iDetectorOrgX;
-  int                 _iDetectorOrgY;
-  int                 _iDetectorDataWidth;
-  int                 _iDetectorDataHeight;
   int                 _iImageWidth;
   int                 _iImageHeight;
-
+  //int                 _iADChannel;
+  //int                 _iReadoutPort;
+  //int                 _iMaxSpeedTableIndex;
+  //int                 _iMaxGainIndex;
+  //int                 _iTempMin;
+  //int                 _iTempMax;
+  //int                 _iFanModeNonAcq;
 
   /*
    * Event sequence/traffic control
@@ -177,7 +180,7 @@ private:
   /*
    * Config data
    */
-  FliConfigType _config;
+  PimaxConfigType _config;
 
   /*
    * Per-frame data
@@ -188,7 +191,7 @@ private:
    * Buffer control
    */
   GenericPool         _poolFrameData;
-  InDatagram*         _pDgOut;          // Datagram for outtputing to the Fli Manager
+  InDatagram*         _pDgOut;          // Datagram for outtputing to the Pimax Manager
 
   /*
    * Capture Task Control
@@ -203,7 +206,7 @@ private:
   inline static void lockCameraData(char* sDescription)
   {
     if ( pthread_mutex_lock(&_mutexPlFuncs) )
-      printf( "FliServer::lockCameraData(): pthread_mutex_timedlock() failed for %s\n", sDescription );
+      printf( "PimaxServer::lockCameraData(): pthread_mutex_timedlock() failed for %s\n", sDescription );
   }
   inline static void releaseLockCameraData()
   {
@@ -230,10 +233,10 @@ private:
   static pthread_mutex_t _mutexPlFuncs;
 };
 
-class FliServerException : public std::runtime_error
+class PimaxServerException : public std::runtime_error
 {
 public:
-  explicit FliServerException( const std::string& sDescription ) :
+  explicit PimaxServerException( const std::string& sDescription ) :
     std::runtime_error( sDescription )
   {}
 };

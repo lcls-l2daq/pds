@@ -648,7 +648,7 @@ int PrincetonServer::initCameraBeforeConfig()
   if (iIndexComma == string::npos)
   {
     sConfigPath = _sConfigDb;
-    sConfigType = "PRINCETON_BURST";
+    sConfigType = "BEAM";
   }
   else
   {
@@ -1446,7 +1446,7 @@ int PrincetonServer::updateTemperatureData()
 {
   float fCoolingTemp;
   if (_config.infoReportInterval() <= 0 || ((_iNumExposure-1) % _config.infoReportInterval()) != 0)
-    fCoolingTemp = TemperatureNotDefined;
+    fCoolingTemp = 999;
   else
   {
     const int16 iCoolingTemp = (int)( _config.coolingTemp() * 100 );

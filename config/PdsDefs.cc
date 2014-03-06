@@ -25,6 +25,7 @@
 #include "pds/config/OceanOpticsConfigType.hh"
 #include "pds/config/FliConfigType.hh"
 #include "pds/config/AndorConfigType.hh"
+#include "pds/config/PimaxConfigType.hh"
 #include "pds/config/UsdUsbConfigType.hh"
 #include "pds/config/OrcaConfigType.hh"
 #include "pds/config/RayonixConfigType.hh"
@@ -40,6 +41,7 @@
 #include "pds/config/PhasicsConfigType.hh"
 #endif
 
+#include <stdio.h>
 #include <sstream>
 using std::istringstream;
 using std::ostringstream;
@@ -101,6 +103,7 @@ const Pds::TypeId* PdsDefs::typeId(ConfigType id)
   case OceanOptics  : type = &_oceanOpticsConfigType; break;
   case Fli          : type = &_fliConfigType; break;
   case Andor        : type = &_andorConfigType; break;
+  case Pimax        : type = &_pimaxConfigType; break;
   case UsdUsb       : type = &_usdusbConfigType; break;
   case Orca         : type = &_orcaConfigType; break;
   case Rayonix      : type = &_rayonixConfigType;   break;
@@ -149,6 +152,7 @@ const Pds::TypeId* PdsDefs::typeId(const UTypeName& name)
   test(_oceanOpticsConfigType);    
   test(_fliConfigType);    
   test(_andorConfigType);    
+  test(_pimaxConfigType);    
   test(_usdusbConfigType);    
   test(_orcaConfigType);   
   test(_rayonixConfigType); 
@@ -197,7 +201,8 @@ const Pds::TypeId* PdsDefs::typeId(const QTypeName& name)
   test(_CsPad2x2ConfigType);
   test(_oceanOpticsConfigType);    
   test(_fliConfigType);    
-  test(_andorConfigType);    
+  test(_andorConfigType);  
+  test(_pimaxConfigType);      
   test(_usdusbConfigType); 
   test(_epixSamplerConfigType);   
   test(_epixConfigType);

@@ -1,4 +1,5 @@
 #include "pds/collection/AliasReply.hh"
+#include <stdio.h>
 
 using namespace Pds;
 

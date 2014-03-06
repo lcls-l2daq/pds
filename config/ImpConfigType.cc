@@ -1,3 +1,4 @@
+#include <stdio.h>
 #include "pds/config/ImpConfigType.hh"
 
 typedef struct {
@@ -31,7 +32,7 @@ unsigned Pds::ImpConfig::get(const ImpConfigType& c,
 }
 
 void     Pds::ImpConfig::set(ImpConfigType& c,
-                             ImpConfigType::Registers r, 
+                             ImpConfigType::Registers r,
                              unsigned v)
 {
   if (r >= ImpConfigType::NumberOfRegisters) {

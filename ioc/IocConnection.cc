@@ -1,3 +1,4 @@
+#include <string.h>
 #include <sys/types.h>
 #include <sys/socket.h>
 #include <netinet/in.h>
@@ -38,7 +39,7 @@ IocConnection *IocConnection::get_connection(std::string host, uint32_t host_ip,
                                              uint16_t port, IocControl *cntl)
 {
     for(std::list<IocConnection*>::iterator it=_connections.begin();
-	it!=_connections.end(); it++)
+  it!=_connections.end(); it++)
         if ((*it)->_host_ip == host_ip && (*it)->_port == port)
             return *it;
     IocConnection *c = new IocConnection(host, host_ip, port, cntl);
@@ -89,6 +90,6 @@ void IocConnection::transmit(std::string s)
 void IocConnection::transmit_all(std::string s)
 {
     for(std::list<IocConnection*>::iterator it=_connections.begin();
-	it!=_connections.end(); it++)
+  it!=_connections.end(); it++)
         (*it)->transmit(s);
 }

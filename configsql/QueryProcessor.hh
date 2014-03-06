@@ -17,6 +17,7 @@
 #include <string>
 #include <map>
 
+#include <stdint.h>
 #include <mysql/mysql.h>
 #include <time.h>
 

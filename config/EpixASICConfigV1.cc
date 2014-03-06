@@ -5,6 +5,7 @@
  *      Author: jackp
  */
 
+#include <stdio.h>
 #include "EpixASICConfigV1.hh"
 
 namespace Pds {
