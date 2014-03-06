@@ -119,12 +119,13 @@ InDatagram* EvrSlaveFIFOHandler::l1accept(InDatagram* in)
     //            I find these errors originate from the slave handling the disable "eventcode" 
     //            ~8.5 msec too late.
     if (slave_fiducial != in->datagram().seq.stamp().fiducials()) {
+      bool needOccurrance = !_outOfOrder; // only send occurrences on 1st detection (reduce user messages)
       _outOfOrder = true;
       printf("EvrSlaveFIFOHandler out of order on %x : slave %x  buffer %x  wrptr %x  rdptr %x\n",
              in->datagram().seq.stamp().fiducials(),
              slave_fiducial, ts.fiducials(), _wrptr, _rdptr);
 
-      if (_occPool.numberOfFreeObjects()>=2) {
+      if (needOccurrance && (_occPool.numberOfFreeObjects()>=2)) {
         Occurrence* occ = new (&_occPool) Occurrence(OccurrenceId::ClearReadout);
         _app.post(occ);
         
