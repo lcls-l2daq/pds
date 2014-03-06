@@ -1,4 +1,3 @@
-libnames :=
 libnames := pdspimax
 
 libsrcs_pdspimax := PimaxManager.cc PiUtils.cc PimaxServer.cc
