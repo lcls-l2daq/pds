@@ -245,12 +245,12 @@ int PrincetonServer::config(PrincetonConfigType& config, std::string& sConfigWar
     Pds::PrincetonConfig::setHeight(config,config.maskedHeight());
   }
 
+  _config = config;
+
   //Note: We don't send error for cooling incomplete
   setupCooling( _config.coolingTemp() );
   //if ( setupCooling() != 0 )
     //return ERROR_SERVER_INIT_FAIL;
-
-  _config = config;
 
   iFail = initClockSaving();
   if ( iFail != 0 )

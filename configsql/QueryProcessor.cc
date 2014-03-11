@@ -1,9 +1,9 @@
 //--------------------------------------------------------------------------
 // File and Version Information:
-// 	$Id$
+//  $Id$
 //
 // Description:
-//	Class QueryProcessor...
+//  Class QueryProcessor...
 //
 // Author List:
 //      Igor Gaponenko
@@ -32,9 +32,9 @@
 // Local Macros, Typedefs, Structures, Unions and Forward Declarations --
 //-----------------------------------------------------------------------
 
-//		----------------------------------------
-// 		-- Public Function Member Definitions --
-//		----------------------------------------
+//    ----------------------------------------
+//    -- Public Function Member Definitions --
+//    ----------------------------------------
 
 using namespace Pds_ConfigDb::Sql;
 
@@ -85,8 +85,14 @@ QueryProcessor::execute (const std::string& sql) throw (DatabaseError)
 
     MYSQL_FIELD* fields     = mysql_fetch_fields (m_res) ;
     unsigned int num_fields = mysql_num_fields   (m_res) ;
+
+    //printf("QueryProcessor::execute(%s): get %d rows %d fields\n", sql.c_str(), (int) m_num_rows, num_fields); //!!debug
     for (unsigned int i = 0; i < num_fields; i++)
+    {
+        //printf("  field %d: %s \n", (int) i, fields[i].name); //!!debug
         m_columns[fields[i].name] = i ;
+    }
+
 }
 
 const unsigned long

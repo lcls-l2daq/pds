@@ -215,11 +215,13 @@ int PimaxServer::initSetup()
   }
 
   // set trigger source to external (initTest() might set it to internal)
-  iError = Picam_SetParameterIntegerValue(_hCam, PicamParameter_TriggerSource, PicamTriggerSource_External);
+  iError = Picam_SetParameterIntegerValue(_hCam, PicamParameter_TriggerSource, PicamTriggerSource_Internal);
   CHECK_PICAM_ERROR(iError, "PimaxServer::initSetup(): Picam_SetParameterIntegerValue(PicamParameter_TriggerSource)");
 
   iError = piCommitParameters(_hCam);
   if (iError != 0) return ERROR_SDK_FUNC_FAIL;
+
+  piPrintParameter(_hCam, PicamParameter_TriggerSource, true);
 
   int iFail = initCameraBeforeConfig();
   if (iFail != 0)
@@ -324,12 +326,12 @@ int PimaxServer::config(PimaxConfigType& config, std::string& sConfigWarning)
                                _iDetectorHeight - config.orgY());
   }
 
+  _config = config;
+
   //Note: We don't send error for cooling incomplete
   setupCooling( (double) _config.coolingTemp() );
   //if ( setupCooling() != 0 )
     //return ERROR_SERVER_INIT_FAIL;
-
-  _config = config;
 
   float fTemperature = 999;
   string sTemperatureStatus;
@@ -541,19 +543,11 @@ int PimaxServer::configCamera(PimaxConfigType& config, std::string& sConfigWarni
     return ERROR_INVALID_CONFIG;
   }
 
-  iError = Picam_SetParameterIntegerValue(_hCam, PicamParameter_IntensifierGain, config.intesifierGain());
+  iError = Picam_SetParameterIntegerValue(_hCam, PicamParameter_IntensifierGain, config.intensifierGain());
   if (!piIsFuncOk(iError))
   {
     printf("PimaxServer::configCamera(): Picam_SetParameterIntegerValue(PicamParameter_IntensifierGain, %d) failed: %s\n",
-           config.intesifierGain(), piErrorDesc(iError));
-    return ERROR_INVALID_CONFIG;
-  }
-
-  iError = Picam_SetParameterIntegerValue(_hCam, PicamParameter_AdcAnalogGain, config.gainIndex());
-  if (!piIsFuncOk(iError))
-  {
-    printf("PimaxServer::configCamera(): Picam_SetParameterIntegerValue(PicamParameter_AdcAnalogGain, %d) failed: %s\n",
-           config.gainIndex(), piErrorDesc(iError));
+           config.intensifierGain(), piErrorDesc(iError));
     return ERROR_INVALID_CONFIG;
   }
 
@@ -567,6 +561,7 @@ int PimaxServer::configCamera(PimaxConfigType& config, std::string& sConfigWarni
            piPulse.delay, piPulse.width, piErrorDesc(iError));
     return ERROR_INVALID_CONFIG;
   }
+
 
   iError = Picam_SetParameterLargeIntegerValue(_hCam, PicamParameter_Accumulations, config.numIntegrationShots());
   if (!piIsFuncOk(iError))
@@ -606,6 +601,12 @@ int PimaxServer::configCamera(PimaxConfigType& config, std::string& sConfigWarni
   iError = piCommitParameters(_hCam);
   if (iError != 0) return ERROR_SDK_FUNC_FAIL;
 
+  piPrintParameter(_hCam, PicamParameter_AdcAnalogGain, true);
+  piPrintParameter(_hCam, PicamParameter_AdcSpeed, true);
+  piPrintParameter(_hCam, PicamParameter_IntensifierGain, true);
+  piPrintParameter(_hCam, PicamParameter_RepetitiveGate, true);
+  piPrintParameter(_hCam, PicamParameter_Accumulations, true);
+
   return 0;
 }
 
@@ -628,8 +629,10 @@ int PimaxServer::initCameraBeforeConfig()
     sConfigType = _sConfigDb.substr(iIndexComma+1, string::npos);
   }
 
+  printf("PimaxServer::initCameraBeforeConfig(): Getting runkey from path %s\n", sConfigPath.c_str());
   // Setup ConfigDB and Run Key
   int runKey;
+  try
   { Pds_ConfigDb::Experiment expt(sConfigPath.c_str(),
                                   Pds_ConfigDb::Experiment::NoLock);
     expt.read();
@@ -641,6 +644,13 @@ int PimaxServer::initCameraBeforeConfig()
       }
     runKey = strtoul(entry->key().c_str(),NULL,16);
   }
+  catch (const std::exception& except)
+  {
+    printf("PimaxServer::initCameraBeforeConfig(): Experiment read failed: %s\n", except.what());
+    return 0;
+  }
+
+  printf("PimaxServer::initCameraBeforeConfig(): runkey == %d\n", runKey);
 
   const TypeId typePimaxConfig = TypeId(TypeId::Id_PimaxConfig, PimaxConfigType::Version);
 
@@ -775,6 +785,8 @@ int PimaxServer::setupCooling(double fCoolingTemperature)
 
   iError = piCommitParameters(_hCam);
   if (iError != 0) return ERROR_SDK_FUNC_FAIL;
+
+  piPrintParameter(_hCam, PicamParameter_SensorTemperatureSetPoint, true);
 
   printf("Set Temperature to %g C\n", fCoolingTemperature);
 
@@ -1310,6 +1322,8 @@ int PimaxServer::setupROI()
 
   iError = piCommitParameters(_hCam);
   if (iError != 0) return ERROR_SDK_FUNC_FAIL;
+
+  piPrintParameter(_hCam, PicamParameter_Rois, true);
 
   return 0;
 }

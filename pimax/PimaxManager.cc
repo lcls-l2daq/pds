@@ -108,6 +108,7 @@ public:
         _iConfigCameraFail  = 1;
       }
 
+      printf( "PimaxConfigAction::fire(): Temperature = %g C\n",  (double) _config.coolingTemp());
       string sConfigWarning;
       _iConfigCameraFail = _manager.config(_config, sConfigWarning);
       if (sConfigWarning.size() != 0)
@@ -146,7 +147,7 @@ public:
           _config.orgX(), _config.orgY(),
           _config.binX(), _config.binY(),
           _config.coolingTemp(), _config.readoutSpeed(), _config.gainIndex(),
-          _config.intesifierGain(), _config.gateDelay(), _config.gateWidth(),
+          _config.intensifierGain(), _config.gateDelay(), _config.gateWidth(),
           _config.infoReportInterval(), _config.exposureEventCode(), _config.numIntegrationShots()
           );
         if (_iDebugLevel>=1) printf( "\nOutput payload size = %d\n", in->datagram().xtc.sizeofPayload());

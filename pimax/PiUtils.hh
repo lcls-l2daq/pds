@@ -9,7 +9,7 @@ const char* piCameraDesc(const PicamCameraID& piCameraId);
 int         piGetEnum(PicamHandle hCam, PicamParameter parameter, std::string& sResult);
 int         piReadTemperature(PicamHandle hCam, float& fTemperature, std::string& sTemperatureStatus);
 void        piPrintAllParameters(PicamHandle camera);
-void        piPrintParameter(PicamHandle camera, PicamParameter parameter);
+void        piPrintParameter(PicamHandle camera, PicamParameter parameter, bool bPrintSeparator = false);
 int         piCommitParameters(PicamHandle camera);
 int         piWaitAcquisitionUpdate(PicamHandle hCam, int iMaxReadoutTimeInMs, bool bCleanAcq, bool bStopAcqIfTimeout, unsigned char** ppData);
 

@@ -165,18 +165,18 @@ DbClient::DbClient(const char* path) :
   std::ifstream config_file( path );
   if( !config_file.good())
     throw WrongParams( "error in Connection::open(): failed to open the configuration file: '"+spath+"'" );
-  
+
   std::string host;
   std::string user;
   std::string password;
   std::string db;
-  
+
   if( !( parse_next_line( host,     "host",     config_file ) &&
          parse_next_line( user,     "user",     config_file ) &&
          parse_next_line( password, "password", config_file ) &&
-         parse_next_line( db,       "db",       config_file ) ) ) 
+         parse_next_line( db,       "db",       config_file ) ) )
     throw WrongParams( "error in Connection::open(): failed to parse the configuration file: '"+spath+"'" );
-  
+
   _mysql = connect2server(host,user,password,db);
 
   { std::ostringstream sql;
@@ -246,25 +246,25 @@ void                 DbClient::unlock ()
   }
 }
 
-int                  DbClient::begin () 
+int                  DbClient::begin ()
 {
   lock();
   simpleQuery (_mysql, "BEGIN;");
-  return 0; 
+  return 0;
 }
- 
-int                  DbClient::commit() 
+
+int                  DbClient::commit()
 {
   simpleQuery (_mysql, "COMMIT;");
   unlock();
-  return 0; 
+  return 0;
 }
 
-int                  DbClient::abort () 
+int                  DbClient::abort ()
 {
   simpleQuery (_mysql, "ROLLBACK;");
   unlock();
-  return 0; 
+  return 0;
 }
 
 std::list<ExptAlias> DbClient::getExptAliases()
@@ -281,10 +281,19 @@ std::list<ExptAlias> DbClient::getExptAliases()
   query.execute (sql.str());
 
   while(query.next_row()) {
+    //!!debug only
+    //static int iRow = 0;
+    //++iRow;
+    //string sDevice;
+    //query.get (sDevice, "device", true);
+    //printf("DbClient::getExptAliases():0 row %d device %s\n", iRow, sDevice.c_str());
+
 
     ExptAlias* alias = new ExptAlias;
     query.get (alias->name, "alias");
     query.get (alias->key , "runkey");
+
+    //printf("DbClient::getExptAliases():1 row %d alias %s key %d\n", iRow, alias->name.c_str(), alias->key);
 
     for(std::list<ExptAlias>::iterator it=alist.begin();
         (true); it++) {
@@ -301,8 +310,13 @@ std::list<ExptAlias> DbClient::getExptAliases()
       }
     }
 
+    //printf("DbClient::getExptAliases():2 row %d alias %s key %d\n", iRow, alias->name.c_str(), alias->key);
+
     DeviceEntryRef d;
     query.get (d.device, "device", true);
+
+    //printf("DbClient::getExptAliases():3 row %d device %s\n", iRow, d.device.c_str());
+
     if (d.device.size()) {
       query.get (d.name  , "dalias");
       alias->devices.push_back(d);
@@ -343,7 +357,7 @@ int                  DbClient::setExptAliases(const std::list<ExptAlias>& alist)
       sql << "INSERT INTO experiment (alias,runkey,device,dalias) VALUES";
       for(std::list<DeviceEntryRef>::const_iterator dit=it->devices.begin();
           dit!=it->devices.end(); ) {
-        sql << "('" << it->name << "'," << it->key << ",'" 
+        sql << "('" << it->name << "'," << it->key << ",'"
             << dit->device << "','" << dit->name << "')";
         dit++;
         sql << (dit==it->devices.end() ? ";" : "," );
@@ -487,7 +501,7 @@ int                   DbClient::setDevices(const std::list<DeviceType>& dlist)
 
         if (r_it->entries.empty()) {
           std::ostringstream sql;
-          sql << "INSERT INTO devices (device,dalias) VALUES('" 
+          sql << "INSERT INTO devices (device,dalias) VALUES('"
               << it->name << "','" << r_it->name << "');";
           simpleQuery(_mysql,sql.str());
         }
@@ -518,7 +532,7 @@ int                   DbClient::setDevices(const std::list<DeviceType>& dlist)
       simpleQuery(_mysql,sql.str());
     }
   }
-  
+
 #ifdef USE_TABLE_LOCKS
   { std::ostringstream sql;
     sql << "UNLOCK TABLES;";
@@ -545,7 +559,7 @@ void                 DbClient::updateKeys()
   //
   //  Create non-existent keys
   //
-  for(std::list<ExptAlias>::iterator it=alist.begin(); 
+  for(std::list<ExptAlias>::iterator it=alist.begin();
       it!=alist.end(); it++)
     if (it->key == 0)
       _updateKey(it->name,alist,dlist);
@@ -567,10 +581,10 @@ void                 DbClient::updateKeys()
         << "WHERE experiment.runkey=runkeys.runkey AND experiment.device=devices.device "
         << "AND devices.dalias=experiment.dalias AND xtc.xtcname=devices.xtcname "
         << "AND xtc.typeid=devices.typeid AND runkeys.keytime<xtc.xtctime;";
-    
+
     QueryProcessor query(_mysql);
     query.execute(sql.str());
-    
+
     while(query.next_row()) {
       std::string alias;
       query.get(alias, "alias");
@@ -637,7 +651,7 @@ void                 DbClient::_updateKey(const std::string& alias,
                 std::ostringstream sql;
                 sql << "INSERT INTO runkeys (runkey,keyname,source,typeid,xtcname,xtctime) "
                     << "VALUES(" << key << ",'" << alias << "'," << *s_it
-                    << "," << x_it->type_id.value() << ",'" << x_it->name 
+                    << "," << x_it->type_id.value() << ",'" << x_it->name
                     << "'," << timestamp(xtctime) << ");";
                 simpleQuery(_mysql,sql.str());
               }
@@ -689,7 +703,7 @@ std::list<Key>       DbClient::getKeys()
 
   return keys;
 }
-    
+
 std::list<KeyEntry>  DbClient::getKey(unsigned key)
 {
 #ifdef USE_TABLE_LOCKS
@@ -705,7 +719,7 @@ std::list<KeyEntry>  DbClient::getKey(unsigned key)
       << "WHERE runkeys.runkey=" << key;
   QueryProcessor query(_mysql);
   query.execute(sql.str());
-  
+
   while(query.next_row()) {
     KeyEntry entry;
     query.get(entry.source     , "source");
@@ -738,7 +752,7 @@ int                  DbClient::setKey(const Key& key,
     simpleQuery(_mysql,sql.str()); }
 
   time_t keytime = key.time;
-  if (keytime==0) 
+  if (keytime==0)
     keytime = time(0);
 
   for(std::list<KeyEntry>::iterator it=entries.begin();
@@ -765,12 +779,12 @@ int                  DbClient::setKey(const Key& key,
 
     { std::ostringstream sql;
       sql << "INSERT INTO runkeys (runkey,keytime,keyname,source,typeid,xtcname,xtctime) "
-          << "VALUES(" << key.key << "," << timestamp(keytime) 
+          << "VALUES(" << key.key << "," << timestamp(keytime)
           << ",'" << key.name << "'," << it->source
           << "," << it->xtc.type_id.value() << ",'" << it->xtc.name
           << "'," << timestamp(xtctime) << ");";
       simpleQuery(_mysql,sql.str()); }
-  }  
+  }
 
   //  Remove any unused XTCs (except the latest)
   QueryProcessor query(_mysql);
@@ -815,7 +829,7 @@ int                  DbClient::setKey(const Key& key,
       }
     }
   }
-  
+
 #ifdef USE_TABLE_LOCKS
   { std::ostringstream sql;
     sql << "UNLOCK TABLES;";
@@ -910,26 +924,26 @@ int                  DbClient::setXTC(const XtcEntry& x,
         << " AND xtc.xtcname='" << trunc(x.name)
         << "' ORDER BY xtc.xtctime DESC;";
     query.execute(sql.str()); }
-    
+
   if (!query.empty()) {
     time_t xtctime=0;
     query.next_row();
     query.get_time(xtctime,"xtctime");
-    
+
     { std::ostringstream sql;
       sql << "SELECT runkey FROM runkeys"
           << " WHERE runkeys.typeid=" << x.type_id.value()
           << " AND runkeys.xtcname='" << trunc(x.name)
           << "' AND runkeys.xtctime=" << timestamp(xtctime) << ";";
       query.execute(sql.str()); }
-    
+
     if (query.empty()) { // replace
       std::ostringstream sql;
       sql << "DELETE from xtc"
           << " WHERE xtc.typeid=" << x.type_id.value()
           << " AND xtc.xtcname='" << trunc(x.name)
           << "' AND xtc.xtctime=" << timestamp(xtctime) << ";";
-      simpleQuery(_mysql,sql.str()); 
+      simpleQuery(_mysql,sql.str());
     }
   }
 
@@ -938,7 +952,7 @@ int                  DbClient::setXTC(const XtcEntry& x,
       << x.type_id.value() << ",'"
       << x.name << "',"
       << blob(payload,payload_size) << ");";
-  simpleQuery(_mysql,sql.str()); 
+  simpleQuery(_mysql,sql.str());
 
   return payload_size;
 }

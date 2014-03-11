@@ -511,12 +511,12 @@ int AndorServer::config(AndorConfigType& config, std::string& sConfigWarning)
                                _iDetectorHeight - config.orgY());
   }
 
+  _config = config;
+
   //Note: We don't send error for cooling incomplete
   setupCooling( (double) _config.coolingTemp() );
   //if ( setupCooling() != 0 )
     //return ERROR_SERVER_INIT_FAIL;
-
-  _config = config;
 
   int iTemperature  = 999;
   int iError        = GetTemperature(&iTemperature);

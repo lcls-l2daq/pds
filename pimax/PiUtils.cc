@@ -434,8 +434,15 @@ void PrintCapabilities(PicamHandle camera,
 }
 
 // - prints all information pertaining to any picam parameter
-void piPrintParameter(PicamHandle camera, PicamParameter parameter)
+void piPrintParameter(PicamHandle camera, PicamParameter parameter, bool bPrintSeparator)
 {
+  if (bPrintSeparator)
+  {
+    // - print an initial seperator
+    const std::string marker(print_width, '=');
+    std::cout << marker << std::endl;
+  }
+
   // - print parameter name
   std::cout << std::setw(column1_width) << "Parameter:";
   std::cout << std::setw(column2_width);
