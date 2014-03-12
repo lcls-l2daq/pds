@@ -47,6 +47,7 @@ namespace Pds {
     static void printSinks (bool);
     void require_in_order(bool);
   private:
+    void _dump_events() const;
     friend class serverRundown;
   protected:
     //  Helper functions for the complete implementation

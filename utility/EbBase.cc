@@ -644,23 +644,26 @@ void EbBase::dump(int detail)
          _hits, _segments, _misses, _discards);
   _dump(detail);
 
-  if (detail) {
-    printf("%17s %17s %8s %8s %8s\n","clock","stamp","alloc","segm","rem");
-    EbEventBase* event = _pending.forward();
-    EbEventBase* empty = _pending.empty();
-    while( event != empty ) {
-      const Sequence seq = event->key().sequence();
-      printf("%08x/%08x %08x/%08x %08x %08x %08x\n",
-       seq.clock().seconds(),seq.clock().nanoseconds(),
-       seq.stamp().fiducials(), seq.stamp().ticks(),
-       event->allocated().remaining().value(),
-       event->segments().value(),
-       event->remaining().value());
-      event = event->forward();
-    }
-  }
+  if (detail)
+    _dump_events();
 }
 
+void EbBase::_dump_events()
+{
+  printf("%17s %17s %8s %8s %8s\n","clock","stamp","alloc","segm","rem");
+  EbEventBase* event = _pending.forward();
+  EbEventBase* empty = _pending.empty();
+  while( event != empty ) {
+    const Sequence seq = event->key().sequence();
+    printf("%08x/%08x %08x/%08x %08x %08x %08x\n",
+           seq.clock().seconds(),seq.clock().nanoseconds(),
+           seq.stamp().fiducials(), seq.stamp().ticks(),
+           event->allocated().remaining().value(),
+           event->segments().value(),
+           event->remaining().value());
+    event = event->forward();
+  }
+}
 
 EbBase::IsComplete EbBase::_is_complete( EbEventBase* event,
            const EbBitMask& serverId )
@@ -717,6 +720,12 @@ void EbBase::_flush_outputs()
   unsigned n=0;
   EbEventBase* event = _pending.forward();
   EbEventBase* empty = _pending.empty();
+
+  if (event!=empty) {
+    printf("EbBase::_flush_outputs\n");
+    _dump_events();
+  }
+
   while( event != empty ) {
     delete event->finalize();
     delete event;
