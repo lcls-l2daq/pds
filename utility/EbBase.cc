@@ -648,7 +648,7 @@ void EbBase::dump(int detail)
     _dump_events();
 }
 
-void EbBase::_dump_events()
+void EbBase::_dump_events() const
 {
   printf("%17s %17s %8s %8s %8s\n","clock","stamp","alloc","segm","rem");
   EbEventBase* event = _pending.forward();
