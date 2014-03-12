@@ -1361,7 +1361,8 @@ int AndorServer::getData(InDatagram* in, InDatagram*& out)
   dgOut.xtc.extent = xtcOutBkp.extent;
 
   unsigned char*  pFrameHeader  = (unsigned char*) _pDgOut + sizeof(CDatagram) + sizeof(Xtc);
-  new (pFrameHeader) AndorDataType(in->datagram().seq.stamp().fiducials(), _fReadoutTime, 0);
+  AndorDataType* pData = (AndorDataType*) pFrameHeader;
+  new (pFrameHeader) AndorDataType(in->datagram().seq.stamp().fiducials(), _fReadoutTime, pData->temperature());
 
   out       = _pDgOut;
 

@@ -1166,7 +1166,8 @@ int PrincetonServer::getData(InDatagram* in, InDatagram*& out)
   dgOut.xtc.extent = xtcOutBkp.extent;
 
   unsigned char*  pFrameHeader  = (unsigned char*) _pDgOut + sizeof(CDatagram) + sizeof(Xtc);
-  new (pFrameHeader) PrincetonDataType(in->datagram().seq.stamp().fiducials(), _fReadoutTime, 0);
+  PrincetonDataType* pData = (PrincetonDataType*) pFrameHeader;
+  new (pFrameHeader) PrincetonDataType(in->datagram().seq.stamp().fiducials(), _fReadoutTime, pData->temperature());
 
   out       = _pDgOut;
 

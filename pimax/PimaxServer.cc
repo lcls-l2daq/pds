@@ -208,6 +208,9 @@ int PimaxServer::initSetup()
   iError = Picam_SetParameterLargeIntegerValue( _hCam, PicamParameter_ReadoutCount, 1);
   CHECK_PICAM_ERROR(iError, "PimaxServer::initSetup(): Picam_SetParameterLargeIntegerValue(PicamParameter_ReadoutCount)");
 
+  iError = Picam_SetParameterFloatingPointValue( _hCam, PicamParameter_TriggerFrequency, 120.0 );
+  CHECK_PICAM_ERROR(iError, "PimaxServer::initSetup(): Picam_SetParameterFloatingPointValue(PicamParameter_TriggerFrequency)");
+
   if (_bInitTest)
   {
     if (initTest() != 0)
@@ -215,13 +218,15 @@ int PimaxServer::initSetup()
   }
 
   // set trigger source to external (initTest() might set it to internal)
-  iError = Picam_SetParameterIntegerValue(_hCam, PicamParameter_TriggerSource, PicamTriggerSource_Internal);
+  //iError = Picam_SetParameterIntegerValue(_hCam, PicamParameter_TriggerSource, PicamTriggerSource_Internal);
+  iError = Picam_SetParameterIntegerValue(_hCam, PicamParameter_TriggerSource, PicamTriggerSource_External);
   CHECK_PICAM_ERROR(iError, "PimaxServer::initSetup(): Picam_SetParameterIntegerValue(PicamParameter_TriggerSource)");
 
   iError = piCommitParameters(_hCam);
   if (iError != 0) return ERROR_SDK_FUNC_FAIL;
 
   piPrintParameter(_hCam, PicamParameter_TriggerSource, true);
+  piPrintParameter(_hCam, PicamParameter_TriggerFrequency, true);
 
   int iFail = initCameraBeforeConfig();
   if (iFail != 0)
@@ -1097,7 +1102,8 @@ int PimaxServer::getData(InDatagram* in, InDatagram*& out)
   dgOut.xtc.extent = xtcOutBkp.extent;
 
   unsigned char*  pFrameHeader  = (unsigned char*) _pDgOut + sizeof(CDatagram) + sizeof(Xtc);
-  new (pFrameHeader) PimaxDataType(in->datagram().seq.stamp().fiducials(), _fReadoutTime, 0);
+  PimaxDataType* pData = (PimaxDataType*) pFrameHeader;
+  new (pFrameHeader) PimaxDataType(in->datagram().seq.stamp().fiducials(), _fReadoutTime, pData->temperature());
 
   out       = _pDgOut;
 

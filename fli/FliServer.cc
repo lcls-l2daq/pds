@@ -975,7 +975,8 @@ int FliServer::getData(InDatagram* in, InDatagram*& out)
   dgOut.xtc.extent = xtcOutBkp.extent;
 
   unsigned char*  pFrameHeader  = (unsigned char*) _pDgOut + sizeof(CDatagram) + sizeof(Xtc);
-  new (pFrameHeader) FliDataType(in->datagram().seq.stamp().fiducials(), _fReadoutTime, 0);
+  FliDataType* pData = (FliDataType*) pFrameHeader;
+  new (pFrameHeader) FliDataType(in->datagram().seq.stamp().fiducials(), _fReadoutTime, pData->temperature());
 
   out       = _pDgOut;
 
