@@ -60,11 +60,15 @@ bool SegmentLevel::attach()
   start();
   while(1) {
     if (connect()) {
+      const char* vname = 0;
+      if (_settings.pAliases() && !_settings.pAliases()->empty())
+        vname = _settings.pAliases()->front().aliasName();
+      else if (!_settings.sources().empty())
+        vname = DetInfo::name(static_cast<const DetInfo&>(_settings.sources().front()));
       _streams = new SegStreams(*this,
                                 _settings.max_event_size (),
                                 _settings.max_event_depth(),
-                                _settings.pAliases() && !_settings.pAliases()->empty() ?
-                                _settings.pAliases()->front().aliasName() : 0);
+                                vname);
       _streams->connect();
 
       _callback.attached(*_streams);
