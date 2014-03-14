@@ -10,6 +10,7 @@ packages += ioc
 packages += rayonix
 packages += epixSampler
 packages += epix
+packages += udpcam
 
 ifneq ($(findstring x86_64,$(tgt_arch)),)
   packages += firewire
