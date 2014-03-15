@@ -148,6 +148,7 @@ int Pds::UdpCamServer::fetch( char* payload, int flags )
 {
   char msgBuf[100];
   bool lastPacket = false;
+  bool packetSequenceError = false;
   enum {Ignore=-1};
   int errs = 0;
 
@@ -155,15 +156,13 @@ int Pds::UdpCamServer::fetch( char* payload, int flags )
     printf(" ** UdpCamServer::fetch() **\n");
   }
 
-//  drainFd(fd());
-
   if (_outOfOrder) {
     // error condition is latched
     return (-1);
   }
 
   if (!_frameStarted) {
-    _packetCount = 0;
+    _goodPacketCount = 0;
   }
 
   // read cmd+data
@@ -177,7 +176,7 @@ int Pds::UdpCamServer::fetch( char* payload, int flags )
     printf("  _currPacket=%u  f0=0x%02x frameIndex=%hu\n", _currPacket, printF0, cmdBuf.frameIndex);
   }
 
-  if (_currPacket == 226) {  // LastPacketIndex
+  if (_currPacket == LastPacketIndex) {
     lastPacket = true;
     if (verbosity()) {
       printf(" ** last packet **\n");
@@ -194,6 +193,7 @@ int Pds::UdpCamServer::fetch( char* payload, int flags )
     // handle packet counter
     if (_frameStarted && (_currPacket != _prevPacket + 1)) {
       printf("Error: prev packet = %u, curr packet = %u\n", _prevPacket, _currPacket);
+      packetSequenceError = true;   // affects packet count
     }
     _prevPacket = _currPacket;
   }
@@ -222,13 +222,21 @@ int Pds::UdpCamServer::fetch( char* payload, int flags )
     }
   } else {
     _frameStarted = true;
-    ++ _packetCount;
+    if (!packetSequenceError) {
+      ++ _goodPacketCount;
+    }
   }
 
   if (lastPacket) {
+    if (_goodPacketCount != LastPacketIndex) {
+      printf("Error: Fccd960 received %u packets, expected %u (frame# = %u)\n",
+             _goodPacketCount, LastPacketIndex, _count);
+      ++ errs;
+    }
     // copy xtc to payload
-    if (errs) {
+    if (errs > 0) {
       // ...damaged
+      printf(" ** frame %u damaged **\n", _count);
       memcpy(payload, &_xtcDamaged, sizeof(Xtc));
     } else {
       // ...undamaged
@@ -237,6 +245,10 @@ int Pds::UdpCamServer::fetch( char* payload, int flags )
 
     // reorder and copy pixels to payload
     // FIXME
+
+    if (verbosity() > 1) {
+      printf(" ** goodPacketCount = %u **\n", _goodPacketCount);
+    }
   }
 
   return (lastPacket ? _xtc.extent : Ignore);
@@ -316,10 +328,7 @@ int drainFd(int fdx)
 {
   int rv;
 
-  printf(" ** drainFd() (fd() == %d) **\n", fdx);
-
   while ((rv = recvfrom(fdx, discardBuf, DISCARD_SIZE, MSG_DONTWAIT, 0, 0)) > 0) {
-    printf("  ...drainFd(%d) received %d bytes\n", fdx, rv);
     ;
   }
   return (rv);

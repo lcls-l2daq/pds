@@ -64,6 +64,8 @@ class Pds::UdpCamServer
     void setOccSend(UdpCamOccurrence* occSend);
     void shutdown();
 
+    enum {LastPacketIndex = 226};
+
   private:
 
     //
@@ -90,7 +92,7 @@ class Pds::UdpCamServer
     unsigned    _currPacket;
     unsigned    _prevPacket;
     bool        _frameStarted;
-    unsigned    _packetCount;
+    unsigned    _goodPacketCount;
 };
 
 #endif
