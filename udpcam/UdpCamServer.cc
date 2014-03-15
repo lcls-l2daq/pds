@@ -149,6 +149,7 @@ int Pds::UdpCamServer::fetch( char* payload, int flags )
   char msgBuf[100];
   bool lastPacket = false;
   enum {Ignore=-1};
+  int errs = 0;
 
   if (verbosity() > 1) {
     printf(" ** UdpCamServer::fetch() **\n");
@@ -224,11 +225,19 @@ int Pds::UdpCamServer::fetch( char* payload, int flags )
     ++ _packetCount;
   }
 
-  // copy xtc to payload
-  // FIXME  memcpy _xtc or _xtcDamaged
+  if (lastPacket) {
+    // copy xtc to payload
+    if (errs) {
+      // ...damaged
+      memcpy(payload, &_xtcDamaged, sizeof(Xtc));
+    } else {
+      // ...undamaged
+      memcpy(payload, &_xtc, sizeof(Xtc));
+    }
 
-  // copy pixels to payload
-  // FIXME
+    // reorder and copy pixels to payload
+    // FIXME
+  }
 
   return (lastPacket ? _xtc.extent : Ignore);
 }
