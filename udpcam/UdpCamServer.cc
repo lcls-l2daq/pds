@@ -136,8 +136,6 @@ void Pds::UdpCamServer::ReadRoutine::routine()
   vector<BufferElement>::iterator buf_iter;
   fd_set          fds;
   struct timeval  timeout;
-  timeout.tv_sec  = 0;
-  timeout.tv_usec = 200000;
   int ret;
   int fd = _server->_dataFd;
   bool lastPacket = false;
@@ -155,6 +153,8 @@ void Pds::UdpCamServer::ReadRoutine::routine()
 
   while (1) {
     // select with timeout
+    timeout.tv_sec  = 0;
+    timeout.tv_usec = 250000;
     FD_ZERO(&fds);
     FD_SET(fd, &fds);
     ret = select(fd + 1, &fds, NULL, NULL, &timeout);
@@ -162,6 +162,9 @@ void Pds::UdpCamServer::ReadRoutine::routine()
       break;        // shutdown
     }
     if (ret == 0) {
+      if (_server->verbosity() > 1) {
+        printf(" (timeout)\n");
+      }
       continue;     // timed out, select again
     }
     ret = readv(fd, iov, 2);
