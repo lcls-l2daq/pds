@@ -91,10 +91,22 @@ class UdpCamConfigAction : public UdpCamAction
   _config = *new FccdConfigType;
   }
 
+  InDatagram* events     (InDatagram* dg)
+  {
+    if (dg->seq.service() == TransitionId::Configure) {
+      // _insert_configure(dg);
+      printf( "*** %s line %d (TransitionId::Configure)\n", __PRETTY_FUNCTION__, __LINE__ );
+    } else {
+      printf( "*** %s line %d (NOT TransitionId::Configure)\n", __PRETTY_FUNCTION__, __LINE__ );
+    }
+    
+    return dg;
+  }
   ~UdpCamConfigAction() {}
 
   InDatagram* fire(InDatagram* dg)
   {
+    printf( "*** entered %s\n", __PRETTY_FUNCTION__);
     // todo: report the results of configuration to the datastream.
     // insert assumes we have enough space in the input datagram
     dg->insert(_cfgtc, &_config);

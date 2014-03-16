@@ -14,6 +14,7 @@
 #include <fcntl.h>
 
 #include <sys/uio.h>
+#include <sys/select.h>
 
 using namespace Pds;
 
@@ -36,13 +37,15 @@ typedef struct {
   char f3;
   char f4;
   uint16_t frameIndex;
-} cmd_t;
+} fccd_cmd_t;
 
-cmd_t cmdBuf;           // 8 bytes
+fccd_cmd_t cmdBuf;           // 8 bytes
 
-char dataBuf[64 * 1024];
+char frameBuf[FRAMEBUF_SIZE];
 
-Pds::UdpCamServer::UdpCamServer( const Src& client, unsigned verbosity, int dataPort, unsigned debug)
+static int set_cpu_affinity(int cpu_id);
+
+Pds::UdpCamServer::UdpCamServer( const Src& client, unsigned verbosity, int dataPort, unsigned debug, int cpu0)
    : _xtc( _frameType, client ),
      _xtcDamaged( _frameType, client ),
      _count(0),
@@ -54,28 +57,35 @@ Pds::UdpCamServer::UdpCamServer( const Src& client, unsigned verbosity, int data
      _debug(debug),
      _outOfOrder(0),
      _frameStarted(false),
-     _shutdownFlag(0)
+     _shutdownFlag(0),
+     _cpu0(cpu0)
 {
   if (_verbosity) {
     printf("%s: data port = %u\n", __FUNCTION__, _dataPort);
   }
 
-  // create UDP socket
-  _dataFd = createUdpSocket(_dataPort);
-  if (_verbosity) {
-    if (_dataFd) {
-      printf("   createUdpSocket(%d) returned %d\n\r", _dataPort, _dataFd);
-    } else {
-      printf("Error: createUdpSocket(%d) returned 0\n\r", _dataPort);
-    }
+  // allocate read task and buffer
+  _readTask = new Task(TaskObject("read"));
+  _frameBuffer = new vector<BufferElement>(BufferCount);
+
+  // create completed pipe
+  int err = ::pipe(_completedPipeFd);
+  if (err) {
+    fprintf(stderr, "%s pipe error: %s\n", __FUNCTION__, strerror(errno));
+  } else {
+    // setup to read from pipe
+    fd(_completedPipeFd[0]);
   }
+
+  // create routine (but do not yet call it)
+  _readRoutine = new ReadRoutine(this, 0, _cpu0);
 
   // set up iov[0]
   iov[0].iov_base = &cmdBuf;
   iov[0].iov_len =  sizeof(cmdBuf);
 
-  iov[1].iov_base = &dataBuf;   // FIXME temporary location
-  iov[1].iov_len =  sizeof(dataBuf);
+  iov[1].iov_base = &frameBuf;
+  iov[1].iov_len =  9000;
 
   // printf(" ** sizeof(cmdBuf) == %u  sizeof(dataBuf) == %u **\n", sizeof(cmdBuf), sizeof(dataBuf));
 
@@ -84,14 +94,99 @@ Pds::UdpCamServer::UdpCamServer( const Src& client, unsigned verbosity, int data
   _xtcDamaged.extent = _xtc.extent;
   _xtcDamaged.damage.increase(Pds::Damage::UserDefined);
 
-  // setup to read from socket
-  fd(_dataFd);
-
   if (_debug & UDPCAM_DEBUG_IGNORE_FRAMECOUNT) {
     printf("%s: UDPCAM_DEBUG_IGNORE_FRAMECOUNT (0x%x) is set\n",
            __FUNCTION__, UDPCAM_DEBUG_IGNORE_FRAMECOUNT);
   }
 }
+
+int Pds::UdpCamServer::payloadComplete(vector<BufferElement>::iterator buf_iter, bool missedTrigger)
+{
+  int rv;
+  command_t sendCommand;
+
+  sendCommand.cmd = FrameAvailable;
+  sendCommand.buf_iter = buf_iter;
+  sendCommand.missedTrigger = missedTrigger;
+
+  rv = ::write(_completedPipeFd[1], &sendCommand, sizeof(sendCommand));
+  if (rv == -1) {
+    fprintf(stderr, "%s write error: %s\n", __FUNCTION__, strerror(errno));
+  }
+
+  return (rv);
+}
+
+static int decisleep(int count)
+{
+  int rv = 0;
+  timespec sleepTime = {0, 100000000u};  // 0.1 sec
+
+  while (count-- > 0) {
+    if (nanosleep(&sleepTime, NULL)) {
+      perror("nanosleep");
+      rv = -1;  // ERROR
+    }
+  }
+  return (rv);
+}
+
+void Pds::UdpCamServer::ReadRoutine::routine()
+{
+  vector<BufferElement>::iterator buf_iter;
+  fd_set          fds;
+  struct timeval  timeout;
+  timeout.tv_sec  = 0;
+  timeout.tv_usec = 200000;
+  int ret;
+  int fd = _server->_dataFd;
+  bool lastPacket = false;
+  vector<BufferElement>* buffer = _server->_frameBuffer;
+
+  if (_cpuAffinity >= 0) {
+    if (set_cpu_affinity(_cpuAffinity) != 0) {
+      printf("Error: read task set_cpu_affinity(%d) failed\n", _cpuAffinity);
+    }
+  }
+
+  if (_server->verbosity()) {
+    printf(" ** read task init **  (fd=%d)\n", fd);
+  }
+
+  while (1) {
+    // select with timeout
+    FD_ZERO(&fds);
+    FD_SET(fd, &fds);
+    ret = select(fd + 1, &fds, NULL, NULL, &timeout);
+    if (_server->_shutdownFlag) {
+      break;        // shutdown
+    }
+    if (ret == 0) {
+      continue;     // timed out, select again
+    }
+    ret = readv(fd, iov, 2);
+    if (ret == -1) {
+      perror("readv");
+      break;        // shutdown
+    }
+    unsigned pktidx = (unsigned)cmdBuf.packetIndex & 0xff;
+    if (pktidx == LastPacketIndex) {
+      lastPacket = true;
+      if (_server->verbosity()) {
+        printf(" ** last packet **  ");
+        printf("(frameIndex = %hu)\n", cmdBuf.frameIndex);
+      }
+      // FIXME
+      // buffer->begin()->_header.frameIndex = cmdBuf.frameIndex;
+      buf_iter = buffer->begin() + (cmdBuf.frameIndex % BufferCount);
+      buf_iter->_header.frameIndex = cmdBuf.frameIndex;
+      _server->payloadComplete(buf_iter, false);
+    }
+  }
+
+  printf(" ** read task shutdown **\n");
+}
+
 
 unsigned Pds::UdpCamServer::configure()
 {
@@ -104,8 +199,38 @@ unsigned Pds::UdpCamServer::configure()
 //_missedTriggerCount = 0;
   _shutdownFlag = 0;
 
-  // do init
-  drainFd(fd());
+  // ensure that pipes are empty
+  int nbytes;
+  char bucket;
+  if (_completedPipeFd[0]) {
+    if (ioctl(_completedPipeFd[0], FIONREAD, &nbytes) == -1) {
+      perror("ioctl");
+    } else if (nbytes > 0) {
+      printf("%s: draining %d bytes from completed pipe\n", __FUNCTION__, nbytes);
+      while (nbytes-- > 0) {
+        ::read(_completedPipeFd[0], &bucket, 1);
+      }
+    }
+  }
+
+  // ensure that buffers are cleared
+  vector<BufferElement>::iterator buf_iter;
+  for (buf_iter = _frameBuffer->begin(); buf_iter != _frameBuffer->end(); buf_iter++) {
+    buf_iter->_full = false;
+  }
+
+  // create UDP socket
+  _dataFd = createUdpSocket(_dataPort);
+  if (_dataFd <= 0) {
+    ++ numErrs;
+  }
+  if (_verbosity) {
+    if (_dataFd) {
+      printf("   createUdpSocket(%d) returned %d\n\r", _dataPort, _dataFd);
+    } else {
+      printf("Error: createUdpSocket(%d) returned 0\n\r", _dataPort);
+    }
+  }
 
   if (numErrs > 0) {
     // failed initialization
@@ -117,6 +242,10 @@ unsigned Pds::UdpCamServer::configure()
     }
     return (1);
   }
+
+  // create reader thread
+  _readTask->call(_readRoutine);
+  decisleep(1);
 
   if (numErrs > 0) {
     fprintf(stderr, "UdpCam: Failed to configure.\n");
@@ -134,8 +263,14 @@ unsigned Pds::UdpCamServer::configure()
 unsigned Pds::UdpCamServer::unconfigure(void)
 {
   _count = 0;
-  // set up to read from socket
-  fd(_dataFd);
+
+  shutdown();
+  // give task a bit of time to shutdown
+  decisleep(3);
+
+  // close UDP socket
+  close (_dataFd);
+
   return (0);
 }
 
@@ -146,112 +281,76 @@ unsigned Pds::UdpCamServer::endrun(void)
 
 int Pds::UdpCamServer::fetch( char* payload, int flags )
 {
+  command_t receiveCommand;
   char msgBuf[100];
-  bool lastPacket = false;
-  bool packetSequenceError = false;
   enum {Ignore=-1};
   int errs = 0;
+  int rv;
 
   if (verbosity() > 1) {
     printf(" ** UdpCamServer::fetch() **\n");
   }
 
+  rv = ::read(_completedPipeFd[0], &receiveCommand, sizeof(receiveCommand));
+  if (rv == -1) {
+    perror("read");
+    ++ errs;
+  }
+
   if (_outOfOrder) {
     // error condition is latched
-    return (-1);
+    return (Ignore);
   }
 
-  if (!_frameStarted) {
-    _goodPacketCount = 0;
-  }
+  uint16_t fx = receiveCommand.buf_iter->_header.frameIndex;
 
-  // read cmd+data
-  unsigned uu = readv(fd(), iov, 2);
-  if (verbosity() > 1) {
-    printf("  readv() returned %u\n", uu);
-  }
-  _currPacket = (unsigned)cmdBuf.packetIndex & 0xff;
   if (verbosity()) {
-    unsigned printF0 = (unsigned)cmdBuf.f0 & 0xff;
-    printf("  _currPacket=%u  f0=0x%02x frameIndex=%hu\n", _currPacket, printF0, cmdBuf.frameIndex);
+    printf("fetch: frame = %hu\n", fx);
   }
 
-  if (_currPacket == LastPacketIndex) {
-    lastPacket = true;
-    if (verbosity()) {
-      printf(" ** last packet **\n");
-    }
-  }
-
-  // handle frame counter (revisit for partial frames)
+  // handle frame counter
   if (_resetHwCount) {
     _count = 0;
     _countOffset = cmdBuf.frameIndex - 1;
     _resetHwCount = false;
     _prevPacket = _currPacket;
-  } else {
-    // handle packet counter
-    if (_frameStarted && (_currPacket != _prevPacket + 1)) {
-      printf("Error: prev packet = %u, curr packet = %u\n", _prevPacket, _currPacket);
-      packetSequenceError = true;   // affects packet count
-    }
-    _prevPacket = _currPacket;
   }
 
-  if (lastPacket) {
-    _frameStarted = false;
-    // update frame counter
-    ++_count;
-    uint16_t sum16 = (uint16_t)(_count + _countOffset);
+  // update frame counter
+  ++_count;
+  uint16_t sum16 = (uint16_t)(_count + _countOffset);
 
-    if (!(_debug & UDPCAM_DEBUG_IGNORE_FRAMECOUNT)) {
-      // check for out-of-order condition
-      if (cmdBuf.frameIndex != sum16) {
-        snprintf(msgBuf, sizeof(msgBuf), "Fccd960: hw count (%hu) != sw count (%hu) + offset (%u) == (%hu)\n",
-                cmdBuf.frameIndex, _count, _countOffset, sum16);
-        fprintf(stderr, "%s: %s", __FUNCTION__, msgBuf);
-        // latch error
-        _outOfOrder = 1;
-        if (_occSend) {
-          // send occurrence
-          _occSend->userMessage(msgBuf);
-          _occSend->outOfOrder();
-        }
-        return (Ignore);
+  if (!(_debug & UDPCAM_DEBUG_IGNORE_FRAMECOUNT)) {
+    // check for out-of-order condition
+    if (fx != sum16) {
+      snprintf(msgBuf, sizeof(msgBuf), "Fccd960: hw count (%hu) != sw count (%hu) + offset (%u) == (%hu)\n",
+              fx, _count, _countOffset, sum16);
+      fprintf(stderr, "%s: %s", __FUNCTION__, msgBuf);
+      // latch error
+      _outOfOrder = 1;
+      if (_occSend) {
+        // send occurrence
+        _occSend->userMessage(msgBuf);
+        _occSend->outOfOrder();
       }
+      return (Ignore);
     }
+  }
+
+  // copy xtc to payload
+  if (errs > 0) {
+    // ...damaged
+    printf(" ** frame %u damaged **\n", _count);
+    memcpy(payload, &_xtcDamaged, sizeof(Xtc));
   } else {
-    _frameStarted = true;
-    if (!packetSequenceError) {
-      ++ _goodPacketCount;
-    }
+    // ...undamaged
+    memcpy(payload, &_xtc, sizeof(Xtc));
   }
 
-  if (lastPacket) {
-    if (_goodPacketCount != LastPacketIndex) {
-      printf("Error: Fccd960 received %u packets, expected %u (frame# = %u)\n",
-             _goodPacketCount, LastPacketIndex, _count);
-      ++ errs;
-    }
-    // copy xtc to payload
-    if (errs > 0) {
-      // ...damaged
-      printf(" ** frame %u damaged **\n", _count);
-      memcpy(payload, &_xtcDamaged, sizeof(Xtc));
-    } else {
-      // ...undamaged
-      memcpy(payload, &_xtc, sizeof(Xtc));
-    }
+  // reorder and copy pixels to payload
+  // FIXME
 
-    // reorder and copy pixels to payload
-    // FIXME
-
-    if (verbosity() > 1) {
-      printf(" ** goodPacketCount = %u **\n", _goodPacketCount);
-    }
-  }
-
-  return (lastPacket ? _xtc.extent : Ignore);
+  return (_xtc.extent);
 }
 
 unsigned UdpCamServer::count() const
@@ -333,3 +432,21 @@ int drainFd(int fdx)
   }
   return (rv);
 }
+
+#include <pthread.h>
+
+static int set_cpu_affinity(int cpu_id)
+{
+  int rv;
+  cpu_set_t cpuset;
+
+  CPU_ZERO(&cpuset);
+  CPU_SET(cpu_id, &cpuset);
+
+  rv = pthread_setaffinity_np(pthread_self(), sizeof(cpu_set_t), &cpuset);
+  if (rv != 0) {
+    perror("pthread_setaffinity_np");
+  }
+  return (rv);
+}
+
