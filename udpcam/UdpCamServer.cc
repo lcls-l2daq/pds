@@ -39,8 +39,6 @@ typedef struct {
   uint16_t frameIndex;
 } fccd_cmd_t;
 
-fccd_cmd_t cmdBuf;           // 8 bytes
-
 char frameBuf[FRAMEBUF_SIZE];
 
 static int set_cpu_affinity(int cpu_id);
@@ -79,13 +77,6 @@ Pds::UdpCamServer::UdpCamServer( const Src& client, unsigned verbosity, int data
 
   // create routine (but do not yet call it)
   _readRoutine = new ReadRoutine(this, 0, _cpu0);
-
-  // set up iov[0]
-  iov[0].iov_base = &cmdBuf;
-  iov[0].iov_len =  sizeof(cmdBuf);
-
-  iov[1].iov_base = &frameBuf;
-  iov[1].iov_len =  9000;
 
   // printf(" ** sizeof(cmdBuf) == %u  sizeof(dataBuf) == %u **\n", sizeof(cmdBuf), sizeof(dataBuf));
 
@@ -140,6 +131,9 @@ void Pds::UdpCamServer::ReadRoutine::routine()
   int fd = _server->_dataFd;
   bool lastPacket = false;
   vector<BufferElement>* buffer = _server->_frameBuffer;
+  int localFrameCount = 0;
+  iov[0].iov_len =  8;
+  iov[1].iov_len =  9000;
 
   if (_cpuAffinity >= 0) {
     if (set_cpu_affinity(_cpuAffinity) != 0) {
@@ -151,6 +145,8 @@ void Pds::UdpCamServer::ReadRoutine::routine()
     printf(" ** read task init **  (fd=%d)\n", fd);
   }
 
+  // initialize buf_iter for 1st frame
+  buf_iter = buffer->begin() + (localFrameCount % BufferCount);
   while (1) {
     // select with timeout
     timeout.tv_sec  = 0;
@@ -167,23 +163,23 @@ void Pds::UdpCamServer::ReadRoutine::routine()
       }
       continue;     // timed out, select again
     }
+    iov[0].iov_base = &buf_iter->_header;
+    iov[1].iov_base = buf_iter->_rawData;
     ret = readv(fd, iov, 2);
     if (ret == -1) {
       perror("readv");
       break;        // shutdown
     }
-    unsigned pktidx = (unsigned)cmdBuf.packetIndex & 0xff;
+    unsigned pktidx = (unsigned)buf_iter->_header.packetIndex & 0xff;
     if (pktidx == LastPacketIndex) {
       lastPacket = true;
       if (_server->verbosity()) {
         printf(" ** last packet **  ");
-        printf("(frameIndex = %hu)\n", cmdBuf.frameIndex);
+        printf("(frameIndex = %hu)\n", buf_iter->_header.frameIndex);
       }
-      // FIXME
-      // buffer->begin()->_header.frameIndex = cmdBuf.frameIndex;
-      buf_iter = buffer->begin() + (cmdBuf.frameIndex % BufferCount);
-      buf_iter->_header.frameIndex = cmdBuf.frameIndex;
       _server->payloadComplete(buf_iter, false);
+      // advance buf_iter for next frame
+      buf_iter = buffer->begin() + (localFrameCount++ % BufferCount);
     }
   }
 
@@ -314,7 +310,7 @@ int Pds::UdpCamServer::fetch( char* payload, int flags )
   // handle frame counter
   if (_resetHwCount) {
     _count = 0;
-    _countOffset = cmdBuf.frameIndex - 1;
+    _countOffset = fx - 1;
     _resetHwCount = false;
     _prevPacket = _currPacket;
   }
