@@ -17,8 +17,9 @@
 #include "pds/camera/FrameType.hh"      // Frame V1
 
 #include "UdpCamOccurrence.hh"
-
+  
 #define UDPCAM_DEBUG_IGNORE_FRAMECOUNT  0x00000010
+#define UDPCAM_DEBUG_IGNORE_PACKET_CNT  0x00000020
 
 #define UDP_RCVBUF_SIZE     (64*1024*1024)
 #define FRAMEBUF_SIZE       (2*1024*1024)
@@ -74,6 +75,7 @@ class Pds::UdpCamServer
     enum {LastPacketIndex = 226};
     enum Command {FrameAvailable=0, TriggerConfigured, TriggerNotConfigured, CommandShutdown};
     enum {BufferCount=64};
+    enum {PacketDataSize=8192};
 
   private:
 
@@ -99,6 +101,7 @@ class Pds::UdpCamServer
       {}
 
       bool                  _full;
+      bool                  _damaged;
       cmd_t                 _header;
       unsigned char         _rawData[1024 * 1024 * 2];
       int16_t               _pixelData[960 * 960];

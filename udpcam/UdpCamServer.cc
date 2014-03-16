@@ -131,7 +131,8 @@ void Pds::UdpCamServer::ReadRoutine::routine()
   int fd = _server->_dataFd;
   bool lastPacket = false;
   vector<BufferElement>* buffer = _server->_frameBuffer;
-  int localFrameCount = 0;
+  unsigned int localFrameCount = 0;
+  unsigned int localPacketCount = 0;
   iov[0].iov_len =  8;
   iov[1].iov_len =  9000;
 
@@ -147,6 +148,9 @@ void Pds::UdpCamServer::ReadRoutine::routine()
 
   // initialize buf_iter for 1st frame
   buf_iter = buffer->begin() + (localFrameCount % BufferCount);
+  // TODO: check for _full==true before using
+  buf_iter->_damaged = false;
+  buf_iter->_full = true;
   while (1) {
     // select with timeout
     timeout.tv_sec  = 0;
@@ -164,22 +168,32 @@ void Pds::UdpCamServer::ReadRoutine::routine()
       continue;     // timed out, select again
     }
     iov[0].iov_base = &buf_iter->_header;
-    iov[1].iov_base = buf_iter->_rawData;
+    iov[1].iov_base = buf_iter->_rawData + (localPacketCount * PacketDataSize);
     ret = readv(fd, iov, 2);
     if (ret == -1) {
       perror("readv");
       break;        // shutdown
     }
     unsigned pktidx = (unsigned)buf_iter->_header.packetIndex & 0xff;
+    if (!(_server->_debug & UDPCAM_DEBUG_IGNORE_PACKET_CNT)) {
+      if (pktidx != localPacketCount) {
+        printf("Error: received packet index %u, expected %u\n", pktidx, localPacketCount);
+        buf_iter->_damaged = true;
+      }
+    }
     if (pktidx == LastPacketIndex) {
       lastPacket = true;
-      if (_server->verbosity()) {
+      if (_server->verbosity() > 1) {
         printf(" ** last packet **  ");
         printf("(frameIndex = %hu)\n", buf_iter->_header.frameIndex);
       }
       _server->payloadComplete(buf_iter, false);
       // advance buf_iter for next frame
       buf_iter = buffer->begin() + (localFrameCount++ % BufferCount);
+      localPacketCount = 0; // zero packet count for next frame
+      buf_iter->_damaged = false;   // clear damage for next frame
+    } else {
+      ++ localPacketCount;
     }
   }
 
@@ -304,7 +318,16 @@ int Pds::UdpCamServer::fetch( char* payload, int flags )
   uint16_t fx = receiveCommand.buf_iter->_header.frameIndex;
 
   if (verbosity()) {
-    printf("fetch: frame = %hu\n", fx);
+    printf("fetch: frame = %hu  ", fx);
+    if (receiveCommand.buf_iter->_damaged) {
+      printf("** DAMAGED **");
+    }
+    printf("\n");
+  }
+
+  // handle damage marked in frame
+  if (receiveCommand.buf_iter->_damaged) {
+    ++ errs;
   }
 
   // handle frame counter
