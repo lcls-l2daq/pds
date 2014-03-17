@@ -1,5 +1,6 @@
 #include "UdpCamServer.hh"
 #include "pds/xtc/XtcType.hh"
+#include "Fccd960Reorder.hh"
 
 #include <unistd.h>
 #include <sys/uio.h>
@@ -88,6 +89,14 @@ Pds::UdpCamServer::UdpCamServer( const Src& client, unsigned verbosity, int data
   if (_debug & UDPCAM_DEBUG_IGNORE_FRAMECOUNT) {
     printf("%s: UDPCAM_DEBUG_IGNORE_FRAMECOUNT (0x%x) is set\n",
            __FUNCTION__, UDPCAM_DEBUG_IGNORE_FRAMECOUNT);
+  }
+  if (_debug & UDPCAM_DEBUG_IGNORE_PACKET_CNT) {
+    printf("%s: UDPCAM_DEBUG_IGNORE_PACKET_CNT (0x%x) is set\n",
+           __FUNCTION__, UDPCAM_DEBUG_IGNORE_PACKET_CNT);
+  }
+  if (_debug & UDPCAM_DEBUG_NO_REORDER) {
+    printf("%s: UDPCAM_DEBUG_NO_REORDER (0x%x) is set\n",
+           __FUNCTION__, UDPCAM_DEBUG_NO_REORDER);
   }
 }
 
@@ -194,6 +203,7 @@ void Pds::UdpCamServer::ReadRoutine::routine()
       buf_iter->_damaged = false;   // clear damage for next frame
     } else {
       ++ localPacketCount;
+      // FIXME guard against packet count overflow
     }
   }
 
@@ -307,7 +317,7 @@ int Pds::UdpCamServer::fetch( char* payload, int flags )
   rv = ::read(_completedPipeFd[0], &receiveCommand, sizeof(receiveCommand));
   if (rv == -1) {
     perror("read");
-    ++ errs;
+    return (Ignore);
   }
 
   if (_outOfOrder) {
@@ -370,7 +380,17 @@ int Pds::UdpCamServer::fetch( char* payload, int flags )
   }
 
   // reorder and copy pixels to payload
-  // FIXME
+  if (_debug & UDPCAM_DEBUG_NO_REORDER) {
+    if (verbosity() > 1) {
+      printf("%s calling memcpy()\n", __FUNCTION__);
+    }
+    memcpy(payload+sizeof(Xtc), receiveCommand.buf_iter->_rawData, 960*960*2);
+  } else {
+    if (verbosity() > 1) {
+      printf("%s calling fccd960Reorder()\n", __FUNCTION__);
+    }
+    fccd960Reorder(receiveCommand.buf_iter->_rawData, (uint16_t *)(payload+sizeof(Xtc)));
+  }
 
   return (_xtc.extent);
 }
