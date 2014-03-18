@@ -131,6 +131,11 @@ static int decisleep(int count)
   return (rv);
 }
 
+static uint16_t myswap(uint16_t x)
+{
+  return ((x << 8) | (x >> 8));
+}
+
 void Pds::UdpCamServer::ReadRoutine::routine()
 {
   vector<BufferElement>::iterator buf_iter;
@@ -183,6 +188,9 @@ void Pds::UdpCamServer::ReadRoutine::routine()
       perror("readv");
       break;        // shutdown
     }
+    // swap frameIndex in header
+    buf_iter->_header.frameIndex = myswap(buf_iter->_header.frameIndex);
+
     unsigned pktidx = (unsigned)buf_iter->_header.packetIndex & 0xff;
     if (!(_server->_debug & UDPCAM_DEBUG_IGNORE_PACKET_CNT)) {
       if (pktidx != localPacketCount) {

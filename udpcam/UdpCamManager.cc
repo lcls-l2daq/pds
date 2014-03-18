@@ -73,6 +73,7 @@ InDatagram* UdpCamL1Action::fire(InDatagram* in)
 class UdpCamConfigAction : public UdpCamAction
 {
    enum {MaxConfigSize=0x100000};
+   enum { FexSize = 0x1000 };
 
  public:
    UdpCamConfigAction( const Src& src0,
@@ -89,6 +90,17 @@ class UdpCamConfigAction : public UdpCamAction
   _cfgtc.extent += sizeof(FccdConfigType);
   // FIXME default config needed
   _config = *new FccdConfigType;
+
+  // like simcam.cc
+  _fexpayload = new char[FexSize];
+  _fextc = new(_fexpayload) Xtc(_frameFexConfigType,src0);
+  new(_fextc->next()) FrameFexConfigType(FrameFexConfigType::FullFrame,
+           1,
+           FrameFexConfigType::NoProcessing,
+           Pds::Camera::FrameCoord(0,0),
+           Pds::Camera::FrameCoord(0,0),
+           0, 0, 0);
+  _fextc->extent += sizeof(FrameFexConfigType);
   }
 
   ~UdpCamConfigAction() {}
@@ -99,6 +111,7 @@ class UdpCamConfigAction : public UdpCamAction
     // todo: report the results of configuration to the datastream.
     // insert assumes we have enough space in the input datagram
     dg->insert(_cfgtc, &_config);
+    dg->insert(*_fextc, _fextc->payload());
 
     if( _nerror ) {
       printf( "*** Found %d fccd configuration errors\n", _nerror );
@@ -131,6 +144,9 @@ class UdpCamConfigAction : public UdpCamAction
     unsigned _nerror;
     UdpCamL1Action& _L1;
     UdpCamOccurrence* _occSend;
+    // like simcam.cc
+    Xtc*  _fextc;
+    char* _fexpayload;
 };
 
 

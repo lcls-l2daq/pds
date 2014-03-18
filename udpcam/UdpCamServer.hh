@@ -15,6 +15,7 @@
 #include "pds/utility/EbEventKey.hh"
 #include "pds/config/FccdConfigType.hh"
 #include "pds/camera/FrameType.hh"      // Frame V1
+#include "pds/config/FrameFexConfigType.hh"
 
 #include "UdpCamOccurrence.hh"
   
