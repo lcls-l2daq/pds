@@ -107,7 +107,6 @@ class UdpCamConfigAction : public UdpCamAction
 
   InDatagram* fire(InDatagram* dg)
   {
-    printf( "*** entered %s\n", __PRETTY_FUNCTION__);
     // todo: report the results of configuration to the datastream.
     // insert assumes we have enough space in the input datagram
     dg->insert(_cfgtc, &_config);
