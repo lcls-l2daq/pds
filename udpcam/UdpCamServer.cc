@@ -19,8 +19,6 @@
 
 using namespace Pds;
 
-// #define RESET_COUNT 0x80000000
-
 // forward declarations
 int createUdpSocket(int port);
 int setrcvbuf(int socketFd, unsigned size);
@@ -79,10 +77,9 @@ Pds::UdpCamServer::UdpCamServer( const Src& client, unsigned verbosity, int data
   // create routine (but do not yet call it)
   _readRoutine = new ReadRoutine(this, 0, _cpu0);
 
-  // printf(" ** sizeof(cmdBuf) == %u  sizeof(dataBuf) == %u **\n", sizeof(cmdBuf), sizeof(dataBuf));
-
   // calculate xtc extent
-  _xtc.extent = sizeof(FrameType) + sizeof(Xtc) + (960 * 960 * 2);
+  _xtc.extent = sizeof(FrameType) + sizeof(Xtc) +
+                (960 * ((_debug & UDPCAM_DEBUG_NO_REORDER) ? 964 : 960) * 2);
   _xtcDamaged.extent = _xtc.extent;
   _xtcDamaged.damage.increase(Pds::Damage::UserDefined);
 
@@ -139,6 +136,7 @@ static uint16_t myswap(uint16_t x)
 void Pds::UdpCamServer::ReadRoutine::routine()
 {
   vector<BufferElement>::iterator buf_iter;
+  vector<BufferElement>::iterator next_iter;
   fd_set          fds;
   struct timeval  timeout;
   int ret;
@@ -153,6 +151,7 @@ void Pds::UdpCamServer::ReadRoutine::routine()
   if (_cpuAffinity >= 0) {
     if (set_cpu_affinity(_cpuAffinity) != 0) {
       printf("Error: read task set_cpu_affinity(%d) failed\n", _cpuAffinity);
+      return;   // shutdown
     }
   }
 
@@ -160,9 +159,13 @@ void Pds::UdpCamServer::ReadRoutine::routine()
     printf(" ** read task init **  (fd=%d)\n", fd);
   }
 
+  buf_iter = buffer->begin();
+  // check for _full==true before using
+  if (buf_iter->_full) {
+    printf("Error: buffer is full at beginning of %s\n", __PRETTY_FUNCTION__);
+    return;   // shutdown
+  }
   // initialize buf_iter for 1st frame
-  buf_iter = buffer->begin() + (localFrameCount % BufferCount);
-  // TODO: check for _full==true before using
   buf_iter->_damaged = false;
   buf_iter->_full = true;
   while (1) {
@@ -204,11 +207,15 @@ void Pds::UdpCamServer::ReadRoutine::routine()
         printf(" ** last packet **  ");
         printf("(frameIndex = %hu)\n", buf_iter->_header.frameIndex);
       }
-      _server->payloadComplete(buf_iter, false);
+      // look ahead for buffer overrun condition
+      next_iter = buffer->begin() + ((localFrameCount+1) % BufferCount);
+      _server->payloadComplete(buf_iter, (next_iter->_full));
       // advance buf_iter for next frame
-      buf_iter = buffer->begin() + (localFrameCount++ % BufferCount);
+      ++localFrameCount;
+      buf_iter = buffer->begin() + (localFrameCount % BufferCount);
       localPacketCount = 0; // zero packet count for next frame
       buf_iter->_damaged = false;   // clear damage for next frame
+      buf_iter->_full = true;
     } else {
       ++ localPacketCount;
       // FIXME guard against packet count overflow
@@ -288,7 +295,7 @@ unsigned Pds::UdpCamServer::configure()
     printf("UdpCam: Configure OK\n");
   }
 
-  fccd960Initialize(mapCol, mapCric, mapAddr, chanMap, topBot);
+  fccd960Initialize(_mapCol, _mapCric, _mapAddr, _chanMap, _topBot);
 
   return (numErrs);
 }
@@ -324,6 +331,17 @@ int Pds::UdpCamServer::fetch( char* payload, int flags )
     printf(" ** UdpCamServer::fetch() **\n");
   }
 
+  int offset = sizeof(Xtc);
+  new (payload+offset) Pds::Camera::FrameV1::FrameV1
+                  (
+    /* width */   960,
+    /* height */  (_debug & UDPCAM_DEBUG_NO_REORDER) ? 964 : 960,
+    /* depth */   13,
+    /* offset */  0x1000
+                  );
+
+  offset += sizeof(Pds::Camera::FrameV1);
+
   rv = ::read(_completedPipeFd[0], &receiveCommand, sizeof(receiveCommand));
   if (rv == -1) {
     perror("read");
@@ -333,6 +351,11 @@ int Pds::UdpCamServer::fetch( char* payload, int flags )
   if (_outOfOrder) {
     // error condition is latched
     return (Ignore);
+  }
+
+  if (receiveCommand.missedTrigger) {
+    printf("Error: receiveCommand.missedTrigger in fetch\n");
+    ++ errs;
   }
 
   uint16_t fx = receiveCommand.buf_iter->_header.frameIndex;
@@ -347,6 +370,9 @@ int Pds::UdpCamServer::fetch( char* payload, int flags )
 
   // handle damage marked in frame
   if (receiveCommand.buf_iter->_damaged) {
+    if (verbosity()) {
+      printf("%s: damage marked in frame\n", __FUNCTION__);
+    }
     ++ errs;
   }
 
@@ -394,13 +420,15 @@ int Pds::UdpCamServer::fetch( char* payload, int flags )
     if (verbosity() > 1) {
       printf("%s calling memcpy()\n", __FUNCTION__);
     }
-    memcpy(payload+sizeof(Xtc), receiveCommand.buf_iter->_rawData, 960*960*2);
+    memcpy(payload+offset, receiveCommand.buf_iter->_rawData, 960*964*2);
   } else {
     if (verbosity() > 1) {
       printf("%s calling fccd960Reorder()\n", __FUNCTION__);
     }
-    fccd960Reorder(mapCol, mapCric, mapAddr, chanMap, topBot, receiveCommand.buf_iter->_rawData, (uint16_t *)(payload+sizeof(Xtc)));
+    fccd960Reorder(_mapCol, _mapCric, _mapAddr, _chanMap, _topBot, receiveCommand.buf_iter->_rawData, (uint16_t *)(payload+offset));
   }
+  // mark payload as empty
+  receiveCommand.buf_iter->_full = false;
 
   return (_xtc.extent);
 }
@@ -427,7 +455,7 @@ void UdpCamServer::setOccSend(UdpCamOccurrence* occSend)
 
 void UdpCamServer::shutdown()
 {
-  printf("\n ** UdpCamServer::shutdown() **\n");
+  printf(" ** UdpCamServer::shutdown() **\n");
   _shutdownFlag = 1;
 }
 
@@ -435,8 +463,6 @@ int createUdpSocket(int port)
 {
   struct sockaddr_in myaddr; /* our address */
   int fd; /* our socket */
-
-  printf(" ** createUdpSocket(%d) **\n", port);
 
   /* create a UDP socket */
   if ((fd = socket(AF_INET, SOCK_DGRAM, 0)) < 0) {
