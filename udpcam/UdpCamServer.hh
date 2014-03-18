@@ -164,6 +164,14 @@ class Pds::UdpCamServer
     ReadRoutine *            _readRoutine;
     Task *                   _readTask;
     int         _cpu0;
+
+    enum { mapLength = 192};
+    uint16_t mapCol[mapLength];// new?
+    uint16_t mapCric[mapLength];
+    uint16_t mapAddr[mapLength];
+    uint16_t chanMap[mapLength];
+    uint16_t topBot[mapLength];
+
 };
 
 #endif

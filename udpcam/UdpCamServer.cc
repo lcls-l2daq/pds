@@ -288,6 +288,8 @@ unsigned Pds::UdpCamServer::configure()
     printf("UdpCam: Configure OK\n");
   }
 
+  fccd960Initialize(mapCol, mapCric, mapAddr, chanMap, topBot);
+
   return (numErrs);
 }
 
@@ -397,7 +399,7 @@ int Pds::UdpCamServer::fetch( char* payload, int flags )
     if (verbosity() > 1) {
       printf("%s calling fccd960Reorder()\n", __FUNCTION__);
     }
-    fccd960Reorder(receiveCommand.buf_iter->_rawData, (uint16_t *)(payload+sizeof(Xtc)));
+    fccd960Reorder(mapCol, mapCric, mapAddr, chanMap, topBot, receiveCommand.buf_iter->_rawData, (uint16_t *)(payload+sizeof(Xtc)));
   }
 
   return (_xtc.extent);

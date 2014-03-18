@@ -6,7 +6,7 @@
 
 #include "Fccd960Reorder.hh"
 
-static void initialize_mapping(unsigned* mapCol, unsigned* mapCric, unsigned* mapAddr, long* chanMap, unsigned* topBot) {
+void fccd960Initialize(uint16_t* mapCol, uint16_t* mapCric, uint16_t* mapAddr, uint16_t* chanMap, uint16_t* topBot) {
 
   unsigned i;
   for (i=0; i<16; i++) {
@@ -41,32 +41,28 @@ static void initialize_mapping(unsigned* mapCol, unsigned* mapCric, unsigned* ma
     topBot[mapCol[i]+8] = 1;
     topBot[mapCol[i]+12] = 1;
   }
+
+  const unsigned OverScan = 0; // should be in the class...
+  const unsigned CCDreg = OverScan+10;
+  for (i=0; i<192; i++) chanMap[i] = chanMap[i]*CCDreg;
+
   //  printf("done with init\n");
 }
 
-void fccd960Reorder(unsigned char* buffer, uint16_t* data) {
-  const unsigned length = 192;
-  unsigned mapCol[length];
-  unsigned mapCric[length];
-  unsigned mapAddr[length];
-  long chanMap[length];
-  unsigned topBot[length];
-
-  initialize_mapping(mapCol, mapCric, mapAddr, chanMap, topBot);
+void fccd960Reorder(const uint16_t* mapCol, const uint16_t* mapCric, const uint16_t* mapAddr, const uint16_t* chanMap, const uint16_t* topBot, unsigned char* buffer, uint16_t* data) {
 
   memset(data, 0, sizeof(uint16_t)*960*960);
 
   const unsigned OverScan = 0;
   const unsigned CCDcols = 96;
+  // since the pipeline is not flushed, we read one more row than is displayed
   const unsigned CCDreg = OverScan+10;
   const unsigned CCDsizeX = CCDcols*CCDreg;
   const unsigned CCDsizeY = 480;//random guess
   const unsigned YTOT = 2*CCDsizeY;
 
   unsigned i;
-  for(i=0; i<192; i++) chanMap[i] = chanMap[i]*CCDreg;
-  // since the pipeline is not flushed, we read one more row than is displayed:
-  //  char dataFileName[120] = "/reg/d/psdm/sxr/sxri0114/usr/fCCD_DATA/20140112-LCLS/55Fe/image16429_2014-01-12_23-39-08-109.bin";
+
 #if 0
   FILE *dataFile = fopen(fileName, "r");
   
