@@ -145,6 +145,7 @@ class Pds::UdpCamServer
 
     Xtc _xtc;
     Xtc _xtcDamaged;
+    Xtc _xtcUndamaged;
     unsigned    _count;
     bool        _resetHwCount;
     unsigned    _countOffset;

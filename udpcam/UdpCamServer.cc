@@ -44,7 +44,6 @@ static int set_cpu_affinity(int cpu_id);
 
 Pds::UdpCamServer::UdpCamServer( const Src& client, unsigned verbosity, int dataPort, unsigned debug, int cpu0)
    : _xtc( _frameType, client ),
-     _xtcDamaged( _frameType, client ),
      _count(0),
      _resetHwCount(true),
      _countOffset(0),
@@ -80,7 +79,12 @@ Pds::UdpCamServer::UdpCamServer( const Src& client, unsigned verbosity, int data
   // calculate xtc extent
   _xtc.extent = sizeof(FrameType) + sizeof(Xtc) +
                 (960 * ((_debug & UDPCAM_DEBUG_NO_REORDER) ? 964 : 960) * 2);
-  _xtcDamaged.extent = _xtc.extent;
+
+  // keep an copy of _xtc with no damage set
+  _xtcUndamaged = _xtc;
+
+  // make a copy of _xtc with damage set
+  _xtcDamaged = _xtc;
   _xtcDamaged.damage.increase(Pds::Damage::UserDefined);
 
   if (_debug & UDPCAM_DEBUG_IGNORE_FRAMECOUNT) {
@@ -190,6 +194,9 @@ void Pds::UdpCamServer::ReadRoutine::routine()
     if (ret == -1) {
       perror("readv");
       break;        // shutdown
+    }
+    if (_server->verbosity() > 2) {
+      printf(" ** readv() returned %d (localPacketCount = %03u) **\n", ret, localPacketCount);
     }
     // swap frameIndex in header
     buf_iter->_header.frameIndex = myswap(buf_iter->_header.frameIndex);
@@ -409,11 +416,12 @@ int Pds::UdpCamServer::fetch( char* payload, int flags )
   if (errs > 0) {
     // ...damaged
     printf(" ** frame %u damaged **\n", _count);
-    memcpy(payload, &_xtcDamaged, sizeof(Xtc));
+    _xtc = _xtcDamaged;
   } else {
     // ...undamaged
-    memcpy(payload, &_xtc, sizeof(Xtc));
+    _xtc = _xtcUndamaged;
   }
+  memcpy(payload, &_xtc, sizeof(Xtc));
 
   // reorder and copy pixels to payload
   if (_debug & UDPCAM_DEBUG_NO_REORDER) {
