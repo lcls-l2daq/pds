@@ -6,7 +6,13 @@
 
 #include "Fccd960Reorder.hh"
 
-void fccd960Initialize(uint16_t* mapCol, uint16_t* mapCric, uint16_t* mapAddr, uint16_t* chanMap, uint16_t* topBot) {
+void fccd960Initialize(uint16_t* chanMap, uint16_t* topBot) {
+  uint16_t mapCol[48];
+  uint16_t mapCric[48];
+  uint16_t mapAddr[48];
+  memset(mapCol, 0, sizeof(uint16_t)*48);// these are unneded
+  memset(mapCric, 0, sizeof(uint16_t)*48);
+  memset(mapAddr, 0, sizeof(uint16_t)*48);
 
   unsigned i;
   for (i=0; i<16; i++) {
@@ -28,14 +34,10 @@ void fccd960Initialize(uint16_t* mapCol, uint16_t* mapCric, uint16_t* mapAddr, u
   }
 
   for (i=0; i<48; i++){
-    //    printf("%d\n", i);
-    chanMap[mapCol[i]] = 16*(6-(int)mapCric[i])+mapAddr[i];
-    //    printf("chanMap 0: %d, %d, %d\n",i, mapCol[i], chanMap[mapCol[i]]); 
-    chanMap[mapCol[i]+4] = 16*(9-(int)mapCric[i])+mapAddr[i];
-    //    printf("chanMap 4: %d, %d, %d\n",i+4, mapCol[i]+4, chanMap[mapCol[i]+4]); 
+    chanMap[mapCol[i]] = 16*(6-(int)mapCric[i]) + (int)mapAddr[i];
+    chanMap[mapCol[i]+4] = 16*(9-(int)mapCric[i]) + (int)mapAddr[i];
     chanMap[mapCol[i]+8] = chanMap[mapCol[i]];
     chanMap[mapCol[i]+12] = chanMap[mapCol[i]+4];
-    //    printf("chanMap 12: %d, %d, %d\n",i+12, mapCol[i]+12, chanMap[mapCol[i]+12]); 
     topBot[mapCol[i]] = 0; 
     topBot[mapCol[i]+4] = 0;
     topBot[mapCol[i]+8] = 1;
@@ -49,9 +51,7 @@ void fccd960Initialize(uint16_t* mapCol, uint16_t* mapCric, uint16_t* mapAddr, u
   //  printf("done with init\n");
 }
 
-void fccd960Reorder(const uint16_t* mapCol, const uint16_t* mapCric, const uint16_t* mapAddr, const uint16_t* chanMap, const uint16_t* topBot, unsigned char* buffer, uint16_t* data) {
-
-  memset(data, 0, sizeof(uint16_t)*960*960);
+void fccd960Reorder(const uint16_t* chanMap, const uint16_t* topBot, unsigned char* buffer, uint16_t* data) {
 
   const unsigned OverScan = 0;
   const unsigned CCDcols = 96;

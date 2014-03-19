@@ -167,10 +167,7 @@ class Pds::UdpCamServer
     int         _cpu0;
 
     enum { mapLength = 192};
-    uint16_t _mapCol[mapLength];// new?
-    uint16_t _mapCric[mapLength];
-    uint16_t _mapAddr[mapLength];
-    uint16_t _chanMap[mapLength];
+    uint16_t _chanMap[mapLength];// new?
     uint16_t _topBot[mapLength];
 
 };
