@@ -204,7 +204,9 @@ void Pds::UdpCamServer::ReadRoutine::routine()
     unsigned pktidx = (unsigned)buf_iter->_header.packetIndex & 0xff;
     if (!(_server->_debug & UDPCAM_DEBUG_IGNORE_PACKET_CNT)) {
       if (pktidx != localPacketCount) {
-        printf("Error: received packet index %u, expected %u\n", pktidx, localPacketCount);
+        if ((!buf_iter->_damaged) || (_server->verbosity() > 1)) {
+          printf("Error: received packet index %u, expected %u\n", pktidx, localPacketCount);
+        }
         buf_iter->_damaged = true;
       }
     }
