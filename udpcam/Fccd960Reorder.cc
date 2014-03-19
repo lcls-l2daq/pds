@@ -63,19 +63,6 @@ void fccd960Reorder(const uint16_t* chanMap, const uint16_t* topBot, unsigned ch
 
   unsigned i;
 
-#if 0
-  FILE *dataFile = fopen(fileName, "r");
-  
-  unsigned readLength = 2*192*(1+CCDsizeY)*CCDreg;
-  unsigned char buffer[readLength];
-  memset(buffer, 0, sizeof(unsigned char)*readLength);
-  size_t bytes_read = 0;
-  bytes_read = fread(buffer, sizeof(unsigned char), readLength, dataFile);
-  if (bytes_read != readLength) {
-    printf("tried to read %d bytes, got %d\n", readLength, bytes_read);
-    // throw exception?
-  }
-#endif
   unsigned ktr = 0;
   // the first 7 converts are from the stale pipeline data. Simply skip over them.
   //  (ktr is bytes)
@@ -86,42 +73,25 @@ void fccd960Reorder(const uint16_t* chanMap, const uint16_t* topBot, unsigned ch
   for(y=0; y<CCDsizeY; y++){
     for(x=0; x<CCDreg; x++){
       for(i=0; i<192;i++){
-	//	printf("%d, %d, %d, %d\n", y, x, i, ktr);
-	unsigned fH = buffer[ktr];//charCodeAt(s,ktr);
-	unsigned fL = buffer[ktr+1];//charCodeAt(s,ktr+1);
-	//	printf("got to here, %d %d\n", fH, fL);
-	// deal with the gain bits.
-	// Precise calibration requires both a gain and an offset
-	// Gain = 00 is 4096 - epsilon to 8192 (pedestal = 4096 - epsilon)
-	// Gain = 01 is (modulo offset and exact gain) 8192 + 4*(value - 4096)
-	// Gain = 10 is (modulo ..) 8192 + 4*4096 + 8*(value - 4096)
-#if 0
-	if((fH & 0xC0) != 0){
-	  pVal = 4096 + 8 * (fL + ((fH & 0x0F) << 8));
-	}
-	else if((fH & 0x40) != 0){
-	  pVal = 4096 + 4 * (fL + ((fH & 0x0F) << 8));
-	}
-	else {
-	  pVal = fL + (fH << 8);
-	}
-#else
-  pVal = fL + (fH << 8);
-#endif
-	//	printf("pre xdex: %d, %d, %d\n", i, chanMap[i], CCDreg);
-	long xdex = chanMap[i]+(CCDreg - x - 1);
-	//	printf("xdex: %d, %d, %d, %d\n", xdex, i, chanMap[i], CCDreg);
-	if(topBot[i] == 0){
-	  unsigned long idex = CCDsizeX * y + xdex;
-	  //	  printf("got to here......0: %d, %d, %d, %d\n", idex, CCDsizeX, y, xdex);
-	  data[idex] = pVal;
-	}
-	else {
-	  //	  printf("got to here......1\n");
-	  unsigned long idex = CCDsizeX * (YTOT-y-1) + (CCDsizeX-xdex-1);
-	  data[idex] = pVal;
-	}
-	ktr=ktr+2;
+        //      printf("%d, %d, %d, %d\n", y, x, i, ktr);
+        unsigned fH = buffer[ktr];//charCodeAt(s,ktr);
+        unsigned fL = buffer[ktr+1];//charCodeAt(s,ktr+1);
+        //      printf("got to here, %d %d\n", fH, fL);
+        pVal = fL + (fH << 8);
+        //      printf("pre xdex: %d, %d, %d\n", i, chanMap[i], CCDreg);
+        long xdex = chanMap[i]+(CCDreg - x - 1);
+        //      printf("xdex: %d, %d, %d, %d\n", xdex, i, chanMap[i], CCDreg);
+        if(topBot[i] == 0){
+          unsigned long idex = CCDsizeX * y + xdex;
+          //      printf("got to here......0: %d, %d, %d, %d\n", idex, CCDsizeX, y, xdex);
+          data[idex] = pVal;
+        }
+        else {
+          //      printf("got to here......1\n");
+          unsigned long idex = CCDsizeX * (YTOT-y-1) + (CCDsizeX-xdex-1);
+          data[idex] = pVal;
+        }
+        ktr=ktr+2;
       }
     }
   }
