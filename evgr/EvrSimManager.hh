@@ -8,6 +8,7 @@ namespace Pds {
   class Appliance;
   class CfgClientNfs;
   class EvrFifoServer;
+  class EvrTimer;
   class Fsm;
   class Server;
   class SimEvr;
@@ -24,9 +25,10 @@ namespace Pds {
     Appliance&  appliance();
     Server&     server();
   private: 
-    Fsm&        _fsm;
+    Fsm&           _fsm;
     EvrFifoServer* _server;
-    SimEvr&     _er;
+    EvrTimer*      _done;
+    SimEvr&        _er;
   };
 }
 

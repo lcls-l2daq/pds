@@ -9,9 +9,13 @@
 
 #include "EvrSimManager.hh"
 #include "EvrFifoServer.hh"
+#include "EvrTimer.hh"
 
+#include "pds/utility/Occurrence.hh"
+#include "pds/service/GenericPool.hh"
 #include "pds/client/Fsm.hh"
 #include "pds/client/Action.hh"
+#include "pds/xtc/EnableEnv.hh"
 #include "pds/xtc/EvrDatagram.hh"
 #include "pds/config/EvsConfigType.hh" // typedefs for the Evr config data types
 #include "pds/config/CfgClientNfs.hh"
@@ -114,11 +118,13 @@ namespace Pds {
 
   class SimEvr : public Routine {
   public:
-    SimEvr(EvrFifoServer& srv) : _timer   (this),
-				 _outlet  (0),
-				 _srv     (srv),
-				 _count   (0),
-				 _fiducial(0) {}
+    SimEvr(EvrFifoServer& srv,
+	   EvrTimer&      done) : _timer   (this),
+				  _outlet  (0),
+				  _srv     (srv),
+				  _done    (done),
+				  _count   (0),
+				  _fiducial(0) {}
     ~SimEvr() {}
   public:
     void     allocate (unsigned partition) 
@@ -133,8 +139,9 @@ namespace Pds {
     }
     void     reset  () { _count=0; }
     void     configure(unsigned prescale) { _duration=double(prescale)/119e6; }
-    void     enable () 
+    void     enable   (unsigned events) 
     {
+      _evt_stop = _count + events;
       printf("SimEvr starting with duration %f sec\n",_duration);
       _timer.start(_duration); 
     }
@@ -164,26 +171,66 @@ namespace Pds {
       _count++;
       _fiducial++;
       _fiducial %= TimeStamp::MaxFiducials;
+
+      if (_count == _evt_stop) {
+	printf("Stopping at %u\n",_count);
+	_done.expired();
+      }
     }
   private:
     SimEvrTimer    _timer;
     Client*        _outlet;
     std::vector<Ins> _ldst;
     EvrFifoServer& _srv;
+    EvrTimer&      _done;
     unsigned       _count;
     unsigned       _fiducial;
     double         _duration;
+    unsigned       _evt_stop;
   };
 
   class EvrSimEnableAction:public Action
   {
   public:
-    EvrSimEnableAction(SimEvr& er) : _er(er) {}
-    
-    Transition* fire(Transition* tr) { return tr; }
-    InDatagram* fire(InDatagram* tr) { _er.enable(); return tr; }
+    EvrSimEnableAction(SimEvr& er, EvrTimer& done, Appliance& app) : 
+      _er(er), _done(done), _app(app), 
+      _pool(sizeof(Occurrence),1), _events(0) {}
+
+    Transition* fire(Transition* tr) { 
+      const EnableEnv& env = static_cast<const EnableEnv&>(tr->env());
+      _events = env.events();
+      if (env.timer()) {
+	_done.set_duration_ms(env.duration());
+	_done.start();
+      }
+      return tr; 
+    }
+    InDatagram* fire(InDatagram* tr) { 
+      _er.enable(_events); 
+      _app.post(new (&_pool) Occurrence(OccurrenceId::EvrEnabled));
+      return tr; 
+    }
   private:
-    SimEvr& _er;
+    SimEvr&     _er;
+    EvrTimer&   _done;
+    Appliance&  _app;
+    GenericPool _pool;
+    unsigned    _events;
+  };
+
+  class EvrSimDisableAction:public Action
+  {
+  public:
+    EvrSimDisableAction(EvrTimer& done) : 
+      _done(done) {}
+    
+    Transition* fire(Transition* tr) { 
+      _done.cancel();
+      return tr; 
+    }
+    InDatagram* fire(InDatagram* tr) { return tr; }
+  private:
+    EvrTimer& _done;
   };
 
   static unsigned int configSize(unsigned maxNumEventCodes, unsigned maxNumPulses, unsigned maxNumOutputMaps)
@@ -403,7 +450,8 @@ Server& EvrSimManager::server()
 EvrSimManager::EvrSimManager(CfgClientNfs & cfg) :
   _fsm   (*new Fsm),
   _server(new EvrFifoServer(cfg.src())),
-  _er    (*new SimEvr(*_server))
+  _done  (new EvrTimer(_fsm)),
+  _er    (*new SimEvr(*_server,*_done))
 {
   EvrSimConfigManager* cmgr = new EvrSimConfigManager(_er, cfg, _fsm);
 
@@ -411,12 +459,14 @@ EvrSimManager::EvrSimManager(CfgClientNfs & cfg) :
   _fsm.callback(TransitionId::Configure      , new EvrSimConfigAction    (_er,*cmgr));
   _fsm.callback(TransitionId::BeginCalibCycle, new EvrSimBeginCalibAction(*cmgr));
   _fsm.callback(TransitionId::EndCalibCycle  , new EvrSimEndCalibAction  (*cmgr));
-  _fsm.callback(TransitionId::Enable         , new EvrSimEnableAction    (_er));
+  _fsm.callback(TransitionId::Enable         , new EvrSimEnableAction    (_er,*_done,_fsm));
+  _fsm.callback(TransitionId::Disable        , new EvrSimDisableAction   (*_done));
   _fsm.callback(TransitionId::L1Accept       , new EvrSimL1Action        (_er));
 }
 
 EvrSimManager::~EvrSimManager()
 {
+  delete _done;
 }
 
 void EvrSimManager::randomize_nodes(bool v) { _randomize_nodes=v; }
