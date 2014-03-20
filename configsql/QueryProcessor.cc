@@ -169,6 +169,7 @@ QueryProcessor::get_time (time_t&            val,
             throw DatabaseError ("NULL value in column: "+col_name) ;
     }
     struct tm tm;
+    memset(&tm,0,sizeof(tm));
     char* end_ptr = strptime(c.ptr,"%Y-%m-%d %T",&tm);
     if (end_ptr != c.ptr+c.len)
       throw DatabaseError (std::string("Failed to interpret time: ")+

@@ -786,6 +786,11 @@ int                  DbClient::setKey(const Key& key,
       simpleQuery(_mysql,sql.str()); }
   }
 
+#if 0
+  //
+  //  Skip this housecleaning.  There is a one-hour offset in the timestamp.
+  //  The housecleaning does not need to be done at this critical time.
+  //
   //  Remove any unused XTCs (except the latest)
   QueryProcessor query(_mysql);
   { std::ostringstream sql;
@@ -829,6 +834,7 @@ int                  DbClient::setKey(const Key& key,
       }
     }
   }
+#endif
 
 #ifdef USE_TABLE_LOCKS
   { std::ostringstream sql;
