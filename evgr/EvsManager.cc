@@ -160,7 +160,7 @@ public:
 
     _disable();
 
-    bool slacEvr     = reinterpret_cast<uint32_t*>(&_er)[11] == 0x1f;
+    bool slacEvr     = (reinterpret_cast<uint32_t*>(&_er)[11]&0xff) == 0x1f;
     unsigned nerror  = 0;
     UserMessage* msg = new(_occPool) UserMessage;
     msg->append(DetInfo::name(static_cast<const DetInfo&>(_cfgtc.src)));
