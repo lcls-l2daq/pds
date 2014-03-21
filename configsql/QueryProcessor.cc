@@ -266,6 +266,7 @@ QueryProcessor::get (std::string&       str,
 void
 QueryProcessor::get (void*              blob,
                      int&               blob_len,
+                     unsigned           max_len,
                      const std::string& col_name,
                      const bool         nullIsAllowed) throw (WrongParams,
                                                               DatabaseError)
@@ -278,8 +279,8 @@ QueryProcessor::get (void*              blob,
         } else
             throw DatabaseError ("NULL value in column: "+col_name) ;
     }
-    memcpy(blob, c.ptr, c.len);
-    blob_len = c.len;
+    blob_len = c.len < max_len ? c.len : max_len;
+    memcpy(blob, c.ptr, blob_len);
 }
 
 QueryProcessor::Cell

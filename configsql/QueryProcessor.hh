@@ -166,6 +166,7 @@ namespace Pds_ConfigDb {
        */
       void get (void*              blob,
                 int&               blob_len,
+                unsigned           max_len,
                 const std::string& col_name,
                 const bool         nullIsAllowed=false) throw (WrongParams,
                                                                DatabaseError) ;

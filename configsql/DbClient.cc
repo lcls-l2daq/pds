@@ -907,7 +907,7 @@ int                  DbClient::getXTC(const    XtcEntry& x,
 
   query.next_row();
   int len;
-  query.get(payload,len,"payload");
+  query.get(payload,len,payload_size,"payload");
 
 #ifdef USE_TABLE_LOCKS
   { std::ostringstream sql;
