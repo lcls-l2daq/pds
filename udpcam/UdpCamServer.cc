@@ -198,6 +198,12 @@ void Pds::UdpCamServer::ReadRoutine::routine()
     if (_server->verbosity() > 2) {
       printf(" ** readv() returned %d (localPacketCount = %03u) **\n", ret, localPacketCount);
     }
+    if (ret != 8192 && ret != 960) {
+      if (_server->verbosity() > 2) {
+        printf(" ** dropping packet of size %d **\n", ret);
+      }
+      continue;     // DROP
+    }
     // swap frameIndex in header
     buf_iter->_header.frameIndex = myswap(buf_iter->_header.frameIndex);
 
