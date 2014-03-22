@@ -20,7 +20,7 @@
 using namespace Pds;
 
 // forward declarations
-int createUdpSocket(int port);
+int createUdpSocket(int port, unsigned debug);
 int setrcvbuf(int socketFd, unsigned size);
 int drainFd(int fdx);
 
@@ -198,6 +198,12 @@ void Pds::UdpCamServer::ReadRoutine::routine()
     if (_server->verbosity() > 2) {
       printf(" ** readv() returned %d (localPacketCount = %03u) **\n", ret, localPacketCount);
     }
+    if (ret != 8192 && ret != 960) {
+      if (_server->verbosity() > 2) {
+        printf(" ** dropping packet of size %d **\n", ret);
+      }
+      continue;     // DROP
+    }
     // swap frameIndex in header
     buf_iter->_header.frameIndex = myswap(buf_iter->_header.frameIndex);
 
@@ -267,7 +273,7 @@ unsigned Pds::UdpCamServer::configure()
   }
 
   // create UDP socket
-  _dataFd = createUdpSocket(_dataPort);
+  _dataFd = createUdpSocket(_dataPort, _debug);
   if (_dataFd <= 0) {
     ++ numErrs;
   }
@@ -471,7 +477,7 @@ void UdpCamServer::shutdown()
   _shutdownFlag = 1;
 }
 
-int createUdpSocket(int port)
+int createUdpSocket(int port, unsigned debug)
 {
   struct sockaddr_in myaddr; /* our address */
   int fd; /* our socket */
@@ -496,6 +502,13 @@ int createUdpSocket(int port)
     printf("Error: Failed to set socket receive buffer to %u bytes\n\r", UDP_RCVBUF_SIZE);
     return 0;
   }
+  if (debug & UDPCAM_DEBUG_RECV_BROADCAST) {
+    /* set the BROADCAST bit */
+    int broadcast = 1;
+    if (setsockopt(fd, SOL_SOCKET, SO_BROADCAST, &broadcast, sizeof(broadcast)) < 0) {
+      perror("setsockopt SO_BROADCAST");
+    }
+  }
   return (fd);
 }
 
@@ -503,7 +516,7 @@ int setrcvbuf(int socketFd, unsigned size)
 {
   if (::setsockopt(socketFd, SOL_SOCKET, SO_RCVBUF,
        (char*)&size, sizeof(size)) < 0) {
-    perror("setsockopt");
+    perror("setsockopt SO_RCVBUF");
     return -1;
   }
   return 0;
