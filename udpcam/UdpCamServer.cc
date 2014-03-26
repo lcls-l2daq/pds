@@ -99,6 +99,14 @@ Pds::UdpCamServer::UdpCamServer( const Src& client, unsigned verbosity, int data
     printf("%s: UDPCAM_DEBUG_NO_REORDER (0x%x) is set\n",
            __FUNCTION__, UDPCAM_DEBUG_NO_REORDER);
   }
+  if (_debug & UDPCAM_DEBUG_IGNORE_SIG) {
+    printf("%s: UDPCAM_DEBUG_IGNORE_SIG (0x%x) is set\n",
+           __FUNCTION__, UDPCAM_DEBUG_IGNORE_SIG);
+  }
+  if (_debug & UDPCAM_DEBUG_RECV_BROADCAST) {
+    printf("%s: UDPCAM_DEBUG_RECV_BROADCAST (0x%x) is set\n",
+           __FUNCTION__, UDPCAM_DEBUG_RECV_BROADCAST);
+  }
 }
 
 int Pds::UdpCamServer::payloadComplete(vector<BufferElement>::iterator buf_iter, bool missedTrigger)
@@ -148,7 +156,11 @@ void Pds::UdpCamServer::ReadRoutine::routine()
   bool lastPacket = false;
   vector<BufferElement>* buffer = _server->_frameBuffer;
   unsigned int localFrameCount = 0;
+  uint16_t prevFrameIndex = 0;
+  unsigned int thisFrameIndex = 0;
+  unsigned int prevPacketIndex = 0;
   unsigned int localPacketCount = 0;
+  unsigned pktidx = 0;
   iov[0].iov_len =  8;
   iov[1].iov_len =  9000;
 
@@ -198,16 +210,56 @@ void Pds::UdpCamServer::ReadRoutine::routine()
     if (_server->verbosity() > 2) {
       printf(" ** readv() returned %d (localPacketCount = %03u) **\n", ret, localPacketCount);
     }
-    if (ret != 8192 && ret != 960) {
-      if (_server->verbosity() > 2) {
-        printf(" ** dropping packet of size %d **\n", ret);
+    // FIXME what are valid sizes?
+    if (ret != 8192 && ret != 960 && ret != 992) {
+      if (_server->verbosity() > 1) {
+        printf(" ** bad size: dropping packet of size %d (f0=0x%02x f1=0x%02x f2=0x%02x"
+               " f3=0x%02x f4=0x%02x**\n", ret,
+               (int)buf_iter->_header.f0,
+               (int)buf_iter->_header.f1, (int)buf_iter->_header.f2,
+               (int)buf_iter->_header.f3, (int)buf_iter->_header.f4);
       }
       continue;     // DROP
     }
+
+    if (!(_server->_debug & UDPCAM_DEBUG_IGNORE_SIG)) {
+      // check packet signature
+      if ((buf_iter->_header.f0 != (char)0xf0) ||
+          (buf_iter->_header.f1 != (char)0xf1) ||
+          (buf_iter->_header.f2 != (char)0xf2) ||
+          (buf_iter->_header.f3 != (char)0xf3) ||
+          (buf_iter->_header.f4 != (char)0xf4)) {
+        if (_server->verbosity() > 1) {
+          printf(" ** bad signature: dropping packet of size %d (f0=0x%02x f1=0x%02x f2=0x%02x"
+                 " f3=0x%02x f4=0x%02x**\n", ret,
+                 (int)buf_iter->_header.f0,
+                 (int)buf_iter->_header.f1, (int)buf_iter->_header.f2,
+                 (int)buf_iter->_header.f3, (int)buf_iter->_header.f4);
+        }
+        continue;     // DROP
+      }
+    }
+
     // swap frameIndex in header
     buf_iter->_header.frameIndex = myswap(buf_iter->_header.frameIndex);
 
-    unsigned pktidx = (unsigned)buf_iter->_header.packetIndex & 0xff;
+    if (localPacketCount == 0) {
+      thisFrameIndex = buf_iter->_header.frameIndex;
+    }
+
+    pktidx = (unsigned)buf_iter->_header.packetIndex & 0xff;
+
+    if (!(_server->_debug & UDPCAM_DEBUG_IGNORE_FRAMECOUNT)) {
+      if ((localPacketCount > 0) && (thisFrameIndex != buf_iter->_header.frameIndex)) {
+        printf(" ** bad frame index **\n");
+        printf("    localPacketCount  = %u\n", localPacketCount  );
+        printf("    pktidx            = %u\n", pktidx );
+        printf("    prevPacketIndex   = %u\n", prevPacketIndex );
+        printf("    header.frameIndex = %u\n", buf_iter->_header.frameIndex);
+        printf("    thisFrameIndex    = %u\n", thisFrameIndex );
+      }
+    }
+
     if (!(_server->_debug & UDPCAM_DEBUG_IGNORE_PACKET_CNT)) {
       if (pktidx != localPacketCount) {
         if ((!buf_iter->_damaged) || (_server->verbosity() > 1)) {
@@ -222,18 +274,30 @@ void Pds::UdpCamServer::ReadRoutine::routine()
         printf(" ** last packet **  ");
         printf("(frameIndex = %hu)\n", buf_iter->_header.frameIndex);
       }
-      // look ahead for buffer overrun condition
-      next_iter = buffer->begin() + ((localFrameCount+1) % BufferCount);
-      _server->payloadComplete(buf_iter, (next_iter->_full));
-      // advance buf_iter for next frame
+      _server->payloadComplete(buf_iter, false);
       ++localFrameCount;
+      prevFrameIndex = buf_iter->_header.frameIndex;
+      // advance buf_iter for next frame
       buf_iter = buffer->begin() + (localFrameCount % BufferCount);
       localPacketCount = 0; // zero packet count for next frame
       buf_iter->_damaged = false;   // clear damage for next frame
       buf_iter->_full = true;
     } else {
       ++ localPacketCount;
-      // FIXME guard against packet count overflow
+      prevPacketIndex = pktidx;
+      // guard against packet count overflow
+      if (localPacketCount > LastPacketIndex) {
+        printf("Error: overflow:  packet index %u, limit %d\n", localPacketCount, LastPacketIndex);
+        _server->payloadComplete(buf_iter, true); // DAMAGED
+        // advance buf_iter for next frame
+        ++localFrameCount;
+        buf_iter = buffer->begin() + (localFrameCount % BufferCount);
+        localPacketCount = 0; // zero packet count for next frame
+        buf_iter->_damaged = false;   // clear damage for next frame
+        buf_iter->_full = true;
+        thisFrameIndex = 0;
+        prevPacketIndex = 0;
+      }
     }
   }
 
@@ -361,6 +425,8 @@ int Pds::UdpCamServer::fetch( char* payload, int flags )
   if (rv == -1) {
     perror("read");
     return (Ignore);
+  } else if (rv != sizeof(receiveCommand)) {
+    printf(" ** fetch: read() returned %d not %d\n", rv, (int)sizeof(receiveCommand));
   }
 
   if (_outOfOrder) {
@@ -400,12 +466,17 @@ int Pds::UdpCamServer::fetch( char* payload, int flags )
   }
 
   // update frame counter
+  uint16_t stuck16 = (uint16_t)(_count + _countOffset);
   ++_count;
   uint16_t sum16 = (uint16_t)(_count + _countOffset);
 
   if (!(_debug & UDPCAM_DEBUG_IGNORE_FRAMECOUNT)) {
     // check for out-of-order condition
-    if (fx != sum16) {
+    if (fx == stuck16) {
+      fprintf(stderr, "Error: Fccd960 frame count %hu repeated in consecutive frames (%s)\n",
+              stuck16, __FUNCTION__);
+      ++ errs;
+    } else if (fx != sum16) {
       snprintf(msgBuf, sizeof(msgBuf), "Fccd960: hw count (%hu) != sw count (%hu) + offset (%u) == (%hu)\n",
               fx, _count, _countOffset, sum16);
       fprintf(stderr, "%s: %s", __FUNCTION__, msgBuf);
