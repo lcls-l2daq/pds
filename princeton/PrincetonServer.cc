@@ -23,9 +23,10 @@ using PICAM::printPvError;
 namespace Pds
 {
 
-PrincetonServer::PrincetonServer(int iCamera, bool bDelayMode, bool bInitTest, const Src& src, string sConfigDb, int iSleepInt, int iDebugLevel) :
+PrincetonServer::PrincetonServer(int iCamera, bool bDelayMode, bool bInitTest, const Src& src, string sConfigDb, int iSleepInt,
+                                 int iCustW, int iCustH, int iDebugLevel) :
  _iCamera(iCamera), _bDelayMode(bDelayMode), _bInitTest(bInitTest), _src(src),
- _sConfigDb(sConfigDb), _iSleepInt(iSleepInt), _iDebugLevel(iDebugLevel),
+ _sConfigDb(sConfigDb), _iSleepInt(iSleepInt), _iCustW(iCustW), _iCustH(iCustH), _iDebugLevel(iDebugLevel),
  _hCam(-1), _bCameraInited(false), _bCaptureInited(false), _bClockSaving(false),
  _i16DetectorWidth(-1), _i16DetectorHeight(-1), _i16MaxSpeedTableIndex(-1),
  _fPrevReadoutTime(0), _bSequenceError(false), _clockPrevDatagram(0,0), _iNumExposure(0),
@@ -112,11 +113,35 @@ int PrincetonServer::initDevice()
 
 int PrincetonServer::initSetup()
 {
-  PICAM::getAnyParam(_hCam, PARAM_SER_SIZE, &_i16DetectorWidth );
-  PICAM::getAnyParam(_hCam, PARAM_PAR_SIZE, &_i16DetectorHeight );
-  PICAM::getAnyParam(_hCam, PARAM_SPDTAB_INDEX, &_i16MaxSpeedTableIndex, ATTR_MAX);
+  using PICAM::setAnyParam;
+  using PICAM::getAnyParam;
+  using PICAM::displayParamIdInfo;
+
+  if (_iCustW != -1 || _iCustH != -1 )
+  {
+    rs_bool iCustomChip = 1;
+    setAnyParam(_hCam, PARAM_CUSTOM_CHIP, &iCustomChip );
+
+    if (_iCustW != -1)
+    {
+      displayParamIdInfo(_hCam, PARAM_SER_SIZE, "Detecotr Width *org*");
+      uns16 u16CustomW = (uns16) _iCustW;
+      setAnyParam(_hCam, PARAM_SER_SIZE, &u16CustomW );
+    }
+
+    if (_iCustH != 0)
+    {
+      displayParamIdInfo(_hCam, PARAM_PAR_SIZE, "Detecotr Height *org*");
+      uns16 u16CustomH = (uns16) _iCustH;
+      setAnyParam(_hCam, PARAM_PAR_SIZE, &u16CustomH );
+    }
+  }
+
+  getAnyParam(_hCam, PARAM_SER_SIZE, &_i16DetectorWidth );
+  getAnyParam(_hCam, PARAM_PAR_SIZE, &_i16DetectorHeight );
+  getAnyParam(_hCam, PARAM_SPDTAB_INDEX, &_i16MaxSpeedTableIndex, ATTR_MAX);
   int16 i16TemperatureCurrent = -1;
-  PICAM::getAnyParam(_hCam, PARAM_TEMP, &i16TemperatureCurrent );
+  getAnyParam(_hCam, PARAM_TEMP, &i16TemperatureCurrent );
   printf( "\nDetector Width %d Height %d Max Speed %d Temperature %.1f C\n", _i16DetectorWidth, _i16DetectorHeight, _i16MaxSpeedTableIndex, i16TemperatureCurrent/100.f );
 
   if (_bInitTest)
@@ -140,7 +165,7 @@ int PrincetonServer::initSetup()
   }
 
   i16TemperatureCurrent = -1;
-  PICAM::getAnyParam(_hCam, PARAM_TEMP, &i16TemperatureCurrent );
+  getAnyParam(_hCam, PARAM_TEMP, &i16TemperatureCurrent );
   printf( "\nDetector Width %d Height %d Max Speed %d Temperature %.1f C\n", _i16DetectorWidth, _i16DetectorHeight, _i16MaxSpeedTableIndex, i16TemperatureCurrent/100.f  );
 
   const int iDevId = ((DetInfo&)_src).devId();
@@ -667,7 +692,7 @@ int PrincetonServer::initCameraBeforeConfig()
         printf("PrincetonServer::initCameraBeforeConfig(): Invalid config db path [%s] type [%s]\n",sConfigPath.c_str(), sConfigType.c_str());
         return 1;
       }
-    
+
     runKey = strtoul(entry->key().c_str(),NULL,16);
   }
 

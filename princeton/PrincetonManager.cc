@@ -584,9 +584,9 @@ private:
 };
 
 PrincetonManager::PrincetonManager(CfgClientNfs& cfg, int iCamera, bool bDelayMode, bool bInitTest,
-  string sConfigDb, int iSleepInt, int iDebugLevel) :
+  string sConfigDb, int iSleepInt, int iCustW, int iCustH, int iDebugLevel) :
   _iCamera(iCamera), _bDelayMode(bDelayMode), _bInitTest(bInitTest),
-  _sConfigDb(sConfigDb), _iSleepInt(iSleepInt),
+  _sConfigDb(sConfigDb), _iSleepInt(iSleepInt), _iCustW(iCustW), _iCustH(iCustH),
   _iDebugLevel(iDebugLevel), _pServer(NULL), _uNumShotsInCycle(0)
 {
   _pActionMap             = new PrincetonMapAction      (*this, cfg, _iDebugLevel);
@@ -605,7 +605,7 @@ PrincetonManager::PrincetonManager(CfgClientNfs& cfg, int iCamera, bool bDelayMo
 
   try
   {
-  _pServer = new PrincetonServer(_iCamera, _bDelayMode, _bInitTest, cfg.src(), _sConfigDb, _iSleepInt, _iDebugLevel);
+  _pServer = new PrincetonServer(_iCamera, _bDelayMode, _bInitTest, cfg.src(), _sConfigDb, _iSleepInt, _iCustW, _iCustH, _iDebugLevel);
   }
   catch ( PrincetonServerException& eServer )
   {
