@@ -211,7 +211,7 @@ void Pds::UdpCamServer::ReadRoutine::routine()
       printf(" ** readv() returned %d (localPacketCount = %03u) **\n", ret, localPacketCount);
     }
     // FIXME what are valid sizes?
-    if (ret != 8192 && ret != 960 && ret != 992) {
+    if (ret < 384) {
       if (_server->verbosity() > 1) {
         printf(" ** bad size: dropping packet of size %d (f0=0x%02x f1=0x%02x f2=0x%02x"
                " f3=0x%02x f4=0x%02x**\n", ret,
