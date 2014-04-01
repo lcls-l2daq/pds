@@ -6,7 +6,7 @@
 
 #include <exception>
 
-#define DBUG
+//#define DBUG
 
 namespace Pds {
   class EpicsFinder : public XtcIterator {
