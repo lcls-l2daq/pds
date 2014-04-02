@@ -24,7 +24,7 @@ using Pds_ConfigDb::ExptAlias;
 #include <iomanip>
 #include <sstream>
 
-#define DBUG
+//#define DBUG
 
 using std::hex;
 using std::setw;
@@ -32,12 +32,46 @@ using std::setfill;
 using std::ostringstream;
 
 static int _symlink(const char* dst, const char* src) {
+  
   int r = symlink(dst,src);
   if (r<0) {
     char buff[256];
     sprintf(buff,"symlink %s -> %s",src,dst);
     perror(buff);
   }
+#ifdef DBUG
+  printf("_symlink %s\n",dst);
+#endif
+  return r;
+}
+
+static int _unlink(const char* dst) {
+  int r = remove(dst);
+  if (r<0) {
+    char buff[256];
+    sprintf(buff,"remove %s",dst);
+    perror(buff);
+  }
+#ifdef DBUG
+  printf("_remove %s\n",dst);
+#endif
+  return r;
+}
+
+static int _mkdir(const char* dst, mode_t m) {
+  struct stat64 s;
+  if (stat64(dst,&s)==0 &&
+      S_ISDIR(s.st_mode)) return 0;
+  
+  int r = mkdir(dst,m);
+  if (r<0) {
+    char buff[256];
+    sprintf(buff,"mkdir %s",dst);
+    perror(buff);
+  }
+#ifdef DBUG
+  printf("_mkdir %s\n",dst);
+#endif
   return r;
 }
 
@@ -461,9 +495,10 @@ std::list<KeyEntry>  DbClient::getKey(unsigned key)
   glob_t g;
   glob(kpath.c_str(),0,0,&g);
   for(unsigned k=0; k<g.gl_pathc; k++) {
-    unsigned phy = strtoul(basename(g.gl_pathv[k]),NULL,16);
+    char* bname = basename(g.gl_pathv[k]);
+    unsigned phy = strtoul(bname,NULL,16);
     KeyEntry entry;
-    if (strlen(g.gl_pathv[k])==1) {
+    if (strlen(bname)==1) {
       entry.source = phy;
       entry.source <<= 56;
     }
@@ -509,8 +544,17 @@ int                  DbClient::setKey(const Key& key,
       hpath << g.gl_pathv[k] << "/[0-9]*";
       glob_t h;
       glob(hpath.str().c_str(),0,0,&h);
-      for(unsigned m=0; m<h.gl_pathc; m++)
-        unlink(h.gl_pathv[m]);
+      for(unsigned m=0; m<h.gl_pathc; m++) {
+	ostringstream qpath;
+	qpath << h.gl_pathv[m] << "/[0-9]*";
+	glob_t q;
+	glob(qpath.str().c_str(),0,0,&q);
+	for(unsigned n=0; n<q.gl_pathc; n++)
+	  _unlink(q.gl_pathv[n]);
+	globfree(&q);
+
+        _unlink(h.gl_pathv[m]);
+      }
       globfree(&h);
     }
     globfree(&g);
@@ -521,7 +565,10 @@ int                  DbClient::setKey(const Key& key,
   //  Create the key
   for(std::list<KeyEntry>::iterator it=entries.begin();
       it!=entries.end(); it++) {
-    mkdir((kpath+"/"+src_path(DeviceEntry(it->source))).c_str(),_fmode);
+#ifdef DBUG
+    printf("\t..%llx..%08x..%s\n",it->source,it->xtc.type_id.value(),it->xtc.name.c_str());
+#endif
+    _mkdir((kpath+"/"+src_path(DeviceEntry(it->source))).c_str(),_fmode);
 
     ostringstream lpath;
     lpath << kpath << "/" << src_path(DeviceEntry(it->source)) << "/"

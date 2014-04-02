@@ -147,7 +147,7 @@ namespace Pds {
     }
     void     disable() 
     {
-      printf("SimEvr stopping\n");
+      printf("SimEvr stopping [%d]\n",_count);
       _timer.cancel(); 
       printf("SimEvr stopped\n");
     }
@@ -198,11 +198,13 @@ namespace Pds {
 
     Transition* fire(Transition* tr) { 
       const EnableEnv& env = static_cast<const EnableEnv&>(tr->env());
-      _events = env.events();
       if (env.timer()) {
 	_done.set_duration_ms(env.duration());
 	_done.start();
+	_events = -1UL;
       }
+      else
+	_events = env.events();
       return tr; 
     }
     InDatagram* fire(InDatagram* tr) { 
