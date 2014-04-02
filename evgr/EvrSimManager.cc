@@ -201,7 +201,7 @@ namespace Pds {
       if (env.timer()) {
 	_done.set_duration_ms(env.duration());
 	_done.start();
-	_events = -1UL;
+	_events = 0;
       }
       else
 	_events = env.events();
