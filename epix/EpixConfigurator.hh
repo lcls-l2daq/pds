@@ -34,7 +34,7 @@ namespace Pds {
       PowerEnableAddr   = 0x8,
       PowerEnableValue  = 0x3,
       TotalPixelsAddr   = 0x27,
-      TotalPixels       = 0x8400,
+      PixelsPerBank     = 96,
       SaciClkBitAddr    = 0x28,
       SaciClkBitValue   = 0x4
     };
@@ -63,6 +63,7 @@ namespace Pds {
         void                 print();
         void                 dumpFrontEnd();
         void                 printMe();
+        void                 runTimeConfigName(char*);
         uint32_t             testModeState() { return _testModeState; };
         void                 resetFrontEnd();
         void                 resetSequenceCount();
@@ -88,6 +89,7 @@ namespace Pds {
         EpixConfigShadow*           _s;
         EpixDestination             _d;
         unsigned*                   _rhisto;
+        char                       _runTimeConfigFileName[256];
 //      LoopHisto*                _lhisto;
     };
 

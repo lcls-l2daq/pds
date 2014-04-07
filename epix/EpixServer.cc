@@ -63,6 +63,7 @@ EpixServer::EpixServer( const Pds::Src& client, unsigned configMask )
      _resetOnEveryConfig(false) {
   _histo = (unsigned*)calloc(sizeOfHisto, sizeof(unsigned));
   _task = new Pds::Task(Pds::TaskObject("EPIXprocessor"));
+  strcpy(_runTimeConfigName, "");
   instance(this);
   printf("EpixServer::EpixServer() payload(%u)\n", _payloadSize);
 }
@@ -72,6 +73,7 @@ unsigned EpixServer::configure(EpixConfigType* config, bool forceConfig) {
   if (_cnfgrtr == 0) {
     firstConfig = 1;
     _cnfgrtr = new Pds::Epix::EpixConfigurator::EpixConfigurator(fd(), _debug);
+    _cnfgrtr->runTimeConfigName(_runTimeConfigName);
     printf("EpixServer::configure making new configurator %p, firstConfig %u\n", _cnfgrtr, firstConfig);
   }
   _payloadSize = EpixDataType::_sizeof(*config);
@@ -164,6 +166,11 @@ void Pds::EpixServer::disable() {
   flushInputQueue(fd());
   if (usleep(10000)<0) perror("EpixServer::disable ulseep 1 failed\n");
   if (_debug & 0x20) printf("EpixServer::disable\n");
+}
+
+void Pds::EpixServer::runTimeConfigName(char* name) {
+  if (name) strcpy(_runTimeConfigName, name);
+  printf("Pds::EpixServer::runTimeConfigName(%s)\n", name);
 }
 
 unsigned Pds::EpixServer::unconfigure(void) {

@@ -81,6 +81,7 @@ class Pds::EpixServer
    void     process(char*);
    void     allocated();
    bool     resetOnEveryConfig() { return _resetOnEveryConfig; }
+   void     runTimeConfigName(char*);
    void     resetOnEveryConfig(bool r) { _resetOnEveryConfig = r; }
 
  public:

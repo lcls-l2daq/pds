@@ -155,6 +155,11 @@ void EpixConfigurator::printMe() {
   printf("\n");
 }
 
+void EpixConfigurator::runTimeConfigName(char* name) {
+  if (name) strcpy(_runTimeConfigFileName, name);
+  printf("EpixConfigurator::runTimeConfigName(%s)\n", name);
+}
+
 bool EpixConfigurator::_flush(unsigned index) {
   enum {numberOfTries=50};
   unsigned version = 0;
@@ -215,6 +220,7 @@ unsigned EpixConfigurator::configure( EpixConfigType* c, unsigned first) {
   if (printFlag) printf("\n\twriting ASIC regs");
   enableRunTrigger(false);
   ret |= writeASIC();
+  loadRunTimeConfigAdditions(_runTimeConfigFileName);
   enableRunTrigger(true);
   if (printFlag) {
     clock_gettime(CLOCK_REALTIME, &end);
@@ -233,11 +239,10 @@ unsigned EpixConfigurator::configure( EpixConfigType* c, unsigned first) {
   return ret;
 }
 
-static uint32_t FPGAregs[5][3] = {
+static uint32_t FPGAregs[3][3] = {
     {PowerEnableAddr, PowerEnableValue, 0},
     {SaciClkBitAddr, SaciClkBitValue, 0},
-    {TotalPixelsAddr, TotalPixels, 0},
-    {9, 0, 0},
+//    {9, 0, 0},
     {0,0,1}
 };
 
@@ -255,6 +260,10 @@ unsigned EpixConfigurator::writeConfig() {
       ret = Failure;
     }
     i+=1;
+  }
+  if (_pgp->writeRegister(&_d, TotalPixelsAddr, PixelsPerBank * _s->get(EpixConfigShadow::NumberOfRowsPerAsic))) {
+    printf("EpixConfigurator::writeConfig failed writing %s\n", "TotalPixelsAddr");
+    ret = Failure;
   }
   if (_debug&1) {
     printf("EpixConfigurator::writeConfig FPGA values:\n");
@@ -314,6 +323,14 @@ unsigned EpixConfigurator::checkWrittenConfig(bool writeBack) {
   return ret;
 }
 
+static uint32_t maskLineRegs[5][3] = {
+    {0x0,    0x0, 0},
+    {0x8000, 0x0, 0},
+    {0x6011, 0x0, 0},
+    {0x2000, 0x2, 0},
+    {0x0,    0x0, 1}
+};
+
 unsigned EpixConfigurator::writeASIC() {
   unsigned ret = Success;
   _d.dest(EpixDestination::Registers);
@@ -356,6 +373,15 @@ unsigned EpixConfigurator::writeASIC() {
           printf("EpixConfigurator::writeASIC failed on ASIC %u\n", index);
           ret |= Failure;
         }
+      }
+      unsigned j=0;
+      while ((ret == Success) && (maskLineRegs[j][2] == 0)) {
+        if (_debug & 1) printf("EpixConfigurator::writeConfig writing addr(0x%x) data(0x%x) FPGAregs[%u]\n", a+maskLineRegs[j][0], maskLineRegs[j][1], j);
+        if (_pgp->writeRegister(&_d, a+maskLineRegs[j][0], maskLineRegs[j][1])) {
+          printf("EpixConfigurator::writeConfig failed writing maskLineRegs[%u]\n", j);
+          ret = Failure;
+        }
+        j+=1;
       }
     }
   }
