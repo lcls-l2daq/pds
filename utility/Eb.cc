@@ -165,13 +165,18 @@ int Eb::processIo(Server* serverGeneric)
 
   _hits++;
 
+  static bool bBufferCorrupted = false;
+
   //  If we have overrun the event buffer, then the pool has been corrupted
   if (event->datagram()->xtc.extent + sizeof(Datagram) > _datagrams.sizeofObject()) {
     const char* msg = "EventBuilder overrun.  Restart DAQ to recover.";
     printf("%s\n",msg);
     _output.post(new(&_datagrams) UserMessage(msg));
-    abort();
+    bBufferCorrupted = true;
   }
+
+  if (bBufferCorrupted)
+    return 0;
 
   switch (_is_complete(event, serverId)) {
   case Complete:
