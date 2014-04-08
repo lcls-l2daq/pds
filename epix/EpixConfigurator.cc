@@ -377,9 +377,11 @@ unsigned EpixConfigurator::writeASIC() {
       unsigned j=0;
       while ((ret == Success) && (maskLineRegs[j][2] == 0)) {
         if (_debug & 1) printf("EpixConfigurator::writeConfig writing addr(0x%x) data(0x%x) FPGAregs[%u]\n", a+maskLineRegs[j][0], maskLineRegs[j][1], j);
-        if (_pgp->writeRegister(&_d, a+maskLineRegs[j][0], maskLineRegs[j][1])) {
-          printf("EpixConfigurator::writeConfig failed writing maskLineRegs[%u]\n", j);
-          ret = Failure;
+        for (unsigned i=0; (ret == Success) && (i<RepeatControlCount); i++) {
+          if (_pgp->writeRegister(&_d, a+maskLineRegs[j][0], maskLineRegs[j][1])) {
+            printf("EpixConfigurator::writeConfig failed writing maskLineRegs[%u]\n", j);
+            ret = Failure;
+          }
         }
         j+=1;
       }
