@@ -46,8 +46,8 @@ tgtnames :=
 ifneq ($(findstring x86_64,$(tgt_arch)),)
 tgtnames := pdvserialcmd pdvcamsend camreceiver
 else
-#tgtnames := camsend camreceiver serialcmd fccdcmd pdvserialcmd pdvcamsend camsendm
-tgtnames := camsend camreceiver serialcmd fccdcmd
+#tgtnames := camsend camreceiver serialcmd fccdcmd
+tgtnames := camsend serialcmd fccdcmd
 endif
 
 # ifeq ($(shell uname -m | egrep -c '(x86_|amd)64$$'),1)
