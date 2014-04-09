@@ -193,8 +193,8 @@ unsigned EpixConfigurator::configure( EpixConfigType* c, unsigned first) {
   printf(" config(%p) first(%u)\n", _config, first);
   unsigned ret = 0;
   clock_gettime(CLOCK_REALTIME, &start);
+  printf("EpixConfigurator::configure %sreseting front end\n", first ? "" : "not ");
   if (first) {
-    printf("EpixConfigurator::configure reseting front end\n");
     resetFrontEnd();
   }
   if (_flush()) {
@@ -239,10 +239,12 @@ unsigned EpixConfigurator::configure( EpixConfigType* c, unsigned first) {
   return ret;
 }
 
-static uint32_t FPGAregs[3][3] = {
+static uint32_t FPGAregs[6][3] = {
     {PowerEnableAddr, PowerEnableValue, 0},
     {SaciClkBitAddr, SaciClkBitValue, 0},
-//    {9, 0, 0},
+    {NumberClockTicksPerRunTriggerAddr, NumberClockTicksPerRunTrigger, 0},  // remove when in config
+    {EnableAutomaticRunTriggerAddr, 1, 0},  // remove when in config
+    {EnableAutomaticDaqTriggerAddr, 0, 0},
     {0,0,1}
 };
 
@@ -261,7 +263,7 @@ unsigned EpixConfigurator::writeConfig() {
     }
     i+=1;
   }
-  if (_pgp->writeRegister(&_d, TotalPixelsAddr, PixelsPerBank * _s->get(EpixConfigShadow::NumberOfRowsPerAsic))) {
+  if (_pgp->writeRegister(&_d, TotalPixelsAddr, PixelsPerBank * (_s->get(EpixConfigShadow::NumberOfRowsPerAsic)-1))) {
     printf("EpixConfigurator::writeConfig failed writing %s\n", "TotalPixelsAddr");
     ret = Failure;
   }

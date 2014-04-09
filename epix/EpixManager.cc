@@ -199,7 +199,7 @@ class EpixConfigAction : public Action {
       printf("EpixConfigAction::fire(Transition) fetched %d\n", i);
       _server->resetOffset();
       if (_cfg.scanning() == false) {
-        if ((_result = _server->configure( (EpixConfigType*)_cfg.current(), true))) {
+        if ((_result = _server->configure( (EpixConfigType*)_cfg.current()))) {
           printf("\nEpixConfigAction::fire(tr) failed configuration\n");
         };
         if (_server->debug() & 0x10) _cfg.printCurrent();
@@ -239,14 +239,8 @@ class EpixBeginCalibCycleAction : public Action {
         if (_cfg.changed()) {
           printf("configured and ");
           _server->offset(_server->offset()+_server->myCount()+1);
-          if (_server->resetOnEveryConfig()) {
-            printf("resetting");
-          }
-          else {
-            printf("not resetting");
-          }
           printf(" offset %u count %u\n", _server->offset(), _server->myCount());
-          if ((_result = _server->configure( (EpixConfigType*)_cfg.current(), (_server->offset() == 0)))) {
+          if ((_result = _server->configure( (EpixConfigType*)_cfg.current()))) {
             printf("\nEpixBeginCalibCycleAction::fire(tr) failed config\n");
           };
           if (_server->debug() & 0x10) _cfg.printCurrent();
