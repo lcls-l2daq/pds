@@ -17,6 +17,8 @@
 #include <stdlib.h>
 #include <math.h>
 
+//#define DBUG
+
 namespace Pds {
   namespace UsdUsb {
     class Reader : public Routine {
@@ -44,7 +46,7 @@ namespace Pds {
 	}
 	else {
 	  long nRecords = MAX_RECORDS;
-	  const int tmo = 100; // milliseconds
+          const int tmo = 100; // milliseconds
 	  int status = USB4_ReadFIFOBufferStruct(_dev, 
 						 &nRecords,
 						 _records,
@@ -209,27 +211,47 @@ namespace Pds {
 	else {
           _cfgtc.extent = sizeof(Xtc) + sizeof(UsdUsbConfigType);
 
+#ifdef DBUG
+#define USBDBUG1(func,arg0) {                    \
+            printf("%s: %d\n",#func,arg0);      \
+            USB4_##func(arg0); }
+
+#define USBDBUG2(func,arg0,arg1) {                   \
+            printf("%s: %d %d\n",#func,arg0,arg1);      \
+            USB4_##func(arg0,arg1); }
+
+#define USBDBUG3(func,arg0,arg1,arg2) {                          \
+            printf("%s: %d %d %d\n",#func,arg0,arg1,arg2);      \
+            _nerror += USB4_##func(arg0,arg1,arg2)!=USB4_SUCCESS; }
+#else
+#define USBDBUG1(func,arg0) USB4_##func(arg0)
+#define USBDBUG2(func,arg0,arg1) USB4_##func(arg0,arg1)
+#define USBDBUG3(func,arg0,arg1,arg2) _nerror += USB4_##func(arg0,arg1,arg2)!=USB4_SUCCESS
+#endif
+
 	  for(unsigned i=0; i<UsdUsbConfigType::NCHANNELS; i++) {
-	    _nerror += USB4_SetMultiplier    (_dev, i, (int)_config.quadrature_mode()[i]) != USB4_SUCCESS;
-	    _nerror += USB4_SetCounterMode   (_dev, i, (int)_config.counting_mode  ()[i]) != USB4_SUCCESS;
-	    _nerror += USB4_SetForward       (_dev, i, 0) != USB4_SUCCESS; // A/B assignment (normal)
-	    _nerror += USB4_SetCaptureEnabled(_dev, i, 1) != USB4_SUCCESS;
-	    _nerror += USB4_SetCounterEnabled(_dev, i, 1) != USB4_SUCCESS;
+	    USBDBUG3( SetMultiplier ,_dev, i, (int)_config.quadrature_mode()[i]);
+	    USBDBUG3( SetCounterMode,_dev, i, (int)_config.counting_mode  ()[i]);
+	    USBDBUG3( SetForward    ,_dev, i, 0); // A/B assignment (normal)
+	    USBDBUG3( SetCaptureEnabled,_dev, i, 1);
+	    USBDBUG3( SetCounterEnabled,_dev, i, 1);
 	  }
 
 	  // Clear the FIFO buffer
-	  USB4_ClearFIFOBuffer(_dev);
+          USBDBUG1(ClearFIFOBuffer,_dev);
 	
 	  // Enable the FIFO buffer
-	  USB4_EnableFIFOBuffer(_dev);
+	  USBDBUG1(EnableFIFOBuffer,_dev);
 	
 	  // Clear the captured status register
-	  USB4_ClearCapturedStatus(_dev, 0);
+	  USBDBUG2(ClearCapturedStatus,_dev, 0);
 
 	  static int DIN_CFG[] = { 0, 0, 0, 0, 0, 0, 0, 1 };
 	  USB4_SetDigitalInputTriggerConfig(_dev, DIN_CFG, DIN_CFG);
 
-	  USB4_ClearDigitalInputTriggerStatus(_dev);
+          USBDBUG1(ClearDigitalInputTriggerStatus,_dev);
+
+          printf("Configuration Done\n");
 
 	  _nerror = 0;  // override
 
