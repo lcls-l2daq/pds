@@ -11,16 +11,22 @@
 
 #define WORK_ARGV_MAXLEN  243
 
-#define DETECTOR_NAME_HW  "MX170HS"
-#define DETECTOR_NAME_SIM "Sim-MX170HS"
+#define DETECTOR_NAME_HW  ""
+// this will work also #define DETECTOR_NAME_HW  "Detector"
+#define DETECTOR_NAME_SIM "MX170HS-swsim"
 
-#define CONFIG_FILE_NAME  "RxDetector.conf"
+// #define CONFIG_FILE_NAME  "RxDetector.conf"
+// use default
+#define CONFIG_FILE_NAME  ""
 
 /* workCmd_t is used for both command and reply */
 typedef struct {
   int cmd;
   unsigned int epoch;
   int arg1;
+  int arg2;
+  int arg3;
+  int arg4;
   char argv[WORK_ARGV_MAXLEN+1];
 } workCmd_t;
 
@@ -29,6 +35,7 @@ typedef struct {
   int work_pipe_fd;     /* input */
   int control_pipe_fd;  /* output */
   sem_t *pConfigSem;    /* config and calib semaphore */
+  bool simFlag;
 } work_state_t;
 
 typedef struct {

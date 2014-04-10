@@ -11,6 +11,7 @@
 #define RNX_CMD_STAT        0x73746174
 #define RNX_CMD_RESET       0x72657365
 #define RNX_CMD_QUIT        0x71756974
+#define RNX_CMD_BULB        0x62756c62
 
 #define SUFFIX "\r\n"
 
@@ -19,6 +20,7 @@
 #define RNX_REPLY_OK        "250 OK" SUFFIX
 #define RNX_REPLY_HELO      "250 rnx v1" SUFFIX
 #define RNX_REPLY_QUIT      "221 rnx closing transmission channel" SUFFIX
+#define RNX_REPLY_BULB      "221 PulseBulb()" SUFFIX
 #define RNX_REPLY_NORECOG   "500 Syntax error, command unrecognized" SUFFIX
 #define RNX_REPLY_BADSEQ    "503 Bad sequence of commands" SUFFIX
 #define RNX_REPLY_LOG3      "253 rnx logging level 3 (Error)" SUFFIX
@@ -28,8 +30,8 @@
 #define RNX_REPLY_LOG7      "257 rnx logging level 7 (Debug)" SUFFIX
 #define RNX_REPLY_LOGINV    "502 rnx logging level invalid" SUFFIX
 #define RNX_REPLY_STATE1    "251 framesize=0 # Unconfigured" SUFFIX
-#define RNX_REPLY_STATE2    "252 framesize=%d;epoch=%d;deviceID=%s # Configured" SUFFIX
-#define RNX_REPLY_STATE3    "253 framesize=%d;epoch=%d;deviceID=%s # Enabled" SUFFIX
+#define RNX_REPLY_STATE2    "252 framesize=%d;epoch=%d;deviceID=%s;readoutMode=%d;testPattern=%d # Configured" SUFFIX
+#define RNX_REPLY_STATE3    "253 framesize=%d;epoch=%d;deviceID=%s;readoutMode=%d;testPattern=%d # Enabled" SUFFIX
 #define RNX_REPLY_STATEINV  "502 rnx state invalid" SUFFIX
 #define RNX_REPLY_NOTIMPL   "502 Command not implemented" SUFFIX
 
@@ -63,6 +65,8 @@
 static int _rnxState = RNX_STATE_UNCONFIGURED;
 static unsigned int _rnxEpoch = 0u;
 static int _framesize = 0u;
+static int _readoutMode = 0u;
+static int _testPattern = 0u;
 char       _deviceID[MAX_DEVICEID+1];
 static int _rnxLogLevel = 7;
 int _workPipeFd[2];
@@ -238,6 +242,8 @@ int main(int argc, char *argv[]) {
             _rnxState = RNX_STATE_CONFIGURED;
             INFO_LOG("state = RNX_STATE_CONFIGURED");
             _framesize = workReply.arg1;
+            _readoutMode = workReply.arg2;
+            _testPattern = workReply.arg3;
             strncpy(_deviceID, workReply.argv, MAX_DEVICEID);
             sprintf(lilbuf, "framesize=%d;epoch=%d;deviceID=%s", _framesize, _rnxEpoch, _deviceID);
             INFO_LOG(lilbuf);
@@ -284,6 +290,23 @@ int main(int argc, char *argv[]) {
           sprintf(outbuf, "%s", RNX_REPLY_QUIT);
           break;
 
+        case RNX_CMD_BULB:
+          if (_rnxState == RNX_STATE_ENABLED) {
+            /* sw trigger */
+            workCmd.cmd = RNX_WORK_SWTRIGGER;
+            workCmd.epoch = _rnxEpoch;
+            if (write(_workPipeFd[1], &workCmd, sizeof(workCmd)) == -1) {
+              perror("write");
+              ERROR_LOG("error writing to work pipe");
+            }
+            sprintf(outbuf, "%s", RNX_REPLY_BULB);
+            INFO_LOG("PulseBulb()");
+          } else {
+            sprintf(outbuf, "%s", RNX_REPLY_BADSEQ);
+            ERROR_LOG("bad sequence of commands: bulb while not RNX_STATE_ENABLED");
+          }
+          break;
+
         case RNX_CMD_HELLO:
           rnxReset(false);    /* reset state */
           sprintf(outbuf, "%s", RNX_REPLY_HELO);
@@ -301,7 +324,6 @@ int main(int argc, char *argv[]) {
               break;
             case RNX_STATE_UNCONFIGURED:
               workCmd.cmd = RNX_WORK_OPENDEV;
-              workCmd.arg1 = _simFlag ? 1 : 0;
               workCmd.epoch = _rnxEpoch;
               /* skip initial space char, if any */
               endptr = index(inbuf, ' ');
@@ -438,10 +460,10 @@ void rnxStateReply(char *buf)
   if (buf) {
     switch (_rnxState) {
       case 3:
-        sprintf(buf, RNX_REPLY_STATE3, _framesize, _rnxEpoch, _deviceID);
+        sprintf(buf, RNX_REPLY_STATE3, _framesize, _rnxEpoch, _deviceID, _readoutMode, _testPattern);
         break;
       case 2:
-        sprintf(buf, RNX_REPLY_STATE2, _framesize, _rnxEpoch, _deviceID);
+        sprintf(buf, RNX_REPLY_STATE2, _framesize, _rnxEpoch, _deviceID, _readoutMode, _testPattern);
         break;
       case 1:
         sprintf(buf, RNX_REPLY_STATE1);
@@ -485,6 +507,8 @@ void rnxReset(bool closeDevice)
 
   /* advance epoch counter (to detect replies from old commands) */
   _rnxEpoch++;
+  workCmd.cmd = RNX_WORK_CLOSEDEV;
+  workCmd.epoch = _rnxEpoch;
 
   if (_rnxState == RNX_STATE_ENABLED) {
     /* end acquisition */
@@ -498,8 +522,6 @@ void rnxReset(bool closeDevice)
 
   if (closeDevice) {
     /* close device */
-    workCmd.cmd = RNX_WORK_CLOSEDEV;
-    workCmd.epoch = _rnxEpoch;
     if (write(_workPipeFd[1], &workCmd, sizeof(workCmd)) == -1) {
       perror("write");
       ERROR_LOG("error writing to work pipe");
@@ -507,6 +529,8 @@ void rnxReset(bool closeDevice)
       printf("%s: sent RNX_WORK_CLOSEDEV to work thread (epoch=%d)\n", __FUNCTION__, workCmd.epoch);
     }
   }
+
+  /* TODO more may be needed */
 
   if (_rnxState != RNX_STATE_UNCONFIGURED) {
     _rnxState = RNX_STATE_UNCONFIGURED;
@@ -542,12 +566,14 @@ int create_threads(bool singleWorker)
   workState[0]->work_pipe_fd = _workPipeFd[0];
   workState[0]->control_pipe_fd = _controlPipeFd[1];
   workState[0]->pConfigSem = &configSem;
+  workState[0]->simFlag = _simFlag;
 
   workState[1] = (work_state_t *)malloc(sizeof(work_state_t));
   workState[1]->task_id = 1;
   workState[1]->work_pipe_fd = _workPipeFd[0];
   workState[1]->control_pipe_fd = _controlPipeFd[1];
   workState[1]->pConfigSem = &configSem;
+  workState[1]->simFlag = _simFlag;
 
   triggerState = (trigger_state_t *)malloc(sizeof(trigger_state_t));
   triggerState->task_id = 2;

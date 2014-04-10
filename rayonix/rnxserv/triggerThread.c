@@ -43,7 +43,7 @@ void *triggerRoutine(void *arg)
       break;
   }
   sprintf(msg, "trigger thread #%d started in mode %d (%s)", tid, mode, modeString);
-  DEBUG_LOG(msg);
+  INFO_LOG(msg);
 
   switch (mode) {
     case RNX_TRIGGER_MODE_TIMER:
@@ -51,7 +51,7 @@ void *triggerRoutine(void *arg)
         if (rnxState() == RNX_STATE_ENABLED) {
           if (write(myState->write_pipe_fd, &workCmd, sizeof(workCmd)) == -1) {
             perror("write");
-            DEBUG_LOG("write failed");
+            INFO_LOG("write failed");
           }
         }
         sleep(1);
@@ -75,7 +75,7 @@ void *triggerRoutine(void *arg)
         if (rnxState() == RNX_STATE_ENABLED) {
           if (write(myState->write_pipe_fd, &workCmd, sizeof(workCmd)) == -1) {
             perror("write");
-            DEBUG_LOG("write failed");
+            INFO_LOG("write failed");
           }
         }
       }
