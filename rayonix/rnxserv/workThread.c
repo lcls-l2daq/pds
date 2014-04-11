@@ -75,25 +75,6 @@ class FrameHandlerCB : public VirtualFrameCallback
       void ReadoutStarted(int frame_number) {RxLog(LOG_DEBUG) << "CB: Readout " << frame_number << " started." << std::endl;}
       void ReadoutEnded(int frame_number) {RxLog(LOG_DEBUG) << "CB: Readout " << frame_number << " ended." << std::endl;}
       void BackgroundFrameReady(const RxFrame *frame_p) { RxLog(LOG_DEBUG) << "CB: Background Frame " << " buffer address: " << frame_p->getBufferAddress() << std::endl; }
-#if 0
-      void RawFrameReady(int frame_number, const RxFrame *frame_p)
-      { 
-         RxLog(LOG_VERBOSE) << "CB: Raw Frame " << frame_number << " ready. (" << frame_p->getNFast() << "x" <<frame_p->getNSlow() << "x" << frame_p->getDepth() << ") at " <<    frame_p->getBufferAddress() << ")" << std::endl;
-         RxLog(LOG_VERBOSE) << "CB: Raw Frame " << frame_number << " Timestamp: " << frame_p->constMetaData().HardwareTimestamp() << std::endl;
-
-         return;
-      }
-
-      void FrameReady(int frame_number, const RxFrame *frame_p)
-      {
-
-         RxLog(LOG_VERBOSE) << "CB: Frame " << frame_number << " ready. (" << frame_p->getNFast() << "x" <<frame_p->getNSlow() << "x" << frame_p->getDepth() << ") at " <<    frame_p->getBufferAddress() << ")" << std::endl;
-         RxLog(LOG_VERBOSE) << "CB: Frame " << frame_number << " size is " << frame_p->getSize() << std::endl;
-         RxLog(LOG_VERBOSE) << "CB: Frame " << frame_number << " Timestamp: " << frame_p->constMetaData().HardwareTimestamp() << std::endl;
-
-         return;
-      }
-#else
 
       void RawFrameReady(int frame_number, const RxFrame *frame_p)
       {
@@ -118,14 +99,15 @@ class FrameHandlerCB : public VirtualFrameCallback
            boost::posix_time::time_duration duration( ppp.time_of_day() );
            unsigned short timeStamp = duration.total_milliseconds() % 0xffff;
 
-           printf("%s: Frame #%d  size=%u  timestamp=%hu ms\n", __FUNCTION__, frame_number, (unsigned)frame_p->getSize(), timeStamp);
+           if (_verbose) {
+             printf("%s: Frame #%d  size=%u  timestamp=%hu ms\n", __FUNCTION__, frame_number, (unsigned)frame_p->getSize(), timeStamp);
+           }
 
            sendFrame(frame_number, timeStamp, (uint16_t *)(frame_p->getBufferAddress()));
          }
          return;
       }
 
-#endif
       void FrameAborted(int frame_number) {RxLog(LOG_WARNING) << "CB: Frame " << frame_number << " aborted." << std::endl;}
       void FrameCompleted(int frame_number) {RxLog(LOG_DEBUG) << "CB: Frame " << frame_number << " completed." << std::endl;}
       void FrameError(int frame_number, const int error_code, const std::string& error_string) {RxLog(LOG_ERROR) << "CB: Frame " << frame_number << " reported error " << error_code << ":" << error_string << std::endl;}
@@ -275,7 +257,6 @@ void *workRoutine(void *arg)
         snprintf(logbuf, sizeof(logbuf), "%s: Opened device %s", __FUNCTION__, simFlag ? DETECTOR_NAME_SIM : DETECTOR_NAME_HW);
         printf("%s\n", logbuf);
         INFO_LOG(logbuf);
-        craydl::Log::IncrementReportingLevel(1);
         if (_verbose) {
           craydl::Log::IncrementReportingLevel(1);
           printf("** verbose **\n");
@@ -1000,8 +981,7 @@ int sendFrame(int frame_number, uint16_t timeStamp, uint16_t *frame)
 
   /* send lines */
   sprintf(logbuf, "Send frame #%d lines...\n", frameNumber);
-  // DEBUG_LOG(logbuf);
-  INFO_LOG(logbuf);
+  DEBUG_LOG(logbuf);
   writeSize = (MAX_LINE_PIXELS * 2) + sizeof(data_footer_t);
   for (jj = 0; jj < MAX_LINE_PIXELS/_binning_s; jj += _binning_s) {
 
