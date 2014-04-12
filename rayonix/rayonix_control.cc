@@ -39,9 +39,14 @@ rayonix_control::~rayonix_control()
 {
 }
 
+/*
+ * connect -
+ *
+ * RETURNS: -1 on error, otherwise 0.
+ */
 int rayonix_control::connect()
 {
-  int rv = 0;
+  int rv = -1;
   int fd = -1;
 
   if (_verbose) {
@@ -66,9 +71,11 @@ int rayonix_control::connect()
     if (_verbose && lilbuf[0]) {
       printf("Reply to hello: %s\n", lilbuf);
     }
+    // FIXME check for valid reply
 
     _control_fd = fd;
     _connected = true;
+    rv = 0;   /* OK */
   }
 
   return (rv);
