@@ -97,13 +97,20 @@ unsigned Pds::RayonixServer::configure(RayonixConfigType& config)
 
   if (_rnxctrl) {
     do {
-       printf("Calling _rnxctrl->connect()...\n");
-      _rnxctrl->connect();
+      printf("Calling _rnxctrl->connect()... ");
+      if (_rnxctrl->connect() == 0) {
+        printf("done.\n");
+      } else {
+        printf("failed.");
+        _occSend->userMessage("Rayonix: _rnxctrl->connect() failed.\n");
+        break;      /* ERROR */
+      }
       status = _rnxctrl->status();
       if (status == Pds::rayonix_control::Unconfigured) {
         if (_rnxctrl->config(binning_f, binning_s, exposure, rawMode, readoutMode, trigger,
                              testPattern, darkFlag, deviceBuf)) {
           printf("ERROR: _rnxctrl->config() failed\n");
+          _occSend->userMessage("Rayonix: _rnxctrl->config() failed.\n");
           break;    /* ERROR */
         } else {
           status = _rnxctrl->status();
