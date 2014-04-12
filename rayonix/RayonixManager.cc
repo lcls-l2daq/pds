@@ -121,11 +121,11 @@ public:
                            &_config,
                            sizeof(_config) );
    if (len <= 0) {
-      printf("RayonixConfigAction: failed to retrieve configuration "
-             ": (%d)  %s.  Applying default. \n",
-             errno,
-             strerror(errno) );
-      _occSend->userMessage("Rayonix: failed to retrieve configuration. \n");
+      fprintf(stderr, "RayonixConfigAction: failed to retrieve configuration.\n");
+      if (errno) {
+        perror("fetch");
+      }
+      _occSend->userMessage("Rayonix: failed to retrieve configuration.\n");
       _nerror += 1;
    }
    else {
