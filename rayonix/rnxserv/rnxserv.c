@@ -84,6 +84,14 @@ int frameCountInit();
 int frameCountGet();
 int configSemInit();
 
+void usage(const char *name)
+{
+  printf("Usage: %s [OPTIONS]\n\n", name);
+  printf("OPTIONS:\n");
+  printf("  -s         Use simulator\n");
+  printf("  -v         Be verbose (may be repeated)\n");
+}
+
 int main(int argc, char *argv[]) {
   int       list_s;                /*  listening socket          */
   int       conn_s;                /*  connection socket         */
@@ -102,6 +110,7 @@ int main(int argc, char *argv[]) {
   workCmd_t workReply;
   bool      singleWorker = false;
   bool helpFlag = false;
+  bool errorFlag = false;
 //char *endPtr;
 //extern char* optarg;
 
@@ -110,19 +119,41 @@ int main(int argc, char *argv[]) {
     switch(c) {
       case 'h':
         helpFlag = true;
-        printf("%s: use -s for simulator\n", argv[0]);
-        exit(0);
+        break;
       case 'v':
         ++_verbosity;
         break;
       case 's':
         _simFlag = true;
         break;
-      }
-   }
+      default:
+        errorFlag = true;
+        break;
+    }
+  }
+
+  if (helpFlag) {
+    usage(argv[0]);
+    exit(0);
+  }
+
+  if (errorFlag) {
+    usage(argv[0]);
+    exit(1);
+  }
 
   /* init logging */
-  rnxlogInit(7, argv[0]);	/* 7=DEBUG */
+  switch (_verbosity) {
+    case 0:
+      rnxlogInit(LEVEL_NOTICE, argv[0]);
+      break;
+    case 1:
+      rnxlogInit(LEVEL_INFO, argv[0]);
+      break;
+    default:
+      rnxlogInit(LEVEL_DEBUG, argv[0]);
+      break;
+  }
 
   /* advertize simulation mode */
   if (_simFlag) {
@@ -351,7 +382,7 @@ int main(int argc, char *argv[]) {
           if (_rnxState != RNX_STATE_CONFIGURED) {
             sprintf(outbuf, "%s", RNX_REPLY_BADSEQ);
             if (_rnxState == RNX_STATE_ENABLED) {
-              ERROR_LOG("bad sequence of commands: calib while not RNX_STATE_ENABLED");
+              ERROR_LOG("bad sequence of commands: calib while RNX_STATE_ENABLED");
             } else {
               ERROR_LOG("bad sequence of commands: calib while RNX_STATE_UNCONFIGURED");
             }
