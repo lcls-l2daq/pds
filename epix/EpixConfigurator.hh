@@ -43,6 +43,11 @@ namespace Pds {
       EnableAutomaticRunTriggerAddr     = 0x11,  // add to config
       NumberClockTicksPerRunTriggerAddr = 0x12,
       NumberClockTicksPerRunTrigger     = 0xFE503, // 120 Hz  add to config
+                                        // 0x1fca05 // 60 Hz
+                                        // 0x3f940b // 30 Hz
+                                        // 0xbebc20 // 10 Hz
+                                        //0x17d7840 //  5 Hz
+                                        //0x7735940 //  1 Hz
       EnableAutomaticDaqTriggerAddr     = 0x13  // do not add to config
     };
 
