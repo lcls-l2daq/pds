@@ -25,7 +25,7 @@ namespace Pds {
     //offset shift mask default readOnly
         {  0, 0, 0xffffffff, 0,      1},    //  Version,
         {  1, 0, 0xffffffff, 0,      0},    //  RunTrigDelay,
-        {  2, 0, 0xffffffff, 0,      0},    //  DaqTrigDelay,
+        {  2, 0, 0xffffffff, 0x4e2,  2},    //  DaqTrigDelay,
         {  3, 0, 0xffffffff, 0x4e20, 0},    //  DacSetting,
         //  pin states(4) and controls(5)
         {  4, 0, 1, 1, 0},    //  asicGR,
@@ -170,6 +170,9 @@ namespace Pds {
         case NumberOfAsicsPerColumn :
           ret = 2;
           break;
+        case DaqTrigDelay :
+          ret = 1250;
+          break;
         default:
           break;
       }
@@ -187,6 +190,9 @@ namespace Pds {
         case NumberOfAsicsPerRow :
         case NumberOfAsicsPerColumn :
           ret = 2;
+          break;
+        case DaqTrigDelay :
+          ret = 1250;
           break;
         default:
           break;

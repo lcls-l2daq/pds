@@ -29,7 +29,7 @@ class EpixDestination;
 static uint32_t configAddrs[EpixConfigShadow::NumberOfValues][2] = {
     {0x00,  1}, //  version
     {0x02,  0}, //  RunTrigDelay
-    {0x04,  0}, //  DaqTrigDelay
+    {0x04,  2}, //  DaqTrigDelay
     {0x07,  0}, //  DacSetting
     {0x29,  0}, //  AsicPins
     {0x2a,  0}, //  AsicPinControl
@@ -287,6 +287,10 @@ unsigned EpixConfigurator::writeConfig() {
         ret |= Failure;
       }
       if (_debug & 1) printf(" data(0x%x) configValue[%u]\n", u[i], i);
+    }
+    if (_pgp->writeRegister(&_d, DaqTrigggerDelayAddr, RunToDaqTriggerDelay+_s->get(EpixConfigShadow::RunTrigDelay))) {
+      printf("EpixConfigurator::writeConfig failed writing DaqTrigggerDelay\n");
+      ret = Failure;
     }
     microSpin(100);
   }

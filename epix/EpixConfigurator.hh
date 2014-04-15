@@ -48,7 +48,9 @@ namespace Pds {
                                         // 0xbebc20 // 10 Hz
                                         //0x17d7840 //  5 Hz
                                         //0x7735940 //  1 Hz
-      EnableAutomaticDaqTriggerAddr     = 0x13  // do not add to config
+      EnableAutomaticDaqTriggerAddr     = 0x13,  // do not add to config
+      DaqTrigggerDelayAddr              = 0x4,
+      RunToDaqTriggerDelay              = 1250
     };
 
     enum asicControlAddrs {
