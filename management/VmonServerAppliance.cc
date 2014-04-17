@@ -34,7 +34,7 @@ VmonServerAppliance::VmonServerAppliance(const Src& src,
     }
     else {
       const ProcInfo& info = static_cast<const ProcInfo&>(src);
-      sprintf(buff,"%10.10s[%d.%d.%d.%d : %d]",
+      sprintf(buff,"%s[%d.%d.%d.%d : %d]",
               Level::name(info.level()),
               (info.ipAddr()>>24)&0xff,
               (info.ipAddr()>>16)&0xff,
