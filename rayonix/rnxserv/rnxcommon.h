@@ -14,6 +14,7 @@ int frameCountReset();
 #define RNX_WORK_STARTACQ     22
 #define RNX_WORK_ENDACQ       23
 #define RNX_WORK_SWTRIGGER    24
+#define RNX_WORK_DARK         25
 
 #define RNX_BINNING_MIN       2
 #define RNX_BINNING_MAX       10

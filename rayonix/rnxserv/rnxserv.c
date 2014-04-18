@@ -2,7 +2,7 @@
 #define RNX_CMD_NOOP        0x6e6f6f70
 #define RNX_CMD_HELLO       0x68656c6c
 #define RNX_CMD_CONFIG      0x636f6e66
-#define RNX_CMD_CALIB       0x63616c69
+#define RNX_CMD_DARK        0x6461726b
 #define RNX_CMD_ENABLE      0x656e6162
 #define RNX_CMD_DISABLE     0x64697361
 #define RNX_CMD_QUIT        0x71756974
@@ -71,7 +71,7 @@ char       _deviceID[MAX_DEVICEID+1];
 static int _rnxLogLevel = 7;
 int _workPipeFd[2];
 int _controlPipeFd[2];
-static sem_t configSem;       /* semaphore protects config and calib operations */
+static sem_t configSem;       /* semaphore protects config operations */
 static unsigned _verbosity = 0;
 static bool _simFlag = false;
 
@@ -287,6 +287,14 @@ int main(int argc, char *argv[]) {
             ERROR_LOG("config error - calling rnxReset()");
             rnxReset(false);
             break;
+          case 12: /* dark ok */
+            Writeline(conn_s, RNX_REPLY_OK, strlen(RNX_REPLY_OK));
+            INFO_LOG("dark OK");
+            break;
+          case 15: /* dark error */
+            Writeline(conn_s, RNX_REPLY_FAILED, strlen(RNX_REPLY_FAILED));
+            ERROR_LOG("dark error");
+            break;
           default:
             sprintf(lilbuf, "received unknown workReply = %d\n", workReply.cmd);
             ERROR_LOG(lilbuf);
@@ -378,17 +386,25 @@ int main(int argc, char *argv[]) {
           }
           break;
 
-        case RNX_CMD_CALIB:
-          if (_rnxState != RNX_STATE_CONFIGURED) {
+        case RNX_CMD_DARK:
+          if (_rnxState == RNX_STATE_CONFIGURED) {
+            /* start acquisition */
+            workCmd.cmd = RNX_WORK_DARK;
+            workCmd.epoch = _rnxEpoch;
+            if (write(_workPipeFd[1], &workCmd, sizeof(workCmd)) == -1) {
+              perror("write");
+              ERROR_LOG("error writing to work pipe");
+            }
+            /* reply will come via controlPipe */
+            outbuf[0] = '\0'; /* no reply */
+          } else {
+            /* ERROR reply (bad sequence) */
             sprintf(outbuf, "%s", RNX_REPLY_BADSEQ);
             if (_rnxState == RNX_STATE_ENABLED) {
-              ERROR_LOG("bad sequence of commands: calib while RNX_STATE_ENABLED");
+              ERROR_LOG("bad sequence of commands: dark while RNX_STATE_ENABLED");
             } else {
-              ERROR_LOG("bad sequence of commands: calib while RNX_STATE_UNCONFIGURED");
+              ERROR_LOG("bad sequence of commands: dark while RNX_STATE_UNCONFIGURED");
             }
-          } else {
-            /* TODO calibrate */
-            sprintf(outbuf, "%s", RNX_REPLY_OK);
           }
           break;
 

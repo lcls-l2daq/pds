@@ -34,11 +34,14 @@ static int _testPattern = 0;
 static bool _rawFlag = false;
 static bool _darkFlag = false;
 static craydl::ReadoutMode_t  _readoutMode = craydl::ReadoutModeStandard;
-static bool _verbose = false;    // FIXME command line parameter
+static bool _verbose = true;    // FIXME command line parameter
 static bool _error = false;
+static int backgroundFrameCount = 0;
+static int savedFrameCount = 0;
 
 // forward declaration
 int sendFrame(int frameNumber, uint16_t timeStamp, uint16_t *frame);
+void millisleep(int milliseconds);
 
 static void die(int tid)
 {
@@ -74,7 +77,15 @@ class FrameHandlerCB : public VirtualFrameCallback
       void ExposureEnded(int frame_number) {RxLog(LOG_DEBUG) << "CB: Exposure " << frame_number << " ended." << std::endl;}
       void ReadoutStarted(int frame_number) {RxLog(LOG_DEBUG) << "CB: Readout " << frame_number << " started." << std::endl;}
       void ReadoutEnded(int frame_number) {RxLog(LOG_DEBUG) << "CB: Readout " << frame_number << " ended." << std::endl;}
-      void BackgroundFrameReady(const RxFrame *frame_p) { RxLog(LOG_DEBUG) << "CB: Background Frame " << " buffer address: " << frame_p->getBufferAddress() << std::endl; }
+
+      void BackgroundFrameReady(const RxFrame *frame_p)
+      {
+        RxLog(LOG_DEBUG) << "CB: Background Frame " << " buffer address: " << frame_p->getBufferAddress() << std::endl;
+        if (_verbose) {
+          printf("%s: Background Frame\n", __FUNCTION__);
+        }
+        ++backgroundFrameCount;
+      }
 
       void RawFrameReady(int frame_number, const RxFrame *frame_p)
       {
@@ -193,6 +204,7 @@ void *workRoutine(void *arg)
   uint16_t *linebuf = (tid == 0) ? linebuf0 : linebuf1;
   int writeSize, sent;
   RxReturnStatus error;
+  int kk;
 
   sprintf(logbuf, "Thread #%d started", tid);
   DEBUG_LOG(logbuf);
@@ -312,6 +324,9 @@ void *workRoutine(void *arg)
         case  RNX_WORK_SWTRIGGER:
           sprintf(logbuf2, "Thread #%d: SWTRIGGER\n", tid);
           break;
+        case  RNX_WORK_DARK:
+          sprintf(logbuf2, "Thread #%d: DARK\n", tid);
+          break;
         default:
           sprintf(logbuf2, "Thread #%d: cmd=%d arg1=%d arg2=%d arg3=%d arg4=%d epoch=%u\n", tid,
                   workCommand.cmd, workCommand.arg1, workCommand.arg2, workCommand.arg3, workCommand.arg4, workCommand.epoch);
@@ -336,6 +351,7 @@ void *workRoutine(void *arg)
       int triggerMode = 0;      // FIXME default trigger mode (0=hw, 1=sw)
       int fast, slow, depth;
       int errorCount = 0;
+      double maxTemperature;
       if (_verbose) {
         printf(" ** workCommand.cmd == RNX_WORK_OPENDEV **\n");
       }
@@ -395,6 +411,12 @@ void *workRoutine(void *arg)
             printf("%s\n", logbuf);
             INFO_LOG(logbuf);
           }
+
+          /* read temperatures */
+          maxTemperature = pDetector->SensorTemperatureMax();
+          sprintf(logbuf, "Max Rayonix temperature: %5.5g C", maxTemperature);
+          printf("==== %s ====\n", logbuf);
+          INFO_LOG(logbuf);
 
           /* set exposure */
           _exposure = exposure_ms / 1000.0;
@@ -458,15 +480,23 @@ void *workRoutine(void *arg)
             INFO_LOG(logbuf);
           }
 
-          pDetector->SetFrameTriggerMode(FrameTriggerType(FrameTriggerTypeFrame));
-          pDetector->SetSequenceGate("None");
-          pDetector->SetSequenceGateSignalType("None");
+//        pDetector->SetFrameTriggerMode(FrameTriggerType(FrameTriggerTypeFrame));
+          // TRIGGER MODE
           switch (triggerMode) {
-            // Important for frame transfer mode: exposure and interval time both set to 0.0
             case 1:
-              // software trigger
-              INFO_LOG("Trigger Mode 1: software");
-              pDetector->SetFrameTriggerSignalType(DigitalIOSignalType(DigitalIOSignalTypeSoftware));
+              // bulb mode: exposure determined by pulse width
+              INFO_LOG("Trigger Mode 1: bulb");
+              error = pDetector->SetFrameTriggerMode(FrameTriggerType(FrameTriggerTypeBulb));
+              if (error.IsError()) {
+                sprintf(logbuf, "Error: SetFrameTriggerMode(FrameTriggerType(FrameTriggerTypeBulb)) failed");
+                printf("%s\n", logbuf);
+                ERROR_LOG(logbuf);
+                errorCount++;
+              } else {
+                sprintf(logbuf, "SetFrameTriggerMode(FrameTriggerType(FrameTriggerTypeBulb)) done");
+                printf("%s\n", logbuf);
+                INFO_LOG(logbuf);
+              }
               break;
             default:
               sprintf(logbuf, "Warning: Trigger mode %d not supported", triggerMode);
@@ -474,11 +504,28 @@ void *workRoutine(void *arg)
               WARNING_LOG(logbuf);
               /* fall through */
             case 0:
-              // hardware trigger
-              INFO_LOG("Trigger Mode 0: hardware");
-              pDetector->SetFrameTriggerSignalType(DigitalIOSignalType(DigitalIOSignalTypeOpto));
+              // true frame transfer mode: continuous exposure
+              // Important for frame transfer mode: exposure and interval time both set to 0.0
+              INFO_LOG("Trigger Mode 0: true frame transfer");
+              error = pDetector->SetFrameTriggerMode(FrameTriggerType(FrameTriggerTypeFrame));
+              if (error.IsError()) {
+                sprintf(logbuf, "Error: SetFrameTriggerMode(FrameTriggerType(FrameTriggerTypeFrame)) failed");
+                printf("%s\n", logbuf);
+                ERROR_LOG(logbuf);
+                errorCount++;
+              } else {
+                sprintf(logbuf, "SetFrameTriggerMode(FrameTriggerType(FrameTriggerTypeFrame)) done");
+                printf("%s\n", logbuf);
+                INFO_LOG(logbuf);
+              }
               break;
           }
+          pDetector->SetSequenceGate("None");
+          pDetector->SetSequenceGateSignalType("None");
+
+              INFO_LOG("DigitalIOSignalTypeOpto");
+              pDetector->SetFrameTriggerSignalType(DigitalIOSignalType(DigitalIOSignalTypeOpto));
+
           error = pDetector->SetReadoutMode(craydl::ReadoutMode(_readoutMode));
           if (error.IsError()) {
             sprintf(logbuf, "Error: SetReadoutMode(%d) failed", (int) _readoutMode);
@@ -542,6 +589,24 @@ void *workRoutine(void *arg)
             sprintf(logbuf, "SendParameters() done");
             printf("%s\n", logbuf);
             INFO_LOG(logbuf);
+          }
+
+          if (pFrameCallback) {
+            /* set callbacks */
+            error = pDetector->SetAcquisitionUserCB(pFrameCallback);
+            if (error.IsError()) {
+              sprintf(logbuf, "Error: SetAcquisitionUserCB() failed");
+              printf("%s\n", logbuf);
+              ERROR_LOG(logbuf);
+            } else {
+              sprintf(logbuf, "SetAcquisitionUserCB() done");
+              printf("%s\n", logbuf);
+              INFO_LOG(logbuf);
+            }
+          } else {
+            sprintf(logbuf, "Error: pFrameCallback is NULL");
+            printf("%s\n", logbuf);
+            ERROR_LOG(logbuf);
           }
         }
 
@@ -720,16 +785,6 @@ void *workRoutine(void *arg)
 //      error = pDetector->SetBinning(binning_f);
 
         frame_type = _darkFlag ? FrameAcquisitionTypeDark : FrameAcquisitionTypeLight;
-        error = pDetector->SetAcquisitionUserCB(pFrameCallback);    // only needed once
-        if (error.IsError()) {
-          sprintf(logbuf, "Error: SetAcquisitionUserCB() failed");
-          printf("%s\n", logbuf);
-          ERROR_LOG(logbuf);
-        } else {
-          sprintf(logbuf, "SetAcquisitionUserCB() done");
-          printf("%s\n", logbuf);
-          INFO_LOG(logbuf);
-        }
         error = pDetector->SetupAcquisitionSequence(n_frames);
         if (error.IsError()) {
           sprintf(logbuf, "Error: SetupAcquisitionSequence(%d) failed", n_frames);
@@ -824,6 +879,49 @@ void *workRoutine(void *arg)
         }
       } else {
         ERROR_LOG("RNX_WORK_SWTRIGGER ignored - device not open");
+      }
+
+      continue;
+    }
+
+    if (workCommand.cmd == RNX_WORK_DARK) {
+
+      if (pDetector) {
+
+        INFO_LOG("DARK");
+
+        workReply.cmd = 15; /* 15 = dark error */
+        workReply.arg1 = workReply.arg2 = workReply.arg3 = workReply.arg4 = 0;
+
+        savedFrameCount = backgroundFrameCount;     /* remember count before request */
+        error = pDetector->AcquireNewBackground();  /* make request */
+        if (error.IsError()) {
+          sprintf(logbuf, "Error: AcquireNewBackground() failed");
+          printf("%s\n", logbuf);
+          ERROR_LOG(logbuf);
+        } else {
+          /* wait up to two seconds for background frame counter to change */
+          for (kk = 0; kk < 40; kk++) {
+            millisleep(50);
+            if (savedFrameCount != backgroundFrameCount) {
+              workReply.cmd = 12; /* 12 = dark ok */
+              sprintf(logbuf, "new background frame confirmed (delay = 50ms * %d, background frame counter = %d)", kk, backgroundFrameCount);
+              printf("%s\n", logbuf);
+              INFO_LOG(logbuf);
+              break;
+            }
+          }
+          if (workReply.cmd != 12) {
+            sprintf(logbuf, "Error: timed out waiting for background frame (savedFrameCount=%d)", savedFrameCount);
+            printf("%s\n", logbuf);
+            ERROR_LOG(logbuf);
+          }
+        }
+
+        sendWorkCommand(myState, &workReply);
+
+      } else {
+        ERROR_LOG("RNX_WORK_DARK ignored - device not open");
       }
 
       continue;
@@ -1038,3 +1136,15 @@ int sendFrame(int frame_number, uint16_t timeStamp, uint16_t *frame)
   }
   return (0);
 }
+
+#include <time.h>
+
+void millisleep(int milliseconds)
+{
+  struct timespec delay;
+
+  delay.tv_sec = 0;
+  delay.tv_nsec = milliseconds * 1000000;
+  nanosleep(&delay, NULL);
+}
+
