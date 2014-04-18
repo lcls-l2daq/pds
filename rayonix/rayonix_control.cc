@@ -131,17 +131,28 @@ int rayonix_control::config(int binning_f, int binning_s, int exposure, int rawM
   return (rv);
 }
 
-int rayonix_control::calib()
+int rayonix_control::dark()
 {
-  int rv = 0;
+  int rv = 1;   /* return error by default */
 
   if (_verbose) {
     printf(" *** entered %s\n", __PRETTY_FUNCTION__);
   }
 
   if (_connected && (_control_fd > 0)) {
-    if (_verbose) {
-      printf("     %s not implemented\n", __FUNCTION__);
+    char lilbuf[256];
+
+    // send "dark"
+    Writeline(_control_fd, "dark\n", 5);
+
+    // read reply
+    lilbuf[0] = '\0';
+    Readline(_control_fd, lilbuf, sizeof(lilbuf)-1);
+    if (_verbose && lilbuf[0]) {
+      printf("Reply to dark: %s\n", lilbuf);
+    }
+    if (lilbuf[0] == '2') {
+      rv = 0;   /* return OK */
     }
   } else {
     printf("Error: called %s while unconnected\n", __FUNCTION__);

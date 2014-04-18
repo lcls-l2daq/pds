@@ -137,6 +137,18 @@ unsigned Pds::RayonixServer::configure(RayonixConfigType& config)
              printf("trigger:   0x%x\n", trigger);
           }
         }
+
+        // If darkFlag is set, acquire dark frames
+        if (_darkFlag == 1) {
+          printf("Calling _rnxctrl->dark()...\n");
+          if (_rnxctrl->dark()) {
+            printf("ERROR:  _rnxctrl->dark() failed\n");
+            _occSend->userMessage("Rayonix: _rnxctrl->dark() failed.\n");
+          } else {
+            printf("_rnxctrl->dark() succeeded.\n");
+          }
+        }
+
         printf("Calling _rnxctrl->enable()...\n");
         if (_rnxctrl->enable()) {
            printf("ERROR: _rnxctrl->enable() failed (status==%d)\n", _rnxctrl->status());

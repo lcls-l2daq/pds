@@ -24,7 +24,7 @@ public:
              int readoutMode, int trigger, int testPattern, uint8_t darkFlag,
              char *deviceID);
 
-  int calib();
+  int dark();
   int enable(void);
   int disable(void);
   int reset(void);
