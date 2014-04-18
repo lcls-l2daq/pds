@@ -136,7 +136,7 @@ int Eb::processIo(Server* serverGeneric)
       delete event;
     }
     event = (EbEvent*)_seek(server);
-    if (event == (EbEvent*)_pending.empty()) {
+    if (event == 0) {
       event = (EbEvent*)_new_event(serverId, payload, sizeofPayload); // copies payload into new event
       if (!event) {
         if (nEbPrints) {
@@ -149,7 +149,6 @@ int Eb::processIo(Server* serverGeneric)
       _insert(event);
     }
     else {
-      event->allocated().insert(serverId);
       event->recopy(payload, sizeofPayload, serverId);
       server->assign(event->key());
     }

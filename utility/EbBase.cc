@@ -528,13 +528,18 @@ EbEventBase* EbBase::_event(EbServer* server)
 
 EbEventBase* EbBase::_seek(EbServer* srv)
 {
+  EbBitMask serverId;
+  serverId.setBit(srv->id());
   EbEventBase* event = _pending.forward();
   while( event != _pending.empty() ) {
-    if( srv->coincides(event->key()) ) break;
+    if( srv->coincides(event->key()) &&
+        (!(event->segments() & serverId).isZero() ||
+         event->allocated().insert(serverId).isZero()) )
+      return event;
     event = event->forward();
   }
 
-  return event;
+  return 0;
 }
 
 /*

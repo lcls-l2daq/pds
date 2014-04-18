@@ -204,6 +204,7 @@ const Pds::TypeId* PdsDefs::typeId(const QTypeName& name)
   test(_andorConfigType);  
   test(_pimaxConfigType);      
   test(_usdusbConfigType); 
+  test(_rayonixConfigType); 
   test(_epixSamplerConfigType);   
   test(_epixConfigType);
   //  test(_projectionConfigType);    

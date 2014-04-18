@@ -281,8 +281,11 @@ bool Opal1kCamera::validate(Pds::FrameServerMsg& msg)
     CurrentCount = 0;
     LastCount = Count;
   }
-  else
+  else {
+    if (CurrentCount >= Count-LastCount)
+      printf("warning: old frame %d [%d]\n", Count-LastCount, CurrentCount);
     CurrentCount = Count - LastCount;
+  }
 
 #ifdef DBUG
   printf("Camera frame number(%x). Server number(%x), Count(%x), Last count(%x)\n",
