@@ -102,7 +102,9 @@ unsigned Pds::RayonixServer::configure(RayonixConfigType& config)
         printf("done.\n");
       } else {
         printf("failed.");
-        _occSend->userMessage("Rayonix: _rnxctrl->connect() failed.\n");
+        if (_occSend != NULL) {
+          _occSend->userMessage("Rayonix: _rnxctrl->connect() failed.\n");
+        }
         break;      /* ERROR */
       }
       status = _rnxctrl->status();
@@ -110,7 +112,9 @@ unsigned Pds::RayonixServer::configure(RayonixConfigType& config)
         if (_rnxctrl->config(binning_f, binning_s, exposure, rawMode, readoutMode, trigger,
                              testPattern, darkFlag, deviceBuf)) {
           printf("ERROR: _rnxctrl->config() failed\n");
-          _occSend->userMessage("Rayonix: _rnxctrl->config() failed.\n");
+          if (_occSend != NULL) {
+            _occSend->userMessage("Rayonix: _rnxctrl->config() failed.\n");
+          }
           break;    /* ERROR */
         } else {
           status = _rnxctrl->status();
@@ -140,12 +144,18 @@ unsigned Pds::RayonixServer::configure(RayonixConfigType& config)
 
         // If darkFlag is set, acquire dark frames
         if (_darkFlag == 1) {
-          printf("Calling _rnxctrl->dark()...\n");
+          if (_verbose) {
+            printf("Calling _rnxctrl->dark()...\n");
+          }
           if (_rnxctrl->dark()) {
             printf("ERROR:  _rnxctrl->dark() failed\n");
-            _occSend->userMessage("Rayonix: _rnxctrl->dark() failed.\n");
+            if (_occSend != NULL) {
+              _occSend->userMessage("Rayonix: collecting new background failed.\n");
+            }
           } else {
-            printf("_rnxctrl->dark() succeeded.\n");
+            if (_verbose) {
+              printf("_rnxctrl->dark() succeeded.\n");
+            }
           }
         }
 
@@ -163,6 +173,13 @@ unsigned Pds::RayonixServer::configure(RayonixConfigType& config)
     printf("ERROR: _rnxctrl is NULL in %s\n", __PRETTY_FUNCTION__);
   }
 
+  if (numErrs > 0) {
+    fprintf(stderr, "Rayonix: Failed to configure.\n");
+    if (_occSend != NULL) {
+      // send occurrence
+      _occSend->userMessage("Rayonix: Failed to configure.\n");
+    }
+  }
   return (numErrs);
  }
 
