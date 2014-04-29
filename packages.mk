@@ -11,6 +11,7 @@ packages += rayonix
 packages += epixSampler
 packages += epix
 packages += udpcam
+packages += timepix
 
 ifneq ($(findstring x86_64,$(tgt_arch)),)
   packages += firewire
@@ -18,7 +19,7 @@ ifneq ($(findstring x86_64,$(tgt_arch)),)
 #  packages += phasics
 else
   packages += encoder acqiris \
-              princeton gsc16ai timepix
+              princeton gsc16ai
 endif
 ##  No DDL
 #  packages += xamps
