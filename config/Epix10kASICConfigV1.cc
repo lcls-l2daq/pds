@@ -59,7 +59,7 @@ namespace Pds {
         {9,  4,  7,      3,     0},     // Monost,
         {9,  7,  1,      1,     0},     // FastppEnable,
         {10, 0,  7,      0,     0},     // Preamp,
-        {10, 4,  7,      4,     0},     // Pixel_CB,
+        {10, 3,  7,      4,     0},     // Pixel_CB,
         {10, 6,  3,      3,     0},     // Vld1_b
         {11, 0,  1,      1,     0},     // S2D_tcomp,
         {11, 1,  0x3f,   8,     0},     // FilterDac,
