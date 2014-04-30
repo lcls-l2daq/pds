@@ -17,6 +17,6 @@ libsrcs_cspad := \
 libincs_cspad := pgpcard
 libincs_cspad += pdsdata/include ndarray/include boost/include 
 CPPFLAGS += -fno-strict-aliasing
-CPPFLAGS += -fopenmp
+#CPPFLAGS += -fopenmp
 #LXFlAGS += -fopenmp
 #DEFINES += -fopenmp

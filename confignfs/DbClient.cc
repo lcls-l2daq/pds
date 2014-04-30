@@ -683,7 +683,9 @@ DbClient*  DbClient::open  (const char* path)
 }
 
 
-NfsState::NfsState(FILE* f)
+NfsState::NfsState(FILE* f) :
+  time_db (0),
+  time_key(0)
 {
   if (!f) {
     perror("fopen expt.xml");
