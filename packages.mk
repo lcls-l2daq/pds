@@ -10,6 +10,7 @@ packages += ioc
 packages += rayonix
 packages += epixSampler
 packages += epix
+packages += epix10k
 packages += udpcam
 packages += timepix
 

@@ -109,6 +109,8 @@ const Pds::TypeId* PdsDefs::typeId(ConfigType id)
   case Rayonix      : type = &_rayonixConfigType;   break;
   case EpixSampler  : type = &_epixSamplerConfigType;   break;
   case Epix         : type = &_epixConfigType;   break;
+  case Epix10k      : type = &_epix10kConfigType; break;
+
     //  case Projection   : type = &_projectionConfigType; break;
   default: 
     printf("PdsDefs::typeId id %d not found\n",unsigned(id));
@@ -158,6 +160,7 @@ const Pds::TypeId* PdsDefs::typeId(const UTypeName& name)
   test(_rayonixConfigType); 
   test(_epixSamplerConfigType);
   test(_epixConfigType);
+  test(_epix10kConfigType);
   //  test(_projectionConfigType);    
 #undef test
   //  database-only types
@@ -207,6 +210,7 @@ const Pds::TypeId* PdsDefs::typeId(const QTypeName& name)
   test(_rayonixConfigType); 
   test(_epixSamplerConfigType);   
   test(_epixConfigType);
+  test(_epix10kConfigType);
   //  test(_projectionConfigType);    
 #undef test
   //  database-only types

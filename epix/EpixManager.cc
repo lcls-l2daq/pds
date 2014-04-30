@@ -349,7 +349,7 @@ EpixManager::EpixManager( EpixServer* server, unsigned d) :
    }
 
    int epix = open( devName,  O_RDWR | O_NONBLOCK);
-   printf("pgpcard file number %d\n", epix);
+   printf("pgpcard %s file number %d\n", devName, epix);
    if (epix < 0) {
      sprintf(err, "EpixManager::EpixManager() opening %s failed", devName);
      perror(err);

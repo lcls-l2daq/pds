@@ -1,25 +1,25 @@
 /*
- * EpixConfigurator.hh
+ * Epix10kConfigurator.hh
  *
- *  Created on: 2013.11.9
+ *  Created on: 2014.4.15
  *      Author: jackp
  */
 
-#ifndef EPIX_CONFIGURATOR_HH_
-#define EPIX_CONFIGURATOR_HH_
+#ifndef EPIX10K_CONFIGURATOR_HH_
+#define EPIX10K_CONFIGURATOR_HH_
 
 #include "pds/pgp/Configurator.hh"
 #include "pds/config/EpixConfigType.hh"
 #include "pds/pgp/Pgp.hh"
-#include "pds/epix/EpixStatusRegisters.hh"
-#include "pds/epix/EpixDestination.hh"
+#include "pds/epix10k/Epix10kStatusRegisters.hh"
+#include "pds/epix10k/Epix10kDestination.hh"
 #include <stdlib.h>
 #include <stdint.h>
 #include <time.h>
 #include <new>
 
 namespace Pds {
-  namespace Epix {
+  namespace Epix10k {
 //    0x000011, bit 0 - enable automatic run triggers (only works if the normal RunTrigEnable at register 0x000001 is also set)
 //    0x000012, bits 31:0 - number of clock cycles between autotriggers (for 120 Hz, this should be set to 1041667, or 0xFE503)
 //    0x000013, bit 0 - enable automatic daq triggers (only works if the normal DaqTrigEnable at register 0x000003 is also set)
@@ -37,7 +37,7 @@ namespace Pds {
       PowerEnableAddr                   = 0x8,
       PowerEnableValue                  = 0x3,
       TotalPixelsAddr                   = 0x27,
-      PixelsPerBank                     = 96,
+      PixelsPerBank                     = 48,
       SaciClkBitAddr                    = 0x28,
       SaciClkBitValue                   = 0x4,
       EnableAutomaticRunTriggerAddr     = 0x11,  // add to config
@@ -66,15 +66,15 @@ namespace Pds {
 
     enum enables { Disable=0, Enable=1 };
 
-    class EpixConfigurator : public Pds::Pgp::Configurator {
+    class Epix10kConfigurator : public Pds::Pgp::Configurator {
       public:
-        EpixConfigurator(int, unsigned);
-        virtual ~EpixConfigurator();
+        Epix10kConfigurator(int, unsigned);
+        virtual ~Epix10kConfigurator();
 
         enum resultReturn {Success=0, Failure=1, Terminate=2};
 
-        unsigned             configure(EpixConfigType*, unsigned first=0);
-        EpixConfigType&      configuration() { return *_config; };
+        unsigned             configure(Epix10kConfigType*, unsigned first=0);
+        Epix10kConfigType&      configuration() { return *_config; };
         void                 print();
         void                 dumpFrontEnd();
         void                 printMe();
@@ -94,15 +94,16 @@ namespace Pds {
         unsigned             checkWrittenASIC(bool writeBack=true);
         unsigned             writePixelBits();
         bool                 _flush(unsigned index=0);
+        bool                 _getAnAnswer(unsigned size = 4, unsigned count = 6);
 
 
       private:
         typedef unsigned     LoopHisto[4][10000];
         enum {MicroSecondsSleepTime=50};
         uint32_t                    _testModeState;
-        EpixConfigType*             _config;
-        EpixConfigShadow*           _s;
-        EpixDestination             _d;
+        Epix10kConfigType*             _config;
+        Epix10kConfigShadow*           _s;
+        Epix10kDestination             _d;
         unsigned*                   _rhisto;
         char                       _runTimeConfigFileName[256];
 //      LoopHisto*                _lhisto;
@@ -111,4 +112,4 @@ namespace Pds {
   }
 }
 
-#endif /* EPIX_CONFIGURATOR_HH_ */
+#endif /* EPIX10K_CONFIGURATOR_HH_ */
