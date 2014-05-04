@@ -176,7 +176,7 @@ unsigned Epix10kConfigurator::configure( Epix10kConfigType* c, unsigned first) {
   clock_gettime(CLOCK_REALTIME, &start);
   printf("Epix10kConfigurator::configure %sreseting front end\n", first ? "" : "not ");
   if (first) {
-   // resetFrontEnd();
+    resetFrontEnd();
   }
   if (_flush()) {
     printf("Epix10kConfigurator::configure determined that we lost contact with the front end, exiting!\n");
