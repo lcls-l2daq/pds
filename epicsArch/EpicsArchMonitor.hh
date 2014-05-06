@@ -6,6 +6,7 @@
 #include <set>
 #include "pds/epicsArch/EpicsXtcSettings.hh"
 #include "pds/epicsArch/EpicsMonitorPv.hh"
+#include "pds/utility/PvConfigFile.hh"
 
 namespace Pds
 {
@@ -55,19 +56,7 @@ namespace Pds
       }
     };
 
-    typedef std::vector < PvInfo >      TPvList;
-    typedef std::vector < std::string > TFileList;
-
-    int _addPv            (const std::string & sPvList, std::string & sPvDescription, 
-      TPvList & vPvList, bool & bPvAdd, 
-      const std::string& sFnConfig, int iLineNumber, std::string& sConfigFileWarning);
-    int _readConfigFile   (const std::string & sFnConfig, TPvList & vPvList, std::string& sConfigFileWarning);    
-    int _setupPvList      (const TPvList & vPvList, TEpicsMonitorPvList & lpvPvList);
-    int _getPvDescription (const std::string & sLine, std::string & sPvDescription);
-    int _updatePvDescription(const std::string& sPvName, const std::string& sFnConfig, int iLineNumber, std::string& sPvDescription, std::string& sConfigFileWarning);
-    
-    static int _splitFileList   (const std::string & sFileList, TFileList & vsFileList);    
-    
+    int _setupPvList      (const Pds::PvConfigFile::TPvList & vPvList, TEpicsMonitorPvList & lpvPvList);
 
     // Class usage control: Value semantics is disabled
     EpicsArchMonitor(const EpicsArchMonitor &);
