@@ -27,7 +27,6 @@ EpicsArchMonitor::EpicsArchMonitor(const Src & src, const std::string & sFnConfi
 
   Pds::PvConfigFile::TPvList vPvList;
   int iMaxDepth = 10;
-  int iMaxNumPv = 1000;
   PvConfigFile configFile(_sFnConfig, _fDefaultInterval, iMaxDepth, iMaxNumPv, (_iDebugLevel >= 1));
   int iFail = configFile.read(vPvList, sConfigFileWarning);
   if (iFail != 0)
