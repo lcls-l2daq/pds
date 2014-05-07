@@ -87,6 +87,7 @@ class Pds::Epix10kServer
    bool     scopeEnabled() { return _scopeEnabled; }
    EpixSampler::ConfigV1*  samplerConfig() { return _samplerConfig; }
    const Xtc&      xtcConfig() { return _xtcConfig; }
+   void     maintainLostRunTrigger(bool b) { _maintainLostRunTrigger = b; }
 
  public:
    static Epix10kServer* instance() { return _instance; }
@@ -129,6 +130,7 @@ class Pds::Epix10kServer
    bool                           _resetOnEveryConfig;
    bool                           _scopeEnabled;
    bool                           _scopeHasArrived;
+   bool                           _maintainLostRunTrigger;
 };
 
 #endif

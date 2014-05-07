@@ -69,7 +69,8 @@ Epix10kServer::Epix10kServer( const Pds::Src& client, unsigned configMask )
      _ignoreFetch(true),
      _resetOnEveryConfig(false),
      _scopeEnabled(false),
-     _scopeHasArrived(false) {
+     _scopeHasArrived(false),
+     _maintainLostRunTrigger(false) {
   _histo = (unsigned*)calloc(sizeOfHisto, sizeof(unsigned));
   _task = new Pds::Task(Pds::TaskObject("EPIX10Kprocessor"));
   strcpy(_runTimeConfigName, "");
@@ -83,6 +84,7 @@ unsigned Epix10kServer::configure(Epix10kConfigType* config, bool forceConfig) {
     firstConfig = 1;
     _cnfgrtr = new Pds::Epix10k::Epix10kConfigurator::Epix10kConfigurator(fd(), _debug);
     _cnfgrtr->runTimeConfigName(_runTimeConfigName);
+    _cnfgrtr->maintainLostRunTrigger(_maintainLostRunTrigger);
     printf("Epix10kServer::configure making new configurator %p, firstConfig %u\n", _cnfgrtr, firstConfig);
   }
   _xtcTop.extent = sizeof(Xtc);

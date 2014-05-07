@@ -85,6 +85,7 @@ namespace Pds {
         uint32_t             sequenceCount();
         void                 enableExternalTrigger(bool);
         void                 enableRunTrigger(bool);
+        void                 maintainLostRunTrigger(bool b) { _maintainLostRunTrigger = b; }
 
 
       private:
@@ -107,6 +108,7 @@ namespace Pds {
         unsigned*                   _rhisto;
         char                       _runTimeConfigFileName[256];
 //      LoopHisto*                _lhisto;
+        bool                        _maintainLostRunTrigger;
     };
 
   }

@@ -90,7 +90,8 @@ static uint32_t AconfigAddrs[Epix10kASIC_ConfigShadow::NumberOfValues][2] = {
 
 Epix10kConfigurator::Epix10kConfigurator(int f, unsigned d) :
                            Pds::Pgp::Configurator(f, d),
-                           _testModeState(0), _config(0), _s(0), _rhisto(0) {
+                           _testModeState(0), _config(0), _s(0), _rhisto(0),
+                          _maintainLostRunTrigger(0) {
   printf("Epix10kConfigurator constructor\n");
   //    printf("\tlocations _pool(%p), _config(%p)\n", _pool, &_config);
   //    _rhisto = (unsigned*) calloc(1000, 4);
@@ -224,7 +225,7 @@ static uint32_t FPGAregs[6][3] = {
     {PowerEnableAddr, PowerEnableValue, 0},
     {SaciClkBitAddr, SaciClkBitValue, 0},
     {NumberClockTicksPerRunTriggerAddr, NumberClockTicksPerRunTrigger, 0},  // remove when in config
-    {EnableAutomaticRunTriggerAddr, 1, 0},  // remove when in config
+    {EnableAutomaticRunTriggerAddr, 0, 0},  // remove when in config
     {EnableAutomaticDaqTriggerAddr, 0, 0},
     {0,0,1}
 };
@@ -243,6 +244,10 @@ unsigned Epix10kConfigurator::writeConfig() {
       ret = Failure;
     }
     i+=1;
+  }
+  if (_pgp->writeRegister(&_d, EnableAutomaticRunTriggerAddr, _maintainLostRunTrigger)) {
+    printf("Epix10kConfigurator::writeConfig failed writing %s\n", "EnableAutomaticRunTriggerAddr");
+    ret = Failure;
   }
   if (_pgp->writeRegister(&_d, TotalPixelsAddr, PixelsPerBank * (_s->get(Epix10kConfigShadow::NumberOfRowsPerAsic)-1))) {
     printf("Epix10kConfigurator::writeConfig failed writing %s\n", "TotalPixelsAddr");
