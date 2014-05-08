@@ -14,10 +14,11 @@ class RouteTable {
 public:
   RouteTable();
 
-  static const unsigned MaxRoutes = 5;
+  static const unsigned MaxRoutes = 10;
   static const unsigned MaxNameLen = 16;
 
   unsigned routes() const;
+  bool     routes(unsigned index, int dst) const;
   const char* name(unsigned index) const;
   int interface(unsigned index) const;
   int broadcast(unsigned index) const;
@@ -28,6 +29,7 @@ private:
   unsigned _found;
   char _name[MaxRoutes*MaxNameLen];
   int _iface[MaxRoutes];
+  int _dst  [MaxRoutes];
   int _netma[MaxRoutes];
   int _bcast[MaxRoutes];
   Ether _ether[MaxRoutes];

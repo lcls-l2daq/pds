@@ -13,8 +13,7 @@ Ether Route::_ether;
 void Route::set(const RouteTable& table, int mastercrate)
 {
   for (unsigned index=0; index<table.routes(); index++) {
-    if ((table.interface(index) & table.netmask(index)) == 
-	(mastercrate & table.netmask(index))) {
+    if (table.routes(index,mastercrate)) {
       strncpy(_name, table.name(index), RouteTable::MaxNameLen-1);
       _interface = table.interface(index);
       _broadcast = table.broadcast(index);
