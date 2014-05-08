@@ -33,6 +33,8 @@ namespace Pds {
     /// Receive the list of cameras that will be recorded
     void set_partition(const std::list<DetInfo>&);
 
+    const std::list<IocNode*>& selected() const { return _selected_nodes; }
+
   public:
     /// Act on a DAQ transition
     Transition* transitions(Transition*);

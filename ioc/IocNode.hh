@@ -30,6 +30,9 @@ namespace Pds {
     };
     void addPV(std::string alias, std::string line);
     void write_config(IocConnection *c);
+
+    unsigned    events() const { return 0; }
+    unsigned    damaged() const { return 0; }
   private:
     std::string _host;
     std::string _config;
