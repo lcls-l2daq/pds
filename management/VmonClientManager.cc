@@ -117,6 +117,8 @@ int VmonClientManager::processIo()
                                src);
         add(*client);
         _client_list.push_back(client);
+        printf("Add client [%08x.%08x]\n",
+               src.log(),src.phy());
       }
       else 
         client->read_description(reply.payload());
@@ -125,8 +127,10 @@ int VmonClientManager::processIo()
     break;
   case MonMessage::Payload:     
     if (!client) {
-      printf("Unknown client contributes payload\n");
-      abort();
+      printf("Unknown client [%08x.%08x] contributes payload\n",
+             reply.src().log(),reply.src().phy());
+      //      abort();
+      break;
     }
     client->read_payload(); 
     break;
