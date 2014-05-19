@@ -65,6 +65,7 @@ public:
   virtual int processIo(T*) = 0;
   virtual int processTmo()  = 0;
 
+  void dump() const;
 protected:
   unsigned enable (T*);
   unsigned disable(T*);

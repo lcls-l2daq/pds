@@ -20,6 +20,7 @@
 
 #include "SelectManager.hh"
 #include <string.h>
+#include <stdio.h>
 
 using namespace Pds;
 
@@ -287,4 +288,27 @@ int SelectManager<T>::_dispatchIo()
   _activeList = active;
 
   return 1;
+}
+
+template<class T>
+void SelectManager<T>::dump() const
+{
+  printf("  active : "); active ().print(); printf("\n");
+  printf("  managed: "); managed().print(); printf("\n");
+  printf("  fds    : ");
+  EbBitMask m = managed();
+  for(unsigned i=0; !m.isZero(); i++) {
+    Server* s = server(i);
+    if (s) {
+      printf(" %d",s->fd());
+      m.clearBit(i);
+    }
+  }
+  printf("\n");
+      
+  unsigned n = numFds();
+  printf("  isset: ");
+  for(unsigned i=0; i<n; i++)
+    printf("%c",FD_ISSET(i,ioList()) ? '+':'_');
+  printf(": %08x %08x\n", ((unsigned*)ioList())[0],((unsigned*)ioList())[1]);
 }
