@@ -24,6 +24,31 @@ using std::ostringstream;
 
 #define USE_TABLE_LOCKS
 
+//#define DBUG
+
+namespace Pds_ConfigDb {
+  namespace Sql {
+    class Profile {
+    public:
+#ifdef DBUG
+      void begin() { clock_gettime(CLOCK_REALTIME,&tv_b); }
+      void end(const char* ttl) {
+        timespec tv_e;
+        clock_gettime(CLOCK_REALTIME,&tv_e);
+        printf("%s : %f s\n",ttl,
+               double(tv_e.tv_sec-tv_b.tv_sec)+
+               1.e-9*(double(tv_e.tv_nsec)-double(tv_b.tv_nsec)));
+      }
+    private:
+      timespec tv_b;
+#else
+      void begin() {}
+      void end(const char*) {}
+#endif
+    };
+  };
+};
+
 using namespace Pds_ConfigDb::Sql;
 
 static void _handle_no_lock(const char* s)
@@ -544,21 +569,31 @@ int                   DbClient::setDevices(const std::list<DeviceType>& dlist)
 
 void                 DbClient::updateKeys()
 {
+  Profile profile;
+
   if (_lock==NoLock)
     _handle_no_lock("updateKeys");
 
 #ifdef USE_TABLE_LOCKS
+  profile.begin();
   { std::ostringstream sql;
     sql << "LOCK TABLES runkeys WRITE, xtc WRITE, experiment READ, devices READ, sources READ;";
     simpleQuery(_mysql,sql.str()); }
+  profile.end("LOCK TABLES");
 #endif
 
+  profile.begin();
   std::list<ExptAlias > alist = getExptAliases();
+  profile.end("getExptAliases");
+
+  profile.begin();
   std::list<DeviceType> dlist = getDevices    ();
+  profile.end("getDevices");
 
   //
   //  Create non-existent keys
   //
+  profile.begin();
   for(std::list<ExptAlias>::iterator it=alist.begin();
       it!=alist.end(); it++)
     if (it->key == 0)
@@ -572,12 +607,14 @@ void                 DbClient::updateKeys()
       if (query.empty())
         _updateKey(it->name,alist,dlist);
     }
+  profile.end("create non-extants");
 
   //
   //  Update keys where the XTC has been modified
   //
+  profile.begin();
   { std::ostringstream sql;
-    sql << "SELECT DISTINCT experiment.alias FROM experiment,devices,sources,runkeys,xtc "
+    sql << "SELECT DISTINCT experiment.alias FROM experiment,devices,runkeys,xtc "
         << "WHERE experiment.runkey=runkeys.runkey AND experiment.device=devices.device "
         << "AND devices.dalias=experiment.dalias AND xtc.xtcname=devices.xtcname "
         << "AND xtc.typeid=devices.typeid AND runkeys.keytime<xtc.xtctime;";
@@ -591,6 +628,7 @@ void                 DbClient::updateKeys()
       _updateKey(alias,alist,dlist);
     }
   }
+  profile.end("update xtcs");
 
 #ifdef USE_TABLE_LOCKS
   { std::ostringstream sql;
@@ -598,7 +636,9 @@ void                 DbClient::updateKeys()
     simpleQuery(_mysql,sql.str()); }
 #endif
 
+  profile.begin();
   setExptAliases(alist);
+  profile.end("setExptAliases");
 }
 
 void                 DbClient::_updateKey(const std::string& alias,
