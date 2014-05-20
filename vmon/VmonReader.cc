@@ -43,9 +43,6 @@ VmonReader::~VmonReader()
 
   for(vector<int*>::iterator it = _offsets.begin(); it!=_offsets.end(); it++)
     delete[] *it;
-
-  for(vector<int*>::iterator it = _req_off.begin(); it!=_req_off.end(); it++)
-    delete[] *it;
 }
 
 const vector<Src>& VmonReader::sources() const { return _src; }
@@ -65,7 +62,7 @@ const ClockTime& VmonReader::end  () const { return _end  ; }
 void VmonReader::reset()
 {
   for(vector<int*>::iterator it=_req_off.begin(); it!=_req_off.end(); it++)
-    delete *it;
+    delete[] *it;
   _req_off.clear();
   _req_use.clear();
   _req_src.clear();
@@ -107,6 +104,7 @@ void VmonReader::process(VmonReaderCallback& callback,
 			 const ClockTime& begin,
 			 const ClockTime& end)
 {
+  bool lfirst = true;  // first record is often incomplete/corrupt
   fseek(_file, _seek_pos, SEEK_SET);
   while( !feof(_file) ) {
     fread(_buff, sizeof(VmonRecord), 1, _file);
@@ -114,8 +112,9 @@ void VmonReader::process(VmonReaderCallback& callback,
     int remaining = record.len() - sizeof(record);
     if (record.time() > end)
       break;
-    if (begin > record.time()) {
+    if (begin > record.time() || lfirst) {
       fseek(_file, remaining, SEEK_CUR);
+      lfirst=false;
       continue;
     }
     fread(&record+1, remaining, 1, _file);
