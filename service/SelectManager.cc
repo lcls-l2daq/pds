@@ -297,8 +297,10 @@ void SelectManager<T>::dump() const
   printf("  managed: "); managed().print(); printf("\n");
   printf("  fds    : ");
   EbBitMask m = managed();
+
+  SelectManager<T>* cthis = const_cast<SelectManager<T>*>(this);
   for(unsigned i=0; !m.isZero(); i++) {
-    Server* s = server(i);
+    Server* s = cthis->server(i);
     if (s) {
       printf(" %d",s->fd());
       m.clearBit(i);
@@ -306,9 +308,10 @@ void SelectManager<T>::dump() const
   }
   printf("\n");
       
-  unsigned n = numFds();
+  unsigned n = cthis->numFds();
+  fd_set* p = cthis->ioList();
   printf("  isset: ");
   for(unsigned i=0; i<n; i++)
-    printf("%c",FD_ISSET(i,ioList()) ? '+':'_');
-  printf(": %08x %08x\n", ((unsigned*)ioList())[0],((unsigned*)ioList())[1]);
+    printf("%c",FD_ISSET(i,p) ? '+':'_');
+  printf(": %08x %08x\n", ((unsigned*)p)[0],((unsigned*)p)[1]);
 }
