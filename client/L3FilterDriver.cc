@@ -5,37 +5,49 @@
 #include "pdsdata/psddl/l3t.ddl.h"
 
 #include <exception>
+#include <list>
 
 //#define DBUG
 
 namespace Pds {
   class EpicsFinder : public XtcIterator {
   public:
-    EpicsFinder(InDatagram& dg) : _dg(dg) {}
+    EpicsFinder(InDatagram& dg) : 
+      XtcIterator(&dg.datagram().xtc), _dg(dg) {}
   public:
     int process(Xtc* xtc)
     {
       if (xtc->src.level()==Level::Segment) {
         const DetInfo& info = static_cast<const DetInfo&>(xtc->src);
         if (info.detector()==DetInfo::EpicsArch)
-          _dg.insert(*xtc,xtc->payload());
+	  _xtc.push_back(xtc);
       }
       else if (xtc->contains.id()==TypeId::Id_Xtc) {
         iterate(xtc);
       }
       return 1;
     }
+    void fixup() 
+    {
+      _dg.datagram().xtc.extent = sizeof(Xtc);
+      _dg.datagram().xtc.damage = Damage(0);
+      for(std::list<Xtc*>::iterator it=_xtc.begin();
+	  it!=_xtc.end(); it++) {
+	Xtc* xtc = *it;
+	_dg.insert(*xtc,xtc->payload());
+      }
+    }
   private:
     InDatagram& _dg;
-    Xtc*        _xtc;
+    std::list<Xtc*> _xtc;
   };
 };
 
 using namespace Pds;
 
-L3FilterDriver::L3FilterDriver(L3FilterModule* m) :
+L3FilterDriver::L3FilterDriver(L3FilterModule* m, bool lveto) :
   _m     (m),
-  _lVeto (false)
+  _lVeto (lveto)
 {
 }
 
@@ -87,13 +99,11 @@ InDatagram* L3FilterDriver::events     (InDatagram* dg)
       if (_m->complete()) {
 	bool lAccept = _m->accept();
 	if (_lVeto && !lAccept) {
-	  dg->datagram().xtc.extent = sizeof(Xtc);
-	  dg->datagram().xtc.damage = Damage(0);
-
 	  // insert EPICS data!!
 	  //   this data may be needed by later events
 	  EpicsFinder finder(*dg);
 	  finder.iterate();
+	  finder.fixup();
 	}
       
         const L1AcceptEnv& l1 = static_cast<const L1AcceptEnv&>(dg->datagram().env);

@@ -284,7 +284,9 @@ void L3F::QueueTr::routine() { _app.queueTransition(_tr); delete this; }
 void L3F::QueueEv::routine() { _app.queueEvent(_in); delete this; }
 void L3F::ComplEv::routine() { _app.completeEntry(_in,_id); delete this; }
 
-L3FilterThreads::L3FilterThreads(create_m* c_user, unsigned nthreads) :
+L3FilterThreads::L3FilterThreads(create_m* c_user, 
+				 unsigned nthreads,
+				 bool lveto) :
   _mgr_task(new Task(TaskObject("L3Fmgr")))
 {
   _mgr = new L3F::Manager(*this, *_mgr_task);
@@ -294,7 +296,7 @@ L3FilterThreads::L3FilterThreads(create_m* c_user, unsigned nthreads) :
   std::vector<L3F::Task*> tasks(nthreads);
   for(unsigned id=0; id<nthreads; id++)
     tasks[id] = new L3F::Task(id,*_mgr,
-                              new L3FilterDriver(c_user()));
+                              new L3FilterDriver(c_user(),lveto));
 #ifdef DBUG
   printf("L3FilterThreads making %d [%d] threads\n",nthreads,tasks.size());
 #endif

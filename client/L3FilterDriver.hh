@@ -10,7 +10,7 @@ namespace Pds {
   class L3FilterDriver : public Appliance,
                          public XtcIterator {
   public:
-    L3FilterDriver(L3FilterModule*);
+    L3FilterDriver(L3FilterModule*, bool lveto);
     ~L3FilterDriver();
   public:
     Transition* transitions(Transition*);
