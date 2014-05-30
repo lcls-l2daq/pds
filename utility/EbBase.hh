@@ -53,9 +53,9 @@ namespace Pds {
     //  Helper functions for the complete implementation
     EbBitMask    _postEvent(EbEventBase*);  // complete this event and all older than
     void         _post     (EbEventBase*);  // complete this event
-    EbEventBase* _seek     (EbServer*);
+    virtual EbEventBase* _seek     (EbServer*);
+    virtual EbEventBase* _event    (EbServer*);
     EbBitMask    _armMask  ();
-    EbEventBase* _event    (EbServer* server);
     void         _iterate_dump();
   private:
     void         _remove   (EbServer*);

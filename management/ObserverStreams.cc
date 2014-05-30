@@ -1,6 +1,6 @@
 #include "ObserverStreams.hh"
 #include "pds/utility/OpenOutlet.hh"
-#include "EventBuilder.hh"
+#include "pds/utility/ObserverEb.hh"
 #include "pds/service/BitList.hh"
 #include "pds/management/CollectionObserver.hh"
 #include "pds/service/VmonSourceId.hh"
@@ -28,18 +28,13 @@ ObserverStreams::ObserverStreams(CollectionObserver& cmgr,
 
      _outlets[s] = new OpenOutlet(*stream(s)->outlet());
 
-    SegEventBuilder* eb = new SegEventBuilder
+     //ObserverEb* eb = new ObserverEb
+     SegEventBuilder* eb = new SegEventBuilder
       (cmgr.header().procInfo(),
        _xtcType,
        level,
        *stream(s)->inlet(), *_outlets[s], s, ipaddress,
        max_size, ebdepth, slowEb);
-
-    //
-    //  An observer may listen to multiple streams.
-    //  Traffic shaping only guarantees events in order on any one stream
-    //
-    eb->require_in_order(false);
 
     _inlet_wires[s] = eb;
   }

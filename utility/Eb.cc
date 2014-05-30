@@ -131,7 +131,10 @@ int Eb::processIo(Server* serverGeneric)
 
     _misses++;
     // remove the contribution from this event
+    // (We're not actually removing the event, only checking whether we've
+    //  overwritten critical memory)
     if (event->deallocate(serverId, payload, sizeofPayload).isZero()) {
+      printf("===Eb::deallocate should not happen\n");
       delete event->finalize();
       delete event;
     }
