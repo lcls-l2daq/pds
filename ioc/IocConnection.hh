@@ -2,6 +2,7 @@
 #define Pds_IocConnection_hh
 #include<string>
 #include<list>
+#include<vector>
 
 namespace Pds {
   class IocControl;
@@ -17,13 +18,18 @@ namespace Pds {
     static void transmit_all(std::string s);
     static void clear_all(void) { _connections.clear(); };
     static std::list<IocConnection*> _connections;
-    std::string host() { return _host; }
+    std::string host() { return _host; };
+    int getIndex() { _damage.push_back(0); return _idx++; };
+    int damage_status(int idx);
   private:
     int _sock;
     std::string _host;
     uint32_t _host_ip;
     uint16_t _port;
     IocControl *_cntl;
+    int _idx;
+    int _damage_req;
+    std::vector<int> _damage;
   };
 };
 

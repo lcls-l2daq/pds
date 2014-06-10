@@ -213,6 +213,10 @@ Transition* IocControl::transitions(Transition* tr)
               tr->sequence().clock().nanoseconds(), tr->sequence().stamp().fiducials());
       IocConnection::transmit_all(trans);
       IocConnection::clear_all();
+      for(std::list<IocNode*>::iterator it=_selected_nodes.begin();
+          it!=_selected_nodes.end(); it++) {
+          (*it)->clear_conn();
+      }
       _recording = 0;
       break;
   default:

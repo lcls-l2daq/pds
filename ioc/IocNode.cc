@@ -67,6 +67,8 @@ void IocNode::addPV(std::string alias, std::string line)
 
 void IocNode::write_config(IocConnection *c)
 {
+    _conn = c;
+    _idx = c->getIndex();
     c->transmit(_config);
     c->transmit("record " + _alias + "\n");
 

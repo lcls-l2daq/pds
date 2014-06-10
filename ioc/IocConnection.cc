@@ -5,6 +5,10 @@
 #include "pds/ioc/IocConnection.hh"
 #include "pds/ioc/IocControl.hh"
 #include<list>
+#include<unistd.h>
+#include<stdlib.h>
+#include<fcntl.h>
+#include<strings.h>
 
 //#define DBUG
 
@@ -17,8 +21,13 @@ IocConnection::IocConnection(std::string host, uint32_t host_ip,
     _host(host),
     _host_ip(host_ip),
     _port(port),
-    _cntl(cntl)
+    _cntl(cntl),
+    _idx(1),
+    _damage_req(0)
 {
+    _damage.clear();
+    _damage.push_back(0);
+
     struct sockaddr_in serv_addr;
     _sock = socket(AF_INET, SOCK_STREAM, 0);
     serv_addr.sin_family = AF_INET;
@@ -33,13 +42,14 @@ IocConnection::IocConnection(std::string host, uint32_t host_ip,
         _sock = -1;
         return;
     }
+    fcntl(_sock, F_SETFL, O_NONBLOCK);
 }
 
 IocConnection *IocConnection::get_connection(std::string host, uint32_t host_ip,
                                              uint16_t port, IocControl *cntl)
 {
     for(std::list<IocConnection*>::iterator it=_connections.begin();
-  it!=_connections.end(); it++)
+        it!=_connections.end(); it++)
         if ((*it)->_host_ip == host_ip && (*it)->_port == port)
             return *it;
     IocConnection *c = new IocConnection(host, host_ip, port, cntl);
@@ -90,6 +100,28 @@ void IocConnection::transmit(std::string s)
 void IocConnection::transmit_all(std::string s)
 {
     for(std::list<IocConnection*>::iterator it=_connections.begin();
-  it!=_connections.end(); it++)
+        it!=_connections.end(); it++)
         (*it)->transmit(s);
 }
+
+int IocConnection::damage_status(int idx)
+{
+    char buf[1024], *s;
+    unsigned int i;
+    int len;
+
+    if ((len = read(_sock, buf, sizeof(buf))) > 0 && !strncmp(buf, "dstat ", 6)) {
+        buf[len] = 0;
+        _damage_req = 0;
+        for (i = 0, s = &buf[5]; s && i < _damage.size(); i++, s = index(s, ' ')) {
+            _damage[i] = atoi(++s);
+        }
+    } else
+        buf[0] = 0;
+    if (!_damage_req) {
+        _damage_req = 1;
+        transmit("damage\n");
+    }
+    return _damage[idx];
+}
+
