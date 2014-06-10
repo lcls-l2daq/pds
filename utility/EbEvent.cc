@@ -3,6 +3,8 @@
 #include "EbServer.hh"
 #include "pds/xtc/CDatagram.hh"
 
+#include <stdio.h>
+
 using namespace Pds;
 
 /*
@@ -171,15 +173,25 @@ bool EbEvent::consume(const EbServer* srv,
   return false;
 }
 
+//
+//  The payload from client was mistakenly received in this event.  Remove any
+//  new allocation marking and check for potential overwrites.  Mark overwritten
+//  event with IncompleteContribution damage (unsafe to iterate upon).
+//
 EbBitMask EbEvent::deallocate(EbBitMask client, char* payload, int sizeofPayload)
 {
-  EbSegment* segment = hasSegment(client);
-  if (segment) {
+  if ((segments() & client).isZero())       // Data received at the end of the event;
+    return EbEventBase::deallocate(client); // nothing previously from this client.
+
+  EbSegment* segment = hasSegment(client);  // Data received at the end of an existing contribution.
+  if (segment) {                            // Check if contribution container bounds exceeded.
     if (!segment->deallocate(payload,sizeofPayload))
       datagram()->xtc.damage.increase(Damage::IncompleteContribution);
-    return allocated().remaining();
   }
-  return EbEventBase::deallocate(client);
+  else                                      // Data received at the end of a complete contribution.
+    datagram()->xtc.damage.increase(Damage::IncompleteContribution);
+
+  return allocated().remaining();  // Do not remove allocation mark (previous contribution exists).
 }
 
 /*
@@ -258,4 +270,27 @@ unsigned EbEvent::fixup(const Src& client, const EbBitMask& id)
 InDatagram* EbEvent::finalize()
 {
   return cdatagram();
+}
+
+#include <stdio.h>
+
+void EbEvent::dump() const
+{
+  EbEvent* event = const_cast<EbEvent*>(this);
+  printf("  alloc %08x rem %08x\n",
+         event->allocated().remaining().value(0),
+         event->remaining().value(0));
+  printf("  segm %08x\n", 
+         event->segments().value(0));
+
+  for(EbSegment* segment = _pending.forward();
+      segment != _pending.empty(); 
+      segment = segment->forward()) 
+    printf(" [%08x]",segment->client().value(0));
+  if (_pending.forward()!=_pending.empty())
+    printf("\n");
+
+  printf("  dgm seq %08x ext %08x\n",
+         event->datagram()->seq.stamp().fiducials(),
+         event->datagram()->xtc.extent);
 }

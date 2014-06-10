@@ -59,6 +59,7 @@ class EbEvent : public EbEventBase
 
     CDatagram*    cdatagram() const;
     InDatagram*   finalize ();
+    void          dump     () const;
   private:
     CDatagram* _cdatagram;
     LinkedList<EbSegment> _pending;  // Listhead, Segments pending fragments
