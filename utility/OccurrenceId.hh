@@ -42,6 +42,7 @@ class OccurrenceId
       RequestPause,
       RequestConfigure,
       EvrEnabled,
+      EvrCommandRequest,
       NumberOf
     };
   };

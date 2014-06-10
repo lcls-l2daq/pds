@@ -19,6 +19,7 @@
 
 #include "pds/client/Fsm.hh"
 #include "pds/client/Action.hh"
+#include "pds/client/Response.hh"
 #include "pds/xtc/EvrDatagram.hh"
 #include "pds/config/EvrConfigType.hh" // typedefs for the Evr config data types
 #include "pds/config/CfgClientNfs.hh"
@@ -377,7 +378,86 @@ public:
     _er.Enable(0);
     _er.EnableFIFO(0);
   }
-  
+
+  void handleCommandRequest(const std::vector<unsigned>& codes)
+  {
+    printf("Received command request for codes: [");
+    for(unsigned i=0; i<codes.size(); i++)
+      printf(" %d",codes[i]);
+    printf(" ]\n");
+
+    char* configBuffer = 
+      new char[ giMaxCalibCycles* evrConfigSize( giMaxEventCodes, giMaxPulses, giMaxOutputMaps ) ];
+
+    char* p = configBuffer;
+    for(const char* cur_config = _configBuffer;
+        cur_config < _end_config; ) {
+      const EvrConfigType& cfg = *reinterpret_cast<const EvrConfigType*>(cur_config);
+      ndarray<EventCodeType,1> eventcodes = make_ndarray<EventCodeType>(cfg.neventcodes()+codes.size());
+      memcpy(eventcodes.data(),cfg.eventcodes().data(),cfg.neventcodes()*sizeof(EventCodeType));
+
+      unsigned ncodes = cfg.neventcodes();
+      for(unsigned i=0; i<codes.size(); i++) {
+        bool lFound=false;
+        for(unsigned j=0; j<ncodes; j++) {
+          EventCodeType& c = eventcodes[j];
+          if (c.code()==codes[i]) {
+            lFound=true;
+            if (!(c.isReadout() || c.isCommand())) {
+              /*
+              printf("Changing %03d %c %c %c %d %d %04x %04x %04x %s %d\n",
+                     c.code(), c.isReadout(), c.isCommand(), c.isLatch(),
+                     c.reportDelay(), c.reportWidth(), 
+                     c.maskTrigger(), c.maskSet(), c.maskClear(),
+                     c.desc(), c.readoutGroup());
+              */
+              new (&c) EventCodeType(c.code(), false, true, c.isLatch(), 
+                                     c.reportDelay(), c.reportWidth(), 
+                                     c.maskTrigger(), c.maskSet(), c.maskClear(),
+                                     c.desc(), c.readoutGroup());
+              /*
+              printf("      to %03d %c %c %c %d %d %04x %04x %04x %s %d\n",
+                     c.code(), c.isReadout(), c.isCommand(), c.isLatch(),
+                     c.reportDelay(), c.reportWidth(), 
+                     c.maskTrigger(), c.maskSet(), c.maskClear(),
+                     c.desc(), c.readoutGroup());
+              */
+            }
+            break;
+          }
+        }
+        if (!lFound) {
+          EventCodeType& c = eventcodes[ncodes++];
+          new (&c) EventCodeType(codes[i], false, true, false, 
+                                 0, 1,
+                                 0, 0, 0,
+                                 "CommandRequest",0);
+          /*
+          printf("Adding %03d %c %c %c %d %d %04x %04x %04x %s %d\n",
+                 c.code(), c.isReadout(), c.isCommand(), c.isLatch(),
+                 c.reportDelay(), c.reportWidth(), 
+                 c.maskTrigger(), c.maskSet(), c.maskClear(),
+                 c.desc(), c.readoutGroup());
+          */
+        }
+      }
+
+      if (cur_config==reinterpret_cast<const char*>(_cur_config))
+        _cur_config = reinterpret_cast<const EvrConfigType*>(p);
+
+      EvrConfigType& newcfg = *new(p) EvrConfigType(ncodes, cfg.npulses(), cfg.noutputs(),
+                                                    eventcodes.begin(), cfg.pulses().begin(), 
+                                                    cfg.output_maps().begin(), cfg.seq_config());
+      p += newcfg._sizeof();
+
+      cur_config += cfg._sizeof();
+    }
+
+    delete[] _configBuffer;
+    _configBuffer = configBuffer;
+    _end_config   = p;
+  }
+
 private:
   Evr&            _er;
   CfgClientNfs&   _cfg;
@@ -549,6 +629,19 @@ public:
   }
 };
 
+class EvrOccResponse : public Response {
+public:
+  EvrOccResponse(EvrConfigManager& cfg) : _cfg(cfg) {}
+public:
+  Occurrence* fire(Occurrence* occ) {
+    const EvrCommandRequest& req = *reinterpret_cast<const EvrCommandRequest*>(occ);
+    _cfg.handleCommandRequest(req.eventCodes());
+    return 0;
+  }
+private:
+  EvrConfigManager& _cfg;
+};
+
 
 extern "C"
 {
@@ -574,6 +667,8 @@ Server& EvrManager::server()
   return *_server;
 }
 
+static struct sigaction old_actions[64];
+
 EvrManager::EvrManager(EvgrBoardInfo < Evr > &erInfo, CfgClientNfs & cfg, bool bTurnOffBeamCodes):
   _er(erInfo.board()), _fsm(*new Fsm),
   _server(new EvrFifoServer(cfg.src())),
@@ -589,6 +684,8 @@ EvrManager::EvrManager(EvgrBoardInfo < Evr > &erInfo, CfgClientNfs & cfg, bool b
   _fsm.callback(TransitionId::Enable         , new EvrEnableAction    (_er,_fsm));
   _fsm.callback(TransitionId::L1Accept       , new EvrL1Action(_er, cfg.src(), &_fsm));
 
+  _fsm.callback(OccurrenceId::EvrCommandRequest, new EvrOccResponse   (*cmgr));
+
   _er.IrqAssignHandler(erInfo.filedes(), &evrmgr_sig_handler);
   erInfoGlobal = &erInfo;
 
@@ -600,26 +697,27 @@ EvrManager::EvrManager(EvgrBoardInfo < Evr > &erInfo, CfgClientNfs & cfg, bool b
   int_action.sa_flags = 0;
   int_action.sa_flags |= SA_RESTART;
 
-  if (sigaction(SIGINT, &int_action, 0) > 0)
-    printf("Couldn't set up SIGINT handler\n");
-  if (sigaction(SIGKILL, &int_action, 0) > 0)
-    printf("Couldn't set up SIGKILL handler\n");
-  if (sigaction(SIGSEGV, &int_action, 0) > 0)
-    printf("Couldn't set up SIGSEGV handler\n");
-  if (sigaction(SIGABRT, &int_action, 0) > 0)
-    printf("Couldn't set up SIGABRT handler\n");
-  if (sigaction(SIGTERM, &int_action, 0) > 0)
-    printf("Couldn't set up SIGTERM handler\n");
-    
+#define REGISTER(t) {                                               \
+    if (sigaction(t, &int_action, &old_actions[t]) > 0)             \
+      printf("Couldn't set up #t handler\n");                       \
+  }
+
+  REGISTER(SIGINT);
+  REGISTER(SIGKILL);
+  REGISTER(SIGSEGV);
+  REGISTER(SIGABRT);
+  REGISTER(SIGTERM);
+
+#undef REGISTER
 }
 
 EvrManager::~EvrManager()
 {
 }
 
-void EvrManager::sigintHandler(int iSignal)
+void EvrManager::sigintHandler(int sig_no)
 {
-  printf("signal %d received\n", iSignal);
+  printf("signal %d received\n", sig_no);
 
   if (erInfoGlobal && erInfoGlobal->mapped())
   {
@@ -634,7 +732,10 @@ void EvrManager::sigintHandler(int iSignal)
   {
     printf("evr not mapped\n");
   }
-  exit(0);
+
+  sigaction(sig_no,&old_actions[sig_no],NULL);
+  //  raise(sig_no);
+  kill(getpid(),sig_no);
 }
 
 void EvrManager::randomize_nodes(bool v) { _randomize_nodes=v; }

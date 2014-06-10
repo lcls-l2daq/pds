@@ -5,6 +5,8 @@
 #include "pds/utility/OccurrenceId.hh"
 #include "pdsdata/xtc/Sequence.hh"
 
+#include <vector>
+
 namespace Pds {
   class Pool;
   class Occurrence : public Message
@@ -88,6 +90,17 @@ namespace Pds {
   public:
     Sequence seq;
     unsigned code;
+  };
+
+  class EvrCommandRequest : public Occurrence
+  {
+  public:
+    EvrCommandRequest(const std::vector<unsigned>&);
+  public:
+    std::vector<unsigned> eventCodes() const;
+  public:
+    unsigned forward;
+    unsigned ncodes;
   };
 }
 

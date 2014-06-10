@@ -15,6 +15,7 @@
 
 #include "pds/collection/PingReply.hh"
 #include "pds/collection/AliasReply.hh"
+#include "pds/collection/CollectionPorts.hh"
 #include "pds/service/Task.hh"
 #include "pds/service/Routine.hh"
 #include "pds/service/GenericPool.hh"
@@ -586,6 +587,17 @@ void PartitionControl::message(const Node& hdr, const Message& msg)
                hdr.procInfo().processId());
         pause();
         break;
+      case OccurrenceId::EvrCommandRequest:
+        { const EvrCommandRequest& r = reinterpret_cast<const EvrCommandRequest&>(msg);
+          if (r.forward) {
+            printf("Received EvrCommandRequest occurrence from %x/%d\n",
+                   hdr.procInfo().ipAddr(),
+                   hdr.procInfo().processId());
+            EvrCommandRequest& ro = const_cast<EvrCommandRequest&>(r);
+            ro.forward=0;
+            mcast(ro);
+          }
+        } break;
       default:
         break;
       }

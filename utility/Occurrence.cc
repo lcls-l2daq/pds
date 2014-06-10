@@ -77,3 +77,22 @@ DataFileOpened::DataFileOpened(unsigned _expt,
   strncpy(host, _host, sizeof(host)-1);
   strncpy(path, _path, sizeof(path)-1);
 }
+
+EvrCommandRequest::EvrCommandRequest(const std::vector<unsigned>& codes) :
+  Occurrence(OccurrenceId::EvrCommandRequest,sizeof(EvrCommand)+codes.size()*sizeof(unsigned)),
+  forward   (1),
+  ncodes    (codes.size())
+{
+  unsigned* p = reinterpret_cast<unsigned*>(this+1);
+  for(unsigned i=0; i<ncodes; i++)
+    p[i] = codes[i];
+}
+
+std::vector<unsigned> EvrCommandRequest::eventCodes() const
+{
+  const unsigned* p = reinterpret_cast<const unsigned*>(this+1);
+  std::vector<unsigned> codes(ncodes);
+  for(unsigned i=0; i<ncodes; i++)
+    codes[i] = p[i];
+  return codes;
+}
