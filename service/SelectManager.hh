@@ -75,6 +75,9 @@ protected:
   int _dispatchIo();
 
 private:
+  void _verify() const;
+
+private:
   LinkedList<T> _managed;      // Listhead of managed servers
   EbBitMask     _managedList;  // Bit-list of managed servers (by ID)
   EbBitMask     _activeList;   // Bit-list of active servers (by ID)

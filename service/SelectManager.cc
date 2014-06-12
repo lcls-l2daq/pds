@@ -21,8 +21,52 @@
 #include "SelectManager.hh"
 #include <string.h>
 #include <stdio.h>
+#include <stdlib.h>
 
 using namespace Pds;
+
+#if 1
+template<class T>
+void SelectManager<T>::_verify() const
+{
+  fd_set fds;
+  FD_ZERO(&fds);
+
+  char* p = (char*)(&fds);
+
+  EbBitMask remaining = _activeList;
+  EbBitMask    id(EbBitMask::ONE);
+  T* const * server = &_servers[0];
+  do {
+    if((id & remaining).isZero()) continue;
+
+    { unsigned socket = (*server)->fd();
+      unsigned* base    = (unsigned*)((socket >> 5 << 2) + p);
+      unsigned  mask    = 0x1 << (socket & 0x1f);
+      unsigned  current = *base;
+      *base = current | mask;
+    }
+
+    remaining &= ~id;
+    }
+  while(server++, (id <<= 1).isNotZero(), remaining.isNotZero());
+
+  { unsigned socket = _oobServer.fd();
+    unsigned* base    = (unsigned*)((socket >> 5 << 2) + p);
+    unsigned  mask    = 0x1 << (socket & 0x1f);
+    unsigned  current = *base;
+    *base = current | mask;
+  }
+
+
+  for(unsigned i=0; i<sizeof(fd_set); i++)
+    if (_ioList[i]&~p[i]) {
+      printf("SelectManager masks are inconsistent\n");
+      dump();
+      abort();
+    }
+}
+#endif
 
 /*
 ** ++
@@ -131,11 +175,18 @@ int SelectManager<T>::arm(T* server)
   id.setBit(server->id());
   EbBitMask active = _activeList;
 
-  if((_managedList & id).isZero()) return 0;
+  if((_managedList & id).isZero()) {
+#if 1
+    printf("arm server %p - not managed\n",server);
+#endif
+    return 0;
+  }
 
   _activeList = active | id;
 
   enable(server);
+
+  _verify();
 
   return 1;
   }
@@ -160,6 +211,12 @@ EbBitMask SelectManager<T>::arm(EbBitMask mask)
 
   _activeList = remaining;
 
+#if 1
+  // Keep _ioList and _activeList in sync
+  memset(&_ioListBuffer, 0, sizeof(_ioListBuffer));
+  enable(&_oobServer);
+#endif
+
   do
     {
     if((id & remaining).isZero()) continue;
@@ -167,6 +224,8 @@ EbBitMask SelectManager<T>::arm(EbBitMask mask)
     remaining &= ~id;
     }
   while(server++, (id <<= 1).isNotZero(), remaining.isNotZero());
+
+  _verify();
 
   return managed;
   }
@@ -201,6 +260,8 @@ EbBitMask SelectManager<T>::safe(T* server)
     _activeList = active & ~id;
     disable(server);
     }
+
+  _verify();
 
   return on;
   }
@@ -286,6 +347,8 @@ int SelectManager<T>::_dispatchIo()
   while(next++, (id <<= 1).isNotZero(), remaining.isNotZero());
 
   _activeList = active;
+
+  _verify();
 
   return 1;
 }
