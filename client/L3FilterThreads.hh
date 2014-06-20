@@ -1,21 +1,15 @@
-#ifndef Pds_L3FilterThreads_hh
-#define Pds_L3FilterThreads_hh
+#ifndef Pds_L3FilterModule_hh
+#define Pds_L3FilterModule_hh
 
-#include "pds/utility/Appliance.hh"
+#include "pds/client/WorkThreads.hh"
 
 #include "pdsdata/app/L3FilterModule.hh"
 
 namespace Pds {
-  class WorkThreads;
-  class L3FilterThreads : public Appliance {
+  class L3FilterThreads : public WorkThreads {
   public:
     L3FilterThreads(create_m*, unsigned nthreads=0, bool lveto=false);
     ~L3FilterThreads();
-  public:
-    Transition* transitions(Transition*);
-    InDatagram* events     (InDatagram*);
-  private:
-    WorkThreads* _work;
   };
 };
     
