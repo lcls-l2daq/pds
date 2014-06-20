@@ -147,8 +147,12 @@ int PvConfigFile::_addPv(const string & sPvLine, string & sPvDescription,
     sPvName   = sPvLine.substr(uOffsetPv, uOffsetSeparator - uOffsetPv);
     size_t uOffsetInterval =
       sPvLine.find_first_not_of(sPvLineSeparators, uOffsetSeparator + 1);
-    if (uOffsetInterval != string::npos)
+    if (uOffsetInterval != string::npos) 
+    {
       fInterval = strtof(sPvLine.c_str() + uOffsetInterval, NULL);
+      if (fInterval > _fDefaultInterval)
+        fInterval = _fDefaultInterval;
+    }
   }
 
   string sPvDescriptionUpdate = sPvDescription;
