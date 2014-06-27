@@ -321,7 +321,6 @@ InDatagram* EvrMasterFIFOHandler::l1accept(InDatagram* in)
             //out->datagram().xtc.damage.userBits(out->datagram().xtc.damage.userBits() | 0x2);
           }
       }
-    uFiducialPrev = uFiducialCur;
             
     if ( bDataFull )
       {
@@ -352,7 +351,7 @@ InDatagram* EvrMasterFIFOHandler::l1accept(InDatagram* in)
     //if (  evrData.numFifoEvents() > 1 ) // !! debug print
     if ( uFiducialCur == 0 && uFiducialPrev < 0x1fe00) // Illegal fiducial wrap-around
       {
-        printf( "EvrL1Action::fire(): [%d] vector %d fiducial 0x%x prev 0x%x\n", 
+        printf( "EvrL1Action::fire(): Unexpected fiducial wrap: cycle %d vector %d fiducial 0x%x prev 0x%x\n", 
                 uNumBeginCalibCycle, iVector, uFiducialCur, uFiducialPrev );
         printf( "EvrL1Action::fire() data dump start (size = %u bytes)\n", evrData.size() );
         evrData.printFifoEvents();
@@ -364,6 +363,8 @@ InDatagram* EvrMasterFIFOHandler::l1accept(InDatagram* in)
       
     if (!bNoL1Data && !bOutOfOrder)
       releaseL1Data();      
+
+    uFiducialPrev = uFiducialCur;
   } 
   while (false);
     
