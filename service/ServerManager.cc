@@ -81,22 +81,26 @@ int ServerManager::poll()
     fd_set* const readfds = ioList();
     fd_set* const writfds = 0;
     fd_set* const excefds = 0;
-#ifdef __linux__
+
     struct timeval tmo;
     tmo.tv_sec  = _tmoBuffer.tv_sec;
     tmo.tv_usec = _tmoBuffer.tv_usec;
     struct timeval* tmoptr = _tmoptr ? &tmo : 0;
-    if(select(numFds(), readfds, writfds, excefds, tmoptr) > 0)
-#else
-    if(select(numFds(), readfds, writfds, excefds, _tmoptr) > 0)
-#endif
+    int n = select(numFds(), readfds, writfds, excefds, tmoptr);
+
+    if ( n > 0 )
       {
 	return _dispatchIo();  
       }
-    else        
+    else if ( n == 0 )    
       {
 	enable(&oobServer());
 	return processTmo();
+      }
+    else 
+      {
+	enable(&oobServer());
+	return 1;
       }
   }
 

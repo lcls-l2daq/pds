@@ -442,9 +442,10 @@ int EbBase::processTmo()
       const Datagram* datagram = &indatagram->datagram();
       EbBitMask value(event->allocated().remaining() & _valued_clients);
       if (!value.isZero())
-  printf("EbBase::processTmo seq %x/%x  remaining %08x : %g\n",
+  printf("EbBase::processTmo seq %x/%x  remaining %08x : %g [%d,%d]\n",
          datagram->seq.service(), datagram->seq.stamp().fiducials(),
-         event->remaining().value(), dts);
+         event->remaining().value(), dts, 
+         _ebtimeouts.duration(), _ebtimeouts.timeouts(0));
       //#endif
       _postEvent(event);
       ServerManager::arm(_armMask());
