@@ -102,6 +102,9 @@ EbBase::EbBase(const Src& id,
     _ack = new Client(sizeof(Datagram), PayloadSize,
        *dstack, Ins(ipaddress));
   }
+  printf("EbBase timeouts %d/%d\n", 
+         _ebtimeouts.duration(),
+         _ebtimeouts.timeouts(0));
 }
 
 /*
@@ -644,7 +647,7 @@ void EbBase::dump(int detail)
   printf(" Time of dump: ");
   printf(ctime(&timeNow));
   printf("%08x/%08x\n", (unsigned)ts.tv_sec, (unsigned)ts.tv_nsec);
-  printf(" Event Timeout is %u [ms]\n", timeout());
+  printf(" Event Timeout is %u [ms] (x %d)\n", timeout(), _ebtimeouts.timeouts(0));
   printf(" Has posted %u datagrams\n", _output.datagrams());
   printf(" %u Contributions, %u Chunks, %u Cache misses, %u Discards\n",
          _hits, _segments, _misses, _discards);
@@ -656,12 +659,13 @@ void EbBase::dump(int detail)
 
 void EbBase::_dump_events() const
 {
-  printf("%17s %17s %8s %8s %8s\n","clock","stamp","alloc","segm","rem");
+  printf("%8s %17s %17s %8s %8s %8s\n","key","clock","stamp","alloc","segm","rem");
   EbEventBase* event = _pending.forward();
   EbEventBase* empty = _pending.empty();
   while( event != empty ) {
     const Sequence seq = event->key().sequence();
-    printf("%08x/%08x %08x/%08x %08x %08x %08x\n",
+    printf("%08x %08x/%08x %08x/%08x %08x %08x %08x\n",
+           event->key().value(),
            seq.clock().seconds(),seq.clock().nanoseconds(),
            seq.stamp().fiducials(), seq.stamp().ticks(),
            event->allocated().remaining().value(),

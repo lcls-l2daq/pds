@@ -38,6 +38,7 @@ namespace Pds {
   public:
     const Sequence& sequence() const { return key.seq; }
     const Env&      env     () const { return key.env; }
+    unsigned        value   () const { return key.seq.stamp().fiducials(); }
   private:
     Datagram& key;
   };

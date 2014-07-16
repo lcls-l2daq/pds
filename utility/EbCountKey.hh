@@ -42,6 +42,7 @@ namespace Pds {
     virtual void assign   (const EbSequenceSrv& s) { dgram.seq = s.sequence(); dgram.env = s.env(); }
   public:
     const Sequence& sequence() const { return dgram.seq; }
+    unsigned        value()    const { return key; }
   private:  
     unsigned  key;
     //Sequence& seq;

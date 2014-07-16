@@ -30,6 +30,7 @@ namespace Pds {
     EbEventKeyDeclare(EvrServer);
   public:
     virtual const Sequence& sequence() const = 0;
+    virtual unsigned        value() const = 0;
   };
 
 }
