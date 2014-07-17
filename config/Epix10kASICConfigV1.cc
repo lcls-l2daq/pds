@@ -111,7 +111,7 @@ namespace Pds {
         {"Dm1En"},
         {"Dm2En"},
         {"emph_bd"},
-        {"emph_bd"},
+        {"emph_bc"},
         {"VREFDac"},
         {"VrefLow"},
         {"TpsTComp"},
