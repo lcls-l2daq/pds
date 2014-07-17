@@ -13,6 +13,8 @@ namespace Pds {
       ~Manager();
     public:
       Appliance& appliance();
+      void testTimeStep(bool t) { tsp = t; };
+      bool tsp;
     private:
       Fsm& _fsm;
     };

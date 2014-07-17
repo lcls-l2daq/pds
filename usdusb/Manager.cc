@@ -110,7 +110,7 @@ namespace Pds {
     class L1Action : public Action,
 		     public Pds::XtcIterator {
     public:
-      L1Action() : _lreset(true) {}
+      L1Action(Manager* mgr) : _mgr(mgr), _lreset(true) {}
       InDatagram* fire(InDatagram* in) {
 	unsigned dgm_ts = in->datagram().seq.stamp().fiducials();
 	_nfid   = dgm_ts - _dgm_ts;
@@ -140,7 +140,7 @@ namespace Pds {
 	    const unsigned maxdfid = 20000; // 48MHz timestamp rollover
 
 	    double fdelta = double(usd_ts - _usd_ts)*clkratio/double(_nfid) - 1;
-	    if (fabs(fdelta) > tolerance && _nfid < maxdfid) {
+	    if (_mgr->tsp && (fabs(fdelta) > tolerance && _nfid < maxdfid)) {
 	      unsigned nfid = unsigned(double(usd_ts - _usd_ts)*clkratio + 0.5);
 	      printf("  timestep error: fdelta %f  dfid %d  tds %u,%u [%u]\n",
 		     fdelta, _nfid, usd_ts, _usd_ts, nfid);
@@ -156,6 +156,7 @@ namespace Pds {
 	return 1;
       }
     private:
+      Manager* _mgr;
       bool     _lreset;
       unsigned _usd_ts;
       unsigned _dgm_ts;
@@ -300,13 +301,12 @@ namespace Pds {
 
 using namespace Pds::UsdUsb;
 
-Manager::Manager(unsigned dev, Server& server, CfgClientNfs& cfg) :
-  _fsm(*new Fsm) 
+Manager::Manager(unsigned dev, Server& server, CfgClientNfs& cfg) : tsp(true),  _fsm(*new Fsm())
 {
 
   Task* task = new Task(TaskObject("UsdReadout",35));
   Reader& reader = *new Reader(dev, server,task);
-  L1Action* l1 = new L1Action;
+  L1Action* l1 = new L1Action(this);
   
   _fsm.callback(TransitionId::Map, new AllocAction(cfg)); 
   _fsm.callback(TransitionId::Configure,new ConfigAction(dev, reader, *l1, cfg, *this));
