@@ -90,25 +90,12 @@ unsigned Cspad2x2Server::configure(CsPad2x2ConfigType* config) {
 }
 
 void Pds::Cspad2x2Server::die() {
-  _d.dest(Pds::CsPad2x2::Cspad2x2Destination::CR);
   printf("Cspad2x2Server::die has been called !!!!!!!\n");
-  if ((_pgp != 0) && (_cnfgrtr != 0)) {
-    if (_configureResult != 0xdead) {
-      _pgp->writeRegister(
-          &_d,
-          CsPad2x2::Cspad2x2Configurator::RunModeAddr,
-          _cnfgrtr->configuration().inactiveRunMode());
-      printf("Cspad2x2Server::die has changed the run mode !!!!!!!\n");
-    } else {
-      printf("Cspad2x2Server::die found nil config!\n");
-    }
-  } else {
-    printf("Cspad2x2Server::die too late, everybody is already dead!\n");
-  }
 }
 
 void Pds::Cspad2x2Server::dumpFrontEnd() {
   if (_cnfgrtr != 0) _cnfgrtr->dumpFrontEnd();
+  else printf("Cspad2x2Server::dumpFrontEnd() found nil configurator\n");
 }
 
 void Cspad2x2Server::process() {
@@ -142,9 +129,9 @@ void Pds::Cspad2x2Server::runTimeConfigName(char* name) {
 }
 
 unsigned Pds::Cspad2x2Server::disable(bool flush) {
-  _d.dest(Pds::CsPad2x2::Cspad2x2Destination::CR);
   _ignoreFetch = true;
   unsigned ret = _configureResult;
+  _d.dest(Pds::CsPad2x2::Cspad2x2Destination::CR);
   if (_configureResult != 0xdead) {
     if (_pgp && _cnfgrtr) {
       ret = _pgp->writeRegister(

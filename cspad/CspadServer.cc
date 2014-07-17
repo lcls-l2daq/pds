@@ -96,7 +96,7 @@ unsigned CspadServer::configure(CsPadConfigType* config) {
 }
 
 void Pds::CspadServer::die() {
-  disable();
+  printf("CspadServer::die() has been called");
 }
 
 void Pds::CspadServer::printState() {
@@ -106,10 +106,9 @@ void Pds::CspadServer::printState() {
 
 void Pds::CspadServer::dumpFrontEnd() {
   if ((_configureResult != 0xdead) && (_cnfgrtr != 0)) {
-    disable();
     _cnfgrtr->dumpFrontEnd();
   } else {
-    printf("CspadServer::dumpFrontEnd found nil configuration\n");
+    printf("CspadServer::dumpFrontEnd found nil configuration or configurator\n");
   }
 }
 
@@ -143,17 +142,21 @@ void Pds::CspadServer::runTimeConfigName(char* name) {
 
 void Pds::CspadServer::disable(bool flush) {
   _ignoreFetch = true;
-  _d.dest(Pds::CsPad::CspadDestination::CR);
-  if ((_configureResult != 0xdead) && (_cnfgrtr != 0)) {
-    _pgp->writeRegister(
-        &_d,
-        CsPad::CspadConfigurator::RunModeAddr,
-        _cnfgrtr->configuration().inactiveRunMode());
-    ::usleep(10000);
-    if (flush) flushInputQueue(fd(), false);
-    if (_debug & 0x20) printf("CspadServer::disable\n");
+  if (_cnfgrtr && _pgp) {
+    _d.dest(Pds::CsPad::CspadDestination::CR);
+    if ((_configureResult != 0xdead) && (_cnfgrtr != 0)) {
+      _pgp->writeRegister(
+          &_d,
+          CsPad::CspadConfigurator::RunModeAddr,
+          _cnfgrtr->configuration().inactiveRunMode());
+      ::usleep(10000);
+      if (flush) flushInputQueue(fd(), false);
+      if (_debug & 0x20) printf("CspadServer::disable\n");
+    } else {
+      printf("CspadServer::disable found nil configuration or configurator, so not disabling\n");
+    }
   } else {
-    printf("CspadServer::disable found nil configuration, so not disabling\n");
+    printf("CspadServer::disable found nil objects, so not disabling\n");
   }
 }
 

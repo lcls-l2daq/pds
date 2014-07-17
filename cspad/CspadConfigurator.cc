@@ -87,7 +87,7 @@ namespace Pds {
 
     void CspadConfigurator::printMe() {
       printf("Configurator: ");
-      for (unsigned i=0; i<sizeof(*this)/sizeof(unsigned); i++) printf("\n\t%08x", ((unsigned*)this)[i]);
+      for (unsigned i=0; i<(sizeof(*this)/sizeof(unsigned)); i++) printf("\n\t%08x", ((unsigned*)this)[i]);
       printf("\n");
     }
 
@@ -248,7 +248,7 @@ namespace Pds {
       timespec      start, end;
       clock_gettime(CLOCK_REALTIME, &start);
       unsigned ret = Success;
-      if (_debug & 0x100) {
+      if ((_debug & 0x100) && _conRegs && _pgp) {
         printf("CspadConfigurator::dumpFrontEnd: Concentrator\n");
         ret = _conRegs->read();
         if (ret == Success) {
@@ -256,8 +256,10 @@ namespace Pds {
         } else {
           printf("\tCould not be read!\n");
         }
+      } else {
+        if (!(_debug & 0x100)) printf("CspadConfigurator::dumpFrontEnd found nil objects 1\n");
       }
-      if (_debug & 0x200) {
+      if ((_debug & 0x200) && _quadRegs && _pgp) {
         for (unsigned i=0; i<Pds::CsPad::MaxQuadsPerSensor && ret == Success; i++) {
           unsigned ret2 = 0;
           if ((1<<i) & _config->quadMask()) {
@@ -271,8 +273,10 @@ namespace Pds {
             ret |= ret2;
           }
         }
+      } else {
+        if (!(_debug & 0x200)) printf("CspadConfigurator::dumpFrontEnd found nil objects 2\n");
       }
-      if (_debug & 0x400) {
+      if ((_debug & 0x400) && _pgp) {
         printf("Checking Configuration, no news is good news ...\n");
         if (Failure == checkWrittenRegs()) {
           printf("CspadConfigurator::checkWrittenRegs() FAILED !!!\n");
@@ -280,6 +284,8 @@ namespace Pds {
         if (Failure == checkDigPots()) {
           printf("CspadConfigurator::checkDigPots() FAILED !!!!\n");
         }
+      } else {
+        if (!(_debug & 0x400)) printf("CspadConfigurator::dumpFrontEnd found nil objects 4\n");
       }
       dumpPgpCard();
       clock_gettime(CLOCK_REALTIME, &end);
@@ -381,14 +387,16 @@ namespace Pds {
         unsigned     tid,
         uint32_t     expected) {
       uint32_t readBack;
-      if (_pgp->readRegister(d, addr, tid, &readBack)) {
-        printf("CspadConfigurator::_checkRegs read back failed at %s %u\n", d->name(), addr);
-        return Terminate;
-      }
-      if (readBack != expected) {
-        printf("CspadConfigurator::_checkRegs read back wrong value %u!=%u at %s %u\n",
-            expected, readBack, d->name(), addr);
-        return Failure;
+      if (_pgp) {
+        if (_pgp->readRegister(d, addr, tid, &readBack)) {
+          printf("CspadConfigurator::_checkRegs read back failed at %s %u\n", d->name(), addr);
+          return Terminate;
+        }
+        if (readBack != expected) {
+          printf("CspadConfigurator::_checkRegs read back wrong value %u!=%u at %s %u\n",
+              expected, readBack, d->name(), addr);
+          return Failure;
+        }
       }
       return Success;
     }
@@ -397,29 +405,33 @@ namespace Pds {
       uint32_t* u;
       unsigned ret = Success;
       unsigned result = Success;
-      _d.dest(CspadDestination::CR);
-      result |= _checkReg(&_d, EventCodeAddr, 0xa000, _config->eventCode());
-      result |= _checkReg(&_d, runDelayAddr, 0xa001, _config->runDelay());
-      result |= _checkReg(&_d, EvrWidthAddr, 0xa002, EvrWidthValue);
-      result |= _checkReg(&_d, ProtEnableAddr, 0xa003, _config->protectionEnable());
-      if (result & Terminate) return Failure;
+      bool done = false;
+      while (!done && _config) {
+        _d.dest(CspadDestination::CR);
+        result |= _checkReg(&_d, EventCodeAddr, 0xa000, _config->eventCode());
+        result |= _checkReg(&_d, runDelayAddr, 0xa001, _config->runDelay());
+        result |= _checkReg(&_d, EvrWidthAddr, 0xa002, EvrWidthValue);
+        result |= _checkReg(&_d, ProtEnableAddr, 0xa003, _config->protectionEnable());
+        if (result & Terminate) return Failure;
 
-      ProtectionSystemThreshold pr[MaxQuadsPerSensor];
-      unsigned size = MaxQuadsPerSensor*sizeof(ProtectionSystemThreshold)/sizeof(uint32_t);
-      if (_pgp->readRegister(&_d, protThreshBase, 0xa004, (uint32_t*)pr, size)){
-        printf("CspadConfigurator::writeRegs concentrator read back failed at protThreshBase\n");
-        return Failure;
-      }
-      ndarray<const ProtectionSystemThreshold,1> pw = _config->protectionThresholds();
-      for (unsigned i=0; i<MaxQuadsPerSensor; i++) {
-        if ((pw[i].adcThreshold() != pr[i].adcThreshold()) | (pw[i].pixelCountThreshold() != pr[i].pixelCountThreshold())) {
-          ret = Failure;
-          printf("CspadConfigurator::writeRegs concentrator read back Protection tresholds (%u,%u) != (%u,%u) for quad %u\n",
-                 pw[i].adcThreshold(), pw[i].pixelCountThreshold(), pr[i].adcThreshold(), pr[i].pixelCountThreshold(), i);
+        ProtectionSystemThreshold pr[MaxQuadsPerSensor];
+        unsigned size = MaxQuadsPerSensor*sizeof(ProtectionSystemThreshold)/sizeof(uint32_t);
+        if (_pgp->readRegister(&_d, protThreshBase, 0xa004, (uint32_t*)pr, size)){
+          printf("CspadConfigurator::writeRegs concentrator read back failed at protThreshBase\n");
+          return Failure;
         }
+        ndarray<const ProtectionSystemThreshold,1> pw = _config->protectionThresholds();
+        for (unsigned i=0; i<MaxQuadsPerSensor; i++) {
+          if ((pw[i].adcThreshold() != pr[i].adcThreshold()) | (pw[i].pixelCountThreshold() != pr[i].pixelCountThreshold())) {
+            ret = Failure;
+            printf("CspadConfigurator::writeRegs concentrator read back Protection threshold (%u,%u) != (%u,%u) for quad %u\n",
+                pw[i].adcThreshold(), pw[i].pixelCountThreshold(), pr[i].adcThreshold(), pr[i].pixelCountThreshold(), i);
+          }
+        }
+        done = true;
       }
 
-      for (unsigned i=0; i<MaxQuadsPerSensor; i++) {
+      for (unsigned i=0; (i<MaxQuadsPerSensor) && _config; i++) {
         if ((1<<i) & _config->quadMask()) {
           _d.dest(i);
           u = (uint32_t*)&(_config->quads(i));
@@ -479,7 +491,7 @@ namespace Pds {
       // in uint32_ts, size of pots array
       unsigned size = Pds::CsPad::PotsPerQuad;
       uint32_t myArray[size];
-      for (unsigned i=0; i<Pds::CsPad::MaxQuadsPerSensor; i++) {
+      for (unsigned i=0; (i<Pds::CsPad::MaxQuadsPerSensor) && _config && _pgp; i++) {
         if ((1<<i) & _config->quadMask()) {
           _d.dest(i);
           unsigned myRet = _pgp->readRegister(&_d, _digPot.base, 0xc000+(i<<8), myArray,  size);
@@ -488,7 +500,7 @@ namespace Pds {
 //            if (!(m&15)) printf("\n");
 //          } printf("\n");
           if (myRet == Success) {
-            for (unsigned j=0; j<Pds::CsPad::PotsPerQuad; j++) {
+            for (unsigned j=0; (j<Pds::CsPad::PotsPerQuad) && _config; j++) {
               if (myArray[j] != (uint32_t)_config->quads(i).dp().pots()[j]) {
                 ret = Failure;
                 printf("CspadConfigurator::checkDigPots mismatch 0x%02x!=0x%0x at offset %u in quad %u\n",

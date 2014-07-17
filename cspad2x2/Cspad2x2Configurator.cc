@@ -254,20 +254,21 @@ namespace Pds {
       timespec      start, end;
       clock_gettime(CLOCK_REALTIME, &start);
       unsigned ret = Success;
-      if (_debug & 0x100) {
+      if ((_debug & 0x100) && _conRegs) {
         printf("Cspad2x2Configurator::dumpFrontEnd: Concentrator\n");
         ret = _conRegs->read();
         if (ret == Success) {
           _conRegs->print();
         }
       }
-      if ((_debug & 0x200) && (ret == Success)) {
+      if ((_debug & 0x200) && _quadRegs && (ret == Success)) {
         printf("Cspad2x2Configurator::dumpFrontEnd: Quad\n");
         ret = _quadRegs->read();
         if (ret == Success) {
           _quadRegs->print();
         }
-      } if (ret != Success) {
+      }
+      if (ret != Success) {
         printf("\tCould not be read!\n");
       }
       if ((_debug & 0x400) && (ret == Success)) {
@@ -359,18 +360,22 @@ namespace Pds {
         unsigned     tid,
         uint32_t     expected) {
       uint32_t readBack;
-      if (_pgp->readRegister(d, addr, tid, &readBack)) {
-        printf("Cspad2x2Configurator::_checkReg read back failed at %s address %u\n", d->name(), addr);
+      if (_pgp) {
+        if (_pgp->readRegister(d, addr, tid, &readBack)) {
+          printf("Cspad2x2Configurator::_checkReg read back failed at %s address %u\n", d->name(), addr);
+          return Terminate;
+        }
+        if (readBack != expected) {
+          printf("Cspad2x2Configurator::_checkReg read back wrong value %u!=%u at %s address 0x%x\n",
+              expected, readBack, d->name(), addr);
+          return Failure;
+        }
+        if (_debug & 0x1000) {
+          printf("Cspad2x2Configurator::_checkReg matching value %8u at %s address 0x%x\n",
+              expected, d->name(), addr);
+        }
+      } else {
         return Terminate;
-      }
-      if (readBack != expected) {
-        printf("Cspad2x2Configurator::_checkReg read back wrong value %u!=%u at %s address 0x%x\n",
-            expected, readBack, d->name(), addr);
-        return Failure;
-      }
-      if (_debug & 0x1000) {
-        printf("Cspad2x2Configurator::_checkReg matching value %8u at %s address 0x%x\n",
-            expected, d->name(), addr);
       }
       return Success;
     }
@@ -379,34 +384,39 @@ namespace Pds {
       uint32_t* u;
       unsigned ret = Success;
       unsigned result = Success;
-      _d.dest(Cspad2x2Destination::CR);
-      result |= _checkReg(&_d, ProtEnableAddr, 0xa003, _config->protectionEnable());
-      if (result & Terminate) return Failure;
+      if (_pgp) {
+        _d.dest(Cspad2x2Destination::CR);
+        result |= _checkReg(&_d, ProtEnableAddr, 0xa003, _config->protectionEnable());
+        if (result & Terminate) return Failure;
 
-      ProtectionSystemThreshold pr;
-      unsigned size = sizeof(ProtectionSystemThreshold)/sizeof(uint32_t);
-      if (_pgp->readRegister(&_d, protThreshBase, 0xa004, (uint32_t*)&pr, size)){
-        printf("Cspad2x2Configurator::writeRegs concentrator read back failed at protThreshBase\n");
-        return Failure;
-      }
-      const ProtectionSystemThreshold& pw = _config->protectionThreshold();
-      for (unsigned i=0; i<QuadsPerSensor; i++) {
-        if ((pw.adcThreshold() != pr.adcThreshold()) | (pw.pixelCountThreshold() != pr.pixelCountThreshold())) {
-          ret = Failure;
-          printf("Cspad2x2Configurator::writeRegs concentrator read back Protection threshold (%u,%u) != (%u,%u)\n",
-                 pw.adcThreshold(), pw.pixelCountThreshold(), pr.adcThreshold(), pr.pixelCountThreshold());
+        ProtectionSystemThreshold pr;
+        unsigned size = sizeof(ProtectionSystemThreshold)/sizeof(uint32_t);
+        if (_pgp->readRegister(&_d, protThreshBase, 0xa004, (uint32_t*)&pr, size)){
+          printf("Cspad2x2Configurator::writeRegs concentrator read back failed at protThreshBase\n");
+          return Failure;
         }
-        if (_debug & 0x1000 && !ret) {
-          printf("Cspad2x2Configurator::checkWrittenRegs matching protection sys %8u %8u\n",
-                 pw.adcThreshold(), pw.pixelCountThreshold());
+        const ProtectionSystemThreshold& pw = _config->protectionThreshold();
+        for (unsigned i=0; i<QuadsPerSensor; i++) {
+          if ((pw.adcThreshold() != pr.adcThreshold()) | (pw.pixelCountThreshold() != pr.pixelCountThreshold())) {
+            ret = Failure;
+            printf("Cspad2x2Configurator::writeRegs concentrator read back Protection threshold (%u,%u) != (%u,%u)\n",
+                pw.adcThreshold(), pw.pixelCountThreshold(), pr.adcThreshold(), pr.pixelCountThreshold());
+          }
+          if (_debug & 0x1000 && !ret) {
+            printf("Cspad2x2Configurator::checkWrittenRegs matching protection sys %8u %8u\n",
+                pw.adcThreshold(), pw.pixelCountThreshold());
+          }
         }
+        _d.dest(Cspad2x2Destination::Q0);
+        u = (uint32_t*)(&_config->quad());
+        for (unsigned j=0; j<sizeOfQuadWrite; j++) {
+          //        printf("checkWrittenRegs reguesting address 0x%x from %s at index %u\n", _quadAddrs[j], _d.name(), j);
+          result |= _checkReg(&_d, _quadAddrs[j], 0xb000+j, u[j]);
+        }
+      } else {
+        printf("Cspad2x2Configurator::checkWrittenRegs found nil objects, so did nothing\n");
       }
-      _d.dest(Cspad2x2Destination::Q0);
-      u = (uint32_t*)(&_config->quad());
-      for (unsigned j=0; j<sizeOfQuadWrite; j++) {
-//        printf("checkWrittenRegs reguesting address 0x%x from %s at index %u\n", _quadAddrs[j], _d.name(), j);
-        result |= _checkReg(&_d, _quadAddrs[j], 0xb000+j, u[j]);
-      }
+
       return ret;
     }
 
@@ -446,24 +456,28 @@ namespace Pds {
       // in uint32_ts, size of pots array
       unsigned size = Pds::CsPad2x2::PotsPerQuad;
       uint32_t myArray[size];
-      _d.dest(Cspad2x2Destination::Q0);
-      unsigned myRet = _pgp->readRegister(&_d, _digPot.base, 0xc000, myArray,  size);
-      //          for (unsigned m=0; m<Pds::CsPad2x2::PotsPerQuad; ) {
-      //            printf("-0x%02x", myArray[m++]);
-      //            if (!(m&15)) printf("\n");
-      //          } printf("\n");
-      if (myRet == Success) {
-        for (unsigned j=0; j<Pds::CsPad2x2::PotsPerQuad; j++) {
-          if (myArray[j] != (uint32_t)_config->quad().dp().pots()[j]) {
-            ret = Failure;
-            printf("Cspad2x2Configurator::checkDigPots mismatch 0x%02x!=0x%0x at offset %u in quad\n",
-                   _config->quad().dp().pots()[j], myArray[j], j);
-            //  _config->quad()->dp().pots[j] = (uint8_t) (myArray[j] & 0xff);
+      if (_pgp) {
+        _d.dest(Cspad2x2Destination::Q0);
+        unsigned myRet = _pgp->readRegister(&_d, _digPot.base, 0xc000, myArray,  size);
+        //          for (unsigned m=0; m<Pds::CsPad2x2::PotsPerQuad; ) {
+        //            printf("-0x%02x", myArray[m++]);
+        //            if (!(m&15)) printf("\n");
+        //          } printf("\n");
+        if (myRet == Success) {
+          for (unsigned j=0; j<Pds::CsPad2x2::PotsPerQuad; j++) {
+            if (myArray[j] != (uint32_t)_config->quad().dp().pots()[j]) {
+              ret = Failure;
+              printf("Cspad2x2Configurator::checkDigPots mismatch 0x%02x!=0x%0x at offset %u in quad\n",
+                  _config->quad().dp().pots()[j], myArray[j], j);
+              //  _config->quad()->dp().pots[j] = (uint8_t) (myArray[j] & 0xff);
+            }
           }
+        } else {
+          printf("Cspad2x2Configurator::checkDigPots _pgp->readRegister failed on quad\n");
+          ret = Failure;
         }
       } else {
-        printf("Cspad2x2Configurator::checkDigPots _pgp->readRegister failed on quad\n");
-        ret = Failure;
+        printf("Cspad2x2Configurator::checkDigPots found nil objects, so did nothing\n");
       }
       return ret;
     }

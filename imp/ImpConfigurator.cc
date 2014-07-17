@@ -58,14 +58,18 @@ void ImpConfigurator::resetFrontEnd(uint32_t r) {
 void ImpConfigurator::resetSequenceCount() {
   _d.dest(ImpDestination::CommandVC);
   // belt and suspenders, delete the second if and when the first works
-  _pgp->writeRegister(&_d, resetAddr, CountResetMask);
-  _pgp->writeRegister(&_d, sequenceCountAddr, 0);
+  if (_pgp) {
+    _pgp->writeRegister(&_d, resetAddr, CountResetMask);
+    _pgp->writeRegister(&_d, sequenceCountAddr, 0);
+  } else printf("ImpConfigurator::sequenceCount() found nil _pgp so not reset\n");
 }
 
 uint32_t ImpConfigurator::sequenceCount() {
   _d.dest(ImpDestination::CommandVC);
   uint32_t count=1111;
-  _pgp->readRegister(&_d, sequenceCountAddr, 0x5e4, &count);
+  if (_pgp) {
+    _pgp->readRegister(&_d, sequenceCountAddr, 0x5e4, &count);
+  } else printf("ImpConfigurator::sequenceCount() found nil _pgp so not read\n");
   return (count);
 }
 
@@ -83,22 +87,7 @@ void ImpConfigurator::printMe() {
 }
 
 bool ImpConfigurator::_flush(unsigned index=0) {
-//  enum {numberOfTries=5};
-//  unsigned version = 0;
-//  unsigned failCount = 0;
-  bool ret = false;
-//  printf("\n\t--flush-%u-", index);
-//  while ((failCount++<numberOfTries) && (Failure == _statRegs.readVersion(&version))) {
-//    printf("%s(%u)-", _d.name(), failCount);
-//  }
-//  if (failCount<numberOfTries) {
-//    printf("%s version(0x%x)\n\t", _d.name(), version);
-//  }
-//  else {
-    ret = true;
-//    printf("\n\t");
-//  }
-  return ret;
+  return false;
 }
 
 unsigned ImpConfigurator::configure( ImpConfigType* c, unsigned mask) {
@@ -162,7 +151,7 @@ unsigned ImpConfigurator::checkWrittenConfig(bool writeBack) {
   unsigned ret = Success;
   unsigned size = Pds::ImpConfig::NumberOfValues;
   uint32_t myBuffer[size];
-  for (unsigned i=0; i<size && _pgp; i++) {
+  for (unsigned i=0; (i<size) && _pgp && _config; i++) {
     if (_pgp->readRegister(&_d, configAddrs[i], 0x1100+i, myBuffer+i)) {
       printf("ImpConfigurator::checkWrittenConfig failed reading %u\n", i);
       ret |= Failure;
@@ -181,8 +170,9 @@ unsigned ImpConfigurator::checkWrittenConfig(bool writeBack) {
       }
     }
   }
-  if (_config && _pgp) return ret;
-  return Failure;
+  if (!_pgp) printf("ImpConfigurator::checkWrittenConfig found nil pgp\n");
+  if (!_config) printf("ImpConfigurator::checkWrittenConfig found nil config\n");
+  return ret;
 }
 
 
@@ -194,7 +184,8 @@ void ImpConfigurator::dumpFrontEnd() {
     ret = _statRegs.read();
     if (ret == Success) {
       _statRegs.print();
-      uint32_t count = ImpConfigurator::sequenceCount();
+      uint32_t count = 1111;
+      count = ImpConfigurator::sequenceCount();
       printf("\tSequenceCount(%u)\n", count);
     } else {
       printf("\tImp Status Registers could not be read!\n");

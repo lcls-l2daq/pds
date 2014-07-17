@@ -73,6 +73,7 @@ unsigned ImpServer::configure(ImpConfigType* config) {
   if (_cnfgrtr == 0) {
     _cnfgrtr = new Imp::ImpConfigurator::ImpConfigurator(fd(), _debug);
   }
+  _pgp = _cnfgrtr->pgp();
   // First calculate payload size in uint32s, 8 for the header 2 for each sample and 1 at the end
   _payloadSize = Pds::ImpData::Uint32sPerHeader + Pds::ImpConfig::get(*config,Imp::ConfigV1::NumberOfSamples) * Pds::ImpData::Uint32sPerSample + 1;
   // then convert to bytes
@@ -99,14 +100,13 @@ unsigned ImpServer::configure(ImpConfigType* config) {
 }
 
 void Pds::ImpServer::die() {
-  if (_pgp != 0) {
-    printf("ImpServer::die has been called !!!!!!!\n");
-   }
+  printf("ImpServer::die has been called !!!!!!!\n");
 }
 
 void Pds::ImpServer::dumpFrontEnd() {
   disable();
   if (_cnfgrtr) _cnfgrtr->dumpFrontEnd();
+  else printf("ImpServer::dumpFrontEnd found nil configurator\n");
 }
 
 void ImpServer::process() {
@@ -125,8 +125,8 @@ void Pds::ImpServer::enable() {
   if (usleep(10000)<0) perror("ImpServer::enable ulseep failed\n");
   _ignoreFetch = false;
   _firstFetch = true;
+  printf("ImpServer::enable() found _pgp %p\n", _pgp);
   _pgp->writeRegister(&d, Pds::Imp::enableTriggersAddr, Pds::Imp::enable);
-//  _pgp->writeRegister(&d, Pds::Imp::unGateTriggersAddr, Pds::Imp::enable);
   flushInputQueue(fd());
   if (_debug & 0x20) printf("ImpServer::enable\n");
   _ignoreFetch = false;
@@ -136,8 +136,8 @@ void Pds::ImpServer::disable(bool flush) {
   _ignoreFetch = true;
   Pds::Imp::ImpDestination d;
   d.dest(Pds::Imp::ImpDestination::CommandVC);
-//  _pgp->writeRegister(&d, Pds::Imp::unGateTriggersAddr, Pds::Imp::disable);
-  _pgp->writeRegister(&d, Pds::Imp::enableTriggersAddr, Pds::Imp::disable);
+  if (_pgp) _pgp->writeRegister(&d, Pds::Imp::enableTriggersAddr, Pds::Imp::disable);
+  else printf("ImpServer::disable(%s) found nil _pgp %p\n", flush ? "true" : "false", _pgp);
   if (flush) flushInputQueue(fd());
   if (usleep(10000)<0) perror("ImpServer::disable ulseep 1 failed\n");
   if (_debug & 0x20) printf("ImpServer::disable\n");
