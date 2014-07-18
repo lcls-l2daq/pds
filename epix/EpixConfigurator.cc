@@ -120,26 +120,44 @@ EpixConfigurator::~EpixConfigurator() {}
 
 void EpixConfigurator::resetFrontEnd() {
   _d.dest(EpixDestination::Registers);
-  _pgp->writeRegister(&_d, ResetAddr, 1);
-  microSpin(10);
+  if (_pgp) {
+    _pgp->writeRegister(&_d, ResetAddr, 1);
+    microSpin(10);
+  } else printf("EpixConfigurator::resetFrontEnd() found nil _pgp so not reset\n");
 }
 
 void EpixConfigurator::resetSequenceCount() {
   _d.dest(EpixDestination::Registers);
-  _pgp->writeRegister(&_d, ResetFrameCounter, 1);
-  microSpin(10);
+  if (_pgp) {
+    _pgp->writeRegister(&_d, ResetFrameCounter, 1);
+    _pgp->writeRegister(&_d, ResetAcqCounter, 1);
+    microSpin(10);
+  } else printf("EpixConfigurator::resetSequenceCount() found nil _pgp so not reset\n");
 }
 
 uint32_t EpixConfigurator::sequenceCount() {
-  _d.dest(EpixDestination::Registers);
   uint32_t count=1111;
-  _pgp->readRegister(&_d, ReadFrameCounter, 0x5e4, &count);
+  _d.dest(EpixDestination::Registers);
+  if (_pgp) {
+    _pgp->readRegister(&_d, ReadFrameCounter, 0x5e4, &count);
+  } else printf("EpixConfigurator::sequenceCount() found nil _pgp so not read\n");
+  return (count);
+}
+
+uint32_t EpixConfigurator::acquisitionCount() {
+  uint32_t count=1111;
+  _d.dest(EpixDestination::Registers);
+  if (_pgp) {
+    _pgp->readRegister(&_d, ReadAcqCounter, 0x5e4, &count);
+  } else printf("EpixConfigurator::acquisitionCount() found nil _pgp so not read\n");
   return (count);
 }
 
 void EpixConfigurator::enableExternalTrigger(bool f) {
   _d.dest(EpixDestination::Registers);
-  _pgp->writeRegister(&_d, DaqTriggerEnable, f ? Enable : Disable);
+  if (_pgp) {
+    _pgp->writeRegister(&_d, DaqTriggerEnable, f ? Enable : Disable);
+  } else printf("EpixConfigurator::enableExternalTrigger(%s) found nil _pgp so not set\n", f ? "true" : "false");
 }
 
 void EpixConfigurator::enableRunTrigger(bool f) {
@@ -299,19 +317,23 @@ unsigned EpixConfigurator::writeConfig() {
 }
 
 unsigned EpixConfigurator::checkWrittenConfig(bool writeBack) {
-  _d.dest(EpixDestination::Registers);
   unsigned ret = Success;
   unsigned size = EpixConfigShadow::NumberOfValues;
   uint32_t myBuffer[size];
-  for (unsigned i=0; i<size; i++) {
-    if (configAddrs[i][1] == ReadWrite) {
-      if (_pgp->readRegister(&_d, configAddrs[i][0], 0x1100+i, myBuffer+i)) {
-        printf("EpixConfigurator::checkWrittenConfig failed reading %s\n", _s->name((EpixConfigShadow::Registers)i));
-        ret |= Failure;
+  bool done = false;
+  while (!done && _config && _pgp) {
+    _d.dest(EpixDestination::Registers);
+    for (unsigned i=0; i<size; i++) {
+      if (configAddrs[i][1] == ReadWrite) {
+        if (_pgp->readRegister(&_d, configAddrs[i][0], 0x1100+i, myBuffer+i)) {
+          printf("EpixConfigurator::checkWrittenConfig failed reading %s\n", _s->name((EpixConfigShadow::Registers)i));
+          ret |= Failure;
+        }
       }
     }
+    done = true;
   }
-  if (ret == Success) {
+  if (ret == Success  && _pgp) {
     EpixConfigShadow* readConfig = (EpixConfigShadow*) myBuffer;
     uint32_t r, c;
     for (unsigned i=0; i<EpixConfigShadow::NumberOfRegisters; i++) {
@@ -326,6 +348,7 @@ unsigned EpixConfigurator::checkWrittenConfig(bool writeBack) {
       }
     }
   }
+  if (!_pgp) printf("EpixConfigurator::checkWrittenConfig found nil pgp\n");
   return ret;
 }
 
@@ -398,32 +421,37 @@ unsigned EpixConfigurator::writeASIC() {
 }
 
 unsigned EpixConfigurator::checkWrittenASIC(bool writeBack) {
-  _d.dest(EpixDestination::Registers);
-  unsigned m = _config->asicMask();
-  uint32_t myBuffer[sizeof(EpixASIC_ConfigShadow)/sizeof(uint32_t)];
-  EpixASIC_ConfigShadow* readAsic = (EpixASIC_ConfigShadow*) myBuffer;
   unsigned ret = Success;
-  for (unsigned index=0; index<_config->numberOfAsics(); index++) {
-    if (m&(1<<index)) {
-      uint32_t a = AsicAddrBase + (AsicAddrOffset * index);
-      for (int i = 0; (i<EpixASIC_ConfigShadow::NumberOfValues) && (ret==Success); i++) {
-        if (AconfigAddrs[i][1] != WriteOnly) {
-          if (_pgp->readRegister(&_d, a+AconfigAddrs[i][0], 0xa000+(index<<2)+i, myBuffer+i, 1)){
-            printf("EpixConfigurator::checkWrittenASIC read reg %u failed on ASIC %u at 0x%x\n",
-                i, index, a+AconfigAddrs[i][0]);
-            return Failure;
+  bool done = false;
+  while (!done && _config && _pgp) {
+    _d.dest(EpixDestination::Registers);
+    unsigned m = _config->asicMask();
+    uint32_t myBuffer[sizeof(EpixASIC_ConfigShadow)/sizeof(uint32_t)];
+    EpixASIC_ConfigShadow* readAsic = (EpixASIC_ConfigShadow*) myBuffer;
+    for (unsigned index=0; index<_config->numberOfAsics(); index++) {
+      if (m&(1<<index)) {
+        uint32_t a = AsicAddrBase + (AsicAddrOffset * index);
+        for (int i = 0; (i<EpixASIC_ConfigShadow::NumberOfValues) && (ret==Success); i++) {
+          if ((AconfigAddrs[i][1] != WriteOnly) && _pgp) {
+            if (_pgp->readRegister(&_d, a+AconfigAddrs[i][0], 0xa000+(index<<2)+i, myBuffer+i, 1)){
+              printf("EpixConfigurator::checkWrittenASIC read reg %u failed on ASIC %u at 0x%x\n",
+                  i, index, a+AconfigAddrs[i][0]);
+              return Failure;
+            }
+            myBuffer[i] &= 0xffff;
           }
-          myBuffer[i] &= 0xffff;
+        }
+        EpixASIC_ConfigShadow* confAsic = (EpixASIC_ConfigShadow*) &( _config->asics(index));
+        if ( (ret==Success) && (*confAsic != *readAsic) ) {
+          printf("EpixConfigurator::checkWrittenASIC failed on ASIC %u\n", index);
+          ret = Failure;
+          if (writeBack) *confAsic = *readAsic;
         }
       }
-      EpixASIC_ConfigShadow* confAsic = (EpixASIC_ConfigShadow*) &( _config->asics(index));
-      if ( (ret==Success) && (*confAsic != *readAsic) ) {
-        printf("EpixConfigurator::checkWrittenASIC failed on ASIC %u\n", index);
-        ret = Failure;
-        if (writeBack) *confAsic = *readAsic;
-      }
     }
+    done = true;
   }
+  if (!_pgp) printf("EpixConfigurator::checkWrittenASIC found nil pgp\n");
   return ret;
 }
 
@@ -433,18 +461,19 @@ void EpixConfigurator::dumpFrontEnd() {
   int ret = Success;
   if (_debug & 0x100) {
     uint32_t count = EpixConfigurator::sequenceCount();
-    printf("\tSequenceCount(%u)\n", count);
+    uint32_t acount = EpixConfigurator::acquisitionCount();
+    printf("\tSequenceCount(%u), Acquisition Count(%u)\n", count, acount);
   }
   if (_debug & 0x400) {
     printf("Checking Configuration, no news is good news ...\n");
     if (Failure == checkWrittenConfig(false)) {
       printf("EpixConfigurator::checkWrittenConfig() FAILED !!!\n");
     }
-    enableRunTrigger(false);
+//    enableRunTrigger(false);
 //    if (Failure == checkWrittenASIC(false)) {
 //      printf("EpixConfigurator::checkWrittenASICConfig() FAILED !!!\n");
 //    }
-    enableRunTrigger(true);
+//    enableRunTrigger(true);
   }
   clock_gettime(CLOCK_REALTIME, &end);
   uint64_t diff = timeDiff(&end, &start) + 50000LL;

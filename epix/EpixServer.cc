@@ -109,8 +109,8 @@ void Pds::EpixServer::die() {
 }
 
 void Pds::EpixServer::dumpFrontEnd() {
-  disable();
-  _cnfgrtr->dumpFrontEnd();
+  if (_cnfgrtr) _cnfgrtr->dumpFrontEnd();
+  else printf("EpixServer::dumpFrontEnd() found nil configurator\n");
 }
 
 static unsigned* procHisto = (unsigned*) calloc(1000, sizeof(unsigned));
@@ -162,10 +162,15 @@ void Pds::EpixServer::enable() {
 
 void Pds::EpixServer::disable() {
   _ignoreFetch = true;
-  _cnfgrtr->enableExternalTrigger(false);
-  flushInputQueue(fd());
-  if (usleep(10000)<0) perror("EpixServer::disable ulseep 1 failed\n");
-  if (_debug & 0x20) printf("EpixServer::disable\n");
+  if (_cnfgrtr) {
+    _cnfgrtr->enableExternalTrigger(false);
+    flushInputQueue(fd());
+    if (usleep(10000)<0) perror("EpixServer::disable ulseep 1 failed\n");
+    if (_debug & 0x20) printf("EpixServer::disable\n");
+  } else {
+    printf("EpixServer::disable() found nil configurator, so did not disable\n");
+  }
+
 }
 
 void Pds::EpixServer::runTimeConfigName(char* name) {

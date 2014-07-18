@@ -20,9 +20,14 @@
 
 namespace Pds {
   namespace Epix {
-//    0x000011, bit 0 - enable automatic run triggers (only works if the normal RunTrigEnable at register 0x000001 is also set)
-//    0x000012, bits 31:0 - number of clock cycles between autotriggers (for 120 Hz, this should be set to 1041667, or 0xFE503)
-//    0x000013, bit 0 - enable automatic daq triggers (only works if the normal DaqTrigEnable at register 0x000003 is also set)
+    //    AcqCount : 0x000005
+    //    Can be reset by writing to 0x000006
+    //
+    //    SeqCount : 0x00000B
+    //    Can be reset by writing to 0x00000C
+    //    0x000011, bit 0 - enable automatic run triggers (only works if the normal RunTrigEnable at register 0x000001 is also set)
+    //    0x000012, bits 31:0 - number of clock cycles between autotriggers (for 120 Hz, this should be set to 1041667, or 0xFE503)
+    //    0x000013, bit 0 - enable automatic daq triggers (only works if the normal DaqTrigEnable at register 0x000003 is also set)
 
 
     enum controlAddrs {
@@ -83,6 +88,7 @@ namespace Pds {
         void                 resetFrontEnd();
         void                 resetSequenceCount();
         uint32_t             sequenceCount();
+        uint32_t             acquisitionCount();
         void                 enableExternalTrigger(bool);
         void                 enableRunTrigger(bool);
 

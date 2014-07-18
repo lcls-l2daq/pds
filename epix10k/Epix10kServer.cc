@@ -156,8 +156,8 @@ void Pds::Epix10kServer::die() {
 }
 
 void Pds::Epix10kServer::dumpFrontEnd() {
-  disable();
-  _cnfgrtr->dumpFrontEnd();
+  if (_cnfgrtr) _cnfgrtr->dumpFrontEnd();
+  else printf("Epix10kServer::dumpFrontEnd() found nil configurator\n");
 }
 
 static unsigned* procHisto = (unsigned*) calloc(1000, sizeof(unsigned));
@@ -209,10 +209,14 @@ void Pds::Epix10kServer::enable() {
 
 void Pds::Epix10kServer::disable() {
   _ignoreFetch = true;
-  _cnfgrtr->enableExternalTrigger(false);
-  flushInputQueue(fd());
-  if (usleep(10000)<0) perror("Epix10kServer::disable ulseep 1 failed\n");
-  if (_debug & 0x20) printf("Epix10kServer::disable\n");
+  if (_cnfgrtr) {
+    _cnfgrtr->enableExternalTrigger(false);
+    flushInputQueue(fd());
+    if (usleep(10000)<0) perror("Epix10kServer::disable ulseep 1 failed\n");
+    if (_debug & 0x20) printf("Epix10kServer::disable\n");
+  } else {
+    printf("Epix10kServer::disable() found nil configurator, so did not disable\n");
+  }
 }
 
 void Pds::Epix10kServer::runTimeConfigName(char* name) {
@@ -343,7 +347,7 @@ int Pds::Epix10kServer::fetch( char* payload, int flags ) {
      } else {
        unsigned oldCount = _count;
        _count = data->frameNumber() - 1;  // epix10k starts counting at 1, not zero
-       if ((_debug & 4) || ret < 0) {
+       if ((_debug & 5) || ret < 0) {
          printf("\telementId(%u) frameType(0x%x) acqcount(0x%x) _oldCount(%u) _count(%u) _elementsThisCount(%u) lane(%u) vc(%u)\n",
              data->elementId(), data->_frameType, data->acqCount(),  oldCount, _count, _elementsThisCount, pgpCardRx.pgpLane, pgpCardRx.pgpVc);
          uint32_t* u = (uint32_t*)data;
