@@ -28,7 +28,9 @@ PvConfigFile::~PvConfigFile()
 
 int PvConfigFile::read(TPvList & vPvList, std::string& sConfigFileWarning)
 {
-  return (_readConfigFile(_sFnConfig, vPvList, sConfigFileWarning, _iMaxDepth));
+  _setPvDescription.clear();
+  _setPvName       .clear();
+  return _readConfigFile(_sFnConfig, vPvList, sConfigFileWarning, _iMaxDepth);
 }
 
 int PvConfigFile::_readConfigFile(const std::string & sFnConfig,
@@ -53,7 +55,6 @@ int PvConfigFile::_readConfigFile(const std::string & sFnConfig,
   if (uOffsetPathEnd != string::npos)
     sFnPath.assign(sFnConfig, 0, uOffsetPathEnd + 1);
 
-  _setPv.clear();
   int iLineNumber = 0;
 
   string sPvDescription;
@@ -94,6 +95,7 @@ int PvConfigFile::_readConfigFile(const std::string & sFnConfig,
         {
           printf("%s: Invalid file reference \"%s\", in file \"%s\":line %d\n",
              __FUNCTION__, sFnRef.c_str(), sFnConfig.c_str(), iLineNumber);
+          return 1;
         }
       }
       continue;
@@ -147,7 +149,7 @@ int PvConfigFile::_addPv(const string & sPvLine, string & sPvDescription,
     sPvName   = sPvLine.substr(uOffsetPv, uOffsetSeparator - uOffsetPv);
     size_t uOffsetInterval =
       sPvLine.find_first_not_of(sPvLineSeparators, uOffsetSeparator + 1);
-    if (uOffsetInterval != string::npos) 
+    if (uOffsetInterval != string::npos)
     {
       fInterval = strtof(sPvLine.c_str() + uOffsetInterval, NULL);
       if (fInterval > _fDefaultInterval)
@@ -155,8 +157,37 @@ int PvConfigFile::_addPv(const string & sPvLine, string & sPvDescription,
     }
   }
 
+  if ( _setPvName.find(sPvName) != _setPvName.end() )
+  {
+    char strMessage[256];
+    sprintf(strMessage, "Duplicated PV name %s", sPvName.c_str());
+    printf("%s: %s\n", __FUNCTION__, strMessage);
+    sConfigFileWarning = strMessage;
+    return 1;
+  }
+
+  if ( _setPvDescription.find(sPvName) != _setPvDescription.end() )
+  {
+    char strMessage[256];
+    sprintf(strMessage, "PV name %s was used as another PV's description", sPvName.c_str());
+    printf("%s: %s\n", __FUNCTION__, strMessage);
+    sConfigFileWarning = strMessage;
+    return 1;
+  }
+
   string sPvDescriptionUpdate = sPvDescription;
   int iError = _updatePvDescription(sPvName, sFnConfig, iLineNumber, sPvDescriptionUpdate, sConfigFileWarning);
+
+  if ( _setPvName.find(sPvDescriptionUpdate) != _setPvName.end() )
+  {
+    char strMessage[256];
+    sprintf(strMessage, "PV name %s was used as another PV's description", sPvDescriptionUpdate.c_str());
+    printf("%s: %s\n", __FUNCTION__, strMessage);
+    sConfigFileWarning = strMessage;
+    return 1;
+  }
+
+  _setPvName.insert(sPvName);
 
   vPvList.push_back(PvConfigFile::PvInfo(sPvName, sPvDescriptionUpdate, fInterval));
   bPvAdd = true;
@@ -235,9 +266,9 @@ int PvConfigFile::_updatePvDescription(const std::string& sPvName, const std::st
   char strMessage2[256];
   if (!sPvDescription.empty())
   {
-    if ( _setPv.find(sPvDescription) == _setPv.end() )
+    if ( _setPvDescription.find(sPvDescription) == _setPvDescription.end() )
     {
-      _setPv.insert(sPvDescription);
+      _setPvDescription.insert(sPvDescription);
       return 0;
     }
     sprintf( strMessage, "%s has duplicated title \"%s\".", sPvName.c_str(), sPvDescription.c_str());
@@ -249,7 +280,7 @@ int PvConfigFile::_updatePvDescription(const std::string& sPvName, const std::st
     sprintf( strMessage, "%s has no title.", sPvName.c_str());
   }
 
-  if ( _setPv.find(sPvDescription) == _setPv.end() )
+  if ( _setPvDescription.find(sPvDescription) == _setPvDescription.end() )
   {
     sprintf(strMessage2, "%s\nUse \"%s\"\n", strMessage, sPvDescription.c_str() );
     if (_verbose) {
@@ -258,7 +289,7 @@ int PvConfigFile::_updatePvDescription(const std::string& sPvName, const std::st
     if (sConfigFileWarning.empty())
       sConfigFileWarning = strMessage2;
 
-    _setPv.insert(sPvDescription);
+    _setPvDescription.insert(sPvDescription);
     return 0;
   }
 
@@ -271,7 +302,7 @@ int PvConfigFile::_updatePvDescription(const std::string& sPvName, const std::st
     string sPvDesecriptionNew;
     sPvDesecriptionNew = sPvDescription + '-' + sNumber.str();
 
-    if ( _setPv.find(sPvDesecriptionNew) == _setPv.end() )
+    if ( _setPvDescription.find(sPvDesecriptionNew) == _setPvDescription.end() )
     {
       sPvDescription = sPvDesecriptionNew;
 
@@ -282,12 +313,12 @@ int PvConfigFile::_updatePvDescription(const std::string& sPvName, const std::st
       if (sConfigFileWarning.empty())
         sConfigFileWarning = strMessage2;
 
-      _setPv.insert(sPvDescription);
+      _setPvDescription.insert(sPvDescription);
       return 0;
     }
   }
 
-  printf("%s: Cannot generate proper PV name for %s (%s).",
+  printf("%s: Cannot generate proper PV name for %s (%s).\n",
     __FUNCTION__, sPvDescription.c_str(), sPvName.c_str());
 
   sprintf(strMessage2, "%s No proper title found.\n", strMessage);
