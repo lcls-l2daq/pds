@@ -16,6 +16,7 @@
 #include "EvgrOpcode.hh"
 #include "EvgrPulseParams.hh"
 #include "EvgMasterTiming.hh"
+#include "EventSequencerSim.hh"
 
 #include "pds/config/EvrConfigType.hh"
 
@@ -36,27 +37,35 @@ static const unsigned IRQ_OPCODE=2;
 class SequenceLoader {
 public:
   SequenceLoader(Evr& er, Evg& eg, const EvgMasterTiming& mtime) :
-    _er(er), _eg(eg), _mtime(mtime), _nfid(0), _count(0) {}
+    _er(er), _eg(eg), _mtime(mtime), _nfid(0x1ec30), _count(0), _init(0) {}
 public:
   void set() {
-    //    int ram = 1-_ram;
-    int ram = _ram;
+    int ram = 1-_ram;
 
     _pos = 0;
     unsigned p = 0;
 
     unsigned step = _mtime.sequences_per_main();
 
+    const unsigned NumEvtCodes=33;
     for(unsigned i=0; i<step; i++) {
+        {
+          //  prev Timestamp
+          unsigned nfidPrev = (_nfid == 0 ? TimeStamp::MaxFiducials-1 : _nfid-1);
+          unsigned numEvtCode=0;
+          do {
+            unsigned mask = (1<<((NumEvtCodes-2)-numEvtCode));
+            unsigned opcode = (nfidPrev&mask) ?
+                              EvgrOpcode::TsBit1 : EvgrOpcode::TsBit0;
+            _set_opcode(ram, opcode, _pos+p);
+          } while (++numEvtCode<(NumEvtCodes-1));
+          _set_opcode(ram, EvgrOpcode::TsBitEnd, _pos+p);
+          p += NumEvtCodes;
+        }
 
         _set_opcode(ram, TRM_OPCODE, _pos+p);
+        //p+=99;
 
-        //  Timestamp
-        _nfid++;
-        if (_nfid > TimeStamp::MaxFiducials)
-          _nfid -= TimeStamp::MaxFiducials;
-
-        const unsigned NumEvtCodes=33;
         unsigned numEvtCode=0;
         do {
           unsigned mask = (1<<((NumEvtCodes-2)-numEvtCode));
@@ -66,28 +75,50 @@ public:
         } while (++numEvtCode<(NumEvtCodes-1));
         _set_opcode(ram, EvgrOpcode::TsBitEnd, _pos+p);
 
-	const unsigned dbeam = _mtime.fiducials_per_beam();
-        unsigned q = p+36;
+        const unsigned dbeam = _mtime.fiducials_per_beam();
+        //unsigned q = p+36;
+        unsigned q = p+67;
         //  Eventcodes
         if (_count%dbeam  ==0) {_set_opcode(ram, 140, q+11850);}
-        if (_count%2      ==0) {_set_opcode(ram, 180, q+12944);}
-        if (_count%3      ==0) {_set_opcode(ram,  40, q+12954);}
-        if (_count%6      ==0) {_set_opcode(ram,  41, q+12964);}
-        if (_count%12     ==0) {_set_opcode(ram,  42, q+12974);}
-        if (_count%36     ==0) {_set_opcode(ram,  43, q+12984);}
-        if (_count%72     ==0) {_set_opcode(ram,  44, q+12994);}
-        if (_count%360    ==0) {_set_opcode(ram,  45, q+13004);}
-        if (_count%(360*2)==0) {_set_opcode(ram,  46, q+13014);}
-        if (_count%(360*4)==0) {_set_opcode(ram,  47, q+13024);}
-        if (_count%(360*8)==0) {_set_opcode(ram,  48, q+13034);}
-        p += _mtime.clocks_per_sequence();
-        _count++;
+
+        int  nSeqEvents = 0;
+        int* lSeqEvents = NULL;
+        _evtSeq.getSeqEvent(_nfid, nSeqEvents, lSeqEvents);
+
+        ////!!debug
+        //if (nSeqEvents != 0) printf("** fid 0x%x ", _nfid);
+
+        for (int iEvent=0; iEvent < nSeqEvents; ++iEvent) {
+          _set_opcode(ram, lSeqEvents[iEvent], q + _evtSeq.getCodeDelay(lSeqEvents[iEvent]));
+
+          //printf("[%d (%d)] ", lSeqEvents[iEvent], q + _evtSeq.getCodeDelay(lSeqEvents[iEvent]));
+        }
+        //!!debug
+        //if (nSeqEvents != 0) printf("\n");
+
+        if (_nfid%2      ==0) {_set_opcode(ram, 180, q+12944);}
+        if (_nfid%3      ==0) {_set_opcode(ram,  40, q+12954);}
+        if (_nfid%6      ==0) {_set_opcode(ram,  41, q+12964);}
+        if (_nfid%12     ==0) {_set_opcode(ram,  42, q+12974);}
+        if (_nfid%36     ==0) {_set_opcode(ram,  43, q+12984);}
+        if (_nfid%72     ==0) {_set_opcode(ram,  44, q+12994);}
+        if (_nfid%360    ==0) {_set_opcode(ram,  45, q+13004);}
+        if (_nfid%(360*2)==0) {_set_opcode(ram,  46, q+13014);}
+        if (_nfid%(360*4)==0) {_set_opcode(ram,  47, q+13024);}
+        if (_nfid%(360*8)==0) {_set_opcode(ram,  48, q+13034);}
+        p += _mtime.clocks_per_sequence() - NumEvtCodes;
+
+        //  Timestamp
+        if (++_nfid >= TimeStamp::MaxFiducials)
+          _nfid -= TimeStamp::MaxFiducials;
+        ++_count;
       }
 
-      p -= _mtime.clocks_per_sequence();
-      _set_opcode(ram, IRQ_OPCODE, p+13043);
-      _set_opcode(ram, EvgrOpcode::EndOfSequence, p+13044);
-      _set_opcode(ram, 0, 0);
+      p -= _mtime.clocks_per_sequence() - NumEvtCodes;
+      unsigned q = p+72;
+      _set_opcode(ram, IRQ_OPCODE, q+14000);
+      _set_opcode(ram, EvgrOpcode::EndOfSequence, q+14050);
+      //_set_opcode(ram, 0, 0);
 
       if ((_count%(360*131072))==step) {
         printf("count %d\n",_count);
@@ -95,22 +126,43 @@ public:
         printf("===\n");
       }
 
-      //     int enable=1; int single=1; int recycle=0; int reset=0;
-      //     int trigsel=C_EVG_SEQTRIG_MXC_BASE;
-      //     _eg.SeqRamCtrl(ram, enable, single, recycle, reset, trigsel);
-      //     _ram = ram;
+      ////!!debug
+      //if (nSeqEvents != 0) printf("** fid 0x%x ", _nfid);
+
+      // re-arm the event sequence (then it will be triggered by internal clock or external trigger)
+      if (_mtime.internal_main()) {
+        int enable=1, single=1, recycle=0, reset=1, trigsel=C_EVG_SEQTRIG_MXC_BASE;
+
+        if (_init ==0) {
+          single = 0;
+          ++_init;
+        }
+        else if (_init == 1) {
+          _eg.SeqRamCtrl(1-ram, 0, 0, recycle, 1, trigsel);
+          ++_init;
+        }
+        _eg.SeqRamCtrl(ram, enable, single, recycle, reset, trigsel);
+      }
+      else {
+        int enable=1, single=1, recycle=0, reset=1, trigsel=C_EVG_SEQTRIG_ACINPUT;
+        _eg.SeqRamCtrl(ram, enable, single, recycle, reset, trigsel);
+      }
+
+      _ram = ram;
     }
 private:
   void _set_opcode(int ram, unsigned opcode, unsigned pos) {
     _eg.SetSeqRamEvent(ram, _pos, pos, opcode);
     _pos++;
   }
-  Evr& _er;
-  Evg& _eg;
-  const EvgMasterTiming& _mtime;
-  unsigned _nfid;
-  unsigned _count;
-  unsigned _pos;
+  Evr&                    _er;
+  Evg&                    _eg;
+  const EvgMasterTiming&  _mtime;
+  EventSequencerSim       _evtSeq;
+  unsigned                _nfid;
+  unsigned                _count;
+  unsigned                _pos;
+  int                     _init;
 };
 
 static SequenceLoader*   sequenceLoaderGlobal;
@@ -128,10 +180,8 @@ public:
     EvgrAction(eg,er) {}
   Transition* fire(Transition* tr) {
     _ram=0;
-    sequenceLoaderGlobal->set();
-
     int ram=0;    _er.MapRamEnable(ram,1);
-
+    sequenceLoaderGlobal->set();
     return tr;
   }
 };
@@ -176,11 +226,11 @@ public:
 
 class EvgrConfigAction : public EvgrAction {
 public:
-  EvgrConfigAction(Evg& eg, Evr& er, 
+  EvgrConfigAction(Evg& eg, Evr& er,
                    unsigned n, EvgrPulseParams* p,
-                   const EvgMasterTiming& mtim) : 
+                   const EvgMasterTiming& mtim) :
     EvgrAction(eg,er),
-    mtime(mtim) 
+    mtime(mtim)
   {
     npulses = n;
     pulse = p;
@@ -202,6 +252,7 @@ public:
     int ram=0; int enable=1;
     _er.MapRamEnable(ram,0);
     _er.SetFIFOEvent(ram, IRQ_OPCODE, enable);
+    //_er.SetFIFOEvent(ram, TRM_OPCODE, enable);//!!debug
 
     for(unsigned i=0; i<npulses; i++) {
       printf("Configuring pulse %d  eventcode %d  delay %d  width %d  output %d\n",
@@ -221,20 +272,20 @@ public:
       _eg.SetMXCPrescaler(0, mtime.clocks_per_sequence()*mtime.sequences_per_main());
       _eg.SyncMxc();
 
-      int single=0; int recycle=0; int reset=0;
-      int trigsel=C_EVG_SEQTRIG_MXC_BASE;
-      _eg.SeqRamCtrl(ram, enable, single, recycle, reset, trigsel);
+      //int single=0; int recycle=0; int reset=0;
+      //int trigsel=C_EVG_SEQTRIG_MXC_BASE;
+      //_eg.SeqRamCtrl(ram, enable, single, recycle, reset, trigsel);
     }
     else {
       int bypass=1, sync=0, div=0, delay=0;
       _eg.SetACInput(bypass, sync, div, delay);
-      
+
       int map = -1;
       _eg.SetACMap(map);
 
-      int single=0; int recycle=0; int reset=0;
-      int trigsel=C_EVG_SEQTRIG_ACINPUT;
-      _eg.SeqRamCtrl(ram, enable, single, recycle, reset, trigsel);
+      //int single=0; int recycle=0; int reset=0;
+      //int trigsel=C_EVG_SEQTRIG_ACINPUT;
+      //_eg.SeqRamCtrl(ram, enable, single, recycle, reset, trigsel);
     }
 
     return tr;
@@ -248,25 +299,23 @@ public:
 extern "C" {
   void evgrmgr_sig_handler(int parm)
   {
-    Evr& er = erInfoGlobal->board();
+    static Evr& er  = erInfoGlobal->board();
+    static int fdEr = erInfoGlobal->filedes();
+
     int flags = er.GetIrqFlags();
     if (flags & EVR_IRQFLAG_EVENT)
-      {
-	FIFOEvent fe;
-	er.GetFIFOEvent(&fe);
+    {
+      FIFOEvent fe;
+      er.GetFIFOEvent(&fe);
 
-	if ((_opcodecount%(360*8192))==0)
-	  printf("ncodes %d  last %d\n",_opcodecount,_lastopcode);
+      sequenceLoaderGlobal->set();
 
-	_opcodecount++;
-	_lastopcode = fe.EventCode;
+      _opcodecount++;
+      _lastopcode = fe.EventCode;
 
-	sequenceLoaderGlobal->set();
-
-        er.ClearIrqFlags(EVR_IRQFLAG_EVENT);
-      }
-    int fdEr = erInfoGlobal->filedes();
-    er.IrqHandled(fdEr);
+      er.ClearIrqFlags(EVR_IRQFLAG_EVENT);
+      er.IrqHandled(fdEr);
+    }
   }
 }
 
@@ -286,12 +335,15 @@ EvgrManager::EvgrManager(
 {
 
   sequenceLoaderGlobal   = new SequenceLoader(_er,_eg,mtime);
-    
+
 //   _fsm.callback(TransitionId::Configure,new EvgrConfigAction(_eg,_er));
 //   _fsm.callback(TransitionId::BeginRun,new EvgrBeginRunAction(_eg,_er));
 //   _fsm.callback(TransitionId::Enable,new EvgrEnableAction(*timeLoaderGlobal,_eg,_er));
 //   _fsm.callback(TransitionId::EndRun,new EvgrEndRunAction(_eg,_er));
 //   _fsm.callback(TransitionId::Disable,new EvgrDisableAction(_eg,_er));
+
+  _er.IrqAssignHandler(erInfo.filedes(), &evgrmgr_sig_handler);
+  erInfoGlobal = &erInfo;
 
   Action* action;
   action = new EvgrConfigAction(_eg,_er,_nplss,pulse,mtime);
@@ -300,9 +352,6 @@ EvgrManager::EvgrManager(
   action->fire((Transition*)0);
   action = new EvgrEnableAction(_eg,_er);
   action->fire((Transition*)0);
-
-  _er.IrqAssignHandler(erInfo.filedes(), &evgrmgr_sig_handler);
-  erInfoGlobal = &erInfo;
 }
 
 unsigned EvgrManager::opcodecount() const {return _opcodecount;}
