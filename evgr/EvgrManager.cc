@@ -130,23 +130,18 @@ public:
       //if (nSeqEvents != 0) printf("** fid 0x%x ", _nfid);
 
       // re-arm the event sequence (then it will be triggered by internal clock or external trigger)
-      if (_mtime.internal_main()) {
-        int enable=1, single=1, recycle=0, reset=1, trigsel=C_EVG_SEQTRIG_MXC_BASE;
+      int enable=1, single=1, recycle=0, reset=1;
+      int trigsel=(_mtime.internal_main()? C_EVG_SEQTRIG_MXC_BASE : C_EVG_SEQTRIG_ACINPUT);
 
-        if (_init ==0) {
-          single = 0;
-          ++_init;
-        }
-        else if (_init == 1) {
-          _eg.SeqRamCtrl(1-ram, 0, 0, recycle, 1, trigsel);
-          ++_init;
-        }
-        _eg.SeqRamCtrl(ram, enable, single, recycle, reset, trigsel);
+      if (_init ==0) {
+        single = 0;
+        ++_init;
       }
-      else {
-        int enable=1, single=1, recycle=0, reset=1, trigsel=C_EVG_SEQTRIG_ACINPUT;
-        _eg.SeqRamCtrl(ram, enable, single, recycle, reset, trigsel);
+      else if (_init == 1) {
+        _eg.SeqRamCtrl(1-ram, 0, 0, recycle, 1, trigsel);
+        ++_init;
       }
+      _eg.SeqRamCtrl(ram, enable, single, recycle, reset, trigsel);
 
       _ram = ram;
     }

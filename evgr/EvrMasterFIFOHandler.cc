@@ -148,8 +148,10 @@ void EvrMasterFIFOHandler::fifo_event(const FIFOEvent& fe)
   if (fe.TimestampHigh == 0 && _lastFiducial != 0 && _lastFiducial < 0x1fe00 ) // Illegal fiducial wrap-around
     printf("EvrMasterFIFOHandler::fifo_event(): [%d] fiducial 0 vector %d code %d prev 0x%x last 0x%x (%d) timeLow 0x%x\n",
            uNumBeginCalibCycle, _evtCounter, fe.EventCode, uFiducialPrev, _lastFiducial, _lastFiducial % 3, fe.TimestampLow);
-
-  _lastFiducial = fe.TimestampHigh;
+  else {
+    if (fe.TimestampHigh != 0 || _lastFiducial >= 0x1fe00 )
+      _lastFiducial = fe.TimestampHigh;
+  }
 
   /*
    * Determine if we need to start L1Accept
