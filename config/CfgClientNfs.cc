@@ -68,6 +68,13 @@ int CfgClientNfs::fetch(const Transition& tr,
   Pds_ConfigDb::XtcClient* db = Pds_ConfigDb::XtcClient::open(_path.c_str());
 #endif
 
+  if (!db) {
+#ifdef DBUG
+    printf("%s line %d: db == %p\n", __FILE__, __LINE__, db);
+#endif
+    return 0;   // ERROR
+  }
+
   int result = db->getXTC(tr.env().value(),
                           _src,
                           id,
