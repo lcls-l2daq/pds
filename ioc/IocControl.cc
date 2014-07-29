@@ -132,7 +132,6 @@ void IocControl::write_config(IocConnection *c, unsigned run, unsigned stream)
     sprintf(buf, "output daq/xtc/e%d-r%04d-s%02d\n", _expt_id, run, stream);
     c->transmit(buf);
     c->transmit("quiet\n");
-    c->transmit(_trans);
 }
 
 void IocControl::host_rollcall(IocHostCallback* cb)
@@ -173,20 +172,34 @@ Transition* IocControl::transitions(Transition* tr)
   case TransitionId::BeginRun: 
       if (tr->size() != sizeof(Transition)) {
 
-          /* Make connections to the world, and send them our configuration. */
+          /* Make connections to the world. */
           for(std::list<IocNode*>::iterator it=_selected_nodes.begin();
               it!=_selected_nodes.end(); it++) {
-            IocConnection *c = (*it)->get_connection(this);
-            (*it)->write_config(c);
+              (*it)->get_connection(this);
           }
 
           unsigned run = tr->env().value();
           unsigned stream = 80;
 
+          /* Send the per connection configuration information.         */
+          /* Most important, the filename containing the stream number! */
           for(std::list<IocConnection*>::iterator it=IocConnection::_connections.begin();
               it!=IocConnection::_connections.end(); it++) {
               write_config(*it, run, stream);
               stream++;
+          }
+
+          /* Now send the node configuration for each node. */
+          for(std::list<IocNode*>::iterator it=_selected_nodes.begin();
+              it!=_selected_nodes.end(); it++) {
+              IocConnection *c = (*it)->get_connection(this);
+              (*it)->write_config(c);
+          }
+
+          /* Finally, send the saved Configure transition. */
+          for(std::list<IocConnection*>::iterator it=IocConnection::_connections.begin();
+              it!=IocConnection::_connections.end(); it++) {
+              (*it)->transmit(_trans);
           }
           _recording = 1;
       } else {
