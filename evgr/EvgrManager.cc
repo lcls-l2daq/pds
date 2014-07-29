@@ -21,6 +21,7 @@
 #include "pds/config/EvrConfigType.hh"
 
 #define BASE_120
+#define POSIX_TIME_AT_EPICS_EPOCH 631152000u
 
 using namespace Pds;
 
@@ -33,14 +34,34 @@ static int _ram=0;
 static const unsigned EVTCLK_TO_360HZ=991666/3;
 static const unsigned TRM_OPCODE=1;
 static const unsigned IRQ_OPCODE=2;
+typedef struct {
+    unsigned short type;
+    unsigned short version;
+    unsigned int   mod[6];
+    unsigned int   sec;
+    unsigned int   nsec;
+    unsigned int   avgdone;
+    unsigned int   minor;
+    unsigned int   major;
+    unsigned int   init;
+} pattern_t;
 
 class SequenceLoader {
 public:
   SequenceLoader(Evr& er, Evg& eg, const EvgMasterTiming& mtime) :
-    _er(er), _eg(eg), _mtime(mtime), _nfid(0x1ec30), _count(0), _init(0) {}
+    _er(er), _eg(eg), _mtime(mtime), _nfid(0x1ec30), _count(0), _init(0) {
+      struct timespec tp;
+      memset(&_pattern, 0, sizeof(_pattern));
+      _pattern.type = 1;
+      _pattern.version = 1;
+      clock_gettime(CLOCK_REALTIME, &tp);
+      _sec = tp.tv_sec - POSIX_TIME_AT_EPICS_EPOCH;
+      _nsec = tp.tv_nsec;
+  }
 public:
   void set() {
     int ram = 1-_ram;
+    int modulo720 = 0;
 
     _pos = 0;
     unsigned p = 0;
@@ -106,6 +127,7 @@ public:
         if (_nfid%(360*2)==0) {_set_opcode(ram,  46, q+13014);}
         if (_nfid%(360*4)==0) {_set_opcode(ram,  47, q+13024);}
         if (_nfid%(360*8)==0) {_set_opcode(ram,  48, q+13034);}
+        if (_nfid%(360*2)==360) { modulo720 = 0x8000; }
         p += _mtime.clocks_per_sequence() - NumEvtCodes;
 
         //  Timestamp
@@ -125,6 +147,31 @@ public:
         _eg.SeqRamDump(ram);
         printf("===\n");
       }
+
+      /* Now, update and send the data buffer */
+      _nsec += 2777778; /* 2.7ms = 360Hz */
+      if (_nsec > 1000000000) {
+          _nsec -= 1000000000;
+          _sec++;
+      }
+
+      unsigned _nfid3 = _nfid + 2;
+      if (_nfid3 >= TimeStamp::MaxFiducials)
+        _nfid3 -= TimeStamp::MaxFiducials;
+      _pattern.sec = _sec;
+      _pattern.nsec = (_nsec & 0xfffe0000) | _nfid3;
+      if (_pattern.nsec > 1000000000) {
+        /* Sigh.  Adding the fiducial in the low bits moved us over 1e9 ns. */
+        _pattern.sec = _sec + 1;
+        _pattern.nsec -= (1000000000 & 0xfffe0000);
+      }
+      _pattern.mod[0] = modulo720;
+
+      /* Sigh.  We swizzle so we can unswizzle later. */
+      unsigned int buf[sizeof(_pattern)/sizeof(int)], *buf2 = (unsigned int *)&_pattern;
+      for (unsigned int i = 0; i < sizeof(_pattern)/sizeof(int); i++)
+        buf[i] = be32_to_cpu(buf2[i]);
+      _eg.SendDBuf((char *)&buf, sizeof(buf));
 
       ////!!debug
       //if (nSeqEvents != 0) printf("** fid 0x%x ", _nfid);
@@ -158,6 +205,9 @@ private:
   unsigned                _count;
   unsigned                _pos;
   int                     _init;
+  pattern_t _pattern;
+  int       _sec;
+  int       _nsec;
 };
 
 static SequenceLoader*   sequenceLoaderGlobal;
@@ -282,6 +332,9 @@ public:
       //int trigsel=C_EVG_SEQTRIG_ACINPUT;
       //_eg.SeqRamCtrl(ram, enable, single, recycle, reset, trigsel);
     }
+
+    _er.SetDBufMode(1);
+    _eg.SetDBufMode(1);
 
     return tr;
   }
