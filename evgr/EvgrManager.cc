@@ -130,7 +130,7 @@ public:
       //if (nSeqEvents != 0) printf("** fid 0x%x ", _nfid);
 
       // re-arm the event sequence (then it will be triggered by internal clock or external trigger)
-      int enable=1, single=1, recycle=0, reset=1;
+      int enable=1, single=1, recycle=0, reset=0;
       int trigsel=(_mtime.internal_main()? C_EVG_SEQTRIG_MXC_BASE : C_EVG_SEQTRIG_ACINPUT);
 
       if (_init ==0) {
