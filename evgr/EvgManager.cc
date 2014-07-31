@@ -32,7 +32,6 @@ static int _ram=0;
 
 static const unsigned EVTCLK_TO_360HZ=991666/3;
 static const unsigned TRM_OPCODE=1;
-static const unsigned IRQ_OPCODE=2;
 typedef struct {
     unsigned short type;
     unsigned short version;
@@ -48,7 +47,7 @@ typedef struct {
 class EvgSequenceLoader {
 public:
   EvgSequenceLoader(Evg& eg, const EvgMasterTiming& mtime) :
-    _eg(eg), _mtime(mtime), _nfid(0x1ec30), _count(0), _init(0) {
+    _eg(eg), _mtime(mtime), _nfid(0x1ec30), _count(0) {
       struct timespec tp;
       memset(&_pattern, 0, sizeof(_pattern));
       _pattern.type = 1;
@@ -137,9 +136,7 @@ public:
 
       p -= _mtime.clocks_per_sequence() - NumEvtCodes;
       unsigned q = p+72;
-      _set_opcode(ram, IRQ_OPCODE, q+14000);
       _set_opcode(ram, EvgrOpcode::EndOfSequence, q+14050);
-      //_set_opcode(ram, 0, 0);
 
       if ((_count%(360*131072))==step) {
         printf("count %d\n",_count);
@@ -179,16 +176,7 @@ public:
       int enable=1, single=1, recycle=0, reset=0;
       int trigsel=(_mtime.internal_main()? C_EVG_SEQTRIG_MXC_BASE : C_EVG_SEQTRIG_ACINPUT);
 
-      if (_init ==0) {
-        single = 0;
-        ++_init;
-      }
-      else if (_init == 1) {
-        _eg.SeqRamCtrl(1-ram, 0, 0, recycle, 1, trigsel);
-        ++_init;
-      }
       _eg.SeqRamCtrl(ram, enable, single, recycle, reset, trigsel);
-
       _ram = ram;
     }
 private:
@@ -202,7 +190,6 @@ private:
   unsigned                _nfid;
   unsigned                _count;
   unsigned                _pos;
-  int                     _init;
   pattern_t _pattern;
   int       _sec;
   int       _nsec;
@@ -261,11 +248,15 @@ public:
     mtime(mtim) {}
 
   Transition* fire(Transition* tr) {
+    int trigsel=(mtime.internal_main()? C_EVG_SEQTRIG_MXC_BASE : C_EVG_SEQTRIG_ACINPUT);
+
     printf("Configuring evg\n");
     _eg.Reset();
+    _eg.SeqRamCtrl(0, 0, 0, 0, 0, trigsel); // Disable both sequence rams!
+    _eg.SeqRamCtrl(1, 0, 0, 0, 0, trigsel);
+
     for(int ram=0; ram<2; ram++) {
-      for(unsigned pos=0; pos<EVTCLK_TO_360HZ; pos++)
-        _eg.SetSeqRamEvent(ram, pos, 0, 0);
+        _eg.SetSeqRamEvent(ram, 0, 0, EvgrOpcode::EndOfSequence);
     }
 
     _eg.SetRFInput(0,C_EVG_RFDIV_4);
@@ -276,10 +267,6 @@ public:
 
       _eg.SetMXCPrescaler(0, mtime.clocks_per_sequence()*mtime.sequences_per_main());
       _eg.SyncMxc();
-
-      //int single=0; int recycle=0; int reset=0;
-      //int trigsel=C_EVG_SEQTRIG_MXC_BASE;
-      //_eg.SeqRamCtrl(ram, enable, single, recycle, reset, trigsel);
     }
     else {
       int bypass=1, sync=0, div=0, delay=0;
@@ -287,10 +274,6 @@ public:
 
       int map = -1;
       _eg.SetACMap(map);
-
-      //int single=0; int recycle=0; int reset=0;
-      //int trigsel=C_EVG_SEQTRIG_ACINPUT;
-      //_eg.SeqRamCtrl(ram, enable, single, recycle, reset, trigsel);
     }
 
     _eg.SetDBufMode(1);
@@ -328,12 +311,6 @@ EvgManager::EvgManager(
 {
 
   sequenceLoaderGlobal   = new EvgSequenceLoader(_eg,mtime);
-
-//   _fsm.callback(TransitionId::Configure,new EvgConfigAction(_eg));
-//   _fsm.callback(TransitionId::BeginRun,new EvgBeginRunAction(_eg));
-//   _fsm.callback(TransitionId::Enable,new EvgEnableAction(*timeLoaderGlobal,_eg));
-//   _fsm.callback(TransitionId::EndRun,new EvgEndRunAction(_eg));
-//   _fsm.callback(TransitionId::Disable,new EvgDisableAction(_eg));
 
   _eg.IrqAssignHandler(egInfo.filedes(), &evgmgr_sig_handler);
   egInfoGlobal = &egInfo;
