@@ -122,6 +122,8 @@ class Pds::Epix10kServer
    Epix10kManager*                   _mgr;
    GenericPool*                   _occPool;
    unsigned                       _unconfiguredErrors;
+   unsigned                       _timeSinceLastException;
+   unsigned                       _fetchesSinceLastException;
    char*                          _processorBuffer;
    unsigned*                      _scopeBuffer;
    bool                           _configured;

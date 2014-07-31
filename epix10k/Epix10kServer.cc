@@ -62,6 +62,8 @@ Epix10kServer::Epix10kServer( const Pds::Src& client, unsigned configMask )
      _debug(0),
      _offset(0),
      _unconfiguredErrors(0),
+     _timeSinceLastException(0),
+     _fetchesSinceLastException(0),
      _processorBuffer(0),
      _scopeBuffer(0),
      _configured(false),
@@ -237,9 +239,8 @@ int Pds::Epix10kServer::fetch( char* payload, int flags ) {
    enum {Ignore=-1};
 
    if (_configured == false)  {
-     if (++_unconfiguredErrors<20) printf("Epix10kServer::fetch() called before configuration, configuration result 0x%x\n", _configureResult);
-     unsigned c = this->flushInputQueue(fd());
-     if (_unconfiguredErrors<20 && c) printf("\tWe flushed %u input buffer%s\n", c, c>1 ? "s" : "");
+      unsigned c = this->flushInputQueue(fd());
+     if (_unconfiguredErrors<20 && c) printf("Epix10kServer::fetch() called before configuration, flushed %u input buffer%s\n", c, c>1 ? "s" : "");
      return Ignore;
    }
 
@@ -291,38 +292,6 @@ int Pds::Epix10kServer::fetch( char* payload, int flags ) {
 
    if (pgpCardRx.pgpVc == Epix10k::Epix10kDestination::Data) {
 
-     if (_firstFetch) {
-       _firstFetch = false;
-       clock_gettime(CLOCK_REALTIME, &_lastTime);
-     } else {
-       clock_gettime(CLOCK_REALTIME, &_thisTime);
-       long long unsigned diff = timeDiff(&_thisTime, &_lastTime);
-       unsigned peak = 0;
-       unsigned max = 0;
-       unsigned count = 0;
-       diff += 500000;
-       diff /= 1000000;
-       if (diff > sizeOfHisto-1) diff = sizeOfHisto-1;
-       _histo[diff] += 1;
-       for (unsigned i=0; i<sizeOfHisto; i++) {
-         if (_histo[i]) {
-           if (_histo[i] > max) {
-             max = _histo[i];
-             peak = i;
-           }
-           count = 0;
-         }
-         if (i > count && count > 200) break;
-         count += 1;
-       }
-       if (max > 100) {
-         if ((diff >= (peak<<1)) || (diff <= (peak>>1))) {
-           printf("Epix10kServer::fetch exceptional period %llu, not %u\n", diff, peak);
-         }
-       }
-       memcpy(&_lastTime, &_thisTime, sizeof(timespec));
-     }
-
      Pds::Pgp::DataImportFrame* data = (Pds::Pgp::DataImportFrame*)(_processorBuffer);
 
      if ((ret > 0) && (ret < (int)_payloadSize)) {
@@ -353,6 +322,42 @@ int Pds::Epix10kServer::fetch( char* payload, int flags ) {
          uint32_t* u = (uint32_t*)data;
          printf("\tDataHeader: "); for (int i=0; i<16; i++) printf("0x%x ", u[i]); printf("\n");
        }
+     }
+     if (_firstFetch) {
+       _firstFetch = false;
+       clock_gettime(CLOCK_REALTIME, &_lastTime);
+     } else {
+       clock_gettime(CLOCK_REALTIME, &_thisTime);
+       long long unsigned diff = timeDiff(&_thisTime, &_lastTime);
+       unsigned peak = 0;
+       unsigned max = 0;
+       unsigned count = 0;
+       diff += 500000;
+       diff /= 1000000;
+       _timeSinceLastException += (unsigned)(diff & 0xffffffff);
+       _fetchesSinceLastException += 1;
+       if (diff > sizeOfHisto-1) diff = sizeOfHisto-1;
+       _histo[diff] += 1;
+       for (unsigned i=0; i<sizeOfHisto; i++) {
+         if (_histo[i]) {
+           if (_histo[i] > max) {
+             max = _histo[i];
+             peak = i;
+           }
+           count = 0;
+         }
+         if (i > count && count > 200) break;
+         count += 1;
+       }
+       if (max > 100) {
+         if ( (diff >= ((peak<<1)-(peak>>1))) || (diff <= ((peak>>1))+(peak>>2)) ) {
+           printf("Epix10kServer::fetch exceptional period %3llu, not %3u, frame %5u, frames since last %5u, ms since last %5u, ms/f %6.3f\n",
+               diff, peak, _count, _fetchesSinceLastException, _timeSinceLastException, (1.0*_timeSinceLastException)/_fetchesSinceLastException);
+           _timeSinceLastException = 0;
+           _fetchesSinceLastException = 0;
+         }
+       }
+       memcpy(&_lastTime, &_thisTime, sizeof(timespec));
      }
      offset = sizeof(Xtc);
      if (_scopeHasArrived) {
@@ -411,8 +416,10 @@ unsigned Epix10kServer::flushInputQueue(int f) {
     FD_SET(f,&fds);
     ret = select( f+1, &fds, NULL, NULL, &timeout);
     if (ret>0) {
-      count += 1;
       ::read(f, &pgpCardRx, sizeof(PgpCardRx));
+      if (pgpCardRx.pgpVc != Epix10k::Epix10kDestination::Oscilloscope) {
+        count += 1;
+      }
     }
   } while (ret > 0);
   return count;
