@@ -185,7 +185,7 @@ public:
         ++_init;
       }
       else if (_init == 1) {
-        _eg.SeqRamCtrl(1-ram, 0, 0, recycle, 1, trigsel);
+        _eg.SeqRamCtrl(1-ram, 0, 0, recycle, 0, trigsel);
         ++_init;
       }
       _eg.SeqRamCtrl(ram, enable, single, recycle, reset, trigsel);
