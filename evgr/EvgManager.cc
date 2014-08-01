@@ -20,17 +20,11 @@
 
 #include "pds/config/EvrConfigType.hh"
 
-#define BASE_120
 #define POSIX_TIME_AT_EPICS_EPOCH 631152000u
 
 using namespace Pds;
 
-static EvgrBoardInfo<Evg> *egInfoGlobal;
-
-static unsigned _opcodecount=0;
-static int _ram=0;
-
-static const unsigned EVTCLK_TO_360HZ=991666/3;
+static int egfd = -1;
 static const unsigned TRM_OPCODE=1;
 typedef struct {
     unsigned short type;
@@ -49,6 +43,7 @@ public:
   EvgSequenceLoader(Evg& eg, const EvgMasterTiming& mtime) :
     _eg(eg), _mtime(mtime), _nfid(0x1ec30), _count(0) {
       struct timespec tp;
+      memset(&_event, 0, sizeof(_event));
       memset(&_pattern, 0, sizeof(_pattern));
       _pattern.type = 1;
       _pattern.version = 1;
@@ -58,7 +53,7 @@ public:
   }
 public:
   void set() {
-    int ram = 1-_ram;
+    int ram = 0;
     int modulo720 = 0;
 
     _pos = 0;
@@ -140,7 +135,7 @@ public:
 
       if ((_count%(360*131072))==step) {
         printf("count %d\n",_count);
-        _eg.SeqRamDump(ram);
+        SeqRamDump(ram);
         printf("===\n");
       }
 
@@ -164,25 +159,33 @@ public:
       _pattern.mod[0] = modulo720;
 
       /* Sigh.  We swizzle so we can unswizzle later. */
-      unsigned int buf[sizeof(_pattern)/sizeof(int)], *buf2 = (unsigned int *)&_pattern;
+      unsigned int *buf = (unsigned int *)&_pattern;
       for (unsigned int i = 0; i < sizeof(_pattern)/sizeof(int); i++)
-        buf[i] = be32_to_cpu(buf2[i]);
-      _eg.SendDBuf((char *)&buf, sizeof(buf));
+        _event.pattern[i] = be32_to_cpu(buf[i]);
 
       ////!!debug
       //if (nSeqEvents != 0) printf("** fid 0x%x ", _nfid);
 
-      // re-arm the event sequence (then it will be triggered by internal clock or external trigger)
-      int enable=1, single=1, recycle=0, reset=0;
-      int trigsel=(_mtime.internal_main()? C_EVG_SEQTRIG_MXC_BASE : C_EVG_SEQTRIG_ACINPUT);
-
-      _eg.SeqRamCtrl(ram, enable, single, recycle, reset, trigsel);
-      _ram = ram;
+      ioctl(egfd, EV_IOCQEVT, &_event);
     }
 private:
   void _set_opcode(int ram, unsigned opcode, unsigned pos) {
-    _eg.SetSeqRamEvent(ram, _pos, pos, opcode);
+    _event.seqram[_pos].timestamp = be32_to_cpu(pos);
+    _event.seqram[_pos].eventcode = be32_to_cpu(opcode);
     _pos++;
+  }
+
+  void SeqRamDump(int ram) {
+    int pos;
+    for (pos = 0; pos < EVG_SEQRAM_SIZE; pos++) {
+      if (_event.seqram[pos].eventcode)
+        printf("Ram%d: Timestamp %08x Code %02x\n",
+		   ram,
+		   be32_to_cpu(_event.seqram[pos].timestamp),
+		   be32_to_cpu(_event.seqram[pos].eventcode));
+      if (be32_to_cpu(_event.seqram[pos].eventcode) == EvgrOpcode::EndOfSequence)
+        break;
+    }
   }
   Evg&                    _eg;
   const EvgMasterTiming&  _mtime;
@@ -191,115 +194,12 @@ private:
   unsigned                _count;
   unsigned                _pos;
   pattern_t _pattern;
+  evg_event_t _event;
   int       _sec;
   int       _nsec;
 };
 
 static EvgSequenceLoader*   sequenceLoaderGlobal;
-
-class EvgAction : public Action {
-protected:
-  EvgAction(Evg& eg) : _eg(eg) {}
-  Evg& _eg;
-};
-
-class EvgEnableAction : public EvgAction {
-public:
-  EvgEnableAction(Evg& eg) :
-    EvgAction(eg) {}
-  Transition* fire(Transition* tr) {
-    sequenceLoaderGlobal->set();
-    return tr;
-  }
-};
-
-class EvgDisableAction : public EvgAction {
-public:
-  EvgDisableAction(Evg& eg) : EvgAction(eg) {}
-  Transition* fire(Transition* tr) {
-    return tr;
-  }
-};
-
-class EvgBeginRunAction : public EvgAction {
-public:
-  EvgBeginRunAction(Evg& eg) : EvgAction(eg) {}
-  Transition* fire(Transition* tr) {
-    _eg.IrqEnable((1 << C_EVG_IRQ_MASTER_ENABLE) | (3 << C_EVG_IRQFLAG_SEQSTOP));
-    _eg.Enable(1);
-    return tr;
-  }
-};
-
-class EvgEndRunAction : public EvgAction {
-public:
-  EvgEndRunAction(Evg& eg) : EvgAction(eg) {}
-  Transition* fire(Transition* tr) {
-    _eg.Enable(0);
-    _eg.IrqEnable(0);
-    return tr;
-  }
-};
-
-class EvgConfigAction : public EvgAction {
-public:
-  EvgConfigAction(Evg& eg, const EvgMasterTiming& mtim) :
-    EvgAction(eg),
-    mtime(mtim) {}
-
-  Transition* fire(Transition* tr) {
-    int trigsel=(mtime.internal_main()? C_EVG_SEQTRIG_MXC_BASE : C_EVG_SEQTRIG_ACINPUT);
-
-    printf("Configuring evg\n");
-    _eg.Reset();
-    _eg.SeqRamCtrl(0, 0, 0, 0, 0, trigsel); // Disable both sequence rams!
-    _eg.SeqRamCtrl(1, 0, 0, 0, 0, trigsel);
-
-    for(int ram=0; ram<2; ram++) {
-        _eg.SetSeqRamEvent(ram, 0, 0, EvgrOpcode::EndOfSequence);
-    }
-
-    _eg.SetRFInput(0,C_EVG_RFDIV_4);
-
-    if (mtime.internal_main()) {
-      // setup properties for multiplexed counter 0
-      // to trigger the sequencer at 360Hz (so we can "stress" the system).
-
-      _eg.SetMXCPrescaler(0, mtime.clocks_per_sequence()*mtime.sequences_per_main());
-      _eg.SyncMxc();
-    }
-    else {
-      int bypass=1, sync=0, div=0, delay=0;
-      _eg.SetACInput(bypass, sync, div, delay);
-
-      int map = -1;
-      _eg.SetACMap(map);
-    }
-
-    _eg.SetDBufMode(1);
-
-    return tr;
-  }
-public:
-  const EvgMasterTiming& mtime;
-};
-
-extern "C" {
-  void evgmgr_sig_handler(int parm)
-  {
-    static Evg& eg  = egInfoGlobal->board();
-    static int fdEg = egInfoGlobal->filedes();
-    
-    int flags = eg.GetIrqFlags();
-    if (flags & (3 << C_EVG_IRQFLAG_SEQSTOP)) {
-        sequenceLoaderGlobal->set();
-        _opcodecount++;
-
-        eg.ClearIrqFlags(3 << C_EVG_IRQFLAG_SEQSTOP);
-        eg.IrqHandled(fdEg);
-    }
-  }
-}
 
 Appliance& EvgManager::appliance() {return _fsm;}
 
@@ -310,18 +210,13 @@ EvgManager::EvgManager(
   _fsm(*new Fsm)
 {
 
+  egfd = egInfo.filedes();
+  ioctl(egfd, EV_IOCKINIT, 0);
+  if (!mtime.internal_main())
+      ioctl(egfd, EV_IOCSETEXTTRIG, 1);
   sequenceLoaderGlobal   = new EvgSequenceLoader(_eg,mtime);
 
-  _eg.IrqAssignHandler(egInfo.filedes(), &evgmgr_sig_handler);
-  egInfoGlobal = &egInfo;
-
-  Action* action;
-  action = new EvgConfigAction(_eg,mtime);
-  action->fire((Transition*)0);
-  action = new EvgBeginRunAction(_eg);
-  action->fire((Transition*)0);
-  action = new EvgEnableAction(_eg);
-  action->fire((Transition*)0);
+  for (;;)
+    sequenceLoaderGlobal->set();
 }
 
-unsigned EvgManager::opcodecount() const {return _opcodecount;}

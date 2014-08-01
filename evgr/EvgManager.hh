@@ -15,10 +15,6 @@ namespace Pds {
     EvgManager(EvgrBoardInfo<Evg>& egInfo, 
                 const EvgMasterTiming&  mtime);
     Appliance& appliance();
-    int IRQFlags();
-
-  public:
-    unsigned opcodecount() const;
 
   private:
     Evg& _eg;
