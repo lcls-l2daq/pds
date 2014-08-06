@@ -100,7 +100,7 @@ tgtincs_fccdcmd := leutron/include
 
 tgtsrcs_pdvserialcmd := pdvserialcmd.cc
 tgtincs_pdvserialcmd := edt/include
-tgtlibs_pdvserialcmd := edt/pdv
+tgtlibs_pdvserialcmd := edt/pdv pds/service pdsdata/xtcdata
 tgtslib_pdvserialcmd := $(USRLIBDIR)/rt dl
 
 tgtsrcs_pdvcamsend := pdvcamsend.cc

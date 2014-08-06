@@ -13,6 +13,7 @@
 // build/pds/bin/i386-linux-opt/serialcmd --camera Adimec_Opal-1000m/Q_F8bit --grabber "PicPortX CL Mono PMC" --baudrate 115200
 //
 
+#include "pds/service/CmdLineTools.hh"
 #include <stdio.h>
 #include <stdlib.h>
 #include <edtinc.h>
@@ -195,6 +196,8 @@ int main(int argc, char *argv[])
     int unit    = 0;
     int channel = 0;
 
+    bool parse_valid = true;
+
     // Parse arguments
     for(i=1; i<argc; i++) {
         if ((strcmp(argv[i], "--help") == 0) ||
@@ -202,15 +205,22 @@ int main(int argc, char *argv[])
             help(argv[0]);
             return 0;
         } else if (strcmp(argv[i], "--baud") == 0) {
-          baud = atoi(argv[++i]);
+          parse_valid &= Pds::CmdLineTools::parseInt(argv[++i],baud);
         } else if (strcmp(argv[i], "--unit") == 0) {
-          unit = atoi(argv[++i]);
+          parse_valid &= Pds::CmdLineTools::parseInt(argv[++i],unit);
         } else if (strcmp(argv[i], "--channel") == 0) {
-          channel = atoi(argv[++i]);
+          parse_valid &= Pds::CmdLineTools::parseInt(argv[++i],channel);
         } else {
             printf("ERROR: invalid argument %s, try --help.\n\n", argv[i]);
             return 1;
         }
+    }
+
+    parse_valid &= (optind==argc);
+
+    if (!parse_valid) {
+      help(argv[0]);
+      return -1;
     }
 
 #if 1     // Assume Opal1k

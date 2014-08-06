@@ -31,6 +31,7 @@
 #include "pds/camera/TM6740Camera.hh"
 #include "pds/camera/FccdCamera.hh"
 #include "pds/camera/EdtPdvCL.hh"
+#include "pds/service/CmdLineTools.hh"
 
 #include <edtinc.h>
 
@@ -72,7 +73,6 @@ static void help(const char *progname)
   return;
 }
 
-
 int main(int argc, char *argv[])
 { // int exttrigger = 0;
   int extshutter = 0;
@@ -83,7 +83,7 @@ int main(int argc, char *argv[])
   double opalexp = -1;    // default: calculate based on frame rate
   unsigned uopalgain100 = (unsigned) int(opalgain * 100.);
   int i, ret, sockfd=-1;
-  long nimages = 0;
+  int nimages = 0;
   unsigned long long start_time, end_time;
   int camera_choice = 0;
   char *dest_host = NULL;
@@ -95,6 +95,7 @@ int main(int argc, char *argv[])
   struct hostent *dest_info;
   int bitsperpixel = 8;
   bool test_pattern;
+  bool parse_valid = true;
 
   test_pattern = false;
 
@@ -104,27 +105,28 @@ int main(int argc, char *argv[])
       help(argv[0]);
       return 0;
     } else if (strcmp("--camera",argv[i]) == 0) {
-      camera_choice = atoi(argv[++i]);
+      parse_valid &= CmdLineTools::parseInt(argv[++i],camera_choice);
     } else if (strcmp("--shutter",argv[i]) == 0) {
       extshutter = 1;
     } else if (strcmp("--noccd",argv[i]) == 0) {
       noccd = 1;
     } else if( strcmp("--grabber", argv[i]) == 0 ) {
-      grabberid = atoi(argv[++i]);
-   	  printf( "Use grabber %d\n", grabberid );
+      parse_valid &= CmdLineTools::parseInt(argv[++i],grabberid);
+      printf( "Use grabber %d\n", grabberid );
       printf( "\n" );
     } else if( strcmp("--channel", argv[i]) == 0 ) {
-      channel = atoi(argv[++i]);
-   	  printf( "Use channel %d\n", channel );
+      parse_valid &= CmdLineTools::parseInt(argv[++i],channel);
+      printf( "Use channel %d\n", channel );
       printf( "\n" );
     } else if( strcmp("--testpat", argv[i]) == 0 ) {
        // Currently only valid for the Opal1K and Quartz camera!
        test_pattern = true;
     } else if (strcmp("--fps",argv[i]) == 0) {
-      fps = strtod(argv[++i],NULL);
+      parse_valid &= CmdLineTools::parseDouble(argv[++i],fps);
       ifps = int(fps);
     } else if (strcmp("--opalgain",argv[i]) == 0) {
-      double dtmp = strtod(argv[++i],NULL);
+      double dtmp;
+      parse_valid &= CmdLineTools::parseDouble(argv[++i],dtmp);
       if ((dtmp >= OPALGAIN_MIN) && (dtmp <= OPALGAIN_MAX)) {
         opalgain = dtmp;
         uopalgain100 = (unsigned) int(opalgain * 100.);
@@ -134,7 +136,8 @@ int main(int argc, char *argv[])
         return -1;
       }
     } else if (strcmp("--opalexp",argv[i]) == 0) {
-      double dtmp = strtod(argv[++i],NULL);
+      double dtmp;
+      parse_valid &= CmdLineTools::parseDouble(argv[++i],dtmp);
       if ((dtmp >= OPALEXP_MIN) && (dtmp <= OPALEXP_MAX)) {
         opalexp = dtmp;
       } else {
@@ -143,7 +146,7 @@ int main(int argc, char *argv[])
         return -1;
       }
     } else if (strcmp("--count",argv[i]) == 0) {
-      nimages = atol(argv[++i]);
+      parse_valid &= CmdLineTools::parseInt(argv[++i],nimages);
     } else if (strcmp("--bpp",argv[i]) == 0) {
       bitsperpixel = atol(argv[++i]);
     } else if (dest_host == NULL) {
@@ -154,6 +157,14 @@ int main(int argc, char *argv[])
       return -1;
     }
   }
+
+  parse_valid &= (optind==argc);
+
+  if (!parse_valid) {
+    help(argv[0]);
+    return -1;
+  }
+
   if((fps == 0) && (!extshutter)) {
     fprintf(stderr, "ERROR: set the frames per second (--fps) or the external shutter (--shutter).\n");
     return -1;

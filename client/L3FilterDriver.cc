@@ -99,11 +99,8 @@ InDatagram* L3FilterDriver::events     (InDatagram* dg)
       if (_m->complete()) {
 	bool lAccept = _m->accept();
 	if (_lVeto && !lAccept) {
-	  // insert EPICS data!!
-	  //   this data may be needed by later events
-	  EpicsFinder finder(*dg);
-	  finder.iterate();
-	  finder.fixup();
+          dg->datagram().xtc.extent = sizeof(Xtc);
+          dg->datagram().xtc.damage = Damage(0);
 	}
       
         const L1AcceptEnv& l1 = static_cast<const L1AcceptEnv&>(dg->datagram().env);
