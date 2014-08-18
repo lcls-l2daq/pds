@@ -113,8 +113,8 @@ void ControlLevel::allocated(const Allocation& alloc,
 void ControlLevel::dissolved()
 {
   Allocation alloc(_allocation.partition(),
-       _allocation.dbpath(),
-       _allocation.partitionid());
+		   _allocation.dbpath(),
+		   _allocation.partitionid());
   _allocation = alloc;
   PartitionAllocation pa(alloc);
   ucast( pa, CollectionPorts::platform());

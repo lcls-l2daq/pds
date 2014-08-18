@@ -5,12 +5,14 @@
 #include "pdsdata/app/L3FilterModule.hh"
 #include "pdsdata/xtc/XtcIterator.hh"
 
+#include <string>
+
 namespace Pds {
   class L3FilterModule;
   class L3FilterDriver : public Appliance,
                          public XtcIterator {
   public:
-    L3FilterDriver(L3FilterModule*, bool lveto);
+    L3FilterDriver(L3FilterModule*);
     ~L3FilterDriver();
   public:
     Transition* transitions(Transition*);
@@ -19,6 +21,8 @@ namespace Pds {
     int  process(Xtc*);
   private:
     L3FilterModule* _m;
+    std::string     _path;
+    bool            _lUse;
     bool            _lVeto;
     bool            _event;
   };

@@ -108,7 +108,28 @@ Allocation::Allocation(const char* partition,
   _nnodes     (0),
   _options    (options)
 {
-  strncpy(_partition, partition, MaxName-1);
+  strncpy(_partition, partition, MaxPName-1);
+  strncpy(_dbpath   , dbpath   , MaxDbPath-1);
+  _l3path[0] = 0;
+  _bld_mask[1] = (bld_mask>>32)&0xffffffff;
+  _bld_mask[0] = (bld_mask>> 0)&0xffffffff;
+  _bld_mask_mon[1] = (bld_mask_mon>>32)&0xffffffff;
+  _bld_mask_mon[0] = (bld_mask_mon>> 0)&0xffffffff;
+}
+
+Allocation::Allocation(const char* partition,
+                       const char* dbpath,
+                       const char* l3path,
+                       unsigned    partitionid,
+                       uint64_t    bld_mask,
+                       uint64_t    bld_mask_mon,
+                       unsigned    options) : 
+  _partitionid(partitionid),
+  _nnodes     (0),
+  _options    (options)
+{
+  strncpy(_partition, partition, MaxPName-1);
+  strncpy(_l3path   , l3path   , MaxName-MaxPName-1);
   strncpy(_dbpath   , dbpath   , MaxDbPath-1);
   _bld_mask[1] = (bld_mask>>32)&0xffffffff;
   _bld_mask[0] = (bld_mask>> 0)&0xffffffff;
@@ -199,6 +220,8 @@ const char* Allocation::partition() const {return _partition;}
 
 const char* Allocation::dbpath() const {return _dbpath;}
 
+const char* Allocation::l3path() const {return _l3path;}
+
 unsigned    Allocation::size() const { return sizeof(*this)+(_nnodes-MaxNodes)*sizeof(Node); }
 
 
@@ -210,7 +233,7 @@ Allocate::Allocate(const Allocation& allocation) :
 }
 
 Allocate::Allocate(const Allocation& allocation,
-       const Sequence& seq) :
+		   const Sequence& seq) :
   Transition(TransitionId::Map, Transition::Execute, seq, 0,
              sizeof(Allocate)+allocation.size()-sizeof(Allocation)),
   _allocation(allocation)

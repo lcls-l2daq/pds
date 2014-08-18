@@ -9,7 +9,12 @@
 
 using namespace Pds;
 
-enum { Transient = 0x8000 };
+enum { Channel=0, Module=4, Trigger=7, Group=8, Transient=15 };
+enum { Channel_mask = (1<<Module   )-(1<<Channel  ) };
+enum { Module_mask  = (1<<Group    )-(1<<Module   ) };
+enum { Trigger_mask = (1<<Trigger  )-(1<<Group    ) };
+enum { Group_mask   = (1<<Transient)-(1<<Trigger  ) };
+enum { Transient_mask= (1<<16)-(1<<Transient) };
 
 Node::Node() : _procInfo(Level::Control,0,0) {}
 
@@ -30,8 +35,12 @@ Node::Node(Level::Type level, uint16_t platform) :
 
 Level::Type Node::level () const {return _procInfo.level();}
 unsigned Node::platform () const {return _platform;}
-unsigned Node::group    () const {return _group&~Transient;}
-bool     Node::transient() const {return _group&Transient; }
+unsigned Node::group    () const {return (_group&Group_mask)>>Group;}
+bool     Node::transient() const {return (_group&Transient_mask)>>Transient;}
+bool     Node::triggered() const {return (_group&Trigger_mask);}
+unsigned Node::evr_module () const { return (_group&Module_mask )>>Module;}
+unsigned Node::evr_channel() const { return (_group&Channel_mask)>>Channel;}
+
 int Node::pid() const {return _procInfo.processId();}
 int Node::uid() const {return _uid;}
 int Node::ip() const {return _procInfo.ipAddr();}
@@ -48,15 +57,24 @@ int Node::operator == (const Node& rhs) const
 
 void Node::setGroup(uint16_t group)
 {
-  _group = (_group&Transient) | (group&~Transient);
+  _group = (_group&~Transient_mask) | ((group<<Transient)&Transient_mask);
 }
 
 void Node::setTransient(bool t)
 {
   if (t)
-    _group |= Transient;		      
+    _group |= Transient_mask;		      
   else
-    _group &= ~Transient;
+    _group &= ~Transient_mask;
+}
+
+void Node::setTrigger(unsigned module,
+		      unsigned channel)
+{
+  _group = (_group&~(Module_mask|Channel_mask)) |
+    ((module <<Module )&Module_mask) |
+    ((channel<<Channel)&Channel_mask) |
+    Trigger_mask;
 }
 
 void Node::fixup(int ip, const Ether& ether) 

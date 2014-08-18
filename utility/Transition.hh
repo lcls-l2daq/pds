@@ -48,8 +48,10 @@ namespace Pds {
 
   class Allocation {
   public:
-    enum { ShapeTmo=1,
-           ShortDisableTmo=2 };
+    enum { ShapeTmo       =1,
+           ShortDisableTmo=2,
+	   L3Tag          =4,
+	   L3Veto         =8 };
     Allocation();
     Allocation(const char* partition,
                const char* dbpath,
@@ -57,15 +59,13 @@ namespace Pds {
                uint64_t    bld_mask=0,
 	       uint64_t    bld_mask_mon=0,
                unsigned    options=0);
-    /*
     Allocation(const char* partition,
                const char* dbpath,
+	       const char* l3path,
                unsigned    partitionid,
-               const Sequence&,
                uint64_t    bld_mask=0,
 	       uint64_t    bld_mask_mon=0,
                unsigned    options=0);
-    */
 
     bool add   (const Node& node);
     bool remove(const ProcInfo&);
@@ -77,6 +77,7 @@ namespace Pds {
     Node*       node(const ProcInfo&);
     const char* partition() const;
     const char* dbpath() const;
+    const char* l3path() const;
     unsigned    partitionid() const;
     uint64_t    bld_mask() const;
     uint64_t    bld_mask_mon() const;
@@ -84,16 +85,18 @@ namespace Pds {
     unsigned    size() const;
   private:
     static const unsigned MaxNodes=128;
+    static const unsigned MaxPName=16;
     static const unsigned MaxName=64;
     static const unsigned MaxDbPath=64;
-    char     _partition[MaxName];
+    char     _partition[MaxPName];
+    char     _l3path   [MaxName];
     char     _dbpath   [MaxDbPath];
     uint32_t _partitionid;
     uint32_t _bld_mask[2];
     uint32_t _bld_mask_mon[2];
     uint32_t _nnodes;
-    Node     _nodes[MaxNodes];
     uint32_t _options;
+    Node     _nodes[MaxNodes];  // transmit is trunctated at _nnodes of these
   };
 
   class Allocate : public Transition {

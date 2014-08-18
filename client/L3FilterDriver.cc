@@ -6,48 +6,17 @@
 
 #include <exception>
 #include <list>
+#include <fstream>
+#include <sstream>
 
 //#define DBUG
 
-namespace Pds {
-  class EpicsFinder : public XtcIterator {
-  public:
-    EpicsFinder(InDatagram& dg) : 
-      XtcIterator(&dg.datagram().xtc), _dg(dg) {}
-  public:
-    int process(Xtc* xtc)
-    {
-      if (xtc->src.level()==Level::Segment) {
-        const DetInfo& info = static_cast<const DetInfo&>(xtc->src);
-        if (info.detector()==DetInfo::EpicsArch)
-	  _xtc.push_back(xtc);
-      }
-      else if (xtc->contains.id()==TypeId::Id_Xtc) {
-        iterate(xtc);
-      }
-      return 1;
-    }
-    void fixup() 
-    {
-      _dg.datagram().xtc.extent = sizeof(Xtc);
-      _dg.datagram().xtc.damage = Damage(0);
-      for(std::list<Xtc*>::iterator it=_xtc.begin();
-	  it!=_xtc.end(); it++) {
-	Xtc* xtc = *it;
-	_dg.insert(*xtc,xtc->payload());
-      }
-    }
-  private:
-    InDatagram& _dg;
-    std::list<Xtc*> _xtc;
-  };
-};
-
 using namespace Pds;
 
-L3FilterDriver::L3FilterDriver(L3FilterModule* m, bool lveto) :
+L3FilterDriver::L3FilterDriver(L3FilterModule* m) :
   _m     (m),
-  _lVeto (lveto)
+  _lUse  (false),
+  _lVeto (false)
 {
 }
 
@@ -56,15 +25,39 @@ L3FilterDriver::~L3FilterDriver()
   delete _m;
 }
 
-Transition* L3FilterDriver::transitions(Transition* tr) { return tr; }
+Transition* L3FilterDriver::transitions(Transition* tr) 
+{
+  if (tr->id()==TransitionId::Map) {
+    const Allocation& alloc = static_cast<Allocate*>(tr)->allocation();
+    _lUse = alloc.options()&(Allocation::L3Tag|Allocation::L3Veto);
+    _lVeto= alloc.options()&(Allocation::L3Veto);
+    _path = alloc.l3path();
+  }
+  return tr; 
+}
 
 InDatagram* L3FilterDriver::events     (InDatagram* dg)
 {
+  if (!_lUse) return dg;
+
   if (dg->datagram().seq.service() == TransitionId::Configure) {
-    _m->pre_configure();
+
+    std::ostringstream s;
+    if (_path.size()) {
+      std::ifstream i(_path.c_str());
+      if (i.good())
+	i >> s.rdbuf();
+      else
+	printf("L3FilterDriver: Error opening %s\n",_path.c_str());
+    }
+    _m->pre_configure(s.str());
+
     _event = false;
     iterate(&dg->datagram().xtc);
-    _m->post_configure();
+
+    Damage dmg(0);
+    if (!_m->post_configure())
+      dmg.increase(Damage::UserDefined);
     
     std::string sname(_m->name());
     std::string sconf(_m->configuration());
@@ -77,7 +70,8 @@ InDatagram* L3FilterDriver::events     (InDatagram* dg)
     L3T::ConfigV1& c = *new(buff)L3T::ConfigV1(sname.size()+1, sconf.size()+1,
                                                sname.c_str(), sconf.c_str());
     Xtc cxtc(TypeId(TypeId::Type(c.TypeId),c.Version),
-             dg->datagram().xtc.src);
+             dg->datagram().xtc.src,
+	     dmg);
     cxtc.extent = sizeof(Xtc)+c._sizeof();
     dg->insert(cxtc,&c);
     delete[] buff;

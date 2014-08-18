@@ -85,8 +85,9 @@ unsigned ControlEb::repetitive() const { return 0; }
 Allocation ControlEb::remaining() const
 {
   Allocation alloc(_alloc->partition(),
-       _alloc->dbpath(),
-       _alloc->partitionid());
+		   _alloc->dbpath(),
+		   _alloc->l3path(),
+		   _alloc->partitionid());
   for(unsigned k=0; k<_alloc->nnodes(); k++) {
     if (_remaining.hasBitSet(k))
       alloc.add(*_alloc->node(k));

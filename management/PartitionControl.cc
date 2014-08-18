@@ -394,6 +394,7 @@ void PartitionControl::platform_rollcall(PlatformCallback* cb)
 
 bool PartitionControl::set_partition(const char* name,
                                      const char* dbpath,
+                                     const char* l3path,
                                      const Node* nodes,
                                      unsigned    nnodes,
                                      uint64_t    bldmask,
@@ -410,7 +411,7 @@ bool PartitionControl::set_partition(const char* name,
     disable_tmo.tv_nsec=300000000;
   }
 
-  _partition = Allocation(name,dbpath,partitionid(),bldmask,bldmask_mon,options);
+  _partition = Allocation(name,dbpath,l3path,partitionid(),bldmask,bldmask_mon,options);
   for(unsigned k=0; k<nnodes; k++)
     _partition.add(nodes[k]);
 

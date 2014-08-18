@@ -8,7 +8,7 @@
 namespace Pds {
   class L3FilterThreads : public WorkThreads {
   public:
-    L3FilterThreads(create_m*, unsigned nthreads=0, bool lveto=false);
+    L3FilterThreads(create_m*, unsigned nthreads=0);
     ~L3FilterThreads();
   };
 };

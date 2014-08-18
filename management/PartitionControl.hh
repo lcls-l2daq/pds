@@ -40,6 +40,7 @@ namespace Pds {
   public:
     bool  set_partition    (const char* name,
                             const char* db_path,
+			    const char* l3_path,
                             const Node* nodes,
                             unsigned    nnodes,
                             uint64_t    bld_mask,

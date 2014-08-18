@@ -17,6 +17,9 @@ public:
   Level::Type     level    () const;
   unsigned        platform () const;
   unsigned        group    () const;
+  bool            triggered() const;
+  unsigned        evr_module() const;
+  unsigned        evr_channel() const;
   bool            transient() const;
   int             pid      () const;
   int             uid      () const;
@@ -33,7 +36,7 @@ public:
   void fixup(int ip, const Ether& ether);
   void setGroup(uint16_t group);
   void setTransient(bool);
-
+  void setTrigger(unsigned module,unsigned channel);
 private:
   uint16_t  _platform;
   uint16_t  _group;    // segment level only: each group has different readout rates

@@ -22,7 +22,8 @@ EventLevel::EventLevel(unsigned platform,
                        int slowEb,
                        Arp* arp,
                        unsigned max_eventsize,
-                       unsigned max_buffers
+                       unsigned max_buffers,
+		       bool     is_triggered
                        ) :
   PartitionMember(platform, Level::Event, slowEb, arp),
   _callback   (callback),
@@ -34,6 +35,8 @@ EventLevel::EventLevel(unsigned platform,
     _max_eventsize = EventStreams::MaxSize;
   if (!_max_buffers)
     _max_buffers   = EventStreams::EbDepth;
+  if (is_triggered)
+    _header.setTrigger(0,0);
 }
 
 EventLevel::~EventLevel()
