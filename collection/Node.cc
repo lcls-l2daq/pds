@@ -11,9 +11,9 @@ using namespace Pds;
 
 enum { Channel=0, Module=4, Trigger=7, Group=8, Transient=15 };
 enum { Channel_mask = (1<<Module   )-(1<<Channel  ) };
-enum { Module_mask  = (1<<Group    )-(1<<Module   ) };
-enum { Trigger_mask = (1<<Trigger  )-(1<<Group    ) };
-enum { Group_mask   = (1<<Transient)-(1<<Trigger  ) };
+enum { Module_mask  = (1<<Trigger  )-(1<<Module   ) };
+enum { Trigger_mask = (1<<Group    )-(1<<Trigger  ) };
+enum { Group_mask   = (1<<Transient)-(1<<Group    ) };
 enum { Transient_mask= (1<<16)-(1<<Transient) };
 
 Node::Node() : _procInfo(Level::Control,0,0) {}
@@ -57,7 +57,7 @@ int Node::operator == (const Node& rhs) const
 
 void Node::setGroup(uint16_t group)
 {
-  _group = (_group&~Transient_mask) | ((group<<Transient)&Transient_mask);
+  _group = (_group&~Group_mask) | ((group<<Group)&Group_mask);
 }
 
 void Node::setTransient(bool t)
