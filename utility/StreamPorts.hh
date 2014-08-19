@@ -13,18 +13,24 @@
 namespace Pds {
   class StreamPorts {
   public:
-    enum { MaxPartitions=16 };
+    enum { MaxPartitions=8 };
   public:
+    ///  non-L1A datagram service
     static Ins bcast(unsigned    partition,
 		     Level::Type level,
 		     unsigned    srcid=0);
+    ///  L1A datagram service
     static Ins event(unsigned    partition,
                      Level::Type level,
                      unsigned    dstid=0,
                      unsigned    srcid=0);
+    ///  Beamline data service
     static Ins bld  (unsigned    id);
+    ///  Vmon service
     static Ins vmon (unsigned    partition);
+    ///  EVR master-slave sync service
     static Ins evr  (unsigned    partition);
+    ///  Nowhere (via the network stack)
     static Ins sink ();
   public:
     StreamPorts();

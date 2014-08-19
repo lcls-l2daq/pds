@@ -10,24 +10,25 @@ using namespace Pds;
 //    Max Level2/partition = 32
 //
 static const int MaxSegGroups    = Pds::L1AcceptEnv::MaxReadoutGroups;
+static const int MaxSegMasters   = 8;
 static const int MaxPartitionL1s = 32;
 static const int MaxPartitionL2s = 64;
-static const int MaxBLDServers   = 32;
+//static const int MaxBLDServers   = 32;
 static const int BaseMcastAddr = 0xefff1010;
 
 // EVR -> L1 : 0xefff1010
 static const int SegmentMcastAddr  = BaseMcastAddr;
-// L1  -> L2 : 0xefff1110
-static const int EventMcastAddr    = SegmentMcastAddr +StreamPorts::MaxPartitions * MaxSegGroups;
-// L2  -> L0 : 0xefff1510
+// L1  -> L2 : 0xefff1210
+static const int EventMcastAddr    = SegmentMcastAddr +StreamPorts::MaxPartitions * MaxSegGroups * MaxSegMasters;
+// L2  -> L0 : 0xefff1410
 static const int ControlMcastAddr  = EventMcastAddr   +StreamPorts::MaxPartitions * MaxPartitionL2s;
-// EVR -> L1(soft triggers) 0xefff1520
+// EVR -> L1(soft triggers) 0xefff1418
 static const int ObserverMcastAddr = ControlMcastAddr +StreamPorts::MaxPartitions;
-// VMON server<->client     0xeffff1530
+// VMON server<->client     0xeffff1420
 static const int VmonMcastAddr     = ObserverMcastAddr+StreamPorts::MaxPartitions;
-// EVR Master -> Slaves     0xeffff1540
+// EVR Master -> Slaves     0xeffff1428
 static const int EvrMcastAddr      = VmonMcastAddr    +StreamPorts::MaxPartitions;
-// L1 -> nowhere : 0xeffff1550
+// L1 -> nowhere : 0xeffff1430
 static const int SinkMcastAddr     = EvrMcastAddr     +StreamPorts::MaxPartitions;
 
 // BLD -> L1,L2 : 0xefff1800
@@ -35,18 +36,18 @@ static const int BLDMcastAddr      = 0xefff1800;  // FIXED value for external co
 
 static const unsigned PortBase         = 10150;
 static const unsigned SegmentPortBase  = PortBase;                                                      // 10150
-static const unsigned EventPortBase    = SegmentPortBase +StreamPorts::MaxPartitions * MaxSegGroups;    // 10406
+static const unsigned EventPortBase    = SegmentPortBase +StreamPorts::MaxPartitions * MaxSegGroups * MaxSegMasters;    // 10662
 static const unsigned ControlPortBase  = EventPortBase   +StreamPorts::MaxPartitions * MaxPartitionL1s; // 10918
-static const unsigned ObserverPortBase = ControlPortBase +StreamPorts::MaxPartitions * MaxPartitionL2s; // 11942
-static const unsigned VmonPortBase     = ObserverPortBase+StreamPorts::MaxPartitions;                   // 11958
-static const unsigned EvrPortBase      = VmonPortBase    +1;                                            // 11959
-static const unsigned SinkPortBase     = EvrPortBase     +StreamPorts::MaxPartitions;                   // 11975
+static const unsigned ObserverPortBase = ControlPortBase +StreamPorts::MaxPartitions * MaxPartitionL2s; // 11430
+static const unsigned VmonPortBase     = ObserverPortBase+StreamPorts::MaxPartitions;                   // 11438
+static const unsigned EvrPortBase      = VmonPortBase    +1;                                            // 11439
+static const unsigned SinkPortBase     = EvrPortBase     +StreamPorts::MaxPartitions;                   // 11447
 static const unsigned BLDPortBase      = 10148;   // FIXED value for external code
 
 
 Ins StreamPorts::bcast(unsigned    partition,
                        Level::Type level,
-           unsigned    srcid)
+		       unsigned    srcid)
 {
   switch(level) {
   case Level::Event:
@@ -69,8 +70,8 @@ Ins StreamPorts::event(unsigned    partition,
   switch(level) {
   case Level::Segment:
     // dstid -> segment group id
-    return Ins(SegmentMcastAddr + dstid * StreamPorts::MaxPartitions + partition,
-         SegmentPortBase + dstid * StreamPorts::MaxPartitions + partition);
+    return Ins(SegmentMcastAddr + (srcid*MaxSegGroups + dstid) * StreamPorts::MaxPartitions + partition,
+         SegmentPortBase + dstid*StreamPorts::MaxPartitions + partition);
   case Level::Event:
     return Ins(EventMcastAddr + partition*MaxPartitionL2s + dstid,
          EventPortBase  + partition*MaxPartitionL1s + srcid);
