@@ -389,6 +389,3 @@ void EvrManager::sigintHandler(int sig_no)
 }
 
 void EvrManager::randomize_nodes(bool v) { _randomize_nodes=v; }
-
-const int EvrManager::EVENT_CODE_BEAM;  // value is defined in the header file
-const int EvrManager::EVENT_CODE_BYKIK; // value is defined in the header file

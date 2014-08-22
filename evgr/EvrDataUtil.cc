@@ -1,132 +1,155 @@
 #include <stdio.h>
 
-#include "EvrDataUtil.hh"
+#include "pds/evgr/EvrDataUtil.hh"
+#include "pds/evgr/EventCodeState.hh"
 
-using Pds::EvrData::FIFOEvent;
+using namespace Pds;
+ 
+enum { giMaxNumFifoEvent  = 32 };
+ 
+EvrDataUtil::EvrDataUtil() : _full(false) {}
 
-namespace Pds
-{
-  
-EvrDataUtil::EvrDataUtil(uint32_t u32NumFifoEvents, const FIFOEvent* lFifoEvent) :
-  EvrDataType(u32NumFifoEvents,lFifoEvent)
-{
-}
-
-EvrDataUtil::EvrDataUtil(const EvrDataType& dataCopy):
-  EvrDataType(dataCopy)
-{
-}
-  
-void EvrDataUtil::printFifoEvents() const
-{
-  printf( "# of Fifo Events: %u\n", numFifoEvents() );
-  
-  ndarray<const EvrData::FIFOEvent,1> events = fifoEvents();
-  for ( unsigned int iEventIndex=0; iEventIndex< events.shape()[0]; iEventIndex++ )
-  {
-    const FIFOEvent& event = events[iEventIndex];
-    printf( "[%02u] Event Code %u  TimeStampHigh 0x%x  TimeStampLow 0x%x\n",
-            iEventIndex, event.eventCode(), event.timestampHigh(), event.timestampLow() );
-  }
-}
-
-// return the number of total fifo events, including the new one
-unsigned int EvrDataUtil::addFifoEvent( const FIFOEvent& fifoEvent )
-{
-  FIFOEvent* pFifoEventNew = (FIFOEvent*) ((char*) this + size()); 
-  *pFifoEventNew            = fifoEvent;  
-  return (new (this) EvrDataType(numFifoEvents()+1))->numFifoEvents();
-}
-
-// return the index to the updated fifo event
-unsigned int EvrDataUtil::updateFifoEvent( const FIFOEvent& fifoEvent )
-{
-  FIFOEvent*    pFifoEvent = (FIFOEvent*) (this+1);  
-  
-  for ( unsigned int iEvent = 0 ; iEvent < numFifoEvents(); iEvent++, pFifoEvent++ )
-  {
-    if ( pFifoEvent->eventCode() == fifoEvent.eventCode() )
-    {
-      *pFifoEvent = fifoEvent;
-      return iEvent;
-    }
-  }
-
-  *pFifoEvent = fifoEvent;
-  return (new (this) EvrDataType(numFifoEvents()+1))->numFifoEvents();
-}
-
-// return the index to the updated fifo event
-int EvrDataUtil::updateFifoEventCheck( const FIFOEvent& fifoEvent, unsigned int iMaxSize )
-{
-  FIFOEvent*    pFifoEvent = (FIFOEvent*) (this+1);  
-  
-  for ( unsigned int iEvent = 0 ; iEvent < numFifoEvents(); iEvent++, pFifoEvent++ )
-  {
-    if ( pFifoEvent->eventCode() == fifoEvent.eventCode() )
-    {
-      *pFifoEvent = fifoEvent;
-      return iEvent;
-    }
-  }
-
-  if ( numFifoEvents() >= iMaxSize )
-    return -1;
-    
-  *pFifoEvent = fifoEvent;
-  return (new (this) EvrDataType(numFifoEvents()+1))->numFifoEvents();
-}
-
-static const uint32_t giMarkEventDel = 0xFFFFFFFF;
-
-void EvrDataUtil::markEventAsDeleted( unsigned int iEventIndex )
-{
-  FIFOEvent* pFifoEvent = (FIFOEvent*) (this+1) + iEventIndex;    
-  *new(pFifoEvent) FIFOEvent(pFifoEvent->timestampHigh(),
-                             pFifoEvent->timestampLow(),
-                             giMarkEventDel); // Mark as deleted 
-}
-
-// return the new total number of events after the purge
-unsigned int EvrDataUtil::purgeDeletedEvents()
-{  
-  FIFOEvent* pFifoEventUpdate = (FIFOEvent*) (this+1);  
-  FIFOEvent* pFifoEventCur    = pFifoEventUpdate;
-
-  unsigned int iNumTotalEvents = 0;
-  
-  for ( unsigned int iEvent = 0 ; iEvent < numFifoEvents(); iEvent++, pFifoEventCur++ )
-  {
-    if ( pFifoEventCur->eventCode() != giMarkEventDel )
-    {
-      if ( pFifoEventUpdate != pFifoEventCur )
-        *pFifoEventUpdate = *pFifoEventCur;
-      
-      ++pFifoEventUpdate;  
-      ++iNumTotalEvents;
-    }
-  }
-  
-  return (new (this) EvrDataType(iNumTotalEvents))->numFifoEvents();
-}
-
-// return the number of total fifo events, after update
-unsigned int EvrDataUtil::removeTailEvent() 
-{
-  if ( numFifoEvents() > 0 )
-    *new(this) EvrDataType(numFifoEvents()-1);
-    
-  return numFifoEvents();
-}
+unsigned EvrDataUtil::numFifoEvents() const { return _data.size(); }
 
 void EvrDataUtil::clearFifoEvents()
 {
-  *new(this) EvrDataType(0);
+  _data.clear();
+  _full = false;
 }
 
-unsigned int EvrDataUtil::size(int iMaxNumFifoEvents)
+void EvrDataUtil::printFifoEvents() const
 {
-  return ( sizeof(EvrDataType) + iMaxNumFifoEvents * sizeof(FIFOEvent) );
+  printf( "# of Fifo Events: %zu\n", _data.size() );
+  
+  unsigned i=0;
+  for(std::list<FifoEventT>::const_iterator it=_data.begin();
+      it!=_data.end(); it++) {
+    const FIFOEvent& event = it->event;
+    printf( "[%02u] Event Code %u  TimeStampHigh 0x%x  TimeStampLow 0x%x\n",
+            i++, event.EventCode, event.TimestampHigh, event.TimestampLow );
+  }
 }
 
-} // namespace Pds
+void EvrDataUtil::addFifoEvent( const FIFOEvent& fifoEvent )
+{
+  if (numFifoEvents() < giMaxNumFifoEvent)
+    _data.push_back(FifoEventT(fifoEvent,false));
+  else
+    _full=true;
+}
+
+void EvrDataUtil::addSpecialEvent( const FIFOEvent& fifoEvent )
+{
+  while(!_data.empty()) {
+    const FifoEventT& t = _data.back();
+    if (t.event.TimestampHigh==fifoEvent.TimestampHigh)
+      break;
+    if (!t.transient)
+      break;
+    _data.pop_back();
+  }
+
+  if (numFifoEvents() < giMaxNumFifoEvent)
+    _data.push_back(FifoEventT(fifoEvent,true));
+  else
+    _full = true;
+}
+
+void EvrDataUtil::updateFifoEvent( const FIFOEvent& fifoEvent )
+{
+  for(std::list<FifoEventT>::iterator it=_data.begin();
+      it!=_data.end(); it++)
+    if (it->event.EventCode == fifoEvent.EventCode) {
+      it->event = fifoEvent;
+      return;
+    }
+
+  if (numFifoEvents() < giMaxNumFifoEvent)
+    _data.push_back(FifoEventT(fifoEvent,false));
+  else
+    _full = true;
+}
+
+void EvrDataUtil::checkLatch ( const FIFOEvent&      fifoEvent,
+			       const EventCodeState* codes)
+{
+  const int releaseCode = -int(fifoEvent.EventCode);
+
+  for(std::list<FifoEventT>::iterator it=_data.begin();
+      it!=_data.end(); ) {
+    const EventCodeState& code = codes[it->event.EventCode];
+    if (code.iReportWidth == releaseCode)
+      it = _data.erase(it);
+    else
+      it++;
+  }
+}
+
+void EvrDataUtil::advanceQ( EvrDataUtil&    next,
+			    EventCodeState* codes )
+{
+  for(std::list<FifoEventT>::iterator it=_data.begin();
+      it!=_data.end();) {
+    EventCodeState& codeState = codes[it->event.EventCode];
+    if ( codeState.iReportWidth  <= 0 ||
+	 codeState.iReportDelayQ <= 0 ) {
+      next  .updateFifoEvent( it->event );
+      it = _data.erase(it);
+      codeState.iReportDelay  = codeState.iReportDelayQ;
+      codeState.iReportWidth  = codeState.iDefReportWidth;
+      codeState.iReportDelayQ = 0;
+      continue;
+    }
+
+    --codeState.iReportDelayQ;
+    it++;
+  }
+  next._full = next._full || _full;
+}
+
+void EvrDataUtil::advance ( EvrDataUtil&    next,
+			    EventCodeState* codes )
+{
+  for(std::list<FifoEventT>::iterator it=_data.begin();
+      it!=_data.end();) {
+    EventCodeState& codeState = codes[it->event.EventCode];
+    if ( codeState.iReportDelay > 0 ) {
+      --codeState.iReportDelay;
+    }
+    else {
+      next.addFifoEvent( it->event );
+      
+      /*
+       * Test if any control-transient event codes have expired.
+       */
+      if (codeState.iReportWidth>=0) { // control-latch codes will bypass this test, since its report width = -1 * (release code)
+	if ( --codeState.iReportWidth <= 0 ) {
+	  it = _data.erase(it);
+	  continue;
+	}
+      }
+    }
+    it++;
+  }
+  next._full = next._full || _full;
+}
+
+void EvrDataUtil::insert( const EvrDataUtil& input )
+{
+  _data.insert(_data.end(), input._data.begin(), input._data.end());
+  if (numFifoEvents() >= giMaxNumFifoEvent) {
+    _full |= true;
+    _data.resize(giMaxNumFifoEvent);
+  }
+  _full = _full || input._full;
+}
+
+EvrDataType* EvrDataUtil::write(void* p)
+{
+  EvrDataType* r = new(p) EvrDataType(numFifoEvents(),NULL);
+  EvrData::FIFOEvent* q = reinterpret_cast<EvrData::FIFOEvent*>(r+1);
+  for(std::list<FifoEventT>::const_iterator it=_data.begin();
+      it!=_data.end(); it++)
+    *q++ = reinterpret_cast<const EvrData::FIFOEvent&>(it->event);
+  return r;
+}

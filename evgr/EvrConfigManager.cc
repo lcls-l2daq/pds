@@ -1,5 +1,5 @@
 #include "pds/evgr/EvrConfigManager.hh"
-#include "pds/evgr/EvrManager.hh"  // EVENT_CODE_BEAM, ...
+#include "pds/evgr/EvrDefs.hh"  // EVENT_CODE_BEAM, ...
 #include "pds/evgr/EvrSync.hh"     // EVENT_CODE_SYNC
 #include "pds/utility/Appliance.hh"
 #include "pds/config/CfgClientNfs.hh"
@@ -17,7 +17,7 @@ static const int      giMaxEventCodes   = 64; // max number of event code config
 static const int      giMaxPulses       = 10; 
 static const int      giMaxOutputMaps   = 80; 
 static const int      giMaxCalibCycles  = 500;
-static const unsigned TERMINATOR        = 1;
+static const unsigned TERMINATOR        = EVENT_CODE_TERM;
 
 static unsigned int evrConfigSize(unsigned maxNumEventCodes, unsigned maxNumPulses, unsigned maxNumOutputMaps)
 {
@@ -206,9 +206,9 @@ const EvrConfigType* EvrConfigManager::configure()
     
   if (!_bTurnOffBeamCodes)
     {
-      _er.SetFIFOEvent(ram, EvrManager::EVENT_CODE_BEAM,  enable);
-      _er.SetFIFOEvent(ram, EvrManager::EVENT_CODE_BYKIK, enable);
-      _er.SetFIFOEvent(ram, EvrManager::EVENT_CODE_ALKIK, enable);
+      _er.SetFIFOEvent(ram, EVENT_CODE_BEAM,  enable);
+      _er.SetFIFOEvent(ram, EVENT_CODE_BYKIK, enable);
+      _er.SetFIFOEvent(ram, EVENT_CODE_ALKIK, enable);
       _er.SetFIFOEvent(ram, EvrSyncMaster::EVENT_CODE_SYNC, enable);
     }
     

@@ -9,7 +9,6 @@
 
 namespace Pds
 {
-  
 /*
  * Circular queue for storing EVR L1 Data
  *
@@ -29,18 +28,19 @@ namespace Pds
  *       Special value: -1 means invalid counter, will be used to mark the out-of-order data
  *    
  */
+
 class EvrL1Data
 {
 public:
 
-  EvrL1Data ( int iMaxNumFifoEvent, int iNumBuffers );  
+  EvrL1Data ( int iNumBuffers, int iBufferSize );  
   ~EvrL1Data();
   
   void reset();
   
-  void setDataWriteFull      (bool bVal)    { _lbDataFull       [_iDataWriteIndex] = bVal; }
-  void setDataWriteIncomplete(bool bVal)    { _lbDataIncomplete [_iDataWriteIndex] = bVal; }
-  void setCounterWrite       (const ClockTime& iCounter) { _liCounter        [_iDataWriteIndex] = iCounter; }
+  //  void setDataWriteFull      (bool bVal)    { _lbDataFull       [_iDataWriteIndex] = bVal; }
+  //  void setDataWriteIncomplete(bool bVal)    { _lbDataIncomplete [_iDataWriteIndex] = bVal; }
+  //  void setCounterWrite       (const ClockTime& iCounter) { _liCounter        [_iDataWriteIndex] = iCounter; }
   bool getDataReadFull       ()             { return _lbDataFull       [_iDataReadIndex]; }
   bool getDataReadIncomplete ()             { return _lbDataIncomplete [_iDataReadIndex]; }
   const ClockTime& getCounterRead() const   { return _liCounter        [_iDataReadIndex]; }
@@ -51,22 +51,23 @@ public:
   int  writeIndex            () const       { return _iDataWriteIndex; }
   int  numOfBuffers          ()             { return _iNumBuffers;     }
       
-  EvrDataUtil& getDataRead();
-  EvrDataUtil& getDataWrite();  
+  void* getDataRead();
+  //  EvrDataUtil& getDataWrite();  
+  void* nextWrite(const ClockTime&,bool,bool);
   
   void finishDataRead ();  // move on to the next data position for data read  
-  void finishDataWrite(); // move on to the next data position for data write
+  //  void finishDataWrite(); // move on to the next data position for data write
 
   /*
    * find and get data with counter
    */
   int           findDataWithCounter(const ClockTime& iCounter);  
-  EvrDataUtil&  getDataWithIndex   (int iDataIndex);
+  void*         getDataWithIndex   (int iDataIndex);
   void          markDataAsInvalid  (int iDataIndex);
   
 private:
-  int    _iMaxNumFifoEvent;
   int    _iNumBuffers;
+  int    _iBufferSize;
   
   int    _iDataReadIndex;
   int    _iDataWriteIndex;

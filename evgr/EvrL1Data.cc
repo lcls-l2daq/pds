@@ -3,17 +3,16 @@
 
 #include "EvrL1Data.hh"
 
-namespace Pds
-{
+using namespace Pds;
 
-  static const ClockTime _invalid(-1,-1);
+static const ClockTime _invalid(-1,-1);
 
-EvrL1Data::EvrL1Data( int iMaxNumFifoEvent, int iNumBuffers ) :
-  _iMaxNumFifoEvent (iMaxNumFifoEvent),
+EvrL1Data::EvrL1Data( int iNumBuffers, int iBufferSize ) :
   _iNumBuffers      (iNumBuffers),
+  _iBufferSize      (iBufferSize),
   _iDataReadIndex   (-1),
   _iDataWriteIndex  (0),
-  _lDataCircBuffer  ( new char[ iNumBuffers * EvrDataUtil::size( iMaxNumFifoEvent ) ]  ),
+  _lDataCircBuffer  ( new char[ iNumBuffers * iBufferSize ] ),
   _lbDataFull       ( new bool[ iNumBuffers ] ),
   _lbDataIncomplete ( new bool[ iNumBuffers ] ),
   _liCounter        ( new ClockTime[ iNumBuffers ] )
@@ -40,22 +39,11 @@ void EvrL1Data::reset()
   memset( _liCounter,        0, _iNumBuffers * sizeof(ClockTime) ); 
 }
 
-EvrDataUtil& EvrL1Data::getDataRead()
+void* EvrL1Data::getDataRead()
 { 
   //printf("EvrL1Data::getDataRead(): Read Index = %d\n", _iDataReadIndex );// !! debug
-  EvrDataUtil& data = *(EvrDataUtil*)
-    ( _lDataCircBuffer + _iDataReadIndex * EvrDataUtil::size( _iMaxNumFifoEvent ) );
-  return data;
-}
-
-EvrDataUtil& EvrL1Data::getDataWrite()       
-{ 
-  //printf("EvrL1Data::getDataRead(): Write Index = %d\n", _iDataWriteIndex );// !! debug
-  EvrDataUtil& data = *(EvrDataUtil*)
-    ( _lDataCircBuffer + _iDataWriteIndex * EvrDataUtil::size( _iMaxNumFifoEvent ) );
-  
-  new (&data) EvrDataUtil( 0, NULL );
-  return data;
+  char* p =_lDataCircBuffer + _iDataReadIndex * _iBufferSize;
+  return p;
 }
 
 //static bool bDataWriteAbnormal; // !! debug
@@ -87,8 +75,16 @@ void EvrL1Data::finishDataRead()  // move on to the next data position for data 
   //}
 }
 
-void EvrL1Data::finishDataWrite() // move on to the next data position for data write
-{    
+void* EvrL1Data::nextWrite(const ClockTime& ctime,
+			   bool             bFull,
+			   bool             bIncomplete)
+{
+  _liCounter       [_iDataWriteIndex] = ctime;
+  _lbDataFull      [_iDataWriteIndex] = bFull;
+  _lbDataIncomplete[_iDataWriteIndex] = bIncomplete;
+
+  char* p = _lDataCircBuffer + _iDataWriteIndex * _iBufferSize;
+
   LockData lockData; // lock data indexes
   
   //if ( _iDataReadIndex != -1 )// !! debug
@@ -101,6 +97,8 @@ void EvrL1Data::finishDataWrite() // move on to the next data position for data 
   if ( _iDataReadIndex == -1 ) // No previously buffered data -> set read index to updated data
     _iDataReadIndex  = _iDataWriteIndex;
   _iDataWriteIndex = ((_iDataWriteIndex+1) % _iNumBuffers);
+
+  return p;
 }  
 
 /*
@@ -115,11 +113,10 @@ int EvrL1Data::findDataWithCounter(const ClockTime& iCounter)
   return -1;
 }
 
-EvrDataUtil& EvrL1Data::getDataWithIndex(int iDataIndex)
+void* EvrL1Data::getDataWithIndex(int iDataIndex)
 {
-  EvrDataUtil& data = *(EvrDataUtil*)
-    ( _lDataCircBuffer + iDataIndex * EvrDataUtil::size( _iMaxNumFifoEvent ) );      
-  return data;
+  char* p = _lDataCircBuffer + iDataIndex * _iBufferSize;
+  return p;
 }
 
 void EvrL1Data::markDataAsInvalid(int iDataIndex)
@@ -128,5 +125,3 @@ void EvrL1Data::markDataAsInvalid(int iDataIndex)
 }
 
 pthread_mutex_t EvrL1Data::LockData::_mutexData = PTHREAD_MUTEX_INITIALIZER;    
-
-} // namespace Pds
