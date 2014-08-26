@@ -91,9 +91,15 @@ public:
 
         const unsigned dbeam = _mtime.fiducials_per_beam();
         //unsigned q = p+36;
-        unsigned q = p+67;
+        unsigned q = p+69;
         //  Eventcodes
-        if (_count%dbeam  ==0) {_set_opcode(ram, 140, q+11850);}
+        if (_count%dbeam       ==0) {_set_opcode(ram, 140, q+11850);}
+        if (_count%(2*dbeam)   ==0) {_set_opcode(ram, 141, q+11851);}
+        if (_count%(4*dbeam)   ==0) {_set_opcode(ram, 142, q+11852);}
+        if (_count%(12*dbeam)  ==0) {_set_opcode(ram, 143, q+11853);}
+        if (_count%(24*dbeam)  ==0) {_set_opcode(ram, 144, q+11854);}
+        if (_count%(120*dbeam) ==0) {_set_opcode(ram, 145, q+11855);}
+        if (_count%(240*dbeam) ==0) {_set_opcode(ram, 146, q+11856);}
 
         int  nSeqEvents = 0;
         int* lSeqEvents = NULL;
@@ -110,7 +116,7 @@ public:
         //!!debug
         //if (nSeqEvents != 0) printf("\n");
 
-        if (_nfid%2      ==0) {_set_opcode(ram, 180, q+12944);}
+        //if (_nfid%2      ==0) {_set_opcode(ram, 180, q+12944);}
         if (_nfid%3      ==0) {_set_opcode(ram,  40, q+12954);}
         if (_nfid%6      ==0) {_set_opcode(ram,  41, q+12964);}
         if (_nfid%12     ==0) {_set_opcode(ram,  42, q+12974);}
@@ -180,9 +186,9 @@ private:
     for (pos = 0; pos < EVG_SEQRAM_SIZE; pos++) {
       if (_event.seqram[pos].eventcode)
         printf("Ram%d: Timestamp %08x Code %02x\n",
-		   ram,
-		   be32_to_cpu(_event.seqram[pos].timestamp),
-		   be32_to_cpu(_event.seqram[pos].eventcode));
+       ram,
+       be32_to_cpu(_event.seqram[pos].timestamp),
+       be32_to_cpu(_event.seqram[pos].eventcode));
       if (be32_to_cpu(_event.seqram[pos].eventcode) == EvgrOpcode::EndOfSequence)
         break;
     }

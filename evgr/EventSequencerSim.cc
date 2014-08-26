@@ -651,7 +651,7 @@ int EventSequencerSim::updateSeqFromPv(TEventSequencer& seq) {
 }
 
 int EventSequencerSim::getCodeDelay(int iEvent) {
-  return 11900 + iEvent;
+  return 11850 + iEvent;
 }
 
 int EventSequencerSim::getSeqEvent(unsigned fiducial, int& nSeqEvents, int*& lSeqEvents) {
@@ -769,11 +769,10 @@ EventSequencerSim::TEventSequencer::TEventSequencer() : iSeqId(-1), uCurStepFid(
 {
 }
 
+// iStart: 0 stop seqeuence  1 start (may repeat)   2 finish current round and goto next round
 int EventSequencerSim::TEventSequencer::play(int iStart, unsigned fiducial) {
   ////!!!debug
   //printf("  Seq %d play(start %d, fiducial 0x%x)\n", iSeqId, iStart, fiducial);
-
-  fiducial += 3; // min delay for PV thread/evgr thread communication
 
   if (iStart == 0) {
     iPlayStatus       = 0;
@@ -783,6 +782,9 @@ int EventSequencerSim::TEventSequencer::play(int iStart, unsigned fiducial) {
 
   if (iErrType != 2) // Valid Sequence
     return 0;
+
+  if (iStart == 1)
+    fiducial += 3; // min delay for PV thread/evgr thread communication
 
   iPlayStatus = 1;
 
