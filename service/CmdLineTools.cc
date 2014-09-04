@@ -4,6 +4,7 @@
 
 #include <stdlib.h>
 #include <string.h>
+#include <strings.h>
 #include <stdio.h>
 
 using namespace Pds;
@@ -80,6 +81,47 @@ bool CmdLineTools::parseUInt  (const char* arg, unsigned& v, int base)
   char* endptr;
   v = strtoul(arg,&endptr,base);
   return *endptr==0;
+}
+
+int CmdLineTools::parseUInt  (char* arg, unsigned& v1, unsigned& v2, unsigned& v3, int base, int delim)
+{
+  int count = 0;
+  char* endptr;
+  char* nextptr;
+
+  nextptr = index(arg, delim);        // find 1st delim
+  if (nextptr) {
+    *nextptr++ = '\0';                // replace 1st delim with NULL
+  }
+  v1 = strtoul(arg,&endptr,base);
+  if (*endptr==0) {
+    ++count;
+    if (nextptr) {
+      arg = nextptr;
+      nextptr = index(arg, delim);    // find 2nd delim
+      if (nextptr) {
+        *nextptr++ = '\0';            // replace 2nd delim with NULL
+      }
+      v2 = strtoul(arg,&endptr,base);
+      if (*endptr==0) {
+        ++count;
+        if (nextptr) {
+          v3 = strtoul(nextptr,&endptr,base);
+          if (*endptr==0) {
+            ++count;
+          } else {
+            count = 0;                // error
+          }
+        }
+      } else {
+        count = 0;                    // error
+      }
+    }
+  } else {
+    count = 0;                        // error
+  }
+
+  return count;
 }
 
 bool CmdLineTools::parseUInt64(const char* arg, uint64_t& v, int base)
