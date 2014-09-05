@@ -66,7 +66,7 @@ bool SegmentLevel::attach()
       else if (!_settings.sources().empty())
         vname = DetInfo::name(static_cast<const DetInfo&>(_settings.sources().front()));
       if (_settings.is_triggered())
-	_header.setTrigger(_settings.module(),_settings.channel());
+  _header.setTrigger(_settings.module(),_settings.channel());
 
       _streams = new SegStreams(*this,
                                 _settings.max_event_size (),
@@ -115,12 +115,12 @@ void    SegmentLevel::allocated(const Allocation& alloc,
   for (unsigned n=0; n<alloc.nnodes(); n++) {
     const Node& node = *alloc.node(n);
     if (node.level() == Level::Segment &&
-	node == _header) {
+  node == _header) {
       if (node.group() != _header.group())
-	{
-	  _header.setGroup(node.group());
-	  printf("Assign group to %d\n", _header.group());
-	}
+  {
+    _header.setGroup(node.group());
+    printf("Assign group to %d\n", _header.group());
+  }
 
       _contains = node.transient()?_transientXtcType:_xtcType;  // transitions
       static_cast<EbBase&>(inlet).contains(_contains);  // l1accepts
@@ -130,7 +130,7 @@ void    SegmentLevel::allocated(const Allocation& alloc,
   unsigned partition= alloc.partitionid();
 
   //  setup EVR server
-  Ins source(StreamPorts::event(partition, Level::Segment, _header.group()));
+  Ins source(StreamPorts::event(partition, Level::Segment, _header.group(), _header.evr_module()));
   Node evrNode(Level::Source,header().platform());
   evrNode.fixup(source.address(),Ether());
   DetInfo evrInfo(evrNode.pid(),DetInfo::NoDetector,0,DetInfo::Evr,0);
