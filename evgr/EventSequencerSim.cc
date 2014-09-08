@@ -1,4 +1,6 @@
 #include "EventSequencerSim.hh"
+#include <stdio.h>
+#include <string.h>
 #include <sys/socket.h>
 #include <netinet/in.h>
 #include <errno.h>
@@ -57,8 +59,8 @@ EventSequencerSim::EventSequencerSim() : _bStopThreads(false), _threadAccept(-1)
 EventSequencerSim::~EventSequencerSim() {
   if (_threadAccept != -1U)
   {
-    int iError;
-    pthread_join(_threadAccept, (void**) &iError);
+    void* pError;
+    pthread_join(_threadAccept, &pError);
   }
 
   pthread_rwlock_destroy(&_rwlockPv);
@@ -107,7 +109,7 @@ int EventSequencerSim::startPvServer() {
   return 0;
 }
 
-static string addressToStr( unsigned int uAddr );
+//static string addressToStr( unsigned int uAddr );
 static void split_string(const string& s, const char delim[], vector<string>& ls);
 
 int EventSequencerSim::accept() {
@@ -131,8 +133,8 @@ int EventSequencerSim::accept() {
         return 1;
       }
 
-      unsigned int uSockAddr = ntohl(sockAddr.sin_addr.s_addr);
-      unsigned int uSockPort = (unsigned int )ntohs(sockAddr.sin_port);
+      //unsigned int uSockAddr = ntohl(sockAddr.sin_addr.s_addr);
+      //unsigned int uSockPort = (unsigned int )ntohs(sockAddr.sin_port);
       //!!!debug
       //printf( "{%d} Client [%d] %s:%u ", _numThreadProc, fClient, addressToStr(uSockAddr).c_str(), uSockPort );
 
@@ -683,18 +685,18 @@ static void split_string(const string& s, const char delim[], vector<string>& ls
   }
 }
 
-static string addressToStr( unsigned int uAddr ){
-  unsigned int uNetworkAddr = htonl(uAddr);
-  const unsigned char* pcAddr = (const unsigned char*) &uNetworkAddr;
-  stringstream sstream;
-  sstream <<
-          (int) pcAddr[0] << "." <<
-          (int) pcAddr[1] << "." <<
-          (int) pcAddr[2] << "." <<
-          (int) pcAddr[3];
+//static string addressToStr( unsigned int uAddr ){
+//  unsigned int uNetworkAddr = htonl(uAddr);
+//  const unsigned char* pcAddr = (const unsigned char*) &uNetworkAddr;
+//  stringstream sstream;
+//  sstream <<
+//          (int) pcAddr[0] << "." <<
+//          (int) pcAddr[1] << "." <<
+//          (int) pcAddr[2] << "." <<
+//          (int) pcAddr[3];
 
-  return sstream.str();
-}
+//  return sstream.str();
+//}
 
 EventSequencerSim::TPvValue::TPvValue(int iVal)            : eType(TYPE_INT)     , iVal(iVal)      {}
 EventSequencerSim::TPvValue::TPvValue(const char*   sVal)  : eType(TYPE_STRING)  , pStr(new std::string(sVal))      {}
@@ -842,7 +844,7 @@ int EventSequencerSim::TEventSequencer::loadSeq(int len,
   }
 
   //!!!debug
-  printf("  ** Seq %d len %03d\n", iSeqId, eventSeq.size());
+  printf("  ** Seq %d len %03d\n", iSeqId, (int) eventSeq.size());
 
   iPlayCount      = 0;
   iTotalPlayCount = 0;

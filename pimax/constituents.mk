@@ -3,7 +3,8 @@ libnames := pdspimax
 libsrcs_pdspimax := PimaxManager.cc PiUtils.cc PimaxServer.cc
 libincs_pdspimax := pdsdata/include ndarray/include boost/include
 
-tgtnames := piConfigure piGui
+tgtnames := piConfigure
+#tgtnames := piConfigure piGui
 
 libPicam := picam/picam picam/GenApi_gcc40_v2_2 picam/GCBase_gcc40_v2_2 picam/MathParser_gcc40_v2_2 picam/log4cpp_gcc40_v2_2 picam/Log_gcc40_v2_2
 libPicam += picam/pidi picam/picc picam/pida picam/PvBase picam/PvDevice picam/PvBuffer picam/PvPersistence

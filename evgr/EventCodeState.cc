@@ -1,4 +1,5 @@
 #include "pds/evgr/EventCodeState.hh"
+#include <stdio.h>
 
 using namespace Pds;
 
@@ -24,14 +25,14 @@ void EventCodeState::configure(const EventCodeType& code)
   iDefReportWidth = code.isLatch() ? -code.releaseCode() : code.reportWidth();
 
   printf("EventCode %d  readout %c group %d mask 0x%x command %c  latch %c  delay %d  width %d\n",
-	 code.code(),
-	 code.isReadout() ? 'Y':'n',
-	 code.readoutGroup(),
-	 uMaskReadout,
-	 code.isCommand() ? 'Y':'n',
-	 code.isLatch  () ? 'Y':'n',
-	 code.reportDelay(),
-	 code.reportWidth());
+   code.code(),
+   code.isReadout() ? 'Y':'n',
+   code.readoutGroup(),
+   uMaskReadout,
+   code.isCommand() ? 'Y':'n',
+   code.isLatch  () ? 'Y':'n',
+   code.reportDelay(),
+   code.reportWidth());
 }
 
 void EventCodeState::configure(const EvrData::SrcEventCode& code)
