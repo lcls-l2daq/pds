@@ -145,3 +145,18 @@ bool CmdLineTools::parseDouble(const char* arg, double& v)
   return *endptr==0;
 }
 
+bool CmdLineTools::parseSrcAlias(const char* arg)
+{
+  static char prohibited[] = "/|\\:, \f\n\r\t\v";
+  char *pp;
+
+  if ((!arg) || (!*arg) || (strlen(arg) > 30)) {
+    return false;       // too long or too short
+  }
+  for (pp = prohibited; *pp; pp++) {
+    if (index(arg, *pp)) {
+      return false;     // prohibited char
+    }
+  }
+  return true;
+}

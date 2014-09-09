@@ -14,6 +14,7 @@ namespace Pds {
     static bool parseUInt64(const char* arg, uint64_t&, int base=0);
     static bool parseFloat (const char* arg, float&);
     static bool parseDouble(const char* arg, double&);
+    static bool parseSrcAlias(const char* arg);
   };
 };
 
