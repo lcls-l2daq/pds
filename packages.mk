@@ -12,7 +12,6 @@ packages += epixSampler
 packages += epix
 packages += epix10k
 packages += udpcam
-packages += timepix
 
 ifneq ($(findstring x86_64,$(tgt_arch)),)
   packages += firewire
