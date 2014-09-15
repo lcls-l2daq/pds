@@ -65,7 +65,8 @@ namespace Pds {
                unsigned    partitionid,
                uint64_t    bld_mask=0,
 	       uint64_t    bld_mask_mon=0,
-               unsigned    options=0);
+               unsigned    options=0,
+	       float       unbiased_fraction=0.);
 
     bool add   (const Node& node);
     bool remove(const ProcInfo&);
@@ -83,6 +84,7 @@ namespace Pds {
     uint64_t    bld_mask_mon() const;
     unsigned    options() const;
     unsigned    size() const;
+    float       unbiased_fraction() const;
   private:
     static const unsigned MaxNodes=128;
     static const unsigned MaxPName=16;
@@ -96,6 +98,7 @@ namespace Pds {
     uint32_t _bld_mask_mon[2];
     uint32_t _nnodes;
     uint32_t _options;
+    float    _unbiased_f;
     Node     _nodes[MaxNodes];  // transmit is trunctated at _nnodes of these
   };
 

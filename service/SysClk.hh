@@ -54,6 +54,8 @@ public:
   static unsigned sample();
   static double   nsPerTick();
   static unsigned since (unsigned prev);
+  static long long int diff(const timespec& end, 
+			    const timespec& start);
 };
 }
 

@@ -107,6 +107,9 @@ namespace Pds {
         static uint32_t             rangeLow (Registers);
         static uint32_t             defaultValue(Registers);
         static unsigned             readOnly(Registers);
+        static unsigned             address   (unsigned); // address of 32-bit access
+        static unsigned             mask      (unsigned); // read mask of 32-bit access
+        static readOnlyStates       use       (unsigned);
 //        uint32_t*                 pixelTestArray() { return _pixelTestArray; }
 //        uint32_t*                 pixelMaskArray() { return _pixelMaskArray; }
 

@@ -134,7 +134,9 @@ void    SegmentLevel::allocated(const Allocation& alloc,
   Node evrNode(Level::Source,header().platform());
   evrNode.fixup(source.address(),Ether());
   DetInfo evrInfo(evrNode.pid(),DetInfo::NoDetector,0,DetInfo::Evr,0);
-  EvrServer* esrv = new EvrServer(source, evrInfo, inlet, NetBufferDepth); // revisit
+  EvrServer* esrv = new EvrServer(source, evrInfo, 
+				  static_cast<InletWireServer&>(inlet)._inlet,
+				  NetBufferDepth); // revisit
   inlet.add_input(esrv);
   esrv->server().join(source, Ins(header().ip()));
   printf("Assign evr %d  %x/%d\n",

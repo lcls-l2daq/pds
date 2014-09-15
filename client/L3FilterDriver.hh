@@ -25,6 +25,7 @@ namespace Pds {
     bool            _lUse;
     bool            _lVeto;
     bool            _event;
+    int             _iUnbias;
   };
 };
     

@@ -24,7 +24,7 @@ namespace Pds {
     void        record (InDatagram*) const;
   public:
     void        init   (const Allocation&);
-    int         fetch  (Transition*);
+    int         fetch  (const Transition*);
     void        next   ();
     Damage&     damage ();
   private:

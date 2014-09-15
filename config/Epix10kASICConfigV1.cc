@@ -257,5 +257,44 @@ namespace Pds {
       return ret;
     }
 
+    static uint32_t _configAddrs[ASIC_ConfigV1::NumberOfValues][2] = {
+      {0x1001,  0},  //  monostPulser
+      {0x1002,  0},  //  dummy pixel
+      {0x1003,  0},  //
+      {0x1004,  0},  //
+      {0x1005,  0},  //
+      {0x1006,  0},  //
+      {0x1007,  0},  //
+      {0x1008,  0},  //
+      {0x1009,  0},  //
+      {0x100a,  0},  //
+      {0x100b,  0},  //
+      {0x100c,  0},  //
+      {0x100d,  0},  //
+      {0x100e,  0},  //  
+      {0x100f,  0},  //  
+      {0x1010,  0},  //  
+      {0x1011,  3},  //  RowStartAddr
+      {0x1012,  3},  //  RowStopAddr
+      {0x1013,  3},  //  ColStartAddr
+      {0x1014,  3},  //  ColStopAddr
+      {0x1015,  1}   //  chipID
+    };
+
+    unsigned ASIC_ConfigV1::address(unsigned i)
+    { return _configAddrs[i][0]; }
+
+    unsigned ASIC_ConfigV1::mask(unsigned i)
+    { 
+      unsigned m=0;
+      for(unsigned j=0; j<ASIC_ConfigV1::NumberOfRegisters; j++)
+	if (_Aregs[j].offset == i)
+	  m |= _Aregs[j].mask << _Aregs[j].shift;
+      return m;
+    }
+
+    ASIC_ConfigV1::readOnlyStates ASIC_ConfigV1::use(unsigned i)
+    { return readOnlyStates(_configAddrs[i][1]); }
+
   } /* namespace Epix10kConfig */
 } /* namespace Pds */

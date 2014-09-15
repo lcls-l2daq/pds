@@ -31,6 +31,8 @@
 #include "pds/config/RayonixConfigType.hh"
 #include "pds/config/EpixSamplerConfigType.hh"
 #include "pds/config/EpixConfigType.hh"
+#include "pds/config/GenericPgpConfigType.hh"
+#include "pds/config/TimeToolConfigType.hh"
 //#include "pds/config/ProjectionConfigType.hh"
 //#include "pds/config/SeqConfigType.hh"
 #include <cassert>
@@ -110,6 +112,8 @@ const Pds::TypeId* PdsDefs::typeId(ConfigType id)
   case EpixSampler  : type = &_epixSamplerConfigType;   break;
   case Epix         : type = &_epixConfigType;   break;
   case Epix10k      : type = &_epix10kConfigType; break;
+  case GenericPgp    : type = &_genericPgpConfigType; break;
+  case TimeTool     : type = &_timetoolConfigType; break;
 
     //  case Projection   : type = &_projectionConfigType; break;
   default: 
@@ -161,6 +165,8 @@ const Pds::TypeId* PdsDefs::typeId(const UTypeName& name)
   test(_epixSamplerConfigType);
   test(_epixConfigType);
   test(_epix10kConfigType);
+  test(_genericPgpConfigType);
+  test(_timetoolConfigType);
   //  test(_projectionConfigType);    
 #undef test
   //  database-only types
@@ -211,6 +217,8 @@ const Pds::TypeId* PdsDefs::typeId(const QTypeName& name)
   test(_epixSamplerConfigType);   
   test(_epixConfigType);
   test(_epix10kConfigType);
+  test(_genericPgpConfigType);
+  test(_timetoolConfigType);
   //  test(_projectionConfigType);    
 #undef test
   //  database-only types

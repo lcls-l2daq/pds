@@ -400,6 +400,7 @@ bool PartitionControl::set_partition(const char* name,
                                      uint64_t    bldmask,
                                      uint64_t    bldmask_mon,
                                      unsigned    options,
+				     float       l3_unbias,
                                      const PartitionConfigType* cfg)
 {
   if (options&Allocation::ShortDisableTmo) {
@@ -411,7 +412,7 @@ bool PartitionControl::set_partition(const char* name,
     disable_tmo.tv_nsec=300000000;
   }
 
-  _partition = Allocation(name,dbpath,l3path,partitionid(),bldmask,bldmask_mon,options);
+  _partition = Allocation(name,dbpath,l3path,partitionid(),bldmask,bldmask_mon,options,l3_unbias);
   for(unsigned k=0; k<nnodes; k++)
     _partition.add(nodes[k]);
 

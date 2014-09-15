@@ -32,7 +32,7 @@ CfgCache::~CfgCache()
 void        CfgCache::init   (const Allocation& alloc)
 { _config.initialize(alloc); }
 
-int CfgCache::fetch  (Transition* tr)
+int CfgCache::fetch  (const Transition* tr)
 {
   _cur_config = 0;
   _changed = true;

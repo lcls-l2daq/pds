@@ -11,6 +11,7 @@ packages += rayonix
 packages += epixSampler
 packages += epix
 packages += epix10k
+packages += genericpgp
 packages += udpcam
 
 ifneq ($(findstring x86_64,$(tgt_arch)),)

@@ -9,6 +9,8 @@
 #include <fstream>
 #include <sstream>
 
+#include <stdlib.h>
+
 //#define DBUG
 
 using namespace Pds;
@@ -16,7 +18,8 @@ using namespace Pds;
 L3FilterDriver::L3FilterDriver(L3FilterModule* m) :
   _m     (m),
   _lUse  (false),
-  _lVeto (false)
+  _lVeto (false),
+  _iUnbias(0)
 {
 }
 
@@ -29,9 +32,11 @@ Transition* L3FilterDriver::transitions(Transition* tr)
 {
   if (tr->id()==TransitionId::Map) {
     const Allocation& alloc = static_cast<Allocate*>(tr)->allocation();
-    _lUse = alloc.options()&(Allocation::L3Tag|Allocation::L3Veto);
-    _lVeto= alloc.options()&(Allocation::L3Veto);
-    _path = alloc.l3path();
+    _lUse    = alloc.options()&(Allocation::L3Tag|Allocation::L3Veto);
+    _lVeto   = alloc.options()&(Allocation::L3Veto);
+    _path    = alloc.l3path();
+    _iUnbias = int(alloc.unbiased_fraction()*RAND_MAX);
+    if (_iUnbias<0) _iUnbias=RAND_MAX;
   }
   return tr; 
 }
@@ -84,6 +89,20 @@ InDatagram* L3FilterDriver::events     (InDatagram* dg)
 	   dg->datagram().seq.clock().nanoseconds());
 #endif
 
+    
+    bool lUnbiased = (!_lVeto) || (rand()<_iUnbias);
+
+    const L1AcceptEnv& l1 = static_cast<const L1AcceptEnv&>(dg->datagram().env);
+    L1AcceptEnv l1e(l1.clientGroupMask(), 
+		    L1AcceptEnv::None,
+		    false, 
+		    lUnbiased);
+
+    L3T::DataV2 l3t(L3T::DataV2::None,
+		    lUnbiased ? 
+		    L3T::DataV2::Unbiased :
+		    L3T::DataV2::Biased);
+
     unsigned extent = dg->datagram().xtc.extent;
     try {
       _m->pre_event();
@@ -92,22 +111,22 @@ InDatagram* L3FilterDriver::events     (InDatagram* dg)
 
       if (_m->complete()) {
 	bool lAccept = _m->accept();
-	if (_lVeto && !lAccept) {
+	bool lTrim = _lVeto && !lAccept && !lUnbiased;
+	if (lTrim) {
           dg->datagram().xtc.extent = sizeof(Xtc);
           dg->datagram().xtc.damage = Damage(0);
 	}
       
-        const L1AcceptEnv& l1 = static_cast<const L1AcceptEnv&>(dg->datagram().env);
-        dg->datagram().env = L1AcceptEnv(l1.clientGroupMask(), 
-                                         lAccept ? L1AcceptEnv::Pass : L1AcceptEnv::Fail,
-                                         _lVeto && !lAccept);
-      
-        L3T::DataV1 payload(lAccept);
-        Xtc dxtc(TypeId(TypeId::Type(payload.TypeId),payload.Version),
-                 dg->datagram().xtc.src);
-        dxtc.extent = sizeof(Xtc)+payload._sizeof();
-        dg->insert(dxtc,&payload);
+	l3t = L3T::DataV2(lAccept ? 
+			  L3T::DataV2::Pass :
+			  L3T::DataV2::Fail,
+			  l3t.bias());
 
+	l1e = L1AcceptEnv(l1.clientGroupMask(), 
+			  lAccept ? L1AcceptEnv::Pass : L1AcceptEnv::Fail,
+			  lTrim, 
+			  lUnbiased);
+      
 #ifdef DBUG
 	printf("L3FilterDriver::event accept %c payload %d\n",
 	       lAccept ? 't':'f', dg->datagram().xtc.sizeofPayload());
@@ -122,6 +141,13 @@ InDatagram* L3FilterDriver::events     (InDatagram* dg)
       printf("L3FilterDriver caught unknown exception\n");
       dg->datagram().xtc.extent = extent;
     }
+
+    dg->datagram().env = l1e;
+    Xtc dxtc(TypeId(TypeId::Type(l3t.TypeId),l3t.Version),
+	     dg->datagram().xtc.src);
+    dxtc.extent = sizeof(Xtc)+l3t._sizeof();
+    dg->insert(dxtc,&l3t);
+
   }
   return dg;
 }

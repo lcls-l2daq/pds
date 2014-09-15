@@ -6,6 +6,7 @@
 #include <string.h>
 #include <strings.h>
 #include <stdio.h>
+#include <unistd.h>
 
 using namespace Pds;
 
@@ -63,7 +64,7 @@ bool CmdLineTools::parseDetInfo(const char* args, DetInfo& info)
     devid  = strtoul(p+1 , &p, 0);
   }
 
-  info = DetInfo(0, det, detid, dev, devid);
+  info = DetInfo(getpid(), det, detid, dev, devid);
   printf("Sourcing %s\n",DetInfo::name(info));
   return true;
 }

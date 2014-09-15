@@ -470,8 +470,8 @@ std::list<Key>       DbClient::getKeys()
     info_path += "/Info";
     std::ifstream fi(info_path.c_str());
     if (fi.good()) {
-      char buff[16];
-      fi.getline(buff,16);
+      char buff[32];
+      fi.getline(buff,32);
       key.name = buff;
     }
     keys.push_back(key);
@@ -525,6 +525,7 @@ std::list<KeyEntry>  DbClient::getKey(unsigned key)
     globfree(&h);
   }
   globfree(&g);
+  delete[] buff;
   return entries;
 }
 
@@ -719,6 +720,7 @@ NfsState::NfsState(FILE* f) :
             time_key = XML::IO::extract_i(p);
         XML_iterate_close(Experiment,tag);
       }
+      delete[] buff;
     }
   }
 }

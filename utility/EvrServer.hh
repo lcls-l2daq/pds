@@ -9,14 +9,14 @@
 #include "pds/xtc/EvrDatagram.hh"
 
 namespace Pds {
-  class InletWire;
+  class Inlet;
   class EvrServer : public EbServer, EbCountSrv
   {
   public:
     EvrServer(const Ins& ins,
-        const Src& src,
-              InletWire& inlet,
-        unsigned   nbufs);
+	      const Src& src,
+              Inlet& inlet,
+	      unsigned   nbufs);
    ~EvrServer();
   public:
     //  Eb interface
@@ -45,7 +45,7 @@ namespace Pds {
   private:
     NetServer     _server;
     Src           _client;
-    InletWire&    _inlet;
+    Inlet&        _inlet;
     GenericPool   _occPool;
   };
 }

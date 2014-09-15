@@ -145,6 +145,43 @@ namespace Pds {
         {"-------INVALID------------"}//NumberOfRegisters
     };
 
+    static uint32_t _configAddrs[ConfigV1::NumberOfValues][2] = {
+      {0x00,  1}, //  version
+      {0x02,  0}, //  RunTrigDelay
+      {0x04,  2}, //  DaqTrigDelay
+      {0x07,  0}, //  DacSetting
+      {0x29,  0}, //  AsicPins, etc
+      {0x2a,  0}, //  AsicPinControl, etc
+      {0x1f,  0}, //  DoutPipeLineDelay
+      {0x20,  0}, //  AcqToAsicR0Delay
+      {0x21,  0}, //  AsicR0ToAsicAcq
+      {0x22,  0}, //  AsicAcqWidth
+      {0x23,  0}, //  AsicAcqLToPPmatL
+      {0x24,  0}, //  AsicRoClkHalfT
+      {0x25,  0}, //  AdcReadsPerPixel
+      {0x26,  0}, //  AdcClkHalfT
+      {0x2b,  0}, //  AsicR0Width
+      {0x2c,  0}, //  AdcPipelineDelay
+      {0x2d,  0}, //  SyncParams
+      {0x2e,  0}, //  PrepulseR0Width
+      {0x2f,  0}, //  PrepulseR0Delay
+      {0x30,  1}, //  DigitalCardId0
+      {0x31,  1}, //  DigitalCardId1
+      {0x32,  1}, //  AnalogCardId0
+      {0x33,  1}, //  AnalogCardId1
+      {0,     2}, //  LastRowExclusions
+      {0,     2}, //  NumberOfAsicsPerRow
+      {0,     2}, //  NumberOfAsicsPerColumn
+      {0,     2}, //  NumberOfRowsPerAsic
+      {0,     2}, //  NumberOfPixelsPerAsicRow
+      {0x10,  1}, //  BaseClockFrequency
+      {0xd,   0}, //  AsicMask
+      {0x52,  0}, //  ScopeSetup1
+      {0x53,  0}, //  ScopeSetup2
+      {0x54,  0}, //  ScopeLengthAndSkip
+      {0x55,  0}, //  ScopeInputSelects
+    };
+
     static Register* _regs = (Register*) _regsfoo;
     static bool namesAreInitialized = false;
 
@@ -272,5 +309,21 @@ namespace Pds {
       }
       return (unsigned)_regs[r].readOnly;
     }
+
+    unsigned ConfigV1::address(unsigned i) 
+    { return _configAddrs[i][0]; }
+
+    unsigned ConfigV1::mask(unsigned i) 
+    { 
+      unsigned m=0;
+      for(unsigned j=0; j<NumberOfRegisters; j++)
+        if (_regs[j].offset == i)
+          m |= _regs[j].mask << _regs[j].shift;
+      return m;
+    }
+
+    ConfigV1::readOnlyStates  ConfigV1::use(unsigned i)
+    { return ConfigV1::readOnlyStates(_configAddrs[i][1]); }
+
   } /* namespace Epix10kConfig */
 } /* namespace Pds */

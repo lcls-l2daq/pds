@@ -82,6 +82,9 @@ namespace Pds {
         static uint32_t             rangeLow (Registers);
         static uint32_t             defaultValue(Registers);
         static unsigned             readOnly(Registers);
+        static unsigned             address(unsigned);
+        static unsigned             mask   (unsigned);
+        static readOnlyStates       use    (unsigned);
         void                        operator=(ASIC_ConfigV1&);
         bool                        operator==(ASIC_ConfigV1&);
         bool                        operator!=(ASIC_ConfigV1& foo) { return !(*this==foo); }

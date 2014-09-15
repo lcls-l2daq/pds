@@ -1,7 +1,7 @@
 #include "pds/utility/EvrServer.hh"
 #include "pds/utility/EbEventBase.hh"
 #include "pds/utility/Mtu.hh"
-#include "pds/utility/InletWire.hh"
+#include "pds/utility/Inlet.hh"
 #include "pds/utility/OutletWireHeader.hh"
 #include "pds/utility/Occurrence.hh"
 #include "pds/xtc/EvrDatagram.hh"
@@ -44,7 +44,7 @@ static const unsigned MaxPayload = Mtu::Size;
 
 EvrServer::EvrServer(const Ins& ins,
 		     const Src& src,
-                     InletWire& inlet,
+                     Inlet&     inlet,
 		     unsigned   nbufs) :
   _server ((unsigned)-1,
            Port::VectoredServerPort,  // REUSE_ADDR
@@ -153,7 +153,7 @@ int EvrServer::fetch(char* payload, int flags)
   const char* cmd = payload;
   for(unsigned i=0; i<dg.ncmds; i++, cmd++) {
     if (_occPool.numberOfFreeObjects())
-      _inlet.post(*new(&_occPool) EvrCommand(dg.seq,*cmd));
+      _inlet.post(new(&_occPool) EvrCommand(dg.seq,*cmd));
     else
       printf("EvrServer occPool buffer is empty.  EvrCommand dropped!\n");
   }

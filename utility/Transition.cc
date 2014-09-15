@@ -92,7 +92,8 @@ void Transition::_stampIt()
 Allocation::Allocation() :
   _partitionid(0),
   _nnodes     (0),
-  _options    (0)
+  _options    (0),
+  _unbiased_f (0)
 {
   _bld_mask[0] = _bld_mask[1] = 0;
   _bld_mask_mon[0] = _bld_mask_mon[1] = 0;
@@ -103,10 +104,11 @@ Allocation::Allocation(const char* partition,
                        unsigned    partitionid,
                        uint64_t    bld_mask,
                        uint64_t    bld_mask_mon,
-                       unsigned    options) : 
+                       unsigned    options) :
   _partitionid(partitionid),
   _nnodes     (0),
-  _options    (options)
+  _options    (options),
+  _unbiased_f (0)
 {
   strncpy(_partition, partition, MaxPName-1);
   strncpy(_dbpath   , dbpath   , MaxDbPath-1);
@@ -123,10 +125,12 @@ Allocation::Allocation(const char* partition,
                        unsigned    partitionid,
                        uint64_t    bld_mask,
                        uint64_t    bld_mask_mon,
-                       unsigned    options) : 
+                       unsigned    options,
+		       float unbiased_fraction) : 
   _partitionid(partitionid),
   _nnodes     (0),
-  _options    (options)
+  _options    (options),
+  _unbiased_f (unbiased_fraction)
 {
   strncpy(_partition, partition, MaxPName-1);
   strncpy(_l3path   , l3path   , MaxName-MaxPName-1);
@@ -221,6 +225,8 @@ const char* Allocation::partition() const {return _partition;}
 const char* Allocation::dbpath() const {return _dbpath;}
 
 const char* Allocation::l3path() const {return _l3path;}
+
+float       Allocation::unbiased_fraction() const { return _unbiased_f; }
 
 unsigned    Allocation::size() const { return sizeof(*this)+(_nnodes-MaxNodes)*sizeof(Node); }
 
