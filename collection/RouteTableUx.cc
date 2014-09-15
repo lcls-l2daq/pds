@@ -106,7 +106,7 @@ RouteTable::RouteTable() :
 
   for(;;) {
     if( counter < sizeof( struct nlmsghdr)) {
-      printf("Routing table is bigger than msgsiz %d/%d\n",
+      printf("Routing table is bigger than msgsiz %zu/%zu\n",
              counter,sizeof(struct nlmsghdr));
       exit(1);
     }

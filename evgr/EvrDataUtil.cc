@@ -150,6 +150,8 @@ EvrDataType* EvrDataUtil::write(void* p)
   EvrData::FIFOEvent* q = reinterpret_cast<EvrData::FIFOEvent*>(r+1);
   for(std::list<FifoEventT>::const_iterator it=_data.begin();
       it!=_data.end(); it++)
-    *q++ = reinterpret_cast<const EvrData::FIFOEvent&>(it->event);
+    new (q++) EvrData::FIFOEvent(it->event.TimestampHigh,
+				 it->event.TimestampLow,
+				 it->event.EventCode);
   return r;
 }
