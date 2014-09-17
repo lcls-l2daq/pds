@@ -176,7 +176,7 @@ public:
   void setConfig(const AcqConfigType& config) {
     _nbrSamples=config.horiz().nbrSamples();
     //    _totalSize=Acqiris::DataDescV1::totalSize(config.horiz())*config.nbrChannels();
-    Acqiris::DataDescV1Elem e;
+    Acqiris::DataDescV1Elem e(0);
     _totalSize=e._sizeof(config)*config.nbrChannels();
   }
   void resetCount() {_count=0;}
