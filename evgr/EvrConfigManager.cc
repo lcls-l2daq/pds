@@ -300,6 +300,8 @@ void EvrConfigManager::handleCommandRequest(const std::vector<unsigned>& codes)
   char* configBuffer = 
     new char[ giMaxCalibCycles* evrConfigSize( giMaxEventCodes, giMaxPulses, giMaxOutputMaps ) ];
 
+  const EvrConfigType* new_current = 0;
+
   char* p = configBuffer;
   for(const char* cur_config = _configBuffer;
       cur_config < _end_config; ) {
@@ -354,7 +356,7 @@ void EvrConfigManager::handleCommandRequest(const std::vector<unsigned>& codes)
     }
 
     if (cur_config==reinterpret_cast<const char*>(_cur_config))
-      _cur_config = reinterpret_cast<const EvrConfigType*>(p);
+      new_current = reinterpret_cast<const EvrConfigType*>(p);
 
     EvrConfigType& newcfg = *new(p) EvrConfigType(ncodes, cfg.npulses(), cfg.noutputs(),
 						  eventcodes.begin(), cfg.pulses().begin(), 
@@ -367,6 +369,8 @@ void EvrConfigManager::handleCommandRequest(const std::vector<unsigned>& codes)
   delete[] _configBuffer;
   _configBuffer = configBuffer;
   _end_config   = p;
+  _cur_config   = new_current;
+  _cfgtc.extent = sizeof(Xtc) + Pds::EvrConfig::size(*_cur_config);
 }
 
 int EvrConfigManager::_validate_groups(UserMessage* msg)
