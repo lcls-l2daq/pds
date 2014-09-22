@@ -11,6 +11,7 @@ packages += rayonix
 packages += epixSampler
 packages += epix
 packages += epix10k
+packages += epix100a
 packages += genericpgp
 packages += udpcam
 

@@ -112,7 +112,8 @@ const Pds::TypeId* PdsDefs::typeId(ConfigType id)
   case EpixSampler  : type = &_epixSamplerConfigType;   break;
   case Epix         : type = &_epixConfigType;   break;
   case Epix10k      : type = &_epix10kConfigType; break;
-  case GenericPgp    : type = &_genericPgpConfigType; break;
+  case Epix100a     : type = &_epix100aConfigType; break;
+  case GenericPgp   : type = &_genericPgpConfigType; break;
   case TimeTool     : type = &_timetoolConfigType; break;
 
     //  case Projection   : type = &_projectionConfigType; break;
@@ -165,6 +166,7 @@ const Pds::TypeId* PdsDefs::typeId(const UTypeName& name)
   test(_epixSamplerConfigType);
   test(_epixConfigType);
   test(_epix10kConfigType);
+  test(_epix100aConfigType);
   test(_genericPgpConfigType);
   test(_timetoolConfigType);
   //  test(_projectionConfigType);    
@@ -217,6 +219,7 @@ const Pds::TypeId* PdsDefs::typeId(const QTypeName& name)
   test(_epixSamplerConfigType);   
   test(_epixConfigType);
   test(_epix10kConfigType);
+  test(_epix100aConfigType);
   test(_genericPgpConfigType);
   test(_timetoolConfigType);
   //  test(_projectionConfigType);    
