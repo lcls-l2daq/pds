@@ -173,7 +173,7 @@ void Epix100aServer::process(char* d) {
   memcpy(o, e, sizeof(Epix100aDataType));
 
   //  frame data
-  unsigned nrows   = _cnfgrtr->configuration().numberOfRows()/2;
+  unsigned nrows   = _cnfgrtr->configuration().numberOfReadableRowsPerAsic();
   unsigned colsize = _cnfgrtr->configuration().numberOfColumns()*sizeof(uint16_t);
   ndarray<const uint16_t,2> iframe = e->frame(_cnfgrtr->configuration());
   ndarray<const uint16_t,2> oframe = o->frame(_cnfgrtr->configuration());

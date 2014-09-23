@@ -19,6 +19,7 @@
 #include "pds/epix100a/Epix100aDestination.hh"
 #include "pds/epix100a/Epix100aStatusRegisters.hh"
 #include "pds/config/EpixConfigType.hh"
+#include "ndarray/ndarray.h"
 
 using namespace Pds::Epix100a;
 
@@ -266,7 +267,7 @@ unsigned Epix100aConfigurator::writeConfig() {
     printf("Epix100aConfigurator::writeConfig failed writing %s\n", "EnableAutomaticRunTriggerAddr");
     ret = Failure;
   }
-  if (_pgp->writeRegister(&_d, TotalPixelsAddr, PixelsPerBank * (_s->get(Epix100aConfigShadow::NumberOfRowsPerAsic)+Epix100aConfigType::CalibrationRowCountPerASIC))) {
+  if (_pgp->writeRegister(&_d, TotalPixelsAddr, PixelsPerBank * (_s->get(Epix100aConfigShadow::NumberOfReadableRowsPerAsic)+Epix100aConfigType::CalibrationRowCountPerASIC))) {
     printf("Epix100aConfigurator::writeConfig failed writing %s\n", "TotalPixelsAddr");
     ret = Failure;
   }
@@ -392,6 +393,27 @@ unsigned Epix100aConfigurator::writeASIC() {
   else*/ return ret;
 }
 
+// from Kurtis
+//  0x080000 : Row in global space (0-703)
+//  0x080001 : Col in global space (0-767)
+//  0x080002 : Left most pixel data
+//  0x080003 : Second to left pixel data
+//  0x080004 : Third to left pixel data
+//  0x080005 : Right most pixel data
+
+class block {
+  public:
+    block() : _row(0), _col(0){};
+    ~block() {};
+    void row( uint32_t r ) {_row = r; }
+    void col( uint32_t c ) {_col = c; }
+    uint32_t* b() { return _b; }
+  private:
+    uint32_t  _row;
+    uint32_t  _col;
+    uint32_t  _b[4];
+};
+
 // From Kurtis ...
 //    1) set SaciClkBit to 4 (register 0x000028)
 //    2) send ASIC command: PrepareMultiConfig (0x808000, 0x908000, 0xA08000, 0xB08000
@@ -409,10 +431,12 @@ unsigned Epix100aConfigurator::writePixelBits() {
   unsigned ret = Success;
   _d.dest(Epix100aDestination::Registers);
   unsigned m    = _config->asicMask();
-  unsigned cols = _config->numberOfColumns();
   unsigned rows = _config->numberOfRows();
+  unsigned cols = _config->numberOfColumns();
   bool written[rows][cols];
   unsigned pops[4] = {0,0,0,0};
+  block blk;
+  // find the most popular pixel setting
   for (unsigned r=0; r<rows; r++) {
     for (unsigned c=0; c<cols; c++) {
       pops[_config->asicPixelConfigArray()[r][c]&3] += 1;
@@ -434,6 +458,9 @@ unsigned Epix100aConfigurator::writePixelBits() {
     printf("Epix100aConfigurator::writePixelBits failed on writing SaciClkBitAddr\n");
     ret |= Failure;
   }
+  // program the entire array to the most popular setting
+  // note, that this is necessary because the global pixel write does not work in this device and programming
+  //   one pixel in one bank also programs the same pixel in the other banks
   for (unsigned index=0; index<_config->numberOfAsics(); index++) {
     if (m&(1<<index)) {
       uint32_t a = AsicAddrBase + AsicAddrOffset * index;
@@ -454,6 +481,45 @@ unsigned Epix100aConfigurator::writePixelBits() {
       }
     }
   }
+  // now program the ones that were not the same
+  //  NB must program four at a time because that's how the asic works
+  unsigned halfRow = _config->numberOfColumns()/2;
+  unsigned writeCount = 0;
+  // allow it queue up 48 commands
+  Pds::Pgp::ConfigSynch mySynch(_fd, 48, this, sizeof(Pds::Pgp::RegisterSlaveExportFrame)/sizeof(uint32_t) + 5);
+  for (unsigned row=0; row<rows; row++) {
+    blk.row(row);
+    for (unsigned col=0; col<cols; col++) {
+      if (!written[row][col] && ((_config->asicPixelConfigArray()[row][col]&3) != pixel)) {
+        blk.col(col);
+        unsigned half = col < halfRow ? 0 : halfRow;
+        for (unsigned i=0; i<BanksPerAsic; i++) {
+          unsigned thisCol = half + (i * PixelsPerBank) + (col % PixelsPerBank);
+          written[row][thisCol] = true;
+          blk.b()[i] = _config->asicPixelConfigArray()[row][thisCol] & 3;
+        }
+        if (mySynch.take() == false) {
+          printf("Epix100aConfigurator::writePixelBits synchronization failed on write %u\n", writeCount);
+          ret |= Failure;
+        }
+        if (_pgp->writeRegisterBlock(
+            &_d,
+            MultiplePixelWriteCommandAddr,
+            (unsigned*)&blk,
+            sizeof(block)/sizeof(uint32_t),
+            Pds::Pgp::PgpRSBits::Waiting))
+        {
+          printf("Epix100aConfigurator::writePixelBits failed on row %u, col %u\n", row, col);
+          ret |= Failure;
+        }
+        writeCount += 1;
+      }
+    }
+  }
+  if (mySynch.clear() == false) {
+    printf("Epix100aConfigurator::writePixelBits synchronization failed to clear\n");
+  }
+  printf("Epix100aConfigurator::writePixelBits write count %u\n", writeCount);
   for (unsigned index=0; index<_config->numberOfAsics(); index++) {
     if (m&(1<<index)) {
       uint32_t a = AsicAddrBase + AsicAddrOffset * index;
