@@ -47,9 +47,11 @@ namespace Pds {
 			    uint64_t    bld_mask_mon,
                             unsigned    options =0,
 			    float       l3_unbias=0.,
-                            const       PartitionConfigType* =0);
+                            const       PartitionConfigType* =0,
+                            const       Xtc* iocfg=0);
     bool  set_partition    (const Allocation&,
-                            const       PartitionConfigType* =0);
+                            const       PartitionConfigType* =0,
+                            const       Xtc* iocfg=0);
     const Allocation& partition() const;
   public:
     virtual void  set_target_state (State);
@@ -101,6 +103,7 @@ namespace Pds {
     Xtc*       _transition_xtc    [TransitionId::NumberOf];
     void*      _transition_payload[TransitionId::NumberOf];
     Xtc*       _partition_xtc;
+    Xtc*       _ioconfig_xtc;
     //    Xtc*       _alias_xtc;
     ControlCallback*  _control_cb;
     PlatformCallback* _platform_cb;
