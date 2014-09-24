@@ -658,6 +658,7 @@ int                  DbClient::setXTC(const XtcEntry& x,
     char* in_payload = new char[in_payload_size];
     size_t len = fread(in_payload, 1, in_payload_size, f);
     changed = !(len == payload_size && memcmp(payload, in_payload, payload_size)==0);
+    delete[] in_payload;
     fclose(f);
   }
 
