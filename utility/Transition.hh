@@ -76,6 +76,7 @@ namespace Pds {
     const Node* node(unsigned n) const;
     Node*       node(unsigned n);
     Node*       node(const ProcInfo&);
+    const Node* master() const;
     const char* partition() const;
     const char* dbpath() const;
     const char* l3path() const;

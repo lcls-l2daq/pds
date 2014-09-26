@@ -66,7 +66,7 @@ bool SegmentLevel::attach()
       else if (!_settings.sources().empty())
         vname = DetInfo::name(static_cast<const DetInfo&>(_settings.sources().front()));
       if (_settings.is_triggered())
-  _header.setTrigger(_settings.module(),_settings.channel());
+	_header.setTrigger(_settings.module(),_settings.channel());
 
       _streams = new SegStreams(*this,
                                 _settings.max_event_size (),

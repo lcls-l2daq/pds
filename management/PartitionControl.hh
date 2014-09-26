@@ -4,6 +4,7 @@
 #include "pds/management/ControlLevel.hh"
 #include "pds/utility/ControlEb.hh"
 #include "pds/config/PartitionConfigType.hh"
+#include "pds/config/EvrIOConfigType.hh"
 #include "pdsdata/xtc/TransitionId.hh"
 #include "pdsdata/xtc/Xtc.hh"
 #include "pdsdata/psddl/alias.ddl.h"
@@ -48,10 +49,10 @@ namespace Pds {
                             unsigned    options =0,
 			    float       l3_unbias=0.,
                             const       PartitionConfigType* =0,
-                            const       Xtc* iocfg=0);
+                            const       EvrIOConfigType* iocfg=0);
     bool  set_partition    (const Allocation&,
                             const       PartitionConfigType* =0,
-                            const       Xtc* iocfg=0);
+                            const       EvrIOConfigType* iocfg=0);
     const Allocation& partition() const;
   public:
     virtual void  set_target_state (State);

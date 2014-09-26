@@ -127,15 +127,41 @@ namespace Pds {
 				  _fiducial(0) {}
     ~SimEvr() {}
   public:
-    void     allocate (unsigned partition) 
+    void     allocate (const Allocation& alloc) 
     {
       if (_outlet) delete _outlet;
-      _outlet  = new Client(sizeof(EvrDatagram), 0, Ins(Route::interface()));
+      _outlet = 0;
       _ldst.clear();
-      for(unsigned i=0; i<2; i++) {
-	_ldst.push_back(StreamPorts::event(partition,Level::Segment,i));
-	printf("SimEvr::allocate sending to %08x/%d\n",_ldst[i].address(),_ldst[i].portId());
+
+      //
+      //  Test if we own the primary EVR for this partition
+      //
+      int pid = getpid();
+      bool lmaster = true;
+      unsigned nnodes = alloc.nnodes();
+      for (unsigned n = 0; n < nnodes; n++) {
+	const Node *node = alloc.node(n);
+	if (node->level() == Level::Segment) {
+	  if (node->pid() == pid) {
+	    if (lmaster)
+	      printf("Found master EVR\n");
+	    else
+	      printf("Found slave EVR\n");
+
+	    unsigned partition = alloc.partitionid();
+	    _outlet  = new Client(sizeof(EvrDatagram), 0, Ins(Route::interface()));
+	    for(unsigned i=0; i<2; i++) {
+	      _ldst.push_back(StreamPorts::event(partition,Level::Segment,i,
+						 static_cast<const DetInfo&>(_srv.client()).devId()));
+	      printf("SimEvr::allocate sending to %08x/%d\n",_ldst[i].address(),_ldst[i].portId());
+	    }
+	    break;
+	  }
+	  else
+	    lmaster = false;
+	}
       }
+      _lmaster = lmaster;
     }
     void     reset  () { _count=0; }
     void     configure(unsigned prescale) { _duration=double(prescale)/119e6; }
@@ -160,9 +186,9 @@ namespace Pds {
 
       Sequence seq(Sequence::Event, TransitionId::L1Accept, ctime, stamp);
       EvrDatagram datagram(seq, _count, 0);
-
+      
       _srv.post(_count, _fiducial); 
-
+      
       datagram.setL1AcceptEnv((1<<_ldst.size())-1);
       datagram.evr = _count;
       for(unsigned i=0; i<_ldst.size(); i++)
@@ -171,14 +197,18 @@ namespace Pds {
       _count++;
       _fiducial++;
       _fiducial %= TimeStamp::MaxFiducials;
-
-      if (_count == _evt_stop) {
-	printf("Stopping at %u\n",_count);
-	_done.expired();
+      	
+      if (_lmaster) {
+	if (_count == _evt_stop) {
+	  printf("Stopping at %u\n",_count);
+	  _done.expired();
+	}
       }
     }
+    bool master() const { return _lmaster; }
   private:
     SimEvrTimer    _timer;
+    bool           _lmaster;
     Client*        _outlet;
     std::vector<Ins> _ldst;
     EvrFifoServer& _srv;
@@ -248,7 +278,7 @@ namespace Pds {
     EvrSimL1Action(SimEvr& er) : _er(er) {}
   public:
     Transition* fire(Transition* tr) { _er.disable(); return tr; }
-    InDatagram* fire(InDatagram* dg) { return dg; }
+    InDatagram* fire(InDatagram* dg) { dg->datagram().xtc.extent = sizeof(Xtc); return dg; }
   private:
     SimEvr& _er;
   };
@@ -392,7 +422,10 @@ namespace Pds {
       _er .reset();
       return tr;
     }
-    InDatagram* fire(InDatagram* dg) { _cfg.insert(dg); return dg; }
+    InDatagram* fire(InDatagram* dg) { 
+      if (_er.master()) _cfg.insert(dg); 
+      return dg; 
+    }
   private:
     SimEvr& _er;
     EvrSimConfigManager& _cfg;
@@ -428,7 +461,7 @@ namespace Pds {
     {
       const Allocate & alloc = reinterpret_cast < const Allocate & >(*tr);
       _cfg.initialize(alloc.allocation());
-      _er .allocate(alloc.allocation().partitionid());
+      _er .allocate(alloc.allocation());
       return tr;
     }
   private:

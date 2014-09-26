@@ -22,6 +22,7 @@
 #include "pds/config/AliasConfigType.hh"
 
 #include "pdsdata/xtc/Sequence.hh"
+#include "pdsdata/xtc/DetInfo.hh"
 
 #include <time.h> // Required for timespec struct and nanosleep()
 #include <stdlib.h> // Required for timespec struct and nanosleep()
@@ -415,7 +416,7 @@ bool PartitionControl::set_partition(const char* name,
                                      unsigned    options,
 				     float       l3_unbias,
                                      const PartitionConfigType* cfg,
-                                     const Xtc*  iocfg)
+                                     const EvrIOConfigType*     iocfg)
 {
   if (options&Allocation::ShortDisableTmo) {
     disable_tmo.tv_sec =0;
@@ -446,10 +447,13 @@ bool PartitionControl::set_partition(const char* name,
     delete[] reinterpret_cast<char*>(_ioconfig_xtc);
 
   if (iocfg) {
-    unsigned sz = iocfg->sizeofPayload();
+    unsigned sz = iocfg->_sizeof();
     _ioconfig_xtc = 
-      new (new char[sizeof(Xtc)+sz]) Xtc(_xtcType,header().procInfo());
-    memcpy(_ioconfig_xtc->alloc(sz), iocfg->payload(), sz);
+      new (new char[sizeof(Xtc)+sz]) Xtc(_evrIOConfigType,
+					 DetInfo(_partition.master()->pid(),
+						 DetInfo::NoDetector,0,
+						 DetInfo::Evr,0));
+    new (_ioconfig_xtc->alloc(sz)) EvrIOConfigType(*iocfg);
   }
   else
     _ioconfig_xtc = 0;
@@ -459,7 +463,7 @@ bool PartitionControl::set_partition(const char* name,
 
 bool PartitionControl::set_partition(const Allocation& alloc,
                                      const PartitionConfigType* cfg,
-				     const Xtc* iocfg)
+				     const EvrIOConfigType*     iocfg)
 {
   _partition = alloc;
 
@@ -479,10 +483,10 @@ bool PartitionControl::set_partition(const Allocation& alloc,
     delete[] reinterpret_cast<char*>(_ioconfig_xtc);
 
   if (cfg) {
-    unsigned sz = iocfg->sizeofPayload();
+    unsigned sz = iocfg->_sizeof();
     _ioconfig_xtc = 
-      new (new char[sizeof(Xtc)+sz]) Xtc(_xtcType,header().procInfo());
-    memcpy(_ioconfig_xtc->alloc(sz), iocfg->payload(), sz);
+      new (new char[sizeof(Xtc)+sz]) Xtc(_evrIOConfigType,header().procInfo());
+    new (_ioconfig_xtc->alloc(sz)) EvrIOConfigType(*iocfg);
   }
   else
     _ioconfig_xtc = 0;

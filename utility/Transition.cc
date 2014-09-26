@@ -192,6 +192,15 @@ Node* Allocation::node(const ProcInfo& info)
   return 0;
 }
 
+const Node* Allocation::master() const
+{
+  for(unsigned j=0; j<_nnodes; j++)
+    if (_nodes[j].level() == Level::Segment) {
+      return &_nodes[j];
+    }
+  return 0;
+}
+
 unsigned Allocation::nnodes(Level::Type level) const
 {
   unsigned n=0;
