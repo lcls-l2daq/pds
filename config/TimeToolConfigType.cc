@@ -1,3 +1,4 @@
+#include <stdio.h>
 #include "pds/config/TimeToolConfigType.hh"
 
 using namespace Pds::TimeTool;
