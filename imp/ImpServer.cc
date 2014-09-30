@@ -34,7 +34,6 @@ ImpServer* ImpServer::_instance = 0;
 
 class Task;
 class TaskObject;
-class Pds::Imp::ImpDestination;
 
 long long int timeDiff(timespec* end, timespec* start) {
   long long int diff;

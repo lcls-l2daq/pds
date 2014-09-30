@@ -1,6 +1,8 @@
 #include <stdio.h>
 #include "pds/config/TimeToolConfigType.hh"
 
+#include <stdio.h>
+
 using namespace Pds::TimeTool;
 
 static const char* op_name[] = { "OR", "AND", "OR_NOT", "AND_NOT", NULL };
