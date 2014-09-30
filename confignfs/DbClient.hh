@@ -58,6 +58,18 @@ namespace Pds_ConfigDb {
       int                  setXTC(const    XtcEntry&,
                                   const void*    payload,
                                   unsigned payload_size);
+      /// -- Browse Interface --
+      /// Get a list of all XTC times matching src and type
+      std::list<XtcEntryT>  getXTC(uint64_t source, 
+				   unsigned type);
+
+      /// Get the size of the XTC matching name, type, and time
+      int                  getXTC(const XtcEntryT&);
+
+      /// Get the payload of the XTC matching name, type, and time
+      int                  getXTC(const XtcEntryT&,
+				  void*    payload,
+				  unsigned payload_size);
     private:
       void _close();
       void _open ();

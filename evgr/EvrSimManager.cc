@@ -11,8 +11,6 @@
 #include "EvrFifoServer.hh"
 #include "EvrTimer.hh"
 
-#include "pds/utility/Occurrence.hh"
-#include "pds/service/GenericPool.hh"
 #include "pds/client/Fsm.hh"
 #include "pds/client/Action.hh"
 #include "pds/xtc/EnableEnv.hh"
@@ -239,7 +237,8 @@ namespace Pds {
     }
     InDatagram* fire(InDatagram* tr) { 
       _er.enable(_events); 
-      _app.post(new (&_pool) Occurrence(OccurrenceId::EvrEnabled));
+      if (_er.master())
+	_app.post(new (&_pool) Occurrence(OccurrenceId::EvrEnabled));
       return tr; 
     }
   private:

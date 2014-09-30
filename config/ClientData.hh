@@ -17,6 +17,13 @@ namespace Pds_ConfigDb {
     std::string name;
   };
 
+  class XtcEntryT {
+  public:
+    time_t      time;
+    std::string stime;
+    XtcEntry    xtc;
+  };
+
   class KeyEntry {
   public:
     uint64_t    source;

@@ -5,6 +5,7 @@
 #include "pds/config/PdsDefs.hh"
 
 using Pds_ConfigDb::XtcEntry;
+using Pds_ConfigDb::XtcEntryT;
 using Pds_ConfigDb::KeyEntry;
 using Pds_ConfigDb::Key;
 using Pds_ConfigDb::DeviceEntryRef;
@@ -678,6 +679,87 @@ int                  DbClient::setXTC(const XtcEntry& x,
   return len;
 }
 
+std::list<XtcEntryT> DbClient::getXTC(uint64_t source,
+				      unsigned type)
+{
+  std::list<XtcEntryT> result;
+
+  std::ostringstream ostr;
+  ostr << "0*/" 
+       << std::hex << setw(8) << setfill('0') << ((source>>0)&0xffffffff) << "/"
+       << std::hex << setw(8) << setfill('0') << type;
+  string kname = ostr.str();
+  string kpath = _path.key_path(kname);
+  glob_t g;
+  glob(kpath.c_str(),0,0,&g);
+
+  XtcEntryT t;
+  t.xtc.type_id = reinterpret_cast<const Pds::TypeId&>(type);
+  for(unsigned k=0; k<g.gl_pathc; k++) {
+    struct stat64 s;
+    stat64(g.gl_pathv[k],&s);
+    t.time = s.st_mtime;
+
+    const size_t bsz=256;
+    char buff[bsz];
+    strftime(buff, bsz, "%F %T", localtime(&t.time));
+    t.stime = std::string(buff);
+
+    ssize_t isz = readlink(g.gl_pathv[k],buff,bsz);
+    buff[isz]=0;
+    t.xtc.name = std::string(basename(buff));
+    result.push_back(t);
+  }
+  globfree(&g);
+  return result;
+}
+
+int                  DbClient::getXTC(const    XtcEntryT& x)
+{
+  ostringstream p;
+  p << _path.data_path(PdsDefs::qtypeName(x.xtc.type_id)).c_str()
+    << "/" << x.xtc.name.c_str();
+  glob_t g;
+  glob(p.str().c_str(),0,0,&g);
+
+  for(unsigned k=0; k<g.gl_pathc; k++) {
+    struct stat64 s;
+    stat64(g.gl_pathv[k],&s);
+    if (s.st_mtime == x.time)
+      return s.st_size;
+  }
+  globfree(&g);
+  return -1;
+}
+
+/// Get the payload of the XTC matching type and name
+int                  DbClient::getXTC(const    XtcEntryT& x,
+                                      void*    payload,
+                                      unsigned payload_size)
+{
+  ostringstream p;
+  p << _path.data_path(PdsDefs::qtypeName(x.xtc.type_id)).c_str()
+    << "/" << x.xtc.name.c_str();
+  glob_t g;
+  glob(p.str().c_str(),0,0,&g);
+  for(unsigned k=0; k<g.gl_pathc; k++) {
+    struct stat64 s;
+    stat64(g.gl_pathv[k],&s);
+    if (s.st_mtime == x.time) {
+      FILE* f = fopen(p.str().c_str(),"r");
+      if (!f)
+	return -1;
+
+      int len = fread(payload, 1, payload_size, f);
+      fclose(f);
+      globfree(&g);
+      return len;
+    }
+  }
+  globfree(&g);
+
+  return -1;
+}
 
 DbClient*  DbClient::open  (const char* path)
 {
