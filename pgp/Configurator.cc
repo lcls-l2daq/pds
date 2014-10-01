@@ -136,9 +136,10 @@ namespace Pds {
          }
          count += 1;;
        }
-       printf("CspadConfigSynch::_getOne _pgp->read failed");
-       if (count) printf(" after skipping %u\n", count);
-       else printf("\n");
+       if (_printFlag) {
+         printf("CspadConfigSynch::_getOne _pgp->read failed\n");
+         if (count) printf(" after skipping %u\n", count);
+       }
        return Failure;
      }
 
@@ -154,15 +155,8 @@ namespace Pds {
      }
 
      bool ConfigSynch::clear() {
-       int cnt = _length;
-       while (cnt) {
-         //      printf("/nClearing %d ", _length-cnt);
-         if (_getOne() == Failure) {
-           printf("CspadConfigSynch::clear receive clearing failed, missing %d\n", cnt);
-           return false;
-         }
-         cnt--;
-       }
+       _printFlag = false | (_cfgrt->_debug&1);
+       for (unsigned cnt=_depth; cnt<_length; cnt++) { _getOne(); }
        return true;
      }
   }

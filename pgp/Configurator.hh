@@ -55,9 +55,10 @@ namespace Pds {
     class ConfigSynch {
       public:
         ConfigSynch(int fd, uint32_t d, Configurator* c, unsigned s) :
-          _depth(d), _length(d), _size(s), _fd(fd), _cfgrt(c) {};
+          _depth(d), _length(d), _size(s), _fd(fd), _cfgrt(c), _printFlag(true) {};
         bool take();
         bool clear();
+        unsigned depth() { return _depth; }
 
       private:
         enum {Success=0, Failure=1};
@@ -67,6 +68,7 @@ namespace Pds {
         unsigned _size;
         int       _fd;
         Configurator* _cfgrt;
+        bool     _printFlag;
     };
 
   }
