@@ -41,7 +41,7 @@ namespace Pds {
       ReadAcqCounter                    = 0x5,
       PowerEnableAddr                   = 0x8,
       PowerEnableValue                  = 0x7,
-      ColCounterAddr                    = 0x13,
+      ColCounterAddr                    = 0x6013,
       WriteColDataAddr                  = 0x3000,
       PrepareMultiConfigAddr            = 0x8000,
       MultiplePixelWriteCommandAddr     = 0x080000,

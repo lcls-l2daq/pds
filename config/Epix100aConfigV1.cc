@@ -69,19 +69,21 @@ namespace Pds {
         { 24,  0, 0x1ff,      RowsPerASIC,2},    //  NumberOfRowsPerAsic,
         { 25,  0, 0x1ff,      RowsPerASIC,2},    //  NumberOfReadableRowsPerAsic,
         { 26,  0, 0x1ff,      ColsPerASIC,2},    //  NumberOfPixelsPerAsicRow,
-        { 27,  0, 0xffffffff, 0,          1},    //  BaseClockFrequency,
-        { 28,  0, 0xffff,     0xf,        0},    //  AsicMask,
-        { 29,  0, 1,          0,          0},    //  ScopeEnable,
-        { 29,  1, 1,          1,          0},    //  ScopeTrigEdge,
-        { 29,  2, 0xf,        6,          0},    //  ScopeTrigCh,
-        { 29,  6, 3,          2,          0},    //  ScopeArmMode,
-        { 29, 16, 0xffff,     0,          0},    //  ScopeAdcThresh,
-        { 30,  0, 0x1fff,     0,          0},    //  ScopeHoldoff,
-        { 30, 13, 0x1fff,     0xf,        0},    //  ScopeOffset,
-        { 31,  0, 0x1fff,     0x1000,     0},    //  ScopeTraceLength,
-        { 31, 13, 0x1fff,     0,          0},    //  ScopeSkipSamples,
-        { 32,  0, 0x1f,       0,          0},    //  ScopeInputA,
-        { 32,  5, 0x1f,       4,          0},    //  ScopeInputB,
+        { 27,  0, 0x1ff,      2,          2},    //  CalibrationRowCountPerASIC,
+        { 28,  0, 0x1ff,      1,          2},    //  EnvironmentalRowCountPerASIC,
+        { 29,  0, 0xffffffff, 0,          1},    //  BaseClockFrequency,
+        { 30,  0, 0xffff,     0xf,        0},    //  AsicMask,
+        { 31,  0, 1,          0,          0},    //  ScopeEnable,
+        { 31,  1, 1,          1,          0},    //  ScopeTrigEdge,
+        { 31,  2, 0xf,        6,          0},    //  ScopeTrigCh,
+        { 31,  6, 3,          2,          0},    //  ScopeArmMode,
+        { 31, 16, 0xffff,     0,          0},    //  ScopeAdcThresh,
+        { 32,  0, 0x1fff,     0,          0},    //  ScopeHoldoff,
+        { 32, 13, 0x1fff,     0xf,        0},    //  ScopeOffset,
+        { 33,  0, 0x1fff,     0x1000,     0},    //  ScopeTraceLength,
+        { 33, 13, 0x1fff,     0,          0},    //  ScopeSkipSamples,
+        { 34,  0, 0x1f,       0,          0},    //  ScopeInputA,
+        { 34,  5, 0x1f,       4,          0},    //  ScopeInputB,
     };
 
     static char _regNames[ConfigV1::NumberOfRegisters+1][120] = {
@@ -128,6 +130,8 @@ namespace Pds {
         {"NumberOfRowsPerAsic"},
         {"NumberOfReadableRowsPerAsic"},
         {"NumberOfPixelsPerAsicRow"},
+        {"CalibrationRowCountPerASIC"},
+        {"EnvironmentalRowCountPerASIC"},
         {"BaseClockFrequency"},
         {"AsicMask"},
         {"ScopeEnable"},
@@ -174,7 +178,7 @@ namespace Pds {
 
     void   ConfigV1::clear() {
       memset(_values, 0, NumberOfValues*sizeof(uint32_t));
-      for(unsigned i=0; i<NumberOfAsics; i++)
+      for(unsigned i=0; i<(defaultValue(NumberOfAsicsPerRow)*defaultValue(NumberOfAsicsPerColumn)); i++)
 	      asics()[i].clear();
     }
 
@@ -216,6 +220,12 @@ namespace Pds {
         case DaqTrigDelay :
           ret = 1250;
           break;
+        case CalibrationRowCountPerASIC :
+          ret = 2;
+          break;
+        case EnvironmentalRowCountPerASIC :
+          ret = 1;
+          break;
         default:
           break;
       }
@@ -246,6 +256,12 @@ namespace Pds {
           break;
         case DaqTrigDelay :
           ret = 1250;
+          break;
+        case CalibrationRowCountPerASIC :
+          ret = 2;
+          break;
+        case EnvironmentalRowCountPerASIC :
+          ret = 1;
           break;
         default:
           break;

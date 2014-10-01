@@ -34,7 +34,8 @@ namespace Pds {
           RowsPerAsic = RowsPerASIC,
           ColsPerAsic = ColsPerASIC,
           ASICsPerRow = AsicsPerRow,
-          ASICsPerCol = AsicsPerCol
+          ASICsPerCol = AsicsPerCol,
+          CalibrationRowCountPerAsic = 2
         };
 
         enum Registers {
@@ -81,6 +82,8 @@ namespace Pds {
           NumberOfRowsPerAsic,
           NumberOfReadableRowsPerAsic,
           NumberOfPixelsPerAsicRow,
+          CalibrationRowCountPerASIC,
+          EnvironmentalRowCountPerASIC,
           BaseClockFrequency,
           AsicMask,
           ScopeEnable,
@@ -100,11 +103,11 @@ namespace Pds {
         enum readOnlyStates { ReadWrite=0, ReadOnly=1, UseOnly=2 };
 
         enum {
-          NumberOfValues=33
+          NumberOfValues=35
         };
 
         enum {
-          NumberOfAsics=4    //  Kludge ALERT!!!!!  this may need to be dynamic !!
+          NumberOfAsics=4, NumberOfASICs=4    //  Kludge ALERT!!!!!  this may need to be dynamic !!
         };
 
         unsigned                    get      (Registers) const;

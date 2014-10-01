@@ -14,11 +14,11 @@
 #include <mqueue.h>
 #include <sys/types.h>
 #include <sys/stat.h>
+#include "pds/config/EpixConfigType.hh"
 #include "pds/pgp/Configurator.hh"
 #include "pds/epix100a/Epix100aConfigurator.hh"
 #include "pds/epix100a/Epix100aDestination.hh"
 #include "pds/epix100a/Epix100aStatusRegisters.hh"
-#include "pds/config/EpixConfigType.hh"
 #include "ndarray/ndarray.h"
 
 using namespace Pds::Epix100a;
@@ -55,6 +55,8 @@ static uint32_t configAddrs[Epix100aConfigShadow::NumberOfValues][2] = {
     {0,     2}, //  NumberOfRowsPerAsic
     {0,     2}, //  NumberOfReadableRowsPerAsic
     {0,     2}, //  NumberOfPixelsPerAsicRow
+    {0,     2}, // CalibrationRowCountPerASIC,
+    {0,     2}, // EnvironmentalRowCountPerASIC,
     {0x10,  1}, //  BaseClockFrequency
     {0xd,   0}, //  AsicMask
     {0x52,  0}, //  ScopeSetup1
@@ -267,7 +269,9 @@ unsigned Epix100aConfigurator::writeConfig() {
     printf("Epix100aConfigurator::writeConfig failed writing %s\n", "EnableAutomaticRunTriggerAddr");
     ret = Failure;
   }
-  if (_pgp->writeRegister(&_d, TotalPixelsAddr, PixelsPerBank * (_s->get(Epix100aConfigShadow::NumberOfReadableRowsPerAsic)+Epix100aConfigType::CalibrationRowCountPerASIC))) {
+  if (_pgp->writeRegister(&_d, TotalPixelsAddr, PixelsPerBank *
+      (_s->get(Epix100aConfigShadow::NumberOfReadableRowsPerAsic)+
+          _config->calibrationRowCountPerASIC()))) {
     printf("Epix100aConfigurator::writeConfig failed writing %s\n", "TotalPixelsAddr");
     ret = Failure;
   }
@@ -423,21 +427,24 @@ class block {
 //            for ASICs 0,1,2,3 respectively) [data is the column number]
 //       3b) write ASIC register: WriteColData (0x803000, 0x903000, 0xA03000, 0xB03000
 //            for ASICs 0,1,2,3 respectively) - [bits 1,0 are mask, test, respectively]
-//          4) send ASIC command: PrepareForReadout: (0x800000, 0x900000, 0xA00000, 0xB00000)
-//          5) (optional) SaciClkBit needs to be set to 3 to do individual pixel writes, so
-//               you could set it back to 3 here, or incorporate that as part of the single
-//               pixel write procedure
+//    4) send ASIC command: PrepareForReadout: (0x800000, 0x900000, 0xA00000, 0xB00000)
+//    5) (optional) SaciClkBit needs to be set to 3 to do individual pixel writes, so
+//          you could set it back to 3 here, or incorporate that as part of the single
+//          pixel write procedure
 unsigned Epix100aConfigurator::writePixelBits() {
+  enum { writeAhead = 68 };
   unsigned ret = Success;
   _d.dest(Epix100aDestination::Registers);
   unsigned m    = _config->asicMask();
   unsigned rows = _config->numberOfRows();
   unsigned cols = _config->numberOfColumns();
+  unsigned synchDepthHisto[writeAhead];
   bool written[rows][cols];
   unsigned pops[4] = {0,0,0,0};
   block blk;
   // find the most popular pixel setting
   for (unsigned r=0; r<rows; r++) {
+    if (r<writeAhead) synchDepthHisto[r] = 0;
     for (unsigned c=0; c<cols; c++) {
       pops[_config->asicPixelConfigArray()[r][c]&3] += 1;
       written[r][c] = false;
@@ -454,7 +461,7 @@ unsigned Epix100aConfigurator::writePixelBits() {
     }
   }
   printf(" pixel %u\n", pixel);
-  if (_pgp->writeRegister( &_d, SaciClkBitAddr, 4, false, Pgp::PgpRSBits::notWaiting)) {
+  if (_pgp->writeRegister( &_d, SaciClkBitAddr, 4, (_debug&1)?true:false, Pgp::PgpRSBits::notWaiting)) {
     printf("Epix100aConfigurator::writePixelBits failed on writing SaciClkBitAddr\n");
     ret |= Failure;
   }
@@ -464,16 +471,21 @@ unsigned Epix100aConfigurator::writePixelBits() {
   for (unsigned index=0; index<_config->numberOfAsics(); index++) {
     if (m&(1<<index)) {
       uint32_t a = AsicAddrBase + AsicAddrOffset * index;
-      if (_pgp->writeRegister( &_d, a+PrepareMultiConfigAddr, 0, false, Pgp::PgpRSBits::notWaiting)) {
+      if (_pgp->writeRegister( &_d, a+PrepareMultiConfigAddr, 0, (_debug&1)?true:false, Pgp::PgpRSBits::notWaiting)) {
         printf("Epix100aConfigurator::writePixelBits failed on ASIC %u, writing prepareMultiConfig\n", index);
         ret |= Failure;
       }
+    }
+  }
+  for (unsigned index=0; index<_config->numberOfAsics(); index++) {
+    if (m&(1<<index)) {
+      uint32_t a = AsicAddrBase + AsicAddrOffset * index;
       for (unsigned col=0; col<PixelsPerBank; col++) {
-        if (_pgp->writeRegister( &_d, a+ColCounterAddr, col, false, Pgp::PgpRSBits::notWaiting)) {
+        if (_pgp->writeRegister( &_d, a+ColCounterAddr, col, (_debug&1)?true:false, Pgp::PgpRSBits::notWaiting)) {
           printf("Epix100aConfigurator::writePixelBits failed on ASIC %u, writing ColCounter %u\n", index, col);
           ret |= Failure;
         }
-        if (_pgp->writeRegister( &_d, a+WriteColDataAddr, pixel, false, Pgp::PgpRSBits::Waiting)) {
+        if (_pgp->writeRegister( &_d, a+WriteColDataAddr, pixel, (_debug&1)?true:false, Pgp::PgpRSBits::Waiting)) {
           printf("Epix100aConfigurator::writePixelBits failed on ASIC %u, writing Col Data %u\n", index, col);
           ret |= Failure;
         }
@@ -483,10 +495,14 @@ unsigned Epix100aConfigurator::writePixelBits() {
   }
   // now program the ones that were not the same
   //  NB must program four at a time because that's how the asic works
+  if (_pgp->writeRegister( &_d, SaciClkBitAddr, 3, (_debug&1)?true:false, Pgp::PgpRSBits::notWaiting)) {
+    printf("Epix100aConfigurator::writePixelBits failed on writing SaciClkBitAddr\n");
+    ret |= Failure;
+  }
   unsigned halfRow = _config->numberOfColumns()/2;
   unsigned writeCount = 0;
-  // allow it queue up 48 commands
-  Pds::Pgp::ConfigSynch mySynch(_fd, 48, this, sizeof(Pds::Pgp::RegisterSlaveExportFrame)/sizeof(uint32_t) + 5);
+  // allow it queue up writeAhead commands
+  Pds::Pgp::ConfigSynch mySynch(_fd, writeAhead, this, sizeof(Pds::Pgp::RegisterSlaveExportFrame)/sizeof(uint32_t) + 5);
   for (unsigned row=0; row<rows; row++) {
     blk.row(row);
     for (unsigned col=0; col<cols; col++) {
@@ -507,11 +523,13 @@ unsigned Epix100aConfigurator::writePixelBits() {
             MultiplePixelWriteCommandAddr,
             (unsigned*)&blk,
             sizeof(block)/sizeof(uint32_t),
-            Pds::Pgp::PgpRSBits::Waiting))
+            Pds::Pgp::PgpRSBits::Waiting,
+            (_debug&1)?true:false))
         {
           printf("Epix100aConfigurator::writePixelBits failed on row %u, col %u\n", row, col);
           ret |= Failure;
         }
+        synchDepthHisto[mySynch.depth()] += 1;
         writeCount += 1;
       }
     }
@@ -519,18 +537,26 @@ unsigned Epix100aConfigurator::writePixelBits() {
   if (mySynch.clear() == false) {
     printf("Epix100aConfigurator::writePixelBits synchronization failed to clear\n");
   }
-  printf("Epix100aConfigurator::writePixelBits write count %u\n", writeCount);
+  printf("Epix100aConfigurator::writePixelBits write count %u\n SynchBufferDepth:\n", writeCount);
+  for (unsigned i=0; i<writeAhead; i++) {
+    if (synchDepthHisto[i] > 1) {
+      printf("\t%3u - %5u\n", i, synchDepthHisto[i]);
+    }
+  }
+  printf("Epix100aConfigurator::writePixelBits PrepareForReadout for ASIC:");
   for (unsigned index=0; index<_config->numberOfAsics(); index++) {
     if (m&(1<<index)) {
       uint32_t a = AsicAddrBase + AsicAddrOffset * index;
-      if (_pgp->writeRegister( &_d, a+PrepareForReadout, 0, false, Pgp::PgpRSBits::Waiting)) {
+      if (_pgp->writeRegister( &_d, a+PrepareForReadout, 0, (_debug&1)?true:false, Pgp::PgpRSBits::Waiting)) {
         printf("Epix100aConfigurator::writePixelBits failed on ASIC %u\n", index);
         ret |= Failure;
       }
+      printf(" %u", index);
       _getAnAnswer();
     }
   }
-  if (_pgp->writeRegister( &_d, SaciClkBitAddr, SaciClkBitValue, false, Pgp::PgpRSBits::notWaiting)) {
+  printf("\n");
+  if (_pgp->writeRegister( &_d, SaciClkBitAddr, SaciClkBitValue, (_debug&1)?true:false, Pgp::PgpRSBits::notWaiting)) {
     printf("Epix100aConfigurator::writePixelBits failed on writing SaciClkBitAddr\n");
     ret |= Failure;
   }

@@ -242,8 +242,6 @@ int Pds::Epix100aServer::fetch( char* payload, int flags ) {
      return Ignore;
    }
 
-   if (_debug & 1) printf("Epix100aServer::fetch called ");
-
    _xtcTop.damage = 0;
    _xtcEpix.damage = 0;
 
@@ -287,6 +285,8 @@ int Pds::Epix100aServer::fetch( char* payload, int flags ) {
      }
      return Ignore;
    }
+
+   if (_debug & 1) printf("Epix100aServer::fetch called ");
 
    if (pgpCardRx.pgpVc == Epix100a::Epix100aDestination::Data) {
 
