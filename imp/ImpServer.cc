@@ -126,6 +126,7 @@ void Pds::ImpServer::enable() {
   _firstFetch = true;
   printf("ImpServer::enable() found _pgp %p\n", _pgp);
   _pgp->writeRegister(&d, Pds::Imp::enableTriggersAddr, Pds::Imp::enable);
+  _pgp->writeRegister(&d, Pds::Imp::unGateTriggersAddr, Pds::Imp::enable);
   flushInputQueue(fd());
   if (_debug & 0x20) printf("ImpServer::enable\n");
   _ignoreFetch = false;
@@ -135,7 +136,10 @@ void Pds::ImpServer::disable(bool flush) {
   _ignoreFetch = true;
   Pds::Imp::ImpDestination d;
   d.dest(Pds::Imp::ImpDestination::CommandVC);
-  if (_pgp) _pgp->writeRegister(&d, Pds::Imp::enableTriggersAddr, Pds::Imp::disable);
+  if (_pgp) {
+    _pgp->writeRegister(&d, Pds::Imp::enableTriggersAddr, Pds::Imp::disable);
+    _pgp->writeRegister(&d, Pds::Imp::unGateTriggersAddr, Pds::Imp::disable);
+  }
   else printf("ImpServer::disable(%s) found nil _pgp %p\n", flush ? "true" : "false", _pgp);
   if (flush) flushInputQueue(fd());
   if (usleep(10000)<0) perror("ImpServer::disable ulseep 1 failed\n");
