@@ -633,6 +633,50 @@ void                 DbClient::updateKeys()
   }
   profile.end("update xtcs");
 
+  //
+  //  Update keys where a new device has been added
+  //
+  profile.begin();
+  for(std::list<ExptAlias>::iterator it=alist.begin();
+      it!=alist.end(); it++) {
+
+    ExptAlias& a = *it;
+    std::list<KeyEntry> tmpl;
+
+    for(std::list<DeviceEntryRef>::iterator rit=a.devices.begin();
+	rit!=a.devices.end(); rit++)
+      for(std::list<DeviceType>::iterator dit=dlist.begin();
+	  dit!=dlist.end(); dit++)
+	if (dit->name == rit->device)
+	  for(std::list<DeviceEntries>::iterator eit=dit->entries.begin();
+	      eit!=dit->entries.end(); eit++)
+	    if (eit->name == rit->name)
+	      for(std::list<XtcEntry>::iterator xit=eit->entries.begin();
+		  xit!=eit->entries.end(); xit++) {
+		KeyEntry e;
+		e.xtc = *xit;
+		for(std::list<uint64_t>::iterator sit=dit->sources.begin();
+		    sit!=dit->sources.end(); sit++) {
+		  e.source = *sit;
+		  tmpl.push_back(e); 
+		}
+	      }
+    
+    std::list<KeyEntry> entries = getKey(it->key);
+    for(std::list<KeyEntry>::iterator kit=entries.begin(); kit!=entries.end(); kit++) {
+      tmpl.remove(*kit);
+    }
+
+    if (tmpl.size()) {
+      printf("Key %u: %u new sources\n",it->key,tmpl.size());
+      for(std::list<KeyEntry>::iterator kit=tmpl.begin(); kit!=tmpl.end(); kit++)
+	printf("Found : %016llx %08x %s\n",
+	       kit->source, kit->xtc.type_id.value(), kit->xtc.name.c_str());
+      _updateKey(it->name,alist,dlist);
+    }
+  }
+  profile.end("update sources");
+
 #ifdef USE_TABLE_LOCKS
   { std::ostringstream sql;
     sql << "UNLOCK TABLES;";
@@ -642,6 +686,115 @@ void                 DbClient::updateKeys()
   profile.begin();
   setExptAliases(alist);
   profile.end("setExptAliases");
+}
+
+void                 DbClient::purge() 
+{
+#ifdef USE_TABLE_LOCKS
+  { std::ostringstream sql;
+    sql << "LOCK TABLES runkeys WRITE, xtc WRITE";
+    simpleQuery(_mysql,sql.str()); }
+#endif
+
+  begin();
+
+  QueryProcessor query(_mysql);
+  { std::ostringstream sql;
+    sql << "SELECT DISTINCT typeid,xtcname FROM xtc;";
+    query.execute(sql.str()); }
+  while(query.next_row()) {
+    unsigned t;
+    std::string name;
+    query.get(t   ,"typeid");
+    query.get(name,"xtcname");
+
+    printf("Examining [%s] [%s]\n",
+	   Pds::TypeId::name((Pds::TypeId::Type)(t&0xffff)),
+	   name.c_str());
+
+    std::ostringstream s;
+    s << "SELECT xtctime FROM xtc"
+      << " WHERE typeid=" << t
+      << " AND xtcname='" << name
+      << "' ORDER BY xtctime DESC;";
+    QueryProcessor q(_mysql);
+    q.execute(s.str());
+    if (!q.empty()) {
+
+      { 
+	bool lkeep=true; // keep the latest unless it ends in .[0-9]+
+	if (name.find('.')>=0) {
+	  const char* begptr = name.c_str()+name.rfind('.')+1;
+	  char* endptr;
+	  strtoul(begptr,&endptr,10);
+	  lkeep &= (endptr != (name.c_str()+name.size()));
+	}
+	if (lkeep) {
+	  q.next_row();
+	  std::string xtim;
+	  q.get(xtim, "xtctime");
+	  printf("Retain latest %08x/%s [%s]\n",
+		 t, name.c_str(), xtim.c_str());
+	}
+      }
+
+      while(q.next_row()) {
+	std::string xtim;
+        q.get(xtim, "xtctime");
+
+#if 0
+        std::ostringstream op;
+        op << "SELECT xtctime FROM runkeys"
+	   << " WHERE typeid=" << t
+	   << " AND xtcname='" << name << "';";
+        QueryProcessor rp(_mysql);
+	rp.execute(op.str());
+	while(rp.next_row()) {
+	  std::string ptim;
+	  rp.get(ptim, "xtctime");
+	  printf(" [%s]",ptim.c_str());
+	}
+	printf("\n");
+#endif
+
+	std::ostringstream o;
+	o << "SELECT 1 FROM runkeys"
+	  << " WHERE typeid=" << t
+	  << " AND xtcname='" << name
+	  << "' AND xtctime='" << xtim << "';";
+	QueryProcessor r(_mysql);
+        r.execute(o.str());
+        if (r.empty()) {
+          printf("Removing archaic xtc %08x/%s [%s]\n",
+                 t, name.c_str(), xtim.c_str());
+#if 1
+          std::ostringstream o;
+          o << "DELETE FROM xtc"
+            << " WHERE typeid=" << t
+            << " AND xtcname='" << name
+            << "' AND xtctime='" << xtim << "';";
+          simpleQuery(_mysql,o.str());
+#endif
+        }
+	else {
+          printf("Retain xtc %08x/%s [%s]\n",
+                 t, name.c_str(), xtim.c_str());
+	}
+      }
+    }
+    else {
+      printf("No matches for [%s]\n",s.str().c_str());
+    }
+  }
+
+  commit();
+
+#ifdef USE_TABLE_LOCKS
+  { std::ostringstream sql;
+    sql << "UNLOCK TABLES;";
+    simpleQuery(_mysql,sql.str()); }
+#endif
+
 }
 
 void                 DbClient::_updateKey(const std::string& alias,
@@ -828,56 +981,6 @@ int                  DbClient::setKey(const Key& key,
           << "'," << timestamp(xtctime) << ");";
       simpleQuery(_mysql,sql.str()); }
   }
-
-#if 0
-  //
-  //  Skip this housecleaning.  There is a one-hour offset in the timestamp.
-  //  The housecleaning does not need to be done at this critical time.
-  //
-  //  Remove any unused XTCs (except the latest)
-  QueryProcessor query(_mysql);
-  { std::ostringstream sql;
-    sql << "SELECT DISTINCT typeid,xtcname FROM xtc;";
-    query.execute(sql.str()); }
-  while(query.next_row()) {
-    unsigned t;
-    std::string name;
-    query.get(t   ,"typeid");
-    query.get(name,"xtcname");
-
-    std::ostringstream s;
-    s << "SELECT xtctime FROM xtc"
-      << " WHERE typeid=" << t
-      << " AND xtcname='" << name
-      << "' ORDER BY xtctime DESC;";
-    QueryProcessor q(_mysql);
-    q.execute(s.str());
-    if (!q.empty()) {
-      q.next_row();  // keep the latest
-      while(q.next_row()) {
-        time_t xtim;
-        q.get_time(xtim, "xtctime");
-        std::ostringstream o;
-        o << "SELECT 1 FROM runkeys"
-          << " WHERE typeid=" << t
-          << " AND xtcname='" << name
-          << "' AND xtctime=" << timestamp(xtim) << ";";
-        QueryProcessor r(_mysql);
-        r.execute(o.str());
-        if (r.empty()) {
-          printf("Removing archaic xtc %08x/%s [%s]\n",
-                 t, name.c_str(), timestamp(xtim));
-          std::ostringstream o;
-          o << "DELETE FROM xtc"
-            << " WHERE typeid=" << t
-            << " AND xtcname='" << name
-            << "' AND xtctime=" << timestamp(xtim) << ";";
-          simpleQuery(_mysql,o.str());
-        }
-      }
-    }
-  }
-#endif
 
 #ifdef USE_TABLE_LOCKS
   { std::ostringstream sql;

@@ -24,6 +24,9 @@ using Pds_ConfigDb::ExptAlias;
 #include <iostream>
 #include <iomanip>
 #include <sstream>
+#include <string>
+#include <map>
+#include <list>
 
 //#define DBUG
 
@@ -31,6 +34,8 @@ using std::hex;
 using std::setw;
 using std::setfill;
 using std::ostringstream;
+using std::string;
+using std::list;
 
 static int _symlink(const char* dst, const char* src) {
   
@@ -380,6 +385,14 @@ void                 DbClient::updateKeys()
           printf("expt:%s dev:%s:%s %s\n", iter->name().c_str(), it->name().c_str(), it->entry().c_str(),
                  te->updated() ? "changed" : "unchanged");
 #endif
+
+	for(list<DeviceEntry>::const_iterator dit=dev->src_list().begin(); 
+	    dit!=dev->src_list().end() && !changed; dit++) {
+	  ostringstream o;
+	  o << _path.key_path(iter->key()) << "/" << src_path(*dit);
+	  struct stat s;
+	  changed |= stat(o.str().c_str(),&s)!=0;
+	}
       }
     }
 
@@ -441,6 +454,125 @@ void                 DbClient::updateKeys()
   nfs.write(_f);
 
   xtc.write(_path.base());
+}
+
+void                 DbClient::purge()
+{
+  //
+  //  Remove any detector keys that are no longer referenced
+  //
+  std::map< string, std::list<unsigned> > dkeys;
+  { string kname = "[!0-9]*";
+    string kpath = _path.key_path(kname);
+    glob_t g;
+    glob(kpath.c_str(),0,0,&g);
+    for(unsigned k=0; k<g.gl_pathc; k++) {
+      string det(basename(g.gl_pathv[k]));
+      string dkeyp = string(g.gl_pathv[k])+"/[0-9]*";
+      glob_t h;
+      glob(dkeyp.c_str(),0,0,&h);
+      for(unsigned l=0; l<h.gl_pathc; l++)
+	dkeys[det].push_back( strtoul(basename(h.gl_pathv[l]),NULL,16) );
+      globfree(&h);
+    } 
+    globfree(&g);
+  }
+  //
+  //  Remove any (versioned) xtcs that are no longer referenced
+  //
+  std::list< string > xtcs;
+  { ostringstream p;
+    p << _path.data_path(QTypeName()) << "/*/*.[0-9]*";
+    glob_t g;
+    glob(p.str().c_str(),0,0,&g);
+    for(unsigned k=0; k<g.gl_pathc; k++) {
+      string s(g.gl_pathv[k]);
+      xtcs.push_back(s.substr(s.rfind('/',s.rfind('/')-1)+1));
+    }
+    globfree(&g);
+  }
+  //  Include temporary XTCs used for scanning
+  { ostringstream p;
+    p << _path.data_path(QTypeName()) << "/*/[0-9]*";
+    glob_t g;
+    glob(p.str().c_str(),0,0,&g);
+    for(unsigned k=0; k<g.gl_pathc; k++) {
+      char* endptr;
+      string b(basename(g.gl_pathv[k]));
+      strtoul(b.c_str(),&endptr,16);
+      if ((endptr-b.c_str())==16) {
+	string s(g.gl_pathv[k]);
+	xtcs.push_back(s.substr(s.rfind('/',s.rfind('/')-1)+1));
+      }
+    }
+    globfree(&g);
+  }
+
+  { string kname = "[0-9]*/[0-9]*";
+    string kpath = _path.key_path(kname);
+    glob_t g;
+    glob(kpath.c_str(),0,0,&g);
+    const int bsz=256;
+    char buff[bsz];
+    for(unsigned k=0; k<g.gl_pathc; k++) {
+      ssize_t sz = readlink(g.gl_pathv[k],buff,bsz);
+      if (sz>0) {
+	buff[sz]=0;
+	string det(buff);
+	det.erase(0,det.find('/')+1);
+	det.erase(det.find('/'));
+	unsigned ukey = strtoul( basename(buff),NULL,16);
+	dkeys[det].remove(ukey);
+      }
+
+      string t(g.gl_pathv[k]);
+      glob_t h;
+      glob((t+"/*").c_str(),0,0,&h);
+      for(unsigned l=0; l<h.gl_pathc; l++) {
+	ssize_t sz = readlink(h.gl_pathv[l],buff,bsz);
+	if (sz>0) {
+	  buff[sz]=0;
+	  string s(buff);
+	  xtcs.remove(s.substr(s.rfind('/',s.rfind('/')-1)+1));
+	}
+      }
+      globfree(&h);
+    }
+    globfree(&g);
+  }
+
+  printf("--- Detector keys to be purged ---\n");
+  for(std::map< string, std::list<unsigned> >::iterator it=dkeys.begin();
+      it!=dkeys.end(); it++) {
+    printf("%s: ",it->first.c_str());
+    for(std::list<unsigned>::iterator uit=it->second.begin();
+	  uit!=it->second.end(); uit++)
+      printf(" %x",*uit);
+    printf("\n");
+  }
+  printf("--- Detector configurations to be purged ---\n");
+  for(std::list< string >::iterator it=xtcs.begin();
+      it!=xtcs.end(); it++)
+    printf("%s\n",it->c_str());
+
+  printf("Continue? [y/N]\n");
+  char c = 'n';
+  scanf("%c",&c);
+
+  if (c=='y' || c=='Y') {
+    for(std::map< string, std::list<unsigned> >::iterator it=dkeys.begin();
+	it!=dkeys.end(); it++) {
+      for(std::list<unsigned>::iterator uit=it->second.begin();
+	  uit!=it->second.end(); uit++) {
+	ostringstream p;
+	p << _path.key_path(it->first) << '/' << setw(8) << setfill('0') << hex << *uit;
+	remove(p.str().c_str());
+      }
+    }
+    for(std::list< string >::iterator it=xtcs.begin();
+	it!=xtcs.end(); it++)
+      remove( _path.data_path(QTypeName(*it)).c_str() );
+  }
 }
 
 unsigned             DbClient::getNextKey()
@@ -561,7 +693,7 @@ int                  DbClient::setKey(const Key& key,
     }
     globfree(&g);
   }
-  else
+  else if (!entries.empty())
     mkdir(kpath.c_str(),_fmode);
 
   //  Create the key
@@ -582,15 +714,24 @@ int                  DbClient::setKey(const Key& key,
     _symlink(dpath.str().c_str(),lpath.str().c_str());
   }  
 
-  // persist the alias name that created this key
-  { string spath = kpath + "/Info";
+  string spath = kpath + "/Info";
+  if (entries.empty()) {
+    _unlink(spath.c_str());
+    if (rmdir(kpath.c_str()))
+      perror("Removing key directory");
+  }
+  else {
+    // persist the alias name that created this key
     std::ofstream of(spath.c_str());
-    of << key.name << std::endl; }
+    of << key.name << std::endl; 
+  }
   
+  begin();
   NfsState nfs(_f);
   if (nfs.table._next_key <= key.key)
     nfs.table._next_key = key.key+1;
   nfs.write(_f);
+  commit();
 
   return 0;
 }

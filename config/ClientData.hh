@@ -15,6 +15,11 @@ namespace Pds_ConfigDb {
   public:
     Pds::TypeId type_id;
     std::string name;
+
+    bool operator==(const XtcEntry& o) const { 
+      return type_id.value()==o.type_id.value() &&
+	name == o.name; 
+    }
   };
 
   class XtcEntryT {
@@ -28,6 +33,10 @@ namespace Pds_ConfigDb {
   public:
     uint64_t    source;
     XtcEntry    xtc;
+
+    bool operator==(const KeyEntry& o) const {
+      return source==o.source && xtc==o.xtc; 
+    }
   };
 
   class Key {

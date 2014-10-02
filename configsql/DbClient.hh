@@ -31,6 +31,9 @@ namespace Pds_ConfigDb {
       /// Update the contents of all current keys
       void                 updateKeys();
 
+      /// Remove unreferenced data
+      virtual void         purge();
+
       /// Allocate an unused run key
       unsigned             getNextKey();
 
