@@ -32,7 +32,6 @@ namespace Pds {
     class Cspad2x2ConcentratorRegisters;
     class Cspad2x2Destination;
     class ProtectionSystemThreshold;
-    class Pds::Pgp::AddressRange;
 
 //    --    0x700000 : PeltierEnable, 1-bit  -> 0 (off)
 //    --    0x700001 : kpConstant, 12-bit -> 100

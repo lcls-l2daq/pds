@@ -57,7 +57,7 @@ IocConnection *IocConnection::get_connection(std::string host, uint32_t host_ip,
     return c;
 }
 
-void IocConnection::transmit(char *s)
+void IocConnection::transmit(const char *s)
 {
 #ifdef DBUG
     printf("IocConnection::transmit %s\n",s);

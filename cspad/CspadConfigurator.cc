@@ -31,7 +31,6 @@ namespace Pds {
     class CspadConcentratorRegisters;
     class CspadDestination;
     class ProtectionSystemThreshold;
-    class Pds::Pgp::AddressRange;
 
     unsigned                  CspadConfigurator::_quadAddrs[] = {
         0x110001,  // shiftSelect0    1

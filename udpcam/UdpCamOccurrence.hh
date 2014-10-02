@@ -15,7 +15,7 @@ class Pds::UdpCamOccurrence {
     UdpCamOccurrence(UdpCamManager *mgr);
     ~UdpCamOccurrence();
     void outOfOrder(void);
-    void userMessage(char *msgText);
+    void userMessage(const char *msgText);
 
   private:
     UdpCamManager* _mgr;

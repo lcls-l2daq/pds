@@ -34,7 +34,7 @@ void RayonixOccurrence::outOfOrder(void)
   _mgr->appliance().post(occ);
 }
 
-void RayonixOccurrence::userMessage(char *msgText)
+void RayonixOccurrence::userMessage(const char *msgText)
 {
   // send occurrence: user message
   UserMessage* msg = new (_userMessagePool) UserMessage;

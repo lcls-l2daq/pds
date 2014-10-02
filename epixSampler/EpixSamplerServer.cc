@@ -32,7 +32,6 @@ EpixSamplerServer* EpixSamplerServer::_instance = 0;
 
 class Task;
 class TaskObject;
-class Pds::EpixSampler::EpixSamplerDestination;
 class DetInfo;
 
 long long int timeDiff(timespec* end, timespec* start) {

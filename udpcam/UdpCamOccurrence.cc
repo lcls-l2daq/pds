@@ -34,7 +34,7 @@ void UdpCamOccurrence::outOfOrder(void)
   _mgr->appliance().post(occ);
 }
 
-void UdpCamOccurrence::userMessage(char *msgText)
+void UdpCamOccurrence::userMessage(const char *msgText)
 {
   // send occurrence: user message
   UserMessage* msg = new (_userMessagePool) UserMessage;

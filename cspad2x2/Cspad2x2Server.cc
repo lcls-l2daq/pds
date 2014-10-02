@@ -31,7 +31,6 @@ Cspad2x2Server* Cspad2x2Server::_instance = 0;
 
 class Task;
 class TaskObject;
-class Pds::CsPad2x2::Cspad2x2Destination;
 
 long long int timeDiff(timespec* end, timespec* start) {
   long long int diff;

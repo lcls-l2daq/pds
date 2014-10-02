@@ -35,7 +35,6 @@ Epix100aServer* Epix100aServer::_instance = 0;
 
 class Task;
 class TaskObject;
-class Pds::Epix100a::Epix100aDestination;
 class DetInfo;
 
 long long int timeDiff(timespec* end, timespec* start) {

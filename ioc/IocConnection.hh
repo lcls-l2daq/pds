@@ -13,7 +13,7 @@ namespace Pds {
     ~IocConnection() { close(_sock); _sock = -1; };
     static IocConnection *get_connection(std::string host, uint32_t host_ip,
                                          uint16_t port, IocControl *cntl);
-    void transmit(char *s);
+    void transmit(const char *s);
     void transmit(std::string s);
     static void transmit_all(std::string s);
     static void clear_all(void) { _connections.clear(); };

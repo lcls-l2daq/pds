@@ -54,7 +54,7 @@ namespace Pds {
     }
   private:
     PartitionControl& _control;
-    char              _buffer[sizeof(Allocate)];
+    uint32_t          _buffer[sizeof(Allocate)/sizeof(uint32_t)];
   };
 
   class ReportJob : public Routine {

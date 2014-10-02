@@ -15,7 +15,7 @@ class Pds::RayonixOccurrence {
     RayonixOccurrence(RayonixManager *mgr);
     ~RayonixOccurrence();
     void outOfOrder(void);
-    void userMessage(char *msgText);
+    void userMessage(const char *msgText);
 
   private:
     RayonixManager* _mgr;
