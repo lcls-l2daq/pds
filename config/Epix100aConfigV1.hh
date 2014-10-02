@@ -64,6 +64,7 @@ namespace Pds {
           AsicR0ToAsicAcq,
           AsicAcqWidth,
           AsicAcqLToPPmatL,
+          AsicPPmatToReadout,
           AsicRoClkHalfT,
           AdcReadsPerPixel,
           AdcClkHalfT,
@@ -103,7 +104,7 @@ namespace Pds {
         enum readOnlyStates { ReadWrite=0, ReadOnly=1, UseOnly=2 };
 
         enum {
-          NumberOfValues=35
+          NumberOfValues=36
         };
 
         enum {

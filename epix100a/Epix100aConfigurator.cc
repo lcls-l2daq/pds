@@ -38,6 +38,7 @@ static uint32_t configAddrs[Epix100aConfigShadow::NumberOfValues][2] = {
     {0x21,  0}, //  AsicR0ToAsicAcq
     {0x22,  0}, //  AsicAcqWidth
     {0x23,  0}, //  AsicAcqLToPPmatL
+    {0x3a,  0}, //  AsicPPmatToReadout
     {0x24,  0}, //  AsicRoClkHalfT
     {0x25,  0}, //  AdcReadsPerPixel
     {0x26,  0}, //  AdcClkHalfT
