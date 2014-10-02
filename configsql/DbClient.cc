@@ -13,6 +13,7 @@ using Pds_ConfigDb::ExptAlias;
 
 #include <mysql/mysql.h>
 
+#include <stdlib.h>
 #include <fstream>
 #include <iostream>
 #include <iomanip>
@@ -668,10 +669,10 @@ void                 DbClient::updateKeys()
     }
 
     if (tmpl.size()) {
-      printf("Key %u: %u new sources\n",it->key,tmpl.size());
+      printf("Key %u: %zu new sources\n",it->key,tmpl.size());
       for(std::list<KeyEntry>::iterator kit=tmpl.begin(); kit!=tmpl.end(); kit++)
 	printf("Found : %016llx %08x %s\n",
-	       kit->source, kit->xtc.type_id.value(), kit->xtc.name.c_str());
+	       (unsigned long long)kit->source, kit->xtc.type_id.value(), kit->xtc.name.c_str());
       _updateKey(it->name,alist,dlist);
     }
   }
