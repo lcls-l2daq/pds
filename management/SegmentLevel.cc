@@ -130,7 +130,8 @@ void    SegmentLevel::allocated(const Allocation& alloc,
   unsigned partition= alloc.partitionid();
 
   //  setup EVR server
-  Ins source(StreamPorts::event(partition, Level::Segment, _header.group(), _header.evr_module()));
+  //  Ins source(StreamPorts::event(partition, Level::Segment, _header.group(), _header.evr_module()));
+  Ins source(StreamPorts::event(partition, Level::Segment, _header.group(), 0));
   Node evrNode(Level::Source,header().platform());
   evrNode.fixup(source.address(),Ether());
   DetInfo evrInfo(evrNode.pid(),DetInfo::NoDetector,0,DetInfo::Evr,0);
