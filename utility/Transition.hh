@@ -56,6 +56,7 @@ namespace Pds {
     Allocation(const char* partition,
                const char* dbpath,
                unsigned    partitionid,
+	       unsigned    masterid=0,
                uint64_t    bld_mask=0,
 	       uint64_t    bld_mask_mon=0,
                unsigned    options=0);
@@ -63,6 +64,7 @@ namespace Pds {
                const char* dbpath,
 	       const char* l3path,
                unsigned    partitionid,
+	       unsigned    masterid=0,
                uint64_t    bld_mask=0,
 	       uint64_t    bld_mask_mon=0,
                unsigned    options=0,
@@ -81,6 +83,7 @@ namespace Pds {
     const char* dbpath() const;
     const char* l3path() const;
     unsigned    partitionid() const;
+    unsigned    masterid() const;
     uint64_t    bld_mask() const;
     uint64_t    bld_mask_mon() const;
     unsigned    options() const;
@@ -95,6 +98,7 @@ namespace Pds {
     char     _l3path   [MaxName];
     char     _dbpath   [MaxDbPath];
     uint32_t _partitionid;
+    uint32_t _masterid;
     uint32_t _bld_mask[2];
     uint32_t _bld_mask_mon[2];
     uint32_t _nnodes;

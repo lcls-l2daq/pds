@@ -130,8 +130,9 @@ void    SegmentLevel::allocated(const Allocation& alloc,
   unsigned partition= alloc.partitionid();
 
   //  setup EVR server
-  //  Ins source(StreamPorts::event(partition, Level::Segment, _header.group(), _header.evr_module()));
-  Ins source(StreamPorts::event(partition, Level::Segment, _header.group(), 0));
+  //  Ins source(StreamPorts::event(partition, Level::Segment, _header.group(), 
+  //				_header.triggered() ? _header.evr_module() : alloc.masterid()));
+  Ins source(StreamPorts::event(partition, Level::Segment, _header.group(), alloc.masterid()));
   Node evrNode(Level::Source,header().platform());
   evrNode.fixup(source.address(),Ether());
   DetInfo evrInfo(evrNode.pid(),DetInfo::NoDetector,0,DetInfo::Evr,0);
@@ -145,8 +146,8 @@ void    SegmentLevel::allocated(const Allocation& alloc,
   _evr = esrv;
 
   // setup event servers
-  unsigned nnodes   = alloc.nnodes();
   unsigned vectorid = 0;
+  unsigned nnodes   = alloc.nnodes();
   for (unsigned n=0; n<nnodes; n++) {
     const Node& node = *alloc.node(n);
     if (node.level()==Level::Event) {

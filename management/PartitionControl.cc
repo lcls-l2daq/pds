@@ -37,6 +37,21 @@
 #define USE_L1A
 //#define DBUG
 
+#define SET_XTC(pxtc,ixtc,itype,ctype) {				\
+    if (pxtc)								\
+      delete[] reinterpret_cast<char*>(pxtc);				\
+    if (ixtc) {								\
+      unsigned sz = ixtc->_sizeof();					\
+      pxtc =								\
+	new (new char[sizeof(Xtc)+sz]) Xtc(itype,_header.procInfo());	\
+      new (pxtc->alloc(sz)) ctype(*ixtc);				\
+      delete[] reinterpret_cast<const char*>(ixtc);			\
+    }									\
+    else								\
+      pxtc = 0;								\
+  }
+
+
 static const unsigned MaxPayload = 0x1800;
 static timespec disable_tmo;
 
@@ -193,8 +208,8 @@ namespace Pds {
               payload_size += _control._partition_xtc->extent;
             if (_control._ioconfig_xtc)              // EVR IO configuration
               payload_size += _control._ioconfig_xtc->extent;
-            if (_control.count_src_alias())          // Alias configuration
-              payload_size += sizeof(AliasConfigType)+_control.count_src_alias()*sizeof(SrcAlias)+sizeof(Xtc);
+            if (_control._alias_xtc)                // Alias configuration
+              payload_size += _control._alias_xtc   ->extent;
 
 	    if (payload_size+sizeof(Xtc) > MaxPayload) {
               printf("PartitionControl transition payload size (0x%x) exceeds maximum.  Aborting.\n",payload_size);
@@ -220,31 +235,25 @@ namespace Pds {
                 memcpy(cxtc->alloc(xtc->sizeofPayload()),_control._transition_payload[i->id()],xtc->sizeofPayload());
                 top->extent += cxtc->extent; 
               }
+
+#define ADD_XTC(xtc)							\
+	      if (xtc) {						\
+                Xtc* cxtc = new(reinterpret_cast<char*>(top->next())) Xtc(*xtc); \
+                memcpy(cxtc->alloc(xtc->sizeofPayload()),		\
+                       xtc->payload(),					\
+                       xtc->sizeofPayload());				\
+                top->extent += cxtc->extent;				\
+              }								\
+
               //  Attach the partition configuration
-              if (_control._partition_xtc) {
-                Xtc* cxtc = new(reinterpret_cast<char*>(top->next())) Xtc(*_control._partition_xtc);
-                memcpy(cxtc->alloc(_control._partition_xtc->sizeofPayload()),
-                       _control._partition_xtc->payload(), 
-                       _control._partition_xtc->sizeofPayload());
-                top->extent += cxtc->extent;
-              }
+	      ADD_XTC(_control._partition_xtc);
               //  Attach the EVR IO configuration
-              if (_control._ioconfig_xtc) {
-                Xtc* cxtc = new(reinterpret_cast<char*>(top->next())) Xtc(*_control._ioconfig_xtc);
-                memcpy(cxtc->alloc(_control._ioconfig_xtc->sizeofPayload()),
-                       _control._ioconfig_xtc->payload(), 
-                       _control._ioconfig_xtc->sizeofPayload());
-                top->extent += cxtc->extent;
-              }
-              //  Attach the alias configuration header and payload              //  Attach the alias configuration header and payload
-              if (_control.count_src_alias()) { 
-                Xtc* alias = new(reinterpret_cast<char*>(top->next())) Xtc(_aliasConfigType,xtc->src);
-                *reinterpret_cast<uint32_t*>(alias->alloc(sizeof(uint32_t))) = _control.count_src_alias();
-                for(std::list<SrcAlias>::const_iterator it=_control._src_aliases.begin(); it!=_control._src_aliases.end(); it++)
-                  new(alias->alloc(sizeof(SrcAlias))) SrcAlias(*it);
-                top->extent += alias->extent; 
-              }
+	      ADD_XTC(_control._ioconfig_xtc);
+              //  Attach the alias configuration header and payload
+              ADD_XTC(_control._alias_xtc);
             }
+
+#undef ADD_XTC
 	  }
 
 	  else if (xtc) { 
@@ -375,26 +384,6 @@ PartitionControl::~PartitionControl()
   _reportTask  ->destroy();
 }
 
-void PartitionControl::add_src_alias(const SrcAlias& alias)
-{
-// _src_aliases.insert(alias);
-  _src_aliases.push_back(alias);
-  _src_aliases.sort();
-  _src_aliases.unique();
-}
-
-const char *PartitionControl::lookup_src_alias(const Src& src) const
-{
-  std::list<SrcAlias>::const_iterator it;
-  for (it = _src_aliases.begin(); it != _src_aliases.end(); it++) {
-    if (it->src() == src) {
-      return (it->aliasName());
-    }
-  }
-  // no match found
-  return ((char *)NULL);
-}
-
 void PartitionControl::platform_rollcall(PlatformCallback* cb)
 {
   if ((_platform_cb = cb)) {
@@ -411,12 +400,14 @@ bool PartitionControl::set_partition(const char* name,
                                      const char* l3path,
                                      const Node* nodes,
                                      unsigned    nnodes,
+				     unsigned    masterid,
                                      uint64_t    bldmask,
                                      uint64_t    bldmask_mon,
                                      unsigned    options,
 				     float       l3_unbias,
                                      const PartitionConfigType* cfg,
-                                     const EvrIOConfigType*     iocfg)
+                                     const EvrIOConfigType*     iocfg,
+				     const AliasConfigType*     alias)
 {
   if (options&Allocation::ShortDisableTmo) {
     disable_tmo.tv_sec =0;
@@ -427,69 +418,29 @@ bool PartitionControl::set_partition(const char* name,
     disable_tmo.tv_nsec=300000000;
   }
 
-  _partition = Allocation(name,dbpath,l3path,partitionid(),bldmask,bldmask_mon,options,l3_unbias);
+  _partition = Allocation(name,dbpath,l3path,
+			  partitionid(),masterid,
+			  bldmask,bldmask_mon,options,l3_unbias);
   for(unsigned k=0; k<nnodes; k++)
     _partition.add(nodes[k]);
 
-  if (_partition_xtc) 
-    delete[] reinterpret_cast<char*>(_partition_xtc);
-
-  if (cfg) {
-    unsigned sz = cfg->_sizeof();
-    _partition_xtc = 
-      new (new char[sizeof(Xtc)+sz]) Xtc(_partitionConfigType,header().procInfo());
-    new (_partition_xtc->alloc(sz)) PartitionConfigType(*cfg);
-  }
-  else
-    _partition_xtc = 0;
-
-  if (_ioconfig_xtc) 
-    delete[] reinterpret_cast<char*>(_ioconfig_xtc);
-
-  if (iocfg) {
-    unsigned sz = iocfg->_sizeof();
-    _ioconfig_xtc = 
-      new (new char[sizeof(Xtc)+sz]) Xtc(_evrIOConfigType,
-					 DetInfo(_partition.master()->pid(),
-						 DetInfo::NoDetector,0,
-						 DetInfo::Evr,0));
-    new (_ioconfig_xtc->alloc(sz)) EvrIOConfigType(*iocfg);
-  }
-  else
-    _ioconfig_xtc = 0;
+  SET_XTC(_partition_xtc,   cfg, _partitionConfigType, PartitionConfigType);
+  SET_XTC( _ioconfig_xtc, iocfg,     _evrIOConfigType,     EvrIOConfigType);
+  SET_XTC(    _alias_xtc, alias,     _aliasConfigType,     AliasConfigType);
 
   return true;
 }
 
 bool PartitionControl::set_partition(const Allocation& alloc,
                                      const PartitionConfigType* cfg,
-				     const EvrIOConfigType*     iocfg)
+				     const EvrIOConfigType*     iocfg,
+				     const AliasConfigType*     alias)
 {
   _partition = alloc;
 
-  if (_partition_xtc) 
-    delete[] reinterpret_cast<char*>(_partition_xtc);
-
-  if (cfg) {
-    unsigned sz = cfg->_sizeof();
-    _partition_xtc = 
-      new (new char[sizeof(Xtc)+sz]) Xtc(_partitionConfigType,header().procInfo());
-    new (_partition_xtc->alloc(sz)) PartitionConfigType(*cfg);
-  }
-  else
-    _partition_xtc = 0;
-
-  if (_ioconfig_xtc) 
-    delete[] reinterpret_cast<char*>(_ioconfig_xtc);
-
-  if (cfg) {
-    unsigned sz = iocfg->_sizeof();
-    _ioconfig_xtc = 
-      new (new char[sizeof(Xtc)+sz]) Xtc(_evrIOConfigType,header().procInfo());
-    new (_ioconfig_xtc->alloc(sz)) EvrIOConfigType(*iocfg);
-  }
-  else
-    _ioconfig_xtc = 0;
+  SET_XTC(_partition_xtc,   cfg, _partitionConfigType, PartitionConfigType);
+  SET_XTC( _ioconfig_xtc, iocfg,     _evrIOConfigType,     EvrIOConfigType);
+  SET_XTC(    _alias_xtc, alias,     _aliasConfigType,     AliasConfigType);
 
   return true;
 }

@@ -23,6 +23,8 @@
 #include "pds/service/TaskObject.hh"
 #include "pds/utility/Occurrence.hh"
 #include "pds/utility/OccurrenceId.hh"
+#include "pds/utility/Mtu.hh"
+#include "pds/utility/ToNetEb.hh"
 #include "pds/xtc/CDatagram.hh"
 
 #include "pds/service/Client.hh"
@@ -122,13 +124,16 @@ namespace Pds {
 				  _srv     (srv),
 				  _done    (done),
 				  _count   (0),
-				  _fiducial(0) {}
+				  _fiducial(0),
+				  _swtrig_out(0) {}
     ~SimEvr() {}
   public:
     void     allocate (const Allocation& alloc) 
     {
       if (_outlet) delete _outlet;
       _outlet = 0;
+      if (_swtrig_out) delete _swtrig_out;
+      _swtrig_out = 0;
       _ldst.clear();
 
       //
@@ -147,7 +152,9 @@ namespace Pds {
 	      printf("Found slave EVR\n");
 
 	    unsigned partition = alloc.partitionid();
-	    _outlet  = new Client(sizeof(EvrDatagram), 0, Ins(Route::interface()));
+	    _outlet     = new Client(sizeof(EvrDatagram), 0, Ins(Route::interface()));
+	    _swtrig_out = new ToNetEb(Route::interface(), Mtu::Size, 16);
+	    _swtrig_dst = StreamPorts::event(partition,Level::Observer);
 	    for(unsigned i=0; i<2; i++) {
 	      _ldst.push_back(StreamPorts::event(partition,Level::Segment,i,
 						 static_cast<const DetInfo&>(_srv.client()).devId()));
@@ -191,7 +198,7 @@ namespace Pds {
       datagram.evr = _count;
       for(unsigned i=0; i<_ldst.size(); i++)
 	_outlet->send((char *) &datagram, (char*)NULL, 0, _ldst[i]);
-
+	
       _count++;
       _fiducial++;
       _fiducial %= TimeStamp::MaxFiducials;
@@ -204,6 +211,11 @@ namespace Pds {
       }
     }
     bool master() const { return _lmaster; }
+    void forward(InDatagram* dg) 
+    { 
+      if (_lmaster)
+	dg->send(*_swtrig_out,_swtrig_dst);
+    }
   private:
     SimEvrTimer    _timer;
     bool           _lmaster;
@@ -215,6 +227,8 @@ namespace Pds {
     unsigned       _fiducial;
     double         _duration;
     unsigned       _evt_stop;
+    ToNetEb*       _swtrig_out;
+    Ins            _swtrig_dst;
   };
 
   class EvrSimEnableAction:public Action
@@ -277,7 +291,11 @@ namespace Pds {
     EvrSimL1Action(SimEvr& er) : _er(er) {}
   public:
     Transition* fire(Transition* tr) { _er.disable(); return tr; }
-    InDatagram* fire(InDatagram* dg) { dg->datagram().xtc.extent = sizeof(Xtc); return dg; }
+    InDatagram* fire(InDatagram* dg) { 
+      dg->datagram().xtc.extent = sizeof(Xtc); 
+      _er.forward(dg);
+      return dg; 
+    }
   private:
     SimEvr& _er;
   };

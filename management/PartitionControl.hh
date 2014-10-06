@@ -3,8 +3,9 @@
 
 #include "pds/management/ControlLevel.hh"
 #include "pds/utility/ControlEb.hh"
-#include "pds/config/PartitionConfigType.hh"
+#include "pds/config/AliasConfigType.hh"
 #include "pds/config/EvrIOConfigType.hh"
+#include "pds/config/PartitionConfigType.hh"
 #include "pdsdata/xtc/TransitionId.hh"
 #include "pdsdata/xtc/Xtc.hh"
 #include "pdsdata/psddl/alias.ddl.h"
@@ -44,15 +45,18 @@ namespace Pds {
 			    const char* l3_path,
                             const Node* nodes,
                             unsigned    nnodes,
+			    unsigned    masterid,
                             uint64_t    bld_mask,
 			    uint64_t    bld_mask_mon,
                             unsigned    options =0,
 			    float       l3_unbias=0.,
                             const       PartitionConfigType* =0,
-                            const       EvrIOConfigType* iocfg=0);
+                            const       EvrIOConfigType* iocfg=0,
+			    const       AliasConfigType* alias=0);
     bool  set_partition    (const Allocation&,
                             const       PartitionConfigType* =0,
-                            const       EvrIOConfigType* iocfg=0);
+                            const       EvrIOConfigType* iocfg=0,
+			    const       AliasConfigType* alias=0);
     const Allocation& partition() const;
   public:
     virtual void  set_target_state (State);
@@ -77,9 +81,6 @@ namespace Pds {
     void  set_experiment   (unsigned experiment);
     void  set_sequencer    (Sequencer* seq);
     void  use_run_info(bool);
-    void  add_src_alias(const SrcAlias& alias);
-    const char *lookup_src_alias(const Src& src) const;
-    unsigned count_src_alias() { return _src_aliases.size(); }
   public: // Implements ControlLevel
     void  message          (const Node& hdr,
           const Message& msg);
@@ -105,7 +106,7 @@ namespace Pds {
     void*      _transition_payload[TransitionId::NumberOf];
     Xtc*       _partition_xtc;
     Xtc*       _ioconfig_xtc;
-    //    Xtc*       _alias_xtc;
+    Xtc*       _alias_xtc;
     ControlCallback*  _control_cb;
     PlatformCallback* _platform_cb;
     RunAllocator*     _runAllocator;
@@ -123,9 +124,6 @@ namespace Pds {
 
     pthread_mutex_t _target_mutex;
     pthread_cond_t  _target_cond;
-
-  public:
-    std::list<SrcAlias> _src_aliases;
   };
 
 };

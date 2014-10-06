@@ -102,10 +102,12 @@ Allocation::Allocation() :
 Allocation::Allocation(const char* partition,
                        const char* dbpath,
                        unsigned    partitionid,
+                       unsigned    masterid,
                        uint64_t    bld_mask,
                        uint64_t    bld_mask_mon,
                        unsigned    options) :
   _partitionid(partitionid),
+  _masterid   (masterid),
   _nnodes     (0),
   _options    (options),
   _unbiased_f (0)
@@ -123,11 +125,13 @@ Allocation::Allocation(const char* partition,
                        const char* dbpath,
                        const char* l3path,
                        unsigned    partitionid,
+                       unsigned    masterid,
                        uint64_t    bld_mask,
                        uint64_t    bld_mask_mon,
                        unsigned    options,
 		       float unbiased_fraction) : 
   _partitionid(partitionid),
+  _masterid   (masterid),
   _nnodes     (0),
   _options    (options),
   _unbiased_f (unbiased_fraction)
@@ -162,6 +166,8 @@ bool Allocation::remove(const ProcInfo& info)
 }
 
 unsigned Allocation::partitionid() const { return _partitionid; }
+
+unsigned Allocation::masterid() const { return _masterid; }
 
 unsigned Allocation::nnodes() const {return _nnodes;}
 
