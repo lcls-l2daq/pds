@@ -163,7 +163,7 @@ int PvConfigFile::_addPv(const string & sPvLine, string & sPvDescription,
     sprintf(strMessage, "Duplicated PV name %s", sPvName.c_str());
     printf("%s: %s\n", __FUNCTION__, strMessage);
     sConfigFileWarning = strMessage;
-    return 1;
+    return 0;
   }
 
   if ( _setPvDescription.find(sPvName) != _setPvDescription.end() )
