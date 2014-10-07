@@ -86,6 +86,12 @@ MasterFIFOHandler::MasterFIFOHandler(Evr&       er,
   for (int iGroup=0; iGroup <= _iMaxGroup; ++iGroup)
     _ldst.push_back(StreamPorts::event(partition,Level::Segment, iGroup));
 
+  { timespec tmres;
+    clock_getres (CLOCK_REALTIME, &tmres);
+    printf("CLOCK_REALTIME resolution %u.%09u\n",
+           (unsigned)tmres.tv_sec, (unsigned)tmres.tv_nsec);
+  }
+
   timespec tv;
   clock_gettime(CLOCK_REALTIME, &tv);
   srand(tv.tv_nsec);
@@ -310,17 +316,19 @@ void MasterFIFOHandler::startL1Accept(const FIFOEvent& fe, bool bEvrDataIncomple
   static unsigned   vectorPrev    = 0;
   static unsigned   evtCountPrev  = 0;
   static FIFOEvent  fePrev        = {0,0,0};
+  static unsigned   ntsPrints = 10;
   timespec          ts;
   clock_gettime(CLOCK_REALTIME, &ts);
 
-  if(ts.tv_nsec == tsPrev.tv_nsec && ts.tv_sec == tsPrev.tv_sec && fe.TimestampHigh != fePrev.TimestampHigh)
+  if(ts.tv_nsec == tsPrev.tv_nsec && ts.tv_sec == tsPrev.tv_sec && fe.TimestampHigh != fePrev.TimestampHigh && ntsPrints!=0) {
     printf("!!! Clocktime duplicated:\n"
       "  Prev clock %09ld.%09ld  evr 0x%x vector 0x%x  high/low 0x%x/0x%x event %d\n"
       "  Cur  clock %09ld.%09ld  evr 0x%x vector 0x%x  high/low 0x%x/0x%x event %d\n",
       (long) tsPrev.tv_sec, (long) tsPrev.tv_nsec, evtCountPrev, vectorPrev, fePrev.TimestampHigh, fePrev.TimestampLow, fePrev.EventCode,
       (long) ts.tv_sec, (long) ts.tv_nsec, _evtCounter, vector, fe.TimestampHigh, fe.TimestampLow, fe.EventCode
     );
-
+    ntsPrints--;
+  }
   tsPrev      = ts;
   vectorPrev  = vector;
   evtCountPrev  = _evtCounter;
