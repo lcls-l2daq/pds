@@ -32,18 +32,20 @@ EvrIOConfigType* EvrIOFactory::config(const AliasFactory& aliases)
     string name;
     unsigned ninfo = it->second.size();
     for(unsigned i=0; i<ninfo; i++) {
-      const char* p;
-      if ((p=aliases.lookup(it->second[i])) &&
-	  name.size()+strlen(p)<EvrIOChannelType::NameLength) {
+      const char* p=aliases.lookup(it->second[i]);
+      if (!p) p=DetInfo::name(it->second[i]);
+      if (name.size()+strlen(p)+1<EvrIOChannelType::NameLength) {
 	if (name.size()) name += string(",");
 	name += string(p);
       }
     }
-    name.resize(EvrIOChannelType::NameLength);
+    name.resize      (EvrIOChannelType::NameLength);
+    vector<DetInfo> infos = it->second;
+    infos.resize(EvrIOChannelType::MaxInfos  ,infos[0]);
     ch.push_back(EvrIOChannelType(reinterpret_cast<const OutputMapV2&>(it->first),
 				  name.c_str(),
 				  ninfo,
-				  it->second.data()));
+				  infos.data()));
   }
 
   EvrIOConfigType t(ch.size());
