@@ -41,7 +41,9 @@ namespace Pds {
       ReadAcqCounter                    = 0x5,
       PowerEnableAddr                   = 0x8,
       PowerEnableValue                  = 0x7,
+      RowCounterAdder                   = 0x6011,
       ColCounterAddr                    = 0x6013,
+      PixelDataAddr                     = 0x5000,
       WriteColDataAddr                  = 0x3000,
       PrepareMultiConfigAddr            = 0x8000,
       MultiplePixelWriteCommandAddr     = 0x080000,
@@ -50,8 +52,8 @@ namespace Pds {
       BanksPerAsic                      = 4,
       SaciClkBitAddr                    = 0x28,
       SaciClkBitValue                   = 0x4,
-      BitForTopCalibRow                 = 0x10000,
-      BitForBottomCalibRow              = 0x20000,
+      TopCalibRow                       = 0x10000, //0x00010000
+      BottomCalibRow                    = 0x30000,
       EnableAutomaticRunTriggerAddr     = 0x11,  // add to config
       NumberClockTicksPerRunTriggerAddr = 0x12,
       NumberClockTicksPerRunTrigger     = 0xFE503, // 120 Hz  add to config

@@ -199,6 +199,8 @@ unsigned Epix100aConfigurator::configure( Epix100aConfigType* c, unsigned first)
   printf("Epix100aConfigurator::configure %sreseting front end\n", first ? "" : "not ");
   if (first) {
     resetFrontEnd();
+    printf("\tSleeping seven seconds\n");
+    sleep(7);
   }
   if (_flush()) {
     printf("Epix100aConfigurator::configure determined that we lost contact with the front end, exiting!\n");
@@ -411,7 +413,9 @@ class block {
     block() : _row(0), _col(0){};
     ~block() {};
     void row( uint32_t r ) {_row = r; }
+    uint32_t row() { return _row; }
     void col( uint32_t c ) {_col = c; }
+    uint32_t col() { return _col; }
     uint32_t* b() { return _b; }
   private:
     uint32_t  _row;
@@ -432,6 +436,12 @@ class block {
 //    5) (optional) SaciClkBit needs to be set to 3 to do individual pixel writes, so
 //          you could set it back to 3 here, or incorporate that as part of the single
 //          pixel write procedure
+//
+//Bit 16 of the row data to flag the write as targeting a calibration row.
+//Bit 17 of the row data would indicate whether the row is on top (0) or bottom (1).
+//So row on top you would do the same as the existing block write for 4x pixels, but with row: 0x00010000
+//And row on bottom would do the same as the existing block write for 4x pixels, but with row: 0x00030000
+
 unsigned Epix100aConfigurator::writePixelBits() {
   enum { writeAhead = 68 };
   unsigned ret = Success;
@@ -535,10 +545,44 @@ unsigned Epix100aConfigurator::writePixelBits() {
       }
     }
   }
+  printf("Epix100aConfigurator::writePixelBits write count %u\n", writeCount);
+  // NB we are dividing the calibration rows by two because
+  //  there is one pixel configuration row per each pair of calibration rows.
+  for (unsigned row=0; row<(_config->numberOfCalibrationRows()/2); row++) {
+    blk.row(row ? BottomCalibRow : TopCalibRow);
+    printf("Epix100aConfigurator::writePixelBits calibration row 0x%x\n", blk.row());
+    for (unsigned col=0; col<((1+BanksPerAsic)*PixelsPerBank); col++) {
+      if (col == PixelsPerBank) col = halfRow; // do this for the first bank in each asic
+      blk.col(col);
+//      printf("\tpixel %u calib %u\n", pixel&3, _config->calibPixelConfigArray()[row][col] & 3);
+//      if ( pixel&3 != (_config->calibPixelConfigArray()[row][col]&3)) {
+        unsigned half = col < halfRow ? 0 : halfRow;
+        for (unsigned i=0; i<BanksPerAsic; i++) {
+          unsigned thisCol = half + (i * PixelsPerBank) + (col % PixelsPerBank);
+          blk.b()[i] = _config->calibPixelConfigArray()[row][thisCol] & 3;
+        }
+        if (mySynch.take() == false) {
+          printf("Epix100aConfigurator::writePixelBits synchronization failed on write of calib row %u\n", row);
+          ret |= Failure;
+        }
+        if (_pgp->writeRegisterBlock(
+            &_d,
+            MultiplePixelWriteCommandAddr,
+            (unsigned*)&blk,
+            sizeof(block)/sizeof(uint32_t),
+            Pds::Pgp::PgpRSBits::Waiting,
+            (_debug&1)?true:false))
+        {
+          printf("Epix100aConfigurator::writePixelBits failed on calib row %u, col %u\n", row, col);
+          ret |= Failure;
+        }
+//      }
+    }
+  }
   if (mySynch.clear() == false) {
     printf("Epix100aConfigurator::writePixelBits synchronization failed to clear\n");
   }
-  printf("Epix100aConfigurator::writePixelBits write count %u\n SynchBufferDepth:\n", writeCount);
+  printf(" SynchBufferDepth:\n");
   for (unsigned i=0; i<writeAhead; i++) {
     if (synchDepthHisto[i] > 1) {
       printf("\t%3u - %5u\n", i, synchDepthHisto[i]);
