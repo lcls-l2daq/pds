@@ -368,6 +368,7 @@ PartitionControl::PartitionControl(unsigned platform,
   memset(_transition_xtc,0,TransitionId::NumberOf*sizeof(Xtc*));
   _partition_xtc = 0;
   _ioconfig_xtc  = 0;
+  _alias_xtc     = 0;
 
   pthread_mutex_init(&_target_mutex, NULL);
   pthread_cond_init (&_target_cond , NULL);
@@ -379,6 +380,8 @@ PartitionControl::~PartitionControl()
     delete[] reinterpret_cast<char*>(_partition_xtc);
   if (_ioconfig_xtc)
     delete[] reinterpret_cast<char*>(_ioconfig_xtc);
+  if (_alias_xtc)
+    delete[] reinterpret_cast<char*>(_alias_xtc);
 
   _sequenceTask->destroy();
   _reportTask  ->destroy();
