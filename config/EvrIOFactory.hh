@@ -2,10 +2,11 @@
 #define Pds_EvrIOFactory_hh
 
 #include "pds/config/EvrIOConfigType.hh"
+#include "pds/config/PartitionConfigType.hh"
 #include "pdsdata/xtc/DetInfo.hh"
 
 #include <map>
-#include <vector>
+#include <list>
 
 namespace Pds {
   class AliasFactory;
@@ -15,9 +16,10 @@ namespace Pds {
     ~EvrIOFactory();
   public:
     void insert(unsigned mod_id, unsigned chan, const DetInfo& info);
-    EvrIOConfigType* config(const AliasFactory& aliases);
+    EvrIOConfigType* config(const AliasFactory& aliases,
+			    const PartitionConfigType* =0) const;
   private:
-    typedef std::map< unsigned,std::vector<DetInfo> > MapType;
+    typedef std::map< unsigned,std::list<DetInfo> > MapType;
     MapType _map;
   };
 };

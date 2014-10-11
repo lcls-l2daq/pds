@@ -12,8 +12,6 @@
 
 #define DBUG
 
-//#define RECONNECT
-
 using namespace Pds;
 
 #ifdef DBUG
@@ -25,17 +23,25 @@ static inline double time_diff(struct timespec& b,
 }
 #endif
 
+static void clear_map(std::map<unsigned,CfgClientNfs::CacheEntry>& m)
+{
+  for(std::map<unsigned,CfgClientNfs::CacheEntry>::iterator it=m.begin();
+      it!=m.end(); it++)
+    if (it->second.size > 0) delete[] it->second.p;
+  m.clear();
+}
+
 CfgClientNfs::CfgClientNfs( const Src& src ) :
   _src( src ),
-  _db ( 0 )
+  _db ( 0 ),
+  _key( 0 )
 {
 }
 
 CfgClientNfs::~CfgClientNfs()
 {
-#ifndef RECONNECT
   if (_db) delete _db;
-#endif
+  clear_map(_cache);
 }
 
 const Src& CfgClientNfs::src() const
@@ -43,13 +49,18 @@ const Src& CfgClientNfs::src() const
 
 void CfgClientNfs::initialize(const Allocation& alloc)
 {
-#ifndef RECONNECT  
-  if (_db) delete _db;
+  std::string path(alloc.dbpath());
+  if (_path != path) {
+    clear_map(_cache);
+    _path = path;
+    _key  = 0;
 
-  _db = Pds_ConfigDb::XtcClient::open(alloc.dbpath());
-#else
-  _path = std::string(alloc.dbpath());
-#endif
+    //
+    //  Maybe opening new connections is slow
+    //
+    if (_db) delete _db;
+    _db = Pds_ConfigDb::XtcClient::open(alloc.dbpath());
+  }
 }
 
 int CfgClientNfs::fetch(const Transition& tr, 
@@ -57,16 +68,7 @@ int CfgClientNfs::fetch(const Transition& tr,
 			void*             dst,
 			unsigned          maxSize)
 {
-#ifdef DBUG
-  struct timespec tv_b;
-  clock_gettime(CLOCK_REALTIME,&tv_b);
-#endif
-
-#ifndef RECONNECT
   Pds_ConfigDb::XtcClient* db = _db;
-#else
-  Pds_ConfigDb::XtcClient* db = Pds_ConfigDb::XtcClient::open(_path.c_str());
-#endif
 
   if (!db) {
 #ifdef DBUG
@@ -75,20 +77,41 @@ int CfgClientNfs::fetch(const Transition& tr,
     return 0;   // ERROR
   }
 
-  int result = db->getXTC(tr.env().value(),
-                          _src,
-                          id,
-                          dst,
-                          maxSize);
+  //
+  //  New key is not a guarantee that data has changed.
+  //  Could consider caching "name" of data returned to
+  //  supply back to XtcClient as shortcut.
+  //
+  if (_key != tr.env().value())
+    clear_map(_cache);
 
-#ifdef RECONNECT
-  delete db;
-#endif
+  _key = tr.env().value();
 
+  CacheEntry& c = _cache[id.value()];
+  if (c.size > 0)
+    memcpy(dst,c.p,c.size);
+  else {
 #ifdef DBUG
-  struct timespec tv_e;
-  clock_gettime(CLOCK_REALTIME,&tv_e);
-  printf("CfgClientNfs::fetch() %f s\n", time_diff(tv_b,tv_e));
+    struct timespec tv_b;
+    clock_gettime(CLOCK_REALTIME,&tv_b);
 #endif
-  return result;
+
+    int result = db->getXTC(tr.env().value(),
+			    _src,
+			    id,
+			    dst,
+			    maxSize);
+#ifdef DBUG
+    struct timespec tv_e;
+    clock_gettime(CLOCK_REALTIME,&tv_e);
+    printf("CfgClientNfs::fetch() %f s\n", time_diff(tv_b,tv_e));
+#endif
+
+    if (result > 0) {
+      c.p = new char[result];
+      memcpy(c.p, dst, result);
+    }
+    c.size = result;
+  }
+  return c.size;
 }

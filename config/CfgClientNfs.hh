@@ -4,6 +4,7 @@
 #include "pdsdata/xtc/Src.hh"
 
 #include <string>
+#include <map>
 
 namespace Pds_ConfigDb { class XtcClient; };
 
@@ -30,7 +31,17 @@ namespace Pds {
   private:
     Src _src;
     Pds_ConfigDb::XtcClient* _db;
-    std::string _path;
+    std::string              _path;
+    unsigned                 _key;
+  public:
+    class CacheEntry {
+    public:
+      CacheEntry() : size(0), p(0) {}
+      int   size;
+      char* p;
+    };
+  private:
+    std::map<unsigned,CacheEntry> _cache;
   };
 
 };

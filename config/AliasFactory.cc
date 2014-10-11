@@ -25,15 +25,25 @@ const char* AliasFactory::lookup(const Src& src) const
   return ((char *)NULL);
 }
 
-AliasConfigType* AliasFactory::config() const
+AliasConfigType* AliasFactory::config(const PartitionConfigType* partn) const
 {
-  unsigned sz = sizeof(AliasConfigType)+_list.size()*sizeof(Alias::SrcAlias);
-  char* p = new char[sz];
-  AliasConfigType* r = reinterpret_cast<AliasConfigType*>(p);
-  new (p) uint32_t(_list.size()); p += sizeof(uint32_t);
-  for(std::list<Alias::SrcAlias>::const_iterator it=_list.begin(); it!=_list.end(); it++) {
-    new (p) Alias::SrcAlias(*it);
-    p += sizeof(Alias::SrcAlias);
+  std::vector<Alias::SrcAlias> sources;
+  for(std::list<Alias::SrcAlias>::const_iterator it=_list.begin();
+      it!=_list.end(); it++) {
+    bool lskip=(partn!=0);
+    if (partn) {
+      ndarray<const Partition::Source,1> s(partn->sources());
+      for(unsigned i=0; i<s.size(); i++)
+	if (it->src()==s[i].src()) {
+	  lskip=false; 
+	  break;
+	}
+    }
+    if (!lskip)
+      sources.push_back(*it);
   }
-  return r;
+
+  unsigned sz = sizeof(AliasConfigType)+sources.size()*sizeof(Alias::SrcAlias);
+  char* p = new char[sz];
+  return new(p) AliasConfigType(sources.size(),sources.data());
 }
