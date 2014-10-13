@@ -40,7 +40,7 @@ EvrConfigManager::EvrConfigManager(Evr&          er,
   _end_config(0),
   _occPool   (new GenericPool(sizeof(UserMessage),1)),
   _app       (app),
-  _bTurnOffBeamCodes(_bTurnOffBeamCodes)
+  _bTurnOffBeamCodes(bTurnOffBeamCodes)
 {
 }
 
