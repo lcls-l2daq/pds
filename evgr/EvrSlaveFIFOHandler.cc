@@ -194,7 +194,7 @@ Transition* EvrSlaveFIFOHandler::enable      (Transition* tr)
 
   //!!!debug
   printf("\nEnable  Trigger ");
-  for (int i=0; i < _lSegEvtCounter.size(); ++i)
+  for (int i=0; i < (int) _lSegEvtCounter.size(); ++i)
     printf(" [%d] %d ", i, _lSegEvtCounter[i]);
   printf("\n");
   return tr;
@@ -225,7 +225,7 @@ void EvrSlaveFIFOHandler::release_sync()
   //!!!debug
   printf("\nRelease_sync after clear: slave r %d w %d  master r %d w %d\n", _rdptrSlave, _wrptrSlave, _rdptrMaster, _wrptrMaster);
   printf("  Trigger ");
-  for (int i=0; i < _lSegEvtCounter.size(); ++i)
+  for (int i=0; i < (int) _lSegEvtCounter.size(); ++i)
     printf(" [%d] %d ", i, _lSegEvtCounter[i]);
   printf("\n");
 
@@ -390,7 +390,7 @@ int EvrSlaveFIFOHandler::startL1Accept(bool bMasterEvent, unsigned prevWrt)
 
   bool        bEventMatched = false;
   Sequence    masterSeq;
-  unsigned    uMaskReadout;
+  unsigned    uMaskReadout    = 0;
   unsigned    prevrdptrSlave  = _rdptrSlave;
   unsigned    prevrdptrMaster = _rdptrMaster;
   if (bMasterEvent)
@@ -434,7 +434,7 @@ int EvrSlaveFIFOHandler::startL1Accept(bool bMasterEvent, unsigned prevWrt)
       printf("\nMatch from Slave,  rdslave %d (%d) -> %d [w %d]  rdmaster %d -> %d [w %d]:\n",
         prevrdptrSlave, prevWrt, _rdptrSlave, _wrptrSlave, prevrdptrMaster, _rdptrMaster, _wrptrMaster);
     printf("  Trigger ");
-    for (int i=0; i < _lSegEvtCounter.size(); ++i)
+    for (int i=0; i < (int) _lSegEvtCounter.size(); ++i)
       printf(" [%d] %d ", i, _lSegEvtCounter[i]);
     printf("\n");
 
