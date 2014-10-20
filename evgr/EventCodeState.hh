@@ -12,14 +12,13 @@ namespace Pds {
   public:
     void configure(const EventCodeType&);
     void configure(const EvrData::SrcEventCode&);
-    void update   (const FIFOEvent&);
   public:
     uint32_t  uMaskReadout;
     bool      bCommand;
     bool      bSpecial;
     bool      bRelease;
     int       iDefReportDelay;
-    int       iDefReportWidth;  
+    int       iDefReportWidth;
     int       iReportWidth;
     int       iReportDelayQ; // First-order  delay for Control-Transient events
     int       iReportDelay;  // Second-order delay for Control-Transient events; First-order delay for Control-Latch events

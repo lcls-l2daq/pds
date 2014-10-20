@@ -23,6 +23,7 @@ public:
   virtual void post(const Occurrence& tr) = 0;
   virtual void post(const InDatagram& dg) = 0;
   virtual void add_input   (Server*) = 0;
+  virtual void add_input_nonblocking(Server* srv) = 0;
   virtual void remove_input(Server*) = 0;
   virtual void trim_input  (Server*) = 0;
   virtual void add_output(const InletWireIns& iwi) = 0;

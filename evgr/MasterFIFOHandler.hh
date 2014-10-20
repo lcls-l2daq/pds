@@ -10,7 +10,7 @@
  * Signal handler, for processing the incoming event codes, and providing interfaces for
  *   retrieving L1 data from the L1Xmitter object
  * The Master EVR process is indicated by L1Xmitter::enable.  The master is responsible
- * for sending the EvrDatagram to the other segment levels, generating the sw triggers, 
+ * for sending the EvrDatagram to the other segment levels, generating the sw triggers,
  * adding the FIFO data to the L1Accept datagram, and counting events for calibration cycles.
  * All EVR processes configure the
  * EVRs to generate hardware triggers.  The slave EVR processes only need verify that
@@ -37,15 +37,16 @@ namespace Pds {
 
   class MasterFIFOHandler : public EvrFIFOHandler {
   public:
-    MasterFIFOHandler(Evr&, 
-		      const Src&, 
-		      Appliance&, 
-		      EvrFifoServer&,
-		      unsigned partition,
-		      int      iMaxGroup,
-		      unsigned neventnodes,
-		      bool     randomize,
-		      Task*    task);
+    MasterFIFOHandler(Evr&,
+          const Src&,
+          Appliance&,
+          EvrFifoServer&,
+          unsigned partition,
+          int      iMaxGroup,
+          unsigned module,
+          unsigned neventnodes,
+          bool     randomize,
+          Task*    task);
     virtual ~MasterFIFOHandler();
   public:
     ///  EvrFIFOHandler interface
@@ -55,7 +56,7 @@ namespace Pds {
     virtual Transition* enable      (Transition*);
     ///
     virtual Transition* config      (Transition*); // config action
-    ///  
+    ///
     virtual Transition* endcalib    (Transition*);
     ///  Configure FIFO event handling
     virtual void        set_config  (const EvrConfigType*);
@@ -73,6 +74,7 @@ namespace Pds {
   protected:
     ///  EVR hardware access
     Evr &                 _er;
+    unsigned              _module;
     ///  Appliance for posting occurrences/transitions to the stream (async)
     Appliance&            _app;
   private:
@@ -85,6 +87,7 @@ namespace Pds {
     Client                _outlet;
   private:
     ///  Network destination for each readout group
+    Ins                   _dst0;
     std::vector<Ins>      _ldst;
     ///  Outdated software trigger service
     ToNetEb               _swtrig_out;
@@ -108,7 +111,7 @@ namespace Pds {
     ///  Track latest fiducial for incomplete event stream
     unsigned              _lastFiducial;
     /// Event rate tracking
-    timespec              _thisTime;  
+    timespec              _thisTime;
     timespec              _lastTime;
     /// Vector randomization
     enum { MAX_NODES=32 };

@@ -1,16 +1,20 @@
 #ifndef Pds_EvrSlaveFIFOHandler_hh
 #define Pds_EvrSlaveFIFOHandler_hh
 
+#include "pds/evgr/EventCodeState.hh"
 #include "pds/evgr/EvrFIFOHandler.hh"
 #include "pds/evgr/EvrSync.hh"
 #include "pds/service/GenericPool.hh"
 #include "pds/service/Semaphore.hh"
+#include "pds/service/Client.hh"
 #include "pdsdata/xtc/TimeStamp.hh"
+#include "pdsdata/xtc/Sequence.hh"
+
 /*
  * Signal handler, for processing the incoming event codes, and providing interfaces for
  *   retrieving L1 data from the L1Xmitter object
  * The Slave EVR process is indicated by L1Xmitter::enable.  The master is responsible
- * for sending the EvrDatagram to the other segment levels, generating the sw triggers, 
+ * for sending the EvrDatagram to the other segment levels, generating the sw triggers,
  * adding the FIFO data to the L1Accept datagram, and counting events for calibration cycles.
  * All EVR processes configure the
  * EVRs to generate hardware triggers.  The slave EVR processes only need verify that
@@ -30,10 +34,11 @@ namespace Pds {
   class EvrSlaveFIFOHandler : public EvrFIFOHandler {
   public:
     enum { guNumTypeEventCode = 256 };
-    enum { TERMINATOR         = 1 };
+    enum { giMaxCommands      = 32  };
+    enum { TERMINATOR         = 1   };
   public:
-    EvrSlaveFIFOHandler(Evr&, Appliance&, EvrFifoServer&,
-                        unsigned, Task*, Task*);
+    EvrSlaveFIFOHandler(Evr& er, Appliance& app, EvrFifoServer& srv,
+                        unsigned partition, int iMaxGroup, unsigned module, Task* task, Task* sync_task);
     virtual ~EvrSlaveFIFOHandler();
   public:
     virtual void        fifo_event  (const FIFOEvent&);  // formerly 'xmit'
@@ -47,44 +52,53 @@ namespace Pds {
     virtual void        release_sync();
 
   private:
-    bool                  bEnabled;      // partition in Enabled state
-  private:
-    struct EventCodeState
-    {
-      bool bReadout;
-      bool bCommand;
-      int  iDefReportDelay;
-      int  iDefReportWidth;  
-      int  iReportWidth;
-      int  iReportDelayQ; // First-order  delay for Control-Transient events
-      int  iReportDelay;  // Second-order delay for Control-Transient events; First-order delay for Control-Latch events
-    };
   private:
     Evr &                 _er;
+    unsigned              _module;
     Appliance&            _app;
     EvrFifoServer&        _srv;
+    ///  Network output driver
+    Client                _outlet;
+    ///  Network destination for each readout group
+    std::vector<Ins>      _ldst;
+
     unsigned              _evtCounter;
-    bool                  _bReadout;
+    ///  Event number per readout group
+    std::vector<unsigned> _lSegEvtCounter;
+    unsigned              _uMaskReadout;
+    unsigned              _ncommands;
+    char                  _commands[giMaxCommands];
     const EvrConfigType*  _pEvrConfig;
     EventCodeState        _lEventCodeState[guNumTypeEventCode];
     unsigned              _lastFiducial;
     enum { QSize=32 };
-    unsigned              _rdptr;
-    unsigned              _wrptr;
-    TimeStamp             _ts[QSize];
+    unsigned              _rdptrSlave;
+    unsigned              _wrptrSlave;
+    struct SlaveEvent {
+      TimeStamp ts;
+      unsigned  uMaskReadout;
+    }                     _slaveQ[QSize];
+    unsigned              _rdptrMaster;
+    unsigned              _wrptrMaster;
+    Sequence              _masterQ[QSize];
 
     EvrSyncSlave          _sync;
     Transition*           _tr;
 
-    bool                  bShowFirst;
-
     GenericPool           _occPool;
     bool                  _outOfOrder;
+    bool                  _bEnabled;      // partition in Enabled state
+    bool                  _bShowFirst;    // used to show the first fifo event after enable
+    bool                  _bEventSkipped;
+    int                   _numMasterQFull;
+    int                   _numSlaveQFull;
 
   private:
-    void startL1Accept(const FIFOEvent& fe, bool bEvrDataIncomplete);
+    void startCommandAndQueueEvent(const FIFOEvent& fe, bool bEvrDataIncomplete);
+    int  startL1Accept            (bool bMasterEvent, unsigned prevWrt);
 
     void clear();
+    void slaveQAdvanceUntil(unsigned rdptrUntil);
   };
 };
 

@@ -102,7 +102,7 @@ EbBase::EbBase(const Src& id,
     _ack = new Client(sizeof(Datagram), PayloadSize,
        *dstack, Ins(ipaddress));
   }
-  printf("EbBase timeouts %d/%d\n", 
+  printf("EbBase timeouts %d/%d\n",
          _ebtimeouts.duration(),
          _ebtimeouts.timeouts(0));
 }
@@ -447,7 +447,7 @@ int EbBase::processTmo()
       if (!value.isZero())
   printf("EbBase::processTmo seq %x/%x  remaining %08x : %g [%d,%d]\n",
          datagram->seq.service(), datagram->seq.stamp().fiducials(),
-         event->remaining().value(), dts, 
+         event->remaining().value(), dts,
          _ebtimeouts.duration(), _ebtimeouts.timeouts(0));
       //#endif
       _postEvent(event);

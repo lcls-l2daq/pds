@@ -116,7 +116,8 @@ public:
         //!!debug
         //if (nSeqEvents != 0) printf("\n");
 
-        //if (_nfid%2      ==0) {_set_opcode(ram, 180, q+12944);}
+        _set_opcode(ram, 9, q+12900);
+        if (_nfid%2      ==0) {_set_opcode(ram,  10, q+12951);} // not in real MCC event code
         if (_nfid%3      ==0) {_set_opcode(ram,  40, q+12954);}
         if (_nfid%6      ==0) {_set_opcode(ram,  41, q+12964);}
         if (_nfid%12     ==0) {_set_opcode(ram,  42, q+12974);}

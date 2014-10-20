@@ -19,12 +19,12 @@ class OutletWire;
 class InletWireServer : public InletWire, public ServerManager {
 public:
   InletWireServer(Inlet& inlet,
-		  OutletWire& outlet,
-		  int ipaddress,
-		  int stream, 
-		  int taskpriority,
-		  const char* taskname,
-		  unsigned timeout = 0);
+      OutletWire& outlet,
+      int ipaddress,
+      int stream,
+      int taskpriority,
+      const char* taskname,
+      unsigned timeout = 0);
 
   // Implements InletWire thread safely (through unblock)
   void connect();
@@ -34,6 +34,7 @@ public:
   void post(const InDatagram&);
 
   void add_input   (Server*);
+  void add_input_nonblocking(Server* srv);
   void remove_input(Server*);
   void trim_input  (Server*);
   void flush_inputs();
@@ -56,7 +57,7 @@ public:
 private:
   // Implements the server in ServerManager
   virtual char* payload();
-  virtual int commit(char* datagram, char* load, int size, const Ins& src); 
+  virtual int commit(char* datagram, char* load, int size, const Ins& src);
   virtual int handleError(int value);
 
   // Implements ServerManager

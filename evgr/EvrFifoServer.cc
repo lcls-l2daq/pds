@@ -48,7 +48,7 @@ void EvrFifoServer::clear()
   EvrFifoServerMsg msg;
   int flags = ::fcntl(_fd[0],F_GETFL) | O_NONBLOCK;
   ::fcntl(_fd[0],F_SETFL,flags);
-  while(::read(_fd[0],&msg,sizeof(msg))>0) 
+  while(::read(_fd[0],&msg,sizeof(msg))>0)
     printf("EvrFifoServer::clear %p\n",&msg);
   flags ^= O_NONBLOCK;
   ::fcntl(_fd[0],F_SETFL,flags);

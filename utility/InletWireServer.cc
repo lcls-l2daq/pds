@@ -31,15 +31,15 @@ static const unsigned PayloadSize  = sizeof(Transition);
 static const unsigned MaxDatagrams = 64;
 
 InletWireServer::InletWireServer(Inlet& inlet,
-				 OutletWire& outlet,
-				 int ipaddress,
-				 int stream, 
-				 int taskpriority,
-				 const char* taskname,
-				 unsigned timeout) :
+         OutletWire& outlet,
+         int ipaddress,
+         int stream,
+         int taskpriority,
+         const char* taskname,
+         unsigned timeout) :
   InletWire(taskpriority, taskname),
-  ServerManager(Ins(ipaddress), DatagramSize, PayloadSize, 
-		timeout, MaxDatagrams),
+  ServerManager(Ins(ipaddress), DatagramSize, PayloadSize,
+    timeout, MaxDatagrams),
   _inlet(inlet),
   _outlet(outlet),
   _ipaddress(ipaddress),
@@ -50,17 +50,17 @@ InletWireServer::InletWireServer(Inlet& inlet,
   if (!timeout) donottimeout();
 }
 
-InletWireServer::~InletWireServer() 
+InletWireServer::~InletWireServer()
 {
   delete [] _payload;
 }
 
-void InletWireServer::connect() 
+void InletWireServer::connect()
 {
   _driver.run(task());
 }
 
-void InletWireServer::disconnect() 
+void InletWireServer::disconnect()
 {
   unblock((char*)this, 0, 0);
   _sem.take();
@@ -72,13 +72,23 @@ void InletWireServer::add_input(Server* srv)
   _sem.take();
 }
 
+void InletWireServer::add_input_nonblocking(Server* srv)
+{
+  if (task().is_self()) {
+    _add_input(srv);
+  } else {
+    unblock((char*)&AddInput, (char*)&srv, sizeof(srv));
+    _sem.take();
+  }
+}
+
 void InletWireServer::remove_input(Server* srv)
 {
   unblock((char*)&RemoveInput, (char*)&srv, sizeof(srv));
   _sem.take();
 }
 
-void InletWireServer::add_output(const InletWireIns& iwi) 
+void InletWireServer::add_output(const InletWireIns& iwi)
 {
   unblock((char*)&AddOutput, (char*)&iwi, sizeof(iwi));
   _sem.take();
@@ -148,15 +158,15 @@ void InletWireServer::post(const InDatagram& dg)
   unblock((char*)&PostInDatagram, (char*)&ptr, sizeof(ptr));
 }
 
-char* InletWireServer::payload() 
+char* InletWireServer::payload()
 {
   return _payload;
 }
 
-int InletWireServer::commit(char* datagram, 
-			    char* payload, 
-			    int sizeofPayload, 
-			    const Ins& src)
+int InletWireServer::commit(char* datagram,
+          char* payload,
+          int sizeofPayload,
+          const Ins& src)
 {
   if (!sizeofPayload) {
     int id;
@@ -241,7 +251,7 @@ void InletWireServer::_remove_input(Server* srv)
 void InletWireServer::add_output(unsigned id, const Ins& rcvr)
 {
   _outlet.bind(id, rcvr);
-  _outputs.setBit(id);  
+  _outputs.setBit(id);
 }
 
 void InletWireServer::remove_output(unsigned id)
@@ -257,13 +267,13 @@ int InletWireServer::handleError(int value)
   return 1;
 }
 
-int InletWireServer::processIo(Server* srv) 
+int InletWireServer::processIo(Server* srv)
 {
   printf("InletWireServer::processIo srvId %d\n",srv->id());
   return srv->pend(MSG_DONTWAIT);
 }
 
-int InletWireServer::processTmo() 
+int InletWireServer::processTmo()
 {
   return 1;
 }

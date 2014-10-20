@@ -11,10 +11,11 @@ EvrMasterFIFOHandler::EvrMasterFIFOHandler(Evr&       er,
                                            EvrFifoServer& srv,
                                            unsigned   partition,
                                            int        iMaxGroup,
+                                           unsigned   module,
                                            unsigned   neventnodes,
                                            bool       randomize,
                                            Task*      task):
-  MasterFIFOHandler(er,src,app,srv,partition,iMaxGroup,neventnodes,randomize,task),
+  MasterFIFOHandler(er,src,app,srv,partition,iMaxGroup,module,neventnodes,randomize,task),
   _sync            (*this, er, partition, task, _outlet, app),
   _tr              (0)
 {
@@ -38,7 +39,7 @@ void EvrMasterFIFOHandler::fifo_event(const FIFOEvent& fe)
      */
     if (fe.EventCode == TERMINATOR) {
       if (_state.uMaskReadout != 0 || _state.ncommands)
-	startL1Accept(fe, false);
+        startL1Accept(fe, false);
       return;
     }
 

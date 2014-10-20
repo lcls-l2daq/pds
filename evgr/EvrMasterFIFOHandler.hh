@@ -18,15 +18,16 @@ namespace Pds {
   public:
     enum { TERMINATOR         = 1 };
   public:
-    EvrMasterFIFOHandler(Evr&, 
-			 const Src&, 
-			 Appliance&, 
+    EvrMasterFIFOHandler(Evr&,
+       const Src&,
+       Appliance&,
                          EvrFifoServer&,
-			 unsigned partition,
-			 int      iMaxGroup,
-			 unsigned neventnodes,
-			 bool     randomize,
-			 Task*    task);
+       unsigned partition,
+       int      iMaxGroup,
+       unsigned module,
+       unsigned neventnodes,
+       bool     randomize,
+       Task*    task);
     virtual ~EvrMasterFIFOHandler();
   public:
     virtual void        fifo_event  (const FIFOEvent&);  // formerly 'xmit'

@@ -61,16 +61,19 @@ MasterFIFOHandler::MasterFIFOHandler(Evr&       er,
 				     EvrFifoServer& srv,
 				     unsigned   partition,
 				     int        iMaxGroup,
+                     unsigned   module,
 				     unsigned   neventnodes,
 				     bool       randomize,
 				     Task*      task):
   uFiducialPrev       (0),
   bEnabled            (false),
   _er                 (er),
+  _module             (module),
   _app                (app),
   _srv                (srv),
   _done               (new EvrTimer(app)),
   _outlet             (sizeof(EvrDatagram), 0, Ins   (Route::interface())),
+  _dst0               (StreamPorts::event(partition,Level::Segment, 0, 0)),
   _swtrig_out         (Route::interface(), Mtu::Size, 16),
   _swtrig_dst         (StreamPorts::event(partition,Level::Observer)),
   _src                (src),
@@ -84,7 +87,7 @@ MasterFIFOHandler::MasterFIFOHandler(Evr&       er,
 {
   _lSegEvtCounter.resize(1+_iMaxGroup, 0);
   for (int iGroup=0; iGroup <= _iMaxGroup; ++iGroup)
-    _ldst.push_back(StreamPorts::event(partition,Level::Segment, iGroup));
+    _ldst.push_back(StreamPorts::event(partition,Level::Segment, iGroup, _module));
 
   { timespec tmres;
     clock_getres (CLOCK_REALTIME, &tmres);
@@ -346,6 +349,12 @@ void MasterFIFOHandler::startL1Accept(const FIFOEvent& fe, bool bEvrDataIncomple
   if (_state.uMaskReadout == 0) {   // Only commands, no readout
     Sequence seq(Sequence::Occurrence, TransitionId::Unknown, ctime, stamp);
     EvrDatagram datagram(seq, _evtCounter, _state.ncommands);
+
+    if (_module != 0) {
+      datagram.evr = _lSegEvtCounter[0];
+      _outlet.send((char *) &datagram,_state.commands, _state.ncommands, _dst0);
+    }
+
     for (int iGroup = 0; iGroup < (int) _ldst.size(); ++iGroup) {
       datagram.evr = _lSegEvtCounter[iGroup];
       _outlet.send((char *) &datagram, 
@@ -390,8 +399,14 @@ void MasterFIFOHandler::startL1Accept(const FIFOEvent& fe, bool bEvrDataIncomple
 
     _state.uMaskReadout |= 0x1; // Readout group 0 is always triggered
     datagram.setL1AcceptEnv(_state.uMaskReadout);
+
+    if (_module != 0) {
+      datagram.evr = _lSegEvtCounter[0];
+      _outlet.send((char *) &datagram,_state.commands, _state.ncommands, _dst0);
+    }
+
     unsigned int uGroupBit = 1;
-    for (int iGroup = 0; iGroup <= _iMaxGroup; ++iGroup, uGroupBit <<= 1) {
+    for (int iGroup = 0; iGroup <= _iMaxGroup; ++iGroup, uGroupBit <<= 1)
       if ( (_state.uMaskReadout & uGroupBit) != 0 ) {
 	//printf("sending L1 trigger for group %d\n", iGroup);//!!!debug
 	datagram.evr = _lSegEvtCounter[iGroup];
@@ -399,7 +414,6 @@ void MasterFIFOHandler::startL1Accept(const FIFOEvent& fe, bool bEvrDataIncomple
 	_outlet.send((char *) &datagram, 
 		     _state.commands, _state.ncommands, _ldst[iGroup]);  //!!! for supporting segment group
       }
-    }
   } // else (_uMaskReadout == 0)
 
   _state.uMaskReadout  = 0;

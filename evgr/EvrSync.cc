@@ -38,15 +38,15 @@ static const int      dummyram        =  1;
 namespace Pds {
   class SyncRoutine : public Routine {
   public:
-    SyncRoutine(Evr&     er, 
-		unsigned partition,
-		EvrSyncSlave& sync) :
-      _er(er), 
+    SyncRoutine(Evr&     er,
+    unsigned partition,
+    EvrSyncSlave& sync) :
+      _er(er),
       _group (StreamPorts::evr(partition)),
       _server((unsigned)-1,
-	      _group,
-	      sizeof(EvrDatagram),
-	      Mtu::Size),
+        _group,
+        sizeof(EvrDatagram),
+        Mtu::Size),
       _loopback(sizeof(EvrDatagram)),
       _sync  (sync),
       _sem   (Semaphore::EMPTY)
@@ -76,30 +76,30 @@ namespace Pds {
       pfd[1].revents = 0;
 
       while(::poll(pfd, nfds, -1) > 0) {
-	if (pfd[0].revents & (POLLIN | POLLERR)) {
-	  int len = _server.fetch( payload, 0 );
-	  if (len ==0) {
-	    const EvrDatagram* dg = reinterpret_cast<const EvrDatagram*>(_server.datagram());
-	    
-	    _sync.initialize(dg->seq.stamp().fiducials(),
-			     dg->seq.service()==TransitionId::Enable);
-#ifdef DBG	
-	    timespec ts;
-	    clock_gettime(CLOCK_REALTIME, &ts);
-	    printf("sync mcast seq %d.%09d (%x : %d.%09d)\n",
-		   int(ts.tv_sec), int(ts.tv_nsec),
-		   dg->seq.stamp().fiducials(),
-		   dg->seq.clock().seconds(),
-		   dg->seq.clock().nanoseconds());
+  if (pfd[0].revents & (POLLIN | POLLERR)) {
+    int len = _server.fetch( payload, 0 );
+    if (len ==0) {
+      const EvrDatagram* dg = reinterpret_cast<const EvrDatagram*>(_server.datagram());
+
+      _sync.initialize(dg->seq.stamp().fiducials(),
+           dg->seq.service()==TransitionId::Enable);
+#ifdef DBG
+      timespec ts;
+      clock_gettime(CLOCK_REALTIME, &ts);
+      printf("sync mcast seq %d.%09d (%x : %d.%09d)\n",
+       int(ts.tv_sec), int(ts.tv_nsec),
+       dg->seq.stamp().fiducials(),
+       dg->seq.clock().seconds(),
+       dg->seq.clock().nanoseconds());
 #endif
-	  }
-	}
-	if (pfd[1].revents & (POLLIN | POLLERR)) {
-	  _sem.give();
-	  break;
-	}
-	pfd[0].revents = 0;
-	pfd[1].revents = 0;
+    }
+  }
+  if (pfd[1].revents & (POLLIN | POLLERR)) {
+    _sem.give();
+    break;
+  }
+  pfd[0].revents = 0;
+  pfd[1].revents = 0;
       }
     }
   private:
@@ -134,10 +134,10 @@ namespace Pds {
 using namespace Pds;
 
 EvrSyncMaster::EvrSyncMaster(EvrFIFOHandler& fifo_handler,
-			     Evr&            er, 
-			     unsigned        partition, 
-			     Task*           task,
-			     Client&         outlet,
+           Evr&            er,
+           unsigned        partition,
+           Task*           task,
+           Client&         outlet,
                              Appliance&      app) :
   _fifo_handler(fifo_handler),
   _er          (er),
@@ -183,15 +183,15 @@ bool EvrSyncMaster::handle(const FIFOEvent& fe)
       //  Empty FIFO
       FIFOEvent tfe;
       while( !_er.GetFIFOEvent(&tfe) )
-	;
+        ;
 
       _target = fe.TimestampHigh;
       if (_target == 0)
-	return true;
+        return true;
 
       _target += EnableDelay;
       if (_target > TimeStamp::MaxFiducials)
-	_target -= TimeStamp::MaxFiducials;
+        _target -= TimeStamp::MaxFiducials;
 
       timespec ts;
       clock_gettime(CLOCK_REALTIME, &ts);
@@ -199,10 +199,10 @@ bool EvrSyncMaster::handle(const FIFOEvent& fe)
       TimeStamp stamp(fe.TimestampLow, _target, SyncCode);
       Sequence seq(Sequence::Occurrence, TransitionId::Enable, ctime, stamp);
       EvrDatagram datagram(seq, -1, 0);
-      _outlet.send((char *) &datagram, 0, 0, _dst);      
+      _outlet.send((char *) &datagram, 0, 0, _dst);
 #ifdef DBG
       printf("EvrMasterFIFOHandler enable sync target %x at %d.%09d\n",
-	     _target, int(ts.tv_sec), int(ts.tv_nsec));
+       _target, int(ts.tv_sec), int(ts.tv_nsec));
 #endif
       _state = EnableSeek;
     }
@@ -212,29 +212,29 @@ bool EvrSyncMaster::handle(const FIFOEvent& fe)
   if (_state == EnableSeek) {
     if (fe.EventCode == TermCode) {
       unsigned dtarget = (fe.TimestampHigh
-			  + TimeStamp::MaxFiducials
-			  - _target)%TimeStamp::MaxFiducials;
+        + TimeStamp::MaxFiducials
+        - _target)%TimeStamp::MaxFiducials;
       if (dtarget > EnableDelay &&
-	  dtarget < TimeStamp::MaxFiducials-EnableDelay)
-	{
-	  printf("Enable sync quit with fiducial %x (target %x)\n",
-		 fe.TimestampHigh, _target);
-	  
-	}
-      else if (dtarget == 0) 
-	;
+    dtarget < TimeStamp::MaxFiducials-EnableDelay)
+  {
+    printf("Enable sync quit with fiducial %x (target %x)\n",
+     fe.TimestampHigh, _target);
+
+  }
+      else if (dtarget == 0)
+  ;
       else
-	return true;
+  return true;
 
       _state = Enabled;
 //       _er.SetFIFOEvent(dummyram, SyncCode, 0);
 //       _er.SetFIFOEvent(dummyram, TermCode, 0);
-      
+
       //  Empty FIFO
       FIFOEvent tfe;
       while( !_er.GetFIFOEvent(&tfe) )
-	;
-	
+  ;
+
       //  Enable Triggers
       _er.MapRamEnable(ram, 1);
 
@@ -242,7 +242,7 @@ bool EvrSyncMaster::handle(const FIFOEvent& fe)
       timespec ts;
       clock_gettime(CLOCK_REALTIME, &ts);
       printf("EvrMasterFIFOHandler enabled at %d.%09d\n",
-	     int(ts.tv_sec), int(ts.tv_nsec));
+       int(ts.tv_sec), int(ts.tv_nsec));
 #endif
 
       //  Generate EVR Enabled Occurrence
@@ -255,7 +255,7 @@ bool EvrSyncMaster::handle(const FIFOEvent& fe)
     if (fe.EventCode == SyncCode) {
       _target = fe.TimestampHigh + DisableDelay;
       if (_target > TimeStamp::MaxFiducials)
-	_target -= TimeStamp::MaxFiducials;
+  _target -= TimeStamp::MaxFiducials;
 
       timespec ts;
       clock_gettime(CLOCK_REALTIME, &ts);
@@ -263,11 +263,11 @@ bool EvrSyncMaster::handle(const FIFOEvent& fe)
       TimeStamp stamp(fe.TimestampLow, _target, SyncCode);
       Sequence seq(Sequence::Occurrence, TransitionId::Disable, ctime, stamp);
       EvrDatagram datagram(seq, -1, 0);
-      _outlet.send((char *) &datagram, 0, 0, _dst);      
+      _outlet.send((char *) &datagram, 0, 0, _dst);
 
 #ifdef DBG
       printf("EvrMasterFIFOHandler disable sync target %x at %d.%09d\n",
-	     _target, int(ts.tv_sec), int(ts.tv_nsec));
+       _target, int(ts.tv_sec), int(ts.tv_nsec));
 #endif
       _state = DisableSeek;
     }
@@ -287,7 +287,7 @@ bool EvrSyncMaster::handle(const FIFOEvent& fe)
       timespec ts;
       clock_gettime(CLOCK_REALTIME, &ts);
       printf("EvrMasterFIFOHandler disabled at %d.%09d\n",
-	     int(ts.tv_sec), int(ts.tv_nsec));
+       int(ts.tv_sec), int(ts.tv_nsec));
 #endif
 
       _task.call(new ReleaseRoutine(_fifo_handler));
@@ -295,7 +295,7 @@ bool EvrSyncMaster::handle(const FIFOEvent& fe)
       //  Empty FIFO
       FIFOEvent tfe;
       while( !_er.GetFIFOEvent(&tfe) )
-	;
+  ;
     }
   }
   return false;
@@ -303,9 +303,9 @@ bool EvrSyncMaster::handle(const FIFOEvent& fe)
 
 
 EvrSyncSlave::EvrSyncSlave(EvrFIFOHandler& fifo_handler,
-			   Evr&            er, 
-			   unsigned        partition, 
-			   Task*           task,
+         Evr&            er,
+         unsigned        partition,
+         Task*           task,
                            Task*           sync_task) :
   _fifo_handler(fifo_handler),
   _er          (er),
@@ -324,7 +324,7 @@ EvrSyncSlave::~EvrSyncSlave()
 }
 
 void EvrSyncSlave::initialize(unsigned target,
-			      bool     enable)
+            bool     enable)
 {
   if (enable) {
     _state  = EnableInit;
@@ -353,13 +353,13 @@ bool EvrSyncSlave::handle(const FIFOEvent& fe)
     if (fe.EventCode == TermCode) {
 
       if (fe.TimestampHigh!=0)
-	_state = EnableSeek;
+  _state = EnableSeek;
 
 #ifdef DBG
       timespec ts;
       clock_gettime(CLOCK_REALTIME, &ts);
       printf("EvrSlaveFIFOHandler enable sync code at %x : %d.%09d\n",
-	     fe.TimestampHigh, int(ts.tv_sec), int(ts.tv_nsec));
+       fe.TimestampHigh, int(ts.tv_sec), int(ts.tv_nsec));
 #endif
     }
     return true;
@@ -375,7 +375,7 @@ bool EvrSyncSlave::handle(const FIFOEvent& fe)
       //  Empty FIFO
       FIFOEvent tfe;
       while( !_er.GetFIFOEvent(&tfe) )
-	;
+  ;
 
       //  Enable Triggers
       _er.MapRamEnable(ram, 1);
@@ -384,7 +384,7 @@ bool EvrSyncSlave::handle(const FIFOEvent& fe)
       timespec ts;
       clock_gettime(CLOCK_REALTIME, &ts);
       printf("EvrSlaveFIFOHandler enabled at %d.%09d\n",
-	     int(ts.tv_sec), int(ts.tv_nsec));
+       int(ts.tv_sec), int(ts.tv_nsec));
 #endif
     }
     return true;
@@ -394,13 +394,13 @@ bool EvrSyncSlave::handle(const FIFOEvent& fe)
     if (fe.EventCode == TermCode) {
 
       if (fe.TimestampHigh!=0)
-	_state = DisableSeek;
+  _state = DisableSeek;
 
 #ifdef DBG
       timespec ts;
       clock_gettime(CLOCK_REALTIME, &ts);
       printf("EvrSlaveFIFOHandler disable sync code at %x : %d.%09d\n",
-	     fe.TimestampHigh, int(ts.tv_sec), int(ts.tv_nsec));
+       fe.TimestampHigh, int(ts.tv_sec), int(ts.tv_nsec));
 #endif
     }
   }
@@ -417,7 +417,7 @@ bool EvrSyncSlave::handle(const FIFOEvent& fe)
       timespec ts;
       clock_gettime(CLOCK_REALTIME, &ts);
       printf("EvrSlaveFIFOHandler disabled at %d.%09d\n",
-	     int(ts.tv_sec), int(ts.tv_nsec));
+       int(ts.tv_sec), int(ts.tv_nsec));
 #endif
 
       _task.call(new ReleaseRoutine(_fifo_handler));

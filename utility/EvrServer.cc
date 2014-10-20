@@ -43,9 +43,9 @@ static const unsigned DatagramSize = sizeof(EvrDatagram);
 static const unsigned MaxPayload = Mtu::Size;
 
 EvrServer::EvrServer(const Ins& ins,
-		     const Src& src,
+         const Src& src,
                      Inlet&     inlet,
-		     unsigned   nbufs) :
+         unsigned   nbufs) :
   _server ((unsigned)-1,
            Port::VectoredServerPort,  // REUSE_ADDR
            ins,
@@ -72,7 +72,7 @@ void EvrServer::dump(int detail) const
   printf("Server %04X (port %d)  fd %d represents EVR\n",
          id(),
          _server.portId(),
-	 _server.fd());
+   _server.fd());
   printf(" %d Network buffers of %d bytes each (%d+%d bytes header+payload)\n",
          _server.maxDatagrams(),
          _server.sizeofDatagram() + _server.maxPayload(),
@@ -147,7 +147,7 @@ int EvrServer::fetch(char* payload, int flags)
   const EvrDatagram& dg = reinterpret_cast<const EvrDatagram&>(*_server.datagram());
   /*
   printf("EvrServer cnt %08x  clock %08x/%08x  pulse %08x\n",
-	 dg.evr, dg.seq.clock().high, dg.seq.clock().low, dg.seq.highAll(), dg.seq.low());
+   dg.evr, dg.seq.clock().high, dg.seq.clock().low, dg.seq.highAll(), dg.seq.low());
   */
 
   const char* cmd = payload;

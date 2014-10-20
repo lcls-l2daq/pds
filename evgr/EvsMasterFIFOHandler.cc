@@ -8,39 +8,39 @@ static const int      persistent_ram =  1;
 
 using namespace Pds;
 
-EvsMasterFIFOHandler::EvsMasterFIFOHandler(Evr&       er, 
-					   const Src& src,
-					   Appliance& app,
-					   EvrFifoServer& srv,
-					   unsigned   partition,
-					   int        iMaxGroup,
-					   unsigned   neventnodes,
-					   bool       randomize,
-					   Task*      task):
-  MasterFIFOHandler(er,src,app,srv,partition,iMaxGroup,neventnodes,randomize,task),
+EvsMasterFIFOHandler::EvsMasterFIFOHandler(Evr&       er,
+             const Src& src,
+             Appliance& app,
+             EvrFifoServer& srv,
+             unsigned   partition,
+             int        iMaxGroup,
+             unsigned   neventnodes,
+             bool       randomize,
+             Task*      task):
+  MasterFIFOHandler(er,src,app,srv,partition,iMaxGroup,0,neventnodes,randomize,task),
   _pool               (sizeof(Occurrence),1)
 {
 }
-  
+
 EvsMasterFIFOHandler::~EvsMasterFIFOHandler()
 {
 }
 
 void EvsMasterFIFOHandler::fifo_event(const FIFOEvent& fe)
-{   
+{
   if (enabled(fe)) {
     /*
      * Determine if we need to start L1Accept
      *
      * Rule: If we have got an readout event before, and get the terminator event now,
-     *    then we will start L1Accept 
+     *    then we will start L1Accept
      */
-    
+
     _state.update(fe);
-    
-    if (_state.uMaskReadout != 0 || _state.ncommands) 
-      {        
-	startL1Accept(fe, false);
+
+    if (_state.uMaskReadout != 0 || _state.ncommands)
+      {
+  startL1Accept(fe, false);
       }
   }
 }
@@ -76,5 +76,5 @@ Transition* EvsMasterFIFOHandler::disable     (Transition* tr)
 void        EvsMasterFIFOHandler::set_config  (const EvsConfigType* pEvrConfig)
 {
   _state.configure( pEvrConfig->eventcodes() );
-}  
+}
 
