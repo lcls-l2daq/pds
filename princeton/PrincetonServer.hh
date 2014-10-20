@@ -42,7 +42,9 @@ public:
   int   startExposure();
   int   getData (InDatagram* in, InDatagram*& out);
   int   waitData(InDatagram* in, InDatagram*& out);
-  bool  IsCapturingData();
+  bool  isCapturingData();
+  bool  inBeamRateMode       ();
+  int   getDataInBeamRateMode(InDatagram* in, InDatagram*& out);
   PrincetonConfigType&
         config() { return _config; }
 
@@ -69,6 +71,7 @@ private:
     CAPTURE_STATE_IDLE        = 0,
     CAPTURE_STATE_RUN_TASK    = 1,
     CAPTURE_STATE_DATA_READY  = 2,
+    CAPTURE_STATE_EXT_TRIGGER = 3,
   };
 
   /*
@@ -157,6 +160,7 @@ private:
   bool                _bCameraInited;
   bool                _bCaptureInited;
   bool                _bClockSaving;
+  bool                _iTriggerMode; // 0: Normal (pre-open + N shot integration) 1: Ext trigger
 
   /*
    * Camera hardware settings
@@ -188,6 +192,9 @@ private:
    */
   GenericPool         _poolFrameData;
   InDatagram*         _pDgOut;          // Datagram for outtputing to the Princeton Manager
+  int                 _iFrameSize;
+  int                 _iBufferSize;
+  char*               _pFrameBuffer;
 
   /*
    * Capture Task Control

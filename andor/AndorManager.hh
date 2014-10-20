@@ -45,6 +45,8 @@ public:
   int   startExposure();
   int   getData (InDatagram* in, InDatagram*& out);
   int   waitData(InDatagram* in, InDatagram*& out);
+  bool  inBeamRateMode();
+  int   getDataInBeamRateMode(InDatagram* in, InDatagram*& out);
 
 private:
   const int           _iCamera;

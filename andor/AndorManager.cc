@@ -297,6 +297,17 @@ public:
         iFail = _manager.startExposurePrompt( iShotId, in, out );
       }
 */
+      if (_manager.inBeamRateMode())
+      {
+        iFail =  _manager.getDataInBeamRateMode( in, out );
+
+        if ( iFail != 0 )
+          // set damage bit
+          out->datagram().xtc.damage.increase(Pds::Damage::UserDefined);
+
+        return out;
+      }
+
       bool bWait = false;
       _manager.l1Accept(bWait);
 
@@ -306,17 +317,15 @@ public:
         if (_iDebugLevel>=2) printDataTime(in);
         printf( "\n" );
       }
-            
+
       if (bWait)
         iFail =  _manager.waitData( in, out );
       else
         iFail =  _manager.getData ( in, out );
 
       if ( iFail != 0 )
-      {
         // set damage bit
         out->datagram().xtc.damage.increase(Pds::Damage::UserDefined);
-      }
 
       /*
        * The folloing code is used for debugging variable L1 data size
@@ -343,7 +352,7 @@ public:
           printf( "\n\n===== Writing L1Accept Data =========\n" );
           if (_iDebugLevel>=2) printDataTime(in);
         }
-        
+
         if (_iDebugLevel >= 3)
         {
           Xtc& xtcData = in->datagram().xtc;
@@ -371,12 +380,8 @@ public:
         fflush(NULL);
 
         timeval timeSleepMicro = {0, 1000};
-      // Use select() to simulate nanosleep(), because experimentally select() controls the sleeping time more precisely
-        select( 0, NULL, NULL, NULL, &timeSleepMicro);
-
-        //timeval timeSleepMicro = {0, 500}; // 0.5 ms
         // Use select() to simulate nanosleep(), because experimentally select() controls the sleeping time more precisely
-        //select( 0, NULL, NULL, NULL, &timeSleepMicro);
+        select( 0, NULL, NULL, NULL, &timeSleepMicro);
       }
 
       return out;
@@ -507,25 +512,28 @@ public:
 
       InDatagram* out = in;
 
-      // In either normal mode or delay mode, we will need to check if there is
-      // an un-reported data
-      int iFail = _manager.waitData( in, out );
-
-      if ( iFail != 0 )
-        out->datagram().xtc.damage.increase(Pds::Damage::UserDefined); // set damage bit
-
-      if (_iDebugLevel >= 1)
+      if (!_manager.inBeamRateMode())
       {
-        Xtc& xtcData = out->datagram().xtc;
-        printf( "\nOutput payload size = %d  fail = %d\n", xtcData.sizeofPayload(), iFail);
-        Xtc& xtcFrame = *(Xtc*) xtcData.payload();
+        // In either normal mode or delay mode, we will need to check if there is
+        // an un-reported data
+        int iFail = _manager.waitData( in, out );
 
-        if ( xtcData.sizeofPayload() != 0 )
+        if ( iFail != 0 )
+          out->datagram().xtc.damage.increase(Pds::Damage::UserDefined); // set damage bit
+
+        if (_iDebugLevel >= 1)
         {
-          printf( "Frame  payload size = %d\n", xtcFrame.sizeofPayload());
-          AndorDataType& frameData = *(AndorDataType*) xtcFrame.payload();
-          printf( "Frame Id Start %d ReadoutTime %f\n", frameData.shotIdStart(),
-           frameData.readoutTime() );
+          Xtc& xtcData = out->datagram().xtc;
+          printf( "\nOutput payload size = %d  fail = %d\n", xtcData.sizeofPayload(), iFail);
+          Xtc& xtcFrame = *(Xtc*) xtcData.payload();
+
+          if ( xtcData.sizeofPayload() != 0 )
+          {
+            printf( "Frame  payload size = %d\n", xtcFrame.sizeofPayload());
+            AndorDataType& frameData = *(AndorDataType*) xtcFrame.payload();
+            printf( "Frame Id Start %d ReadoutTime %f\n", frameData.shotIdStart(),
+                    frameData.readoutTime() );
+          }
         }
       }
 
@@ -536,7 +544,7 @@ public:
       if (out != in)
       {
         UserMessage* msg = new(&_occPool) UserMessage();
-        msg->append("Run stopped before andor data is sent out,\n");
+        msg->append("Run stopped before data is sent out,\n");
         msg->append("so the data is attached to the Disable event.");
         _manager.appliance().post(msg);
       }
@@ -567,7 +575,7 @@ public:
     if (_iDebugLevel>=2) printDataTime(NULL);
 
     const EvrCommand& cmd = *reinterpret_cast<const EvrCommand*>(occ);
-    if (_manager.checkExposureEventCode(cmd.code)) {
+    if (!_manager.inBeamRateMode() && _manager.checkExposureEventCode(cmd.code)) {
       if (_iDebugLevel >= 1)
         printf( "Get command event code: %u\n", cmd.code );
 
@@ -696,7 +704,7 @@ int AndorManager::disable()
 
 int AndorManager::l1Accept(bool& bWait)
 {
-  if (!_pServer->IsCapturingData())
+  if (!_pServer->isCapturingData())
   {
     bWait = false;
     return 0;
@@ -704,7 +712,9 @@ int AndorManager::l1Accept(bool& bWait)
 
   ++_uNumShotsInCycle;
 
-  if (!_bDelayMode)
+  if (inBeamRateMode())
+    bWait = true;
+  else if (!_bDelayMode)
     bWait = false;
   else
     bWait = (_uNumShotsInCycle>= _pServer->config().numDelayShots());
@@ -746,6 +756,16 @@ int AndorManager::waitData(InDatagram* in, InDatagram*& out)
 int AndorManager::checkExposureEventCode(unsigned code)
 {
   return (code == _pServer->config().exposureEventCode());
+}
+
+bool AndorManager::inBeamRateMode()
+{
+  return _pServer->inBeamRateMode();
+}
+
+int AndorManager::getDataInBeamRateMode(InDatagram* in, InDatagram*& out)
+{
+  return _pServer->getDataInBeamRateMode(in, out);
 }
 
 /*

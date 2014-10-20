@@ -37,12 +37,14 @@ public:
   int   endCalibCycle();
   int   enable();
   int   disable();
-  int   startExposure();
-  int   getData (InDatagram* in, InDatagram*& out);
-  int   waitData(InDatagram* in, InDatagram*& out);
-  bool  IsCapturingData();
+  int   startExposure        ();
+  int   getData              (InDatagram* in, InDatagram*& out);
+  int   waitData             (InDatagram* in, InDatagram*& out);
+  bool  isCapturingData      ();
+  bool  inBeamRateMode       ();
+  int   getDataInBeamRateMode(InDatagram* in, InDatagram*& out);
   AndorConfigType&
-        config() { return _config; }
+        config()  { return _config; }
 
   enum  ErrorCodeEnum
   {
@@ -66,6 +68,7 @@ private:
     CAPTURE_STATE_IDLE        = 0,
     CAPTURE_STATE_RUN_TASK    = 1,
     CAPTURE_STATE_DATA_READY  = 2,
+    CAPTURE_STATE_EXT_TRIGGER = 3,
   };
 
   /*
@@ -126,7 +129,6 @@ private:
    * Frame handling functions
    */
   int   setupFrame();
-  //int   setupFrame(InDatagram* in, InDatagram*& out); //!!delay mode
   int   waitForNewFrameAvailable();
   int   processFrame();
   int   resetFrameData(bool bDelOutDatagram);
@@ -152,6 +154,7 @@ private:
   at_32               _hCam;
   bool                _bCameraInited;
   bool                _bCaptureInited;
+  bool                _iTriggerMode; // 0: Normal (pre-open + N shot integration) 1: Ext trigger
 
   /*
    * Camera hardware settings
@@ -175,6 +178,7 @@ private:
   bool                _bSequenceError;
   ClockTime           _clockPrevDatagram;
   int                 _iNumExposure;
+  int                 _iNumAcq; // # of acquisition with trigger (reset on Enable/Disable)
 
   /*
    * Config data

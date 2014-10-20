@@ -30,11 +30,11 @@ namespace Pds
 AndorServer::AndorServer(int iCamera, bool bDelayMode, bool bInitTest, const Src& src, string sConfigDb, int iSleepInt, int iDebugLevel) :
  _iCamera(iCamera), _bDelayMode(bDelayMode), _bInitTest(bInitTest), _src(src),
  _sConfigDb(sConfigDb), _iSleepInt(iSleepInt), _iDebugLevel(iDebugLevel),
- _hCam(-1), _bCameraInited(false), _bCaptureInited(false),
+ _hCam(-1), _bCameraInited(false), _bCaptureInited(false), _iTriggerMode(0),
  _iDetectorWidth(-1), _iDetectorHeight(-1), _iImageWidth(-1), _iImageHeight(-1),
  _iADChannel(-1), _iReadoutPort(-1), _iMaxSpeedTableIndex(-1), _iMaxGainIndex(-1),
  _iTempMin(-1), _iTempMax(-1), _iFanModeNonAcq(-1),
- _fPrevReadoutTime(0), _bSequenceError(false), _clockPrevDatagram(0,0), _iNumExposure(0),
+ _fPrevReadoutTime(0), _bSequenceError(false), _clockPrevDatagram(0,0), _iNumExposure(0), _iNumAcq(0),
  _config(),
  _fReadoutTime(0),
  _poolFrameData(_iMaxFrameDataSize, _iPoolDataCount), _pDgOut(NULL),
@@ -518,6 +518,11 @@ int AndorServer::config(AndorConfigType& config, std::string& sConfigWarning)
   //if ( setupCooling() != 0 )
     //return ERROR_SERVER_INIT_FAIL;
 
+  if (_config.numDelayShots() == 0)
+    _iTriggerMode = 1;
+  else
+    _iTriggerMode = 0;
+
   int iTemperature  = 999;
   int iError        = GetTemperature(&iTemperature);
   printf("Current Temperature %d C  Status %s\n", iTemperature, AndorErrorCodes::name(iError));
@@ -586,6 +591,10 @@ int AndorServer::endCalibCycle()
   return 0;
 }
 
+#include <utility>
+using namespace std;
+static vector<pair<float, int> > vecReadoutTime; //!!!debug
+
 int AndorServer::enable()
 {
   /*
@@ -596,6 +605,18 @@ int AndorServer::enable()
       _poolFrameData.numberOfAllocatedObjects(), _poolFrameData.numberofObjects() );
   else if ( _iDebugLevel >= 3 )
     printf( "Enable Pool status: %d/%d allocated.\n", _poolFrameData.numberOfAllocatedObjects(), _poolFrameData.numberofObjects() );
+
+  if (inBeamRateMode())
+  {
+    printf("Starting capture...\n");
+    _iNumAcq = 0;
+    vecReadoutTime.clear();
+    if (startCapture() != 0)
+      return ERROR_FUNCTION_FAILURE;
+
+    _CaptureState = CAPTURE_STATE_EXT_TRIGGER;
+    printf("Capture started in Enable transition.\n");
+  }
 
   return 0;
 }
@@ -610,6 +631,25 @@ int AndorServer::disable()
   int iFail  = stopCapture();
   if ( iFail != 0 )
     return ERROR_FUNCTION_FAILURE;
+
+  if (inBeamRateMode())
+  {
+    //!!!debug
+    for (int i=0; i<(int)vecReadoutTime.size(); ++i)
+      printf("  [%d] readout time  %f s  acq %d\n", i, vecReadoutTime[i].first, vecReadoutTime[i].second);
+
+    at_32 numAcqNew;
+    int iError = GetTotalNumberImagesAcquired(&numAcqNew);
+    if (!isAndorFuncOk(iError))
+      printf("AndorServer::disable(): GetTotalNumberImagesAcquired(): %s\n", AndorErrorCodes::name(iError));
+
+    if (numAcqNew != _iNumAcq)
+    {
+      printf("AndorServer::disable(): data not transferred out. acquired %d frames, but only transferred %d frames.\n",
+        (int) numAcqNew, _iNumAcq);
+      return ERROR_FUNCTION_FAILURE;
+    }
+  }
 
   return 0;
 }
@@ -648,7 +688,7 @@ int AndorServer::initCapture()
   //
   // Acquisition Mode: 1 Single Scan , 2 Accumulate , 3 Kinetics , 4 Fast Kinetics , 5 Run till abort
   //
-  iError = SetAcquisitionMode(1);
+  iError = SetAcquisitionMode(inBeamRateMode() ? 5 : 1);
   if (!isAndorFuncOk(iError))
   {
     printf("AndorServer::initCapture(): SetAcquisitionMode(): %s\n", AndorErrorCodes::name(iError));
@@ -660,11 +700,34 @@ int AndorServer::initCapture()
   //               7 External Exposure (Bulb) , 9 Ext FVB EM
   //               10 Software Trigger  12 Ext Charge Shifting
   //
-  iError = SetTriggerMode(0);
+  iError = SetTriggerMode(_iTriggerMode);
   if (!isAndorFuncOk(iError))
   {
     printf("AndorServer::initCapture(): SetTriggerMode(): %s\n", AndorErrorCodes::name(iError));
     return ERROR_SDK_FUNC_FAIL;
+  }
+  if (inBeamRateMode())
+  {
+    //iError = SetFastExtTrigger(1);
+    //if (!isAndorFuncOk(iError))
+    //{
+    //  printf("AndorServer::initCapture(): SetFastExtTrigger(): %s\n", AndorErrorCodes::name(iError));
+    //  return ERROR_SDK_FUNC_FAIL;
+    //}
+    //iError = SetAccumulationCycleTime(0);
+    //if (!isAndorFuncOk(iError))
+    //  printf("AndorServer::initCapture(): SetAccumulationCycleTime(): %s\n", AndorErrorCodes::name(iError));
+
+    iError = SetKineticCycleTime(0);
+    if (!isAndorFuncOk(iError))
+      printf("AndorServer::initCapture(): SetKineticCycleTime(): %s\n", AndorErrorCodes::name(iError));
+
+    at_32 sizeBuffer;
+    iError = GetSizeOfCircularBuffer(&sizeBuffer);
+    if (!isAndorFuncOk(iError))
+      printf("AndorServer::initCapture(): GetSizeOfCircularBuffer(): %s\n", AndorErrorCodes::name(iError));
+    else
+      printf("Size of Circular Buffer: %d\n", (int) sizeBuffer);
   }
 
   //
@@ -691,6 +754,16 @@ int AndorServer::initCapture()
     return ERROR_SDK_FUNC_FAIL;
   }
 
+  //** Keep clean enable only available for FVB trigger mode
+  //int iKeepCleanMode = 0; // Off
+  //iError = EnableKeepCleans(iKeepCleanMode);
+  //if (!isAndorFuncOk(iError))
+  //  printf("AndorServer::initCapture(): EnableKeepCleans(off): %s\n", AndorErrorCodes::name(iError));
+
+  iError = SetDMAParameters(1, 0.003);
+  if (!isAndorFuncOk(iError))
+    printf("AndorServer::initCapture(): SetDMAParameters(): %s\n", AndorErrorCodes::name(iError));
+
   float fTimeKeepClean = -1;
   GetKeepCleanTime(&fTimeKeepClean);
   printf("Keep clean time: %f s\n", fTimeKeepClean);
@@ -699,8 +772,7 @@ int AndorServer::initCapture()
   float fTimeAccumulate = -1;
   float fTimeKinetic    = -1;
   GetAcquisitionTimings(&fTimeExposure, &fTimeAccumulate, &fTimeKinetic);
-  //printf("Exposure time: %f s  Accumulate time: %f s  Kinetic time: %f s\n", fTimeExposure, fTimeAccumulate, fTimeKinetic);
-  printf("Exposure time: %f s  Accumulate time: %f s\n", fTimeExposure, fTimeAccumulate);
+  printf("Exposure time: %f s  Accumulate time: %f s  Kinetic time: %f s\n", fTimeExposure, fTimeAccumulate, fTimeKinetic);
 
   float fTimeReadout = -1;
   GetReadOutTime(&fTimeReadout);
@@ -729,9 +801,10 @@ int AndorServer::initCapture()
 
 int AndorServer::stopCapture()
 {
-  LockCameraData lockDeinitCapture(const_cast<char*>("AndorServer::stopCapture()"));
+  if ( _CaptureState == CAPTURE_STATE_IDLE )
+    return 0;
 
-  resetFrameData(true);
+  LockCameraData lockDeinitCapture(const_cast<char*>("AndorServer::stopCapture()"));
 
   int iError = AbortAcquisition();
   if (!isAndorFuncOk(iError) && iError != DRV_IDLE)
@@ -740,13 +813,16 @@ int AndorServer::stopCapture()
     return ERROR_SDK_FUNC_FAIL;
   }
 
-  if (_config.fanMode() == (int) AndorConfigType::ENUM_FAN_ACQOFF)
+  resetFrameData(true);
+
+  if (_config.fanMode() == (int) AndorConfigType::ENUM_FAN_ACQOFF && !inBeamRateMode())
   {
     iError = SetFanMode((int) AndorConfigType::ENUM_FAN_FULL);
     if (!isAndorFuncOk(iError))
       printf("AndorServer::stopCapture(): SetFanMode(%d): %s\n", (int) AndorConfigType::ENUM_FAN_FULL, AndorErrorCodes::name(iError));
   }
 
+  _CaptureState = CAPTURE_STATE_IDLE;
   printf( "Capture stopped\n" );
   return 0;
 }
@@ -766,17 +842,20 @@ int AndorServer::deinitCapture()
 
 int AndorServer::startCapture()
 {
-  if ( _pDgOut == NULL )
+  if (!inBeamRateMode())
   {
-    printf( "AndorServer::startCapture(): Datagram has not been allocated. No buffer to store the image data\n" );
-    return ERROR_LOGICAL_FAILURE;
-  }
+    if (_pDgOut == NULL )
+    {
+      printf( "AndorServer::startCapture(): Datagram has not been allocated. No buffer to store the image data\n" );
+      return ERROR_LOGICAL_FAILURE;
+    }
 
-  if (_config.fanMode() == (int) AndorConfigType::ENUM_FAN_ACQOFF)
-  {
-    int iError = SetFanMode((int) AndorConfigType::ENUM_FAN_OFF);
-    if (!isAndorFuncOk(iError))
-      printf("AndorServer::startCapture(): SetFanMode(%d): %s\n", (int) AndorConfigType::ENUM_FAN_OFF, AndorErrorCodes::name(iError));
+    if (_config.fanMode() == (int) AndorConfigType::ENUM_FAN_ACQOFF)
+    {
+      int iError = SetFanMode((int) AndorConfigType::ENUM_FAN_OFF);
+      if (!isAndorFuncOk(iError))
+        printf("AndorServer::startCapture(): SetFanMode(%d): %s\n", (int) AndorConfigType::ENUM_FAN_OFF, AndorErrorCodes::name(iError));
+    }
   }
 
   int iError = StartAcquisition();
@@ -1289,6 +1368,7 @@ int AndorServer::startExposure()
     //printf("AndorServer::startExposure(): After setupFrame(): Local Time: %s.%09ld\n", sTimeText, timeCurrent.tv_nsec);
 
     iFail = startCapture();
+    if ( iFail != 0 ) break;
 
     //!!!debug
     clock_gettime( CLOCK_REALTIME, &timeCurrent );
@@ -1417,9 +1497,148 @@ int AndorServer::waitData(InDatagram* in, InDatagram*& out)
   return getData(in, out);
 }
 
-bool AndorServer::IsCapturingData()
+bool AndorServer::isCapturingData()
 {
   return ( _CaptureState != CAPTURE_STATE_IDLE );
+}
+
+bool AndorServer::inBeamRateMode()
+{
+  return ( _iTriggerMode == 1 );
+}
+
+int AndorServer::getDataInBeamRateMode(InDatagram* in, InDatagram*& out)
+{
+  out = in; // Default: return empty stream
+
+  //LockCameraData lockGetDataInBeamRateMode(const_cast<char*>("AndorServer::getDataInBeamRateMode()"));
+
+  if ( _CaptureState != CAPTURE_STATE_EXT_TRIGGER )
+    return 0;
+
+  if ( _poolFrameData.numberOfFreeObjects() <= 0 )
+  {
+    printf( "AndorServer::getDataInBeamRateMode(): Pool is full, and cannot provide buffer for new datagram\n" );
+    return ERROR_LOGICAL_FAILURE;
+  }
+
+  out =
+    new ( &_poolFrameData ) CDatagram( TypeId(TypeId::Any,0), DetInfo(0,DetInfo::NoDetector,0,DetInfo::NoDevice,0) );
+  out->datagram().xtc.alloc( sizeof(Xtc) + _config.frameSize() );
+
+  static timespec tsWaitStart;
+  clock_gettime( CLOCK_REALTIME, &tsWaitStart );
+
+  int       iWaitTime       = 0;
+  const int iWaitPerIter    = 4; // 1milliseconds
+  at_32     numAcqNew       = _iNumAcq;
+  static const int  iMaxReadoutTimeReg = 2000; //!!!debug
+  static const int  iMaxReadoutTimeErr = 4; //!!!debug
+  static int        iMaxReadoutTime     = iMaxReadoutTimeReg;
+  static bool       bPrevCatpureFailed;
+  if (_iNumAcq == 0)
+    bPrevCatpureFailed = false;
+
+  while (numAcqNew == _iNumAcq && iWaitTime < iMaxReadoutTime)
+  {
+    int iError = GetTotalNumberImagesAcquired(&numAcqNew);
+    if (!isAndorFuncOk(iError))
+    {
+      printf("AndorServer::getDataInBeamRateMode(): GetTotalNumberImagesAcquired(): %s\n", AndorErrorCodes::name(iError));
+      break;
+    }
+
+    //if (numAcqNew != numAcq)
+    //  printf("Num Image Acquired: %d\n", (int) numAcqNew);
+
+    timeval timeSleepMicro = {0, iWaitPerIter * 1000}; // in milliseconds
+    // use select() to simulate nanosleep(), because experimentally select() controls the sleeping time more precisely
+    select( 0, NULL, NULL, NULL, &timeSleepMicro);
+
+    iWaitTime += iWaitPerIter;
+  }
+
+  bool bFrameError = false;
+  if (numAcqNew == _iNumAcq)
+  {
+    if (!bPrevCatpureFailed)
+      printf("AndorServer::getDataInBeamRateMode(): Wait image data %d failed\n", _iNumAcq);
+    bFrameError = true;
+    iMaxReadoutTime     = iMaxReadoutTimeErr;//!!!debug
+    bPrevCatpureFailed  = true;//!!!debug
+  }
+  else
+  {
+    ++_iNumAcq;
+    iMaxReadoutTime     = iMaxReadoutTimeReg;//!!!debug
+    bPrevCatpureFailed  = false;//!!!debug
+
+    uint8_t* pImage = (uint8_t*) out + _iFrameHeaderSize;
+    int iError = GetOldestImage16((uint16_t*)pImage, _iImageWidth*_iImageHeight);
+    if (!isAndorFuncOk(iError))
+    {
+      printf("AndorServer::getDataInBeamRateMode(): GetOldestImage16(): %s\n", AndorErrorCodes::name(iError));
+      bFrameError = true;
+    }
+  }
+
+  timespec tsWaitEnd;
+  clock_gettime( CLOCK_REALTIME, &tsWaitEnd );
+  _fReadoutTime = (tsWaitEnd.tv_nsec - tsWaitStart.tv_nsec) / 1.0e9 + ( tsWaitEnd.tv_sec - tsWaitStart.tv_sec ); // in seconds
+
+  ////!!!debug
+  if (vecReadoutTime.size() < 20)
+    vecReadoutTime.push_back(make_pair(_fReadoutTime, numAcqNew));
+  static int iSlowThreshold = 1;
+  if ( _fReadoutTime > 1.0 )
+    printf("  *** get %d / %d image out, time = %f sec\n", _iNumAcq, (int) numAcqNew, _fReadoutTime);
+  if (numAcqNew > _iNumAcq+iSlowThreshold) {
+    printf("  ^^^ get %d / %d image out, time = %f sec\n", _iNumAcq, (int) numAcqNew, _fReadoutTime);
+    iSlowThreshold <<= 1;
+  }
+
+  /*
+   * Set frame object
+   */
+  unsigned char* pcXtcFrame = (unsigned char*) out + sizeof(CDatagram);
+  Xtc* pXtcFrame            = new ((char*)pcXtcFrame) Xtc(_andorDataType, _src);
+  pXtcFrame->alloc( _config.frameSize() );
+
+
+  Datagram& dgIn  = in->datagram();
+  Datagram& dgOut = out->datagram();
+
+  /*
+   * Backup the orignal Xtc data
+   *
+   * Note that it is not correct to use  Xtc xtc1 = xtc2, which means using the Xtc constructor,
+   * instead of the copy operator to do the copy. In this case, the xtc data size will be set to 0.
+   */
+  Xtc xtcOutBkp;
+  xtcOutBkp = dgOut.xtc;
+
+  /*
+   * Compose the datagram
+   *
+   *   1. Use the header from dgIn
+   *   2. Use the xtc (data header) from dgOut
+   *   3. Use the data from dgOut (the data was located right after the xtc)
+   */
+  dgOut     = dgIn;
+
+  //dgOut.xtc = xtcOutBkp; // not okay for command
+  dgOut.xtc.damage = xtcOutBkp.damage;
+  dgOut.xtc.extent = xtcOutBkp.extent;
+
+  unsigned char*  pFrameHeader  = (unsigned char*) out + sizeof(CDatagram) + sizeof(Xtc);
+  //AndorDataType*  pData         = (AndorDataType*) pFrameHeader;
+  new (pFrameHeader) AndorDataType(dgIn.seq.stamp().fiducials(), _fReadoutTime, 0 /* temperature undefined */);
+
+  if (bFrameError)
+    // set damage bit, and still keep the image data
+    dgOut.xtc.damage.increase(Pds::Damage::UserDefined);
+
+  return 0;
 }
 
 int AndorServer::waitForNewFrameAvailable()
@@ -1614,9 +1833,13 @@ int AndorServer::setupROI()
    *   3: Single Track 4: Image
    */
   int iReadMode = 4;
-  if ( _iImageWidth == _iDetectorWidth &&
-       _iImageHeight == 1 )
-    iReadMode = 0;
+  if ( _iImageWidth == _iDetectorWidth && _iImageHeight == 1)
+  {
+    if (_config.orgY() == 0 && _config.height() == (unsigned) _iDetectorHeight)
+      iReadMode = 0;
+    else
+      iReadMode = 3;
+  }
 
   SetReadMode(iReadMode);
   printf("Read mode: %d\n", iReadMode);
@@ -1631,6 +1854,14 @@ int AndorServer::setupROI()
       printf("AndorServer::setupROI(): SetImage(): %s\n", AndorErrorCodes::name(iError));
       return ERROR_SDK_FUNC_FAIL;
     }
+  }
+  else if (iReadMode == 3) // single track
+  {
+    //Setup Image dimensions
+    printf("Setting Single Track center %d height %d\n", _config.orgY() + _config.height()/2, _config.height());
+    int  iError = SetSingleTrack( 1 + _config.orgY() + _config.height()/2, _config.height());
+    if (!isAndorFuncOk(iError))
+      printf("AndorServer::setupROI():SetSingleTrack(): %s\n", AndorErrorCodes::name(iError));
   }
 
   return 0;

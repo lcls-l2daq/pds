@@ -27,12 +27,12 @@ PrincetonServer::PrincetonServer(int iCamera, bool bDelayMode, bool bInitTest, c
                                  int iCustW, int iCustH, int iDebugLevel) :
  _iCamera(iCamera), _bDelayMode(bDelayMode), _bInitTest(bInitTest), _src(src),
  _sConfigDb(sConfigDb), _iSleepInt(iSleepInt), _iCustW(iCustW), _iCustH(iCustH), _iDebugLevel(iDebugLevel),
- _hCam(-1), _bCameraInited(false), _bCaptureInited(false), _bClockSaving(false),
+ _hCam(-1), _bCameraInited(false), _bCaptureInited(false), _bClockSaving(false), _iTriggerMode(0),
  _i16DetectorWidth(-1), _i16DetectorHeight(-1), _i16MaxSpeedTableIndex(-1),
  _fPrevReadoutTime(0), _bSequenceError(false), _clockPrevDatagram(0,0), _iNumExposure(0),
  _config(),
  _fReadoutTime(0),
- _poolFrameData(_iMaxFrameDataSize, _iPoolDataCount), _pDgOut(NULL),
+ _poolFrameData(_iMaxFrameDataSize, _iPoolDataCount), _pDgOut(NULL), _iFrameSize(0), _iBufferSize(0), _pFrameBuffer(NULL),
  _CaptureState(CAPTURE_STATE_IDLE), _pTaskCapture(NULL), _routineCapture(*this)
 {
   if ( initDevice() != 0 )
@@ -55,13 +55,9 @@ PrincetonServer::~PrincetonServer()
     return;
 
   /* Stop the acquisition if any */
-  rs_bool bStatus =
-    pl_exp_abort(_hCam, CCS_HALT);
-
+  rs_bool bStatus = pl_exp_abort(_hCam, CCS_HALT);
   if (!bStatus)
-  {
     printPvError("PrincetonServer::~PrincetonServer():pl_exp_abort() failed");
-  }
 
   deinit();
 
@@ -281,6 +277,11 @@ int PrincetonServer::config(PrincetonConfigType& config, std::string& sConfigWar
   if ( iFail != 0 )
     return ERROR_FUNCTION_FAILURE;
 
+  if (_config.numDelayShots() == 0)
+    _iTriggerMode = 1;
+  else
+    _iTriggerMode = 0;
+
   int16 i16TemperatureCurrent = -1;
   PICAM::getAnyParam(_hCam, PARAM_TEMP, &i16TemperatureCurrent );
   printf( "\nROI (%d,%d) Detector (%d,%d) Speed %d/%d Temperature %.1f C\n",
@@ -331,13 +332,29 @@ int PrincetonServer::endRun()
 
 int PrincetonServer::beginCalibCycle()
 {
+  int iFail  = deinitClockSaving();
+  iFail     |= initCapture();
+
+  if ( iFail != 0 )
+    return ERROR_FUNCTION_FAILURE;
+
   return 0;
 }
 
 int PrincetonServer::endCalibCycle()
 {
+  int iFail  = deinitCapture();
+  iFail     |= initClockSaving();
+
+  if ( iFail != 0 )
+    return ERROR_FUNCTION_FAILURE;
+
   return 0;
 }
+
+#include <utility>
+using namespace std;
+static vector<pair<float, int> > vecReadoutTime; //!!!debug
 
 int PrincetonServer::enable()
 {
@@ -346,16 +363,20 @@ int PrincetonServer::enable()
    */
   if ( _poolFrameData.numberOfAllocatedObjects() > 0 )
     printf( "PrincetonServer::enable(): Memory usage issue. Data Pool is not empty (%d/%d allocated).\n",
-      _poolFrameData.numberOfAllocatedObjects(), _poolFrameData.numberofObjects() );
+            _poolFrameData.numberOfAllocatedObjects(), _poolFrameData.numberofObjects() );
   else if ( _iDebugLevel >= 3 )
     printf( "Enable Pool status: %d/%d allocated.\n", _poolFrameData.numberOfAllocatedObjects(), _poolFrameData.numberofObjects() );
 
+  if (inBeamRateMode())
+  {
+    printf("Starting capture...\n");
+    vecReadoutTime.clear();
+    if (startCapture() != 0)
+      return ERROR_FUNCTION_FAILURE;
 
-  int iFail  = deinitClockSaving();
-  iFail     |= initCapture();
-
-  if ( iFail != 0 )
-    return ERROR_FUNCTION_FAILURE;
+    _CaptureState = CAPTURE_STATE_EXT_TRIGGER;
+    printf("Capture started in Enable transition.\n");
+  }
 
   return 0;
 }
@@ -367,12 +388,24 @@ int PrincetonServer::disable()
   if ( _iDebugLevel >= 3 )
     printf( "Disable Pool status: %d/%d allocated.\n", _poolFrameData.numberOfAllocatedObjects(), _poolFrameData.numberofObjects() );
 
-  int iFail  = deinitCapture();
-  iFail     |= initClockSaving();
+  if (inBeamRateMode())
+  {
+    /* Stop the acquisition */
+    if (!pl_exp_stop_cont(_hCam, CCS_HALT))
+      printPvError("PrincetonServer::disable(): pl_exp_stop_cont() failed");
 
-  if ( iFail != 0 )
+    //!!!debug
+    for (int i=0; i<(int)vecReadoutTime.size(); ++i)
+      printf("  [%d] readout time  %f s  exposure %d\n", i, vecReadoutTime[i].first, vecReadoutTime[i].second);
+  }
+
+  /* Stop the acquisition */
+  rs_bool bStatus = pl_exp_abort(_hCam, CCS_HALT);
+  if (!bStatus)
+  {
+    printPvError("PrincetonServer::disable(): pl_exp_abort() failed");
     return ERROR_FUNCTION_FAILURE;
-
+  }
   return 0;
 }
 
@@ -400,7 +433,7 @@ int PrincetonServer::initCapture()
   PICAM::printROI(1, &region);
 
   int16 iExposureMode;
-  if (_config.kineticHeight() != 0)
+  if (_config.kineticHeight() != 0 || inBeamRateMode())
     iExposureMode = 1; // set exposure mode to STROBED_MODE to trigger the exposure
   else
     iExposureMode = 0; // set exposure mode to TIMED_MODE, avoid using external TTL trigger
@@ -412,19 +445,41 @@ int PrincetonServer::initCapture()
   const uns32 iExposureTime = (int) ( _config.exposureTime() * 1000 );
 
   uns32 uFrameSize;
-  rs_bool bStatus =
-   pl_exp_setup_seq(_hCam, 1, 1, &region, iExposureMode, iExposureTime, &uFrameSize);
-  if (!bStatus)
+  if (inBeamRateMode())
   {
-    printPvError("PrincetonServer::initCapture(): pl_exp_setup_seq() failed!\n");
-    return ERROR_SDK_FUNC_FAIL;
-  }
+    rs_bool bStatus = pl_exp_setup_cont(_hCam, 1, &region, iExposureMode, iExposureTime, &uFrameSize, CIRC_NO_OVERWRITE);
+    if (!bStatus)
+    {
+      printPvError("PrincetonServer::initCapture(): pl_exp_setup_seq() failed!\n");
+      return ERROR_SDK_FUNC_FAIL;
+    }
 
-  if ( (int)uFrameSize + _iFrameHeaderSize > _iMaxFrameDataSize )
+    const int16 iCircularBufferSize = (uFrameSize <= 65536? 128 : 8);
+    _iBufferSize = uFrameSize * iCircularBufferSize;
+    free(_pFrameBuffer);
+    _pFrameBuffer = (char*) malloc(_iBufferSize);
+    if (!_pFrameBuffer)
+    {
+      printf("PrincetonServer::initCapture(): Frame buffer allocation error!\n");
+      return ERROR_FUNCTION_FAILURE;
+    }
+  }
+  else
   {
-    printf( "PrincetonServer::initCapture():Frame size (%lu) + Frame header size (%d) "
+    rs_bool bStatus = pl_exp_setup_seq(_hCam, 1, 1, &region, iExposureMode, iExposureTime, &uFrameSize);
+    if (!bStatus)
+    {
+      printPvError("PrincetonServer::initCapture(): pl_exp_setup_seq() failed!\n");
+      return ERROR_SDK_FUNC_FAIL;
+    }
+  }
+  _iFrameSize = uFrameSize;
+
+  if ( _iFrameSize + _iFrameHeaderSize > _iMaxFrameDataSize )
+  {
+    printf( "PrincetonServer::initCapture():Frame size (%d) + Frame header size (%d) "
      "is larger than internal data frame buffer size (%d)\n",
-     uFrameSize, _iFrameHeaderSize, _iMaxFrameDataSize );
+     _iFrameSize, _iFrameHeaderSize, _iMaxFrameDataSize );
     return ERROR_INVALID_CONFIG;
   }
 
@@ -437,8 +492,8 @@ int PrincetonServer::initCapture()
   printf("Estimated Readout Time = %.1lf ms\n", fReadoutTime);
 
   if ( _iDebugLevel >= 2 )
-    printf( "Frame size for image capture = %lu, exposure mode = %d, time = %lu\n",
-     uFrameSize, iExposureMode, iExposureTime);
+    printf( "Frame size for image capture = %d, exposure mode = %d, time = %lu\n",
+     _iFrameSize, iExposureMode, iExposureTime);
 
   return 0;
 }
@@ -450,20 +505,17 @@ int PrincetonServer::deinitCapture()
 
   LockCameraData lockDeinitCapture("PrincetonServer::deinitCapture()");
 
-  _bCaptureInited = false;
-
-  resetFrameData(true);
-
   int iPvCamFailCount = 0;
   /* Stop the acquisition */
-  rs_bool bStatus =
-    pl_exp_abort(_hCam, CCS_HALT);
-
+  rs_bool bStatus = pl_exp_abort(_hCam, CCS_HALT);
   if (!bStatus)
   {
     printPvError("PrincetonServer::deinitCapture():pl_exp_abort() failed");
     iPvCamFailCount++;
   }
+
+  resetFrameData(true);
+  _bCaptureInited = false;
 
   /*
    * Reset clock saving, since it is cancelled by the above pl_exp_abort()
@@ -489,19 +541,31 @@ int PrincetonServer::deinitCapture()
 
 int PrincetonServer::startCapture()
 {
-  if ( _pDgOut == NULL )
-  {
-    printf( "PrincetonServer::startCapture(): Datagram has not been allocated. No buffer to store the image data\n" );
-    return ERROR_LOGICAL_FAILURE;
-  }
 
-  /* Start the acquisition */
-  rs_bool bStatus =
-   pl_exp_start_seq(_hCam, (unsigned char*) _pDgOut + _iFrameHeaderSize );
-  if (!bStatus)
+  if (!inBeamRateMode())
   {
-    printPvError("PrincetonServer::startCapture():pl_exp_start_seq() failed");
-    return ERROR_SDK_FUNC_FAIL;
+    if ( _pDgOut == NULL )
+    {
+      printf( "PrincetonServer::startCapture(): Datagram has not been allocated. No buffer to store the image data\n" );
+      return ERROR_LOGICAL_FAILURE;
+    }
+
+    /* Start the acquisition */
+    rs_bool bStatus = pl_exp_start_seq(_hCam, (unsigned char*) _pDgOut + _iFrameHeaderSize );
+    if (!bStatus)
+    {
+      printPvError("PrincetonServer::startCapture():pl_exp_start_seq() failed");
+      return ERROR_SDK_FUNC_FAIL;
+    }
+  }
+  else
+  {
+    rs_bool bStatus = pl_exp_start_cont(_hCam, _pFrameBuffer, _iBufferSize);
+    if (!bStatus)
+    {
+      printPvError("PrincetonServer::startCapture():pl_exp_start_cont() failed");
+      return ERROR_SDK_FUNC_FAIL;
+    }
   }
 
   return 0;
@@ -839,8 +903,7 @@ int PrincetonServer::deinitClockSaving()
   resetFrameData(true);
 
   /* Stop the acquisition */
-  rs_bool bStatus =
-   pl_exp_abort(_hCam, CCS_HALT);
+  rs_bool bStatus = pl_exp_abort(_hCam, CCS_HALT);
 
   if (!bStatus)
   {
@@ -1119,6 +1182,7 @@ int PrincetonServer::startExposure()
     //printf("PrincetonServer::startExposure(): After setupFrame(): Local Time: %s.%09ld\n", sTimeText, timeCurrent.tv_nsec);
 
     iFail = startCapture();
+    if ( iFail != 0 ) break;
 
     //!!!debug
     clock_gettime( CLOCK_REALTIME, &timeCurrent );
@@ -1247,9 +1311,153 @@ int PrincetonServer::waitData(InDatagram* in, InDatagram*& out)
   return getData(in, out);
 }
 
-bool PrincetonServer::IsCapturingData()
+bool PrincetonServer::isCapturingData()
 {
   return ( _CaptureState != CAPTURE_STATE_IDLE );
+}
+
+bool PrincetonServer::inBeamRateMode()
+{
+  return ( _iTriggerMode == 1 );
+}
+
+int PrincetonServer::getDataInBeamRateMode(InDatagram* in, InDatagram*& out)
+{
+  out = in; // Default: return empty stream
+
+  //LockCameraData lockGetDataInBeamRateMode(const_cast<char*>("PrincetonServer::getDataInBeamRateMode()"));
+
+  if ( _CaptureState != CAPTURE_STATE_EXT_TRIGGER )
+    return 0;
+
+  if ( _poolFrameData.numberOfFreeObjects() <= 0 )
+  {
+    printf( "PrincetonServer::getDataInBeamRateMode(): Pool is full, and cannot provide buffer for new datagram\n" );
+    return ERROR_LOGICAL_FAILURE;
+  }
+
+  out =
+    new ( &_poolFrameData ) CDatagram( TypeId(TypeId::Any,0), DetInfo(0,DetInfo::NoDetector,0,DetInfo::NoDevice,0) );
+  out->datagram().xtc.alloc( sizeof(Xtc) + _config.frameSize() );
+
+  static timespec tsWaitStart;
+  clock_gettime( CLOCK_REALTIME, &tsWaitStart );
+
+  const timeval timeSleepMicroOrg = {0, 1000}; // 1 milliseconds
+  uns32         uNumBytesTransfered = -1, uNumBufferFilled = -1;
+  static bool   bPrevCatpureFailed;
+  if (_iNumExposure == 0)
+    bPrevCatpureFailed = false;
+  bool bFrameError = false;
+
+  /* wait for data or error */
+  while (1)
+  {
+    int16 status = 0;
+    if (!pl_exp_check_cont_status(_hCam, &status, &uNumBytesTransfered, &uNumBufferFilled) )
+    {
+      if (!bPrevCatpureFailed)
+        printPvError("PrincetonServer::getDataInBeamRateMode(): pl_exp_start_cont() failed");
+      bFrameError = true;
+      break;
+    }
+
+    /* Check Error Codes */
+    if (status == READOUT_FAILED)
+    {
+      if (!bPrevCatpureFailed)
+        printf("PrincetonServer::getDataInBeamRateMode(): pl_exp_check_cont_status() return status=READOUT_FAILED\n");
+      bFrameError = true;
+      break;
+    }
+
+    if (status == READOUT_COMPLETE)
+      break;
+
+    // This data will be modified by select(), so need to be reset
+    timeval timeSleepMicro = timeSleepMicroOrg;
+    // use select() to simulate nanosleep(), because experimentally select() controls the sleeping time more precisely
+    select( 0, NULL, NULL, NULL, &timeSleepMicro);
+  }
+
+  ++_iNumExposure;
+  if (bFrameError)
+  {
+    if (!bPrevCatpureFailed)
+      printf("PrincetonServer::getDataInBeamRateMode(): Wait image data %d failed\n", _iNumExposure);
+    bPrevCatpureFailed  = true;
+  }
+  else
+  {
+    bPrevCatpureFailed  = false;
+
+    uint8_t* pImage = (uint8_t*) out + _iFrameHeaderSize;
+    void* pFrameCurrent;
+    if (!pl_exp_get_oldest_frame(_hCam, &pFrameCurrent))
+    {
+      printPvError("PrincetonServer::getDataInBeamRateMode(): pl_exp_start_cont() failed");
+      bFrameError = true;
+    }
+    memcpy(pImage, pFrameCurrent, _iFrameSize);
+    if ( !pl_exp_unlock_oldest_frame(_hCam) )
+    {
+      printPvError("PrincetonServer::getDataInBeamRateMode(): pl_exp_unlock_oldest_frame() failed");
+      bFrameError = true;
+    }
+  }
+
+  timespec tsWaitEnd;
+  clock_gettime( CLOCK_REALTIME, &tsWaitEnd );
+  _fReadoutTime = (tsWaitEnd.tv_nsec - tsWaitStart.tv_nsec) / 1.0e9 + ( tsWaitEnd.tv_sec - tsWaitStart.tv_sec ); // in seconds
+
+  ////!!!debug
+  if (vecReadoutTime.size() < 20)
+    vecReadoutTime.push_back(make_pair(_fReadoutTime, _iNumExposure));
+  if ( _fReadoutTime > 1.0 )
+    printf("  *** get %d image out, time = %f sec\n", _iNumExposure, _fReadoutTime);
+
+  /*
+   * Set frame object
+   */
+  unsigned char* pcXtcFrame = (unsigned char*) out + sizeof(CDatagram);
+  Xtc* pXtcFrame            = new ((char*)pcXtcFrame) Xtc(_princetonDataType, _src);
+  pXtcFrame->alloc( _config.frameSize() );
+
+
+  Datagram& dgIn  = in->datagram();
+  Datagram& dgOut = out->datagram();
+
+  /*
+   * Backup the orignal Xtc data
+   *
+   * Note that it is not correct to use  Xtc xtc1 = xtc2, which means using the Xtc constructor,
+   * instead of the copy operator to do the copy. In this case, the xtc data size will be set to 0.
+   */
+  Xtc xtcOutBkp;
+  xtcOutBkp = dgOut.xtc;
+
+  /*
+   * Compose the datagram
+   *
+   *   1. Use the header from dgIn
+   *   2. Use the xtc (data header) from dgOut
+   *   3. Use the data from dgOut (the data was located right after the xtc)
+   */
+  dgOut     = dgIn;
+
+  //dgOut.xtc = xtcOutBkp; // not okay for command
+  dgOut.xtc.damage = xtcOutBkp.damage;
+  dgOut.xtc.extent = xtcOutBkp.extent;
+
+  unsigned char*  pFrameHeader  = (unsigned char*) out + sizeof(CDatagram) + sizeof(Xtc);
+  //PrincetonDataType*  pData         = (PrincetonDataType*) pFrameHeader;
+  new (pFrameHeader) PrincetonDataType(dgIn.seq.stamp().fiducials(), _fReadoutTime, -77 /* temperature undefined */);
+
+  if (bFrameError)
+    // set damage bit, and still keep the image data
+    dgOut.xtc.damage.increase(Pds::Damage::UserDefined);
+
+  return 0;
 }
 
 int PrincetonServer::waitForNewFrameAvailable()
