@@ -37,18 +37,18 @@
 #define USE_L1A
 //#define DBUG
 
-#define SET_XTC(pxtc,ixtc,itype,ctype) {				\
-    if (pxtc)								\
-      delete[] reinterpret_cast<char*>(pxtc);				\
-    if (ixtc) {								\
-      unsigned sz = ixtc->_sizeof();					\
-      pxtc =								\
-	new (new char[sizeof(Xtc)+sz]) Xtc(itype,_header.procInfo());	\
-      new (pxtc->alloc(sz)) ctype(*ixtc);				\
-      delete[] reinterpret_cast<const char*>(ixtc);			\
-    }									\
-    else								\
-      pxtc = 0;								\
+#define SET_XTC(pxtc,ixtc,itype,ctype) {        \
+    if (pxtc)               \
+      delete[] reinterpret_cast<char*>(pxtc);       \
+    if (ixtc) {               \
+      unsigned sz = ixtc->_sizeof();          \
+      pxtc =                \
+  new (new char[sizeof(Xtc)+sz]) Xtc(itype,_header.procInfo()); \
+      new (pxtc->alloc(sz)) ctype(*ixtc);       \
+      delete[] reinterpret_cast<const char*>(ixtc);     \
+    }                 \
+    else                \
+      pxtc = 0;               \
   }
 
 
@@ -64,7 +64,8 @@ namespace Pds {
     { memcpy(_buffer, &tr, tr.size()); }
   public:
     void routine() {
-      _control._execute(*reinterpret_cast<Transition*>(_buffer));
+      char* buffer = (char*) _buffer;
+      _control._execute(*(Transition*)buffer);
       delete this;
     }
   private:
@@ -211,10 +212,10 @@ namespace Pds {
             if (_control._alias_xtc)                // Alias configuration
               payload_size += _control._alias_xtc   ->extent;
 
-	    if (payload_size+sizeof(Xtc) > MaxPayload) {
+      if (payload_size+sizeof(Xtc) > MaxPayload) {
               printf("PartitionControl transition payload size (0x%x) exceeds maximum.  Aborting.\n",payload_size);
-	      abort();
-	    }
+        abort();
+      }
 
             if (payload_size) payload_size += sizeof(Xtc);
 
@@ -225,56 +226,56 @@ namespace Pds {
                                                  i->sequence().clock(),
                                                  i->sequence().stamp()),
                                         i->env(),
-					sizeof(Transition)+payload_size);
+          sizeof(Transition)+payload_size);
 
             if (payload_size) {
               Xtc* top = new(reinterpret_cast<char*>(tr+1)) Xtc(_xtcType,_control.header().procInfo());
               //  Attach the control_transition header and payload
-              if (xtc) { 
+              if (xtc) {
                 Xtc* cxtc = new(reinterpret_cast<char*>(top->next())) Xtc(*xtc);
                 memcpy(cxtc->alloc(xtc->sizeofPayload()),_control._transition_payload[i->id()],xtc->sizeofPayload());
-                top->extent += cxtc->extent; 
+                top->extent += cxtc->extent;
               }
 
-#define ADD_XTC(xtc)							\
-	      if (xtc) {						\
+#define ADD_XTC(xtc)              \
+        if (xtc) {            \
                 Xtc* cxtc = new(reinterpret_cast<char*>(top->next())) Xtc(*xtc); \
-                memcpy(cxtc->alloc(xtc->sizeofPayload()),		\
-                       xtc->payload(),					\
-                       xtc->sizeofPayload());				\
-                top->extent += cxtc->extent;				\
-              }								\
+                memcpy(cxtc->alloc(xtc->sizeofPayload()),   \
+                       xtc->payload(),          \
+                       xtc->sizeofPayload());       \
+                top->extent += cxtc->extent;        \
+              }               \
 
               //  Attach the partition configuration
-	      ADD_XTC(_control._partition_xtc);
+        ADD_XTC(_control._partition_xtc);
               //  Attach the EVR IO configuration
-	      ADD_XTC(_control._ioconfig_xtc);
+        ADD_XTC(_control._ioconfig_xtc);
               //  Attach the alias configuration header and payload
               ADD_XTC(_control._alias_xtc);
             }
 
 #undef ADD_XTC
-	  }
+    }
 
-	  else if (xtc) { 
-	    if (xtc->extent > MaxPayload) {
+    else if (xtc) {
+      if (xtc->extent > MaxPayload) {
               printf("PartitionControl transition payload size (0x%x) exceeds maximum.  Aborting.\n",xtc->extent);
-	      abort();
-	    }
+        abort();
+      }
 
-	    tr = new(&_pool) Transition(i->id(),
+      tr = new(&_pool) Transition(i->id(),
                                         Transition::Record,
                                         Sequence(Sequence::Event,
                                                  i->id(),
                                                  i->sequence().clock(),
                                                  i->sequence().stamp()),
                                         i->env(),
-					sizeof(Transition)+xtc->extent);
-	    Xtc* top = new(reinterpret_cast<char*>(tr+1)) Xtc(*xtc);
-	    memcpy(top->alloc(xtc->sizeofPayload()),_control._transition_payload[i->id()],xtc->sizeofPayload());
-	  }
+          sizeof(Transition)+xtc->extent);
+      Xtc* top = new(reinterpret_cast<char*>(tr+1)) Xtc(*xtc);
+      memcpy(top->alloc(xtc->sizeofPayload()),_control._transition_payload[i->id()],xtc->sizeofPayload());
+    }
 
-	  else {
+    else {
             tr = new(&_pool) Transition(i->id(),
                                         Transition::Record,
                                         Sequence(Sequence::Event,
@@ -282,7 +283,7 @@ namespace Pds {
                                                  i->sequence().clock(),
                                                  i->sequence().stamp()),
                                         i->env());
-	  }
+    }
 
           _control.mcast(*tr);
           delete tr;
@@ -403,14 +404,14 @@ bool PartitionControl::set_partition(const char* name,
                                      const char* l3path,
                                      const Node* nodes,
                                      unsigned    nnodes,
-				     unsigned    masterid,
+             unsigned    masterid,
                                      uint64_t    bldmask,
                                      uint64_t    bldmask_mon,
                                      unsigned    options,
-				     float       l3_unbias,
+             float       l3_unbias,
                                      const PartitionConfigType* cfg,
                                      const EvrIOConfigType*     iocfg,
-				     const AliasConfigType*     alias)
+             const AliasConfigType*     alias)
 {
   if (options&Allocation::ShortDisableTmo) {
     disable_tmo.tv_sec =0;
@@ -422,8 +423,8 @@ bool PartitionControl::set_partition(const char* name,
   }
 
   _partition = Allocation(name,dbpath,l3path,
-			  partitionid(),masterid,
-			  bldmask,bldmask_mon,options,l3_unbias);
+        partitionid(),masterid,
+        bldmask,bldmask_mon,options,l3_unbias);
   for(unsigned k=0; k<nnodes; k++)
     _partition.add(nodes[k]);
 
@@ -436,8 +437,8 @@ bool PartitionControl::set_partition(const char* name,
 
 bool PartitionControl::set_partition(const Allocation& alloc,
                                      const PartitionConfigType* cfg,
-				     const EvrIOConfigType*     iocfg,
-				     const AliasConfigType*     alias)
+             const EvrIOConfigType*     iocfg,
+             const AliasConfigType*     alias)
 {
   _partition = alloc;
 
@@ -611,7 +612,7 @@ void PartitionControl::_next()
 {
 #ifdef DBUG
   printf("PartitionControl::_next  current %s  target %s\n",
-	 name(_current_state), name(_target_state));
+   name(_current_state), name(_target_state));
 #endif
   if      (_current_state==_target_state) {
     pthread_cond_signal(&_target_cond);
@@ -636,7 +637,7 @@ void PartitionControl::_next()
       break;
     }
     case Running   : _queue(TransitionId::BeginCalibCycle); break;
-    case Disabled  : 
+    case Disabled  :
       if (_sequencer) _sequencer->stop();
       _queue(TransitionId::Enable);
       break;
