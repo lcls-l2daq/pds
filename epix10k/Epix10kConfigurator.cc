@@ -192,6 +192,8 @@ unsigned Epix10kConfigurator::configure( Epix10kConfigType* c, unsigned first) {
   printf("Epix10kConfigurator::configure %sreseting front end\n", first ? "" : "not ");
   if (first) {
     resetFrontEnd();
+    printf("\tSleeping seven seconds\n");
+    sleep(7);
   }
   if (_flush()) {
     printf("Epix10kConfigurator::configure determined that we lost contact with the front end, exiting!\n");
