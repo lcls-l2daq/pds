@@ -44,6 +44,9 @@ namespace Pds_ConfigDb {
       /// Get the configurations used by a run key
       std::list<KeyEntry>  getKey(unsigned);
 
+      /// Get the configurations used by a run key
+      std::list<KeyEntryT> getKeyT(unsigned);
+
       /// Set the configurations used by a run key
       int                  setKey(const Key&,std::list<KeyEntry>);
     public:

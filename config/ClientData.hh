@@ -39,6 +39,12 @@ namespace Pds_ConfigDb {
     }
   };
 
+  class KeyEntryT {
+  public:
+    uint64_t    source;
+    XtcEntryT   xtc;
+  };
+
   class Key {
   public:
     unsigned    key;

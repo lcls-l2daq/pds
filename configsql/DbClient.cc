@@ -5,6 +5,7 @@
 using Pds_ConfigDb::XtcEntry;
 using Pds_ConfigDb::XtcEntryT;
 using Pds_ConfigDb::KeyEntry;
+using Pds_ConfigDb::KeyEntryT;
 using Pds_ConfigDb::Key;
 using Pds_ConfigDb::DeviceEntryRef;
 using Pds_ConfigDb::DeviceEntries;
@@ -18,6 +19,7 @@ using Pds_ConfigDb::ExptAlias;
 #include <iostream>
 #include <iomanip>
 #include <sstream>
+#include <queue>
 
 using std::hex;
 using std::setw;
@@ -934,6 +936,41 @@ std::list<KeyEntry>  DbClient::getKey(unsigned key)
   return entries;
 }
 
+std::list<KeyEntryT>  DbClient::getKeyT(unsigned key)
+{
+#ifdef USE_TABLE_LOCKS
+  { std::ostringstream sql;
+    sql << "LOCK TABLES runkeys READ;";
+    simpleQuery(_mysql,sql.str()); }
+#endif
+
+  std::list<KeyEntryT> entries;
+
+  std::ostringstream sql;
+  sql << "SELECT DISTINCT source,typeid,xtcname,xtctime FROM runkeys "
+      << "WHERE runkeys.runkey=" << key;
+  QueryProcessor query(_mysql);
+  query.execute(sql.str());
+
+  while(query.next_row()) {
+    KeyEntryT entry;
+    query.get(entry.source     , "source");
+    query.get(entry.xtc.xtc.type_id, "typeid");
+    query.get(entry.xtc.xtc.name   , "xtcname");
+    query.get_time(entry.xtc.time ,"xtctime");
+    query.get(entry.xtc.stime     ,"xtctime");
+    entries.push_back(entry);
+  }
+
+#ifdef USE_TABLE_LOCKS
+  { std::ostringstream sql;
+    sql << "UNLOCK TABLES;";
+    simpleQuery(_mysql,sql.str()); }
+#endif
+
+  return entries;
+}
+
 int                  DbClient::setKey(const Key& key,
                                       std::list<KeyEntry> entries)
 {
@@ -1165,25 +1202,56 @@ int                  DbClient::getXTC(const XtcEntryT& x)
     simpleQuery(_mysql,sql.str()); }
 #endif
 
-  std::ostringstream sql;
-  sql << "SELECT LENGTH(payload) FROM xtc"
-      << " WHERE typeid=" << x.xtc.type_id.value()
-      << " AND xtcname='" << trunc(x.xtc.name)
-    //      << "' AND xtctime=" << timestamp(x.time) << ";";
-      << "' AND xtctime='" << x.stime << "';";
+  std::queue<std::string> times;
+  {
+    times.push(x.stime);
 
-  printf("Query [%s]\n",sql.str().c_str());
+    //  Alternative times to try because of timestamp screwup
+    struct tm tm;
+    char tbuff[64];
+    time_t t=x.time;
+    localtime_r(&t, &tm);
+    strftime(tbuff, 64, "%F %T", &tm);
+    times.push(std::string(tbuff));
 
-  int len = -1;
-  QueryProcessor query(_mysql);
-  query.execute(sql.str());
-  if (!query.empty()) {
-    query.next_row();
-    unsigned ulen;
-    query.get(ulen,"LENGTH(payload)");
-    len = ulen;
+    strptime(x.stime.c_str(),"%F %T",&tm);
+    t=mktime(&tm);
+    t += 3600;
+    localtime_r(&t, &tm);
+    strftime(tbuff, 64, "%F %T", &tm);
+    times.push(std::string(tbuff));
+
+    t -= 7200;
+    localtime_r(&t, &tm);
+    strftime(tbuff, 64, "%F %T", &tm);
+    times.push(std::string(tbuff));
   }
 
+  int len = -1;
+
+  while(times.size()) {
+    std::ostringstream sql;
+    sql << "SELECT LENGTH(payload) FROM xtc"
+        << " WHERE typeid=" << x.xtc.type_id.value()
+        << " AND xtcname='" << trunc(x.xtc.name)
+      //      << "' AND xtctime=" << timestamp(x.time) << ";";
+        << "' AND xtctime='" << times.front() << "';";
+
+    printf("Query [%s]\n",sql.str().c_str());
+
+    QueryProcessor query(_mysql);
+    query.execute(sql.str());
+    if (!query.empty()) {
+      query.next_row();
+      unsigned ulen;
+      query.get(ulen,"LENGTH(payload)");
+      len = ulen;
+      const_cast<XtcEntryT&>(x).stime = times.front();
+      break;
+    }
+    times.pop();
+  }
+    
 #ifdef USE_TABLE_LOCKS
   { std::ostringstream sql;
     sql << "UNLOCK TABLES;";

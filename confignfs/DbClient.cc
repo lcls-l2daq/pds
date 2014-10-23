@@ -7,6 +7,7 @@
 using Pds_ConfigDb::XtcEntry;
 using Pds_ConfigDb::XtcEntryT;
 using Pds_ConfigDb::KeyEntry;
+using Pds_ConfigDb::KeyEntryT;
 using Pds_ConfigDb::Key;
 using Pds_ConfigDb::DeviceEntryRef;
 using Pds_ConfigDb::DeviceEntries;
@@ -652,6 +653,65 @@ std::list<KeyEntry>  DbClient::getKey(unsigned key)
       if (bsiz>=0) {
         buff[bsiz]=0;
         entry.xtc.name = basename(buff);
+        entries.push_back(entry);
+      }
+    }
+    globfree(&h);
+  }
+  globfree(&g);
+  delete[] buff;
+  return entries;
+}
+
+std::list<KeyEntryT>  DbClient::getKeyT(unsigned key)
+{
+  std::list<KeyEntryT> entries;
+
+  size_t buff_size = 512;
+  char* buff = new char[buff_size];
+
+  // populate key list
+  ostringstream kname;
+  kname << hex << setw(8) << setfill('0') << key;
+  kname << "/[0-9]*";
+  string kpath = _path.key_path(kname.str());
+  glob_t g;
+  glob(kpath.c_str(),0,0,&g);
+  for(unsigned k=0; k<g.gl_pathc; k++) {
+    char* bname = basename(g.gl_pathv[k]);
+    unsigned phy = strtoul(bname,NULL,16);
+    KeyEntryT entry;
+    if (strlen(bname)==1) {
+      entry.source = phy;
+      entry.source <<= 56;
+    }
+    else {
+      entry.source  = phy;
+      entry.source |= 1ULL<<56;
+    }
+
+    ostringstream hpath;
+    hpath << g.gl_pathv[k] << "/[0-9]*";
+    glob_t h;
+    glob(hpath.str().c_str(),0,0,&h);
+    for(unsigned m=0; m<h.gl_pathc; m++) {
+      unsigned vtyp = strtoul(basename(h.gl_pathv[m]),NULL,16);
+      entry.xtc.xtc.type_id = (Pds::TypeId&)vtyp;
+      
+      ssize_t bsiz=readlink(h.gl_pathv[m],buff,buff_size);
+      if (bsiz>=0) {
+        buff[bsiz]=0;
+        entry.xtc.xtc.name = basename(buff);
+
+        struct stat64 s;
+        stat64(buff,&s);
+        entry.xtc.time = s.st_mtime;
+
+        const size_t bsz=256;
+        char buff[bsz];
+        strftime(buff, bsz, "%F %T", localtime(&entry.xtc.time));
+        entry.xtc.stime = std::string(buff);
+
         entries.push_back(entry);
       }
     }

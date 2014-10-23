@@ -36,6 +36,9 @@ namespace Pds_ConfigDb {
     /// Get the configurations used by a run key
     virtual std::list<KeyEntry>  getKey(unsigned) = 0;
 
+    /// Get the configurations with timestamp used by a run key
+    virtual std::list<KeyEntryT> getKeyT(unsigned) = 0;
+
     /// Set the configurations used by a run key
     virtual int                  setKey(const Key&,std::list<KeyEntry>) = 0;
   public:
