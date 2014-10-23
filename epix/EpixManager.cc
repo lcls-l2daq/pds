@@ -81,7 +81,7 @@ namespace Pds {
     public:
       enum {StaticALlocationNumberOfConfigurationsForScanning=100};
       EpixConfigCache(const Src& src) :
-        CfgCache(src, _epixConfigType, StaticALlocationNumberOfConfigurationsForScanning * 135616) {}
+        CfgCache(src, _epixConfigType, StaticALlocationNumberOfConfigurationsForScanning * __size()) {}
     public:
      void printCurrent() {
        EpixConfigType* cfg = (EpixConfigType*)current();
@@ -89,6 +89,12 @@ namespace Pds {
      }
     private:
       int _size(void* tc) const { return ((EpixConfigType*)tc)->_sizeof(); }
+      static int __size() {
+        EpixConfigType* foo = new EpixConfigType(2,2,0x164, 0x180);
+        int size = (int) foo->_sizeof();
+        delete foo;
+        return size;
+      }
   };
 }
 
