@@ -1056,7 +1056,8 @@ int                  DbClient::getXTC(const    XtcEntry& x)
   sql << "SELECT LENGTH(payload) FROM xtc"
       << " WHERE xtc.typeid=" << x.type_id.value()
       << " AND xtc.xtcname='" << trunc(x.name)
-      << "' ORDER BY xtc.xtctime DESC;";
+      << "' ORDER BY xtc.xtctime DESC"
+      << " LIMIT 1;";
   QueryProcessor query(_mysql);
   query.execute(sql.str());
   if (query.empty())
@@ -1083,7 +1084,8 @@ int                  DbClient::getXTC(const    XtcEntry& x,
   sql << "SELECT payload FROM xtc"
       << " WHERE xtc.typeid=" << x.type_id.value()
       << " AND xtc.xtcname='" << trunc(x.name)
-      << "' ORDER BY xtc.xtctime DESC;";
+      << "' ORDER BY xtc.xtctime DESC"
+      << " LIMIT 1;";
   QueryProcessor query(_mysql);
   query.execute(sql.str());
   if (query.empty())
