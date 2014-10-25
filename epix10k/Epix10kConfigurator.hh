@@ -40,7 +40,7 @@ namespace Pds {
       ResetAcqCounter                   = 0x6,
       ReadAcqCounter                    = 0x5,
       PowerEnableAddr                   = 0x8,
-      PowerEnableValue                  = 0x3,
+      PowerEnableValue                  = 0x7,
       TotalPixelsAddr                   = 0x27,
       PixelsPerBank                     = 48,
       SaciClkBitAddr                    = 0x28,

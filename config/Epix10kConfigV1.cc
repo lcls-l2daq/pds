@@ -254,11 +254,11 @@ namespace Pds {
     uint32_t   ConfigV1::rangeLow(Registers r) {
       uint32_t ret = 0;
       switch (r) {
+        case AdcClkHalfT :
         case AdcReadsPerPixel:
         case AsicMask :
           ret = 1;
           break;
-        case AdcClkHalfT :
         case NumberOfAsicsPerRow :
         case NumberOfAsicsPerColumn :
           ret = 2;
