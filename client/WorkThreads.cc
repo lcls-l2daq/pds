@@ -5,6 +5,8 @@
 #include "pds/xtc/InDatagram.hh"
 #include "pds/service/Routine.hh"
 #include "pds/service/Task.hh"
+#include "pds/service/GenericPoolW.hh"
+#include "pds/service/Semaphore.hh"
 
 #include "pds/vmon/VmonServerManager.hh"
 #include "pds/mon/MonCds.hh"
@@ -19,6 +21,7 @@
 #include <list>
 #include <vector>
 #include <exception>
+#include <string>
 
 //#define DBUG
 
@@ -125,7 +128,10 @@ namespace Pds {
               Appliance& app,
               Pds::Task& mgr_task) : 
         _app     (app),
-        _mgr_task(mgr_task)
+        _mgr_task(mgr_task),
+	_pool    (sizeof(UserMessage),1),
+	_sem     (Semaphore::FULL),
+	_handled (false)
       {
         MonGroup* group = new MonGroup(name);
         VmonServerManager::instance()->cds().add(group);
@@ -155,8 +161,25 @@ namespace Pds {
       Pds::Task& mgr_task() { return _mgr_task; }
       void queueTransition(Transition* tr)
       {
-        for(unsigned id=0; id<_tasks.size(); id++)
-          _tasks[id]->process(tr);
+	_handled=false;
+
+	try {
+	  for(unsigned id=0; id<_tasks.size(); id++)
+	    _tasks[id]->process(tr);
+	}
+	catch (std::exception& e) {
+	  printf("WorkThreads::Task::queueTransition caught %s\n",e.what());
+	  handle(e.what());
+	}
+	catch (std::string& e) {
+	  printf("WorkThreads::Task::queueTransition caught %s\n",e.c_str());
+	  handle(e.c_str());
+	}
+	catch (...) {
+	  printf("WorkThreads::Task::queueTransition caught unknown exception\n");
+	  handle("Unknown plugin exception");
+	}
+
         _app.post(tr);
       }
       void queueEvent     (InDatagram* in)
@@ -164,11 +187,26 @@ namespace Pds {
 	//  nonL1 transitions need to go to every instance
 	if (in->datagram().seq.service()!=TransitionId::L1Accept) {
 	  unsigned extent = in->datagram().xtc.extent;
-	  for(unsigned id=1; id<_tasks.size(); id++) {
-	    _tasks[id]->process(in);
-	    in->datagram().xtc.extent = extent;  // remove any insertions
+	  try {
+	    for(unsigned id=1; id<_tasks.size(); id++) {
+	      _tasks[id]->process(in);
+	      in->datagram().xtc.extent = extent;  // remove any insertions
+	    }
+	    _tasks[0]->process(in);
 	  }
-          _tasks[0]->process(in);
+	  catch (std::exception& e) {
+	    printf("WorkThreads::Task::queueEvent caught %s\n",e.what());
+	    handle(e.what());
+	  }
+	  catch (std::string& e) {
+	    printf("WorkThreads::Task::queueEvent caught %s\n",e.c_str());
+	    handle(e.c_str());
+	  }
+	  catch (...) {
+	    printf("WorkThreads::Task::queueEvent caught unknown exception\n");
+	    handle("Unknown plugin exception");
+	  }
+
           _app.post(in);
 	}
 	else {
@@ -182,6 +220,16 @@ namespace Pds {
         _complete(e);
         _tasks[id]->unassign();
         _process();
+      }
+      void handle (const char* smsg)
+      {
+	_sem.take();
+	if (!_handled) {
+	  _handled=true;
+	  _app.post(new (&_pool) Occurrence (OccurrenceId::ClearReadout));
+	  _app.post(new (&_pool) UserMessage(smsg));
+	}
+	_sem.give();
       }
     private:
       void _process()
@@ -259,6 +307,9 @@ namespace Pds {
       Pds::Appliance&           _app;
       std::vector<Work::Task*>  _tasks;
       Pds::Task&                _mgr_task;
+      GenericPool               _pool;
+      Semaphore                 _sem;
+      bool                      _handled;
       std::list  <Work::Entry*> _list;
       MonEntryTH1F*             _start_to_complete;
       MonEntryTH1F*             _queued;
@@ -271,7 +322,28 @@ namespace Pds {
 using namespace Pds;
 
 void Work::Task::routine() {
-  process((InDatagram*)_entry->ptr());
+  bool lCaught=true;
+  InDatagram* dg = (InDatagram*)_entry->ptr();
+  try {
+    process(dg);
+    lCaught=false;
+  }
+  catch (std::exception& e) {
+    printf("WorkThreads::Task::routine caught %s\n",e.what());
+    _app.handle(e.what());
+  }
+  catch (std::string& e) {
+    printf("WorkThreads::Task::routine caught %s\n",e.c_str());
+    _app.handle(e.c_str());
+  }
+  catch (...) {
+    printf("WorkThreads::Task::routine caught unknown exception\n");
+    _app.handle("Unknown plugin exception");
+  }
+
+  if (lCaught)
+    dg->datagram().xtc.damage.increase(Damage::UserDefined);
+
   _app.mgr_task().call(new Work::ComplEv(_entry,_app,_id));
 }
 
