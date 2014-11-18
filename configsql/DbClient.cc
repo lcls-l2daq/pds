@@ -1239,7 +1239,9 @@ int                  DbClient::getXTC(const XtcEntryT& x)
       //      << "' AND xtctime=" << timestamp(x.time) << ";";
         << "' AND xtctime='" << times.front() << "';";
 
+#ifdef DBUG
     printf("Query [%s]\n",sql.str().c_str());
+#endif
 
     QueryProcessor query(_mysql);
     query.execute(sql.str());
@@ -1280,7 +1282,9 @@ int                  DbClient::getXTC(const XtcEntryT& x,
     //      << "' AND xtctime=" << timestamp(x.time) << ";";
       << "' AND xtctime='" << x.stime << "';";
 
+#ifdef DBUG
   printf("Query [%s]\n",sql.str().c_str());
+#endif
 
   int len = -1;
   QueryProcessor query(_mysql);
