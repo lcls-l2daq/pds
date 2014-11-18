@@ -454,7 +454,7 @@ int PrincetonServer::initCapture()
       return ERROR_SDK_FUNC_FAIL;
     }
 
-    const int16 iCircularBufferSize = (uFrameSize <= 65536? 128 : 8);
+    const int iCircularBufferSize = ((1UL << 29) / uFrameSize); // max size: 512 MB
     _iBufferSize = uFrameSize * iCircularBufferSize;
     free(_pFrameBuffer);
     _pFrameBuffer = (char*) malloc(_iBufferSize);
@@ -463,6 +463,7 @@ int PrincetonServer::initCapture()
       printf("PrincetonServer::initCapture(): Frame buffer allocation error!\n");
       return ERROR_FUNCTION_FAILURE;
     }
+    printf("Circular Buffer size = %d  Max frame count = %d\n", _iBufferSize, iCircularBufferSize);
   }
   else
   {
@@ -1348,7 +1349,8 @@ int PrincetonServer::getDataInBeamRateMode(InDatagram* in, InDatagram*& out)
   static bool   bPrevCatpureFailed;
   if (_iNumExposure == 0)
     bPrevCatpureFailed = false;
-  bool bFrameError = false;
+  bool  bFrameError    = false;
+  static int16 iErrorCodePrev = 0;
 
   /* wait for data or error */
   while (1)
@@ -1356,14 +1358,22 @@ int PrincetonServer::getDataInBeamRateMode(InDatagram* in, InDatagram*& out)
     int16 status = 0;
     if (!pl_exp_check_cont_status(_hCam, &status, &uNumBytesTransfered, &uNumBufferFilled) )
     {
-      if (!bPrevCatpureFailed)
+      int16 iErrorCode = pl_error_code();
+      if (iErrorCode != iErrorCodePrev)
+        bPrevCatpureFailed = false;
+      iErrorCodePrev = iErrorCode;
+
+      if (!bPrevCatpureFailed) {
         printPvError("PrincetonServer::getDataInBeamRateMode(): pl_exp_start_cont() failed");
+        printf("    error code = %d status = %d, bytes transfered = %u, bufferFilled = %u\n",
+          iErrorCode, (int)status, uNumBytesTransfered, uNumBufferFilled);
+      }
       bFrameError = true;
       break;
     }
 
     /* Check Error Codes */
-    if (status == READOUT_FAILED)
+    if (status == READOUT_FAILED)// enum value = 4
     {
       if (!bPrevCatpureFailed)
         printf("PrincetonServer::getDataInBeamRateMode(): pl_exp_check_cont_status() return status=READOUT_FAILED\n");
@@ -1371,7 +1381,7 @@ int PrincetonServer::getDataInBeamRateMode(InDatagram* in, InDatagram*& out)
       break;
     }
 
-    if (status == READOUT_COMPLETE)
+    if (status == READOUT_COMPLETE) // enum value = 3
       break;
 
     // This data will be modified by select(), so need to be reset
