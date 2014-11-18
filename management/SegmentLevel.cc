@@ -130,9 +130,9 @@ void    SegmentLevel::allocated(const Allocation& alloc,
   unsigned partition= alloc.partitionid();
 
   //  setup EVR server
-  //  Ins source(StreamPorts::event(partition, Level::Segment, _header.group(), 
-  //				_header.triggered() ? _header.evr_module() : alloc.masterid()));
-  Ins source(StreamPorts::event(partition, Level::Segment, _header.group(), alloc.masterid()));
+  Ins source(StreamPorts::event(partition, Level::Segment, _header.group(), 
+  				_header.triggered() ? _header.evr_module() : alloc.masterid()));
+  //Ins source(StreamPorts::event(partition, Level::Segment, _header.group(), alloc.masterid()));
   Node evrNode(Level::Source,header().platform());
   evrNode.fixup(source.address(),Ether());
   DetInfo evrInfo(evrNode.pid(),DetInfo::NoDetector,0,DetInfo::Evr,0);
@@ -141,8 +141,8 @@ void    SegmentLevel::allocated(const Allocation& alloc,
 				  NetBufferDepth); // revisit
   inlet.add_input(esrv);
   esrv->server().join(source, Ins(header().ip()));
-  printf("Assign evr %d  %x/%d\n",
-   esrv->id(),source.address(),source.portId());
+  printf("Assign evr %d  (trigger %d masterid %d module %d) %x/%d\n",
+   esrv->id(), _header.triggered(), alloc.masterid(), _header.evr_module(), source.address(),source.portId());
   _evr = esrv;
 
   // setup event servers

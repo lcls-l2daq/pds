@@ -87,7 +87,7 @@ namespace Pds {
     Client                _outlet;
   private:
     ///  Network destination for each readout group
-    Ins                   _dst0;
+    //Ins                   _dst0;
     std::vector<Ins>      _ldst;
     ///  Outdated software trigger service
     ToNetEb               _swtrig_out;
