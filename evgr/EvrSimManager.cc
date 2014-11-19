@@ -288,16 +288,31 @@ namespace Pds {
 
   class EvrSimL1Action : public Action {
   public:
-    EvrSimL1Action(SimEvr& er) : _er(er) {}
+    EvrSimL1Action(SimEvr& er, const Src& src) : 
+      _er(er), 
+      _tc(TypeId(TypeId::Id_EvrData,3),src)
+    {
+      EvrData::DataV3 d(1);
+      _payload = new char[d._sizeof()];
+      _tc.extent += d._sizeof();
+    }
+    ~EvrSimL1Action() { delete[] _payload; }
   public:
     Transition* fire(Transition* tr) { _er.disable(); return tr; }
     InDatagram* fire(InDatagram* dg) { 
       dg->datagram().xtc.extent = sizeof(Xtc); 
-      _er.forward(dg);
+      if (_er.master()) {
+	EvrData::FIFOEvent fe(dg->datagram().seq.stamp().fiducials(),0,39);
+	new (_payload) EvrData::DataV3(1,&fe);
+	dg->insert(_tc,_payload);
+	_er.forward(dg);
+      }
       return dg; 
     }
   private:
     SimEvr& _er;
+    Xtc     _tc;
+    char*   _payload;
   };
 
   class EvrSimConfigManager
@@ -513,7 +528,7 @@ EvrSimManager::EvrSimManager(CfgClientNfs & cfg) :
   _fsm.callback(TransitionId::EndCalibCycle  , new EvrSimEndCalibAction  (*cmgr));
   _fsm.callback(TransitionId::Enable         , new EvrSimEnableAction    (_er,*_done,_fsm));
   _fsm.callback(TransitionId::Disable        , new EvrSimDisableAction   (*_done));
-  _fsm.callback(TransitionId::L1Accept       , new EvrSimL1Action        (_er));
+  _fsm.callback(TransitionId::L1Accept       , new EvrSimL1Action        (_er,cfg.src()));
 }
 
 EvrSimManager::~EvrSimManager()
