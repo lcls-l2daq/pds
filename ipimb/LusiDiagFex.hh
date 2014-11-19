@@ -11,6 +11,7 @@
 #include "pds/config/DiodeFexConfigType.hh"
 
 #include <vector>
+#include <map>
 
 namespace Pds {
   class InDatagram;
@@ -21,7 +22,7 @@ namespace Pds {
 
   class LusiDiagFex : public IpimbFex, XtcIterator {
   public:
-    LusiDiagFex();
+    LusiDiagFex(int baselineMode, const std::map<uint32_t,int>& polarity);
     ~LusiDiagFex();
   public:
     void        reset          ();
@@ -31,6 +32,8 @@ namespace Pds {
   public:
     int process(Xtc*);
   private:
+    int                    _baselineMode;
+    std::map<uint32_t,int> _polarity;
     GenericPoolW           _pool;
     IpmFexConfigType*      _ipm_config;
     DiodeFexConfigType*    _pim_config;

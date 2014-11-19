@@ -42,7 +42,9 @@ static  Pds::TypeId _diodeFexType(Pds::TypeId::Id_DiodeFex, DiodeFexType::Versio
 
 typedef Pds::Ipimb::DataV2 IpimbDataType;
 
-LusiDiagFex::LusiDiagFex() : 
+LusiDiagFex::LusiDiagFex(int baselineMode, const std::map<uint32_t,int>& polarity) : 
+  _baselineMode(baselineMode),
+  _polarity    (polarity),
   _pool(OutSize,OutEntries), 
   _ipm_config(new IpmFexConfigType  [max_configs]),
   _pim_config(new DiodeFexConfigType[max_configs]),
@@ -85,11 +87,26 @@ int LusiDiagFex::process(Xtc* xtc)
     const IpmFexConfigType& cfg  = _ipm_config[det];
     const IpimbDataType& data = *reinterpret_cast<const IpimbDataType*>(xtc->payload());
     float fex_channel[4];
-    int s; // need to fetch the cap selection from the IPIMB configuration for each channel
-    s=_cap_config[det].cap[0]; fex_channel[0] = (cfg.diode()[0].base()[s] - data.channel0Volts())*cfg.diode()[0].scale()[s];
-    s=_cap_config[det].cap[1]; fex_channel[1] = (cfg.diode()[1].base()[s] - data.channel1Volts())*cfg.diode()[1].scale()[s];
-    s=_cap_config[det].cap[2]; fex_channel[2] = (cfg.diode()[2].base()[s] - data.channel2Volts())*cfg.diode()[2].scale()[s];
-    s=_cap_config[det].cap[3]; fex_channel[3] = (cfg.diode()[3].base()[s] - data.channel3Volts())*cfg.diode()[3].scale()[s];
+    double base = _polarity[xtc->src.phy()]==1 ? 0 : IpimbDataType::ipimbAdcRange;
+#define CALC_FEX(ch) {                                                  \
+      int s=_cap_config[det].cap[ch];                                   \
+      if (_baselineMode)                                                \
+        fex_channel[ch] = (cfg.diode()[ch].base()[s] -                  \
+                           base -                                       \
+                           data.channel##ch##Volts() +                  \
+                           data.channel##ch##psVolts() )                \
+          *cfg.diode()[ch].scale()[s];                                  \
+      else                                                              \
+        fex_channel[ch] = (cfg.diode()[ch].base()[s] -                  \
+                           data.channel##ch##Volts() )                  \
+          *cfg.diode()[ch].scale()[s];                                  \
+    }
+    CALC_FEX(0);
+    CALC_FEX(1);
+    CALC_FEX(2);
+    CALC_FEX(3);
+#undef CALC_FEX
+
     float fex_sum = fex_channel[0] + fex_channel[1] + fex_channel[2] + fex_channel[3];
     float fex_xpos = cfg.xscale()*(fex_channel[1] - fex_channel[3])/(fex_channel[1] + fex_channel[3]);
     float fex_ypos = cfg.yscale()*(fex_channel[0] - fex_channel[2])/(fex_channel[0] + fex_channel[2]);
