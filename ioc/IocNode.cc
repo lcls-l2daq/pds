@@ -40,6 +40,8 @@ IocNode::IocNode(std::string host_and_port, std::string config, std::string alia
 
     std::string name = detector + "|" + device;
     new(&_src[0]) DetInfo(name.c_str());
+
+    _conn = NULL;
 }
 
 Node IocNode::node() const
