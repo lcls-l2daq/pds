@@ -92,7 +92,7 @@ namespace Pds {
   private:
     static const unsigned MaxNodes=128;
     static const unsigned MaxPName=16;
-    static const unsigned MaxName=64;
+    static const unsigned MaxName=128;
     static const unsigned MaxDbPath=64;
     char     _partition[MaxPName];
     char     _l3path   [MaxName];
