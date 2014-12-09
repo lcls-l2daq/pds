@@ -173,17 +173,20 @@ void    SegmentLevel::allocated(const Allocation& alloc,
   //  Assign traffic shaping phase
   //
   const int pid = getpid();
+  unsigned s=0;
   for(unsigned n=0; n<nnodes; n++) {
     const Node& node = *alloc.node(n);
-    if (node.level()==Level::Segment)
+    if (node.level()==Level::Segment) {
       if (node.pid()==pid) {
-        ToEventWireScheduler::setPhase  (n % vectorid);
+        ToEventWireScheduler::setPhase  (s % vectorid);
         ToEventWireScheduler::setMaximum(vectorid);
         ToEventWireScheduler::shapeTmo  (alloc.options()&Allocation::ShapeTmo);
         printf("Configure ToEventWireScheduler phase %d  max %d  tmo %c\n",
-               n%vectorid, vectorid,
+               s%vectorid, vectorid,
                alloc.options()&Allocation::ShapeTmo ? 't':'f');
       }
+      s++;
+    }
   }
 }
 
