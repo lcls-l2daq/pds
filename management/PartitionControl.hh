@@ -54,9 +54,11 @@ namespace Pds {
                             const       EvrIOConfigType* iocfg=0,
 			    const       AliasConfigType* alias=0);
     bool  set_partition    (const Allocation&,
-                            const       PartitionConfigType* =0,
-                            const       EvrIOConfigType* iocfg=0,
-			    const       AliasConfigType* alias=0);
+                            const       PartitionConfigType*,
+                            const       EvrIOConfigType* iocfg,
+			    const       AliasConfigType* alias);
+    bool  set_partition    (const Allocation&,
+                            const       PartitionConfigType*);
     const Allocation& partition() const;
   public:
     virtual void  set_target_state (State);

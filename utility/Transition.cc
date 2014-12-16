@@ -165,6 +165,24 @@ bool Allocation::remove(const ProcInfo& info)
   return false;
 }
 
+void Allocation::set_l3t(const char* path, bool veto, float unbiased_f)
+{
+  strncpy(_l3path, path, MaxName);
+  
+  _options |= L3Tag;
+  if (veto) {
+    _options   |= L3Veto;
+    _unbiased_f = unbiased_f;
+  }
+  else
+    _options  &= ~L3Veto;
+}
+
+void Allocation::clear_l3t()
+{
+  _options &= ~(L3Tag|L3Veto);
+}
+
 unsigned Allocation::partitionid() const { return _partitionid; }
 
 unsigned Allocation::masterid() const { return _masterid; }
@@ -244,6 +262,10 @@ const char* Allocation::l3path() const {return _l3path;}
 float       Allocation::unbiased_fraction() const { return _unbiased_f; }
 
 unsigned    Allocation::size() const { return sizeof(*this)+(_nnodes-MaxNodes)*sizeof(Node); }
+
+bool        Allocation::l3tag() const { return _options&L3Tag; }
+
+bool        Allocation::l3veto() const { return _options&L3Veto; }
 
 
 Allocate::Allocate(const Allocation& allocation) :

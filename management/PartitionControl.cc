@@ -37,18 +37,18 @@
 #define USE_L1A
 //#define DBUG
 
-#define SET_XTC(pxtc,ixtc,itype,ctype) {        \
-    if (pxtc)               \
-      delete[] reinterpret_cast<char*>(pxtc);       \
-    if (ixtc) {               \
-      unsigned sz = ixtc->_sizeof();          \
-      pxtc =                \
-  new (new char[sizeof(Xtc)+sz]) Xtc(itype,_header.procInfo()); \
-      new (pxtc->alloc(sz)) ctype(*ixtc);       \
-      delete[] reinterpret_cast<const char*>(ixtc);     \
-    }                 \
-    else                \
-      pxtc = 0;               \
+#define SET_XTC(pxtc,ixtc,itype,ctype) {                                \
+    if (pxtc)                                                           \
+      delete[] reinterpret_cast<char*>(pxtc);                           \
+    if (ixtc) {                                                         \
+      unsigned sz = ixtc->_sizeof();                                    \
+      pxtc =                                                            \
+        new (new char[sizeof(Xtc)+sz]) Xtc(itype,_header.procInfo());   \
+      new (pxtc->alloc(sz)) ctype(*ixtc);                               \
+      delete[] reinterpret_cast<const char*>(ixtc);                     \
+    }                                                                   \
+    else                                                                \
+      pxtc = 0;                                                         \
   }
 
 
@@ -404,11 +404,11 @@ bool PartitionControl::set_partition(const char* name,
                                      const char* l3path,
                                      const Node* nodes,
                                      unsigned    nnodes,
-             unsigned    masterid,
+                                     unsigned    masterid,
                                      uint64_t    bldmask,
                                      uint64_t    bldmask_mon,
                                      unsigned    options,
-             float       l3_unbias,
+                                     float       l3_unbias,
                                      const PartitionConfigType* cfg,
                                      const EvrIOConfigType*     iocfg,
              const AliasConfigType*     alias)
@@ -423,8 +423,8 @@ bool PartitionControl::set_partition(const char* name,
   }
 
   _partition = Allocation(name,dbpath,l3path,
-        partitionid(),masterid,
-        bldmask,bldmask_mon,options,l3_unbias);
+                          partitionid(),masterid,
+                          bldmask,bldmask_mon,options,l3_unbias);
   for(unsigned k=0; k<nnodes; k++)
     _partition.add(nodes[k]);
 
@@ -437,15 +437,21 @@ bool PartitionControl::set_partition(const char* name,
 
 bool PartitionControl::set_partition(const Allocation& alloc,
                                      const PartitionConfigType* cfg,
-             const EvrIOConfigType*     iocfg,
-             const AliasConfigType*     alias)
+                                     const EvrIOConfigType*     iocfg,
+                                     const AliasConfigType*     alias)
 {
   _partition = alloc;
-
   SET_XTC(_partition_xtc,   cfg, _partitionConfigType, PartitionConfigType);
   SET_XTC( _ioconfig_xtc, iocfg,     _evrIOConfigType,     EvrIOConfigType);
   SET_XTC(    _alias_xtc, alias,     _aliasConfigType,     AliasConfigType);
+  return true;
+}
 
+bool PartitionControl::set_partition(const Allocation& alloc,
+                                     const PartitionConfigType* cfg)
+{
+  _partition = alloc;
+  SET_XTC(_partition_xtc,   cfg, _partitionConfigType, PartitionConfigType);
   return true;
 }
 

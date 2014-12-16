@@ -73,6 +73,9 @@ namespace Pds {
     bool add   (const Node& node);
     bool remove(const ProcInfo&);
 
+    void set_l3t  (const char* path, bool veto=false, float unbiased_f=0);
+    void clear_l3t();
+
     unsigned    nnodes() const;
     unsigned    nnodes(Level::Type) const;
     const Node* node(unsigned n) const;
@@ -88,6 +91,8 @@ namespace Pds {
     uint64_t    bld_mask_mon() const;
     unsigned    options() const;
     unsigned    size() const;
+    bool        l3tag () const;
+    bool        l3veto() const;
     float       unbiased_fraction() const;
   private:
     static const unsigned MaxNodes=128;

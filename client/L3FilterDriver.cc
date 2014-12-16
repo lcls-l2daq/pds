@@ -32,8 +32,8 @@ Transition* L3FilterDriver::transitions(Transition* tr)
 {
   if (tr->id()==TransitionId::Map) {
     const Allocation& alloc = static_cast<Allocate*>(tr)->allocation();
-    _lUse    = alloc.options()&(Allocation::L3Tag|Allocation::L3Veto);
-    _lVeto   = alloc.options()&(Allocation::L3Veto);
+    _lUse    = alloc.l3tag () || alloc.l3veto();
+    _lVeto   = alloc.l3veto();
     _path    = alloc.l3path();
     _iUnbias = int(alloc.unbiased_fraction()*RAND_MAX);
     if (_iUnbias<0) _iUnbias=RAND_MAX;
