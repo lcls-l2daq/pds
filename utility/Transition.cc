@@ -4,6 +4,8 @@
 #include <time.h>
 #include <stdio.h>
 
+static float _default_traffic_interval = 0.008;
+
 using namespace Pds;
 
 static Sequence now(TransitionId::Value id)
@@ -110,7 +112,8 @@ Allocation::Allocation(const char* partition,
   _masterid   (masterid),
   _nnodes     (0),
   _options    (options),
-  _unbiased_f (0)
+  _unbiased_f (0),
+  _traffic_interval(_default_traffic_interval)
 {
   strncpy(_partition, partition, MaxPName-1);
   strncpy(_dbpath   , dbpath   , MaxDbPath-1);
@@ -134,7 +137,8 @@ Allocation::Allocation(const char* partition,
   _masterid   (masterid),
   _nnodes     (0),
   _options    (options),
-  _unbiased_f (unbiased_fraction)
+  _unbiased_f (unbiased_fraction),
+  _traffic_interval(_default_traffic_interval)
 {
   strncpy(_partition, partition, MaxPName-1);
   strncpy(_l3path   , l3path   , MaxName-MaxPName-1);
@@ -182,6 +186,9 @@ void Allocation::clear_l3t()
 {
   _options &= ~(L3Tag|L3Veto);
 }
+
+void Allocation::set_traffic_interval(float v)
+{ _default_traffic_interval=v; }
 
 unsigned Allocation::partitionid() const { return _partitionid; }
 
@@ -260,6 +267,8 @@ const char* Allocation::dbpath() const {return _dbpath;}
 const char* Allocation::l3path() const {return _l3path;}
 
 float       Allocation::unbiased_fraction() const { return _unbiased_f; }
+
+float       Allocation::traffic_interval() const { return _traffic_interval; }
 
 unsigned    Allocation::size() const { return sizeof(*this)+(_nnodes-MaxNodes)*sizeof(Node); }
 

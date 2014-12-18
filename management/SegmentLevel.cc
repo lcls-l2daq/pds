@@ -178,12 +178,14 @@ void    SegmentLevel::allocated(const Allocation& alloc,
     const Node& node = *alloc.node(n);
     if (node.level()==Level::Segment) {
       if (node.pid()==pid) {
-        ToEventWireScheduler::setPhase  (s % vectorid);
-        ToEventWireScheduler::setMaximum(vectorid);
-        ToEventWireScheduler::shapeTmo  (alloc.options()&Allocation::ShapeTmo);
+        ToEventWireScheduler::setInterval(unsigned(alloc.traffic_interval()*1e6)); // microseconds
+        ToEventWireScheduler::setPhase   (s%vectorid);
+        ToEventWireScheduler::setMaximum (vectorid);
+        ToEventWireScheduler::shapeTmo   (alloc.options()&Allocation::ShapeTmo);
         printf("Configure ToEventWireScheduler phase %d  max %d  tmo %c\n",
                s%vectorid, vectorid,
                alloc.options()&Allocation::ShapeTmo ? 't':'f');
+        break;
       }
       s++;
     }

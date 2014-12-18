@@ -94,6 +94,9 @@ namespace Pds {
     bool        l3tag () const;
     bool        l3veto() const;
     float       unbiased_fraction() const;
+    float       traffic_interval() const;  // seconds
+  public:
+    static void set_traffic_interval(float);
   private:
     static const unsigned MaxNodes=128;
     static const unsigned MaxPName=16;
@@ -109,7 +112,8 @@ namespace Pds {
     uint32_t _nnodes;
     uint32_t _options;
     float    _unbiased_f;
-    Node     _nodes[MaxNodes];  // transmit is trunctated at _nnodes of these
+    float    _traffic_interval;
+    Node     _nodes[MaxNodes];  // transmit is truncated at _nnodes of these
   };
 
   class Allocate : public Transition {

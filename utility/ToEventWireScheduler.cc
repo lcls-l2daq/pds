@@ -88,12 +88,14 @@ static int      _idol_timeout  = 150;  // idol time [ms] which forces flush of q
 
 static int      _disable_buffer = 100; // time [ms] inserted between flushed L1 and Disable transition
 static unsigned _phase = 0;
+static unsigned _interval = 8000;  // time interval [us] for traffic shaping
 
 static bool _shape_tmo = false;
 
-void ToEventWireScheduler::setMaximum(unsigned m) { _maxscheduled = m; }
-void ToEventWireScheduler::setPhase  (unsigned m) { _phase = m; }
-void ToEventWireScheduler::shapeTmo  (bool v) { _shape_tmo = v; }
+void ToEventWireScheduler::setMaximum (unsigned m) { _maxscheduled = m; }
+void ToEventWireScheduler::setPhase   (unsigned m) { _phase = m; }
+void ToEventWireScheduler::setInterval(unsigned m) { _interval = m; }
+void ToEventWireScheduler::shapeTmo   (bool v) { _shape_tmo = v; }
 
 ToEventWireScheduler::ToEventWireScheduler(Outlet& outlet,
              CollectionManager& collection,
@@ -183,7 +185,11 @@ void ToEventWireScheduler::_queue()
   if (_nscheduled==0)
     return;
 
-  _routineq = new FlushRoutine(_list,_client,this);
+  //
+  //  Phase delay goes here
+  //
+  timeval timeSleepMicro = {0, _phase*_interval};
+  select( 0, NULL, NULL, NULL, &timeSleepMicro);
 
   _scheduled  = 0;
   _nscheduled = 0;

@@ -39,9 +39,10 @@ namespace Pds {
     // Routine interface
     void routine();
   public:
-    static void setMaximum(unsigned);
-    static void setPhase  (unsigned);
-    static void shapeTmo  (bool);
+    static void setMaximum (unsigned);
+    static void setPhase   (unsigned);
+    static void setInterval(unsigned); // microseconds
+    static void shapeTmo   (bool);
   private:
     void _flush(InDatagram*);
     void _flush();
