@@ -118,6 +118,9 @@ void ObserverLevel::allocated(const Allocation& alloc)
 
 void ObserverLevel::post     (const Transition& tr)
 {
+  if (tr.id()==TransitionId::Disable)
+    _streams->wire(StreamParams::FrameWork)->flush_inputs();
+
   _streams->wire(StreamParams::FrameWork)->post(tr);
 }
 
