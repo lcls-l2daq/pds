@@ -182,7 +182,8 @@ void    SegmentLevel::allocated(const Allocation& alloc,
         ToEventWireScheduler::setPhase   (s%vectorid);
         ToEventWireScheduler::setMaximum (vectorid);
         ToEventWireScheduler::shapeTmo   (alloc.options()&Allocation::ShapeTmo);
-        printf("Configure ToEventWireScheduler phase %d  max %d  tmo %c\n",
+        printf("Configure ToEventWireScheduler interval %f  phase %d  max %d  tmo %c\n",
+	       alloc.traffic_interval(),
                s%vectorid, vectorid,
                alloc.options()&Allocation::ShapeTmo ? 't':'f');
         break;

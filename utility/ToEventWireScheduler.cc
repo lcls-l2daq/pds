@@ -111,8 +111,7 @@ ToEventWireScheduler::ToEventWireScheduler(Outlet& outlet,
   _nscheduled  (0),
   _scheduled   (0),
   _task        (new Task(TaskObject("TxScheduler"))),
-  _flush_task  (new Task(TaskObject("TxFlush"))),
-  _routineq    (0)
+  _flush_task  (new Task(TaskObject("TxFlush")))
 {
   _flushCount = 0;
 
@@ -155,7 +154,6 @@ Occurrence* ToEventWireScheduler::forward(Occurrence* tr)
 void ToEventWireScheduler::_flush(InDatagram* dg)
 {
   if (_nscheduled) {
-    _queue();
     _flush();
 
     //
@@ -174,14 +172,6 @@ void ToEventWireScheduler::_flush(InDatagram* dg)
 
 void ToEventWireScheduler::_flush()
 {
-  if (_routineq) {
-    _flush_task->call(_routineq);
-    _routineq = 0;
-  }
-}
-
-void ToEventWireScheduler::_queue()
-{
   if (_nscheduled==0)
     return;
 
@@ -191,6 +181,7 @@ void ToEventWireScheduler::_queue()
   timeval timeSleepMicro = {0, _phase*_interval};
   select( 0, NULL, NULL, NULL, &timeSleepMicro);
 
+  _flush_task->call( new FlushRoutine(_list,_client,this) );
   _scheduled  = 0;
   _nscheduled = 0;
 }
@@ -223,11 +214,8 @@ void ToEventWireScheduler::routine()
           OutletWireIns* dst = _nodes.lookup(seq.stamp().vector());
           unsigned m = 1<<dst->id();
 
-          if ((m & _scheduled) || (_shape_tmo && (_nscheduled>=_maxscheduled))) {
-            _queue();
-	    if (_nscheduled == _phase)
-	      _flush();
-	  }
+          if ((m & _scheduled) || (_shape_tmo && (_nscheduled>=_maxscheduled)))
+	    _flush();
 
           TrafficDst* t = dg->traffic(dst->ins());
           _list.insert(t);
@@ -235,10 +223,7 @@ void ToEventWireScheduler::routine()
           ++_nscheduled;
 
           if (!_shape_tmo && _nscheduled >= _maxscheduled)
-            _queue();
-
-	  if (_nscheduled == _phase)
-	    _flush();
+            _flush();
         }
         else {
           _flush(dg);
@@ -267,7 +252,6 @@ void ToEventWireScheduler::routine()
         _list.insertList(&list);
       }
 #endif
-      _queue();
       _flush();
     }
   }

@@ -46,7 +46,6 @@ namespace Pds {
   private:
     void _flush(InDatagram*);
     void _flush();
-    void _queue();
   public:
     void histo(timespec&, timespec&);
   private:
@@ -61,7 +60,6 @@ namespace Pds {
     TrafficScheduler*      _schedule;
     Task*                  _task;
     Task*                  _flush_task;
-    Routine*               _routineq;
     int                    _schedfd[2];
     unsigned               _flushCount;
     MonEntryTH1F*          _histo;
