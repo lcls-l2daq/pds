@@ -168,7 +168,7 @@ int Opal1kCamera::configure(CameraDriver& driver,
   SetParameter("Vertical Remap"  ,"VR",_inputConfig->vertical_remapping());
   SetParameter("Output Resolution","OR",_inputConfig->output_resolution_bits());
 
-  setTestPattern( driver, false );
+  setTestPattern( driver, _useTestPattern() );
 
   if (_inputConfig->output_lookup_table_enabled()) {
     SetCommand("Output LUT Begin","OLUTBGN");

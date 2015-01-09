@@ -1,8 +1,11 @@
 #include "pds/camera/QuartzCamera.hh"
 #include "pds/camera/CameraDriver.hh"
 #include "pds/camera/FrameServerMsg.hh"
+#include "pds/camera/AdimecCommander.hh"
 #include "pdsdata/psddl/camera.ddl.h"
 #include "pdsdata/xtc/DetInfo.hh"
+
+#include <sstream>
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -12,7 +15,6 @@
 //#define DBUG
 
 #define RESET_COUNT 0x80000000
-#define SZCOMMAND_MAXLEN  64
 
 // Base mode
 //#define MAX_TAPS 2
@@ -50,92 +52,59 @@ QuartzCamera::~QuartzCamera()
 void QuartzCamera::set_config_data(const void* p)
 {
   _inputConfig = reinterpret_cast<const QuartzConfigType*>(p);
+  _max_taps = _inputConfig->max_taps();
 }
 
-#define SetCommand(title,cmd) {				\
-    snprintf(szCommand, SZCOMMAND_MAXLEN, cmd);		\
-    if ((ret = driver.SendCommand(szCommand, NULL, 0))<0) {	\
-      printf("Error on command %s (%s)\n",cmd,title);	\
-      return ret;					\
-    }							\
+#define SetCommand(title,op)    cmd.setCommand(title,op)
+
+#define GetParameter(op,rval)   cmd.getParameter(op,rval)
+
+#define GetParameters(op,val,n) cmd.getParameters(op,val,n)
+
+#define SetParameterA(op,val) {            \
+    int ret=cmd.setParameter(op,val);      \
+    if (ret<0) return ret; }
+
+#define SetParameter(title,op,val) {            \
+    int ret=cmd.setParameter(title,op,val);     \
+    if (ret<0) return ret; }
+
+#define SetParameters(title,op,val,n) {            \
+    cmd.setParameter(title,op,val,n);              \
   }
 
-#define GetParameter(cmd,val1) {				\
-    snprintf(szCommand, SZCOMMAND_MAXLEN, "%s?", cmd);		\
-    ret = driver.SendCommand(szCommand, szResponse, SZCOMMAND_MAXLEN); \
-    sscanf(szResponse+2,"%u",&val1);				\
-  }
-
-#define SetParameter(title,cmd,val1) {				\
-    unsigned nretry = 1;					\
-    unsigned rval;						\
-    unsigned val = val1;					\
-    do {							\
-      GetParameter(cmd,rval);					\
-      printf("Read %s = d%u\n", title, rval);			\
-      printf("Setting %s = d%u\n",title,val);			\
-      snprintf(szCommand, SZCOMMAND_MAXLEN, "%s%u", cmd, val);	\
-      ret = driver.SendCommand(szCommand, NULL, 0);			\
-      if (ret<0) return ret;					\
-      GetParameter(cmd,rval);					\
-      printf("Read %s = d%u\n", title, rval);			\
-    } while ( nretry-- && (rval != val) );			\
-    if (rval != val) return -EINVAL;				\
-  }
-
-#define GetParameters(cmd,val1,val2) {				\
-    snprintf(szCommand, SZCOMMAND_MAXLEN, "%s?", cmd);		\
-    ret = driver.SendCommand(szCommand, szResponse, SZCOMMAND_MAXLEN); \
-    sscanf(szResponse+2,"%u;%u",&val1,&val2);			\
-  }
-
-#define SetParameters(title,cmd,val1,val2) {				\
-    unsigned nretry = 1;						\
-    unsigned v1 = val1;							\
-    unsigned v2 = val2;							\
-    unsigned rv1,rv2;							\
-    do {								\
-      printf("Setting %s = d%u;d%u\n",title,v1,v2);			\
-      snprintf(szCommand, SZCOMMAND_MAXLEN, "%s%u;%u",cmd,v1,v2);	\
-      ret = driver.SendCommand(szCommand, NULL, 0);				\
-      if (ret<0) return ret;						\
-      GetParameters(cmd,rv1,rv2);					\
-      printf("Read %s = d%u;d%u\n", title, rv1,rv2);			\
-    } while( nretry-- && (rv1!=v1 || rv2!=v2) );			\
-    if (rv1 != v1 || rv2 != v2) return -EINVAL;				\
-  }
+#define SetParametersQ(title,op,val,n) {          \
+    int ret=cmd.setParameter(title,op,val,n);     \
+    if (ret<0) return ret; }
 
 int QuartzCamera::configure(CameraDriver& driver,
 			    UserMessage*  msg)
 {
-  char szCommand [SZCOMMAND_MAXLEN];
-  char szResponse[SZCOMMAND_MAXLEN];
-  memset(szCommand ,0,SZCOMMAND_MAXLEN);
-  memset(szResponse,0,SZCOMMAND_MAXLEN);
-  int val1=-1;
-  int ret;
+  AdimecCommander cmd(driver);
+
+  unsigned val[4];
   char *versionString;
 
   QuartzConfigType* outputConfig = const_cast<QuartzConfigType*>(_inputConfig);
 
-  GetParameter("BIT", val1);
-  printf( ">> Built-In Self Test (BIT): '%d' %s \n", val1,
-          ( val1 == 0) ? "[OK]" : "[FAIL]" );
+  GetParameter("BIT", val[0]);
+  printf( ">> Built-In Self Test (BIT): '%d' %s \n", val[0],
+          ( val[0] == 0) ? "[OK]" : "[FAIL]" );
   
-  GetParameter("TM", val1 );
-  printf( ">> Camera temperature (TM): '%d' C\n", val1 );
+  GetParameter("TM", val[0] );
+  printf( ">> Camera temperature (TM): '%d' C\n", val[0] );
 
 #if 0
-  GetParameters( "ET", val1, val2 );
-  printf( ">> Total on time: '%d' * 65536 + '%d' = %d hours\n", val1, val2,
-          val1 * 65536 + val2 );
+  GetParameters( "ET", val, 2);
+  printf( ">> Total on time: '%d' * 65536 + '%d' = %d hours\n", val[0], val[1],
+          val[0] * 65536 + val[1] );
 
-  GetParameter( "UFDT", val1 );
-  printf( ">> Microcontroller firmware release: '%s'\n", szResponse );
+  GetParameter( "UFDT", val[0] );
+  printf( ">> Microcontroller firmware release: '%s'\n", cmd.response() );
 #endif
 
-  GetParameter( "BS", val1 );
-  printf( ">> Build versions: '%s'\n", szResponse );
+  GetParameter( "BS", val[0] );
+  printf( ">> Build versions: '%s'\n", cmd.response() );
 
   // FPGA firmware versions 1.20 and newer have the external
   // trigger polarity inverted.  If FPGA firmware is 1.20 or later,
@@ -145,23 +114,23 @@ int QuartzCamera::configure(CameraDriver& driver,
   // Reply message: "x.xx;y.yy;z.zz
   //   Where x.xx stands for camera issue, y.yy indicates the microcontroller firmware version
   //   and z.zz indicates the FPGA firmware version.
-  if (((versionString = strchr(szResponse, ';')) != NULL) &&
+  if (((versionString = strchr(cmd.response(), ';')) != NULL) &&
       ((versionString = strchr(versionString + 1, ';')) != NULL)) {
     // advance to character after the 2nd ';'
     ++versionString;
   }
   printf("versionString: %s\n",versionString);
 
-  GetParameter( "ID", val1 );
-  printf( ">> Camera ID: '%s'\n", szResponse );
+  GetParameter( "ID", val[0] );
+  printf( ">> Camera ID: '%s'\n", cmd.response() );
   
 #if 0
-  GetParameter( "MID", val1 );
-  printf( ">> Camera Model ID: '%s'\n", szResponse );
+  GetParameter( "MID", val[0] );
+  printf( ">> Camera Model ID: '%s'\n", cmd.response() );
 #endif
   
-  GetParameter( "SN", val1 );
-  printf( ">> Camera Serial #: '%s'\n", szResponse );
+  GetParameter( "SN", val[0] );
+  printf( ">> Camera Serial #: '%s'\n", cmd.response() );
 
   unsigned bl = _inputConfig->black_level()<<(10-_inputConfig->output_resolution_bits());
   //  unsigned bl = _inputConfig->black_level();
@@ -189,6 +158,38 @@ int QuartzCamera::configure(CameraDriver& driver,
   SetParameter("Output Resolution","OR",_inputConfig->output_resolution_bits());
   SetParameter("Pixel Clock Speed","CLC",2); // always choose 66MHz
 
+  unsigned roi[4];
+  if (_inputConfig->use_hardware_roi()) {
+    roi[0] = _inputConfig->roi_lo().column();
+    roi[1] = _inputConfig->roi_lo().row();
+    roi[2] = _inputConfig->roi_hi().column()-_inputConfig->roi_lo().column()+1;
+    roi[3] = _inputConfig->roi_hi().row   ()-_inputConfig->roi_lo().row   ()+1;
+    SetParametersQ("Hardware ROI","ROI",roi,4);
+    *new(outputConfig) QuartzConfigType(_inputConfig->output_offset(),
+                                        _inputConfig->gain_percent(),
+                                        _inputConfig->output_resolution(),
+                                        _inputConfig->horizontal_binning(),
+                                        _inputConfig->vertical_binning(),
+                                        _inputConfig->output_mirroring(),
+                                        _inputConfig->output_lookup_table_enabled(),
+                                        _inputConfig->defect_pixel_correction_enabled(),
+                                        _inputConfig->use_hardware_roi(),
+                                        _inputConfig->use_test_pattern()||_useTestPattern(),
+                                        _inputConfig->max_taps(),
+                                        Camera::FrameCoord(roi[0],roi[1]),
+                                        Camera::FrameCoord(roi[0]+roi[2]-1,roi[1]+roi[3]-1),
+                                        0,
+                                        _inputConfig->output_lookup_table().data(),
+                                        0);
+  }
+  else {
+    roi[0] = 0;
+    roi[1] = 0;
+    roi[2] = 2048;
+    roi[3] = 2048;
+    SetParametersQ("Hardware ROI","ROI",roi,4);
+  }
+
   //
   //  Output format control
   //
@@ -206,20 +207,18 @@ int QuartzCamera::configure(CameraDriver& driver,
   default: lval_gap =   4; break;
   }
 
-  SetParameters("Output Format","OFRM",camera_taps(),lval_gap);
+  val[0]=camera_taps();
+  val[1]=lval_gap;
+  SetParameters("Output Format","OFRM",val,2);
 
-  setTestPattern( driver, false );
-  //  setTestPattern( driver, true );
+  // setTestPattern( driver, false );
+  setTestPattern( driver, 
+                  _inputConfig->use_test_pattern() || _useTestPattern() );
 
   if (_inputConfig->output_lookup_table_enabled()) {
-    SetCommand("Output LUT Begin","OLUTBGN");
-    ndarray<const uint16_t,1> olut = _inputConfig->output_lookup_table();
-    for(unsigned k=0; k<olut.shape()[0]; k++) {
-      snprintf(szCommand, SZCOMMAND_MAXLEN, "OLUT%hu", olut[k]);
-      if ((ret = driver.SendCommand(szCommand, NULL, 0))<0)
-	return ret;
-    }
-    SetCommand("Output LUT Begin","OLUTEND");
+    cmd.setCommand("Output LUT Begin","OLUTBGN");
+    SetParameterA("OLUT%hu",_inputConfig->output_lookup_table());
+    cmd.setCommand("Output LUT Begin","OLUTEND");
     SetParameter("Output LUT Enabled","OLUTE",1);
   }
   else
@@ -227,7 +226,7 @@ int QuartzCamera::configure(CameraDriver& driver,
 
   if (_inputConfig->defect_pixel_correction_enabled()) {
     //  read defect pixels into output config
-    unsigned n,col,row;
+    unsigned n;
     char cmdb[8];
     GetParameter("DP0",n);
 
@@ -236,8 +235,8 @@ int QuartzCamera::configure(CameraDriver& driver,
       
       for(unsigned k=0; k<n; k++) {
         sprintf(cmdb,"DP%d",k+1);
-        GetParameters(cmdb,col,row);
-        dps[k] = Pds::Camera::FrameCoord(col,row);
+        GetParameters(cmdb,val,2);
+        dps[k] = Pds::Camera::FrameCoord(val[0],val[1]);
       }
 
       SetParameter("Defect Pixel Correction","DPE",1);
@@ -248,8 +247,13 @@ int QuartzCamera::configure(CameraDriver& driver,
                                           _inputConfig->horizontal_binning(),
                                           _inputConfig->vertical_binning(),
                                           _inputConfig->output_mirroring(),
-                                          _inputConfig->defect_pixel_correction_enabled(),
                                           _inputConfig->output_lookup_table_enabled(),
+                                          _inputConfig->defect_pixel_correction_enabled(),
+                                          _inputConfig->use_hardware_roi(),
+                                          _inputConfig->use_test_pattern()||_useTestPattern(),
+                                          _inputConfig->max_taps(),
+                                          _inputConfig->roi_lo(),
+                                          _inputConfig->roi_hi(),
                                           n,
                                           _inputConfig->output_lookup_table().data(),
                                           dps);
@@ -272,7 +276,9 @@ int QuartzCamera::configure(CameraDriver& driver,
 	        config.ShutterMicroSec/10);
 #else
   SetParameter ("Operating Mode","MO",1);
-  SetParameters("External Inputs","CCE",4, 1);
+  val[0]=4;
+  val[1]=1;
+  SetParametersQ("External Inputs","CCE",val,2);
   SetParameter ("Request Mode","RQM",0);
 #endif
 
@@ -281,10 +287,8 @@ int QuartzCamera::configure(CameraDriver& driver,
 
 int QuartzCamera::setTestPattern( CameraDriver& driver, bool on )
 {
-  char szCommand [SZCOMMAND_MAXLEN];
-  char szResponse[SZCOMMAND_MAXLEN];
+  AdimecCommander cmd(driver);
 
-  int ret;
   SetParameter( "Test Pattern", "TP", on ? 1 : 0 );
   
   return 0;
@@ -292,9 +296,7 @@ int QuartzCamera::setTestPattern( CameraDriver& driver, bool on )
 
 int QuartzCamera::setContinuousMode( CameraDriver& driver, double fps )
 {
-  char szCommand [SZCOMMAND_MAXLEN];
-  char szResponse[SZCOMMAND_MAXLEN];
-  int ret;
+  AdimecCommander cmd(driver);
 
   unsigned _mode=0, _fps=unsigned(1000000/fps), _it=_fps-100;
   SetParameter ("Operating Mode","MO",_mode);
@@ -335,8 +337,36 @@ char          QuartzCamera::sof     () const { return '@'; }
 char          QuartzCamera::eof     () const { return '\r'; }
 unsigned long QuartzCamera::timeout_ms() const { return 40; }
 
-int  QuartzCamera::camera_width () const { return Pds::Quartz::max_column_pixels(_src); }
-int  QuartzCamera::camera_height() const { return Pds::Quartz::max_row_pixels   (_src); }
+int  QuartzCamera::camera_width () const 
+{ 
+  int v = Pds::Quartz::max_column_pixels(_src); 
+  if (_inputConfig) {
+    if (_inputConfig->use_hardware_roi())
+      v = (_inputConfig->roi_hi().column()-_inputConfig->roi_lo().column()+1);
+    switch(_inputConfig->horizontal_binning()) {
+    case QuartzConfigType::x2: v/=2; break;
+    case QuartzConfigType::x4: v/=4; break;
+    default: break;
+    }
+  }
+  return v;
+}
+
+int  QuartzCamera::camera_height() const 
+{
+  int v = Pds::Quartz::max_row_pixels(_src); 
+  if (_inputConfig) {
+    if (_inputConfig->use_hardware_roi())
+      v = (_inputConfig->roi_hi().row()-_inputConfig->roi_lo().row()+1);
+    switch(_inputConfig->vertical_binning()) {
+    case QuartzConfigType::x2: v/=2; break;
+    case QuartzConfigType::x4: v/=4; break;
+    default: break;
+    }
+  }
+  return v;
+}
+
 int  QuartzCamera::camera_depth () const { return _inputConfig ? _inputConfig->output_resolution_bits() : 8; }
 int  QuartzCamera::camera_taps  () const { 
   if (_inputConfig && 

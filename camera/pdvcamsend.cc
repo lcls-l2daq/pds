@@ -265,7 +265,11 @@ int main(int argc, char *argv[])
                                                         QuartzConfigType::x1,
                                                         QuartzConfigType::x1,
                                                         QuartzConfigType::None,
-                                                        false, false, 0, 0, 0);
+                                                        false, false, false, false,
+                                                        8,
+                                                        Camera::FrameCoord(0,0),
+                                                        Camera::FrameCoord(2047,2047),
+                                                        0, 0, 0);
       
       oCamera->set_config_data(Config);
       pCamera = oCamera;

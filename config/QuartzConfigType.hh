@@ -4,7 +4,7 @@
 #include "pdsdata/xtc/TypeId.hh"
 #include "pdsdata/psddl/quartz.ddl.h"
 
-typedef Pds::Quartz::ConfigV1 QuartzConfigType;
+typedef Pds::Quartz::ConfigV2 QuartzConfigType;
 
 static Pds::TypeId _quartzConfigType(Pds::TypeId::Id_QuartzConfig,
 				     QuartzConfigType::Version);

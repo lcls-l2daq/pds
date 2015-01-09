@@ -15,6 +15,7 @@ libsrcs_camera := CameraBase.cc \
 	          FrameServer.cc \
 	          FexFrameServer.cc \
 	          FccdFrameServer.cc \
+	          AdimecCommander.cc \
 		  Opal1kCamera.cc \
 		  Opal1kManager.cc \
 		  QuartzCamera.cc \
