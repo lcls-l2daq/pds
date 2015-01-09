@@ -313,8 +313,33 @@ char          Opal1kCamera::sof     () const { return '@'; }
 char          Opal1kCamera::eof     () const { return '\r'; }
 unsigned long Opal1kCamera::timeout_ms() const { return 40; }
 
-int  Opal1kCamera::camera_width () const { return Pds::Opal1k::max_column_pixels(_src); }
-int  Opal1kCamera::camera_height() const { return Pds::Opal1k::max_row_pixels   (_src); }
+int  Opal1kCamera::camera_width () const 
+{
+
+  int v = Pds::Opal1k::max_column_pixels(_src); 
+  if (_inputConfig) 
+    switch(_inputConfig->vertical_binning()) {
+    case Opal1kConfigType::x2: v/=2; break;
+    case Opal1kConfigType::x4: v/=4; break;
+    case Opal1kConfigType::x8: v/=8; break;
+    default: break;
+    }
+  return v;
+}
+
+int  Opal1kCamera::camera_height() const 
+{
+  int v = Pds::Opal1k::max_row_pixels   (_src); 
+  if (_inputConfig) 
+    switch(_inputConfig->vertical_binning()) {
+    case Opal1kConfigType::x2: v/=2; break;
+    case Opal1kConfigType::x4: v/=4; break;
+    case Opal1kConfigType::x8: v/=8; break;
+    default: break;
+    }
+  return v;
+}
+
 int  Opal1kCamera::camera_depth () const { return _inputConfig ? _inputConfig->output_resolution_bits() : 8; }
 int  Opal1kCamera::camera_taps  () const { return 2; }
 
