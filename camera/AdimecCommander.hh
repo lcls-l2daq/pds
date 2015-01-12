@@ -27,6 +27,7 @@ namespace Pds {
     int setParameter(const char* cmd,
                      const ndarray<const uint16_t,1>& a);
   public:
+    char* response() { return szResponse; }
     const char* response() const { return szResponse; }
   private:
     CameraDriver& driver;
