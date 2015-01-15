@@ -71,6 +71,7 @@ int EvrCfgClient::fetch(const Transition& tr,
                         unsigned          maxSize)
 {
   std::list<unsigned> default_codes(_default_codes);
+  static char no_desc[EventCodeType::DescSize] = { EventCodeType::DescSize*'\0' };
 
   if (id.value() == _evrConfigType.value()) {
     int len = CfgClientNfs::fetch(tr, id, _buffer, BufferSize);
@@ -117,7 +118,7 @@ int EvrCfgClient::fetch(const Transition& tr,
       else
         for (std::list<unsigned>::iterator it=default_codes.begin();
              it!=default_codes.end(); it++)
-          *new (et++) EventCodeType(*it, false, false, false, 0, 1, 0, 0, 0, 0, 0);
+          *new (et++) EventCodeType(*it, false, false, false, 0, 1, 0, 0, 0, no_desc, 0);
                 
       ndarray<const PulseType,1> pulses = tc.pulses();
       for(unsigned j=0; j<tc.npulses(); j++) {
