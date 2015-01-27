@@ -490,6 +490,62 @@ int OfflineClient::reportDetectors (int expt, int run, std::vector<std::string>&
   return (returnVal);
 }
 
+int OfflineClient::reportTotals (int expt, int run, long events, long damaged, double gigabytes) {
+  LogBook::Connection * conn = NULL;
+  int returnVal = -1;  // default return is ERROR
+
+  // sanity check
+  if (run && _instrument_name && _experiment_name) {
+    // in case of NULL database, report nothing
+    if ((_path == (char *)NULL) || (strcmp(_path, "/dev/null") == 0)) {
+      returnVal = 0;  // OK
+    } else {
+      try {
+        conn = LogBook::Connection::open(_path);
+
+        if (conn != NULL) {
+          // begin transaction
+          conn->beginTransaction();
+
+          conn->createRunAttr(_instrument_name, _experiment_name, run,
+                              "DAQ_Detector_Totals", "Events", "Total number of events", events);
+
+          conn->createRunAttr(_instrument_name, _experiment_name, run,
+                              "DAQ_Detector_Totals", "Damaged", "Number of damaged events", damaged);
+
+          conn->createRunAttr(_instrument_name, _experiment_name, run,
+                              "DAQ_Detector_Totals", "Size", "Amount of data recorded [GB]", gigabytes);
+
+          returnVal = 0; // OK
+
+          // commit transaction
+          conn->commitTransaction();
+        } else {
+            printf("LogBook::Connection::connect() failed\n");
+        }
+
+      } catch (const LogBook::ValueTypeMismatch& e) {
+        printf ("Parameter type mismatch %s:\n", e.what());
+        returnVal = -1; // ERROR
+
+      } catch (const LogBook::WrongParams& e) {
+        printf ("Problem with parameters %s:\n", e.what());
+        returnVal = -1; // ERROR
+    
+      } catch (const LogBook::DatabaseError& e) {
+        printf ("Database operation failed: %s\n", e.what());
+        returnVal = -1; // ERROR
+      }
+
+      if (conn != NULL) {
+        // close connection
+        delete conn ;
+      }
+    }
+  }
+  return (returnVal);
+}
+
 //
 // GetExperimentNumber
 //

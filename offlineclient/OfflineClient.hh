@@ -35,6 +35,8 @@ namespace Pds {
     int BeginNewRun(int runNumber);
     int reportOpenFile (int expt, int run, int stream, int chunk, std::string& host, std::string& dirpath, bool ffb=false);
     int reportDetectors (int expt, int run, std::vector<std::string>& names);
+    int reportTotals (int expt, int run, long events, long damaged, double gigabytes);
+
     unsigned int GetExperimentNumber();
     const char * GetExperimentName();
     const char * GetInstrumentName();
