@@ -204,6 +204,7 @@ static int oopt_initDeviceInfo(DeviceInfo* pDevInfo)
   switch (pDevInfo->udev->descriptor.idProduct)
   {
   case PRODUCT_ID_HR4000:
+  case PRODUCT_ID_USB4000:
     pDevInfo->iSpectraDataSize = 8192;
     pDevInfo->iEpFirst2K       = ENDPOINT_RESERVED;
     break;
@@ -278,7 +279,8 @@ static int oopt_probe(struct usb_interface *interface, const struct usb_device_i
   /* See if the device offered us matches what we can accept */
   if ((pDevInfo->udev->descriptor.idVendor != VENDOR_ID)
       || (pDevInfo->udev->descriptor.idProduct != PRODUCT_ID_HR4000 &&
-          pDevInfo->udev->descriptor.idProduct != PRODUCT_ID_USB2000P))
+          pDevInfo->udev->descriptor.idProduct != PRODUCT_ID_USB2000P &&
+          pDevInfo->udev->descriptor.idProduct != PRODUCT_ID_USB4000))
   {
     iRetVal = -ENODEV;
     goto error;

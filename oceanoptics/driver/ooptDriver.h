@@ -11,6 +11,7 @@
 /* Define these values to match your devices */
 #define VENDOR_ID             0x2457
 #define PRODUCT_ID_HR4000     0x1012
+#define PRODUCT_ID_USB4000    0x1022
 #define PRODUCT_ID_USB2000P   0x101E
 /* Get a minor range for your devices from the usb maintainer */
 #ifdef CONFIG_USB_DYNAMIC_MINORS
@@ -194,6 +195,7 @@ static struct usb_class_driver oopt_class = {
 static struct usb_device_id oopt_device_table [] = {
   { USB_DEVICE( VENDOR_ID, PRODUCT_ID_HR4000   ) },
   { USB_DEVICE( VENDOR_ID, PRODUCT_ID_USB2000P ) },
+  { USB_DEVICE( VENDOR_ID, PRODUCT_ID_USB4000  ) },
   { }         /* Terminating entry */
 };
 MODULE_DEVICE_TABLE (usb, oopt_device_table);

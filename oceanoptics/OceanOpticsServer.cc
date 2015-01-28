@@ -28,6 +28,8 @@ static int printSpectraHeaderInfo(LIBOOPT::SpectraPostheader* pSpectraPostheader
 
 static const double fLongIntervalRatio  = 1.5;
 static const int    iReportInterval     = 60; // in seconds
+static int          iNumTotalPixels;
+static int          iPixelDataSize;
 static int          iPostheaderOffset;
 static int          iNumLongInterval    = 0;
 static HistReport   histLongIntervalShot(0,30,1);
@@ -74,7 +76,7 @@ OceanOpticsServer::OceanOpticsServer(const Src& client, int iDevice, int iDebugL
   if (_iDebugLevel >= 1)
     printf("Device type = %d\n", _iDeviceType);
 
-  if (_iDeviceType == 0) // HR4000
+  if (_iDeviceType == 0 || _iDeviceType == 2) // HR4000
   {
     _xtc            = Xtc( _oopt_HR4000_DataType  , client );
     _iDataReadSize  = OOpt_HR4000_DataType::iDataReadSize;
@@ -179,7 +181,8 @@ unsigned OceanOpticsServer::configure(OceanOpticsConfigType& config)
   }
 
 
-  new (&config) OceanOpticsConfigType(config.exposureTime(), _iDeviceType, lfWaveLenCalibCoeff, lfNonlinCorrectCoeff, fStrayLightConstant);
+  //new (&config) OceanOpticsConfigType(config.exposureTime(), _iDeviceType, lfWaveLenCalibCoeff, lfNonlinCorrectCoeff, fStrayLightConstant);
+  new (&config) OceanOpticsConfigType(config.exposureTime(), 2, lfWaveLenCalibCoeff, lfNonlinCorrectCoeff, fStrayLightConstant);
 
   /*
    * start to configure the device
@@ -199,7 +202,7 @@ unsigned OceanOpticsServer::configure(OceanOpticsConfigType& config)
     return ERR_LIBOOPT_FAIL;
   }
 
-  if (_iDeviceType == 0) // HR4000
+  if (_iDeviceType == 0 || _iDeviceType == 2) // HR4000 or USB4000
     iError = LIBOOPT::setTriggerMode(fd(), LIBOOPT::TRIGGER_MODE_EXT_HW);
   else
     iError = LIBOOPT::setTriggerMode(fd(), LIBOOPT::TRIGGER_USB2000P_EXT_HW_EDGE);
@@ -229,7 +232,7 @@ unsigned OceanOpticsServer::configure(OceanOpticsConfigType& config)
     if (iError != 0)
     {
       printf("OceanOpticsServer::configure(): readRegister(%d) failed: %d\n", iRegister, iError);
-      return ERR_LIBOOPT_FAIL;
+      //return ERR_LIBOOPT_FAIL;
     }
 
     printf("  [%02d] <0x%02x> %s\n    = %d (0x%04x)\n", iRegister, iAddr, LIBOOPT::getRegisterName(iRegister), u16RegVal, u16RegVal);
@@ -243,6 +246,10 @@ unsigned OceanOpticsServer::configure(OceanOpticsConfigType& config)
   }
   printf("Device Status:\n");
   LIBOOPT::printStatus(status);
+
+
+  //timeval timeSleepMicro = {0, (int) (1e4)}; //10ms
+  //select( 0, NULL, NULL, NULL, &timeSleepMicro);
 
   iError = LIBOOPT::arm(fd(), true, 0);
   if (iError != 0)
@@ -314,7 +321,7 @@ int OceanOpticsServer::fetch( char* payload, int flags )
 
   *(Xtc*) payload = _xtc; // setup the Xtc header
 
-  if (_iDeviceType == 0) // HR4000
+  if (_iDeviceType == 0 || _iDeviceType == 2) // HR4000 or USB4000
     _count = ((OOpt_HR4000_DataType*)pData)->frameCounter(); // setup the counter for event building matching
   else
     _count = ((OOpt_USB2000P_DataType*)pData)->frameCounter(); // setup the counter for event building matching
@@ -334,7 +341,6 @@ unsigned OceanOpticsServer::count() const
 
 static int initSpectraCheck(int iDeviceType)
 {
-  int iPixelDataSize, iNumTotalPixels;
   LIBOOPT::getSpectraDataInfo(iDeviceType, iPixelDataSize, iNumTotalPixels, iPostheaderOffset);
 
   clock_gettime(CLOCK_REALTIME, &tsPrevReport);

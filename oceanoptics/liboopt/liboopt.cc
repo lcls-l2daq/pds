@@ -119,6 +119,7 @@ int queryConfig   (int fd, int iConfigVar, char lbConfigVal[OOPT_CONFIGVAR_RETLE
     printf("liboopt::queryConfig(): ioctl() failed, error = %d, %s\n", iError, strerror(errno));
     return iError;
   }
+  sleepInSeconds(0.01); // 10 ms
 
   if (ioctlInfo.u8LenResult != OOPT_CONFIGVAR_RETLEN + 2)
   {
@@ -194,11 +195,12 @@ int readRegister(int fd, int iRegisterAddr, uint16_t& u16RegisterVal)
     return ERROR_INVALID_DATA;
   }
 
-  if (ioctlInfo.lu8Result[0] != iRegisterAddr)
-  {
-    printf("liboopt::readRegister(): return value[0] (0x%x) != register addr (0x%x)\n", ioctlInfo.lu8Result[0], iRegisterAddr);
-    return ERROR_INVALID_DATA;
-  }
+  // USB4000 doesn't send back the original Register Address
+  //if (ioctlInfo.lu8Result[0] != iRegisterAddr)
+  //{
+  //  printf("liboopt::readRegister(): return value[0] (0x%x) != register addr (0x%x)\n", ioctlInfo.lu8Result[0], iRegisterAddr);
+  //  return ERROR_INVALID_DATA;
+  //}
 
   u16RegisterVal = * (uint16_t*) (&ioctlInfo.lu8Result[1]);
   return 0;
@@ -454,10 +456,13 @@ int getDeviceType(int fd, int& iDevType)
     return iError;
   }
 
-  if (queryDeviceInfo.iProductId == 0x1012)
+  if (queryDeviceInfo.iProductId == 0x1012) // HR4000
     iDevType = 0;
-  else if (queryDeviceInfo.iProductId == 0x101E)
+  else if (queryDeviceInfo.iProductId == 0x101E) // USB2000+
     iDevType =  1;
+  else if (queryDeviceInfo.iProductId == 0x1022) // USB4000
+//    iDevType =  2;
+    iDevType =  2;
   else
   {
     printf("liboopt::getDeviceType(): Unsupported device, product id = 0x%x\n", queryDeviceInfo.iProductId);
@@ -640,10 +645,11 @@ int getSpectraDataInfo(int iDeviceType, int& iFrameDataSize, int &iNumTotalPixel
   switch (iDeviceType)
   {
   case 0: // HR4000
+  case 2: // USB4000
     iFrameDataSize    = 8192;
     iNumTotalPixels   = 3840;
     break;
-  case 1:
+  case 1: // USB2000+
     iFrameDataSize    = 4608;
     iNumTotalPixels   = 2048;
     break;
