@@ -458,7 +458,7 @@ int OfflineClient::reportDetectors (int expt, int run, std::vector<std::string>&
           std::vector<std::string>::iterator nn;
           for (nn = names.begin(); nn != names.end(); nn++) {
             conn->createRunAttr(_instrument_name, _experiment_name, run,
-                                "DAQ_Detectors", *nn, "", "");
+                                "DAQ Detectors", *nn, "", "");
           }
           returnVal = 0; // OK
 
@@ -508,13 +508,13 @@ int OfflineClient::reportTotals (int expt, int run, long events, long damaged, d
           conn->beginTransaction();
 
           conn->createRunAttr(_instrument_name, _experiment_name, run,
-                              "DAQ_Detector_Totals", "Events", "Total number of events", events);
+                              "DAQ Detector Totals", "Events", "Total number of events", events);
 
           conn->createRunAttr(_instrument_name, _experiment_name, run,
-                              "DAQ_Detector_Totals", "Damaged", "Number of damaged events", damaged);
+                              "DAQ Detector Totals", "Damaged", "Number of damaged events", damaged);
 
           conn->createRunAttr(_instrument_name, _experiment_name, run,
-                              "DAQ_Detector_Totals", "Size", "Amount of data recorded [GB]", gigabytes);
+                              "DAQ Detector Totals", "Size", "Amount of data recorded [GB]", gigabytes);
 
           returnVal = 0; // OK
 
