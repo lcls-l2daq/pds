@@ -1,15 +1,15 @@
 /*
- * EpixSStatusRegisters.cc
+ * Epix100aStatusRegisters.cc
  *
  *  Created on: 2014.7.31
  *      Author: jackp
  */
 
 #include <stdio.h>
-#include "pds/epixS/EpixSStatusRegisters.hh"
+#include "pds/epix100a/Epix100aStatusRegisters.hh"
 
 namespace Pds {
-  namespace EpixS {
+  namespace Epix100a {
 
     void StatusLane::print() {
       printf("\t\tlocLink(%u) remLink(%u) pibLink(%u)\n",
@@ -20,7 +20,7 @@ namespace Pds {
           bufferOverflowCount, txCounter);
     }
 
-    void EpixSStatusRegisters::print() {
+    void Epix100aStatusRegisters::print() {
       printf("XAMPS Status Registers: version(0x%x), scratchPad(0x%x)\n",
           version, scratchPad);
       for (unsigned i=0; i<NumberOfLanes; i++) {

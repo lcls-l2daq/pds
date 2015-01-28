@@ -1,18 +1,18 @@
 /*
- * EpixSStatusRegisters.hh
+ * Epix100aStatusRegisters.hh
  *
  *  Created on: 2014.7.31
  *      Author: jackp
  */
 
-#ifndef EPIXSINTERNALREGISTERS_HH_
-#define EPIXSINTERNALREGISTERS_HH_
+#ifndef EPIX100AINTERNALREGISTERS_HH_
+#define EPIX100AINTERNALREGISTERS_HH_
 
 //#include <stdint.h>
 
 namespace Pds {
 
-  namespace EpixS {
+  namespace Epix100a {
 
 //   <status>
 //    <register> <name>regStatus</name> <address>2</address> <lane>0</lane> <vc>2</vc> <size>1</size>
@@ -53,10 +53,10 @@ namespace Pds {
         unsigned txCounter;
     };
 
-    class EpixSStatusRegisters {
+    class Epix100aStatusRegisters {
       public:
-        EpixSStatusRegisters() {};
-        ~EpixSStatusRegisters() {};
+        Epix100aStatusRegisters() {};
+        ~Epix100aStatusRegisters() {};
 
         void     print();
         enum {NumberOfLanes=1};
@@ -71,4 +71,4 @@ namespace Pds {
 
 }
 
-#endif /* EPIXSINTERNALREGISTERS_HH_ */
+#endif /* EPIX100AINTERNALREGISTERS_HH_ */

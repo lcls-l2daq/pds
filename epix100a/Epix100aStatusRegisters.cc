@@ -1,5 +1,5 @@
 /*
- * EpixSStatusRegisters.cc
+ * Epix100aStatusRegisters.cc
  *
  *  Created on: 2014.7.31
  *      Author: jackp
@@ -7,9 +7,9 @@
 
 #include <stdio.h>
 #include <string.h>
-#include "pds/epixS/EpixSStatusRegisters.hh"
-#include "pds/epixS/EpixSConfigurator.hh"
-#include "pds/epixS/EpixSDestination.hh"
+#include "pds/epix100a/Epix100aStatusRegisters.hh"
+#include "pds/epix100a/Epix100aConfigurator.hh"
+#include "pds/epix100a/Epix100aDestination.hh"
 #include "pds/pgp/RegisterSlaveImportFrame.hh"
 #include "pds/pgp/RegisterSlaveExportFrame.hh"
 //   <status>
@@ -33,16 +33,16 @@
 //   </status>
 
 
-using namespace Pds::EpixS;
+using namespace Pds::Epix100a;
 
-class EpixSDestination;
+class Epix100aDestination;
 class StatusRegister;
 //class StatusLane;
 
 enum Addresses {versionAddr=0, laneStatusAddr=2, txCountAddr=3, chipIdAddr=49153, chipGradeAddr=49154};
 
-void EpixSStatusRegisters::print() {
-  printf("EpixSStatusRegisters: version(0x%x)\n", version);
+void Epix100aStatusRegisters::print() {
+  printf("Epix100aStatusRegisters: version(0x%x)\n", version);
   lane.print();
   printf("\ttxCounter(%u) AdcChipReg(0x%x), AdcChipGradeReg(%u)\n",
       txCounter, AdcChipIdReg&0xff, (AdcChipGradeReg>>4)&7);
@@ -56,25 +56,25 @@ void StatusLane::print() {
       cellErrorCount, linkErrorCount, linkDownCount, bufferOverflowCount);
 }
 
-int EpixSStatusRegisters::read() {
+int Epix100aStatusRegisters::read() {
   int ret = 0;
-  EpixSDestination d;
-  d.dest(EpixSDestination::VC2);
+  Epix100aDestination d;
+  d.dest(Epix100aDestination::VC2);
   ret |= pgp->readRegister(&d,versionAddr,0x10,(uint32_t*)&version);
   ret |= pgp->readRegister(&d,laneStatusAddr,0x11,(uint32_t*)&lane);
   ret |= pgp->readRegister(&d,txCountAddr,0x12,(uint32_t*)&txCounter);
-  d.dest(EpixSDestination::VC1);
+  d.dest(Epix100aDestination::VC1);
   ret |= pgp->readRegister(&d,chipIdAddr,0x23,(uint32_t*)&AdcChipIdReg);
   ret |= pgp->readRegister(&d,chipGradeAddr,0x24,(uint32_t*)&AdcChipGradeReg);
   if (ret != 0) {
-    printf("\tEpixS Status Registers encountered error while reading!\n");
+    printf("\tEpix100a Status Registers encountered error while reading!\n");
   }
   return ret;
 }
 
-unsigned EpixSStatusRegisters::readVersion(uint32_t* retp) {
-  EpixSDestination d;
-  d.dest(EpixSDestination::VC2);
+unsigned Epix100aStatusRegisters::readVersion(uint32_t* retp) {
+  Epix100aDestination d;
+  d.dest(Epix100aDestination::VC2);
   unsigned ret = pgp->readRegister(&d,versionAddr,0x111,retp);
   return(ret);
 }

@@ -1,12 +1,12 @@
 /*
- * EpixSDestination.hh
+ * Epix100aDestination.hh
  *
  *  Created on: 2014.7.31
  *      Author: jackp
  */
 
-#ifndef EPIXSDESTINATION_HH_
-#define EPIXSDESTINATION_HH_
+#ifndef EPIX100ADESTINATION_HH_
+#define EPIX100ADESTINATION_HH_
 
 #include "pds/pgp/RegisterSlaveImportFrame.hh"
 #include "pds/pgp/Destination.hh"
@@ -15,14 +15,14 @@ namespace Pds {namespace Pgp{ class Destination;}}
 
 namespace Pds {
 
-  namespace EpixS {
+  namespace Epix100a {
 
-    class EpixSDestination : public Pds::Pgp::Destination {
+    class Epix100aDestination : public Pds::Pgp::Destination {
       public:
         enum FEdest {Data, Registers, Oscilloscope, NumberOf};
 
-        EpixSDestination() {}
-        ~EpixSDestination() {}
+        Epix100aDestination() {}
+        ~Epix100aDestination() {}
 
       public:
         unsigned            lane() { return  0; }
@@ -32,4 +32,4 @@ namespace Pds {
   }
 }
 
-#endif /* EPIXSDESTINATION_HH_ */
+#endif /* EPIX100ADESTINATION_HH_ */

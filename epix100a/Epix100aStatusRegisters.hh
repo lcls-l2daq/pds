@@ -1,17 +1,17 @@
 /*
- * EpixSStatusRegisters.hh
+ * Epix100aStatusRegisters.hh
  *
  *  Created on: 2014.7.31
  *      Author: jackp
  */
 
-#ifndef EPIXSSSTATUSREGISTERS_HH_
-#define EPIXSSSTATUSREGISTERS_HH_
+#ifndef EPIX100ASSTATUSREGISTERS_HH_
+#define EPIX100ASSTATUSREGISTERS_HH_
 #include "pds/pgp/Pgp.hh"
 
 namespace Pds {
 
-  namespace EpixS {
+  namespace Epix100a {
 
     //   <status>
     //    <register> <name>regStatus</name> <address>2</address> <lane>0</lane> <vc>2</vc> <size>1</size>
@@ -51,10 +51,10 @@ namespace Pds {
             unsigned unused4:               4;  //28:31
         };
 
-        class EpixSStatusRegisters {
+        class Epix100aStatusRegisters {
           public:
-            EpixSStatusRegisters() {};
-            ~EpixSStatusRegisters() {};
+            Epix100aStatusRegisters() {};
+            ~Epix100aStatusRegisters() {};
 
             int      read();
             void     print();
@@ -73,4 +73,4 @@ namespace Pds {
 
 }
 
-#endif /* EPIXSSSTATUSREGISTERS_HH_ */
+#endif /* EPIX100ASSTATUSREGISTERS_HH_ */

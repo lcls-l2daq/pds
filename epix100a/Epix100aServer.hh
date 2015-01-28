@@ -1,12 +1,12 @@
 /*
- * EpixSServer.hh
+ * Epix100aServer.hh
  *
  *  Created on: 2014.7.31
  *      Author: jackp
  */
 
-#ifndef EPIXSSERVER
-#define EPIXSSERVER
+#ifndef EPIX100ASERVER
+#define EPIX100ASERVER
 
 #include "pds/utility/EbServer.hh"
 #include "pds/utility/EbCountSrv.hh"
@@ -14,9 +14,9 @@
 #include "pds/config/EpixConfigType.hh"
 #include "pds/config/EpixSamplerConfigType.hh"
 #include "pds/service/Task.hh"
-#include "pds/epixS/EpixSManager.hh"
-#include "pds/epixS/EpixSConfigurator.hh"
-#include "pds/epixS/EpixSDestination.hh"
+#include "pds/epix100a/Epix100aManager.hh"
+#include "pds/epix100a/Epix100aConfigurator.hh"
+#include "pds/epix100a/Epix100aDestination.hh"
 #include "pds/utility/Occurrence.hh"
 #include "pdsdata/xtc/Xtc.hh"
 #include "pds/service/GenericPool.hh"
@@ -25,17 +25,17 @@
 
 namespace Pds
 {
-  class EpixSServer;
+  class Epix100aServer;
   class Task;
 }
 
-class Pds::EpixSServer
+class Pds::Epix100aServer
    : public EbServer,
      public EbCountSrv
 {
  public:
-   EpixSServer( const Src& client, unsigned configMask=0 );
-   virtual ~EpixSServer() {}
+   Epix100aServer( const Src& client, unsigned configMask=0 );
+   virtual ~Epix100aServer() {}
     
    //  Eb interface
    void       dump ( int detail ) const {}
@@ -57,9 +57,9 @@ class Pds::EpixSServer
    bool more() const;
 
    unsigned count() const;
-   void setEpixS( int fd );
+   void setEpix100a( int fd );
 
-   unsigned configure(EpixSConfigType*, bool forceConfig = false);
+   unsigned configure(Epix100aConfigType*, bool forceConfig = false);
    unsigned unconfigure(void);
 
    unsigned payloadSize(void)   { return _payloadSize; }
@@ -77,8 +77,8 @@ class Pds::EpixSServer
    void     dumpFrontEnd();
    void     printHisto(bool);
    void     clearHisto();
-   void     manager(EpixSManager* m) { _mgr = m; }
-   EpixSManager* manager() { return _mgr; }
+   void     manager(Epix100aManager* m) { _mgr = m; }
+   Epix100aManager* manager() { return _mgr; }
    void     process(char*);
    void     allocated();
    bool     resetOnEveryConfig() { return _resetOnEveryConfig; }
@@ -90,12 +90,12 @@ class Pds::EpixSServer
    void     maintainLostRunTrigger(bool b) { _maintainLostRunTrigger = b; }
 
  public:
-   static EpixSServer* instance() { return _instance; }
+   static Epix100aServer* instance() { return _instance; }
 //   void                laneTest();
 
  private:
-   static EpixSServer*            _instance;
-   static void instance(EpixSServer* s) { _instance = s; }
+   static Epix100aServer*            _instance;
+   static void instance(Epix100aServer* s) { _instance = s; }
 
  private:
    enum     {sizeOfHisto=1000, ElementsPerSegmentLevel=1};
@@ -104,7 +104,7 @@ class Pds::EpixSServer
    Xtc                            _xtcSamplr;
    Xtc                            _xtcConfig;
    Pds::EpixSampler::ConfigV1*     _samplerConfig;
-   Pds::EpixS::EpixSConfigurator* _cnfgrtr;
+   Pds::Epix100a::Epix100aConfigurator* _cnfgrtr;
    unsigned                       _elements;
    unsigned                       _count;
    unsigned                       _elementsThisCount;
@@ -117,9 +117,9 @@ class Pds::EpixSServer
    unsigned*                      _histo;
    Pds::Task*                     _task;
    unsigned                       _ioIndex;
-   Pds::EpixS::EpixSDestination     _d;
+   Pds::Epix100a::Epix100aDestination     _d;
    char                           _runTimeConfigName[256];
-   EpixSManager*                   _mgr;
+   Epix100aManager*                   _mgr;
    GenericPool*                   _occPool;
    unsigned                       _unconfiguredErrors;
    unsigned                       _timeSinceLastException;

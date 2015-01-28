@@ -1,5 +1,5 @@
 /*
- * EpixSManager.cc
+ * Epix100aManager.cc
  *
  *  Created on: 2014.7.31
  *      Author: jackp
@@ -19,11 +19,11 @@
 #include "pds/client/Fsm.hh"
 #include "pds/client/Action.hh"
 #include "pds/config/EpixConfigType.hh"
-#include "pds/epixS/EpixSServer.hh"
+#include "pds/epix100a/Epix100aServer.hh"
 #include "pds/pgp/DataImportFrame.hh"
 #include "pdsdata/xtc/DetInfo.hh"
 //#include "pdsdata/psddl/epix.ddl.h"
-#include "pds/epixS/EpixSManager.hh"
+#include "pds/epix100a/Epix100aManager.hh"
 #include "pds/config/CfgClientNfs.hh"
 #include "pdsdata/xtc/TypeId.hh"
 #include "pdsdata/xtc/Xtc.hh"
@@ -36,20 +36,20 @@ namespace Pds {
   class InDatagram;
 
 
-  class EpixSConfigCache : public CfgCache {
+  class Epix100aConfigCache : public CfgCache {
     public:
       enum {StaticALlocationNumberOfConfigurationsForScanning=100};
-      EpixSConfigCache(const Src& src) :
-        CfgCache(src, _epixSConfigType, StaticALlocationNumberOfConfigurationsForScanning * __size()) {}
+      Epix100aConfigCache(const Src& src) :
+        CfgCache(src, _epix100aConfigType, StaticALlocationNumberOfConfigurationsForScanning * __size()) {}
     public:
      void printCurrent() {
-       EpixSConfigType* cfg = (EpixSConfigType*)current();
-       printf("EpixSConfigCache::printCurrent current 0x%x\n", (unsigned) (unsigned long)cfg);
+       Epix100aConfigType* cfg = (Epix100aConfigType*)current();
+       printf("Epix100aConfigCache::printCurrent current 0x%x\n", (unsigned) (unsigned long)cfg);
      }
     private:
-      int _size(void* tc) const { return ((EpixSConfigType*)tc)->_sizeof(); }
+      int _size(void* tc) const { return ((Epix100aConfigType*)tc)->_sizeof(); }
       static int __size() {
-        EpixSConfigType* foo = new EpixSConfigType(2,2,0x160, 0x180, 2);
+        Epix100aConfigType* foo = new Epix100aConfigType(2,2,0x160, 0x180, 2);
         int size = (int) foo->_sizeof();
         delete foo;
         return size;
@@ -60,10 +60,10 @@ namespace Pds {
 
 using namespace Pds;
 
-class EpixSAllocAction : public Action {
+class Epix100aAllocAction : public Action {
 
   public:
-   EpixSAllocAction(EpixSConfigCache& cfg, EpixSServer* svr)
+   Epix100aAllocAction(Epix100aConfigCache& cfg, Epix100aServer* svr)
       : _cfg(cfg), _svr(svr) {
    }
 
@@ -76,44 +76,44 @@ class EpixSAllocAction : public Action {
    }
 
  private:
-   EpixSConfigCache& _cfg;
-   EpixSServer*      _svr;
+   Epix100aConfigCache& _cfg;
+   Epix100aServer*      _svr;
 };
 
-class EpixSUnmapAction : public Action {
+class Epix100aUnmapAction : public Action {
   public:
-    EpixSUnmapAction(EpixSServer* s) : server(s) {};
+    Epix100aUnmapAction(Epix100aServer* s) : server(s) {};
 
     Transition* fire(Transition* tr) {
-      printf("EpixSUnmapAction::fire(tr) disabling front end\n");
+      printf("Epix100aUnmapAction::fire(tr) disabling front end\n");
       server->disable();
       return tr;
     }
 
   private:
-    EpixSServer* server;
+    Epix100aServer* server;
 };
 
-class EpixSL1Action : public Action {
+class Epix100aL1Action : public Action {
  public:
-   EpixSL1Action(EpixSServer* svr);
+   Epix100aL1Action(Epix100aServer* svr);
 
    InDatagram* fire(InDatagram* in);
 
-   EpixSServer* server;
+   Epix100aServer* server;
    unsigned _lastMatchedFiducial;
 //   unsigned _ioIndex;
    bool     _fiducialError;
 
 };
 
-EpixSL1Action::EpixSL1Action(EpixSServer* svr) :
+Epix100aL1Action::Epix100aL1Action(Epix100aServer* svr) :
     server(svr),
     _lastMatchedFiducial(0xfffffff),
     _fiducialError(false) {}
 
-InDatagram* EpixSL1Action::fire(InDatagram* in) {
-  if (server->debug() & 8) printf("EpixSL1Action::fire!\n");
+InDatagram* Epix100aL1Action::fire(InDatagram* in) {
+  if (server->debug() & 8) printf("Epix100aL1Action::fire!\n");
   if (in->datagram().xtc.damage.value() == 0) {
 //    Pds::Pgp::DataImportFrame* data;
     Datagram& dg = in->datagram();
@@ -126,12 +126,12 @@ InDatagram* EpixSL1Action::fire(InDatagram* in) {
       if (xtc->contains.id() == Pds::TypeId::Id_Xtc) {
         payload = xtc->payload();
       } else {
-        printf("EpixSL1Action::fire inner xtc not Id_EpixElement, but %s!\n",
+        printf("Epix100aL1Action::fire inner xtc not Id_EpixElement, but %s!\n",
             xtc->contains.name(xtc->contains.id()));
         return in;
       }
     } else {
-      printf("EpixSL1Action::fire outer xtc not Id_Xtc, but %s!\n",
+      printf("Epix100aL1Action::fire outer xtc not Id_Xtc, but %s!\n",
           xtc->contains.name(xtc->contains.id()));
       return in;
     }
@@ -139,7 +139,7 @@ InDatagram* EpixSL1Action::fire(InDatagram* in) {
     if (error) {
       dg.xtc.damage.increase(Pds::Damage::UserDefined);
       dg.xtc.damage.userBits(0xf0 | (error&0xf));
-      printf("EpixSL1Action setting user damage due to fiducial in quads(0x%x)\n", error);
+      printf("Epix100aL1Action setting user damage due to fiducial in quads(0x%x)\n", error);
       if (!_fiducialError) server->printHisto(false);
       else _fiducialError = true;
     } else {
@@ -149,23 +149,23 @@ InDatagram* EpixSL1Action::fire(InDatagram* in) {
   return in;
 }
 
-class EpixSConfigAction : public Action {
+class Epix100aConfigAction : public Action {
 
   public:
-    EpixSConfigAction( Pds::EpixSConfigCache& cfg, EpixSServer* server)
+    Epix100aConfigAction( Pds::Epix100aConfigCache& cfg, Epix100aServer* server)
     : _cfg( cfg ), _server(server), _result(0)
       {}
 
-    ~EpixSConfigAction() {}
+    ~Epix100aConfigAction() {}
 
     Transition* fire(Transition* tr) {
       _result = 0;
       int i = _cfg.fetch(tr);
-      printf("EpixSConfigAction::fire(Transition) fetched %d\n", i);
+      printf("Epix100aConfigAction::fire(Transition) fetched %d\n", i);
       _server->resetOffset();
       if (_cfg.scanning() == false) {
-        if ((_result = _server->configure( (EpixSConfigType*)_cfg.current()))) {
-          printf("\nEpixSConfigAction::fire(tr) failed configuration\n");
+        if ((_result = _server->configure( (Epix100aConfigType*)_cfg.current()))) {
+          printf("\nEpix100aConfigAction::fire(tr) failed configuration\n");
         };
         if (_server->debug() & 0x10) _cfg.printCurrent();
       } else {
@@ -175,17 +175,17 @@ class EpixSConfigAction : public Action {
     }
 
     InDatagram* fire(InDatagram* in) {
-      printf("EpixSConfigAction::fire(InDatagram) recorded\n");
+      printf("Epix100aConfigAction::fire(InDatagram) recorded\n");
       _cfg.record(in);
       if (_server->samplerConfig()) {
-        printf("EpixSConfigAction sending sampler config\n");
+        printf("Epix100aConfigAction sending sampler config\n");
         in->insert(_server->xtcConfig(), _server->samplerConfig());
       } else {
-        printf("EpixSConfigAction not sending sampler config\n");
+        printf("Epix100aConfigAction not sending sampler config\n");
       }
       if (_server->debug() & 0x10) _cfg.printCurrent();
       if( _result ) {
-        printf( "*** EpixSConfigAction found configuration errors _result(0x%x)\n", _result );
+        printf( "*** Epix100aConfigAction found configuration errors _result(0x%x)\n", _result );
         if (in->datagram().xtc.damage.value() == 0) {
           in->datagram().xtc.damage.increase(Damage::UserDefined);
           in->datagram().xtc.damage.userBits(_result);
@@ -195,48 +195,48 @@ class EpixSConfigAction : public Action {
     }
 
   private:
-    EpixSConfigCache&  _cfg;
-    EpixSServer*      _server;
+    Epix100aConfigCache&  _cfg;
+    Epix100aServer*      _server;
   unsigned           _result;
 };
 
-class EpixSBeginCalibCycleAction : public Action {
+class Epix100aBeginCalibCycleAction : public Action {
   public:
-    EpixSBeginCalibCycleAction(EpixSServer* s, EpixSConfigCache& cfg) : _server(s), _cfg(cfg), _result(0) {};
+    Epix100aBeginCalibCycleAction(Epix100aServer* s, Epix100aConfigCache& cfg) : _server(s), _cfg(cfg), _result(0) {};
 
     Transition* fire(Transition* tr) {
-      printf("EpixSBeginCalibCycleAction:;fire(tr) ");
+      printf("Epix100aBeginCalibCycleAction:;fire(tr) ");
       if (_cfg.scanning()) {
         if (_cfg.changed()) {
           printf("configured and ");
           _server->offset(_server->offset()+_server->myCount()+1);
           printf(" offset %u count %u\n", _server->offset(), _server->myCount());
-          if ((_result = _server->configure( (EpixSConfigType*)_cfg.current()))) {
-            printf("\nEpixSBeginCalibCycleAction::fire(tr) failed config\n");
+          if ((_result = _server->configure( (Epix100aConfigType*)_cfg.current()))) {
+            printf("\nEpix100aBeginCalibCycleAction::fire(tr) failed config\n");
           };
           if (_server->debug() & 0x10) _cfg.printCurrent();
         }
       }
-      printf("EpixSBeginCalibCycleAction:;fire(tr) enabled\n");
+      printf("Epix100aBeginCalibCycleAction:;fire(tr) enabled\n");
       _server->enable();
       return tr;
     }
 
     InDatagram* fire(InDatagram* in) {
-      printf("EpixSBeginCalibCycleAction:;fire(InDatagram)");
+      printf("Epix100aBeginCalibCycleAction:;fire(InDatagram)");
       if (_cfg.scanning() && _cfg.changed()) {
         printf(" recorded\n");
         _cfg.record(in);
         if (_server->samplerConfig()) {
-          printf("EpixSBeginCalibCycleAction sending sampler config\n");
+          printf("Epix100aBeginCalibCycleAction sending sampler config\n");
           in->insert(_server->xtcConfig(), _server->samplerConfig());
         } else {
-          printf("EpixSBeginCalibCycleAction not sending sampler config\n");
+          printf("Epix100aBeginCalibCycleAction not sending sampler config\n");
         }
         if (_server->debug() & 0x10) _cfg.printCurrent();
       } else printf("\n");
       if( _result ) {
-        printf( "*** EpixSConfigAction found configuration errors _result(0x%x)\n", _result );
+        printf( "*** Epix100aConfigAction found configuration errors _result(0x%x)\n", _result );
         if (in->datagram().xtc.damage.value() == 0) {
           in->datagram().xtc.damage.increase(Damage::UserDefined);
           in->datagram().xtc.damage.userBits(_result);
@@ -245,27 +245,27 @@ class EpixSBeginCalibCycleAction : public Action {
       return in;
     }
   private:
-    EpixSServer*       _server;
-    EpixSConfigCache&  _cfg;
+    Epix100aServer*       _server;
+    Epix100aConfigCache&  _cfg;
     unsigned          _result;
 };
 
 
-class EpixSUnconfigAction : public Action {
+class Epix100aUnconfigAction : public Action {
  public:
-   EpixSUnconfigAction( EpixSServer* server, EpixSConfigCache& cfg ) : _server( server ), _cfg(cfg), _result(0) {}
-   ~EpixSUnconfigAction() {}
+   Epix100aUnconfigAction( Epix100aServer* server, Epix100aConfigCache& cfg ) : _server( server ), _cfg(cfg), _result(0) {}
+   ~Epix100aUnconfigAction() {}
 
    Transition* fire(Transition* tr) {
-     printf("EpixSUnconfigAction:;fire(Transition) unconfigured\n");
+     printf("Epix100aUnconfigAction:;fire(Transition) unconfigured\n");
      _result = _server->unconfigure();
      return tr;
    }
 
    InDatagram* fire(InDatagram* in) {
-     printf("EpixSUnconfigAction:;fire(InDatagram)\n");
+     printf("Epix100aUnconfigAction:;fire(InDatagram)\n");
       if( _result ) {
-         printf( "*** Found %d epixS Unconfig errors\n", _result );
+         printf( "*** Found %d epix100a Unconfig errors\n", _result );
          in->datagram().xtc.damage.increase(Pds::Damage::UserDefined);
          in->datagram().xtc.damage.userBits(0xda);
       }
@@ -273,17 +273,17 @@ class EpixSUnconfigAction : public Action {
    }
 
  private:
-   EpixSServer*      _server;
-   EpixSConfigCache& _cfg;
+   Epix100aServer*      _server;
+   Epix100aConfigCache& _cfg;
    unsigned         _result;
 };
 
-class EpixSEndCalibCycleAction : public Action {
+class Epix100aEndCalibCycleAction : public Action {
   public:
-    EpixSEndCalibCycleAction(EpixSServer* s, EpixSConfigCache& cfg) : _server(s), _cfg(cfg), _result(0) {};
+    Epix100aEndCalibCycleAction(Epix100aServer* s, Epix100aConfigCache& cfg) : _server(s), _cfg(cfg), _result(0) {};
 
     Transition* fire(Transition* tr) {
-      printf("EpixSEndCalibCycleAction:;fire(Transition) %p", _cfg.current());
+      printf("Epix100aEndCalibCycleAction:;fire(Transition) %p", _cfg.current());
       _cfg.next();
       printf(" %p\n", _cfg.current());
       _result = _server->unconfigure();
@@ -293,9 +293,9 @@ class EpixSEndCalibCycleAction : public Action {
     }
 
     InDatagram* fire(InDatagram* in) {
-      printf("EpixSEndCalibCycleAction:;fire(InDatagram)\n");
+      printf("Epix100aEndCalibCycleAction:;fire(InDatagram)\n");
       if( _result ) {
-        printf( "*** EpixSEndCalibCycleAction found configuration errors _result(0x%x)\n", _result );
+        printf( "*** Epix100aEndCalibCycleAction found configuration errors _result(0x%x)\n", _result );
         if (in->datagram().xtc.damage.value() == 0) {
           in->datagram().xtc.damage.increase(Damage::UserDefined);
           in->datagram().xtc.damage.userBits(_result);
@@ -305,15 +305,15 @@ class EpixSEndCalibCycleAction : public Action {
     }
 
   private:
-    EpixSServer*      _server;
-    EpixSConfigCache& _cfg;
+    Epix100aServer*      _server;
+    Epix100aConfigCache& _cfg;
     unsigned          _result;
 };
 
-EpixSManager::EpixSManager( EpixSServer* server, unsigned d) :
-    _fsm(*new Fsm), _cfg(*new EpixSConfigCache(server->client())) {
+Epix100aManager::Epix100aManager( Epix100aServer* server, unsigned d) :
+    _fsm(*new Fsm), _cfg(*new Epix100aConfigCache(server->client())) {
 
-   printf("EpixSManager being initialized... " );
+   printf("Epix100aManager being initialized... " );
 
    unsigned ports = (d >> 4) & 0xf;
    char devName[128];
@@ -325,10 +325,10 @@ EpixSManager::EpixSManager( EpixSServer* server, unsigned d) :
      sprintf(devName, "/dev/pgpcard_%u_%u", d & 0xf, ports);
    }
 
-   int epixS = open( devName,  O_RDWR | O_NONBLOCK);
-   printf("pgpcard %s file number %d\n", devName, epixS);
-   if (epixS < 0) {
-     sprintf(err, "EpixSManager::EpixSManager() opening %s failed", devName);
+   int epix100a = open( devName,  O_RDWR | O_NONBLOCK);
+   printf("pgpcard %s file number %d\n", devName, epix100a);
+   if (epix100a < 0) {
+     sprintf(err, "Epix100aManager::Epix100aManager() opening %s failed", devName);
      perror(err);
      // What else to do if the open fails?
      ::exit(-1);
@@ -342,24 +342,24 @@ EpixSManager::EpixSManager( EpixSServer* server, unsigned d) :
    Pgp::Pgp::portOffset(offset);
 
    if (offset >= 4) {
-     printf("EpixSManager::EpixSManager() illegal port mask!! 0x%x\n", ports);
+     printf("Epix100aManager::Epix100aManager() illegal port mask!! 0x%x\n", ports);
    }
 
    server->manager(this);
-   server->setEpixS( epixS );
+   server->setEpix100a( epix100a );
 //   server->laneTest();
 
-   _fsm.callback( TransitionId::Map, new EpixSAllocAction( _cfg, server ) );
-   _fsm.callback( TransitionId::Unmap, new EpixSUnmapAction( server ) );
-   _fsm.callback( TransitionId::Configure, new EpixSConfigAction(_cfg, server ) );
-   //   _fsm.callback( TransitionId::Enable, new EpixSEnableAction( server ) );
-   //   _fsm.callback( TransitionId::Disable, new EpixSDisableAction( server ) );
-   _fsm.callback( TransitionId::BeginCalibCycle, new EpixSBeginCalibCycleAction( server, _cfg ) );
-   _fsm.callback( TransitionId::EndCalibCycle, new EpixSEndCalibCycleAction( server, _cfg ) );
-  _fsm.callback( TransitionId::L1Accept, new EpixSL1Action( server ) );
-   _fsm.callback( TransitionId::Unconfigure, new EpixSUnconfigAction( server, _cfg ) );
+   _fsm.callback( TransitionId::Map, new Epix100aAllocAction( _cfg, server ) );
+   _fsm.callback( TransitionId::Unmap, new Epix100aUnmapAction( server ) );
+   _fsm.callback( TransitionId::Configure, new Epix100aConfigAction(_cfg, server ) );
+   //   _fsm.callback( TransitionId::Enable, new Epix100aEnableAction( server ) );
+   //   _fsm.callback( TransitionId::Disable, new Epix100aDisableAction( server ) );
+   _fsm.callback( TransitionId::BeginCalibCycle, new Epix100aBeginCalibCycleAction( server, _cfg ) );
+   _fsm.callback( TransitionId::EndCalibCycle, new Epix100aEndCalibCycleAction( server, _cfg ) );
+  _fsm.callback( TransitionId::L1Accept, new Epix100aL1Action( server ) );
+   _fsm.callback( TransitionId::Unconfigure, new Epix100aUnconfigAction( server, _cfg ) );
    // _fsm.callback( TransitionId::BeginRun,
-   //                new EpixSBeginRunAction( server ) );
+   //                new Epix100aBeginRunAction( server ) );
    // _fsm.callback( TransitionId::EndRun,
-   //                new EpixSEndRunAction( server ) );
+   //                new Epix100aEndRunAction( server ) );
 }
