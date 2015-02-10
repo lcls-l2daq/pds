@@ -760,7 +760,7 @@ int AndorServer::initCapture()
   //if (!isAndorFuncOk(iError))
   //  printf("AndorServer::initCapture(): EnableKeepCleans(off): %s\n", AndorErrorCodes::name(iError));
 
-  iError = SetDMAParameters(1, 0.003);
+  iError = SetDMAParameters(1, 0.001);
   if (!isAndorFuncOk(iError))
     printf("AndorServer::initCapture(): SetDMAParameters(): %s\n", AndorErrorCodes::name(iError));
 
