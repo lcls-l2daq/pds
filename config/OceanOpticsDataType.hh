@@ -6,11 +6,13 @@
 
 typedef Pds::OceanOptics::DataV1 OOpt_HR4000_DataType;
 typedef Pds::OceanOptics::DataV2 OOpt_USB2000P_DataType;
+typedef Pds::OceanOptics::DataV3 OOpt_USB4000_DataType;
 
 static Pds::TypeId _oopt_HR4000_DataType(Pds::TypeId::Id_OceanOpticsData,
           OOpt_HR4000_DataType::Version);
 static Pds::TypeId _oopt_USB2000P_DataType(Pds::TypeId::Id_OceanOpticsData,
           OOpt_USB2000P_DataType::Version);
-
+static Pds::TypeId _oopt_USB4000_DataType(Pds::TypeId::Id_OceanOpticsData,
+          OOpt_USB4000_DataType::Version);
 
 #endif

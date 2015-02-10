@@ -76,17 +76,23 @@ OceanOpticsServer::OceanOpticsServer(const Src& client, int iDevice, int iDebugL
   if (_iDebugLevel >= 1)
     printf("Device type = %d\n", _iDeviceType);
 
-  if (_iDeviceType == 0 || _iDeviceType == 2) // HR4000
+  switch (_iDeviceType)
   {
+  case 0: // HR4000
     _xtc            = Xtc( _oopt_HR4000_DataType  , client );
     _iDataReadSize  = OOpt_HR4000_DataType::iDataReadSize;
     _iOutDataSize   = sizeof(OOpt_HR4000_DataType);
-  }
-  else
-  {
+    break;
+  case 1: // USB2000P
     _xtc = Xtc( _oopt_USB2000P_DataType, client );
     _iDataReadSize  = OOpt_USB2000P_DataType::iDataReadSize;
     _iOutDataSize   = sizeof(OOpt_USB2000P_DataType);
+    break;
+  case 2: // USB4000
+    _xtc            = Xtc( _oopt_USB4000_DataType  , client );
+    _iDataReadSize  = OOpt_USB4000_DataType::iDataReadSize;
+    _iOutDataSize   = sizeof(OOpt_USB4000_DataType);
+    break;
   }
   _xtc.extent     = sizeof(Xtc) + _iOutDataSize;
 
@@ -321,10 +327,18 @@ int OceanOpticsServer::fetch( char* payload, int flags )
 
   *(Xtc*) payload = _xtc; // setup the Xtc header
 
-  if (_iDeviceType == 0 || _iDeviceType == 2) // HR4000 or USB4000
-    _count = ((OOpt_HR4000_DataType*)pData)->frameCounter(); // setup the counter for event building matching
-  else
+  // setup the counter for event building matching
+  switch (_iDeviceType) {
+  case 0:
+    _count = ((OOpt_HR4000_DataType*)pData)->frameCounter();
+    break;
+  case 1:
     _count = ((OOpt_USB2000P_DataType*)pData)->frameCounter(); // setup the counter for event building matching
+    break;
+  case 2:
+    _count = ((OOpt_USB4000_DataType*)pData)->frameCounter();
+    break;
+  }
 
   if (_iDebugLevel >= 2)
     checkSpectraInfo(pData);
