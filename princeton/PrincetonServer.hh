@@ -86,7 +86,7 @@ private:
   static const int      _iInfoSize;                             // For storing temperature infomation
   static const int      _iMaxFrameDataSize;                     // Buffer for 4 Mega (image pixels) x 2 (bytes per pixel) +
                                                                 //   info size + header size
-  static const int      _iPoolDataCount         = 120;          // to support beam rate mode
+  static const int      _iPoolDataCount         = 120;            // to support beam rate mode
   static const int      _iMaxReadoutTime        = 120000;        // Max readout time
   static const int      _iMaxThreadEndTime      = 120000;        // Max thread terminating time (in ms)
   static const int      _iMaxLastEventTime      = 120000;        // Max readout time for the last event

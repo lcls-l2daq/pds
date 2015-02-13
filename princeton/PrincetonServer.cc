@@ -454,7 +454,9 @@ int PrincetonServer::initCapture()
       return ERROR_SDK_FUNC_FAIL;
     }
 
-    const int iCircularBufferSize = ((1UL << 29) / uFrameSize); // max size: 512 MB
+    int iCircularBufferSize = ((1UL << 29) / uFrameSize); // max size: 512 MB
+    if (iCircularBufferSize > 1024)
+      iCircularBufferSize = 1024;
     _iBufferSize = uFrameSize * iCircularBufferSize;
     free(_pFrameBuffer);
     _pFrameBuffer = (char*) malloc(_iBufferSize);
@@ -1366,7 +1368,7 @@ int PrincetonServer::getDataInBeamRateMode(InDatagram* in, InDatagram*& out)
       if (!bPrevCatpureFailed) {
         printPvError("PrincetonServer::getDataInBeamRateMode(): pl_exp_start_cont() failed");
         printf("    error code = %d status = %d, bytes transfered = %u, bufferFilled = %u\n",
-          iErrorCode, (int)status, uNumBytesTransfered, uNumBufferFilled);
+          iErrorCode, (int)status, (unsigned) uNumBytesTransfered, (unsigned) uNumBufferFilled);
       }
       bFrameError = true;
       break;
