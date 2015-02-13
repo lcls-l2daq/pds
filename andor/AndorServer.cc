@@ -728,6 +728,20 @@ int AndorServer::initCapture()
       printf("AndorServer::initCapture(): GetSizeOfCircularBuffer(): %s\n", AndorErrorCodes::name(iError));
     else
       printf("Size of Circular Buffer: %d\n", (int) sizeBuffer);
+
+    int iVSRecIndex = 0; //select the fastest VShift speed
+    iError = SetVSSpeed(iVSRecIndex);
+    if (!isAndorFuncOk(iError))
+    {
+      printf("AndorServer::init(): SetVSSpeed(): %s\n", AndorErrorCodes::name(iError));
+      return ERROR_SDK_FUNC_FAIL;
+    }
+    printf("Set VSSpeed to %d\n", iVSRecIndex);
+
+    int iKeepCleanMode = 0; // Off
+    iError = EnableKeepCleans(iKeepCleanMode);
+    if (!isAndorFuncOk(iError))
+      printf("AndorServer::initCapture(): EnableKeepCleans(off): %s\n", AndorErrorCodes::name(iError));
   }
 
   //
@@ -753,12 +767,6 @@ int AndorServer::initCapture()
     printf("AndorServer::initCapture(): SetShutterEx(): %s\n", AndorErrorCodes::name(iError));
     return ERROR_SDK_FUNC_FAIL;
   }
-
-  //** Keep clean enable only available for FVB trigger mode
-  //int iKeepCleanMode = 0; // Off
-  //iError = EnableKeepCleans(iKeepCleanMode);
-  //if (!isAndorFuncOk(iError))
-  //  printf("AndorServer::initCapture(): EnableKeepCleans(off): %s\n", AndorErrorCodes::name(iError));
 
   iError = SetDMAParameters(1, 0.001);
   if (!isAndorFuncOk(iError))
