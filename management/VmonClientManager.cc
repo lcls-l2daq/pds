@@ -58,7 +58,7 @@ void VmonClientManager::map()
 {
   if (_state == Connected) {
     //    _consumer.process(*_client, MonConsumerClient::Connected);
-    _state = Mapped;
+    _state = Mapping;
 
     MonMessage request(MonMessage::DescriptionReq);
     _socket->write(&request, sizeof(request));
@@ -124,6 +124,7 @@ int VmonClientManager::processIo()
         client->read_description(reply.payload());
     }
     client->use_all();
+    _state = Mapping;
     break;
   case MonMessage::Payload:     
     if (!client) {
@@ -147,6 +148,8 @@ void VmonClientManager::request_payload()
     MonMessage request(MonMessage::PayloadReq);
     _socket->write(&request, sizeof(request));
   }
+  else if (_state==Mapping)
+    _state = Mapped;
 }
 
 MonClient* VmonClientManager::lookup(const Src& src)

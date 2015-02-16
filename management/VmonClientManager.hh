@@ -50,7 +50,7 @@ namespace Pds {
     VmonClientSocket*  _socket;
     list<MonClient*>   _client_list;
     int                _partition;
-    enum { Disconnected, Connected, Mapped } _state;
+    enum { Disconnected, Connected, Mapping, Mapped } _state;
     VmonPoll           _poll;
   };
 
