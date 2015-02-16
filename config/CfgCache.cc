@@ -36,7 +36,18 @@ int CfgCache::fetch  (const Transition* tr)
 {
   _cur_config = 0;
   _changed = true;
-  int len = _config.fetch(*tr, _type, _buffer, _bsize);
+  int len = 0;
+  try {
+    len = _config.fetch(*tr, _type, _buffer, _bsize);
+  }
+  catch (std::exception& e) {
+    printf("CfgCache::fetch caught exception %s\n",e.what());
+  }
+  catch (std::string& e) {
+    printf("CfgCache::fetch caught exception %s\n",e.c_str());
+  }
+  catch (...) {
+  }
   if (len > 0) {
     printf("CfgCache::fetch configuration type %x is size %u bytes, buffer is %u bytes\n",
         _type.value(), len, _bsize);
