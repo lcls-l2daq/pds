@@ -5,7 +5,7 @@
 #include "pdsdata/psddl/evr.ddl.h"
 
 typedef Pds::EvrData::ConfigV7  EvrConfigType;
-typedef Pds::EvrData::DataV3    EvrDataType;
+typedef Pds::EvrData::DataV4    EvrDataType;
 
 typedef Pds::EvrData::EventCodeV6       EventCodeType;  
 typedef Pds::EvrData::PulseConfigV3     PulseType;  
