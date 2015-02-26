@@ -1,3 +1,4 @@
+2015-Feb-26 caf   Tag V08-03-00.
 2012-Dec-21 caf   Tag V05-03-00.
 2012-Nov-20 tomytsai Fixed Evr readout group support for Evr1, and allow two readout group to be triggered by the same event code.
 2012-Apr-03 tomytsai Added Ocean Optics spectrometer and EpicsConfig
