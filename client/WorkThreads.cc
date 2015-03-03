@@ -151,6 +151,10 @@ namespace Pds {
         MonDescTH1F completed("Completed","[events]","", 32, -0.5, 31.5);
         _completed = new MonEntryTH1F(completed);
         group->add(_completed);
+
+        MonDescTH1F worker("Worker","[thread]","", 16, -1.5, 14.5);
+        _worker = new MonEntryTH1F(worker);
+        group->add(_worker);
       }
       ~Manager() {
         for(unsigned id=0; id<_tasks.size(); id++)
@@ -254,6 +258,7 @@ namespace Pds {
             for(unsigned id=0; id<_tasks.size(); id++)
               if (_tasks[id]->unassigned()) {
                 _tasks[id]->assign(*it);
+                _worker->addcontent(1.,double(id));
                 lassign=true;
 #ifdef DBUG
 		printf("WorkThreads assign to thread %d\n",id);
@@ -265,6 +270,7 @@ namespace Pds {
 #ifdef DBUG
 	      printf("WorkThreads unassigned\n");
 #endif
+              _worker->addcontent(1.,-1.);
 	      _complete(*it);
 	    }
           }
@@ -302,6 +308,7 @@ namespace Pds {
         _queued   ->time(time);
         _assigned ->time(time);
         _completed->time(time);
+        _worker   ->time(time);
       }
     private:
       Pds::Appliance&           _app;
@@ -315,6 +322,7 @@ namespace Pds {
       MonEntryTH1F*             _queued;
       MonEntryTH1F*             _assigned;
       MonEntryTH1F*             _completed;
+      MonEntryTH1F*             _worker;
     };
   };
 };

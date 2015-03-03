@@ -50,8 +50,11 @@ InDatagram* L3FilterDriver::events     (InDatagram* dg)
     std::ostringstream s;
     if (_path.size()) {
       std::ifstream i(_path.c_str());
-      if (i.good())
+      if (i.good()) {
 	i >> s.rdbuf();
+        printf("L3FilterDriver: Loaded configuration from %s [%zu bytes]\n",
+               _path.c_str(),s.str().size());
+      }
       else
 	printf("L3FilterDriver: Error opening %s\n",_path.c_str());
     }
