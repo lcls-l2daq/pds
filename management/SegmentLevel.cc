@@ -86,7 +86,7 @@ bool SegmentLevel::attach()
       return true;
     } else {
       _callback.failed(EventCallback::PlatformUnavailable);
-      sleep(1);
+      exit(1);
     }
   }
   return false;
