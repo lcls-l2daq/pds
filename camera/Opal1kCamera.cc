@@ -282,8 +282,8 @@ bool Opal1kCamera::validate(Pds::FrameServerMsg& msg)
     LastCount = Count;
   }
   else {
-    if (CurrentCount >= Count-LastCount)
-      printf("warning: old frame %d [%d]\n", Count-LastCount, CurrentCount);
+    if (CurrentCount+1 != Count-LastCount)
+      printf("warning: frame out-of-sequence %u [%u]\n", Count-LastCount, CurrentCount);
     CurrentCount = Count - LastCount;
   }
 
