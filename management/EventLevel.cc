@@ -1,5 +1,6 @@
 #include <vector>
 #include <unistd.h>
+#include <stdlib.h>
 
 #include "EventLevel.hh"
 #include "EventStreams.hh"

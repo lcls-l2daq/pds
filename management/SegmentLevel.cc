@@ -18,6 +18,7 @@
 #include "pdsdata/xtc/DetInfo.hh"
 
 #include <unistd.h>
+#include <stdlib.h>
 
 using namespace Pds;
 
