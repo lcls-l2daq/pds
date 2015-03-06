@@ -39,7 +39,8 @@ using namespace Pds;
 */
 
 static const unsigned DatagramSize = sizeof(Datagram);
-static const unsigned MaxPayload = Mtu::Size;
+//static const unsigned MaxPayload = Mtu::Size;
+static const unsigned MaxPayload = 9000;
 
 BldServer::BldServer(const Ins& ins,
 			 const Src& src,
