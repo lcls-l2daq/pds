@@ -138,7 +138,8 @@ public:
     _cur_config(0),
     _end_config(0),
     _occPool   (new GenericPool(sizeof(UserMessage),1)),
-    _app       (app)
+    _app       (app),
+    _changed   (false)
   {
   }
 
@@ -155,6 +156,9 @@ public:
 
   void configure()
   {
+    if (!_changed)
+      return;
+
     if (!_cur_config)
       return;
 
@@ -295,10 +299,12 @@ public:
 	_er.InternalSequenceSetCode    ( eventCode.code() );
 	_er.InternalSequenceSetPrescale( eventCode.period()-1 );
 	_er.InternalSequenceEnable     (1);
+	_er.ExternalSequenceEnable     (0);
       }
       else {
 	_er.ExternalSequenceSetCode    ( eventCode.code() );
 	_er.ExternalSequenceEnable     (1);
+	_er.InternalSequenceEnable     (0);
       }
 
       printf("event %d : %d period %d %x/%x group %d\n",
@@ -324,6 +330,8 @@ public:
       delete msg;
 
     _enable();
+
+    _changed = false;
   }
 
   //
@@ -356,10 +364,14 @@ public:
 
     delete msg;
     _cfgtc.damage = 0;
+
+    _changed = true;
   }
 
   void advance()
   {
+    const EvsConfigType* cur_config(_cur_config);
+
     int len = Pds::EvsConfig::size(*_cur_config);
     const char* nxt_config = reinterpret_cast<const char*>(_cur_config)+len;
     if (nxt_config < _end_config)
@@ -367,6 +379,8 @@ public:
     else
       _cur_config = reinterpret_cast<const EvsConfigType*>(_configBuffer);
     _cfgtc.extent = sizeof(Xtc) + Pds::EvsConfig::size(*_cur_config);
+
+    _changed = (_cur_config != cur_config);
   }
 
 private:
@@ -393,6 +407,7 @@ private:
   const char*          _end_config;
   GenericPool*         _occPool;
   Appliance&           _app;
+  bool                 _changed;
 };
 
 class EvsConfigAction: public Action {
@@ -518,14 +533,9 @@ extern "C"
 {
   void evsmgr_sig_handler(int parm)
   {
-    static int _fiducial=0;
     Evr & er = erInfoGlobal->board();
     Pds::FIFOEvent fe;
     while( ! er.GetFIFOEvent(&fe) ) {
-      _fiducial++;
-      if (_fiducial >= TimeStamp::MaxFiducials)
-	_fiducial=0;
-      fe.TimestampHigh = _fiducial;
       if (_fifo_handler)
         _fifo_handler->fifo_event(fe);
     }
