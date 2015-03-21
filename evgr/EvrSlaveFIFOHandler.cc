@@ -327,8 +327,12 @@ void EvrSlaveFIFOHandler::startCommandAndQueueEvent(const FIFOEvent& fe, bool bE
     timespec  ts;
     clock_gettime(CLOCK_REALTIME, &ts);
 
+    //
+    //  The vector field for occurrences is not matched to the master.
+    //  No one should depend upon it.
+    //
     ClockTime   ctime   (ts.tv_sec, ts.tv_nsec);
-    TimeStamp   stamp   (fe.TimestampLow, fe.TimestampHigh, _evtCounter);
+    TimeStamp   stamp   (fe.TimestampLow, fe.TimestampHigh, 0);
     Sequence    seq     (Sequence::Occurrence, TransitionId::Unknown, ctime, stamp);
     EvrDatagram datagram(seq, _evtCounter, _ncommands);
     for (int iGroup = 0; iGroup < (int) _ldst.size(); ++iGroup) {
