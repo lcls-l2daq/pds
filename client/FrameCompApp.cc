@@ -449,10 +449,10 @@ void FCA::MyIter::process(Xtc* xtc)
           const CsPad::DataV1& d = *reinterpret_cast<const CsPad::DataV1*>(xtc->payload());
 	  const char* mhdr = mxtc->payload();
 	  for(int q=0; q<d.quads_shape(cfg)[0]; q++) {
-	    if (quadMask & (1<<q)) {
-              const CsPad::ElementV1& e = d.quads(cfg,q);
+            const CsPad::ElementV1& e = d.quads(cfg,q);
+	    if (quadMask & (1<<e.quad())) {
 	      unsigned roiMask = cfg.asicMask()==1 ? 0x3 : 0xff;
-	      unsigned tgtMask = cfg.roiMask(q) & roiMask;
+	      unsigned tgtMask = cfg.roiMask(e.quad()) & roiMask;
 	      if (tgtMask) {
 		mhdr = (const char*)_write(&e, sizeof(e));
 		headerOffsets.push_back( mhdr-mxtc->payload() );
@@ -473,8 +473,8 @@ void FCA::MyIter::process(Xtc* xtc)
 	else {
           const CsPad::DataV2& d = *reinterpret_cast<const CsPad::DataV2*>(xtc->payload());
 	  for(int q=0; q<d.quads_shape(cfg)[0]; q++) {
-	    if (quadMask & (1<<q)) {
-              const CsPad::ElementV2& e = d.quads(cfg,q);
+            const CsPad::ElementV2& e = d.quads(cfg,q);
+	    if (quadMask & (1<<e.quad())) {
 	      headerOffsets.push_back( reinterpret_cast<const char*>(&e) - xtc->payload() );
 	    }
 	  }
