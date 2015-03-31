@@ -617,6 +617,9 @@ AndorManager::AndorManager(CfgClientNfs& cfg, int iCamera, bool bDelayMode, bool
     throw AndorManagerException( "AndorManager::AndorManager(): Server Initialization Failed" );
   }
 
+  _occSend = new AndorOccurrence(this);
+  _pServer->setOccSend(_occSend);
+
   _pFsm = new Fsm();
   _pFsm->callback(TransitionId::Map,              _pActionMap);
   _pFsm->callback(TransitionId::Configure,        _pActionConfig);

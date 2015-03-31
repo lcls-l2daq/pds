@@ -14,6 +14,7 @@
 #include "pds/xtc/CDatagram.hh"
 #include "pds/service/GenericPool.hh"
 #include "pds/service/Routine.hh"
+#include "AndorOccurrence.hh"
 
 namespace Pds
 {
@@ -45,6 +46,7 @@ public:
   int   getDataInBeamRateMode(InDatagram* in, InDatagram*& out);
   AndorConfigType&
         config()  { return _config; }
+  void setOccSend(AndorOccurrence* occSend);
 
   enum  ErrorCodeEnum
   {
@@ -195,6 +197,11 @@ private:
    */
   GenericPool         _poolFrameData;
   InDatagram*         _pDgOut;          // Datagram for outtputing to the Andor Manager
+
+  /*
+   * Occurrence support
+   */
+  AndorOccurrence*    _occSend;
 
   /*
    * Capture Task Control

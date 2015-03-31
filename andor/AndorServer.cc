@@ -484,8 +484,13 @@ int AndorServer::map()
 
 int AndorServer::config(AndorConfigType& config, std::string& sConfigWarning)
 {
-  if ( configCamera(config, sConfigWarning) != 0 )
+  if ( configCamera(config, sConfigWarning) != 0 ) {
+    if (_occSend != NULL) {
+      // send occurrence
+      _occSend->userMessage("Andor: camera configuration failed\n");
+    }
     return ERROR_SERVER_INIT_FAIL;
+  }
 
   const int iDevId = ((DetInfo&)_src).devId();
 
@@ -2057,6 +2062,11 @@ AndorServer::CaptureRoutine::CaptureRoutine(AndorServer& server) : _server(serve
 void AndorServer::CaptureRoutine::routine(void)
 {
   _server.runCaptureTask();
+}
+
+void AndorServer::setOccSend(AndorOccurrence* occSend)
+{
+  _occSend = occSend;
 }
 
 } //namespace Pds

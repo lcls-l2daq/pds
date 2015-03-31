@@ -8,6 +8,7 @@
 #include "pdsdata/xtc/TypeId.hh"
 #include "pds/config/AndorConfigType.hh"
 #include "pds/client/Fsm.hh"
+#include "AndorOccurrence.hh"
 
 namespace Pds
 {
@@ -71,6 +72,7 @@ private:
 
   AndorServer*        _pServer;
   unsigned int        _uNumShotsInCycle;
+  AndorOccurrence*    _occSend;
 };
 
 class AndorManagerException : public std::runtime_error
