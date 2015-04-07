@@ -564,11 +564,15 @@ public:
     msg->append(":");
 
     _nerror=0;
+
+    do {
+
     int len = _cfg.fetch(*tr,_acqConfigType, &_config, sizeof(_config));
     if (len <= 0) {
       printf("AcqConfigAction: failed to retrieve configuration : (%d)%s.  Applying default.\n",errno,strerror(errno));
       msg->append("Failed to open config file\n");
       _nerror++;
+      continue;
     }
     //    _config.dump();
 
@@ -762,6 +766,9 @@ public:
       _reader.start();
       _firstTime = 0;
     }
+
+    } while(0);
+
     return tr;
   }
 private:
