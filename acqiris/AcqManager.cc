@@ -59,12 +59,29 @@
 #include "pds/mon/MonGroup.hh"
 #include "pds/vmon/VmonServerManager.hh"
 
+#include "AcqPV.hh"
+
 #define ACQ_TIMEOUT_MILISEC 1000
 
 using namespace Pds;
 
 static unsigned cpol1=0; 
 static unsigned nprint =0;
+enum {AcqUnknownTemp=999};
+
+static long temperature(ViSession id, int module) {
+  long degC = AcqUnknownTemp;
+  char tempstring[32];
+  sprintf(tempstring,"Temperature %d",module);
+  ViStatus status = AcqrsD1_getInstrumentInfo(id, tempstring, &degC);
+  if(status != VI_SUCCESS) {
+    degC = AcqUnknownTemp;
+    char message[256];
+    AcqrsD1_errorMessage(id,status,message);
+    printf("Acqiris id %u module %d temperature reading error: %s\n", (unsigned)id, module, message);
+  }
+  return degC;
+}
 
 static inline unsigned _waveformSize(const Acqiris::HorizV1& hconfig)
 {
@@ -511,6 +528,36 @@ private:
   AcqL1Action& _acql1;
 };
 
+class AcqBeginCalibAction : public AcqDC282Action {
+public:
+  AcqBeginCalibAction(ViSession instrumentId, char *pvPrefix) : AcqDC282Action(instrumentId) {
+    if (pvPrefix) {
+      _acqpv = new Pds::AcqPV::AcqPV(pvPrefix, true /* verbose */);
+    } else {
+      _acqpv = (AcqPV *)NULL;
+    }
+  }
+  InDatagram* fire(InDatagram* in) {	
+    if (_acqpv) {
+      unsigned nbrModulesInInstrument;
+      ViStatus status = AcqrsD1_getInstrumentInfo(_instrumentId,"NbrModulesInInstrument",
+                                &nbrModulesInInstrument);
+      if (status != VI_SUCCESS) {
+        char message[256];
+        AcqrsD1_errorMessage(_instrumentId,status,message);
+        printf("%s: Acqiris NbrModulesInInstrument error: %s\n", __PRETTY_FUNCTION__,  message);
+      } else {
+        for (int module = 1; module <= (int)nbrModulesInInstrument; module++) {
+          printf("*** Acqiris Temperature %d: %ld C ***\n", module, temperature(_instrumentId, module));
+        }
+      }
+    }
+    return in;
+  }
+private:
+  AcqPV * _acqpv;
+};
+
 class AcqEnableAction : public Action {
 public:
   AcqEnableAction(AcqL1Action& acql1) : _acql1(acql1) {}
@@ -832,7 +879,7 @@ private:
 Appliance& AcqManager::appliance() {return _fsm;}
 
 unsigned AcqManager::temperature(MultiModuleNumber module) {
-  ViInt32 degC;
+  ViInt32 degC = 999;
   char tempstring[32];
   sprintf(tempstring,"Temperature %d",module);
   ViStatus status = AcqrsD1_getInstrumentInfo(_instrumentId,tempstring,
@@ -851,7 +898,7 @@ const char* AcqManager::calibPath() {
   return _calibPath;
 }
 
-AcqManager::AcqManager(ViSession InstrumentID, AcqServer& server, CfgClientNfs& cfg, Semaphore& sem) :
+AcqManager::AcqManager(ViSession InstrumentID, AcqServer& server, CfgClientNfs& cfg, Semaphore& sem, char *pvPrefix) :
   _instrumentId(InstrumentID),_fsm(*new Fsm) {
   Task* task = new Task(TaskObject("AcqReadout",35)); //default priority=127 (lowest), changed to 35 => (127-35) 
   AcqReader& reader = *new AcqReader(_instrumentId,server,task);
@@ -866,6 +913,9 @@ AcqManager::AcqManager(ViSession InstrumentID, AcqServer& server, CfgClientNfs& 
   _fsm.callback(TransitionId::Enable ,new AcqEnableAction(acql1));
   _fsm.callback(TransitionId::Disable,new AcqDisableAction(_instrumentId,acql1));
   _fsm.callback(TransitionId::Unconfigure,new AcqUnconfigureAction(_instrumentId,reader));
+  if (pvPrefix) {
+    _fsm.callback(TransitionId::BeginCalibCycle, new AcqBeginCalibAction(_instrumentId, pvPrefix) );
+  }
 
   ViStatus status = Acqrs_calLoad(_instrumentId,AcqManager::calibPath(),1);
   if(status != VI_SUCCESS) {
