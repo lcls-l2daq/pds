@@ -61,7 +61,7 @@ namespace Pds {
       { 22,    0,     0x3,       1,     0,    1}, //  outputDriverTemperatureCompensationGain1
       { 23,    0,     0x3,       1,     0,    1}, //  outputDriverTemperatureCompensationGain2
       { 24,    0,     0x3,       1,     0,    1}, //  outputDriverTemperatureCompensationGain3
-      { 10,    6,     0x4,       1,     0,    0}, //  pixelBuffersAndPreamplifierDrivingCapabilities
+      { 10,    6,     0x3,       1,     0,    0}, //  pixelBuffersAndPreamplifierDrivingCapabilities
       { 11,    1,     0x3f,      33,    0,    0}, //  pixelFilterLevel
       { 10,    3,     0x7,       4,     0,    0}, //  pixelOutputBufferCurrent
       { 10,    0,     0x7,       4,     0,    0}, //  preamplifierCurrent
