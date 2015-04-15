@@ -75,7 +75,7 @@ class Pds::Epix10kServer
    void     resetOffset() { _offset = 0; _count = 0xffffffff; }
    unsigned myCount() { return _count; }
    void     dumpFrontEnd();
-   void     printHisto(bool);
+   void     printHisto(bool  c = true);
    void     clearHisto();
    void     manager(Epix10kManager* m) { _mgr = m; }
    Epix10kManager* manager() { return _mgr; }
@@ -88,6 +88,9 @@ class Pds::Epix10kServer
    EpixSampler::ConfigV1*  samplerConfig() { return _samplerConfig; }
    const Xtc&      xtcConfig() { return _xtcConfig; }
    void     maintainLostRunTrigger(bool b) { _maintainLostRunTrigger = b; }
+   void     latchAcqCount() { _latchAcqCount = true; }
+   unsigned latchedAcqCount() { return _latchedAcqCount; }
+   unsigned lastAcqCount() { return _lastAcqCount; }
 
  public:
    static Epix10kServer* instance() { return _instance; }
@@ -114,7 +117,10 @@ class Pds::Epix10kServer
    unsigned                       _offset;
    timespec                       _thisTime;
    timespec                       _lastTime;
+   uint64_t                       _this64Time;
+   uint64_t                       _last64Time;
    unsigned*                      _histo;
+   unsigned*                      _histo64;
    Pds::Task*                     _task;
    unsigned                       _ioIndex;
    Pds::Epix10k::Epix10kDestination     _d;
@@ -124,6 +130,8 @@ class Pds::Epix10kServer
    unsigned                       _unconfiguredErrors;
    unsigned                       _timeSinceLastException;
    unsigned                       _fetchesSinceLastException;
+   unsigned                       _lastAcqCount;
+   unsigned                       _latchedAcqCount;
    char*                          _processorBuffer;
    unsigned*                      _scopeBuffer;
    bool                           _configured;
@@ -133,6 +141,7 @@ class Pds::Epix10kServer
    bool                           _scopeEnabled;
    bool                           _scopeHasArrived;
    bool                           _maintainLostRunTrigger;
+   bool                           _latchAcqCount;
 };
 
 #endif

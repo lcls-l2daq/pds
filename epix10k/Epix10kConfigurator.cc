@@ -110,7 +110,7 @@ void Epix10kConfigurator::resetSequenceCount() {
   _d.dest(Epix10kDestination::Registers);
   if (_pgp) {
     _pgp->writeRegister(&_d, ResetFrameCounter, 1);
-    _pgp->writeRegister(&_d, ResetAcqCounter, 1);
+//    _pgp->writeRegister(&_d, ResetAcqCounter, 1);
     microSpin(10);
   } else printf("Epix10kConfigurator::resetSequenceCount() found nil _pgp so not reset\n");
 }
@@ -241,7 +241,6 @@ static uint32_t FPGAregs[6][3] = {
     {PowerEnableAddr, PowerEnableValue, 0},
     {SaciClkBitAddr, SaciClkBitValue, 0},
     {NumberClockTicksPerRunTriggerAddr, NumberClockTicksPerRunTrigger, 0},  // remove when in config
-    {EnableAutomaticRunTriggerAddr, 0, 0},  // remove when in config
     {EnableAutomaticDaqTriggerAddr, 0, 0},
     {0,0,1}
 };
@@ -472,7 +471,7 @@ void Epix10kConfigurator::dumpFrontEnd() {
     uint32_t acount = 0x1112;
     count = sequenceCount();
     acount = acquisitionCount();
-    printf("\tSequence Count(%u), Acquisition Count(%u)\n", count, acount);
+    printf("\tSequence Count(%x), Acquisition Count(%x)\n", count, acount);
 
   }
   if (_debug & 0x400) {

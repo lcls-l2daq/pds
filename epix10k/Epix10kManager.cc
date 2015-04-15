@@ -19,10 +19,12 @@
 #include "pds/client/Fsm.hh"
 #include "pds/client/Action.hh"
 #include "pds/config/EpixConfigType.hh"
+#include "pds/config/EpixDataType.hh"
 #include "pds/epix10k/Epix10kServer.hh"
 #include "pds/pgp/DataImportFrame.hh"
 #include "pdsdata/xtc/DetInfo.hh"
-//#include "pdsdata/psddl/epix.ddl.h"
+#include "pdsdata/psddl/epix.ddl.h"
+#include "pdsdata/xtc/XtcIterator.hh"
 #include "pds/epix10k/Epix10kManager.hh"
 #include "pds/config/CfgClientNfs.hh"
 #include "pdsdata/xtc/TypeId.hh"
@@ -55,10 +57,36 @@ namespace Pds {
         return size;
       }
   };
-}
+
+  class myIterator : public XtcIterator {
+  public:
+    myIterator() : _result(0), _elem(0) {}
+  public:
+    const EpixDataType*   elem() const { return _elem; }
+  public:
+    int process(Xtc* xtc) {  // return 0 to stop iterating
+      _result = 1;
+      switch(xtc->contains.id()) {
+        case TypeId::Id_Xtc :
+          iterate(xtc);      // iterate down another level
+          return _result;
+        case TypeId::Id_EpixElement:
+          _elem = reinterpret_cast<const EpixDataType*>(xtc->payload());
+          _result = 0;
+          break;
+        default:
+          break;
+      }
+      return _result;
+    }
+  private:
+    int _result;
+    const EpixDataType*   _elem;
+  };
 
 
-using namespace Pds;
+
+
 
 class Epix10kAllocAction : public Action {
 
@@ -99,51 +127,72 @@ class Epix10kL1Action : public Action {
    Epix10kL1Action(Epix10kServer* svr);
 
    InDatagram* fire(InDatagram* in);
+   void        reset();
 
    Epix10kServer* server;
    unsigned _lastMatchedFiducial;
-//   unsigned _ioIndex;
+   unsigned _lastMatchedAcqCount;
+   unsigned _printCount;
    bool     _fiducialError;
-
 };
+
+void Epix10kL1Action::reset() {
+  printf("Epix10kL1Action::reset()\n");
+  _lastMatchedFiducial = 0xfffffff;
+  _lastMatchedAcqCount = 0xfffffff;
+  _fiducialError       = false;
+}
 
 Epix10kL1Action::Epix10kL1Action(Epix10kServer* svr) :
     server(svr),
     _lastMatchedFiducial(0xfffffff),
+    _lastMatchedAcqCount(0xffffffff),
+    _printCount(0),
     _fiducialError(false) {}
 
 InDatagram* Epix10kL1Action::fire(InDatagram* in) {
   if (server->debug() & 8) printf("Epix10kL1Action::fire!\n");
+  Datagram& dg = in->datagram();
   if (in->datagram().xtc.damage.value() == 0) {
-//    Pds::Pgp::DataImportFrame* data;
-    Datagram& dg = in->datagram();
-    Xtc* xtc = &(dg.xtc);
-//    unsigned evrFiducials = dg.seq.stamp().fiducials();
-    unsigned error = 0;
-    char*    payload;
-    if (xtc->contains.id() == Pds::TypeId::Id_Xtc) {
-      xtc = (Xtc*) xtc->payload();
-      if (xtc->contains.id() == Pds::TypeId::Id_Xtc) {
-        payload = xtc->payload();
+    unsigned evrFiducial = dg.seq.stamp().fiducials();
+    const EpixDataType* data;
+//    printf(" ->%d ", evrFiducial);
+    if (_fiducialError == false) {
+      myIterator iter;
+      iter.iterate(&dg.xtc);  // find the element object
+      if ((data = iter.elem())) {
+        unsigned acqCount = data->acqCount();
+        if ( (evrFiducial > _lastMatchedFiducial) && (acqCount > _lastMatchedAcqCount) ) {
+          unsigned fidDiff = evrFiducial - _lastMatchedFiducial;
+          unsigned acqDiff = acqCount     - _lastMatchedAcqCount;
+          if (fidDiff/3 != acqDiff) {
+            dg.xtc.damage.increase(Pds::Damage::UserDefined);
+            dg.xtc.damage.userBits(0xfd);
+            if (_printCount++<32) {
+              printf("Epix10kL1Action setting user damage delta fiducial %x and acq %x, last %x %x values %x %x vector %x\n",
+                  fidDiff/3, acqDiff, _lastMatchedFiducial, _lastMatchedAcqCount, evrFiducial, acqCount, dg.seq.stamp().vector());
+            }
+            if (!_fiducialError) {
+//              server->printHisto(false);
+//              _fiducialError = true;
+            }
+          } else {
+//            printf(".");
+            _printCount = 0;
+            _lastMatchedFiducial = evrFiducial;
+            _lastMatchedAcqCount = acqCount;
+          }
+        } else {
+          printf("Epix10kL1Action initial or wrapping fid %x acqCount %x\n", evrFiducial, acqCount);
+          _lastMatchedFiducial = evrFiducial;
+          _lastMatchedAcqCount = acqCount;
+        }
       } else {
-        printf("Epix10kL1Action::fire inner xtc not Id_EpixElement, but %s!\n",
-            xtc->contains.name(xtc->contains.id()));
-        return in;
+        printf("Epix10kL1Action::fire iterator could not find _epixDataType\n");
       }
     } else {
-      printf("Epix10kL1Action::fire outer xtc not Id_Xtc, but %s!\n",
-          xtc->contains.name(xtc->contains.id()));
-      return in;
-    }
-
-    if (error) {
       dg.xtc.damage.increase(Pds::Damage::UserDefined);
-      dg.xtc.damage.userBits(0xf0 | (error&0xf));
-      printf("Epix10kL1Action setting user damage due to fiducial in quads(0x%x)\n", error);
-      if (!_fiducialError) server->printHisto(false);
-      else _fiducialError = true;
-    } else {
-//      server->process();
+      dg.xtc.damage.userBits(0xfd);
     }
   }
   return in;
@@ -171,6 +220,7 @@ class Epix10kConfigAction : public Action {
       } else {
         _server->offset(0);
       }
+      _server->manager()->l1Action->reset();
       return tr;
     }
 
@@ -218,6 +268,7 @@ class Epix10kBeginCalibCycleAction : public Action {
         }
       }
       printf("Epix10kBeginCalibCycleAction:;fire(tr) enabled\n");
+      _server->latchAcqCount();
       _server->enable();
       return tr;
     }
@@ -287,6 +338,7 @@ class Epix10kEndCalibCycleAction : public Action {
       _cfg.next();
       printf(" %p\n", _cfg.current());
       _result = _server->unconfigure();
+      printf("Epix10kEndCalibCycleAction tr acqCounts this cycle %d\n", 1 + _server->lastAcqCount() - _server->latchedAcqCount());
       _server->dumpFrontEnd();
       _server->printHisto(true);
       return tr;
@@ -309,6 +361,9 @@ class Epix10kEndCalibCycleAction : public Action {
     Epix10kConfigCache& _cfg;
     unsigned          _result;
 };
+}
+
+using namespace Pds;
 
 Epix10kManager::Epix10kManager( Epix10kServer* server, unsigned d) :
     _fsm(*new Fsm), _cfg(*new Epix10kConfigCache(server->client())) {
@@ -349,6 +404,8 @@ Epix10kManager::Epix10kManager( Epix10kServer* server, unsigned d) :
    server->setEpix10k( epix10k );
 //   server->laneTest();
 
+   l1Action = new Epix10kL1Action( server );
+
    _fsm.callback( TransitionId::Map, new Epix10kAllocAction( _cfg, server ) );
    _fsm.callback( TransitionId::Unmap, new Epix10kUnmapAction( server ) );
    _fsm.callback( TransitionId::Configure, new Epix10kConfigAction(_cfg, server ) );
@@ -356,7 +413,7 @@ Epix10kManager::Epix10kManager( Epix10kServer* server, unsigned d) :
    //   _fsm.callback( TransitionId::Disable, new Epix10kDisableAction( server ) );
    _fsm.callback( TransitionId::BeginCalibCycle, new Epix10kBeginCalibCycleAction( server, _cfg ) );
    _fsm.callback( TransitionId::EndCalibCycle, new Epix10kEndCalibCycleAction( server, _cfg ) );
-  _fsm.callback( TransitionId::L1Accept, new Epix10kL1Action( server ) );
+  _fsm.callback( TransitionId::L1Accept, l1Action );
    _fsm.callback( TransitionId::Unconfigure, new Epix10kUnconfigAction( server, _cfg ) );
    // _fsm.callback( TransitionId::BeginRun,
    //                new Epix10kBeginRunAction( server ) );

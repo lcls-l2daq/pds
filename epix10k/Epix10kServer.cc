@@ -63,6 +63,8 @@ Epix10kServer::Epix10kServer( const Pds::Src& client, unsigned configMask )
      _unconfiguredErrors(0),
      _timeSinceLastException(0),
      _fetchesSinceLastException(0),
+     _lastAcqCount(0),
+     _latchedAcqCount(0),
      _processorBuffer(0),
      _scopeBuffer(0),
      _configured(false),
@@ -71,8 +73,10 @@ Epix10kServer::Epix10kServer( const Pds::Src& client, unsigned configMask )
      _resetOnEveryConfig(false),
      _scopeEnabled(false),
      _scopeHasArrived(false),
-     _maintainLostRunTrigger(false) {
+     _maintainLostRunTrigger(false),
+     _latchAcqCount(false) {
   _histo = (unsigned*)calloc(sizeOfHisto, sizeof(unsigned));
+  _histo64 = (unsigned*)calloc(sizeOfHisto, sizeof(unsigned));
   _task = new Pds::Task(Pds::TaskObject("EPIX10Kprocessor"));
   strcpy(_runTimeConfigName, "");
   instance(this);
@@ -235,6 +239,7 @@ int Pds::Epix10kServer::fetch( char* payload, int flags ) {
    int ret = 0;
    PgpCardRx       pgpCardRx;
    unsigned        offset = 0;
+   unsigned        acqCount = 0;
    enum {Ignore=-1};
 
    if (_configured == false)  {
@@ -292,6 +297,11 @@ int Pds::Epix10kServer::fetch( char* payload, int flags ) {
    if (pgpCardRx.pgpVc == Epix10k::Epix10kDestination::Data) {
 
      Pds::Pgp::DataImportFrame* data = (Pds::Pgp::DataImportFrame*)(_processorBuffer);
+     acqCount = data->acqCount();
+     if (_latchAcqCount) {
+       _latchAcqCount = false;
+       _latchedAcqCount = acqCount;
+     }
 
      if ((ret > 0) && (ret < (int)_payloadSize)) {
        printf("Epix10kServer::fetch() returning Ignore, ret was %d, looking for %u\n", ret, _payloadSize);
@@ -325,9 +335,12 @@ int Pds::Epix10kServer::fetch( char* payload, int flags ) {
      if (_firstFetch) {
        _firstFetch = false;
        clock_gettime(CLOCK_REALTIME, &_lastTime);
+       rdtscll(_last64Time);
      } else {
        clock_gettime(CLOCK_REALTIME, &_thisTime);
+       rdtscll(_this64Time);
        long long unsigned diff = timeDiff(&_thisTime, &_lastTime);
+       long long unsigned diff64 = _this64Time - _last64Time;
        unsigned peak = 0;
        unsigned max = 0;
        unsigned count = 0;
@@ -337,6 +350,10 @@ int Pds::Epix10kServer::fetch( char* payload, int flags ) {
        _fetchesSinceLastException += 1;
        if (diff > sizeOfHisto-1) diff = sizeOfHisto-1;
        _histo[diff] += 1;
+       diff64 += 1200000;
+       diff64 /= 2400000;
+       if (diff64 > sizeOfHisto-1) diff64 = sizeOfHisto-1;
+       _histo64[diff64] += 1;
        for (unsigned i=0; i<sizeOfHisto; i++) {
          if (_histo[i]) {
            if (_histo[i] > max) {
@@ -357,6 +374,7 @@ int Pds::Epix10kServer::fetch( char* payload, int flags ) {
          }
        }
        memcpy(&_lastTime, &_thisTime, sizeof(timespec));
+       _last64Time = _this64Time;
      }
      offset = sizeof(Xtc);
      if (_scopeHasArrived) {
@@ -378,6 +396,7 @@ int Pds::Epix10kServer::fetch( char* payload, int flags ) {
      ret += offset;
    }
    if (_debug & 5) printf(" returned %d\n", ret);
+   _lastAcqCount = acqCount;
    return ret;
 }
 
@@ -438,6 +457,7 @@ void Epix10kServer::setEpix10k( int f ) {
 void Epix10kServer::clearHisto() {
   for (unsigned i=0; i<sizeOfHisto; i++) {
     _histo[i] = 0;
+    _histo64[i] = 0;
   }
 }
 
@@ -451,7 +471,16 @@ void Epix10kServer::printHisto(bool c) {
       if (c) _histo[i] = 0;
     }
   }
-  printf("\tHisto Sum was %u\n", histoSum);
+  unsigned histo64Sum = 0;
+  printf("Epix10kServer event fetch periods calculated from rdtsc\n");
+  for (unsigned i=0; i<sizeOfHisto; i++) {
+    if (_histo64[i]) {
+      printf("\t%3u ms   %8u\n", i, _histo64[i]);
+      histo64Sum += _histo64[i];
+      if (c) _histo64[i] = 0;
+    }
+  }
+  printf("\tHisto 64 Sum was %u\n", histoSum);
   histoSum = 0;
   printf("Epix10kServer unshuffle event periods\n");
   for (unsigned i=0; i<1000; i++) {
