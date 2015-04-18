@@ -335,10 +335,10 @@ int Pds::Epix10kServer::fetch( char* payload, int flags ) {
      if (_firstFetch) {
        _firstFetch = false;
        clock_gettime(CLOCK_REALTIME, &_lastTime);
-       rdtscll(_last64Time);
+//     rdtscll(_last64Time);
      } else {
        clock_gettime(CLOCK_REALTIME, &_thisTime);
-       rdtscll(_this64Time);
+//     rdtscll(_this64Time);
        long long unsigned diff = timeDiff(&_thisTime, &_lastTime);
        long long unsigned diff64 = _this64Time - _last64Time;
        unsigned peak = 0;
