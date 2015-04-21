@@ -76,7 +76,7 @@ Epix10kServer::Epix10kServer( const Pds::Src& client, unsigned configMask )
      _maintainLostRunTrigger(false),
      _latchAcqCount(false) {
   _histo = (unsigned*)calloc(sizeOfHisto, sizeof(unsigned));
-  _histo64 = (unsigned*)calloc(sizeOfHisto, sizeof(unsigned));
+//  _histo64 = (unsigned*)calloc(sizeOfHisto, sizeof(unsigned));
   _task = new Pds::Task(Pds::TaskObject("EPIX10Kprocessor"));
   strcpy(_runTimeConfigName, "");
   instance(this);
@@ -340,7 +340,7 @@ int Pds::Epix10kServer::fetch( char* payload, int flags ) {
        clock_gettime(CLOCK_REALTIME, &_thisTime);
 //     rdtscll(_this64Time);
        long long unsigned diff = timeDiff(&_thisTime, &_lastTime);
-       long long unsigned diff64 = _this64Time - _last64Time;
+//       long long unsigned diff64 = _this64Time - _last64Time;
        unsigned peak = 0;
        unsigned max = 0;
        unsigned count = 0;
@@ -350,10 +350,10 @@ int Pds::Epix10kServer::fetch( char* payload, int flags ) {
        _fetchesSinceLastException += 1;
        if (diff > sizeOfHisto-1) diff = sizeOfHisto-1;
        _histo[diff] += 1;
-       diff64 += 1200000;
-       diff64 /= 2400000;
-       if (diff64 > sizeOfHisto-1) diff64 = sizeOfHisto-1;
-       _histo64[diff64] += 1;
+//       diff64 += 1200000;
+//       diff64 /= 2400000;
+//       if (diff64 > sizeOfHisto-1) diff64 = sizeOfHisto-1;
+//       _histo64[diff64] += 1;
        for (unsigned i=0; i<sizeOfHisto; i++) {
          if (_histo[i]) {
            if (_histo[i] > max) {
@@ -457,7 +457,7 @@ void Epix10kServer::setEpix10k( int f ) {
 void Epix10kServer::clearHisto() {
   for (unsigned i=0; i<sizeOfHisto; i++) {
     _histo[i] = 0;
-    _histo64[i] = 0;
+//    _histo64[i] = 0;
   }
 }
 
@@ -471,16 +471,16 @@ void Epix10kServer::printHisto(bool c) {
       if (c) _histo[i] = 0;
     }
   }
-  unsigned histo64Sum = 0;
-  printf("Epix10kServer event fetch periods calculated from rdtsc\n");
-  for (unsigned i=0; i<sizeOfHisto; i++) {
-    if (_histo64[i]) {
-      printf("\t%3u ms   %8u\n", i, _histo64[i]);
-      histo64Sum += _histo64[i];
-      if (c) _histo64[i] = 0;
-    }
-  }
-  printf("\tHisto 64 Sum was %u\n", histoSum);
+//  unsigned histo64Sum = 0;
+//  printf("Epix10kServer event fetch periods calculated from rdtsc\n");
+//  for (unsigned i=0; i<sizeOfHisto; i++) {
+//    if (_histo64[i]) {
+//      printf("\t%3u ms   %8u\n", i, _histo64[i]);
+//      histo64Sum += _histo64[i];
+//      if (c) _histo64[i] = 0;
+//    }
+//  }
+//  printf("\tHisto 64 Sum was %u\n", histoSum);
   histoSum = 0;
   printf("Epix10kServer unshuffle event periods\n");
   for (unsigned i=0; i<1000; i++) {
