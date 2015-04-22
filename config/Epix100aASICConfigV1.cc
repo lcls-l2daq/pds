@@ -31,7 +31,7 @@ namespace Pds {
       { 2,     11,    0x1,       0,     0,    0}, //  automaticTestModeEnable
       { 9,     1,     0x7,       3,     0,    0}, //  balconyDriverCurrent
       { 9,     0,     0x1,       1,     0,    0}, //  balconyEnable
-      { 12,    0,     0x3,       0,     0,    1}, //  bandGapReferenceTempCompBits
+      { 12,    0,     0x3,       0,     0,    1}, //  bandGapReferenceTemperatureCompensationBits
       { 15,    3,     0x1,       0,     0,    0}, //  CCK_RegDelayEnable
       { 5,     0,     0x1,       0,     0,    0}, //  digitalMonitor1Enable
       { 5,     1,     0x1,       0,     0,    0}, //  digitalMonitor2Enable
@@ -47,7 +47,7 @@ namespace Pds {
       { 15,    1,     0x1,       0,     0,    0}, //  interleavedReadOutDisable
       { 5,     4,     0x1,       0,     0,    0}, //  LVDS_ImpedenceMatchingEnable
       { 12,    5,     0x7,       3,     0,    0}, //  outputDriverDacReferenceBias
-      { 12,    2,     0x7,       3,     0,    0}, //  outputDriverDrivingCapabAndStab
+      { 12,    2,     0x7,       3,     0,    0}, //  outputDriverDrivingCapabilitiesAndStability
       { 14,    2,     0x3f,      22,    0,    1}, //  outputDriverInputCommonMode0
       { 22,    2,     0x3f,      22,    0,    1}, //  outputDriverInputCommonMode1
       { 23,    2,     0x3f,      22,    0,    1}, //  outputDriverInputCommonMode2
@@ -56,12 +56,12 @@ namespace Pds {
       { 8,     4,     0xf,       3,     0,    0}, //  outputDriverOutputDynamicRange1
       { 21,    0,     0xf,       3,     0,    0}, //  outputDriverOutputDynamicRange2
       { 21,    4,     0xf,       3,     0,    0}, //  outputDriverOutputDynamicRange3
-      { 11,    0,     0x1,       1,     0,    1}, //  outputDriverTempCompEnable
-      { 14,    0,     0x3,       1,     0,    1}, //  outputDriverTempCompGain0
-      { 22,    0,     0x3,       1,     0,    1}, //  outputDriverTempCompGain1
-      { 23,    0,     0x3,       1,     0,    1}, //  outputDriverTempCompGain2
-      { 24,    0,     0x3,       1,     0,    1}, //  outputDriverTempCompGain3
-      { 10,    6,     0x3,       1,     0,    0}, //  pixelBuffersCurrent
+      { 11,    0,     0x1,       1,     0,    1}, //  outputDriverTemperatureCompensationEnable
+      { 14,    0,     0x3,       1,     0,    1}, //  outputDriverTemperatureCompensationGain0
+      { 22,    0,     0x3,       1,     0,    1}, //  outputDriverTemperatureCompensationGain1
+      { 23,    0,     0x3,       1,     0,    1}, //  outputDriverTemperatureCompensationGain2
+      { 24,    0,     0x3,       1,     0,    1}, //  outputDriverTemperatureCompensationGain3
+      { 10,    6,     0x3,       1,     0,    0}, //  pixelBuffersAndPreamplifierDrivingCapabilities
       { 11,    1,     0x3f,      33,    0,    0}, //  pixelFilterLevel
       { 10,    3,     0x7,       4,     0,    0}, //  pixelOutputBufferCurrent
       { 10,    0,     0x7,       4,     0,    0}, //  preamplifierCurrent
@@ -75,9 +75,9 @@ namespace Pds {
       { 2,     12,    0x1,       0,     0,    0}, //  testMode
       { 2,     13,    0x1,       0,     0,    0}, //  testModeWithDarkFrame
       { 13,    2,     0x3f,      22,    0,    1}, //  testPointSystemInputCommonMode
-      { 4,     4,     0x7,       3,     0,    1}, //  testPointSysOutputDynamicRange
-      { 7,     0,     0x1,       1,     0,    1}, //  testPointSystemTempCompEnable
-      { 13,    0,     0x3,       0,     0,    1}, //  testPointSystemTempCompGain
+      { 4,     4,     0x7,       3,     0,    1}, //  testPointSystemOutputDynamicRange
+      { 7,     0,     0x1,       1,     0,    1}, //  testPointSystemTemperatureCompensationEnable
+      { 13,    0,     0x3,       0,     0,    1}, //  testPointSystemTemperatureCompensationGain
       { 7,     1,     0xf,       0,     0,    0}, //  testPointSytemInputSelect
       { 4,     0,     0x7,       3,     0,    0}, //  testPulserCurrent
       { 2,     0,     0x3ff,     0,     0,    0}, //  testPulserLevel
@@ -85,67 +85,66 @@ namespace Pds {
     };
 
     static char _ARegNames[ASIC_ConfigV1::NumberOfRegisters+1][120] = {
-      //{"01234567890123456789012345678901"},
-        {"RowStartAddr"},
-        {"RowStopAddr"},
-        {"ColumnStartAddr"},
-        {"ColumnStopAddr"},
-        {"chipID"},
-        {"automaticTestModeEnable"},
-        {"balconyDriverCurrent"},
-        {"balconyEnable"},
-        {"bandGapRefTempCompensationBits"},
-        {"CCK_RegDelayEnable"},
-        {"digitalMonitor1Enable"},
-        {"digitalMonitor2Enable"},
-        {"digitalMonitorMux1"},
-        {"digitalMonitorMux2"},
-        {"dummyMask"},
-        {"dummyTest"},
-        {"EXEC_DelayEnable"},
-        {"extraRowsLowReferenceValue"},
-        {"fastPowerPulsingEnable"},
-        {"fastPowerPulsingSpeed"},
-        {"highResolutionModeTest"},
-        {"interleavedReadOutDisable"},
-        {"LVDS_ImpedenceMatchingEnable"},
-        {"outputDriverDacReferenceBias"},
-        {"outputDriverDrivingCapabAndStab"},
-        {"outputDriverInputCommonMode0"},
-        {"outputDriverInputCommonMode1"},
-        {"outputDriverInputCommonMode2"},
-        {"outputDriverInputCommonMode3"},
-        {"outputDriverOutputDynamicRange0"},
-        {"outputDriverOutputDynamicRange1"},
-        {"outputDriverOutputDynamicRange2"},
-        {"outputDriverOutputDynamicRange3"},
-        {"outputDriverTempCompEnable"},
-        {"outputDriverTempCompGain0"},
-        {"outputDriverTempCompGain1"},
-        {"outputDriverTempCompGain2"},
-        {"outputDriverTempCompGain3"},
-        {"pixelBuffersCurrent"},
-        {"pixelFilterLevel"},
-        {"pixelOutputBufferCurrent"},
-        {"preamplifierCurrent"},
-        {"programmableReadoutDelay"},
-        {"pulserCounterDirection"},
-        {"pulserReset"},
-        {"pulserSync"},
-        {"pulserVsPixelOnDelay"},
-        {"syncPinEnable"},
-        {"testBackEnd"},
-        {"testMode"},
-        {"testModeWithDarkFrame"},
-        {"testPointSystemInputCommonMode"},
-        {"testPointSysOutputDynamicRange"},
-        {"testPointSystemTempCompEnable"},
-        {"testPointSystemTempCompGain"},
-        {"testPointSytemInputSelect"},
-        {"testPulserCurrent"},
-        {"testPulserLevel"},
-        {"VRefBaselineDac"},
-        {"--INVALID--"}        //    NumberOfRegisters
+        "RowStartAddr",
+	"RowStopAddr",
+	"ColumnStartAddr",
+	"ColumnStopAddr",
+	"chipID",
+	"automaticTestModeEnable",
+	"balconyDriverCurrent",
+	"balconyEnable",
+	"bandGapReferenceTemperatureCompensationBits",
+	"CCK_RegDelayEnable",
+	"digitalMonitor1Enable",
+	"digitalMonitor2Enable",
+	"digitalMonitorMux1",
+	"digitalMonitorMux2",
+	"dummyMask",
+	"dummyTest",
+	"EXEC_DelayEnable",
+	"extraRowsLowReferenceValue",
+	"fastPowerPulsingEnable",
+	"fastPowerPulsingSpeed",
+	"highResolutionModeTest",
+	"interleavedReadOutDisable",
+	"LVDS_ImpedenceMatchingEnable",
+	"outputDriverDacReferenceBias",
+	"outputDriverDrivingCapabilitiesAndStability",
+	"outputDriverInputCommonMode0",
+	"outputDriverInputCommonMode1",
+	"outputDriverInputCommonMode2",
+	"outputDriverInputCommonMode3",
+	"outputDriverOutputDynamicRange0",
+	"outputDriverOutputDynamicRange1",
+	"outputDriverOutputDynamicRange2",
+	"outputDriverOutputDynamicRange3",
+	"outputDriverTemperatureCompensationEnable",
+	"outputDriverTemperatureCompensationGain0",
+	"outputDriverTemperatureCompensationGain1",
+	"outputDriverTemperatureCompensationGain2",
+	"outputDriverTemperatureCompensationGain3",
+	"pixelBuffersAndPreamplifierDrivingCapabilities",
+	"pixelFilterLevel",
+	"pixelOutputBufferCurrent",
+	"preamplifierCurrent",
+	"programmableReadoutDelay",
+	"pulserCounterDirection",
+	"pulserReset",
+	"pulserSync",
+	"pulserVsPixelOnDelay",
+	"syncPinEnable",
+	"testBackEnd",
+	"testMode",
+	"testModeWithDarkFrame",
+	"testPointSystemInputCommonMode",
+	"testPointSystemOutputDynamicRange",
+	"testPointSystemTemperatureCompensationEnable",
+	"testPointSystemTemperatureCompensationGain",
+	"testPointSytemInputSelect",
+	"testPulserCurrent",
+	"testPulserLevel",
+	"VRefBaselineDac",
+	{"--INVALID--"}        //    NumberOfRegisters
     };
 
 
