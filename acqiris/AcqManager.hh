@@ -14,7 +14,8 @@ namespace Pds {
   class AcqManager {
   public:
     enum MultiModuleNumber {Module0,Module1,Module2,Module3,Module4};
-    AcqManager(ViSession instrumentId, AcqServer& server, CfgClientNfs& cfg, Semaphore&, char *pvPrefix);
+    enum AcqFlag {AcqFlagVerbose=1, AcqFlagZealous=2, AcqFlagShutdown=4, AcqFlagDebug=8};
+    AcqManager(ViSession instrumentId, AcqServer& server, CfgClientNfs& cfg, Semaphore&, char *pvPrefix, unsigned pvPeriod, char *pAcqFlag);
     ~AcqManager();
     Appliance& appliance();
     unsigned temperature(MultiModuleNumber module);
@@ -23,6 +24,9 @@ namespace Pds {
     ViSession _instrumentId;
     Fsm& _fsm;
     static const char* _calibPath;
+    char* _pAcqFlag;
+    bool _verbose;
+    bool _zealous;
   };
 }
 

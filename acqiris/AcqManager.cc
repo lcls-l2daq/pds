@@ -59,9 +59,13 @@
 #include "pds/mon/MonGroup.hh"
 #include "pds/vmon/VmonServerManager.hh"
 
-#include "AcqPV.hh"
+#include "pds/epicstools/PVWriter.hh"
+using Pds_Epics::PVWriter;
 
 #define ACQ_TIMEOUT_MILISEC 1000
+
+#define NTHERMS         5
+#define PV_NAME_FORMAT  "%s:TEMPERATURE%d.VAL"
 
 using namespace Pds;
 
@@ -102,6 +106,211 @@ static inline Acqiris::DataDescV1Elem* _nextChannel(Acqiris::DataDescV1Elem* dat
 {
   return reinterpret_cast<Acqiris::DataDescV1Elem*>(reinterpret_cast<char*>(_waveform(data,hconfig))+_waveformSize(hconfig));
 }
+
+enum Command {TemperatureUpdate=1};
+enum {PvPrefixMax=40};
+//
+// command_t is used for intertask communication via pipes
+//
+typedef struct {
+  Command cmd;
+} command_t;
+
+class PollRoutine : public Routine
+{
+public:
+  PollRoutine(int pipeFd, int period, char *pAcqFlag, bool verbose, bool zealous) :
+    _pipeFd(pipeFd),
+    _period(period > 0 ? period : 10),
+    _pAcqFlag(pAcqFlag),
+    _verbose(verbose),
+    _zealous(zealous)
+  {
+  }
+  ~PollRoutine()
+  {
+  }
+  // Routine interface
+  void routine(void)
+  {
+    command_t sendCommand;
+    sendCommand.cmd = TemperatureUpdate;
+
+    while (1) {
+
+      // check shutdown flag
+      if ((_pAcqFlag) && (*_pAcqFlag & AcqManager::AcqFlagShutdown)) {
+        goto poll_exit;
+      }
+      sleep(_period);
+      // write to pipe
+      if (::write(_pipeFd, &sendCommand, sizeof(sendCommand)) == -1) {
+        perror("status pipe write");
+      }
+
+    } /* while (1) */
+
+poll_exit:
+    if (_verbose) {
+      printf("*** exiting %s ***\n", __PRETTY_FUNCTION__);
+    }
+  }
+
+private:
+  int     _pipeFd;
+  int     _period;
+  char *  _pAcqFlag;
+  bool    _verbose;
+  bool    _zealous;
+};
+
+class StatusRoutine : public Routine
+{
+public:
+  StatusRoutine(int pipeFd, char *pvPrefix, unsigned pvPeriod,
+                char *pAcqFlag, ViSession instrumentId, bool verbose) :
+    _pipeFd(pipeFd),
+    _pvPeriod(pvPeriod),
+    _pAcqFlag(pAcqFlag),
+    _instrumentId(instrumentId),
+    _verbose(verbose),
+    _initialized(false)
+  {
+    if (pvPrefix) {
+      strncpy(_pvPrefix, pvPrefix, PvPrefixMax-1);
+    }
+    ViStatus status = AcqrsD1_getInstrumentInfo(_instrumentId,"NbrModulesInInstrument",
+                                                &_moduleCount);
+    if (status != VI_SUCCESS) {
+      char message[256];
+      AcqrsD1_errorMessage(_instrumentId,status,message);
+      printf("%s: Acqiris NbrModulesInInstrument error: %s\n", __PRETTY_FUNCTION__,  message);
+      _moduleCount = 0;
+    }
+    if ((_moduleCount < 1) || (_moduleCount > NTHERMS)) {
+      _moduleCount = 1;   // default count
+    }
+    if (_verbose) {
+      printf("%s: module count=%u  period=%u\n", __PRETTY_FUNCTION__, _moduleCount, pvPeriod);
+    }
+  }
+  ~StatusRoutine()
+  {
+    if (_initialized) {
+      for (int ii=0; ii<NTHERMS; ii++) {
+        delete _valu_writer[ii];
+      }
+    }
+  }
+  // Routine interface
+  void routine(void)
+  {
+    command_t statusCommand;
+    fd_set    notify_set;
+    int       nfds;
+    int       status;
+    struct timeval  timeout;
+    char      namebuf[64];
+
+    if (ca_current_context() == NULL) {
+      // Initialize Channel Access
+      status = ca_context_create(ca_disable_preemptive_callback);
+      if (_verbose) {
+        printf("%s: Initialize Channel Access... ", __PRETTY_FUNCTION__);
+      }
+      if (ECA_NORMAL == status) {
+        for (int ii=0; ii<NTHERMS; ii++) {
+          sprintf(namebuf, PV_NAME_FORMAT, _pvPrefix, ii+1);
+          _valu_writer[ii] = new PVWriter(namebuf);
+        }
+
+        // Send the requests and wait for channels to be found.
+        status = ca_pend_io(1.0);
+        if (ECA_NORMAL == status) {
+          _initialized = true;
+        } else {
+          SEVCHK(status, "ca_pend_io() failed");
+        }
+      } else {
+        SEVCHK(status, "ca_context_create() failed");
+      }
+      if (_verbose) {
+        printf("done\n");
+      }
+    }
+
+    if (ca_current_context() == NULL) {
+      printf("Error: ca_current_context() returned NULL after ca_context_create()\n");
+    }
+
+    while (1) {
+      while (1){
+        // ca_poll(): send buffer is flushed and any outstanding CA background activity is processed
+        ca_poll();
+        // check shutdown flag
+        if ((_pAcqFlag) && (*_pAcqFlag & AcqManager::AcqFlagShutdown)) {
+          goto status_exit;
+        }
+        // select
+        FD_ZERO(&notify_set);
+        FD_SET(_pipeFd, &notify_set);
+        nfds = _pipeFd + 1;
+        timeout.tv_sec  = 0;
+        timeout.tv_usec = 100000; // 100 msec
+        int rv = select(nfds, &notify_set, NULL, NULL, &timeout);
+        if (rv == -1) {
+          perror("select");
+          sleep(1);
+        } else if (rv > 0) {
+          // data received on pipe
+          break;
+        }
+      }
+      // read from pipe
+      int length = ::read(_pipeFd, &statusCommand, sizeof(statusCommand));
+
+      if (length != sizeof(statusCommand)) {
+        fprintf(stderr, "Error: read() returned %d in %s, expected %u\n", length, __FUNCTION__, (unsigned) sizeof(statusCommand));
+      } else {
+        switch (statusCommand.cmd) {
+          case TemperatureUpdate:
+            // record temperatures to EPICS PVs
+            double temptemp;
+            for (int ii = 0; ii < (int)_moduleCount; ii++) {
+              temptemp = temperature(_instrumentId, ii+1);
+              if (_verbose) {
+                printf("  Temperature %d: %5.3g C \n", ii+1, temptemp);
+              }
+              *reinterpret_cast<double*>(_valu_writer[ii]->data()) = temptemp;
+              _valu_writer[ii]->put();
+            }
+            status = ca_flush_io();   // flush I/O
+            SEVCHK(status, NULL);
+            break;
+          default:
+            printf("%s: unknown cmd #%d received\n", __PRETTY_FUNCTION__, statusCommand.cmd);
+            break;
+        }
+      }
+    } /* while (1) */
+
+status_exit:
+    if (_verbose) {
+      printf("*** exiting %s ***\n", __PRETTY_FUNCTION__);
+    }
+  }
+
+private:
+  char      _pvPrefix[PvPrefixMax];
+  int       _pipeFd;
+  unsigned  _pvPeriod;
+  char*     _pAcqFlag;
+  ViSession _instrumentId;
+  bool      _verbose;
+  bool      _initialized;
+  PVWriter* _valu_writer[NTHERMS];
+  unsigned  _moduleCount;
+};
 
 class VmonTHist {
 public:
@@ -530,32 +739,21 @@ private:
 
 class AcqBeginCalibAction : public AcqDC282Action {
 public:
-  AcqBeginCalibAction(ViSession instrumentId, char *pvPrefix) : AcqDC282Action(instrumentId) {
-    if (pvPrefix) {
-      _acqpv = new Pds::AcqPV::AcqPV(pvPrefix, true /* verbose */);
-    } else {
-      _acqpv = (AcqPV *)NULL;
-    }
+  AcqBeginCalibAction(ViSession instrumentId, int pipeFd) : AcqDC282Action(instrumentId) {
+    _pipeFd = pipeFd;
   }
   InDatagram* fire(InDatagram* in) {	
-    if (_acqpv) {
-      unsigned nbrModulesInInstrument;
-      ViStatus status = AcqrsD1_getInstrumentInfo(_instrumentId,"NbrModulesInInstrument",
-                                &nbrModulesInInstrument);
-      if (status != VI_SUCCESS) {
-        char message[256];
-        AcqrsD1_errorMessage(_instrumentId,status,message);
-        printf("%s: Acqiris NbrModulesInInstrument error: %s\n", __PRETTY_FUNCTION__,  message);
-      } else {
-        for (int module = 1; module <= (int)nbrModulesInInstrument; module++) {
-          printf("*** Acqiris Temperature %d: %ld C ***\n", module, temperature(_instrumentId, module));
-        }
-      }
+    command_t sendCommand;
+    sendCommand.cmd = TemperatureUpdate;
+    // write to pipe
+    if (::write(_pipeFd, &sendCommand, sizeof(sendCommand)) == -1) {
+      perror("status pipe write");
     }
     return in;
   }
 private:
-  AcqPV * _acqpv;
+  unsigned _pvPeriod;
+  int _pipeFd;
 };
 
 class AcqEnableAction : public Action {
@@ -898,8 +1096,11 @@ const char* AcqManager::calibPath() {
   return _calibPath;
 }
 
-AcqManager::AcqManager(ViSession InstrumentID, AcqServer& server, CfgClientNfs& cfg, Semaphore& sem, char *pvPrefix) :
-  _instrumentId(InstrumentID),_fsm(*new Fsm) {
+AcqManager::AcqManager(ViSession InstrumentID, AcqServer& server, CfgClientNfs& cfg, Semaphore& sem, char *pvPrefix, unsigned pvPeriod, char *pAcqFlag) :
+  _instrumentId(InstrumentID),_fsm(*new Fsm),_pAcqFlag(pAcqFlag)
+{
+  _verbose = *pAcqFlag & AcqManager::AcqFlagVerbose;
+  _zealous = *pAcqFlag & AcqManager::AcqFlagZealous;
   Task* task = new Task(TaskObject("AcqReadout",35)); //default priority=127 (lowest), changed to 35 => (127-35) 
   AcqReader& reader = *new AcqReader(_instrumentId,server,task);
   
@@ -913,8 +1114,31 @@ AcqManager::AcqManager(ViSession InstrumentID, AcqServer& server, CfgClientNfs& 
   _fsm.callback(TransitionId::Enable ,new AcqEnableAction(acql1));
   _fsm.callback(TransitionId::Disable,new AcqDisableAction(_instrumentId,acql1));
   _fsm.callback(TransitionId::Unconfigure,new AcqUnconfigureAction(_instrumentId,reader));
-  if (pvPrefix) {
-    _fsm.callback(TransitionId::BeginCalibCycle, new AcqBeginCalibAction(_instrumentId, pvPrefix) );
+
+  Task *statusTask = (Task *)NULL;
+  Task *pollTask = (Task *)NULL;
+  // create status pipe
+  int statusPipeFd[2];
+  int err = ::pipe(statusPipeFd);
+  if (err) {
+    perror("pipe");
+  } else {
+    // allocate status task
+    statusTask = new Task(TaskObject("status"));
+    // allocate polling task
+    pollTask = new Task(TaskObject("poll"));
+    // create status thread
+    StatusRoutine *statusRoutine = new StatusRoutine(statusPipeFd[0], pvPrefix, pvPeriod,
+                                                     pAcqFlag, _instrumentId, _verbose);
+    statusTask->call(statusRoutine);
+    if (pvPeriod > 0) {
+      // create polling thread to trigger temperature readout
+      PollRoutine *pollRoutine = new PollRoutine(statusPipeFd[1], (int)pvPeriod, pAcqFlag, _verbose, _zealous);
+      pollTask->call(pollRoutine);
+    } else {
+      // create calib callback to trigger temperature readout
+      _fsm.callback(TransitionId::BeginCalibCycle, new AcqBeginCalibAction(_instrumentId, statusPipeFd[1]) );
+    }
   }
 
   ViStatus status = Acqrs_calLoad(_instrumentId,AcqManager::calibPath(),1);
