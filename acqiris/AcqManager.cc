@@ -107,7 +107,7 @@ static inline Acqiris::DataDescV1Elem* _nextChannel(Acqiris::DataDescV1Elem* dat
   return reinterpret_cast<Acqiris::DataDescV1Elem*>(reinterpret_cast<char*>(_waveform(data,hconfig))+_waveformSize(hconfig));
 }
 
-enum Command {TemperatureUpdate=1};
+enum Command {TemperatureUpdate=1, TemperaturePause=2, TemperatureResume=3};
 enum {PvPrefixMax=40};
 //
 // command_t is used for intertask communication via pipes
@@ -174,7 +174,8 @@ public:
     _pAcqFlag(pAcqFlag),
     _instrumentId(instrumentId),
     _verbose(verbose),
-    _initialized(false)
+    _initialized(false),
+    _paused(false)
   {
     if (pvPrefix) {
       strncpy(_pvPrefix, pvPrefix, PvPrefixMax-1);
@@ -274,6 +275,9 @@ public:
       } else {
         switch (statusCommand.cmd) {
           case TemperatureUpdate:
+            if (_paused) {
+              break;
+            }
             // record temperatures to EPICS PVs
             double temptemp;
             for (int ii = 0; ii < (int)_moduleCount; ii++) {
@@ -286,6 +290,14 @@ public:
             }
             status = ca_flush_io();   // flush I/O
             SEVCHK(status, NULL);
+            break;
+          case TemperaturePause:
+            printf(" *** TemperaturePause ***\n");    // FIXME
+            _paused = true;
+            break;
+          case TemperatureResume:
+            printf(" *** TemperatureResume ***\n");   // FIXME
+            _paused = false;
             break;
           default:
             printf("%s: unknown cmd #%d received\n", __PRETTY_FUNCTION__, statusCommand.cmd);
@@ -308,6 +320,7 @@ private:
   ViSession _instrumentId;
   bool      _verbose;
   bool      _initialized;
+  bool      _paused;
   PVWriter* _valu_writer[NTHERMS];
   unsigned  _moduleCount;
 };
@@ -741,10 +754,11 @@ class AcqBeginCalibAction : public AcqDC282Action {
 public:
   AcqBeginCalibAction(ViSession instrumentId, int pipeFd) : AcqDC282Action(instrumentId) {
     _pipeFd = pipeFd;
+    _command = TemperaturePause;
   }
   InDatagram* fire(InDatagram* in) {	
     command_t sendCommand;
-    sendCommand.cmd = TemperatureUpdate;
+    sendCommand.cmd = _command;
     // write to pipe
     if (::write(_pipeFd, &sendCommand, sizeof(sendCommand)) == -1) {
       perror("status pipe write");
@@ -752,8 +766,28 @@ public:
     return in;
   }
 private:
-  unsigned _pvPeriod;
-  int _pipeFd;
+  int     _pipeFd;
+  Command _command;
+};
+
+class AcqEndCalibAction : public AcqDC282Action {
+public:
+  AcqEndCalibAction(ViSession instrumentId, int pipeFd) : AcqDC282Action(instrumentId) {
+    _pipeFd = pipeFd;
+    _command = TemperatureResume;
+  }
+  InDatagram* fire(InDatagram* in) {	
+    command_t sendCommand;
+    sendCommand.cmd = _command;
+    // write to pipe
+    if (::write(_pipeFd, &sendCommand, sizeof(sendCommand)) == -1) {
+      perror("status pipe write");
+    }
+    return in;
+  }
+private:
+  int     _pipeFd;
+  Command _command;
 };
 
 class AcqEnableAction : public Action {
@@ -997,6 +1031,16 @@ public:
     else
       delete msg;
 
+    if (_mgr._zealous) {
+      char warnbuf[100];
+      UserMessage* wmsg = new(&_occPool) UserMessage;
+      sprintf(warnbuf, "Acqiris #%x: Temp monitoring will not pause during data collection.\n",
+                       (unsigned)_instrumentId);
+      wmsg->append(warnbuf);
+      wmsg->append("Warning! Crosstalk may affect data quality.\n");
+      _mgr.appliance().post(wmsg);
+    }
+
     _cfgtc.extent = sizeof(Xtc)+sizeof(AcqConfigType);
     _dma.setConfig(_config);
     _reader.setConfig(_config);
@@ -1135,9 +1179,11 @@ AcqManager::AcqManager(ViSession InstrumentID, AcqServer& server, CfgClientNfs& 
       // create polling thread to trigger temperature readout
       PollRoutine *pollRoutine = new PollRoutine(statusPipeFd[1], (int)pvPeriod, pAcqFlag, _verbose, _zealous);
       pollTask->call(pollRoutine);
-    } else {
-      // create calib callback to trigger temperature readout
-      _fsm.callback(TransitionId::BeginCalibCycle, new AcqBeginCalibAction(_instrumentId, statusPipeFd[1]) );
+      if (!_zealous) {
+        // create calib callbacks to pause and resume temperature readout
+        _fsm.callback(TransitionId::BeginCalibCycle, new AcqBeginCalibAction(_instrumentId, statusPipeFd[1]) );
+        _fsm.callback(TransitionId::EndCalibCycle, new AcqEndCalibAction(_instrumentId, statusPipeFd[1]) );
+      }
     }
   }
 
