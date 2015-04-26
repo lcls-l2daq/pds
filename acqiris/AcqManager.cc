@@ -1034,10 +1034,10 @@ public:
     if (_mgr._zealous) {
       char warnbuf[100];
       UserMessage* wmsg = new(&_occPool) UserMessage;
-      sprintf(warnbuf, "Acqiris #%x: Temp monitoring will not pause during data collection.\n",
-                       (unsigned)_instrumentId);
+      sprintf(warnbuf, "Acqiris id %x:\n", (unsigned)_instrumentId);
       wmsg->append(warnbuf);
-      wmsg->append("Warning! Crosstalk may affect data quality.\n");
+      wmsg->append("Temperature monitoring while data taking will cause crosstalk.\n");
+      wmsg->append("Crosstalk may affect data quality.\n");
       _mgr.appliance().post(wmsg);
     }
 
