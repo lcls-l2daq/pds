@@ -283,7 +283,7 @@ bool Opal1kCamera::validate(Pds::FrameServerMsg& msg)
   }
   else {
     if (CurrentCount+1 != Count-LastCount)
-      printf("warning: frame out-of-sequence %u [%u]\n", Count-LastCount, CurrentCount);
+      printf("warning: frame out-of-sequence %u [%u:%u]\n", Count-LastCount, CurrentCount, Count);
     CurrentCount = Count - LastCount;
   }
 
