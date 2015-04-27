@@ -293,9 +293,9 @@ bool EvrSyncMaster::handle(const FIFOEvent& fe)
       _task.call(new ReleaseRoutine(_fifo_handler));
 
       //  Empty FIFO
-      FIFOEvent tfe;
-      while( !_er.GetFIFOEvent(&tfe) )
-  ;
+      //      FIFOEvent tfe;
+      //      while( !_er.GetFIFOEvent(&tfe) )
+      //  ;
     }
   }
   return false;

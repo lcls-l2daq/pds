@@ -422,12 +422,14 @@ void MasterFIFOHandler::startL1Accept(const FIFOEvent& fe, bool bEvrDataIncomple
 
 void MasterFIFOHandler::clear()
 {
+  const int iMinCheck =  3;
   const int iMaxCheck = 10;
   int       iCheck    = 0;
-  while ( evrHasEvent(_er) && ++iCheck <= iMaxCheck )
+  while ( (evrHasEvent(_er) && iCheck < iMaxCheck) || iCheck < iMinCheck )
     { // sleep for 2 millisecond to let signal handler process FIFO events
       timeval timeSleepMicro = {0, 2000}; // 2 milliseconds
       select( 0, NULL, NULL, NULL, &timeSleepMicro);
+      iCheck++;
     }
 
   if (_state.uMaskReadout != 0 || _state.ncommands) {
