@@ -292,11 +292,15 @@ public:
             SEVCHK(status, NULL);
             break;
           case TemperaturePause:
-            printf(" *** TemperaturePause ***\n");    // FIXME
+            if (_verbose) {
+              printf(" *** TemperaturePause ***\n");
+            }
             _paused = true;
             break;
           case TemperatureResume:
-            printf(" *** TemperatureResume ***\n");   // FIXME
+            if (_verbose) {
+              printf(" *** TemperatureResume ***\n");
+            }
             _paused = false;
             break;
           default:
@@ -750,31 +754,11 @@ private:
   AcqL1Action& _acql1;
 };
 
-class AcqBeginCalibAction : public AcqDC282Action {
+class AcqCalibAction : public AcqDC282Action {
 public:
-  AcqBeginCalibAction(ViSession instrumentId, int pipeFd) : AcqDC282Action(instrumentId) {
+  AcqCalibAction(ViSession instrumentId, Command cmd, int pipeFd) : AcqDC282Action(instrumentId) {
+    _command = cmd;
     _pipeFd = pipeFd;
-    _command = TemperaturePause;
-  }
-  InDatagram* fire(InDatagram* in) {	
-    command_t sendCommand;
-    sendCommand.cmd = _command;
-    // write to pipe
-    if (::write(_pipeFd, &sendCommand, sizeof(sendCommand)) == -1) {
-      perror("status pipe write");
-    }
-    return in;
-  }
-private:
-  int     _pipeFd;
-  Command _command;
-};
-
-class AcqEndCalibAction : public AcqDC282Action {
-public:
-  AcqEndCalibAction(ViSession instrumentId, int pipeFd) : AcqDC282Action(instrumentId) {
-    _pipeFd = pipeFd;
-    _command = TemperatureResume;
   }
   InDatagram* fire(InDatagram* in) {	
     command_t sendCommand;
@@ -1181,8 +1165,10 @@ AcqManager::AcqManager(ViSession InstrumentID, AcqServer& server, CfgClientNfs& 
       pollTask->call(pollRoutine);
       if (!_zealous) {
         // create calib callbacks to pause and resume temperature readout
-        _fsm.callback(TransitionId::BeginCalibCycle, new AcqBeginCalibAction(_instrumentId, statusPipeFd[1]) );
-        _fsm.callback(TransitionId::EndCalibCycle, new AcqEndCalibAction(_instrumentId, statusPipeFd[1]) );
+        _fsm.callback(TransitionId::BeginCalibCycle,
+                      new AcqCalibAction(_instrumentId, TemperaturePause, statusPipeFd[1]) );
+        _fsm.callback(TransitionId::EndCalibCycle,
+                      new AcqCalibAction(_instrumentId, TemperatureResume, statusPipeFd[1]) );
       }
     }
   }
