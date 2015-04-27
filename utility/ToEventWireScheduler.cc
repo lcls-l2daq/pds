@@ -163,6 +163,13 @@ void ToEventWireScheduler::_flush(InDatagram* dg)
     ts.tv_sec = 0; ts.tv_nsec = _disable_buffer*1000000;
     nanosleep(&ts,0);
   }
+  //
+  //  Do we need this to shape transitions?
+  //
+//   else {
+//     timeval timeSleepMicro = {0, _phase*_interval/4};
+//     select( 0, NULL, NULL, NULL, &timeSleepMicro);
+//   }
 
   TrafficDst* n = dg->traffic(_bcast);
   _list.insert(n);

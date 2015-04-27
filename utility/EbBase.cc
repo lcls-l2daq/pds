@@ -297,8 +297,9 @@ void EbBase::_post(EbEventBase* event)
       const int buffsize=256;
       char buff[buffsize];
       EbBitMask r = remaining;
-      sprintf(buff,"EbBase::_post fixup seq %08x remaining ",
-          datagram->seq.stamp().fiducials());
+      sprintf(buff,"EbBase::_post fixup key %08x seq %08x remaining ",
+              event->key().value(),
+              datagram->seq.stamp().fiducials());
       r.write(&buff[strlen(buff)]);
       EbBitMask id(EbBitMask::ONE);
       for(unsigned i=0; !r.isZero(); i++, id <<= 1) {
