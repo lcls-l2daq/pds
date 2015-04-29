@@ -119,12 +119,11 @@ typedef struct {
 class PollRoutine : public Routine
 {
 public:
-  PollRoutine(int pipeFd, int period, char *pAcqFlag, bool verbose, bool zealous) :
+  PollRoutine(int pipeFd, int period, char *pAcqFlag, bool verbose) :
     _pipeFd(pipeFd),
-    _period(period > 0 ? period : 10),
+    _period(period > 0 ? period : AcqManager::AcqTemperaturePeriod),
     _pAcqFlag(pAcqFlag),
-    _verbose(verbose),
-    _zealous(zealous)
+    _verbose(verbose)
   {
   }
   ~PollRoutine()
@@ -161,7 +160,6 @@ private:
   int     _period;
   char *  _pAcqFlag;
   bool    _verbose;
-  bool    _zealous;
 };
 
 class StatusRoutine : public Routine
@@ -1161,7 +1159,7 @@ AcqManager::AcqManager(ViSession InstrumentID, AcqServer& server, CfgClientNfs& 
     statusTask->call(statusRoutine);
     if (pvPeriod > 0) {
       // create polling thread to trigger temperature readout
-      PollRoutine *pollRoutine = new PollRoutine(statusPipeFd[1], (int)pvPeriod, pAcqFlag, _verbose, _zealous);
+      PollRoutine *pollRoutine = new PollRoutine(statusPipeFd[1], (int)pvPeriod, pAcqFlag, _verbose);
       pollTask->call(pollRoutine);
       if (!_zealous) {
         // create calib callbacks to pause and resume temperature readout
