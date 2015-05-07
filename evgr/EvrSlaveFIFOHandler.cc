@@ -504,11 +504,13 @@ int EvrSlaveFIFOHandler::startL1Accept(bool bMasterEvent, unsigned prevWrt)
 void EvrSlaveFIFOHandler::clear()
 {
   const int iMaxCheck = 10;
+  const int iMinCheck = 3;
   int       iCheck    = 0;
-  while ( evrHasEvent(_er) && ++iCheck <= iMaxCheck )
+  while ( (evrHasEvent(_er) && iCheck < iMaxCheck) || (iCheck < iMinCheck) )
     { // sleep for 2 millisecond to let signal handler process FIFO events
       timeval timeSleepMicro = {0, 2000}; // 2 milliseconds
       select( 0, NULL, NULL, NULL, &timeSleepMicro);
+      iCheck++;
     }
 
   if (iCheck > iMaxCheck)
