@@ -1,5 +1,5 @@
 libnames := client
-libsrcs_client := $(filter-out FrameCompApp.cc,$(wildcard *.cc))
+libsrcs_client := $(filter-out FrameCompApp.cc l3ftest.cc,$(wildcard *.cc))
 libincs_client := pdsdata/include ndarray/include boost/include 
 
 libnames += clientcompress
