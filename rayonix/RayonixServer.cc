@@ -125,12 +125,11 @@ unsigned Pds::RayonixServer::configure(RayonixConfigType& config)
           _darkFlag  = darkFlag;
           _readoutMode = readoutMode;
           _trigger   = trigger;
-          if (deviceBuf) {
-            // copy to _deviceID
-            strncpy(_deviceID, deviceBuf, Pds::rayonix_control::DeviceIDMax);
-            printf("Rayonix Device ID: \"%s\"\n", _deviceID);
-            //            Pds::RayonixConfig::setDeviceID(config,_deviceID);
-          }
+
+          // copy to _deviceID
+          strncpy(_deviceID, deviceBuf, Pds::rayonix_control::DeviceIDMax);
+          printf("Rayonix Device ID: \"%s\"\n", _deviceID);
+
           if (_verbose) {
              printf("Rayonix Device ID: %s\n", _deviceID);
              printf("Binning:  %dx%d\n", binning_f, binning_s);
