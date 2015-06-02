@@ -1118,9 +1118,32 @@ int AndorServer::setupCooling(double fCoolingTemperature)
   iError = GetTemperature(&iTemperature);
   printf("Temperature Before cooling: %d C  Status %s\n", iTemperature, AndorErrorCodes::name(iError));
 
-  if ( fCoolingTemperature < _iTempMin || fCoolingTemperature > _iTempMax )
+  if (fCoolingTemperature > _iTempMax) {
+    printf("Cooling temperature %f above valid range (max %d).  Turning cooler OFF.\n", fCoolingTemperature, _iTempMax);
+    iError = CoolerOFF();
+    if (!isAndorFuncOk(iError)) {
+      printf("AndorServer::setupCooling():: CoolerOFF(): %s\n", AndorErrorCodes::name(iError));
+      if (_occSend != NULL) {
+        // send occurrence
+        _occSend->userMessage("Andor: requested cooling temperature above valid range, turning cooler off FAILED\n");
+      }
+      return ERROR_SDK_FUNC_FAIL;
+    } else {
+      if (_occSend != NULL) {
+        // send occurrence
+        _occSend->userMessage("Andor: requested cooling temperature above valid range, cooler turned OFF\n");
+      }
+      return 0;
+    }
+  }
+
+  if (fCoolingTemperature < _iTempMin)
   {
-    printf("Cooling temperature %f out of range (min %d max %d)\n", fCoolingTemperature, _iTempMin, _iTempMax);
+    printf("Cooling temperature %f below valid range (min %d)\n", fCoolingTemperature, _iTempMin);
+    if (_occSend != NULL) {
+      // send occurrence
+      _occSend->userMessage("Andor: requested cooling temperature below valid range\n");
+    }
     return ERROR_TEMPERATURE;
   }
   else
