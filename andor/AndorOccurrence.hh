@@ -15,7 +15,7 @@ class Pds::AndorOccurrence {
     AndorOccurrence(AndorManager *mgr);
     ~AndorOccurrence();
     void outOfOrder(void);
-    void userMessage(char *msgText);
+    void userMessage(const char *msgText);
 
   private:
     AndorManager* _mgr;

@@ -34,7 +34,7 @@ void AndorOccurrence::outOfOrder(void)
   _mgr->appliance().post(occ);
 }
 
-void AndorOccurrence::userMessage(char *msgText)
+void AndorOccurrence::userMessage(const char *msgText)
 {
   // send occurrence: user message
   UserMessage* msg = new (_userMessagePool) UserMessage;
