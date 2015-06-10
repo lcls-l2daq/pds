@@ -78,7 +78,7 @@ class Pds::UdpCamServer
 
     enum {LastPacketIndex = 226};
     enum Command {FrameAvailable=0, TriggerConfigured, TriggerNotConfigured, CommandShutdown};
-    enum {BufferCount=64};
+    enum {BufferCount=128};
     enum {PacketDataSize=8192-8};   // subract 8 bytes for packet header
 
   private:

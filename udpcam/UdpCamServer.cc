@@ -58,6 +58,7 @@ Pds::UdpCamServer::UdpCamServer( const Src& client, unsigned verbosity, int data
 {
   if (_verbosity) {
     printf("%s: data port = %u\n", __FUNCTION__, _dataPort);
+    printf("%s: BufferCount = %d\n", __FUNCTION__, BufferCount);
   }
 
   // allocate read task and buffer
@@ -279,6 +280,12 @@ void Pds::UdpCamServer::ReadRoutine::routine()
       prevFrameIndex = buf_iter->_header.frameIndex;
       // advance buf_iter for next frame
       buf_iter = buffer->begin() + (localFrameCount % BufferCount);
+      // check for _full==true before using
+      if (buf_iter->_full) {
+        printf("Error: frame buffer overflow at %s line %d (BufferCount = %d)\n",
+               __PRETTY_FUNCTION__, __LINE__, BufferCount);
+        return;   // shutdown
+      }
       localPacketCount = 0; // zero packet count for next frame
       buf_iter->_damaged = false;   // clear damage for next frame
       buf_iter->_full = true;
@@ -441,7 +448,7 @@ int Pds::UdpCamServer::fetch( char* payload, int flags )
 
   uint16_t fx = receiveCommand.buf_iter->_header.frameIndex;
 
-  if (verbosity()) {
+  if (verbosity() > 1) {
     printf("fetch: frame = %hu  ", fx);
     if (receiveCommand.buf_iter->_damaged) {
       printf("** DAMAGED **");
