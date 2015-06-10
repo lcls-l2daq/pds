@@ -165,15 +165,17 @@ void Pds::UdpCamServer::ReadRoutine::routine()
   iov[0].iov_len =  8;
   iov[1].iov_len =  9000;
 
+  if (_server->verbosity()) {
+    printf(" ** read task init **  (fd=%d)\n", fd);
+  }
+
   if (_cpuAffinity >= 0) {
     if (set_cpu_affinity(_cpuAffinity) != 0) {
       printf("Error: read task set_cpu_affinity(%d) failed\n", _cpuAffinity);
       return;   // shutdown
+    } else if (_server->verbosity()) {
+      printf("%s: set_cpu_affinity(%d)\n", __PRETTY_FUNCTION__, _cpuAffinity);
     }
-  }
-
-  if (_server->verbosity()) {
-    printf(" ** read task init **  (fd=%d)\n", fd);
   }
 
   buf_iter = buffer->begin();
