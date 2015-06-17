@@ -331,7 +331,7 @@ class VmonTHist {
 public:
   VmonTHist(const char* title,Pds::MonGroup* group) {
     float t_ms = float(1<<20)*1.e-6;
-    Pds::MonDescTH1F desc(title, "[ms]", "", 64, -0.25*t_ms, 31.75*t_ms);
+    Pds::MonDescTH1F desc(title, "[ms]", "", 40, -0.25*t_ms, 19.75*t_ms);
     _h = new Pds::MonEntryTH1F(desc);
     group->add(_h);
   }
