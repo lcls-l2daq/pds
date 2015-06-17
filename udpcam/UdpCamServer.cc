@@ -402,8 +402,49 @@ unsigned Pds::UdpCamServer::unconfigure(void)
   return (0);
 }
 
-unsigned Pds::UdpCamServer::endrun(void)
+unsigned Pds::UdpCamServer::beginrun(bool verbose)
 {
+  // ensure that pipes are empty
+  int nbytes;
+  char bucket;
+  if (_completedPipeFd[0]) {
+    if (ioctl(_completedPipeFd[0], FIONREAD, &nbytes) == -1) {
+      perror("ioctl");
+    } else if (nbytes > 0) {
+      printf("%s: draining %d bytes from completed pipe\n", __FUNCTION__, nbytes);
+      while (nbytes-- > 0) {
+        ::read(_completedPipeFd[0], &bucket, 1);
+      }
+    } else if (verbose) {
+      printf("%s: completed pipe is empty\n", __FUNCTION__);
+    }
+  } else {
+    printf("%s: completed pipe is not initialized\n", __FUNCTION__);
+  }
+
+  return (0);
+}
+
+unsigned Pds::UdpCamServer::endrun(bool verbose)
+{
+  // ensure that pipes are empty
+  int nbytes;
+  char bucket;
+  if (_completedPipeFd[0]) {
+    if (ioctl(_completedPipeFd[0], FIONREAD, &nbytes) == -1) {
+      perror("ioctl");
+    } else if (nbytes > 0) {
+      printf("%s: draining %d bytes from completed pipe\n", __FUNCTION__, nbytes);
+      while (nbytes-- > 0) {
+        ::read(_completedPipeFd[0], &bucket, 1);
+      }
+    } else if (verbose) {
+      printf("%s: completed pipe is empty\n", __FUNCTION__);
+    }
+  } else {
+    printf("%s: completed pipe is not initialized\n", __FUNCTION__);
+  }
+
   return (0);
 }
 
@@ -525,6 +566,12 @@ int Pds::UdpCamServer::fetch( char* payload, int flags )
     fccd960Reorder(_chanMap, _topBot, receiveCommand.buf_iter->_rawData, (uint16_t *)(payload+offset));
 
   }
+
+  // copy frame counter to first pixel
+  if (1) {
+    *((uint16_t *)(payload+offset)) = sum16;
+  }
+
   // mark payload as empty
   receiveCommand.buf_iter->_full = false;
 

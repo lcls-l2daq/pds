@@ -174,6 +174,31 @@ private:
 };
 
 
+class UdpCamBeginrunAction : public UdpCamAction {
+ public:
+   UdpCamBeginrunAction( UdpCamServer* server ) : _server( server ) {}
+   ~UdpCamBeginrunAction() {}
+
+   InDatagram* fire(InDatagram* dg) {
+      if( _nerror ) {
+         printf( "*** Found %d fccd Beginrun errors\n", _nerror );
+         dg->datagram().xtc.damage.increase(Pds::Damage::UserDefined);
+      }
+      return dg;
+   }
+
+   Transition* fire(Transition* tr) {
+      _nerror = 0;
+      _nerror += _server->beginrun(_server->verbosity() > 0);
+      return tr;
+   }
+
+private:
+  UdpCamServer* _server;
+  unsigned _nerror;
+};
+
+
 class UdpCamEndrunAction : public UdpCamAction {
  public:
    UdpCamEndrunAction( UdpCamServer* server ) : _server( server ) {}
@@ -189,7 +214,7 @@ class UdpCamEndrunAction : public UdpCamAction {
 
    Transition* fire(Transition* tr) {
       _nerror = 0;
-      _nerror += _server->endrun();
+      _nerror += _server->endrun(_server->verbosity() > 0);
       return tr;
    }
 
@@ -244,6 +269,8 @@ UdpCamManager::UdpCamManager( UdpCamServer* server,
                 new UdpCamConfigAction( src0, cfg, server, udpCamL1, _occSend) );
  _fsm.callback( TransitionId::Unconfigure,
                 new UdpCamUnconfigAction( server ) );
+ _fsm.callback( TransitionId::BeginRun,
+                new UdpCamBeginrunAction( server ) );
  _fsm.callback( TransitionId::EndRun,
                 new UdpCamEndrunAction( server ) );
  _fsm.callback( TransitionId::Map,

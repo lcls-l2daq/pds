@@ -71,7 +71,8 @@ class Pds::UdpCamServer
 
     unsigned configure(void);
     unsigned unconfigure(void);
-    unsigned endrun(void);
+    unsigned beginrun(bool verbose);
+    unsigned endrun(bool verbose);
 
     void setOccSend(UdpCamOccurrence* occSend);
     void shutdown();
