@@ -186,6 +186,7 @@ void Pds::UdpCamServer::ReadRoutine::routine()
   }
   // initialize buf_iter for 1st frame
   buf_iter->_damaged = false;
+  buf_iter->_markdead = false;
   buf_iter->_full = true;
   while (1) {
     // select with timeout
@@ -263,14 +264,17 @@ void Pds::UdpCamServer::ReadRoutine::routine()
       }
     }
 
-    if (!(_server->_debug & UDPCAM_DEBUG_IGNORE_PACKET_CNT)) {
       if (pktidx != localPacketCount) {
-        if ((!buf_iter->_damaged) || (_server->verbosity() > 1)) {
+        if ((!(buf_iter->_damaged || buf_iter->_markdead)) || (_server->verbosity() > 1)) {
           printf("Error: received packet index %u, expected %u\n", pktidx, localPacketCount);
         }
-        buf_iter->_damaged = true;
+        if (_server->_debug & UDPCAM_DEBUG_IGNORE_PACKET_CNT) {
+          buf_iter->_markdead = true;
+        } else {
+          buf_iter->_damaged = true;
+        }
       }
-    }
+
     if (pktidx == LastPacketIndex) {
       lastPacket = true;
       if (_server->verbosity() > 1) {
@@ -289,6 +293,7 @@ void Pds::UdpCamServer::ReadRoutine::routine()
         return;   // shutdown
       }
       localPacketCount = 0; // zero packet count for next frame
+      buf_iter->_markdead = false;  // clear markdead for next frame
       buf_iter->_damaged = false;   // clear damage for next frame
       buf_iter->_full = true;
     } else {
@@ -302,6 +307,7 @@ void Pds::UdpCamServer::ReadRoutine::routine()
         ++localFrameCount;
         buf_iter = buffer->begin() + (localFrameCount % BufferCount);
         localPacketCount = 0; // zero packet count for next frame
+        buf_iter->_markdead = false;  // clear markdead for next frame
         buf_iter->_damaged = false;   // clear damage for next frame
         buf_iter->_full = true;
         thisFrameIndex = 0;
@@ -496,6 +502,9 @@ int Pds::UdpCamServer::fetch( char* payload, int flags )
     if (receiveCommand.buf_iter->_damaged) {
       printf("** DAMAGED **");
     }
+    if (receiveCommand.buf_iter->_markdead) {
+      printf("** MARKED DEAD **");
+    }
     printf("\n");
   }
 
@@ -571,6 +580,15 @@ int Pds::UdpCamServer::fetch( char* payload, int flags )
   if (1) {
     *((uint16_t *)(payload+offset)) = sum16;
   }
+
+  // mark dead in second pixel
+  if (receiveCommand.buf_iter->_markdead) {
+    if (verbosity()) {
+      printf("%s: dead marked in frame (2nd pixel)\n", __FUNCTION__);
+    }
+    *((uint16_t *)(payload+offset+2)) = 0xdead;
+  }
+
 
   // mark payload as empty
   receiveCommand.buf_iter->_full = false;

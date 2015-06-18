@@ -107,6 +107,7 @@ class Pds::UdpCamServer
 
       bool                  _full;
       bool                  _damaged;
+      bool                  _markdead;
       cmd_t                 _header;
       unsigned char         _rawData[1024 * 1024 * 2];
       int16_t               _pixelData[960 * 960];
