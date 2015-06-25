@@ -15,13 +15,13 @@ namespace Pds {
 
     class  Register {
       public:
-        uint32_t offset;
-        uint32_t shift;
-        uint32_t mask;
-        uint32_t defaultValue;
-        uint32_t readOnly;
-        uint32_t type;
-        uint32_t selectionIndex;
+        uint32_t        offset;
+        uint32_t        shift;
+        uint32_t        mask;
+        uint32_t        defaultValue;
+        uint32_t        readOnly;
+        ConfigV2::types type;
+        uint32_t        selectionIndex;
     } ;
 //    R0Mode = 0x1
 //    asicPpmatControl = 0x0
@@ -32,7 +32,7 @@ namespace Pds {
         {  0,  0, 0xffffffff, 0,      1, 1, 0},    //  Version,
         {  1,  0, 0xffffffff, 0,      0, 0, 0},    //  RunTrigDelay,
         {  2,  0, 0xffffffff, 0x4e2,  2, 0, 0},    //  DaqTrigDelay,
-        {  3,  0, 0xffffffff, 0x4e20, 0, 1, 0},    //  DacSetting,
+        {  3,  0, 0xffff,     0x4e20, 0, 1, 0},    //  DacSetting,
         //  pin states(4) and controls(5)
         {  4,  0, 1, 1, 0, 0, 0},    //  asicGR,
         {  5,  0, 1, 1, 0, 0, 0},    //  asicGRControl,
@@ -52,20 +52,20 @@ namespace Pds {
         {  5,  9, 3, 0, 0, 0, 0},    //  SyncMode
         {  5, 11, 1, 1, 0, 0, 0},    //  R0Mode
         //
-        {  6,  0, 0xffffffff, 0xea6,      0, 1, 0},    //  AcqToAsicR0Delay,
-        {  7,  0, 0xffffffff, 0xfa0,      0, 1, 0},    //  AsicR0ToAsicAcq,
-        {  8,  0, 0xffffffff, 0xfa0,      0, 1, 0},    //  AsicAcqWidth,
-        {  9,  0, 0xffffffff, 0xfa,       0, 1, 0},    //  AsicAcqLToPPmatL,
-        { 10,  0, 0xffffffff, 0x36b0,     0, 1, 0},    //  AsicPPmatToReadout,
-        { 11,  0, 0xffffffff, 0xa,        0, 1, 0},    //  AsicRoClkHalfT,
+        {  6,  0, 0xffffffff, 0xea6,      0, 0, 0},    //  AcqToAsicR0Delay,
+        {  7,  0, 0xffffffff, 0xfa0,      0, 0, 0},    //  AsicR0ToAsicAcq,
+        {  8,  0, 0xffffffff, 0xfa0,      0, 0, 0},    //  AsicAcqWidth,
+        {  9,  0, 0xffffffff, 0xfa,       0, 0, 0},    //  AsicAcqLToPPmatL,
+        { 10,  0, 0xffffffff, 0x36b0,     0, 0, 0},    //  AsicPPmatToReadout,
+        { 11,  0, 0xffffffff, 0xa,        0, 0, 0},    //  AsicRoClkHalfT,
         { 12,  0, 3,          1,          0, 0, 0},    //  AdcReadsPerPixel,
-        { 13,  0, 0xffffffff, 1,          0, 1, 0},    //  AdcClkHalfT,
-        { 14,  0, 0xffffffff, 0x26,       0, 1, 0},    //  AsicR0Width,
+        { 13,  0, 0xffffffff, 1,          0, 0, 0},    //  AdcClkHalfT,
+        { 14,  0, 0xffffffff, 0x26,       0, 0, 0},    //  AsicR0Width,
         { 15,  0, 0xffffffff, 0x11,       0, 1, 0},    //  AdcPipelineDelay,
-        { 16,  0, 0xffff,     0x26,       0, 1, 0},    //  SnycWidth,
-        { 16, 16, 0xffff,     0x26,       0, 1, 0},    //  SyncDelay,
-        { 17,  0, 0xffffffff, 0x26,       0, 1, 0},    //  PrepulseR0Width,
-        { 18,  0, 0xffffffff, 0x9c40,     0, 1, 0},    //  PrepulseR0Delay,
+        { 16,  0, 0xffff,     0x26,       0, 0, 0},    //  SnycWidth,
+        { 16, 16, 0xffff,     0x26,       0, 0, 0},    //  SyncDelay,
+        { 17,  0, 0xffffffff, 0x26,       0, 0, 0},    //  PrepulseR0Width,
+        { 18,  0, 0xffffffff, 0x9c40,     0, 0, 0},    //  PrepulseR0Delay,
         { 19,  0, 0xffffffff, 0,          1, 0, 0},    //  DigitalCardId0,
         { 20,  0, 0xffffffff, 0,          1, 0, 0},    //  DigitalCardId1,
         { 21,  0, 0xffffffff, 0,          1, 0, 0},    //  AnalogCardId0,
@@ -85,15 +85,15 @@ namespace Pds {
         { 35,  0, 0xffffffff, 0xFE503,    0, 2, 0},    //  NumbClockTicksPerRunTrigger,
         { 36,  0, 1,          0,          0, 0, 0},    //  ScopeEnable,
         { 36,  1, 1,          1,          0, 0, 0},    //  ScopeTrigEdge,
-        { 36,  2, 0xf,        6,          0, 1, 0},    //  ScopeTrigCh,
+        { 36,  2, 0xf,        6,          0, 0, 0},    //  ScopeTrigCh,
         { 36,  6, 3,          2,          0, 0, 0},    //  ScopeArmMode,
         { 36, 16, 0xffff,     0,          0, 1, 0},    //  ScopeAdcThresh,
-        { 37,  0, 0x1fff,     0,          0, 1, 0},    //  ScopeHoldoff,
-        { 37, 13, 0x1fff,     0xf,        0, 1, 0},    //  ScopeOffset,
-        { 38,  0, 0x1fff,     0x1000,     0, 1, 0},    //  ScopeTraceLength,
-        { 38, 13, 0x1fff,     0,          0, 1, 0},    //  ScopeSkipSamples,
-        { 39,  0, 0x1f,       0,          0, 1, 0},    //  ScopeInputA,
-        { 39,  5, 0x1f,       4,          0, 1, 0},    //  ScopeInputB,
+        { 37,  0, 0x1fff,     0,          0, 0, 0},    //  ScopeHoldoff,
+        { 37, 13, 0x1fff,     0xf,        0, 0, 0},    //  ScopeOffset,
+        { 38,  0, 0x1fff,     0x1000,     0, 0, 0},    //  ScopeTraceLength,
+        { 38, 13, 0x1fff,     0,          0, 0, 0},    //  ScopeSkipSamples,
+        { 39,  0, 0x1f,       0,          0, 0, 0},    //  ScopeInputA,
+        { 39,  5, 0x1f,       4,          0, 0, 0},    //  ScopeInputB,
     };
 
     static uint32_t _regSelect0[7] = {
@@ -255,6 +255,9 @@ namespace Pds {
         case EnvironmentalRowCountPerASIC :
           ret = 1;
           break;
+        case AsicMask :
+          ret = 15;
+          break;
         default:
           break;
       }
@@ -275,7 +278,7 @@ namespace Pds {
           ret = ColsPerASIC;
           break;
         case AdcClkHalfT :
-          ret = 2;
+          ret = 1;
           break;
         case NumberOfAsicsPerRow :
           ret = AsicsPerRow;
@@ -315,8 +318,10 @@ namespace Pds {
       if (namesAreInitialized == false) {
         for (unsigned i=0; i<NumberOfRegisters; i++) {
           Registers r = (Registers) i;
-          sprintf(range, "  (0x%x->0x%x)    ", rangeLow(r), rangeHigh(r));
-          if (_regs[r].readOnly != ReadOnly) {
+          types t = (types) type(r);
+          if (t==hex) sprintf(range, "  (0x%x->0x%x)    ", rangeLow(r), rangeHigh(r));
+          else if (t==decimal) sprintf(range, "  (%u->%u)    ", rangeLow(r), rangeHigh(r));
+          if ((_regs[r].readOnly != ReadOnly) && (t != selection)) {
             strncat(_regNames[r], range, 40);
 //            printf("ConfigV2::initNames %u %s %s\n", i, range, _regNames[r]);
           }
@@ -338,7 +343,7 @@ namespace Pds {
 
     unsigned ConfigV2::type(Registers r) {
         if (r >= NumberOfRegisters) {
-          printf("Epix100aConfigV2::type parameter out of range!! %u %u\n", r, NumberOfRegisters);
+          printf("Epix100aConfigV2::type parameter out of range!! %u, numregs %u\n", r, NumberOfRegisters);
           return 400;
         }
         return (unsigned)_regs[r].type;
