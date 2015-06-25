@@ -51,15 +51,19 @@ static uint32_t configAddrs[Epix100aConfigShadow::NumberOfValues][2] = {
     {0x31,  1}, //  DigitalCardId1
     {0x32,  1}, //  AnalogCardId0
     {0x33,  1}, //  AnalogCardId1
+    {0x3b,  1}, //  CarrierId0
+    {0x3c,  1}, //  CarrierId1
     {0,     2}, //  NumberOfAsicsPerRow
     {0,     2}, //  NumberOfAsicsPerColumn
     {0,     2}, //  NumberOfRowsPerAsic
     {0,     2}, //  NumberOfReadableRowsPerAsic
     {0,     2}, //  NumberOfPixelsPerAsicRow
-    {0,     2}, // CalibrationRowCountPerASIC,
-    {0,     2}, // EnvironmentalRowCountPerASIC,
+    {0,     2}, //  CalibrationRowCountPerASIC,
+    {0,     2}, //  EnvironmentalRowCountPerASIC,
     {0x10,  1}, //  BaseClockFrequency
     {0xd,   0}, //  AsicMask
+    {0x11,  0}, //  EnableAutomaticRunTrigger
+    {0x12,  0}, //  NumberClockTicksPerRunTrigger
     {0x52,  0}, //  ScopeSetup1
     {0x53,  0}, //  ScopeSetup2
     {0x54,  0}, //  ScopeLengthAndSkip
@@ -247,8 +251,8 @@ unsigned Epix100aConfigurator::configure( Epix100aConfigType* c, unsigned first)
 static uint32_t FPGAregs[6][3] = {
     {PowerEnableAddr, PowerEnableValue, 0},
     {SaciClkBitAddr, SaciClkBitValue, 0},
-    {NumberClockTicksPerRunTriggerAddr, NumberClockTicksPerRunTrigger, 0},  // remove when in config
-    {EnableAutomaticRunTriggerAddr, 0, 0},  // remove when in config
+//    {NumberClockTicksPerRunTriggerAddr, NumberClockTicksPerRunTrigger, 0},  // remove when in config
+//    {EnableAutomaticRunTriggerAddr, 0, 0},  // remove when in config
     {EnableAutomaticDaqTriggerAddr, 0, 0},
     {0,0,1}
 };
@@ -267,10 +271,6 @@ unsigned Epix100aConfigurator::writeConfig() {
       ret = Failure;
     }
     i+=1;
-  }
-  if (_pgp->writeRegister(&_d, EnableAutomaticRunTriggerAddr, _maintainLostRunTrigger)) {
-    printf("Epix100aConfigurator::writeConfig failed writing %s\n", "EnableAutomaticRunTriggerAddr");
-    ret = Failure;
   }
   if (_pgp->writeRegister(&_d, TotalPixelsAddr, PixelsPerBank *
       (_s->get(Epix100aConfigShadow::NumberOfReadableRowsPerAsic)+
@@ -298,6 +298,9 @@ unsigned Epix100aConfigurator::writeConfig() {
         ret |= Failure;
       }
       if (_debug & 1) printf(" data(0x%x) configValue[%u]\n", u[i], i);
+      if (((configAddrs[i][0]>>4) == 3) && (configAddrs[i][0] != 0x3a)) {
+    	  printf("Epix100aConfigurator::writeConfig deviceIds 0x%x\n", u[i]);
+       }
     }
     if (_pgp->writeRegister(&_d, DaqTrigggerDelayAddr, RunToDaqTriggerDelay+_s->get(Epix100aConfigShadow::RunTrigDelay))) {
       printf("Epix100aConfigurator::writeConfig failed writing DaqTrigggerDelay\n");
@@ -396,8 +399,8 @@ unsigned Epix100aConfigurator::writeASIC() {
     }
   }
   writePixelBits();
-  /* if (ret==Success) return checkWrittenASIC(true);
-  else*/ return ret;
+  if (ret==Success) return ret; //checkWrittenASIC(true);
+  else return ret;
 }
 
 // from Kurtis
@@ -670,7 +673,7 @@ void Epix100aConfigurator::dumpFrontEnd() {
 
   }
   if (_debug & 0x400) {
-    printf("Checking Configuration, no news is good news ...\n");
+//    printf("Checking Configuration, no news is good news ...\n");
 //    if (Failure == checkWrittenConfig(false)) {
 //      printf("Epix100aConfigurator::checkWrittenConfig() FAILED !!!\n");
 //    }
