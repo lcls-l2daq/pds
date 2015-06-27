@@ -67,14 +67,26 @@ int Pds::EncoderServer::fetch( char* payload, int flags )
       return 0;
    }
 
-   // FIXME: What *is* this funky calculation??
+   // Copy data, modifying extent as appropriate
+   if (_xtc.damage.value()) {
+     // In case of damage, modify extent 
+     _xtc.extent = sizeof(Xtc);
+     // copy xtc header to payload and you're done
+     memcpy(payload, &_xtc, sizeof(Xtc) );
+   }
+   else {
+     // calculate xtc extent
+     _xtc.extent = sizeof(Xtc) + sizeof(EncoderDataType);
+     // copy xtc header to payload
+     memcpy( payload, &_xtc, sizeof(Xtc) );
+     // copy data to payload
+     memcpy ( payload + sizeof(Xtc), &data, sizeof(EncoderDataType) );
 
-   int xtc_size = sizeof(Xtc);
-   int data_size = sizeof(EncoderDataType);
-   memcpy( payload, &_xtc, xtc_size );
-   memcpy( payload + xtc_size, &data, data_size );
+   }
+
    _count++;
-   return xtc_size + data_size;
+   
+   return (_xtc.extent);
 }
 
 unsigned EncoderServer::count() const
