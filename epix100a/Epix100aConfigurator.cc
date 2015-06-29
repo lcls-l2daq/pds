@@ -257,12 +257,22 @@ static uint32_t FPGAregs[6][3] = {
     {0,0,1}
 };
 
+char idNames[6][40] = {
+        {"DigitalCardId0"},
+        {"DigitalCardId1"},
+        {"AnalogCardId0"},
+        {"AnalogCardId1"},
+        {"CarrierId0"},
+        {"CarrierId1"}
+};
+
 unsigned Epix100aConfigurator::writeConfig() {
   _d.dest(Epix100aDestination::Registers);
   uint32_t* u = (uint32_t*)_config;
   _testModeState = *u;
   unsigned ret = Success;
   unsigned i=0;
+  unsigned idn = 0;
   printf("\n");
   while ((ret == Success) && (FPGAregs[i][2] == 0)) {
     if (_debug & 1) printf("Epix100aConfigurator::writeConfig writing addr(0x%x) data(0x%x) FPGAregs[%u]\n", FPGAregs[i][0], FPGAregs[i][1], i);
@@ -299,7 +309,7 @@ unsigned Epix100aConfigurator::writeConfig() {
       }
       if (_debug & 1) printf(" data(0x%x) configValue[%u]\n", u[i], i);
       if (((configAddrs[i][0]>>4) == 3) && (configAddrs[i][0] != 0x3a)) {
-    	  printf("Epix100aConfigurator::writeConfig deviceIds 0x%x\n", u[i]);
+    	  printf("\t%s\t0x%x\n", idNames[idn++], u[i]);
        }
     }
     if (_pgp->writeRegister(&_d, DaqTrigggerDelayAddr, RunToDaqTriggerDelay+_s->get(Epix100aConfigShadow::RunTrigDelay))) {
@@ -308,8 +318,8 @@ unsigned Epix100aConfigurator::writeConfig() {
     }
     microSpin(100);
   }
-  /* if (ret == Success) return checkWrittenConfig(true);
-  else */ return ret;
+  if (ret == Success) return checkWrittenConfig(true);
+  else return ret;
 }
 
 unsigned Epix100aConfigurator::checkWrittenConfig(bool writeBack) {
