@@ -1302,6 +1302,8 @@ int AndorServer::runCaptureTask()
     timeSeconds = timeCurrent.tv_sec;
     strftime(sTimeText, sizeof(sTimeText), sTimeFormat, localtime(&timeSeconds));
     printf("AndorServer::runCaptureTask(): After processFrame(): Local Time: %s.%09ld\n", sTimeText, timeCurrent.tv_nsec);
+    
+    updateTemperatureData();
   }
   while (false);
 
@@ -1321,7 +1323,7 @@ int AndorServer::runCaptureTask()
    *   2. sequence error happened in the current run
    */
   // Note: Dont send damage when temperature is high
-  updateTemperatureData();
+  //JBT  updateTemperatureData();
   //if ( updateTemperatureData() != 0 )
   //  _pDgOut->datagram().xtc.damage.increase(Pds::Damage::UserDefined);
 
