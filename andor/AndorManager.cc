@@ -26,6 +26,46 @@ using std::string;
 
 namespace Pds
 {
+PollRoutine::PollRoutine(AndorManager& manager)
+    : _state(1), _temp(0), _manager(manager), _chan(NULL) {};
+
+void PollRoutine::SetRunning(int state)
+{
+    _state = state;
+}
+
+void PollRoutine::SetTemperature(int temp)
+{
+    _temp = temp;
+}
+
+void PollRoutine::routine(void)
+{
+    int result;
+
+    ca_context_create(ca_enable_preemptive_callback);
+    result = ca_create_channel("AMO:ANDOR0:TEMP", NULL, NULL, 50, &_chan);
+    if (result != ECA_NORMAL) {
+        fprintf(stderr, "CA error %s while creating channel!\n", ca_message(result));
+        return;
+    }
+    result = ca_pend_io(3.0);
+    if (result != ECA_NORMAL) {
+        fprintf(stderr, "CA error %s while waiting for channel connection!\n", ca_message(result));
+        return;
+    }
+
+    for (;;) {
+        _manager._sem->take();
+        if (_state) {
+            GetTemperature(&_temp);
+        }
+        _manager._sem->give();
+        ca_put(DBR_LONG, _chan, &_temp);
+        ca_flush_io();
+        usleep(1000000);
+    }
+}
 
 static int printDataTime(const InDatagram* in);
 
@@ -269,6 +309,10 @@ public:
     {
       int         iFail = 0;
       InDatagram* out   = in;
+      int temp;
+
+      GetTemperature(&temp);
+      _manager._pPoll->SetTemperature(temp);
 
 /*!! recover from delay mode
       int   iShotId     = in->datagram().seq.stamp().fiducials();   // shot ID
@@ -594,6 +638,7 @@ AndorManager::AndorManager(CfgClientNfs& cfg, int iCamera, bool bDelayMode, bool
   _sConfigDb(sConfigDb), _iSleepInt(iSleepInt),
   _iDebugLevel(iDebugLevel), _pServer(NULL), _uNumShotsInCycle(0)
 {
+  _sem                    = new Semaphore           (Semaphore::FULL);
   _pActionMap             = new AndorMapAction      (*this, cfg, _iDebugLevel);
   _pActionConfig          = new AndorConfigAction   (*this, cfg, _bDelayMode, _iDebugLevel);
   _pActionUnconfig        = new AndorUnconfigAction (*this, _iDebugLevel);
@@ -638,6 +683,7 @@ AndorManager::~AndorManager()
 {
   delete _pFsm;
 
+  delete _sem;
   delete _pServer;
 
   delete _pResponse;
@@ -658,51 +704,92 @@ int AndorManager::initServer()
 
 int AndorManager::map(const Allocation& alloc)
 {
-  return _pServer->map();
+  int result = _pServer->map();
+  if (_pTaskPoll == 0) {
+      _pPoll = new PollRoutine(*this);
+      _pTaskPoll = new Task(TaskObject("AndorTempPoll"));
+      _pTaskPoll->call( _pPoll );
+  }
+  return result;
 }
 
 int AndorManager::config(AndorConfigType& config, std::string& sConfigWarning)
 {
+  int result;
+  _sem->take();
   if ( !_bDelayMode )
     Pds::AndorConfig::setNumDelayShots(config,0);
 
-  return _pServer->config(config, sConfigWarning);
+  result = _pServer->config(config, sConfigWarning);
+  _sem->give();
+  return result;
 }
 
 int AndorManager::unconfig()
 {
-  return _pServer->unconfig();
+  int result;
+  _sem->take();
+  result = _pServer->unconfig();
+  _sem->give();
+  return result;
 }
 
 int AndorManager::beginRun()
 {
-  return _pServer->beginRun();
+  int result;
+  _sem->take();
+  result = _pServer->beginRun();
+  _sem->give();
+  return result;
 }
 
 int AndorManager::endRun()
 {
-  return _pServer->endRun();
+  int result;
+  _sem->take();
+  result = _pServer->endRun();
+  _sem->give();
+  return result;
 }
 
 int AndorManager::beginCalibCycle()
 {
+  int result;
+  _sem->take();
   _uNumShotsInCycle = 0;
-  return _pServer->beginCalibCycle();
+  result = _pServer->beginCalibCycle();
+  _sem->give();
+  return result;
 }
 
 int AndorManager::endCalibCycle()
 {
-  return _pServer->endCalibCycle();
+  int result;
+  _sem->take();
+  result = _pServer->endCalibCycle();
+  _sem->give();
+  return result;
 }
 
 int AndorManager::enable()
 {
-  return _pServer->enable();
+  int result;
+  _sem->take();
+  _pPoll->SetRunning(0);
+  result = _pServer->enable();
+  _sem->give();
+  return result;
+
 }
 
 int AndorManager::disable()
 {
-  return _pServer->disable();
+  int result;
+  _sem->take();
+  result = _pServer->disable();
+  _pPoll->SetRunning(1);
+  _sem->give();
+  return result;
 }
 
 int AndorManager::l1Accept(bool& bWait)
