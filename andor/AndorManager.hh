@@ -31,19 +31,20 @@ class PollRoutine : public Routine
   public:
     void SetRunning(int state);
     void SetTemperature(int temp);
-    PollRoutine(AndorManager& manager);
+    PollRoutine(AndorManager& manager, std::string _sTempPV);
     void routine(void);
   private:
     int           _state;
     int           _temp;
     AndorManager& _manager;
     chid          _chan;
+    std::string   _sTempPV;
 };
 
 class AndorManager
 {
 public:
-  AndorManager(CfgClientNfs& cfg, int iCamera, bool bDelayMode, bool bInitTest, std::string sConfigDb, int iSleepInt, int iDebugLevel);
+  AndorManager(CfgClientNfs& cfg, int iCamera, bool bDelayMode, bool bInitTest, std::string sConfigDb, int iSleepInt, int iDebugLevel, std::string sTempPV);
   ~AndorManager();
 
   Appliance&    appliance() { return *_pFsm; }
@@ -75,6 +76,7 @@ private:
   const std::string   _sConfigDb;
   const int           _iSleepInt;
   const int           _iDebugLevel;
+  const std::string   _sTempPV;
 
   Fsm*                _pFsm;
   Action*             _pActionMap;

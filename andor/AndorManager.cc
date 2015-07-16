@@ -26,8 +26,8 @@ using std::string;
 
 namespace Pds
 {
-PollRoutine::PollRoutine(AndorManager& manager)
-    : _state(1), _temp(0), _manager(manager), _chan(NULL) {};
+PollRoutine::PollRoutine(AndorManager& manager, string sTempPV)
+    : _state(1), _temp(0), _manager(manager), _chan(NULL), _sTempPV(sTempPV) {};
 
 void PollRoutine::SetRunning(int state)
 {
@@ -44,7 +44,7 @@ void PollRoutine::routine(void)
     int result;
 
     ca_context_create(ca_enable_preemptive_callback);
-    result = ca_create_channel("AMO:ANDOR0:TEMP", NULL, NULL, 50, &_chan);
+    result = ca_create_channel(_sTempPV.c_str(), NULL, NULL, 50, &_chan);
     if (result != ECA_NORMAL) {
         fprintf(stderr, "CA error %s while creating channel!\n", ca_message(result));
         return;
@@ -633,10 +633,10 @@ private:
 };
 
 AndorManager::AndorManager(CfgClientNfs& cfg, int iCamera, bool bDelayMode, bool bInitTest,
-  string sConfigDb, int iSleepInt, int iDebugLevel) :
+                           string sConfigDb, int iSleepInt, int iDebugLevel, string sTempPV) :
   _iCamera(iCamera), _bDelayMode(bDelayMode), _bInitTest(bInitTest),
   _sConfigDb(sConfigDb), _iSleepInt(iSleepInt),
-  _iDebugLevel(iDebugLevel), _pServer(NULL), _uNumShotsInCycle(0)
+  _iDebugLevel(iDebugLevel), _sTempPV(sTempPV), _pServer(NULL), _uNumShotsInCycle(0)
 {
   _sem                    = new Semaphore           (Semaphore::FULL);
   _pActionMap             = new AndorMapAction      (*this, cfg, _iDebugLevel);
@@ -705,8 +705,8 @@ int AndorManager::initServer()
 int AndorManager::map(const Allocation& alloc)
 {
   int result = _pServer->map();
-  if (_pTaskPoll == 0) {
-      _pPoll = new PollRoutine(*this);
+  if (_pTaskPoll == 0 && !_sTempPV.empty()) {
+      _pPoll = new PollRoutine(*this, _sTempPV);
       _pTaskPoll = new Task(TaskObject("AndorTempPoll"));
       _pTaskPoll->call( _pPoll );
   }
