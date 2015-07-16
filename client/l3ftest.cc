@@ -101,7 +101,7 @@ int main(int argc, char* argv[]) {
   unsigned damage = -1;
   Appliance*  apps = 0;
 
-  while ((c = getopt(argc, argv, "hf:F:x:")) != -1) {
+  while ((c = getopt(argc, argv, "hf:F:x:d:")) != -1) {
     switch (c) {
     case 'h':
       usage(argv[0]);
@@ -115,6 +115,8 @@ int main(int argc, char* argv[]) {
     case 'F':
       load_filter(optarg,apps);
       break;
+    case 'd':
+      damage = unsigned (optarg);
     default:
       parseErr++;
     }
@@ -154,9 +156,9 @@ int main(int argc, char* argv[]) {
 
   XtcFileIterator iter(fd,0x900000);
   Dgram* dg;
-  unsigned long long bytes=0;
+  //  unsigned long long bytes=0;
   unsigned events=0;
-  unsigned damaged=0;
+  //  unsigned damage=0;
   while ((dg = iter.next())) {
 
     Datagram& ddg = *reinterpret_cast<Datagram*>(dg);
