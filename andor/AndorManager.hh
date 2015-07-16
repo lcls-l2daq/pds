@@ -6,9 +6,13 @@
 
 #include "pdsdata/xtc/Src.hh"
 #include "pdsdata/xtc/TypeId.hh"
+#include "pds/service/Semaphore.hh"
+#include "pds/service/Routine.hh"
+#include "pds/service/Task.hh"
 #include "pds/config/AndorConfigType.hh"
 #include "pds/client/Fsm.hh"
 #include "AndorOccurrence.hh"
+#include "cadef.h"
 
 namespace Pds
 {
@@ -20,6 +24,21 @@ class Action;
 class Response;
 class GenericPool;
 class AndorServer;
+class AndorManager;
+
+class PollRoutine : public Routine
+{
+  public:
+    void SetRunning(int state);
+    void SetTemperature(int temp);
+    PollRoutine(AndorManager& manager);
+    void routine(void);
+  private:
+    int           _state;
+    int           _temp;
+    AndorManager& _manager;
+    chid          _chan;
+};
 
 class AndorManager
 {
@@ -73,6 +92,10 @@ private:
   AndorServer*        _pServer;
   unsigned int        _uNumShotsInCycle;
   AndorOccurrence*    _occSend;
+  Task*               _pTaskPoll;
+public:
+  PollRoutine*        _pPoll;
+  Semaphore*          _sem;
 };
 
 class AndorManagerException : public std::runtime_error
