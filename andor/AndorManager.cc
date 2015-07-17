@@ -311,8 +311,10 @@ public:
       InDatagram* out   = in;
       int temp;
 
-      GetTemperature(&temp);
-      _manager._pPoll->SetTemperature(temp);
+      if (_manager._pPoll) {
+          GetTemperature(&temp);
+          _manager._pPoll->SetTemperature(temp);
+      }
 
 /*!! recover from delay mode
       int   iShotId     = in->datagram().seq.stamp().fiducials();   // shot ID
@@ -636,7 +638,7 @@ AndorManager::AndorManager(CfgClientNfs& cfg, int iCamera, bool bDelayMode, bool
                            string sConfigDb, int iSleepInt, int iDebugLevel, string sTempPV) :
   _iCamera(iCamera), _bDelayMode(bDelayMode), _bInitTest(bInitTest),
   _sConfigDb(sConfigDb), _iSleepInt(iSleepInt),
-  _iDebugLevel(iDebugLevel), _sTempPV(sTempPV), _pServer(NULL), _uNumShotsInCycle(0)
+  _iDebugLevel(iDebugLevel), _sTempPV(sTempPV), _pServer(NULL), _uNumShotsInCycle(0), _pPoll(NULL)
 {
   _sem                    = new Semaphore           (Semaphore::FULL);
   _pActionMap             = new AndorMapAction      (*this, cfg, _iDebugLevel);
@@ -775,7 +777,8 @@ int AndorManager::enable()
 {
   int result;
   _sem->take();
-  _pPoll->SetRunning(0);
+  if (_pPoll)
+      _pPoll->SetRunning(0);
   result = _pServer->enable();
   _sem->give();
   return result;
@@ -787,7 +790,8 @@ int AndorManager::disable()
   int result;
   _sem->take();
   result = _pServer->disable();
-  _pPoll->SetRunning(1);
+  if (_pPoll)
+      _pPoll->SetRunning(1);
   _sem->give();
   return result;
 }
