@@ -3,6 +3,7 @@
 #include <unistd.h>
 #include <fcntl.h>
 #include <dlfcn.h>
+#include <errno.h>
 
 #include "pds/client/L3FilterDriver.hh"
 #include "pds/client/L3FilterThreads.hh"
@@ -90,7 +91,7 @@ static void load_filter(char*       arg,
 }
 
 void usage(char* progname) {
-  fprintf(stderr,"Usage: %s -f <filename> -d <damage mask> [-h]\n", progname);
+  fprintf(stderr,"Usage: %s -x <xtcname> [-f <l3fname>] [-F <filter>] [-d <damage mask>] [-h]\n", progname);
 }
 
 int main(int argc, char* argv[]) {
@@ -100,6 +101,8 @@ int main(int argc, char* argv[]) {
   int parseErr = 0;
   unsigned damage = -1;
   Appliance*  apps = 0;
+  char *endPtr;
+  extern char* optarg;
 
   while ((c = getopt(argc, argv, "hf:F:x:d:")) != -1) {
     switch (c) {
@@ -116,7 +119,14 @@ int main(int argc, char* argv[]) {
       load_filter(optarg,apps);
       break;
     case 'd':
-      damage = unsigned (optarg);
+      errno = 0;
+      endPtr = NULL;
+      damage = strtoul(optarg, &endPtr, 0);
+      if (errno || (endPtr == NULL) || (*endPtr != '\0')) {
+        printf("Error: failed to parse damage mask\n");
+        damage = -1;
+      }
+      break;
     default:
       parseErr++;
     }
