@@ -41,7 +41,8 @@ VmonEb::VmonEb(const Src& src,
   VmonServerManager::instance()->cds().add(group);
 
   MonDescTH1F fixup("Fixups", "server", "", 
-		    nservers+1, -1.5, float(nservers)-0.5);
+		    nservers+1, -1.5, float(nservers)-0.5,
+                    false, true);
   _fixup = new MonEntryTH1F(fixup);
   group->add(_fixup);
 
@@ -95,7 +96,8 @@ VmonEb::VmonEb(const Src& src,
   }
 
   MonDescTH1F damage_count("Damage", "bit #", "",
-			 32, -0.5, 31.5);
+                           32, -0.5, 31.5,
+                           false, true);
   _damage_count = new MonEntryTH1F(damage_count);
   group->add(_damage_count);
 

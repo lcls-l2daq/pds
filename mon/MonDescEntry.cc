@@ -5,14 +5,16 @@
 using namespace Pds;
 
 MonDescEntry::MonDescEntry(const char* name,
-				   const char* xtitle, 
-				   const char* ytitle, 
-				   Type type, 
-				   unsigned short size,
-				   bool isnormalized) :
+                           const char* xtitle, 
+                           const char* ytitle, 
+                           Type type, 
+                           unsigned short size,
+                           bool isnormalized,
+                           bool chartentries) :
   MonDesc(name),
   _group(-1),
-  _options(isnormalized ? (1<<Normalized) : 0),
+  _options((isnormalized ? (1<<Normalized)   : 0) |
+           (chartentries ? (1<<ChartEntries) : 0)),
   _type(type),
   _size(size)
 { 
@@ -60,3 +62,5 @@ float MonDescEntry::xerr() const {return _xerr;}
 
 float MonDescEntry::ywarn() const {return _ywarn;}
 float MonDescEntry::yerr() const {return _yerr;}
+
+bool MonDescEntry::chartentries() const {return _options&(1<<ChartEntries);}

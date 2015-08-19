@@ -28,13 +28,17 @@ namespace Pds {
     float ywarn() const;
     float yerr() const;
 
+    bool chartentries() const;
+
   private:
     friend class MonGroup;
     void group(int short g);
 
   protected:
     MonDescEntry(const char* name, const char* xtitle, const char* ytitle, 
-		 Type type, unsigned short size, bool isnormalized=false);
+		 Type type, unsigned short size, 
+                 bool isnormalized=false,
+                 bool chartentries=false);
 
   private:
     enum {TitleSize=128};
@@ -50,7 +54,7 @@ namespace Pds {
     float _yerr;
 
   private:
-    enum Option {Normalized, XWarnings, YWarnings};
+    enum Option {Normalized, XWarnings, YWarnings, ChartEntries};
   };
 };
 

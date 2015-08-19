@@ -13,7 +13,8 @@ namespace Pds {
 		unsigned nbins, 
 		float xlow, 
 		float xup,
-		bool isnormalized=false);
+		bool isnormalized=false,
+                bool chartentries=false);
 
     void params(unsigned nbins, float xlow, float xup);
 
