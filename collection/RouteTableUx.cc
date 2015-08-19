@@ -150,7 +150,7 @@ RouteTable::RouteTable() :
     if(rtp->rtm_table != 254)
       continue;
 
-    int dev=-1, dst=0, netma=0;
+    int dev=-1, dst=0, netma=0, prefsrc=0;
 
     // inner loop: loop thru all the attributes of
     // one route entry
@@ -179,6 +179,7 @@ RouteTable::RouteTable() :
            { in_addr srcAddr;
              srcAddr.s_addr = *(unsigned long *) RTA_DATA(rtap);
              // printf("src:%s\t", inet_ntoa(srcAddr));
+             prefsrc=1;
            } break;
            // unique ID associated with the network
            // interface
@@ -194,8 +195,11 @@ RouteTable::RouteTable() :
          }
 
      }
-    
-    if (dev >= 0) {
+
+    //
+    //  Require an interface index and destination IP address for this route
+    //
+    if (dev >= 0 && prefsrc) {
       for(unsigned i=0; i<MaxRoutes; i++) {
         struct ifreq* ifr = ifrarray+i;
         if (!ifr || !(((sockaddr_in&)ifr->ifr_addr).sin_addr.s_addr)) {
