@@ -40,7 +40,7 @@ public:
   void mcast(Message& msg);
 
 public:
-  virtual void message(const Node& hdr, const Message& msg) = 0;
+  virtual void message(const Node& hdr, const Message& msg);
 
 private:
   // Implements Server from ServerManager

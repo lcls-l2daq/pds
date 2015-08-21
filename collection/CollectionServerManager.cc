@@ -75,6 +75,8 @@ void CollectionServerManager::mcast(Message& msg)
   _send(msg, _mcast);
 }
 
+void CollectionServerManager::message(const Node& hdr, const Message& msg) {}
+
 const Node& CollectionServerManager::header() const {return _header;}
 
 char* CollectionServerManager::payload() {return _payload;}
