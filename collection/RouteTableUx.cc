@@ -171,13 +171,13 @@ RouteTable::RouteTable() :
              netma = mask;
            } break;
          case RTA_GATEWAY:
-           { in_addr gateWay;
-             gateWay.s_addr = *(unsigned long *) RTA_DATA(rtap);
+           { // in_addr gateWay;
+           // gateWay.s_addr = *(unsigned long *) RTA_DATA(rtap);
              // printf("gw:%s\t",inet_ntoa(gateWay));
            } break;
          case RTA_PREFSRC:
-           { in_addr srcAddr;
-             srcAddr.s_addr = *(unsigned long *) RTA_DATA(rtap);
+           { // in_addr srcAddr;
+             // srcAddr.s_addr = *(unsigned long *) RTA_DATA(rtap);
              // printf("src:%s\t", inet_ntoa(srcAddr));
              prefsrc=1;
            } break;
