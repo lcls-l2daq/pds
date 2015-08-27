@@ -63,7 +63,7 @@ EpixSamplerServer::EpixSamplerServer( const Pds::Src& client, unsigned configMas
 
 unsigned EpixSamplerServer::configure(EpixSamplerConfigType* config) {
   if (_cnfgrtr == 0) {
-    _cnfgrtr = new Pds::EpixSampler::EpixSamplerConfigurator::EpixSamplerConfigurator(fd(), _debug);
+    _cnfgrtr = new Pds::EpixSampler::EpixSamplerConfigurator(fd(), _debug);
   }
   // first calculate payload size in bytes
   _payloadSize = config->numberOfChannels();
@@ -279,7 +279,7 @@ void EpixSamplerServer::setEpixSampler( int f ) {
 //  _pgp = new Pds::Pgp::Pgp::Pgp(f);
   Pds::Pgp::RegisterSlaveExportFrame::FileDescr(f);
   if (_cnfgrtr == 0) {
-    _cnfgrtr = new Pds::EpixSampler::EpixSamplerConfigurator::EpixSamplerConfigurator(fd(), _debug);
+    _cnfgrtr = new Pds::EpixSampler::EpixSamplerConfigurator(fd(), _debug);
   }
 }
 

@@ -568,7 +568,7 @@ namespace Pds {
           printf("Gain Map Write synchronization failed! col(%u)\n", col);
           return Failure;
         }
-        rsef = new (myArray) Pds::Pgp::RegisterSlaveExportFrame::RegisterSlaveExportFrame(
+        rsef = new (myArray) Pds::Pgp::RegisterSlaveExportFrame(
             Pds::Pgp::PgpRSBits::write,
             &_d,
             _gainMap.base,

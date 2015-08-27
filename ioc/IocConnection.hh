@@ -1,5 +1,6 @@
 #ifndef Pds_IocConnection_hh
 #define Pds_IocConnection_hh
+#include <unistd.h>
 #include<string>
 #include<list>
 #include<vector>

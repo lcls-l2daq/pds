@@ -31,7 +31,7 @@ Pds::RayonixServer::RayonixServer( const Src& client, bool verbose)
   _xtcDamaged.damage.increase(Pds::Damage::UserDefined);
 
   // set up to read data from socket
-  _rnxdata = new Pds::rayonix_data::rayonix_data(_verbose);
+  _rnxdata = new Pds::rayonix_data(_verbose);
   fd(_rnxdata->fd());
   _rnxdata->reset(_verbose);
 }
@@ -238,7 +238,7 @@ int Pds::RayonixServer::fetch( char* payload, int flags )
 
   // read data from UDP socket
   int offset = sizeof(Xtc);
-  new (payload+offset) Pds::Camera::FrameV1::FrameV1(width, height, Pds::Rayonix_MX170HS::depth_bits, 0);
+  new (payload+offset) Pds::Camera::FrameV1(width, height, Pds::Rayonix_MX170HS::depth_bits, 0);
 
   offset += sizeof(Pds::Camera::FrameV1);
   rv = _rnxdata->readFrame(frameNumber, (payload+offset), MAXFRAME, binning_f, binning_s, verbose);

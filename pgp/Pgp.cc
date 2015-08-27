@@ -118,7 +118,7 @@ namespace Pds {
         uint32_t data,
         bool printFlag,
         Pds::Pgp::PgpRSBits::waitState w) {
-      Pds::Pgp::RegisterSlaveExportFrame rsef = Pds::Pgp::RegisterSlaveExportFrame::RegisterSlaveExportFrame(
+      Pds::Pgp::RegisterSlaveExportFrame rsef(
               Pds::Pgp::PgpRSBits::write,
               dest,
               addr,
@@ -140,7 +140,7 @@ namespace Pds {
       unsigned size = (sizeof(Pds::Pgp::RegisterSlaveExportFrame)/sizeof(uint32_t)) +  inSize -1;
       uint32_t myArray[size];
       Pds::Pgp::RegisterSlaveExportFrame* rsef = 0;
-      rsef = new (myArray) Pds::Pgp::RegisterSlaveExportFrame::RegisterSlaveExportFrame(
+      rsef = new (myArray) Pds::Pgp::RegisterSlaveExportFrame(
               Pds::Pgp::PgpRSBits::write,
               dest,
               addr,
@@ -161,7 +161,7 @@ namespace Pds {
         unsigned size,
         bool pf) {
       Pds::Pgp::RegisterSlaveImportFrame* rsif;
-      Pds::Pgp::RegisterSlaveExportFrame  rsef = Pds::Pgp::RegisterSlaveExportFrame::RegisterSlaveExportFrame(
+      Pds::Pgp::RegisterSlaveExportFrame  rsef(
           Pds::Pgp::PgpRSBits::read,
           dest,
           addr,

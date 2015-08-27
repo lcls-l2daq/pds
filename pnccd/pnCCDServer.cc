@@ -74,7 +74,7 @@ pnCCDServer::pnCCDServer( const Pds::Src& client, unsigned configMask )
 unsigned pnCCDServer::configure(pnCCDConfigType* config) {
   if (_cnfgrtr == 0) {
     printf("pnCCDServer::configure() making configurator, may be before fd is know!\n");
-    _cnfgrtr = new pnCCD::pnCCDConfigurator::pnCCDConfigurator(fd(), _debug);
+    _cnfgrtr = new pnCCD::pnCCDConfigurator(fd(), _debug);
     _cnfgrtr->fd(fd());
   }
   _payloadSize = config->payloadSizePerLink();
@@ -325,7 +325,7 @@ void pnCCDServer::setpnCCD( int f ) {
   }
   Pds::Pgp::RegisterSlaveExportFrame::FileDescr(f);
   if (_cnfgrtr == 0) {
-    _cnfgrtr = new Pds::pnCCD::pnCCDConfigurator::pnCCDConfigurator(fd(), _debug);
+    _cnfgrtr = new Pds::pnCCD::pnCCDConfigurator(fd(), _debug);
   }
 }
 

@@ -133,7 +133,7 @@ CspadRegisterAddrs* CspadConcentratorRegisters::_regLoc = (CspadRegisterAddrs*) 
 CspadConfigurator* CspadConcentratorRegisters::cfgtr = 0;
 bool CspadConcentratorRegisters::hasBeenRead = false;
 CspadDestination* CspadConcentratorRegisters::dest =
-    new CspadDestination::CspadDestination();
+    new CspadDestination();
 
 unsigned CspadConcentratorRegisters::read() {
   timespec      sleepTime;

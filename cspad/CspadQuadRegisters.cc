@@ -65,7 +65,7 @@ unsigned CspadQuadRegisters::_foo[][2] = {
 };
 
 CspadRegisterAddrs* CspadQuadRegisters::_regLoc = (CspadRegisterAddrs*)_foo;
-CspadDestination* CspadQuadRegisters::_d = new Pds::CsPad::CspadDestination::CspadDestination();
+CspadDestination* CspadQuadRegisters::_d = new Pds::CsPad::CspadDestination();
 
 unsigned CspadQuadRegisters::read(unsigned index) {
   _d->dest(index);

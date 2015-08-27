@@ -87,7 +87,7 @@ unsigned Epix10kServer::configure(Epix10kConfigType* config, bool forceConfig) {
   unsigned firstConfig = _resetOnEveryConfig || forceConfig;
   if (_cnfgrtr == 0) {
     firstConfig = 1;
-    _cnfgrtr = new Pds::Epix10k::Epix10kConfigurator::Epix10kConfigurator(fd(), _debug);
+    _cnfgrtr = new Pds::Epix10k::Epix10kConfigurator(fd(), _debug);
     _cnfgrtr->runTimeConfigName(_runTimeConfigName);
     _cnfgrtr->maintainLostRunTrigger(_maintainLostRunTrigger);
     printf("Epix10kServer::configure making new configurator %p, firstConfig %u\n", _cnfgrtr, firstConfig);

@@ -64,7 +64,7 @@ unsigned Cspad2x2Server::configure(CsPad2x2ConfigType* config) {
     _configureResult = 0xdead;
   } else {
     if (_cnfgrtr == 0) {
-      _cnfgrtr = new Pds::CsPad2x2::Cspad2x2Configurator::Cspad2x2Configurator(config, fd(), _debug);
+      _cnfgrtr = new Pds::CsPad2x2::Cspad2x2Configurator(config, fd(), _debug);
       _cnfgrtr->runTimeConfigName(_runTimeConfigName);
     } else {
       printf("Cspad2x2Configurator already instantiated\n");
@@ -321,7 +321,7 @@ void Cspad2x2Server::setCspad2x2( int f ) {
     printf("Cspad2x2Server::setCspad2x2 read %u time%s after opening pgpcard driver\n", c, c==1 ? "" : "s");
   }
   fd( f );
-  _pgp = new Pds::Pgp::Pgp::Pgp(f);
+  _pgp = new Pds::Pgp::Pgp(f);
   Pds::Pgp::RegisterSlaveExportFrame::FileDescr(f);
 }
 

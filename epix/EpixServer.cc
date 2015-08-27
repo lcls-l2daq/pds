@@ -71,7 +71,7 @@ unsigned EpixServer::configure(EpixConfigType* config, bool forceConfig) {
   unsigned firstConfig = _resetOnEveryConfig || forceConfig;
   if (_cnfgrtr == 0) {
     firstConfig = 1;
-    _cnfgrtr = new Pds::Epix::EpixConfigurator::EpixConfigurator(fd(), _debug);
+    _cnfgrtr = new Pds::Epix::EpixConfigurator(fd(), _debug);
     _cnfgrtr->runTimeConfigName(_runTimeConfigName);
     printf("EpixServer::configure making new configurator %p, firstConfig %u\n", _cnfgrtr, firstConfig);
   }

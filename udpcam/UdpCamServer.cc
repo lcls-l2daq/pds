@@ -467,7 +467,7 @@ int Pds::UdpCamServer::fetch( char* payload, int flags )
   }
 
   int offset = sizeof(Xtc);
-  new (payload+offset) Pds::Camera::FrameV1::FrameV1
+  new (payload+offset) Pds::Camera::FrameV1
                   (
     /* width */   960,
     /* height */  (_debug & UDPCAM_DEBUG_NO_REORDER) ? 964 : 960,

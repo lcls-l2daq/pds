@@ -5,6 +5,7 @@
 #include <netinet/in.h>
 #include <errno.h>
 #include <pthread.h>
+#include <unistd.h>
 #include <algorithm>
 #include <stdexcept>
 #include <string>

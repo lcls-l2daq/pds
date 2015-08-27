@@ -70,7 +70,7 @@ ImpServer::ImpServer( const Pds::Src& client, unsigned configMask )
 
 unsigned ImpServer::configure(ImpConfigType* config) {
   if (_cnfgrtr == 0) {
-    _cnfgrtr = new Imp::ImpConfigurator::ImpConfigurator(fd(), _debug);
+    _cnfgrtr = new Imp::ImpConfigurator(fd(), _debug);
   }
   _pgp = _cnfgrtr->pgp();
   // First calculate payload size in uint32s, 8 for the header 2 for each sample and 1 at the end
@@ -320,7 +320,7 @@ void ImpServer::setImp( int f ) {
 //  _pgp = new Pds::Pgp::Pgp::Pgp(f);
   Pds::Pgp::RegisterSlaveExportFrame::FileDescr(f);
   if (_cnfgrtr == 0) {
-    _cnfgrtr = new Pds::Imp::ImpConfigurator::ImpConfigurator(fd(), _debug);
+    _cnfgrtr = new Pds::Imp::ImpConfigurator(fd(), _debug);
   }
 }
 

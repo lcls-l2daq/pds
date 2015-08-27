@@ -17,7 +17,7 @@ namespace Pds {
   namespace Pgp {
 
     Configurator::Configurator(int f, unsigned d) : _fd(f), _debug(d){
-      _pgp = new Pds::Pgp::Pgp::Pgp(_fd);
+      _pgp = new Pds::Pgp::Pgp(_fd);
     }
 
     Configurator::~Configurator() {}

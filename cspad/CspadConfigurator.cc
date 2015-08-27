@@ -626,7 +626,7 @@ namespace Pds {
               printf("Gain Map Write synchronization failed! col(%u), quad(%u)\n", col, i);
               return Failure;
             }
-            Pds::Pgp::RegisterSlaveExportFrame* rsef = new (myArray) Pds::Pgp::RegisterSlaveExportFrame::RegisterSlaveExportFrame(
+            Pds::Pgp::RegisterSlaveExportFrame* rsef = new (myArray) Pds::Pgp::RegisterSlaveExportFrame(
                 Pds::Pgp::PgpRSBits::write,
                 &_d,
                 _gainMap.base,
@@ -661,7 +661,7 @@ namespace Pds {
       for (unsigned i=0; i<Pds::CsPad::MaxQuadsPerSensor; i++) {
         if ((1<<i) & _config->quadMask()) {
           _d.dest(i);
-          Pds::Pgp::RegisterSlaveExportFrame* rsef = new (myArray) Pds::Pgp::RegisterSlaveExportFrame::RegisterSlaveExportFrame(
+          Pds::Pgp::RegisterSlaveExportFrame* rsef = new (myArray) Pds::Pgp::RegisterSlaveExportFrame(
               Pds::Pgp::PgpRSBits::write, &_d, _gainMap.base, i);
           unsigned ret = Success;
           uint32_t rce = _config->quads(i).biasTuning();

@@ -67,7 +67,7 @@ unsigned Cspad2x2QuadRegisters::_foo[][2] = {
 };
 
 Cspad2x2RegisterAddrs* Cspad2x2QuadRegisters::_regLoc = (Cspad2x2RegisterAddrs*)_foo;
-Cspad2x2Destination* Cspad2x2QuadRegisters::_d = new Pds::CsPad2x2::Cspad2x2Destination::Cspad2x2Destination();
+Cspad2x2Destination* Cspad2x2QuadRegisters::_d = new Pds::CsPad2x2::Cspad2x2Destination();
 
 unsigned Cspad2x2QuadRegisters::read() {
   _d->dest(Cspad2x2Destination::Q0);

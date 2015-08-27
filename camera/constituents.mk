@@ -89,7 +89,7 @@ tgtincs_camsendm += leutron/include
 tgtsrcs_camreceiver := camreceiver.c display.cc
 tgtincs_camreceiver := $(qtincdir)
 tgtlibs_camreceiver := $(qtlibdir)
-tgtslib_camreceiver := $(USRLIBDIR)/rt $(qtslibdir)
+tgtslib_camreceiver := $(USRLIBDIR)/rt $(qtslibdir) $(USRLIBDIR)/pthread
 
 tgtsrcs_serialcmd := serialcmd.cc
 tgtlibs_serialcmd := $(leutron_libs)

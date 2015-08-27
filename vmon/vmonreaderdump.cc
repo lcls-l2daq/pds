@@ -83,9 +83,11 @@ int main(int argc, char** argv)
 	const MonGroup& gr = *cds.group(g);
 	for(unsigned e=0; e<gr.nentries(); e++) {
 	  const MonEntry* entry = gr.entry(e);
-	  printf("%08x)  %x.%x.%s\n", 
+	  printf("%08x)  %x.%x.%20.20s [%04x]\n", 
 		 (i<<24) | (g<<16)|e, 
-		 it->log(), it->phy(), entry->desc().name());
+		 it->log(), it->phy(), 
+                 entry->desc().name(),
+                 reinterpret_cast<const uint16_t*>(reinterpret_cast<const char*>(&entry->desc())+sizeof(MonDesc)+256)[1]);
 	}
       }
     }

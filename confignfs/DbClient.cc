@@ -21,6 +21,7 @@ using Pds_ConfigDb::ExptAlias;
 #include <sys/stat.h>
 #include <glob.h>
 #include <libgen.h>
+#include <unistd.h>
 #include <fstream>
 #include <iostream>
 #include <iomanip>

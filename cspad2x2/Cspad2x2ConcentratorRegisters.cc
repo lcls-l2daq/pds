@@ -76,7 +76,7 @@ Cspad2x2RegisterAddrs* Cspad2x2ConcentratorRegisters::_regLoc = (Cspad2x2Registe
 Cspad2x2Configurator* Cspad2x2ConcentratorRegisters::cfgtr = 0;
 bool Cspad2x2ConcentratorRegisters::hasBeenRead = false;
 Cspad2x2Destination* Cspad2x2ConcentratorRegisters::dest =
-    new Cspad2x2Destination::Cspad2x2Destination();
+    new Cspad2x2Destination();
 
 unsigned Cspad2x2ConcentratorRegisters::read() {
   timespec      sleepTime;

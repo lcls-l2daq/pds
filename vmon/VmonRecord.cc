@@ -125,16 +125,14 @@ int  VmonRecord::extract(vector<Src    >& src_vector,
 	switch(en_d.type()) {
 	case MonDescEntry::TH1F: 
 	  { const MonDescTH1F& d = static_cast<const MonDescTH1F&>(en_d);
-	    gr->add( new MonEntryTH1F(d.name(), d.xtitle(), d.ytitle(),
-				      d.isnormalized()));
+	    gr->add( new MonEntryTH1F(d) );
 	    offsets[n++] = offset;
 	    offset += sizeof(MonStats1D); 
 	  }
 	  break;
 	case MonDescEntry::TH2F: 
 	  { const MonDescTH2F& d = static_cast<const MonDescTH2F&>(en_d);
-	    gr->add( new MonEntryTH2F(d.name(), d.xtitle(), d.ytitle(),
-				      d.isnormalized()));
+	    gr->add( new MonEntryTH2F(d) );
 	    offsets[n++] = offset;
 	    offset += sizeof(MonStats2D); 
 	  }	  
