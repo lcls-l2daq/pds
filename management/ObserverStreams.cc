@@ -8,6 +8,7 @@
 #include "pds/service/VmonSourceId.hh"
 #include "pds/vmon/VmonEb.hh"
 #include "pds/xtc/XtcType.hh"
+#include "pds/utility/EbKGroup.hh"
 
 #include <sys/types.h>  // required for kill
 #include <signal.h>
@@ -29,7 +30,7 @@ ObserverStreams::ObserverStreams(CollectionObserver& cmgr,
     _outlets[s] = new OpenOutlet(*stream(s)->outlet());
 
     //ObserverEb* eb = new ObserverEb
-    SegEventBuilder* eb = new SegEventBuilder
+    EbKGroup* eb = new EbKGroup
       (cmgr.header().procInfo(),
        _xtcType,
        level,
