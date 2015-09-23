@@ -136,7 +136,8 @@ void EvrDataUtil::advance ( EvrDataUtil&    next,
 
 void EvrDataUtil::insert( const EvrDataUtil& input )
 {
-  _data.insert(_data.end(), input._data.begin(), input._data.end());
+  if (!input._data.empty())
+    _data.insert(_data.end(), input._data.begin(), input._data.end());
   if (numFifoEvents() >= giMaxNumFifoEvent) {
     _full |= true;
     _data.resize(giMaxNumFifoEvent);

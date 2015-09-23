@@ -699,8 +699,6 @@ class serverFlush : public ServerScan<Server>
   public:
     void process(Server* server)
     {
-      EbBitMask serverId;
-
       struct pollfd pfd[1];
       pfd[0].fd      = server->fd();
       pfd[0].events  = POLLIN;
@@ -715,6 +713,9 @@ class serverFlush : public ServerScan<Server>
         pfd[0].revents = 0;
       }
       total += nbytes;
+      if (nbytes)
+	printf("\tflushed %d bytes from server %u\n",
+	       nbytes, server->id());
     }
   private:
     int          total;

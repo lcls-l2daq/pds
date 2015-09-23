@@ -23,6 +23,7 @@ template <class T> EvgrBoardInfo<T>::EvgrBoardInfo(const char* dev) {
     perror("mmap");
     _board=0;
   } else {
+    printf("Constructing Board\n");
     _board = new(ptr) T;
   }
 }

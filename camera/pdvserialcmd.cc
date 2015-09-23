@@ -98,6 +98,7 @@ static EdtDev* _setup(int unit, int channel)
   ei_p->startdma = NOT_SET;
   ei_p->enddma = NOT_SET;
   ei_p->flushdma = NOT_SET;
+  ei_p->serial_init = 0;
 
   dd_p->startdma = NOT_SET;
   dd_p->enddma = NOT_SET;
@@ -216,7 +217,7 @@ int main(int argc, char *argv[])
         }
     }
 
-    parse_valid &= (optind==argc);
+    //    parse_valid &= (optind==argc);
 
     if (!parse_valid) {
       help(argv[0]);
