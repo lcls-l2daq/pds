@@ -32,6 +32,8 @@ namespace Pds {
     static Ins evr  (unsigned    partition);
     ///  Nowhere (via the network stack)
     static Ins sink ();
+    ///  Mon request service
+    static Ins monRequest(unsigned partition);
   public:
     StreamPorts();
     StreamPorts(const StreamPorts&);
