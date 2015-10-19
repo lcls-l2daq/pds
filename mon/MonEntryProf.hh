@@ -31,6 +31,7 @@ namespace Pds {
     void nentries(double nent, unsigned bin);
 
     void addy(double y, unsigned bin);
+    void sety(double y, unsigned bin);
 
     enum Info { Underflow, Overflow, InfoSize };
     double info(Info) const;
@@ -95,6 +96,14 @@ namespace Pds {
   {
     _ysum[bin] += y;
     _y2sum[bin] += y*y;
+    _nentries[bin] += 1;
+  }
+
+  inline void MonEntryProf::sety(double y, unsigned bin) 
+  {
+    double dy = y-_ysum[bin];
+    _ysum[bin] = y;
+    _y2sum[bin] += dy*dy;
     _nentries[bin] += 1;
   }
 
