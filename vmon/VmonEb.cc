@@ -5,7 +5,9 @@
 #include "pds/mon/MonCds.hh"
 #include "pds/mon/MonGroup.hh"
 #include "pds/mon/MonEntryTH1F.hh"
+#include "pds/mon/MonEntryScalar.hh"
 #include "pds/mon/MonDescTH1F.hh"
+#include "pds/mon/MonDescScalar.hh"
 
 #include "pdsdata/xtc/ClockTime.hh"
 #include "pdsdata/xtc/Src.hh"
@@ -30,6 +32,7 @@ static int time_scale(unsigned  maxtime,
   return (tshift > tbins_pwr_max) ? tshift-tbins_pwr_max : 0;
 }
 
+
 VmonEb::VmonEb(const Src& src,
 	       unsigned nservers,
 	       unsigned maxdepth,
@@ -40,10 +43,15 @@ VmonEb::VmonEb(const Src& src,
   MonGroup* group = new MonGroup(group_name);
   VmonServerManager::instance()->cds().add(group);
 
-  MonDescTH1F fixup("Fixups", "server", "", 
-		    nservers+1, -1.5, float(nservers)-0.5,
-                    false, true);
-  _fixup = new MonEntryTH1F(fixup);
+  char tmp[32];
+  std::vector<std::string> srv_names(nservers);
+  for(unsigned i=0; i<nservers; i++) {
+    sprintf(tmp,"srv%02d",i);
+    srv_names[i] = std::string(tmp);
+  }
+
+  MonDescScalar fixup("Fixups",srv_names);
+  _fixup = new MonEntryScalar(fixup);
   group->add(_fixup);
 
   MonDescTH1F depth("Depth", "events", "",
@@ -95,10 +103,14 @@ VmonEb::VmonEb(const Src& src,
     //    group->add(_fetch_time_long);
   }
 
-  MonDescTH1F damage_count("Damage", "bit #", "",
-                           32, -0.5, 31.5,
-                           false, true);
-  _damage_count = new MonEntryTH1F(damage_count);
+  std::vector<std::string> bit_names(32);
+  for(unsigned i=0; i<32; i++) {
+    sprintf(tmp,"b%02d",i);
+    bit_names[i] = std::string(tmp);
+  }
+
+  MonDescScalar damage_count("Damage", bit_names);
+  _damage_count = new MonEntryScalar(damage_count);
   group->add(_damage_count);
 
   unsigned maxs;
@@ -118,11 +130,10 @@ VmonEb::~VmonEb()
 
 void VmonEb::fixup(int server)
 {
-  unsigned bin = server+1;
-  if (bin < _fixup->desc().nbins())
-    _fixup->addcontent(1, unsigned(server+1));
-  else
-    _fixup->addinfo(1, MonEntryTH1F::Overflow);
+  if (server<0) return;
+  unsigned bin = server;
+  if (bin < _fixup->desc().elements())
+    _fixup->addvalue(1, bin);
 }
 
 void VmonEb::depth(unsigned events)
@@ -167,10 +178,8 @@ void VmonEb::damage_count(unsigned dmg)
   // increment a bin for each 1 bit in 'dmg'
   for (bin = 0; dmg; bin ++, dmg >>= 1) {
     if (dmg & 1) {
-      if (bin < _damage_count->desc().nbins())
-        _damage_count->addcontent(1, bin);
-      else
-        _damage_count->addinfo(1, MonEntryTH1F::Overflow);
+      if (bin < _damage_count->desc().elements())
+        _damage_count->addvalue(1, bin);
     }
   }
 }

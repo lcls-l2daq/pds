@@ -5,6 +5,8 @@
 #include "pds/mon/MonEntry.hh"
 #include "pds/mon/MonDescEntry.hh"
 #include "pds/mon/MonUsage.hh"
+#include "pds/mon/MonDescScalar.hh"
+#include "pds/mon/MonStatsScalar.hh"
 #include "pds/mon/MonStats1D.hh"
 #include "pds/mon/MonStats2D.hh"
 
@@ -124,6 +126,10 @@ void VmonReader::process(VmonReaderCallback& callback,
       const MonUsage& usage = *_req_use[i];
       for(unsigned short u = 0; u < usage.used(); u++) {
 	switch(cds.entry(usage.signature(u))->desc().type()) {
+	case MonDescEntry::Scalar:
+	  callback.process(record.time(), *it, usage.signature(u), 
+			   *reinterpret_cast<const MonStatsScalar*>(_buff + _req_off[i][u]));
+	  break;
 	case MonDescEntry::TH1F:
 	  callback.process(record.time(), *it, usage.signature(u), 
 			   *reinterpret_cast<const MonStats1D*>(_buff + _req_off[i][u]));

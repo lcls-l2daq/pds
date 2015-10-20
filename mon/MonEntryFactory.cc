@@ -1,4 +1,5 @@
 #include "pds/mon/MonEntryFactory.hh"
+#include "pds/mon/MonEntryScalar.hh"
 #include "pds/mon/MonEntryTH1F.hh"
 #include "pds/mon/MonEntryTH2F.hh"
 #include "pds/mon/MonEntryProf.hh"
@@ -11,6 +12,9 @@ MonEntry* MonEntryFactory::entry(const MonDescEntry& desc)
 {
   MonEntry* entry = 0;
   switch (desc.type()) {
+  case MonDescEntry::Scalar:
+    entry = new MonEntryScalar((const MonDescScalar&)desc);
+    break;
   case MonDescEntry::TH1F:
     entry = new MonEntryTH1F((const MonDescTH1F&)desc);
     break;

@@ -7,7 +7,7 @@ namespace Pds {
 
   class MonDescEntry : public MonDesc {
   public:
-    enum Type {TH1F, TH2F, Prof, Image, Waveform};
+    enum Type {Scalar, TH1F, TH2F, Prof, Image, Waveform};
     Type type() const;
 
     const char* xtitle() const;

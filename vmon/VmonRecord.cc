@@ -2,6 +2,8 @@
 
 #include "pds/mon/MonClient.hh"
 #include "pds/mon/MonCds.hh"
+#include "pds/mon/MonStatsScalar.hh"
+#include "pds/mon/MonEntryScalar.hh"
 #include "pds/mon/MonEntryTH1F.hh"
 #include "pds/mon/MonEntryTH2F.hh"
 #include "pds/mon/MonGroup.hh"
@@ -55,8 +57,9 @@ int VmonRecord::append(const MonClient& client)
       const MonEntry* entry = gr->entry(e); 
       copy_bytes(&entry->desc(), entry->desc().size());
       switch(entry->desc().type()) {
-      case MonDescEntry::TH1F: rval += sizeof(MonStats1D); break;
-      case MonDescEntry::TH2F: rval += sizeof(MonStats2D); break;
+      case MonDescEntry::Scalar: rval += MonStatsScalar::size(entry->desc()); break;
+      case MonDescEntry::TH1F  : rval += sizeof(MonStats1D); break;
+      case MonDescEntry::TH2F  : rval += sizeof(MonStats2D); break;
       default: break;
       }
     }
@@ -76,6 +79,11 @@ void VmonRecord::append(const MonClient& client, int offset)
     for(unsigned short e=0; e<gr.nentries(); e++) {
       MonEntry& en  = const_cast<MonEntry&>(* gr.entry(e));
       switch(en.desc().type()) {
+      case MonDescEntry::Scalar:
+	{ MonEntryScalar& h = dynamic_cast<MonEntryScalar&>(en);
+	  const MonStatsScalar& o = *new (where) MonStatsScalar(h.values());
+	  where += o.size(); }
+	break;
       case MonDescEntry::TH1F:
 	{ MonEntryTH1F& h = dynamic_cast<MonEntryTH1F&>(en);
 	  h.stats();
@@ -123,6 +131,13 @@ int  VmonRecord::extract(vector<Src    >& src_vector,
 	const MonDescEntry& en_d = *reinterpret_cast<const MonDescEntry*>(where);
 	where += en_d.size();
 	switch(en_d.type()) {
+	case MonDescEntry::Scalar: 
+	  { const MonDescScalar& d = static_cast<const MonDescScalar&>(en_d);
+	    gr->add( new MonEntryScalar(d) );
+	    offsets[n++] = offset;
+	    offset += MonStatsScalar::size(d);
+	  }
+	  break;
 	case MonDescEntry::TH1F: 
 	  { const MonDescTH1F& d = static_cast<const MonDescTH1F&>(en_d);
 	    gr->add( new MonEntryTH1F(d) );

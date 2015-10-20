@@ -12,6 +12,7 @@ using std::vector;
 
 namespace Pds {
 
+  class MonStatsScalar;
   class MonStats1D;
   class MonStats2D;
   class MonUsage;
@@ -21,6 +22,10 @@ namespace Pds {
   public:
     virtual ~VmonReaderCallback() {}
   public:
+    virtual void process(const ClockTime&, 
+			 const Src&, 
+			 int signature, 
+			 const MonStatsScalar&) = 0;
     virtual void process(const ClockTime&, 
 			 const Src&, 
 			 int signature, 

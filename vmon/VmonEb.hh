@@ -7,6 +7,7 @@ namespace Pds {
   class Src;
   class MonServerManager;
   class MonEntryTH1F;
+  class MonEntryScalar;
 
   class VmonEb {
   public:
@@ -28,11 +29,11 @@ namespace Pds {
     void post_size (unsigned bytes);
     void update    (const ClockTime&);
   private:
-    MonEntryTH1F*     _fixup;
+    MonEntryScalar*   _fixup;
     MonEntryTH1F*     _depth;
     MonEntryTH1F*     _fetch_time;
     MonEntryTH1F*     _fetch_time_long;
-    MonEntryTH1F*     _damage_count;
+    MonEntryScalar*   _damage_count;
     MonEntryTH1F*     _post_time;
     MonEntryTH1F*     _post_time_log;
     MonEntryTH1F*     _post_size;

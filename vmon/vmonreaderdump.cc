@@ -12,6 +12,7 @@
 #include "pds/mon/MonUsage.hh"
 #include "pds/mon/MonStats1D.hh"
 #include "pds/mon/MonStats2D.hh"
+#include "pds/mon/MonStatsScalar.hh"
 
 
 namespace Pds {
@@ -24,6 +25,15 @@ namespace Pds {
     ~VmonReaderDump()
     {
       fclose(_file);
+    }
+    void process(const ClockTime& time,
+		 const Src& src,
+		 int signature,
+		 const MonStatsScalar& stats)
+    {
+      fprintf(_file,"%08x/%08x  %u %9g ...\n",
+	      time.seconds(),time.nanoseconds(),
+	      stats.elements(), stats.values()[0]);
     }
     void process(const ClockTime& time,
 		 const Src& src,
