@@ -222,13 +222,13 @@ bool MasterFIFOHandler::enabled(const FIFOEvent& fe)
   //
   if ( bEnabled == false )
     {
-      printf("EvrMasterFIFOHandler::fifo_event(): [%d] during Disabled, vector %d code %d fiducial 0x%x prev 0x%x last 0x%x timeLow 0x%x.  Dropping\n",
+      printf("MasterFIFOHandler::fifo_event(): [%d] during Disabled, vector %d code %d fiducial 0x%x prev 0x%x last 0x%x timeLow 0x%x.  Dropping\n",
              uNumBeginCalibCycle, _evtCounter, fe.EventCode, fe.TimestampHigh, uFiducialPrev, _lastFiducial, fe.TimestampLow);
       return false;
     }
 
   if (fe.TimestampHigh == 0 && _lastFiducial != 0 && _lastFiducial < 0x1fe00 ) // Possibly illegal fiducial wrap-around
-    printf("EvrMasterFIFOHandler::fifo_event(): [%d] fiducial 0 vector %d code %d prev 0x%x last 0x%x (%d) timeLow 0x%x\n",
+    printf("MasterFIFOHandler::fifo_event(): [%d] fiducial 0 vector %d code %d prev 0x%x last 0x%x (%d) timeLow 0x%x\n",
            uNumBeginCalibCycle, _evtCounter, fe.EventCode, uFiducialPrev, _lastFiducial, _lastFiducial % 3, fe.TimestampLow);
   else {
     if (fe.TimestampHigh != 0 || _lastFiducial >= 0x1fe00 )
