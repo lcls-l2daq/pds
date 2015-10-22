@@ -133,6 +133,9 @@ Server* EbBase::accept(Server* srv)
   }
   srv->id(id);
 
+  if (_vmoneb)
+    _vmoneb->server(*srv);
+
   EbServer* accepted = (EbServer*)srv;
   if (accepted->isValued())
     _valued_clients.setBit(id);

@@ -5,8 +5,6 @@
 
 namespace Pds {
 
-class ZcpFragment;
-
 class Server : public LinkedList<Server>
   {
   public:

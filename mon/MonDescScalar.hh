@@ -15,6 +15,9 @@ namespace Pds {
   public:
     unsigned elements() const { return _elements; }
     const char* names() const { return _names; }
+  public:
+    std::vector<std::string> get_names() const;
+    void                     set_names(const std::vector<std::string>&);
   private:
     unsigned _elements;
     enum {NamesSize=256};

@@ -8,9 +8,14 @@
 #include "pds/mon/MonEntryScalar.hh"
 #include "pds/mon/MonDescTH1F.hh"
 #include "pds/mon/MonDescScalar.hh"
+#include "pds/utility/EbServer.hh"
+#include "pds/collection/Node.hh"
 
 #include "pdsdata/xtc/ClockTime.hh"
 #include "pdsdata/xtc/Src.hh"
+#include "pdsdata/xtc/DetInfo.hh"
+#include "pdsdata/xtc/BldInfo.hh"
+#include "pdsdata/xtc/ProcInfo.hh"
 
 #include <time.h>
 #include <math.h>
@@ -203,4 +208,26 @@ void VmonEb::update(const ClockTime& now)
   _fetch_time_long->time(now);
   _damage_count->time(now);
   _post_size ->time(now);
+}
+
+void VmonEb::server(const Server& srv)
+{
+  const EbServer& e = static_cast<const EbServer&>(srv);
+  std::vector<std::string> names=_fixup->desc().get_names();
+
+  switch(e.client().level()) {
+  case Level::Source:
+    names[e.id()]=std::string(DetInfo::name(static_cast<const DetInfo&>(e.client()))); 
+    break;
+  case Level::Reporter:
+    names[e.id()]=std::string(BldInfo::name(static_cast<const BldInfo&>(e.client()))); 
+  default:
+    { char* buff = new char[256];
+      Node::ip_name(static_cast<const ProcInfo&>(e.client()).ipAddr(),buff,256);
+      names[e.id()]=std::string(buff);
+      delete[] buff;
+    } break;
+  }
+
+  _fixup->desc().set_names(names);
 }
