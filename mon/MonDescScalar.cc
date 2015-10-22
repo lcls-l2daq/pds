@@ -1,4 +1,5 @@
 #include "pds/mon/MonDescScalar.hh"
+#include <stdio.h>
 
 using namespace Pds;
 
