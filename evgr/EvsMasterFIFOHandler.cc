@@ -76,5 +76,8 @@ Transition* EvsMasterFIFOHandler::disable     (Transition* tr)
 void        EvsMasterFIFOHandler::set_config  (const EvsConfigType* pEvrConfig)
 {
   _state.configure( pEvrConfig->eventcodes() );
+  if (pEvrConfig->neventcodes()>0 &&
+      pEvrConfig->eventcodes()[0].period()<(119000000/360))
+    validateFiducial(false);
 }
 

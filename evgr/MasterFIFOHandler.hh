@@ -118,9 +118,12 @@ namespace Pds {
     unsigned              _nnodes;
     bool                  _randomize_nodes;
     int                   _vector[MAX_NODES];
+    // 
+    bool                  _validateFiducial;
 
   protected:
     void startL1Accept(const FIFOEvent& fe, bool bEvrDataIncomplete);
+    void validateFiducial(bool);
   private:
     int  getL1Data(const ClockTime&, const EvrDataType* & pEvrData, bool& bOutOfOrder);
     void releaseL1Data();

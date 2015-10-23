@@ -83,7 +83,8 @@ MasterFIFOHandler::MasterFIFOHandler(Evr&       er,
   _evtStop            (0),
   _iMaxGroup          (iMaxGroup),
   _nnodes             (neventnodes),
-  _randomize_nodes    (randomize)
+  _randomize_nodes    (randomize),
+  _validateFiducial   (true)
 {
   _lSegEvtCounter.resize(1+_iMaxGroup, 0);
   for (int iGroup=0; iGroup <= _iMaxGroup; ++iGroup)
@@ -153,7 +154,7 @@ InDatagram* MasterFIFOHandler::l1accept(InDatagram* in)
           }
       }
 
-    if ( uFiducialPrev != 0 )
+    if ( uFiducialPrev != 0 && _validateFiducial )
       {
         const int iFiducialWrapAroundDiffMin = 65536;
         if ( (uFiducialCur <= uFiducialPrev && uFiducialPrev < uFiducialCur+iFiducialWrapAroundDiffMin) )
@@ -188,7 +189,7 @@ InDatagram* MasterFIFOHandler::l1accept(InDatagram* in)
     xtc.alloc(evrData._sizeof());
     out->insert(xtc, &evrData);
 
-    if ( uFiducialCur == 0 && uFiducialPrev < 0x1fe00) { // Likely fiducial corruption
+    if ( _validateFiducial && uFiducialCur == 0 && uFiducialPrev < 0x1fe00) { // Likely fiducial corruption
       printf( "MasterFIFOHandler::l1accept(): [%d] vector %d fiducial 0x%x prev 0x%x\n",
               uNumBeginCalibCycle, iVector, uFiducialCur, uFiducialPrev );
       printf( "MasterFIFOHandler::l1accept() data dump start (size = %u bytes)\n", evrData._sizeof() );
@@ -227,7 +228,7 @@ bool MasterFIFOHandler::enabled(const FIFOEvent& fe)
       return false;
     }
 
-  if (fe.TimestampHigh == 0 && _lastFiducial != 0 && _lastFiducial < 0x1fe00 ) // Possibly illegal fiducial wrap-around
+  if (_validateFiducial && fe.TimestampHigh == 0 && _lastFiducial != 0 && _lastFiducial < 0x1fe00 ) // Possibly illegal fiducial wrap-around
     printf("MasterFIFOHandler::fifo_event(): [%d] fiducial 0 vector %d code %d prev 0x%x last 0x%x (%d) timeLow 0x%x\n",
            uNumBeginCalibCycle, _evtCounter, fe.EventCode, uFiducialPrev, _lastFiducial, _lastFiducial % 3, fe.TimestampLow);
   else {
@@ -279,7 +280,7 @@ Transition* MasterFIFOHandler::endcalib    (Transition* tr)
 void MasterFIFOHandler::startL1Accept(const FIFOEvent& fe, bool bEvrDataIncomplete)
 {
   // Warn about possible fiducial corruption (or unlikely fiducial wrap-around)
-  if (fe.TimestampHigh == 0 && uFiducialPrev < 0x1fe00)
+  if (_validateFiducial && fe.TimestampHigh == 0 && uFiducialPrev < 0x1fe00)
     {
       printf("MasterFIFOHandler::startL1Accept():"
        "[%d] vector %d fiducial 0x%x prev 0x%x Incomplete %c "
@@ -631,3 +632,6 @@ void MasterFIFOHandler::set_config  (const EvrConfigType* pEvrConfig)
 {
   _state.configure( pEvrConfig->eventcodes() );
 }
+
+void MasterFIFOHandler::validateFiducial(bool v)
+{ _validateFiducial=v; }
