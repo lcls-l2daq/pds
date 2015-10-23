@@ -1,5 +1,5 @@
 #include "pds/mon/MonDescScalar.hh"
-#include <stdio.h>
+#include <string.h>
 
 #include <stdio.h>
 
@@ -28,7 +28,7 @@ std::vector<std::string> MonDescScalar::get_names() const
   std::vector<std::string> result(elements());
   const char* src = _names;
   for(unsigned i=0; i<elements(); i++) {
-    char* next = strchr(src,':');
+    const char* next = strchr(src,':');
     if (next) {
       result[i] = std::string(src, next-src);
       src=next+1;
