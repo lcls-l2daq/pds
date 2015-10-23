@@ -8,7 +8,6 @@
 #include "pds/imp/ImpServer.hh"
 #include "pds/imp/ImpConfigurator.hh"
 #include "pds/xtc/CDatagram.hh"
-#include "pds/xtc/ZcpDatagram.hh"
 #include "pds/config/ImpConfigType.hh"
 #include "pds/config/ImpDataType.hh"
 #include "pds/pgp/DataImportFrame.hh"

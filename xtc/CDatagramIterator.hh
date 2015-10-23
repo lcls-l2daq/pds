@@ -3,6 +3,7 @@
 
 #include "PayloadIterator.hh"
 #include "pds/service/Pool.hh"
+#include "pds/xtc/Datagram.hh"
 
 namespace Pds {
 

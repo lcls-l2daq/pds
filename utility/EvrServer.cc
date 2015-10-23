@@ -161,8 +161,3 @@ int EvrServer::fetch(char* payload, int flags)
   return (dg.seq.isEvent()) ? 0 : -1;
 }
 
-int EvrServer::fetch(ZcpFragment& dg, int flags)
-{
-  int length = _server.fetch(dg,flags);
-  return length;
-}

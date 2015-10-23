@@ -34,7 +34,6 @@ class OceanOpticsServer
 
    //  Server interface
    virtual int pend (int flag = 0)             { return -1; }
-   virtual int fetch(ZcpFragment& , int flags) { return 0; }
    virtual int fetch(char* payload, int flags);
 
    // EbCountSrv interface

@@ -33,7 +33,6 @@ class NetServer : public Port, public OobServer
   public:
     virtual int      pend        (int flag = 0);
     virtual int      fetch       (char* payload, int flags);
-    virtual int      fetch       (ZcpFragment& , int flags);
   public:
     const char* datagram() const;
   private:
@@ -46,7 +45,6 @@ class NetServer : public Port, public OobServer
   public:
     int unblock(char* datagram);
     int unblock(char* datagram, char* payload, int size);
-    int unblock(char* datagram, char* payload, int size, LinkedList<ZcpFragment>&);
   public:
     int      join  (const Ins& group, const Ins& interface);
     int      resign();

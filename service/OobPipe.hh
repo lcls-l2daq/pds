@@ -18,11 +18,9 @@ namespace Pds {
   public:
     int      pend        (int flag = 0);
     int      fetch       (char* payload, int flags);
-    int      fetch       (ZcpFragment& , int flags);
   public:
     int unblock(char* datagram);
     int unblock(char* datagram, char* payload, int size);
-    int unblock(char* datagram, char* payload, int size, LinkedList<ZcpFragment>&);
   private:
     int    _pfd[2];
     int    _sizeofDatagram;

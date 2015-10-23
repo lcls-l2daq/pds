@@ -8,7 +8,6 @@
 #include "pds/pnccd/pnCCDServer.hh"
 #include "pds/pnccd/pnCCDConfigurator.hh"
 #include "pds/xtc/CDatagram.hh"
-#include "pds/xtc/ZcpDatagram.hh"
 #include "pds/config/pnCCDConfigType.hh"
 #include "pds/pgp/DataImportFrame.hh"
 #include "pds/pgp/RegisterSlaveExportFrame.hh"

@@ -8,7 +8,6 @@
 #include "pds/epix/EpixServer.hh"
 #include "pds/epix/EpixConfigurator.hh"
 #include "pds/xtc/CDatagram.hh"
-#include "pds/xtc/ZcpDatagram.hh"
 #include "pdsdata/psddl/epix.ddl.h"
 #include "pds/config/EpixConfigType.hh"
 #include "pds/config/EpixDataType.hh"

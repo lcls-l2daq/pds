@@ -31,8 +31,6 @@
 
 namespace Pds {
 
-class ZcpFragment;
-
 class Client : public Port
   {
   public:
@@ -79,16 +77,6 @@ class Client : public Port
              int sizeofPayload1,
              int sizeofPayload2,
              const Ins&);
-    int send(char*        datagram,
-	     ZcpFragment& payload,
-	     int          sizeofPayload,
-	     const        Ins&);
-    int send(char*        datagram,
-	     char*        payload1,
-	     int          size1,
-	     ZcpFragment& payload2,
-	     int          size2,
-	     const        Ins&);
   private:
      enum {SendFlags = 0};
 #ifdef ODF_LITTLE_ENDIAN

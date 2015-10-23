@@ -68,19 +68,6 @@ int      OobPipe::fetch       (char* payload, int flags)
   return length;
 }
 
-int      OobPipe::fetch       (ZcpFragment& dg, int flags)
-{
-  int length = dg.kinsert(_pfd[0], -1);
-
-  if (length == -1) {
-    printf("OobPipe::fetch failed ZcpFragment %p  flags %x  socket %d\n",
-	   &dg, flags, _pfd[0]);
-    handleError(errno);
-  }
-
-  return length-_sizeofDatagram;
-}
-
 int OobPipe::unblock(char* dg)
 {
   int length = ::write(_pfd[1],dg,_sizeofDatagram);
@@ -91,19 +78,6 @@ int OobPipe::unblock(char* dg, char* payload, int size)
 {
   int length = ::write(_pfd[1],dg,_sizeofDatagram);
   length += ::write(_pfd[1],payload,size);
-  return length;
-}
-
-int OobPipe::unblock(char* dg, char* payload, int size, LinkedList<ZcpFragment>& frags)
-{
-  int length = ::write(_pfd[1],dg,_sizeofDatagram);
-  length += ::write(_pfd[1],payload,size);
-
-  ZcpFragment* frag = frags.forward();
-  while(frag != frags.empty()) {
-    length += frag->kremove(_pfd[1], frag->size());
-    frag = frag->forward();
-  }
   return length;
 }
 

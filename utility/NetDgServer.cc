@@ -133,8 +133,3 @@ int NetDgServer::fetch(char* payload, int flags)
   return length;
 }
 
-int NetDgServer::fetch(ZcpFragment& dg, int flags)
-{
-  int length = _server.fetch(dg,flags);
-  return length;
-}

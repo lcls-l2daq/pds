@@ -1,6 +1,5 @@
 #include "IpimbServer.hh"
 #include "pds/xtc/CDatagram.hh"
-#include "pds/xtc/ZcpDatagram.hh"
 #include "pds/config/IpimbDataType.hh"
 #include "pdsdata/psddl/ipimb.ddl.h"
 
@@ -89,10 +88,6 @@ int IpimbServer::fetch(char* payload, int flags)
   return payloadSize+sizeof(Xtc);
 }
 
-int IpimbServer::fetch(ZcpFragment& zf, int flags)
-{
-  return 0;
-}
 
 unsigned IpimbServer::count() const
 {

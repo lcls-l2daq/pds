@@ -165,15 +165,6 @@ int FexFrameServer::fetch(char* payload, int flags)
   return length;
 }
 
-//
-//  Apply feature extraction to the input frame and
-//  provide the result to the (zero-copy) event builder
-//
-int FexFrameServer::fetch(ZcpFragment& zfo, int flags)
-{
-  return -1;
-}
-
 unsigned FexFrameServer::_post_fex(void* xtc, const FrameServerMsg* fmsg) const
 {
   TwoDGaussian work(_feature_extract(fmsg));

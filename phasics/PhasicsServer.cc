@@ -8,7 +8,6 @@
 #include "pds/phasics/PhasicsServer.hh"
 #include "pds/phasics/PhasicsConfigurator.hh"
 #include "pds/xtc/CDatagram.hh"
-#include "pds/xtc/ZcpDatagram.hh"
 #include "pds/config/PhasicsConfigType.hh"
 #include "pds/camera/FrameType.hh"
 #include "pds/service/Task.hh"

@@ -8,7 +8,6 @@
 #include "pds/epixSampler/EpixSamplerServer.hh"
 #include "pds/epixSampler/EpixSamplerConfigurator.hh"
 #include "pds/xtc/CDatagram.hh"
-#include "pds/xtc/ZcpDatagram.hh"
 #include "pds/config/EpixSamplerConfigType.hh"
 #include "pds/config/EpixSamplerDataType.hh"
 #include "pds/pgp/DataImportFrame.hh"

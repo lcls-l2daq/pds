@@ -32,7 +32,6 @@ namespace Pds {
     //  Server interface
     int      pend        (int flag = 0);
     int      fetch       (char* payload, int flags);
-    int      fetch       (ZcpFragment& , int flags);
   public:
     NetServer&      server();
     const Sequence& sequence() const;

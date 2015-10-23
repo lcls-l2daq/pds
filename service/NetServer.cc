@@ -24,7 +24,6 @@
 #include <strings.h>
 
 #include "NetServer.hh"
-#include "ZcpFragment.hh"
 #include "Sockaddr.hh"
 
 using namespace Pds;
@@ -204,32 +203,6 @@ int NetServer::fetch      (char* payload, int flags)
   }
 
 /*
-**  Zero-copy implementation of fetch.  Uses the splice system calls
-**  available in gcc version 4.
-*/
-
-int NetServer::fetch      (ZcpFragment& dg, int flags)
-{
-  int length = ::recvmsg(_socket, &_hdro, flags | MSG_PEEK | MSG_TRUNC);
-  if (length >= 0) {
-    int size(length);
-    length  = dg.kinsert(_socket, 1);
-    if (length < 0)  goto err;
-    size = length;
-    length = dg.uremove(_datagram,_sizeofDatagram);
-    if (length < 0)  goto err;
-    length = size - length;
-  }
-  return length;
-
- err:
-  printf("NetServer::fetch failed ZcpFragment %p  flags %x  socket %d\n",
-	   &dg, flags, _socket);
-  handleError(errno);
-  return -1;
-}
-
-/*
 ** ++
 **
 **    This function is used to hang a read on the port associated with the
@@ -357,10 +330,6 @@ int NetServer::unblock(char* datagram, char* payload, int sizeofPayload)
   hdr.msg_flags     = 0;
 
   return sendmsg(_socket, &hdr, SendFlags) != - 1 ? 0 : errno;
-  }
-int NetServer::unblock(char* datagram, char* payload, int size, LinkedList<ZcpFragment>&)
-{
-  return 0;
 }
 
 /*

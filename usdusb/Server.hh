@@ -30,7 +30,6 @@ namespace Pds {
 
       //  Server interface
       int pend( int flag = 0 ) { return -1; }
-      int fetch( ZcpFragment& , int flags ) { return 0; }
       int fetch( char* payload, int flags );
 
       unsigned count() const;

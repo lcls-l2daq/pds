@@ -40,7 +40,6 @@ namespace Pds {
     //  Server interface
     int      pend        (int flag = 0);
     //    int      fetch       (char* payload, int flags);  // subclasses implement this
-    //    int      fetch       (ZcpFragment& , int flags);  // subclasses implement this
   public:
     unsigned count() const;
   protected:

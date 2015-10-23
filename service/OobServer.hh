@@ -4,7 +4,6 @@
 #include "Server.hh"
 
 #include "LinkedList.hh"
-#include "ZcpFragment.hh"
 
 namespace Pds {
 
@@ -18,7 +17,6 @@ namespace Pds {
   public:
     virtual int unblock(char* datagram) = 0;
     virtual int unblock(char* datagram, char* payload, int size) = 0;
-    virtual int unblock(char* datagram, char* payload, int size, LinkedList<ZcpFragment>&) = 0;
   };
 
 }

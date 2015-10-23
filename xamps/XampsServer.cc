@@ -8,7 +8,6 @@
 #include "pds/xamps/XampsServer.hh"
 #include "pds/xamps/XampsConfigurator.hh"
 #include "pds/xtc/CDatagram.hh"
-#include "pds/xtc/ZcpDatagram.hh"
 #include "pds/config/XampsConfigType.hh"
 #include "pds/config/XampsDataType.hh"
 #include "pds/pgp/DataImportFrame.hh"

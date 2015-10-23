@@ -108,11 +108,6 @@ int AcqServer::fetch(char* payload, int flags)
   }
 }
 
-int AcqServer::fetch(ZcpFragment& zf, int flags)
-{
-  return 0;
-}
-
 unsigned AcqServer::count() const
 {
   return _count;

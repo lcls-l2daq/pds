@@ -76,14 +76,6 @@ int FccdFrameServer::fetch(char* payload, int flags)
   return length;
 }
 
-//
-//  Not implemented (just return 0).
-//
-int FccdFrameServer::fetch(ZcpFragment& zfo, int flags)
-{
-  return 0;
-}
-
 unsigned FccdFrameServer::_post_frame(void* xtc, const FrameServerMsg* fmsg) const
 {
   Frame frame(*fmsg);

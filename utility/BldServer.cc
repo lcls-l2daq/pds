@@ -134,8 +134,3 @@ int BldServer::fetch(char* payload, int flags)
   return length;
 }
 
-int BldServer::fetch(ZcpFragment& dg, int flags)
-{
-  int length = _server.fetch(dg,flags);
-  return length;
-}

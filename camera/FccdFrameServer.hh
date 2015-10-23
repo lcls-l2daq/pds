@@ -31,7 +31,6 @@ namespace Pds {
   public:
     //  Server interface
     int      fetch       (char* payload, int flags);
-    int      fetch       (ZcpFragment& , int flags);
   private:
     unsigned _post_fccd  (void* xtc, const FrameServerMsg* msg) const;
     unsigned _post_frame(void* xtc, const FrameServerMsg* msg) const;

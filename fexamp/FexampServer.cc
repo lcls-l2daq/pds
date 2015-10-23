@@ -8,7 +8,6 @@
 #include "pds/fexamp/FexampServer.hh"
 #include "pds/fexamp/FexampConfigurator.hh"
 #include "pds/xtc/CDatagram.hh"
-#include "pds/xtc/ZcpDatagram.hh"
 #include "pds/config/FexampConfigType.hh"
 #include "pds/config/FexampDataType.hh"
 #include "pds/pgp/DataImportFrame.hh"

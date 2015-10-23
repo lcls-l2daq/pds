@@ -38,7 +38,6 @@ namespace Pds {
     //  Server interface
     int      pend  (int flag = 0);
     int      fetch (char* payload, int flags);
-    int      fetch (ZcpFragment& , int flags);
   public:
     unsigned count() const;
     void setIpimb(IpimBoard* ipimb, char* serialDevice, int baselineMode, int polarity);
