@@ -24,7 +24,8 @@ namespace Pds {
 			 int      iMaxGroup,
 			 unsigned neventnodes,
 			 bool     randomize,
-			 Task*    task);
+			 Task*    task,
+                         VmonEvr& vmon);
     virtual ~EvsMasterFIFOHandler();
   public:
     virtual void        fifo_event  (const FIFOEvent&);  // formerly 'xmit'

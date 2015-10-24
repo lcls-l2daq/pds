@@ -14,6 +14,8 @@ namespace Pds {
   class EvrFifoServer;
   class InletWire;
   class SegmentLevel;
+  class VmonEvr;
+
   template <class T> class EvgrBoardInfo;
 
   class EvrManager {
@@ -35,6 +37,7 @@ namespace Pds {
     bool        _bTurnOffBeamCodes;
     unsigned    _module;
     InletWire*  _pWire;
+    VmonEvr*    _vmon;
   };
 }
 

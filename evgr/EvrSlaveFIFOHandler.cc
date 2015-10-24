@@ -8,6 +8,7 @@
 #include "pds/collection/Route.hh"
 #include "pds/service/Task.hh"
 #include "pds/xtc/EvrDatagram.hh"
+#include "pds/vmon/VmonEvr.hh"
 #include "evgr/evr/evr.hh"
 
 #include <new>
@@ -39,7 +40,8 @@ EvrSlaveFIFOHandler::EvrSlaveFIFOHandler(
            int        iMaxGroup,
            unsigned   module,
            Task*      task,
-           Task*      sync_task) :
+           Task*      sync_task,
+           VmonEvr&   vmon) :
   _er                 (er),
   _module             (module),
   _app                (app),
@@ -57,7 +59,8 @@ EvrSlaveFIFOHandler::EvrSlaveFIFOHandler(
   _occPool            (sizeof(UserMessage),8),
   _outOfOrder         (false),
   _bEnabled           (false),
-  _bShowFirst         (false)
+  _bShowFirst         (false),
+  _vmon               (vmon)
 {
   memset( _lEventCodeState, 0, sizeof(_lEventCodeState) );
   _lSegEvtCounter.resize(1+iMaxGroup, 0);
@@ -123,8 +126,14 @@ InDatagram* EvrSlaveFIFOHandler::l1accept(InDatagram* in)
 
   if (_wrptrMaster != _rdptrMaster && (_wrptrMaster-_rdptrMaster) % QSize == 0)
   {
-    if (++_numMasterQFull == 1)
+    if (++_numMasterQFull == 1) {
       printf("EvrSlaveFIFOHandler::l1accept(): masterQ full!\n");
+    }
+    //  If the master queue is full and ahead of the slave queue,
+    //  drop the newest entries to allow the slave queue to catch up
+    if (_wrptrMaster > _wrptrSlave)
+      return 0;
+    //  Else drop the oldest master queue entry
     ++_rdptrMaster;
   }
   else
@@ -179,6 +188,8 @@ InDatagram* EvrSlaveFIFOHandler::l1accept(InDatagram* in)
     out->datagram().xtc.damage.increase(Pds::Damage::UserDefined);
   }
 
+  _vmon.queue(_wrptrMaster,_rdptrMaster,_wrptrSlave,_rdptrSlave);
+
   return out;
 }
 
@@ -187,6 +198,7 @@ Transition* EvrSlaveFIFOHandler::enable      (Transition* tr)
   clear();
   _wrptrSlave   = _rdptrSlave   = 0;
   _wrptrMaster  = _rdptrMaster  = 0;
+  _vmon.reset();
   _numMasterQFull = _numSlaveQFull = 0;
   _bEnabled   = true;
   _bShowFirst = true;
@@ -555,8 +567,10 @@ void EvrSlaveFIFOHandler::slaveQAdvanceUntil(unsigned rdptrUntil)
     SlaveEvent  slaveEvent = _slaveQ[_rdptrSlave%QSize];
     unsigned int uGroupBit = 1;
     for (int iGroup = 0; iGroup < (int) _lSegEvtCounter.size(); ++iGroup, uGroupBit <<= 1)
-      if ( (slaveEvent.uMaskReadout & uGroupBit) != 0 )
+      if ( (slaveEvent.uMaskReadout & uGroupBit) != 0 ) {
         ++_lSegEvtCounter[iGroup];
+        _vmon.readout(iGroup);
+      }
     if (rdptrUntil == _rdptrSlave++)
       break;
   }

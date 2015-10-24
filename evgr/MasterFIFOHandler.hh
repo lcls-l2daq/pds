@@ -34,19 +34,21 @@ namespace Pds {
   class Transition;
   class EvrFifoServer;
   class EvrTimer;
+  class VmonEvr;
 
   class MasterFIFOHandler : public EvrFIFOHandler {
   public:
     MasterFIFOHandler(Evr&,
-          const Src&,
-          Appliance&,
-          EvrFifoServer&,
-          unsigned partition,
-          int      iMaxGroup,
-          unsigned module,
-          unsigned neventnodes,
-          bool     randomize,
-          Task*    task);
+                      const Src&,
+                      Appliance&,
+                      EvrFifoServer&,
+                      unsigned partition,
+                      int      iMaxGroup,
+                      unsigned module,
+                      unsigned neventnodes,
+                      bool     randomize,
+                      Task*    task,
+                      VmonEvr& vmon);
     virtual ~MasterFIFOHandler();
   public:
     ///  EvrFIFOHandler interface
@@ -131,6 +133,9 @@ namespace Pds {
     void nextEnable();
     void clear();
     void reset();
+
+  private:
+    VmonEvr& _vmon;
   };
 };
 

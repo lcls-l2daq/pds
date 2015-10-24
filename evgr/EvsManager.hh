@@ -11,6 +11,7 @@ namespace Pds {
   class EvrFifoServer;
   class Fsm;
   class Server;
+  class VmonEvr;
   template <class T> class EvgrBoardInfo;
 
   class EvsManager {
@@ -28,6 +29,7 @@ namespace Pds {
     Evr&        _er;
     Fsm&        _fsm;
     EvrFifoServer* _server;
+    VmonEvr*       _vmon;
   };
 }
 

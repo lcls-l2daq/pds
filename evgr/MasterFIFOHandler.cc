@@ -11,6 +11,7 @@
 #include "pds/xtc/CDatagram.hh"
 #include "pds/xtc/EnableEnv.hh"
 #include "pds/utility/Transition.hh"
+#include "pds/vmon/VmonEvr.hh"
 
 #include <new>
 #include <string.h>
@@ -64,7 +65,8 @@ MasterFIFOHandler::MasterFIFOHandler(Evr&       er,
                      unsigned   module,
              unsigned   neventnodes,
              bool       randomize,
-             Task*      task):
+                                     Task*      task,
+                                     VmonEvr&   vmon):
   uFiducialPrev       (0),
   bEnabled            (false),
   _er                 (er),
@@ -84,7 +86,8 @@ MasterFIFOHandler::MasterFIFOHandler(Evr&       er,
   _iMaxGroup          (iMaxGroup),
   _nnodes             (neventnodes),
   _randomize_nodes    (randomize),
-  _validateFiducial   (true)
+  _validateFiducial   (true),
+  _vmon               (vmon)
 {
   _lSegEvtCounter.resize(1+_iMaxGroup, 0);
   for (int iGroup=0; iGroup <= _iMaxGroup; ++iGroup)
@@ -412,6 +415,7 @@ void MasterFIFOHandler::startL1Accept(const FIFOEvent& fe, bool bEvrDataIncomple
   //printf("sending L1 trigger for group %d\n", iGroup);//!!!debug
   datagram.evr = _lSegEvtCounter[iGroup];
   ++_lSegEvtCounter[iGroup];
+  _vmon.readout(iGroup);
   _outlet.send((char *) &datagram,
          _state.commands, _state.ncommands, _ldst[iGroup]);  //!!! for supporting segment group
       }
@@ -480,6 +484,7 @@ void MasterFIFOHandler::reset()
   _data.reset();
   _evtCounter = 0;
   _lSegEvtCounter.assign(_lSegEvtCounter.size(), 0);
+  _vmon.reset();
 }
 
 int MasterFIFOHandler::getL1Data(const ClockTime& iTriggerCounter, const EvrDataType* & pEvrData, bool& bOutOfOrder)

@@ -38,6 +38,8 @@
 #include "pdsdata/xtc/DetInfo.hh"
 #include "pdsdata/xtc/TimeStamp.hh"
 
+#include "pds/vmon/VmonEvr.hh"
+
 using namespace Pds;
 
 static bool _randomize_nodes = false;
@@ -73,12 +75,13 @@ public:
   {
     InDatagram* out = in;
     if (_fifo_handler) {
-      out = _fifo_handler->l1accept(in);
-      if (!_outOfOrder && out->datagram().xtc.damage.value() & (1<<Damage::OutOfOrder)) {
-        Pds::Occurrence* occ = new (&_occPool)
-          Pds::Occurrence(Pds::OccurrenceId::ClearReadout);
-        _app->post(occ);
-        _outOfOrder = true;
+      if ((out = _fifo_handler->l1accept(in))) {
+        if (!_outOfOrder && out->datagram().xtc.damage.value() & (1<<Damage::OutOfOrder)) {
+          Pds::Occurrence* occ = new (&_occPool)
+            Pds::Occurrence(Pds::OccurrenceId::ClearReadout);
+          _app->post(occ);
+          _outOfOrder = true;
+        }
       }
     }
     return out;
@@ -189,9 +192,11 @@ public:
                  EvrConfigManager&  cmgr,
                  EvrFifoServer*&    pSrv,
                  unsigned           module,
-                 InletWire*&        pWire) :
+                 InletWire*&        pWire,
+                 VmonEvr&           vmon) :
     _src(src), _er(er), _app(app), _cmgr(cmgr), _pSrv(pSrv),
     _module(module), _pWire(pWire),
+    _vmon     (vmon),
     _task     (new Task(TaskObject("evrsync"))),
     _sync_task(new Task(TaskObject("slvsync")))
   {
@@ -248,7 +253,8 @@ public:
                    _module,
                    alloc.allocation().nnodes(Level::Event),
                    _randomize_nodes,
-                   _task);
+                   _task,
+                   _vmon);
 
 
       }
@@ -263,7 +269,8 @@ public:
                   iMaxGroup,
                   _module,
                   _task,
-                  _sync_task);
+                  _sync_task,
+                  _vmon);
         if (_pSrv)
         {
           (_pWire)->trim_input(_pSrv);
@@ -287,6 +294,7 @@ private:
   EvrFifoServer*&     _pSrv;
   unsigned            _module;
   InletWire*&         _pWire;
+  VmonEvr&            _vmon;
   Task*               _task;
   Task*               _sync_task;
 };
@@ -349,11 +357,12 @@ EvrManager::EvrManager(EvgrBoardInfo < Evr > &erInfo, CfgClientNfs & cfg, bool b
   _server(new EvrFifoServer(cfg.src())),
   _bTurnOffBeamCodes(bTurnOffBeamCodes),
   _module(module),
-  _pWire(NULL)
+  _pWire(NULL),
+  _vmon (new VmonEvr(cfg.src()))
 {
   EvrConfigManager* cmgr = new EvrConfigManager(_er, cfg, _fsm, bTurnOffBeamCodes);
 
-  _fsm.callback(TransitionId::Map            , new EvrAllocAction     (cfg.src(),_er,_fsm, *cmgr, _server, _module, _pWire));
+  _fsm.callback(TransitionId::Map            , new EvrAllocAction     (cfg.src(),_er,_fsm, *cmgr, _server, _module, _pWire, *_vmon));
   _fsm.callback(TransitionId::Unmap          , new EvrShutdownAction);
   _fsm.callback(TransitionId::Configure      , new EvrConfigAction    (*cmgr));
   _fsm.callback(TransitionId::BeginCalibCycle, new EvrBeginCalibAction(*cmgr));

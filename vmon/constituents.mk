@@ -1,7 +1,7 @@
 libnames := vmon
 
 libsrcs_vmon := $(filter-out vmonreaderdump.cc, $(wildcard *.cc))
-libincs_vmon := pdsdata/include
+libincs_vmon := pdsdata/include ndarray/include
 
 tgtnames := vmonreaderdump
 

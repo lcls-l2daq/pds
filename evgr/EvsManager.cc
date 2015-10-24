@@ -28,6 +28,7 @@
 #include "pds/utility/Occurrence.hh"
 #include "pds/utility/OccurrenceId.hh"
 #include "pds/xtc/CDatagram.hh"
+#include "pds/vmon/VmonEvr.hh"
 
 #include "pdsdata/xtc/DetInfo.hh"
 #include "pdsdata/xtc/TimeStamp.hh"
@@ -467,8 +468,9 @@ public:
                  Evr&          er,
                  Appliance&         app,
                  EvsConfigManager&  cmgr,
-                 EvrFifoServer&     srv) :
-    _cfg(cfg), _er(er), _app(app), _cmgr(cmgr), _srv(srv),
+                 EvrFifoServer&     srv,
+                 VmonEvr&           vmon) :
+    _cfg(cfg), _er(er), _app(app), _cmgr(cmgr), _srv(srv), _vmon(vmon),
     _task     (new Task(TaskObject("evrsync"))),
     _sync_task(new Task(TaskObject("slvsync")))
   {
@@ -502,7 +504,8 @@ public:
 					     iMaxGroup,
 					     alloc.allocation().nnodes(Level::Event),
 					     _randomize_nodes,
-					     _task);
+					     _task,
+                                             _vmon);
     return tr;
   }
 private:
@@ -511,6 +514,7 @@ private:
   Appliance&    _app;
   EvsConfigManager& _cmgr;
   EvrFifoServer& _srv;
+  VmonEvr&      _vmon;
   Task*         _task;
   Task*         _sync_task;
 };
@@ -556,11 +560,12 @@ Server& EvsManager::server()
 
 EvsManager::EvsManager(EvgrBoardInfo < Evr > &erInfo, CfgClientNfs & cfg) :
   _er(erInfo.board()), _fsm(*new Fsm),
-  _server(new EvrFifoServer(cfg.src()))
+  _server(new EvrFifoServer(cfg.src())),
+  _vmon  (new VmonEvr(cfg.src()))
 {
   EvsConfigManager* cmgr = new EvsConfigManager(_er, cfg, _fsm);
 
-  _fsm.callback(TransitionId::Map            , new EvsAllocAction     (cfg,_er,_fsm, *cmgr, *_server));
+  _fsm.callback(TransitionId::Map            , new EvsAllocAction     (cfg,_er,_fsm, *cmgr, *_server, *_vmon));
   _fsm.callback(TransitionId::Unmap          , new EvsShutdownAction);
   _fsm.callback(TransitionId::Configure      , new EvsConfigAction    (*cmgr));
   _fsm.callback(TransitionId::BeginCalibCycle, new EvsBeginCalibAction(*cmgr));

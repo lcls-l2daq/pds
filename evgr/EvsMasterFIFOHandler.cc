@@ -9,15 +9,16 @@ static const int      persistent_ram =  1;
 using namespace Pds;
 
 EvsMasterFIFOHandler::EvsMasterFIFOHandler(Evr&       er,
-             const Src& src,
-             Appliance& app,
-             EvrFifoServer& srv,
-             unsigned   partition,
-             int        iMaxGroup,
-             unsigned   neventnodes,
-             bool       randomize,
-             Task*      task):
-  MasterFIFOHandler(er,src,app,srv,partition,iMaxGroup,0,neventnodes,randomize,task),
+                                           const Src& src,
+                                           Appliance& app,
+                                           EvrFifoServer& srv,
+                                           unsigned   partition,
+                                           int        iMaxGroup,
+                                           unsigned   neventnodes,
+                                           bool       randomize,
+                                           Task*      task,
+                                           VmonEvr&   vmon):
+  MasterFIFOHandler(er,src,app,srv,partition,iMaxGroup,0,neventnodes,randomize,task,vmon),
   _pool               (sizeof(Occurrence),1)
 {
 }

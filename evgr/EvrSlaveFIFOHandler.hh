@@ -30,6 +30,7 @@ namespace Pds {
   class Transition;
   class Task;
   class EvrFifoServer;
+  class VmonEvr;
 
   class EvrSlaveFIFOHandler : public EvrFIFOHandler {
   public:
@@ -38,7 +39,8 @@ namespace Pds {
     enum { TERMINATOR         = 1   };
   public:
     EvrSlaveFIFOHandler(Evr& er, Appliance& app, EvrFifoServer& srv,
-                        unsigned partition, int iMaxGroup, unsigned module, Task* task, Task* sync_task);
+                        unsigned partition, int iMaxGroup, unsigned module, Task* task, Task* sync_task,
+                        VmonEvr& vmon);
     virtual ~EvrSlaveFIFOHandler();
   public:
     virtual void        fifo_event  (const FIFOEvent&);  // formerly 'xmit'
@@ -93,6 +95,7 @@ namespace Pds {
     int                   _numMasterQFull;
     int                   _numSlaveQFull;
 
+    VmonEvr&              _vmon;
   private:
     void startCommandAndQueueEvent(const FIFOEvent& fe, bool bEvrDataIncomplete);
     int  startL1Accept            (bool bMasterEvent, unsigned prevWrt);

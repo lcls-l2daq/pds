@@ -14,8 +14,9 @@ EvrMasterFIFOHandler::EvrMasterFIFOHandler(Evr&       er,
                                            unsigned   module,
                                            unsigned   neventnodes,
                                            bool       randomize,
-                                           Task*      task):
-  MasterFIFOHandler(er,src,app,srv,partition,iMaxGroup,module,neventnodes,randomize,task),
+                                           Task*      task,
+                                           VmonEvr&   vmon):
+  MasterFIFOHandler(er,src,app,srv,partition,iMaxGroup,module,neventnodes,randomize,task,vmon),
   _sync            (*this, er, partition, task, _outlet, app),
   _tr              (0)
 {
