@@ -58,6 +58,12 @@ void VmonEvr::queue(int wrM, int rdM,
   _queues->setvalue(rdS-rdM,2);
 }
 
+void VmonEvr::update(const ClockTime& now)
+{
+  _readouts->time(now);
+  _queues  ->time(now);
+}
+
 void VmonEvr::reset()
 {
   _readouts->reset();

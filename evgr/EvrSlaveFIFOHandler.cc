@@ -60,6 +60,7 @@ EvrSlaveFIFOHandler::EvrSlaveFIFOHandler(
   _outOfOrder         (false),
   _bEnabled           (false),
   _bShowFirst         (false),
+  _full               (false),
   _vmon               (vmon)
 {
   memset( _lEventCodeState, 0, sizeof(_lEventCodeState) );
@@ -70,6 +71,15 @@ EvrSlaveFIFOHandler::EvrSlaveFIFOHandler(
 
 EvrSlaveFIFOHandler::~EvrSlaveFIFOHandler()
 {
+}
+
+void EvrSlaveFIFOHandler::fifo_full ()
+{
+  if (!_full) {
+    _full=true;
+    printf("EvrSlaveFIFOHandler FULL\n");
+    // Send out-of-order occurrence
+  }
 }
 
 void EvrSlaveFIFOHandler::fifo_event(const FIFOEvent& fe)
@@ -189,6 +199,7 @@ InDatagram* EvrSlaveFIFOHandler::l1accept(InDatagram* in)
   }
 
   _vmon.queue(_wrptrMaster,_rdptrMaster,_wrptrSlave,_rdptrSlave);
+  _vmon.update(in->datagram().seq.clock());
 
   return out;
 }
@@ -287,6 +298,7 @@ Transition* EvrSlaveFIFOHandler::config      (Transition* tr)
   clear();
   _evtCounter = 0;
   _lSegEvtCounter.assign(_lSegEvtCounter.size(), 0);
+  _full = false;
   return tr;
 }
 

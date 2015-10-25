@@ -87,6 +87,7 @@ MasterFIFOHandler::MasterFIFOHandler(Evr&       er,
   _nnodes             (neventnodes),
   _randomize_nodes    (randomize),
   _validateFiducial   (true),
+  _full               (false),
   _vmon               (vmon)
 {
   _lSegEvtCounter.resize(1+_iMaxGroup, 0);
@@ -279,6 +280,14 @@ Transition* MasterFIFOHandler::endcalib    (Transition* tr)
   return tr;
 }
 
+void MasterFIFOHandler::fifo_full()
+{
+  if (!_full) {
+    _full = true;
+    printf("MasterFIFOHandler FULL\n");
+  }
+}
+
 
 void MasterFIFOHandler::startL1Accept(const FIFOEvent& fe, bool bEvrDataIncomplete)
 {
@@ -286,8 +295,8 @@ void MasterFIFOHandler::startL1Accept(const FIFOEvent& fe, bool bEvrDataIncomple
   if (_validateFiducial && fe.TimestampHigh == 0 && uFiducialPrev < 0x1fe00)
     {
       printf("MasterFIFOHandler::startL1Accept():"
-       "[%d] vector %d fiducial 0x%x prev 0x%x Incomplete %c "
-       "last 0x%x timeLow 0x%x code %d\n",
+             "[%d] vector %d fiducial 0x%x prev 0x%x Incomplete %c "
+             "last 0x%x timeLow 0x%x code %d\n",
              uNumBeginCalibCycle, _evtCounter, fe.TimestampHigh, uFiducialPrev, (bEvrDataIncomplete?'Y':'n'),
              _lastFiducial, fe.TimestampLow, fe.EventCode );
     }
@@ -301,16 +310,16 @@ void MasterFIFOHandler::startL1Accept(const FIFOEvent& fe, bool bEvrDataIncomple
     if (node_index==0) {
       for(unsigned i=0; i<_nnodes; i++) _vector[i]=-1;
       for(unsigned i=0; i<_nnodes; i++) {
-  const unsigned NBITS=24;
-  const unsigned NB_MASK=((1<<NBITS)-1);
-  unsigned j = ((_nnodes-i)*(rand()&NB_MASK))>>NBITS;
-  for(unsigned k=0; (1); k++) {
-    if (_vector[k]<0)
-      if (j-- == 0) {
-        _vector[k] = i;
-        break;
-      }
-  }
+        const unsigned NBITS=24;
+        const unsigned NB_MASK=((1<<NBITS)-1);
+        unsigned j = ((_nnodes-i)*(rand()&NB_MASK))>>NBITS;
+        for(unsigned k=0; (1); k++) {
+          if (_vector[k]<0)
+            if (j-- == 0) {
+              _vector[k] = i;
+              break;
+            }
+        }
       }
     }
     vector = _evtCounter - node_index + _vector[node_index];
@@ -329,11 +338,11 @@ void MasterFIFOHandler::startL1Accept(const FIFOEvent& fe, bool bEvrDataIncomple
 
   if(ts.tv_nsec == tsPrev.tv_nsec && ts.tv_sec == tsPrev.tv_sec && fe.TimestampHigh != fePrev.TimestampHigh && ntsPrints!=0) {
     printf("!!! Clocktime duplicated:\n"
-      "  Prev clock %09ld.%09ld  evr 0x%x vector 0x%x  high/low 0x%x/0x%x event %d\n"
-      "  Cur  clock %09ld.%09ld  evr 0x%x vector 0x%x  high/low 0x%x/0x%x event %d\n",
-      (long) tsPrev.tv_sec, (long) tsPrev.tv_nsec, evtCountPrev, vectorPrev, fePrev.TimestampHigh, fePrev.TimestampLow, fePrev.EventCode,
-      (long) ts.tv_sec, (long) ts.tv_nsec, _evtCounter, vector, fe.TimestampHigh, fe.TimestampLow, fe.EventCode
-    );
+           "  Prev clock %09ld.%09ld  evr 0x%x vector 0x%x  high/low 0x%x/0x%x event %d\n"
+           "  Cur  clock %09ld.%09ld  evr 0x%x vector 0x%x  high/low 0x%x/0x%x event %d\n",
+           (long) tsPrev.tv_sec, (long) tsPrev.tv_nsec, evtCountPrev, vectorPrev, fePrev.TimestampHigh, fePrev.TimestampLow, fePrev.EventCode,
+           (long) ts.tv_sec, (long) ts.tv_nsec, _evtCounter, vector, fe.TimestampHigh, fe.TimestampLow, fe.EventCode
+           );
     ntsPrints--;
   }
   tsPrev      = ts;
@@ -345,10 +354,10 @@ void MasterFIFOHandler::startL1Accept(const FIFOEvent& fe, bool bEvrDataIncomple
   TimeStamp stamp(fe.TimestampLow, fe.TimestampHigh, vector);
 
   if (_evtCounter == 0)
-  {
-    _lastTime.tv_nsec = ts.tv_nsec;
-    _lastTime.tv_sec = ts.tv_sec;
-  }
+    {
+      _lastTime.tv_nsec = ts.tv_nsec;
+      _lastTime.tv_sec = ts.tv_sec;
+    }
 
   if (_state.uMaskReadout == 0) {   // Only commands, no readout
     Sequence seq(Sequence::Occurrence, TransitionId::Unknown, ctime, stamp);
@@ -362,7 +371,7 @@ void MasterFIFOHandler::startL1Accept(const FIFOEvent& fe, bool bEvrDataIncomple
     for (int iGroup = 0; iGroup < (int) _ldst.size(); ++iGroup) {
       datagram.evr = _lSegEvtCounter[iGroup];
       _outlet.send((char *) &datagram,
-       _state.commands, _state.ncommands, _ldst[iGroup]);
+                   _state.commands, _state.ncommands, _ldst[iGroup]);
     }
   }
   else {
@@ -371,7 +380,7 @@ void MasterFIFOHandler::startL1Accept(const FIFOEvent& fe, bool bEvrDataIncomple
 
     if (!_data.isDataWriteReady()) {
       printf( "Previous Evr Data has not been transferred out.\n"
-        "  Current data will be reported in next round.\n");
+              "  Current data will be reported in next round.\n");
       _print_L1(ctime, _data);
     }
     else
@@ -380,13 +389,13 @@ void MasterFIFOHandler::startL1Accept(const FIFOEvent& fe, bool bEvrDataIncomple
     static const int NEVENTPRINT = 1000;
     if (_evtCounter%NEVENTPRINT == 0)
       {
-  clock_gettime(CLOCK_REALTIME, &_thisTime);
-  long long int nanoseconds = timeDiff(&_thisTime, &_lastTime);
-  float rate = 1000.0 / (nanoseconds * 1.e-9);
-  printf("Evr event %d, high/low 0x%05x/0x%x, rate(Hz): %7.2f\n",
-         _evtCounter, fe.TimestampHigh, fe.TimestampLow, rate);
-  _lastTime.tv_nsec = _thisTime.tv_nsec;
-  _lastTime.tv_sec  = _thisTime.tv_sec;
+        clock_gettime(CLOCK_REALTIME, &_thisTime);
+        long long int nanoseconds = timeDiff(&_thisTime, &_lastTime);
+        float rate = 1000.0 / (nanoseconds * 1.e-9);
+        printf("Evr event %d, high/low 0x%05x/0x%x, rate(Hz): %7.2f\n",
+               _evtCounter, fe.TimestampHigh, fe.TimestampLow, rate);
+        _lastTime.tv_nsec = _thisTime.tv_nsec;
+        _lastTime.tv_sec  = _thisTime.tv_sec;
       }
 
     if (_evtCounter == _evtStop)
@@ -412,15 +421,16 @@ void MasterFIFOHandler::startL1Accept(const FIFOEvent& fe, bool bEvrDataIncomple
     unsigned int uGroupBit = 1;
     for (int iGroup = 0; iGroup <= _iMaxGroup; ++iGroup, uGroupBit <<= 1)
       if ( (_state.uMaskReadout & uGroupBit) != 0 ) {
-  //printf("sending L1 trigger for group %d\n", iGroup);//!!!debug
-  datagram.evr = _lSegEvtCounter[iGroup];
-  ++_lSegEvtCounter[iGroup];
-  _vmon.readout(iGroup);
-  _outlet.send((char *) &datagram,
-         _state.commands, _state.ncommands, _ldst[iGroup]);  //!!! for supporting segment group
+        //printf("sending L1 trigger for group %d\n", iGroup);//!!!debug
+        datagram.evr = _lSegEvtCounter[iGroup];
+        ++_lSegEvtCounter[iGroup];
+        _vmon.readout(iGroup);
+        _outlet.send((char *) &datagram,
+                     _state.commands, _state.ncommands, _ldst[iGroup]);  //!!! for supporting segment group
       }
   } // else (_uMaskReadout == 0)
 
+  _vmon.update(ctime);
   _state.uMaskReadout  = 0;
   _state.ncommands = 0;
 }
@@ -484,6 +494,7 @@ void MasterFIFOHandler::reset()
   _data.reset();
   _evtCounter = 0;
   _lSegEvtCounter.assign(_lSegEvtCounter.size(), 0);
+  _full = false;
   _vmon.reset();
 }
 

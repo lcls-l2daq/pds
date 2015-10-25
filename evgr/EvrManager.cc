@@ -331,6 +331,8 @@ extern "C"
   void evrmgr_sig_handler(int parm)
   {
     Evr & er = erInfoGlobal->board();
+    if (er.GetIrqFlags() & EVR_IRQFLAG_FIFOFULL)
+      _fifo_handler->fifo_full();
     Pds::FIFOEvent fe;
     while( ! er.GetFIFOEvent(&fe) )
       if (_fifo_handler)

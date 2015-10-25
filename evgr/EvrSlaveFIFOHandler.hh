@@ -43,6 +43,7 @@ namespace Pds {
                         VmonEvr& vmon);
     virtual ~EvrSlaveFIFOHandler();
   public:
+    virtual void        fifo_full   ();
     virtual void        fifo_event  (const FIFOEvent&);  // formerly 'xmit'
     virtual InDatagram* l1accept    (InDatagram*);
     virtual Transition* enable      (Transition*);
@@ -94,6 +95,7 @@ namespace Pds {
     bool                  _bEventSkipped;
     int                   _numMasterQFull;
     int                   _numSlaveQFull;
+    bool                  _full;
 
     VmonEvr&              _vmon;
   private:

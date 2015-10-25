@@ -5,6 +5,7 @@ namespace Pds {
 
   class Src;
   class MonEntryScalar;
+  class ClockTime;
 
   class VmonEvr {
   public:
@@ -14,6 +15,7 @@ namespace Pds {
     void readout   (unsigned group);
     void queue     (int q0, int q1,
                     int q2, int q3);
+    void update    (const ClockTime&);
     void reset     ();
   private:
     MonEntryScalar*   _readouts;

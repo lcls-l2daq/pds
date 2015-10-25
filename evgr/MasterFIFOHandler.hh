@@ -52,6 +52,7 @@ namespace Pds {
     virtual ~MasterFIFOHandler();
   public:
     ///  EvrFIFOHandler interface
+    virtual void        fifo_full   ();
     ///  Attach FIFO data to event datagram
     virtual InDatagram* l1accept    (InDatagram*);
     ///  Enable FIFO event reception
@@ -122,7 +123,7 @@ namespace Pds {
     int                   _vector[MAX_NODES];
     // 
     bool                  _validateFiducial;
-
+    bool                  _full;
   protected:
     void startL1Accept(const FIFOEvent& fe, bool bEvrDataIncomplete);
     void validateFiducial(bool);

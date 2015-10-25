@@ -278,7 +278,7 @@ void EvrConfigManager::advance()
 
 void EvrConfigManager::enable()
 {
-  _er.IrqEnable(EVR_IRQ_MASTER_ENABLE | EVR_IRQFLAG_EVENT);
+  _er.IrqEnable(EVR_IRQ_MASTER_ENABLE | EVR_IRQFLAG_EVENT | EVR_IRQFLAG_FIFOFULL);
   _er.EnableFIFO(1);
   _er.Enable(1);
 }

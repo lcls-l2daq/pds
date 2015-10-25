@@ -24,6 +24,7 @@ namespace Pds {
   public:
     virtual ~EvrFIFOHandler() {}
   public:
+    virtual void        fifo_full   () = 0;
     virtual void        fifo_event  (const FIFOEvent&) = 0;  // formerly 'xmit'
     virtual InDatagram* l1accept    (InDatagram*) = 0;
     virtual Transition* enable      (Transition*) = 0;
