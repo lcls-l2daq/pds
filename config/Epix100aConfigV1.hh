@@ -18,7 +18,7 @@
 namespace Pds {
 namespace Epix100aConfig_V1 {
 
-class Pds::Epix100aConfig::ASIC_ConfigV1;
+class ASIC_ConfigV1;
 
 class ConfigV1 {
 public:
