@@ -4,9 +4,9 @@ using Pds::ControlData::PVControl;
 using Pds::ControlData::PVMonitor;
 using Pds::ControlData::PVLabel;
 
-static bool compare_control(const PVControl& a, const PVControl& b) { return strcmp(a.name(),b.name()); }
-static bool compare_monitor(const PVMonitor& a, const PVMonitor& b) { return strcmp(a.name(),b.name()); }
-static bool compare_label  (const PVLabel  & a, const PVLabel  & b) { return strcmp(a.name(),b.name()); }
+static bool compare_control(const PVControl& a, const PVControl& b) { return strcmp(a.name(),b.name())<=0; }
+static bool compare_monitor(const PVMonitor& a, const PVMonitor& b) { return strcmp(a.name(),b.name())<=0; }
+static bool compare_label  (const PVLabel  & a, const PVLabel  & b) { return strcmp(a.name(),b.name())<=0; }
 
 static PVControl* list_to_array(const std::list<PVControl>&);
 static PVMonitor* list_to_array(const std::list<PVMonitor>&);
