@@ -41,6 +41,7 @@ namespace Pds {
       ReadAcqCounter                    = 0x5,
       PowerEnableAddr                   = 0x8,
       PowerEnableValue                  = 0x7,
+      EnviroDataBaseAddr				= 0x140,
       RowCounterAdder                   = 0x6011,
       ColCounterAddr                    = 0x6013,
       PixelDataAddr                     = 0x5000,
@@ -101,6 +102,7 @@ namespace Pds {
         void                 enableExternalTrigger(bool);
         void                 enableRunTrigger(bool);
         void                 maintainLostRunTrigger(bool b) { _maintainLostRunTrigger = b; }
+        uint32_t             enviroData(unsigned);
 
 
       private:

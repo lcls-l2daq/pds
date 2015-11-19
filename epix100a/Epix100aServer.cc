@@ -197,7 +197,6 @@ void Epix100aServer::allocated() {
 
 void Pds::Epix100aServer::enable() {
   if (usleep(10000)<0) perror("Epix100aServer::enable ulseep failed\n");
-  usleep(10000);
   _cnfgrtr->enableExternalTrigger(true);
   flushInputQueue(fd());
   _firstFetch = true;

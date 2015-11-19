@@ -142,6 +142,14 @@ uint32_t Epix100aConfigurator::acquisitionCount() {
   return (count);
 }
 
+uint32_t Epix100aConfigurator::enviroData(unsigned o) {
+  _d.dest(Epix100aDestination::Registers);
+  uint32_t dat=1112;
+  if (_pgp) _pgp->readRegister(&_d, EnviroDataBaseAddr+o, 0x5e4, &dat);
+  else printf("Epix100aConfigurator::enviroData() found nil _pgp so not read\n");
+  return (dat);
+}
+
 void Epix100aConfigurator::enableExternalTrigger(bool f) {
   _d.dest(Epix100aDestination::Registers);
   if (_pgp) {
@@ -203,8 +211,12 @@ unsigned Epix100aConfigurator::configure( Epix100aConfigType* c, unsigned first)
   printf("Epix100aConfigurator::configure %sreseting front end\n", first ? "" : "not ");
   if (first) {
     resetFrontEnd();
-    printf("\tSleeping seven seconds\n");
-    sleep(7);
+    printf("\tSleeping two seconds\n");
+    sleep(2);
+  } else {
+//	  resetFrontEnd();
+//	  printf("\tSleeping two seconds\n");
+//	  sleep(2);
   }
   if (_flush()) {
     printf("Epix100aConfigurator::configure determined that we lost contact with the front end, exiting!\n");
@@ -670,6 +682,29 @@ unsigned Epix100aConfigurator::checkWrittenASIC(bool writeBack) {
   return ret;
 }
 
+// 0 Thermistor 0 temperature in Celcius degree * 100. Signed data.
+// 1 Thermistor 1 temperature in Celcius degree * 100. Signed data.
+// 2 Relative humidity in percent * 100. Signed data.
+// 3 ASIC analog current in mA. Unsigned data.
+// 4 ASIC digital current in mA. Unsigned data.
+// 5 Detector guard ring current in uA. Unsigned data.
+// 6 Detector bias current in uA. Unsigned data.
+// 7 Analog input voltage in mV. Unsigned data.
+// 8 Digital input voltage in mV. Unsigned data.
+#define NumberOfEnviroDatas 9
+
+static char enviroNames[NumberOfEnviroDatas+1][120] = {
+		{"Thermistor 0 in degrees Celcius...."},
+		{"Thermistor 1 in degrees Celcius...."},
+		{"Relative humidity in percent......."},
+		{"ASIC analog current in mA.........."},
+		{"ASIC digital current in mA........."},
+		{"Detector guard ring current in uA.."},
+		{"Detector bias current in uA........"},
+		{"Analog input voltage in mV........."},
+		{"Digital input voltage in mV........"}
+};
+
 void Epix100aConfigurator::dumpFrontEnd() {
   timespec      start, end;
   clock_gettime(CLOCK_REALTIME, &start);
@@ -680,7 +715,11 @@ void Epix100aConfigurator::dumpFrontEnd() {
     count = sequenceCount();
     acount = acquisitionCount();
     printf("\tSequence Count(%u), Acquisition Count(%u)\n", count, acount);
-
+    printf("Environmental Data:\n");
+    for (int i=0; i<NumberOfEnviroDatas; i++) {
+    	if (i<3) printf("\t%s%5.2f\n", enviroNames[i], 0.01*enviroData(i));
+    	else printf("\t%s%5d\n", enviroNames[i], enviroData(i));
+    }
   }
   if (_debug & 0x400) {
 //    printf("Checking Configuration, no news is good news ...\n");
