@@ -85,8 +85,7 @@ class Epix100aUnmapAction : public Action {
     Epix100aUnmapAction(Epix100aServer* s) : server(s) {};
 
     Transition* fire(Transition* tr) {
-      printf("Epix100aUnmapAction::fire(tr) disabling front end\n");
-      server->disable();
+      printf("Epix100aUnmapAction::fire(tr)\n");
       return tr;
     }
 
@@ -287,20 +286,20 @@ class Epix100aEndCalibCycleAction : public Action {
       _cfg.next();
       printf(" %p\n", _cfg.current());
       _result = _server->unconfigure();
-      _server->dumpFrontEnd();
-      _server->printHisto(true);
+
       return tr;
     }
 
     InDatagram* fire(InDatagram* in) {
       printf("Epix100aEndCalibCycleAction:;fire(InDatagram)\n");
       if( _result ) {
-        printf( "*** Epix100aEndCalibCycleAction found configuration errors _result(0x%x)\n", _result );
+        printf( "*** Epix100aEndCalibCycleAction found unconfigure errors _result(0x%x)\n", _result );
         if (in->datagram().xtc.damage.value() == 0) {
           in->datagram().xtc.damage.increase(Damage::UserDefined);
           in->datagram().xtc.damage.userBits(_result);
         }
       }
+      _server->disable();
       return in;
     }
 

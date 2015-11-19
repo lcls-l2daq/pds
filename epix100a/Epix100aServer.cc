@@ -211,6 +211,8 @@ void Pds::Epix100aServer::disable() {
     flushInputQueue(fd());
     if (usleep(10000)<0) perror("Epix100aServer::disable ulseep 1 failed\n");
     if (_debug & 0x20) printf("Epix100aServer::disable\n");
+    dumpFrontEnd();
+    printHisto(true);
   } else {
     printf("Epix100aServer::disable() found nil configurator, so did not disable\n");
   }
