@@ -210,16 +210,24 @@ void PicPortCL::handle()
   _tsignal=ts;
 #endif
 
-  FrameHandle* handle = GetFrameHandle();
+  FrameHandle* fhandle = GetFrameHandle();
+  if (!fhandle) {
+    printf("%s:line %d: GetFrameHandle failed\n",__FILE__,__LINE__);
+    return;
+  }
   Pds::FrameServerMsg* msg = 
     new Pds::FrameServerMsg(Pds::FrameServerMsg::NewFrame,
-                            handle->data,
-                            handle->width,
-                            handle->height,
-                            handle->depth(),
+                            fhandle->data,
+                            fhandle->width,
+                            fhandle->height,
+                            fhandle->depth(),
 			    _nposts,
 			    0,
-                            &release_handle, handle);
+                            &release_handle, fhandle);
+  if (!msg) {
+    printf("%s:line %d: Failed to allocate FrameServerMsg\n",__FILE__,__LINE__);
+    return;
+  }
 
   //  Test out-of-order
   if (_outOfOrder)
