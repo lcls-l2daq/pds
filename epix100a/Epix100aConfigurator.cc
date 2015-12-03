@@ -717,7 +717,7 @@ void Epix100aConfigurator::dumpFrontEnd() {
     printf("\tSequence Count(%u), Acquisition Count(%u)\n", count, acount);
     printf("Environmental Data:\n");
     for (int i=0; i<NumberOfEnviroDatas; i++) {
-    	if (i<3) printf("\t%s%5.2f\n", enviroNames[i], 0.01*enviroData(i));
+    	if (i<3) printf("\t%s%5.2f\n", enviroNames[i], 0.01*(signed int)enviroData(i));
     	else printf("\t%s%5d\n", enviroNames[i], enviroData(i));
     }
   }
