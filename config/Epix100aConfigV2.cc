@@ -29,9 +29,9 @@ namespace Pds {
 
     static uint32_t _regsfoo[ConfigV2::NumberOfRegisters][7] = {
     //offset shift mask default readOnly type selectionIndex
-        {  0,  0, 0xffffffff, 0,      1, 1, 0},    //  Version,
-        {  1,  0, 0xffffffff, 0,      0, 0, 0},    //  RunTrigDelay,
-        {  2,  0, 0xffffffff, 0x4e2,  2, 0, 0},    //  DaqTrigDelay,
+        {  0,  0, 0x7fffffff, 0,      1, 1, 0},    //  Version,
+        {  1,  0, 0x7fffffff, 0,      0, 0, 0},    //  RunTrigDelay,
+        {  2,  0, 0x7fffffff, 0x4e2,  2, 0, 0},    //  DaqTrigDelay,
         {  3,  0, 0xffff,     0x4e20, 0, 1, 0},    //  DacSetting,
         //  pin states(4) and controls(5)
         {  4,  0, 1, 1, 0, 0, 0},    //  asicGR,
@@ -52,26 +52,26 @@ namespace Pds {
         {  5,  9, 3, 0, 0, 0, 0},    //  SyncMode
         {  5, 11, 1, 1, 0, 0, 0},    //  R0Mode
         //
-        {  6,  0, 0xffffffff, 0xea6,      0, 0, 0},    //  AcqToAsicR0Delay,
-        {  7,  0, 0xffffffff, 0xfa0,      0, 0, 0},    //  AsicR0ToAsicAcq,
-        {  8,  0, 0xffffffff, 0xfa0,      0, 0, 0},    //  AsicAcqWidth,
-        {  9,  0, 0xffffffff, 0xfa,       0, 0, 0},    //  AsicAcqLToPPmatL,
-        { 10,  0, 0xffffffff, 0x36b0,     0, 0, 0},    //  AsicPPmatToReadout,
-        { 11,  0, 0xffffffff, 0xa,        0, 0, 0},    //  AsicRoClkHalfT,
+        {  6,  0, 0x7fffffff,  3000,      0, 0, 0},    //  AcqToAsicR0Delay,
+        {  7,  0, 0x7fffffff,  3200,      0, 0, 0},    //  AsicR0ToAsicAcq,
+        {  8,  0, 0x7fffffff,  3200,      0, 0, 0},    //  AsicAcqWidth,
+        {  9,  0, 0x7fffffff,  200,       0, 0, 0},    //  AsicAcqLToPPmatL,
+        { 10,  0, 0x7fffffff,  11200,     0, 0, 0},    //  AsicPPmatToReadout,
+        { 11,  0, 0x7fffffff, 0xa,        0, 0, 0},    //  AsicRoClkHalfT,
         { 12,  0, 3,          1,          0, 0, 0},    //  AdcReadsPerPixel,
-        { 13,  0, 0xffffffff, 1,          0, 0, 0},    //  AdcClkHalfT,
-        { 14,  0, 0xffffffff, 0x26,       0, 0, 0},    //  AsicR0Width,
-        { 15,  0, 0xffffffff, 0x11,       0, 1, 0},    //  AdcPipelineDelay,
-        { 16,  0, 0xffff,     0x26,       0, 0, 0},    //  SnycWidth,
-        { 16, 16, 0xffff,     0x26,       0, 0, 0},    //  SyncDelay,
-        { 17,  0, 0xffffffff, 0x26,       0, 0, 0},    //  PrepulseR0Width,
-        { 18,  0, 0xffffffff, 0x9c40,     0, 0, 0},    //  PrepulseR0Delay,
-        { 19,  0, 0xffffffff, 0,          1, 0, 0},    //  DigitalCardId0,
-        { 20,  0, 0xffffffff, 0,          1, 0, 0},    //  DigitalCardId1,
-        { 21,  0, 0xffffffff, 0,          1, 0, 0},    //  AnalogCardId0,
-        { 22,  0, 0xffffffff, 0,          1, 0, 0},    //  AnalogCardId1,
-        { 23,  0, 0xffffffff, 0,          1, 0, 0},    //  CarrierId0,
-        { 24,  0, 0xffffffff, 0,          1, 0, 0},    //  CarrierId1,
+        { 13,  0, 0x7fffffff, 1,          0, 0, 0},    //  AdcClkHalfT,
+        { 14,  0, 0x7fffffff,   30,       0, 0, 0},    //  AsicR0Width,
+        { 15,  0, 0x7fffffff,   31,       0, 0, 0},    //  AdcPipelineDelay,
+        { 16,  0, 0xffff,       30,       0, 0, 0},    //  SnycWidth,
+        { 16, 16, 0xffff,       30,       0, 0, 0},    //  SyncDelay,
+        { 17,  0, 0x7fffffff,   30,       0, 0, 0},    //  PrepulseR0Width,
+        { 18,  0, 0x7fffffff,  32000,     0, 0, 0},    //  PrepulseR0Delay,
+        { 19,  0, 0x7fffffff, 0,          1, 0, 0},    //  DigitalCardId0,
+        { 20,  0, 0x7fffffff, 0,          1, 0, 0},    //  DigitalCardId1,
+        { 21,  0, 0x7fffffff, 0,          1, 0, 0},    //  AnalogCardId0,
+        { 22,  0, 0x7fffffff, 0,          1, 0, 0},    //  AnalogCardId1,
+        { 23,  0, 0x7fffffff, 0,          1, 0, 0},    //  CarrierId0,
+        { 24,  0, 0x7fffffff, 0,          1, 0, 0},    //  CarrierId1,
         { 25,  0, 0xf,        2,          2, 0, 0},    //  NumberOfAsicsPerRow,
         { 26,  0, 0xf,        2,          2, 0, 0},    //  NumberOfAsicsPerColumn,
         { 27,  0, 0x1ff,      RowsPerASIC,2, 0, 0},    //  NumberOfRowsPerAsic,
@@ -79,10 +79,10 @@ namespace Pds {
         { 29,  0, 0x1ff,      ColsPerASIC,2, 0, 0},    //  NumberOfPixelsPerAsicRow,
         { 30,  0, 0x1ff,      2,          2, 0, 0},    //  CalibrationRowCountPerASIC,
         { 31,  0, 0x1ff,      1,          2, 0, 0},    //  EnvironmentalRowCountPerASIC,
-        { 32,  0, 0xffffffff, 0,          1, 0, 0},    //  BaseClockFrequency,
+        { 32,  0, 0x7fffffff, 0,          1, 0, 0},    //  BaseClockFrequency,
         { 33,  0, 0xffff,     0xf,        0, 1, 0},    //  AsicMask,
         { 34,  0, 1,          0,          0, 0, 0},    //  EnableAutomaticRunTrigger,
-        { 35,  0, 0xffffffff, 0xFE503,    0, 2, 0},    //  NumbClockTicksPerRunTrigger,
+        { 35,  0, 0x7fffffff,  833334,    0, 2, 0},    //  NumbClockTicksPerRunTrigger,
         { 36,  0, 1,          0,          0, 0, 0},    //  ScopeEnable,
         { 36,  1, 1,          1,          0, 0, 0},    //  ScopeTrigEdge,
         { 36,  2, 0xf,        6,          0, 0, 0},    //  ScopeTrigCh,
@@ -214,7 +214,7 @@ namespace Pds {
     uint32_t ConfigV2::offset(Registers r) {
       if (r >= NumberOfRegisters) {
         printf("ConfigV2::set parameter out of range!! %u %u\n", r, NumberOfRegisters);
-        return 0xffffffff;
+        return 0x7fffffff;
       }
       return _regs[r].offset;
     }
