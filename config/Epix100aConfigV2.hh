@@ -34,8 +34,11 @@ namespace Pds {
 
         enum Registers {
           Version,
-          RunTrigDelay,
-          DaqTrigDelay,
+          UsePgpEvr,
+          EvrRunCode,
+          EvrDaqCode,
+          EvrRunTrigDelay,
+          EpixRunTrigDelay,
           DacSetting,
           asicGR,
           asicGRControl,
@@ -64,6 +67,10 @@ namespace Pds {
           AdcClkHalfT,
           AsicR0Width,
           AdcPipelineDelay,
+          AdcPipelineDelay0,
+          AdcPipelineDelay1,
+          AdcPipelineDelay2,
+          AdcPipelineDelay3,
           SyncWidth,
           SyncDelay,
           PrepulseR0Width,
@@ -103,7 +110,7 @@ namespace Pds {
         enum types { decimal=0, hex=1, selection=2 };
 
         enum {
-          NumberOfValues=40,
+          NumberOfValues=47,
           NumberOfSelects=1
         };
 

@@ -29,81 +29,88 @@ namespace Pds {
 
     static uint32_t _regsfoo[ConfigV2::NumberOfRegisters][7] = {
     //offset shift mask default readOnly type selectionIndex
-        {  0,  0, 0x7fffffff, 0,      1, 1, 0},    //  Version,
-        {  1,  0, 0x7fffffff, 0,      0, 0, 0},    //  RunTrigDelay,
-        {  2,  0, 0x7fffffff, 0x4e2,  2, 0, 0},    //  DaqTrigDelay,
-        {  3,  0, 0xffff,     0x4e20, 0, 1, 0},    //  DacSetting,
+        {  0,  0, 0xffffffff, 0,      1, 1, 0},    //  Version,
+        {  1,  0, 1,          0,      2, 0, 0},    //  UsePgpEvr,
+        {  2,  0, 0xff,       0,      2, 0, 0},    //  evrRunCode,
+        {  3,  0, 0xff,       0,      2, 0, 0},    //  evrDaqCode,
+        {  4,  0, 0x7fffffff, 0,      2, 0, 0},    //  evrRunTrigDelay,
+        {  5,  0, 0x7fffffff, 0,      0, 0, 0},    //  epixRunTrigDelay,
+        {  6,  0, 0xffff,     0x4e20, 0, 1, 0},    //  DacSetting,
         //  pin states(4) and controls(5)
-        {  4,  0, 1, 1, 0, 0, 0},    //  asicGR,
-        {  5,  0, 1, 1, 0, 0, 0},    //  asicGRControl,
-        {  4,  1, 1, 0, 0, 0, 0},    //  asicAcq,
-        {  5,  1, 1, 0, 0, 0, 0},    //  asicAcqControl,
-        {  4,  2, 1, 1, 0, 0, 0},    //  asicR0,
-        {  5,  2, 1, 0, 0, 0, 0},    //  asicR0Control,
-        {  4,  3, 1, 1, 0, 0, 0},    //  asicPpmat,
-        {  5,  3, 1, 0, 0, 0, 0},    //  asicPpmatControl,
-        {  4,  4, 1, 0, 0, 0, 0},    //  asicPpbe,
-        {  5,  4, 1, 0, 0, 0, 0},    //  asicPpbeControl,
-        {  4,  5, 1, 0, 0, 0, 0},    //  asicRoClk,
-        {  5,  5, 1, 0, 0, 0, 0},    //  asicR0ClkControl,
-        {  5,  6, 1, 1, 0, 0, 0},    //  prepulseR0En,
-        {  5,  7, 1, 0, 0, 0, 0},    //  adcStreamMode,
-        {  5,  8, 1, 0, 0, 0, 0},    //  testPatternEnable,
-        {  5,  9, 3, 0, 0, 0, 0},    //  SyncMode
-        {  5, 11, 1, 1, 0, 0, 0},    //  R0Mode
+        {  7,  0, 1, 1, 0, 0, 0},    //  asicGR,
+        {  8,  0, 1, 1, 0, 0, 0},    //  asicGRControl,
+        {  7,  1, 1, 0, 0, 0, 0},    //  asicAcq,
+        {  8,  1, 1, 0, 0, 0, 0},    //  asicAcqControl,
+        {  7,  2, 1, 1, 0, 0, 0},    //  asicR0,
+        {  8,  2, 1, 0, 0, 0, 0},    //  asicR0Control,
+        {  7,  3, 1, 1, 0, 0, 0},    //  asicPpmat,
+        {  8,  3, 1, 0, 0, 0, 0},    //  asicPpmatControl,
+        {  7,  4, 1, 0, 0, 0, 0},    //  asicPpbe,
+        {  8,  4, 1, 0, 0, 0, 0},    //  asicPpbeControl,
+        {  7,  5, 1, 0, 0, 0, 0},    //  asicRoClk,
+        {  8,  5, 1, 0, 0, 0, 0},    //  asicR0ClkControl,
+        {  8,  6, 1, 1, 0, 0, 0},    //  prepulseR0En,
+        {  8,  7, 1, 0, 0, 0, 0},    //  adcStreamMode,
+        {  8,  8, 1, 0, 0, 0, 0},    //  testPatternEnable,
+        {  8,  9, 3, 0, 0, 0, 0},    //  SyncMode
+        {  8, 11, 1, 1, 0, 0, 0},    //  R0Mode
         //
-        {  6,  0, 0x7fffffff,  3000,      0, 0, 0},    //  AcqToAsicR0Delay,
-        {  7,  0, 0x7fffffff,  3200,      0, 0, 0},    //  AsicR0ToAsicAcq,
-        {  8,  0, 0x7fffffff,  3200,      0, 0, 0},    //  AsicAcqWidth,
-        {  9,  0, 0x7fffffff,  200,       0, 0, 0},    //  AsicAcqLToPPmatL,
-        { 10,  0, 0x7fffffff,  11200,     0, 0, 0},    //  AsicPPmatToReadout,
-        { 11,  0, 0x7fffffff, 0xa,        0, 0, 0},    //  AsicRoClkHalfT,
-        { 12,  0, 3,          1,          0, 0, 0},    //  AdcReadsPerPixel,
-        { 13,  0, 0x7fffffff, 1,          0, 0, 0},    //  AdcClkHalfT,
-        { 14,  0, 0x7fffffff,   30,       0, 0, 0},    //  AsicR0Width,
-        { 15,  0, 0x7fffffff,   31,       0, 0, 0},    //  AdcPipelineDelay,
-        { 16,  0, 0xffff,       30,       0, 0, 0},    //  SnycWidth,
-        { 16, 16, 0xffff,       30,       0, 0, 0},    //  SyncDelay,
-        { 17,  0, 0x7fffffff,   30,       0, 0, 0},    //  PrepulseR0Width,
-        { 18,  0, 0x7fffffff,  32000,     0, 0, 0},    //  PrepulseR0Delay,
-        { 19,  0, 0x7fffffff, 0,          1, 0, 0},    //  DigitalCardId0,
-        { 20,  0, 0x7fffffff, 0,          1, 0, 0},    //  DigitalCardId1,
-        { 21,  0, 0x7fffffff, 0,          1, 0, 0},    //  AnalogCardId0,
-        { 22,  0, 0x7fffffff, 0,          1, 0, 0},    //  AnalogCardId1,
-        { 23,  0, 0x7fffffff, 0,          1, 0, 0},    //  CarrierId0,
-        { 24,  0, 0x7fffffff, 0,          1, 0, 0},    //  CarrierId1,
-        { 25,  0, 0xf,        2,          2, 0, 0},    //  NumberOfAsicsPerRow,
-        { 26,  0, 0xf,        2,          2, 0, 0},    //  NumberOfAsicsPerColumn,
-        { 27,  0, 0x1ff,      RowsPerASIC,2, 0, 0},    //  NumberOfRowsPerAsic,
-        { 28,  0, 0x1ff,      RowsPerASIC,2, 0, 0},    //  NumberOfReadableRowsPerAsic,
-        { 29,  0, 0x1ff,      ColsPerASIC,2, 0, 0},    //  NumberOfPixelsPerAsicRow,
-        { 30,  0, 0x1ff,      2,          2, 0, 0},    //  CalibrationRowCountPerASIC,
-        { 31,  0, 0x1ff,      1,          2, 0, 0},    //  EnvironmentalRowCountPerASIC,
-        { 32,  0, 0x7fffffff, 0,          1, 0, 0},    //  BaseClockFrequency,
-        { 33,  0, 0xffff,     0xf,        0, 1, 0},    //  AsicMask,
-        { 34,  0, 1,          0,          0, 0, 0},    //  EnableAutomaticRunTrigger,
-        { 35,  0, 0x7fffffff,  833334,    0, 2, 0},    //  NumbClockTicksPerRunTrigger,
-        { 36,  0, 1,          0,          0, 0, 0},    //  ScopeEnable,
-        { 36,  1, 1,          1,          0, 0, 0},    //  ScopeTrigEdge,
-        { 36,  2, 0xf,        6,          0, 0, 0},    //  ScopeTrigCh,
-        { 36,  6, 3,          2,          0, 0, 0},    //  ScopeArmMode,
-        { 36, 16, 0xffff,     0,          0, 1, 0},    //  ScopeAdcThresh,
-        { 37,  0, 0x1fff,     0,          0, 0, 0},    //  ScopeHoldoff,
-        { 37, 13, 0x1fff,     0xf,        0, 0, 0},    //  ScopeOffset,
-        { 38,  0, 0x1fff,     0x1000,     0, 0, 0},    //  ScopeTraceLength,
-        { 38, 13, 0x1fff,     0,          0, 0, 0},    //  ScopeSkipSamples,
-        { 39,  0, 0x1f,       0,          0, 0, 0},    //  ScopeInputA,
-        { 39,  5, 0x1f,       4,          0, 0, 0},    //  ScopeInputB,
+        {  9,  0, 0x7fffffff,  3000,      0, 0, 0},    //  AcqToAsicR0Delay,
+        { 10,  0, 0x7fffffff,  3200,      0, 0, 0},    //  AsicR0ToAsicAcq,
+        { 11,  0, 0x7fffffff,  3200,      0, 0, 0},    //  AsicAcqWidth,
+        { 12,  0, 0x7fffffff,   200,      0, 0, 0},    //  AsicAcqLToPPmatL,
+        { 13,  0, 0x7fffffff, 11200,      0, 0, 0},    //  AsicPPmatToReadout,
+        { 14,  0, 0x7fffffff,   10,       0, 0, 0},    //  AsicRoClkHalfT,
+        { 15,  0, 3,             1,       0, 0, 0},    //  AdcReadsPerPixel,
+        { 16,  0, 0x7fffffff,    1,       0, 0, 0},    //  AdcClkHalfT,
+        { 17,  0, 0x7fffffff,   30,       0, 0, 0},    //  AsicR0Width,
+        { 18,  0, 0x7fffffff,   31,       0, 0, 0},    //  AdcPipelineDelay,
+        { 19,  0, 0x7fffffff,   31,       0, 0, 0},    //  AdcPipelineDelay0,
+        { 20,  0, 0x7fffffff,   31,       0, 0, 0},    //  AdcPipelineDelay1,
+        { 21,  0, 0x7fffffff,   31,       0, 0, 0},    //  AdcPipelineDelay2,
+        { 22,  0, 0x7fffffff,   31,       0, 0, 0},    //  AdcPipelineDelay3,
+        { 23,  0, 0xffff,       30,       0, 0, 0},    //  SnycWidth,
+        { 23, 16, 0xffff,       30,       0, 0, 0},    //  SyncDelay,
+        { 24,  0, 0x7fffffff,   30,       0, 0, 0},    //  PrepulseR0Width,
+        { 25,  0, 0x7fffffff, 32000,      0, 0, 0},    //  PrepulseR0Delay,
+        { 26,  0, 0x7fffffff, 0,          1, 0, 0},    //  DigitalCardId0,
+        { 27,  0, 0x7fffffff, 0,          1, 0, 0},    //  DigitalCardId1,
+        { 28,  0, 0x7fffffff, 0,          1, 0, 0},    //  AnalogCardId0,
+        { 29,  0, 0x7fffffff, 0,          1, 0, 0},    //  AnalogCardId1,
+        { 30,  0, 0x7fffffff, 0,          1, 0, 0},    //  CarrierId0,
+        { 31,  0, 0x7fffffff, 0,          1, 0, 0},    //  CarrierId1,
+        { 32,  0, 0xf,        2,          2, 0, 0},    //  NumberOfAsicsPerRow,
+        { 33,  0, 0xf,        2,          2, 0, 0},    //  NumberOfAsicsPerColumn,
+        { 34,  0, 0x1ff,      RowsPerASIC,2, 0, 0},    //  NumberOfRowsPerAsic,
+        { 35,  0, 0x1ff,      RowsPerASIC,2, 0, 0},    //  NumberOfReadableRowsPerAsic,
+        { 36,  0, 0x1ff,      ColsPerASIC,2, 0, 0},    //  NumberOfPixelsPerAsicRow,
+        { 37,  0, 0x1ff,      2,          2, 0, 0},    //  CalibrationRowCountPerASIC,
+        { 38,  0, 0x1ff,      1,          2, 0, 0},    //  EnvironmentalRowCountPerASIC,
+        { 39,  0, 0x7fffffff, 0,          1, 0, 0},    //  BaseClockFrequency,
+        { 40,  0, 0xffff,     0xf,        0, 1, 0},    //  AsicMask,
+        { 41,  0, 1,          0,          0, 0, 0},    //  EnableAutomaticRunTrigger,
+        { 42,  0, 0x7fffffff, 833333,     0, 2, 0},    //  NumbClockTicksPerRunTrigger,
+        { 43,  0, 1,          0,          0, 0, 0},    //  ScopeEnable,
+        { 43,  1, 1,          1,          0, 0, 0},    //  ScopeTrigEdge,
+        { 43,  2, 0xf,        6,          0, 0, 0},    //  ScopeTrigCh,
+        { 43,  6, 3,          2,          0, 0, 0},    //  ScopeArmMode,
+        { 43, 16, 0xffff,     0,          0, 1, 0},    //  ScopeAdcThresh,
+        { 44,  0, 0x1fff,     0,          0, 0, 0},    //  ScopeHoldoff,
+        { 44, 13, 0x1fff,     0xf,        0, 0, 0},    //  ScopeOffset,
+        { 45,  0, 0x1fff,     0x1000,     0, 0, 0},    //  ScopeTraceLength,
+        { 45, 13, 0x1fff,     0,          0, 0, 0},    //  ScopeSkipSamples,
+        { 46,  0, 0x1f,       0,          0, 0, 0},    //  ScopeInputA,
+        { 46,  5, 0x1f,       4,          0, 0, 0},    //  ScopeInputB,
     };
 
     static uint32_t _regSelect0[7] = {
     		6,
-    		0xFE503,
-    		0x1fca05,
-    		0x3f940b,
-    		0xbebc20,
-    		0x17d7840,
-    		0x7735940
+    		833334,
+    		1666667,
+    		3333334,
+    		10000000,
+    		20000000,
+    		100000000
     };
 
     static uint32_t* _regSelects[ConfigV2::NumberOfSelects] = {
@@ -112,8 +119,11 @@ namespace Pds {
 
     static char _regNames[ConfigV2::NumberOfRegisters+1][120] = {
         {"Version"},
-        {"RunTrigDelay"},
-        {"DaqTrigDelay"},
+        {"UsePgpEvr"},
+        {"EvrRunCode"},
+        {"EvrDaqCode"},
+        {"EvrRunTrigDelay"},
+        {"EpixRunTrigDelay"},
         {"DacSetting"},
         {"asicGR"},
         {"asicGRControl"},
@@ -142,6 +152,10 @@ namespace Pds {
         {"AdcClkHalfT"},
         {"AsicR0Width"},
         {"AdcPipelineDelay"},
+        {"AdcPipelineDelay0"},
+        {"AdcPipelineDelay1"},
+        {"AdcPipelineDelay2"},
+        {"AdcPipelineDelay3"},
         {"SyncWidth"},
         {"SyncDelay"},
         {"PrepulseR0Width"},
@@ -214,7 +228,7 @@ namespace Pds {
     uint32_t ConfigV2::offset(Registers r) {
       if (r >= NumberOfRegisters) {
         printf("ConfigV2::set parameter out of range!! %u %u\n", r, NumberOfRegisters);
-        return 0x7fffffff;
+        return 0xffffffff;
       }
       return _regs[r].offset;
     }
@@ -245,9 +259,6 @@ namespace Pds {
           break;
         case NumberOfAsicsPerColumn :
           ret = AsicsPerCol;
-          break;
-        case DaqTrigDelay :
-          ret = 1250;
           break;
         case CalibrationRowCountPerASIC :
           ret = 2;
@@ -285,9 +296,6 @@ namespace Pds {
           break;
         case NumberOfAsicsPerColumn :
           ret = AsicsPerCol;
-          break;
-        case DaqTrigDelay :
-          ret = 1250;
           break;
         case CalibrationRowCountPerASIC :
           ret = 2;

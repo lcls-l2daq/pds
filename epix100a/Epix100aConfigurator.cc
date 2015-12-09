@@ -29,8 +29,11 @@ class Epix100aDestination;
 
 static uint32_t configAddrs[Epix100aConfigShadow::NumberOfValues][2] = {
     {0x00,  1}, //  version
-    {0x02,  0}, //  RunTrigDelay
-    {0x04,  2}, //  DaqTrigDelay
+    {0,     2}, //  usePgpEvr
+    {0,		2}, //  evrRunCode
+    {0,     2}, //  evrDaqCode
+    {0,     2}, //  evrRunTrigDelay
+    {0x02,  0}, //  epixRunTrigDelay
     {0x07,  0}, //  DacSetting
     {0x29,  0}, //  AsicPins, etc
     {0x2a,  0}, //  AsicPinControl, etc
@@ -44,6 +47,10 @@ static uint32_t configAddrs[Epix100aConfigShadow::NumberOfValues][2] = {
     {0x26,  0}, //  AdcClkHalfT
     {0x2b,  0}, //  AsicR0Width
     {0x2c,  0}, //  AdcPipelineDelay
+    {0x90,  0}, //  AdcPipelineDelay0
+    {0x91,  0}, //  AdcPipelineDelay1
+    {0x92,  0}, //  AdcPipelineDelay2
+    {0x93,  0}, //  AdcPipelineDelay3
     {0x2d,  0}, //  SyncParams
     {0x2e,  0}, //  PrepulseR0Width
     {0x2f,  0}, //  PrepulseR0Delay
@@ -211,12 +218,8 @@ unsigned Epix100aConfigurator::configure( Epix100aConfigType* c, unsigned first)
   printf("Epix100aConfigurator::configure %sreseting front end\n", first ? "" : "not ");
   if (first) {
     resetFrontEnd();
-    printf("\tSleeping two seconds\n");
+    printf("\tSleeping two Seconds.");
     sleep(2);
-  } else {
-//	  resetFrontEnd();
-//	  printf("\tSleeping two seconds\n");
-//	  sleep(2);
   }
   if (_flush()) {
     printf("Epix100aConfigurator::configure determined that we lost contact with the front end, exiting!\n");
@@ -324,7 +327,7 @@ unsigned Epix100aConfigurator::writeConfig() {
     	  printf("\t%s\t0x%x\n", idNames[idn++], u[i]);
        }
     }
-    if (_pgp->writeRegister(&_d, DaqTrigggerDelayAddr, RunToDaqTriggerDelay+_s->get(Epix100aConfigShadow::RunTrigDelay))) {
+    if (_pgp->writeRegister(&_d, DaqTrigggerDelayAddr, RunToDaqTriggerDelay+_s->get(Epix100aConfigShadow::EpixRunTrigDelay))) {
       printf("Epix100aConfigurator::writeConfig failed writing DaqTrigggerDelay\n");
       ret = Failure;
     }

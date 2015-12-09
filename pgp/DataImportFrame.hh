@@ -46,8 +46,9 @@ namespace Pds {
         unsigned vc()                { return first.vc; }
         unsigned lane()              { return first.lane; }
         unsigned elementId()         { return second.elementID; }
-        unsigned frameNumber()       { return (unsigned) _frameNumber; }
         unsigned acqCount()          { return second.acqCount; }
+        unsigned opCode()            { return second.opCode; }
+        unsigned frameNumber()       { return (unsigned) _frameNumber; }
         uint32_t ticks()             { return _ticks; }
         uint32_t fiducials()         { return _fiducials; }
         uint32_t frameType()         { return _frameType; }

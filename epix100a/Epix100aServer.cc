@@ -106,11 +106,11 @@ unsigned Epix100aServer::configure(Epix100aConfigType* config, bool forceConfig)
     if ((_scopeEnabled = config->scopeEnable())) {
       _samplerConfig = new EpixSamplerConfigType(
           1,  // version
-          config->runTrigDelay(),
-          config->daqTrigDelay(),
+          config->epixRunTrigDelay(),
+          config->epixRunTrigDelay() + 20,
           config->dacSetting(),
           config->adcClkHalfT(),
-          config->adcPipelineDelay(),
+          config->adcPipelineDelay0(),
           config->digitalCardId0(),
           config->digitalCardId1(),
           config->analogCardId0(),

@@ -15,7 +15,13 @@ namespace Pds {
 
   namespace Pgp {
 
-    class AddressRange {
+#define rdtscll(val) do { \
+     unsigned int __a,__d; \
+     asm volatile("rdtsc" : "=a" (__a), "=d" (__d)); \
+     (val) = ((unsigned long)__a) | (((unsigned long)__d)<<32); \
+} while(0)
+
+   class AddressRange {
       public:
         AddressRange() {};
         AddressRange(uint32_t b, uint32_t l) : base(b), load(l) {};

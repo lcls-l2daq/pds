@@ -52,6 +52,7 @@ namespace Pds {
                           bool pf=false);
         unsigned      readStatus( PgpCardStatus* );
         unsigned      stopPolling();
+        int      IoctlCommand(unsigned command, unsigned arg = 0);
 
         static void          portOffset(unsigned p) { _portOffset = p;    }
         static unsigned      portOffset()           { return _portOffset; }

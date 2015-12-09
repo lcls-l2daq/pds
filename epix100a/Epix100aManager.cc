@@ -314,39 +314,7 @@ Epix100aManager::Epix100aManager( Epix100aServer* server, unsigned d) :
 
    printf("Epix100aManager being initialized... " );
 
-   unsigned ports = (d >> 4) & 0xf;
-   char devName[128];
-   char err[128];
-   if (ports == 0) {
-     ports = 15;
-     sprintf(devName, "/dev/pgpcard%u", d);
-   } else {
-     sprintf(devName, "/dev/pgpcard_%u_%u", d & 0xf, ports);
-   }
-
-   int epix100a = open( devName,  O_RDWR | O_NONBLOCK);
-   printf("pgpcard %s file number %d\n", devName, epix100a);
-   if (epix100a < 0) {
-     sprintf(err, "Epix100aManager::Epix100aManager() opening %s failed", devName);
-     perror(err);
-     // What else to do if the open fails?
-     ::exit(-1);
-   }
-
-   unsigned offset = 0;
-   while ((((ports>>offset) & 1) == 0) && (offset < 5)) {
-     offset += 1;
-   }
-
-   Pgp::Pgp::portOffset(offset);
-
-   if (offset >= 4) {
-     printf("Epix100aManager::Epix100aManager() illegal port mask!! 0x%x\n", ports);
-   }
-
    server->manager(this);
-   server->setEpix100a( epix100a );
-//   server->laneTest();
 
    _fsm.callback( TransitionId::Map, new Epix100aAllocAction( _cfg, server ) );
    _fsm.callback( TransitionId::Unmap, new Epix100aUnmapAction( server ) );

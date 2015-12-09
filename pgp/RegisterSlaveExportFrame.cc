@@ -52,7 +52,7 @@ namespace Pds {
     }
 
     // parameter is the size of the post in number of 32 bit words
-    unsigned RegisterSlaveExportFrame::post(__u32 size) {
+    unsigned RegisterSlaveExportFrame::post(__u32 size, bool pf) {
       struct timeval  timeout;
       PgpCardTx       pgpCardTx;
       int             ret;
@@ -64,6 +64,16 @@ namespace Pds {
       pgpCardTx.pgpLane = bits._lane;
       pgpCardTx.size    = size;
       pgpCardTx.data    = (__u32 *)this;
+
+      if (pf) {
+    	  printf("RSEF::post: model 0x%x, cmd 0x%x, vd 0x%x, lane 0x%x, size 0x%x, data 0x%p\n",
+    			  pgpCardTx.model,
+    			  pgpCardTx.cmd,
+    			  pgpCardTx.pgpVc,
+    			  pgpCardTx.pgpLane,
+    			  pgpCardTx.size,
+    			  pgpCardTx.data);
+      }
 
       // Wait for write ready
       timeout.tv_sec=0;
