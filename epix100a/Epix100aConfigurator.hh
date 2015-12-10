@@ -41,6 +41,10 @@ namespace Pds {
       ReadAcqCounter                    = 0x5,
       PowerEnableAddr                   = 0x8,
       PowerEnableValue                  = 0x7,
+      AdcControlAddr					= 0x80,
+      AdcCtrlReqMask					= 1,
+      AdcCtrlAckMask                    = 2,
+      AdcCtrlFailMask                   = 4,
       EnviroDataBaseAddr				= 0x140,
       RowCounterAdder                   = 0x6011,
       ColCounterAddr                    = 0x6013,
@@ -95,7 +99,8 @@ namespace Pds {
         void                 printMe();
         void                 runTimeConfigName(char*);
         uint32_t             testModeState() { return _testModeState; };
-        void                 resetFrontEnd();
+        unsigned             resetFrontEnd();
+        unsigned             resyncADC(unsigned c = 0);
         void                 resetSequenceCount();
         uint32_t             sequenceCount();
         uint32_t             acquisitionCount();

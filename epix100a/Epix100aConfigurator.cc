@@ -118,10 +118,47 @@ Epix100aConfigurator::Epix100aConfigurator(int f, unsigned d) :
 
 Epix100aConfigurator::~Epix100aConfigurator() {}
 
-void Epix100aConfigurator::resetFrontEnd() {
+unsigned Epix100aConfigurator::resetFrontEnd() {
   _d.dest(Epix100aDestination::Registers);
-  _pgp->writeRegister(&_d, ResetAddr, 1);
-  microSpin(10);
+//  _pgp->writeRegister(&_d, ResetAddr, 1);
+//  microSpin(10);
+//  if (_flush()) {
+//    printf("Epix100aConfigurator::resetFrontEnd determined that we lost contact with the front end, exiting!\n");
+//    return 1;
+//  }
+  uint32_t returned = 0;
+//  do {
+	  _pgp->readRegister(&_d, AdcControlAddr, 0x5e1, &returned);
+//  } while ((returned & AdcCtrlAckMask) == 0);
+//  usleep(10000);
+//  _pgp->readRegister(&_d, AdcControlAddr, 0x5e1, &returned);
+//  if (returned & AdcCtrlFailMask != 0) {
+//	  printf("Epix100aConfigurator::resetFrontEnd found that ADC alignment FAILED!!! returned %d\n", returned);
+//	  return resyncADC();
+//  }
+	  printf("Epix100aConfigurator::resetFrontEnd found  ADC alignment returned %d\n", returned);
+	  return 0;
+}
+
+unsigned Epix100aConfigurator::resyncADC(unsigned c) {
+	unsigned ret = 0;
+	_d.dest(Epix100aDestination::Registers);
+	_pgp->writeRegister(&_d, AdcControlAddr, 0);
+	_pgp->writeRegister(&_d, AdcControlAddr, AdcCtrlReqMask);
+	  microSpin(10);
+//	_pgp->writeRegister(&_d, AdcControlAddr, 0);
+	  uint32_t returned = 0;
+	  do {
+		  _pgp->readRegister(&_d, AdcControlAddr, 0x5e1, &returned);
+	  } while ((returned & AdcCtrlAckMask) == 0);
+	  usleep(10000);
+	  _pgp->readRegister(&_d, AdcControlAddr, 0x5e1, &returned);
+	  if (returned & AdcCtrlFailMask != 0) {
+		  printf("\tEpix100aConfigurator::resyncADC found that ADC alignment FAILED!!! returned %d\n", returned);
+		  if (c<3) ret = resyncADC(c+1);
+		  else ret = 2;
+	  }
+	  return ret;
 }
 
 void Epix100aConfigurator::resetSequenceCount() {
@@ -216,14 +253,9 @@ unsigned Epix100aConfigurator::configure( Epix100aConfigType* c, unsigned first)
   unsigned ret = 0;
   clock_gettime(CLOCK_REALTIME, &start);
   printf("Epix100aConfigurator::configure %sreseting front end\n", first ? "" : "not ");
+
   if (first) {
     resetFrontEnd();
-    printf("\tSleeping two Seconds.");
-    sleep(2);
-  }
-  if (_flush()) {
-    printf("Epix100aConfigurator::configure determined that we lost contact with the front end, exiting!\n");
-    return 1;
   }
   resetSequenceCount();
   if (printFlag) {
