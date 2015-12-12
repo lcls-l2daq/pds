@@ -27,7 +27,7 @@ public:
 
   virtual unsigned max_event_size () const { return 16*1024*1024; }
   virtual unsigned max_event_depth() const { return 32; }
-  virtual bool     is_triggered   () const { return false; }
+  virtual bool     is_triggered   () const = 0;
   virtual unsigned module         () const { return -1U; }
   virtual unsigned channel        () const { return -1U; }
 };
