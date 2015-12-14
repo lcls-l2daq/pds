@@ -8,7 +8,7 @@
 #include <stdio.h>
 #include "pds/config/Epix100aConfigV1.hh"
 #include "pds/config/Epix100aASICConfigV1.hh"
-#include "pds/config/EpixConfigType.hh"
+//#include "pds/config/EpixConfigType.hh"
 
 namespace Pds {
 namespace Epix100aConfig_V1 {
