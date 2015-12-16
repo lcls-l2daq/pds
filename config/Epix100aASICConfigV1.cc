@@ -31,7 +31,7 @@ namespace Pds {
       { 2,     11,    0x1,       0,     0,    0}, //  automaticTestModeEnable
       { 9,     1,     0x7,       3,     0,    0}, //  balconyDriverCurrent
       { 9,     0,     0x1,       1,     0,    0}, //  balconyEnable
-      { 12,    0,     0x3,       0,     0,    1}, //  bandGapReferenceTemperatureCompensationBits
+      { 12,    0,     0x3,       0,     0,    0}, //  bandGapReferenceTemperatureCompensationBits
       { 15,    3,     0x1,       0,     0,    0}, //  CCK_RegDelayEnable
       { 5,     0,     0x1,       0,     0,    0}, //  digitalMonitor1Enable
       { 5,     1,     0x1,       0,     0,    0}, //  digitalMonitor2Enable
@@ -48,19 +48,19 @@ namespace Pds {
       { 5,     4,     0x1,       0,     0,    0}, //  LVDS_ImpedenceMatchingEnable
       { 12,    5,     0x7,       3,     0,    0}, //  outputDriverDacReferenceBias
       { 12,    2,     0x7,       3,     0,    0}, //  outputDriverDrivingCapabilitiesAndStability
-      { 14,    2,     0x3f,      22,    0,    1}, //  outputDriverInputCommonMode0
-      { 22,    2,     0x3f,      22,    0,    1}, //  outputDriverInputCommonMode1
-      { 23,    2,     0x3f,      22,    0,    1}, //  outputDriverInputCommonMode2
-      { 24,    2,     0x3f,      22,    0,    1}, //  outputDriverInputCommonMode3
+      { 14,    2,     0x3f,      22,    0,    0}, //  outputDriverInputCommonMode0
+      { 22,    2,     0x3f,      22,    0,    0}, //  outputDriverInputCommonMode1
+      { 23,    2,     0x3f,      22,    0,    0}, //  outputDriverInputCommonMode2
+      { 24,    2,     0x3f,      22,    0,    0}, //  outputDriverInputCommonMode3
       { 8,     0,     0xf,       3,     0,    0}, //  outputDriverOutputDynamicRange0
       { 8,     4,     0xf,       3,     0,    0}, //  outputDriverOutputDynamicRange1
       { 21,    0,     0xf,       3,     0,    0}, //  outputDriverOutputDynamicRange2
       { 21,    4,     0xf,       3,     0,    0}, //  outputDriverOutputDynamicRange3
-      { 11,    0,     0x1,       1,     0,    1}, //  outputDriverTemperatureCompensationEnable
-      { 14,    0,     0x3,       1,     0,    1}, //  outputDriverTemperatureCompensationGain0
-      { 22,    0,     0x3,       1,     0,    1}, //  outputDriverTemperatureCompensationGain1
-      { 23,    0,     0x3,       1,     0,    1}, //  outputDriverTemperatureCompensationGain2
-      { 24,    0,     0x3,       1,     0,    1}, //  outputDriverTemperatureCompensationGain3
+      { 11,    0,     0x1,       1,     0,    0}, //  outputDriverTemperatureCompensationEnable
+      { 14,    0,     0x3,       1,     0,    0}, //  outputDriverTemperatureCompensationGain0
+      { 22,    0,     0x3,       1,     0,    0}, //  outputDriverTemperatureCompensationGain1
+      { 23,    0,     0x3,       1,     0,    0}, //  outputDriverTemperatureCompensationGain2
+      { 24,    0,     0x3,       1,     0,    0}, //  outputDriverTemperatureCompensationGain3
       { 10,    6,     0x3,       1,     0,    0}, //  pixelBuffersAndPreamplifierDrivingCapabilities
       { 11,    1,     0x3f,      33,    0,    0}, //  pixelFilterLevel
       { 10,    3,     0x7,       4,     0,    0}, //  pixelOutputBufferCurrent
@@ -74,10 +74,10 @@ namespace Pds {
       { 15,    0,     0x1,       0,     0,    0}, //  testBackEnd
       { 2,     12,    0x1,       0,     0,    0}, //  testMode
       { 2,     13,    0x1,       0,     0,    0}, //  testModeWithDarkFrame
-      { 13,    2,     0x3f,      22,    0,    1}, //  testPointSystemInputCommonMode
-      { 4,     4,     0x7,       3,     0,    1}, //  testPointSystemOutputDynamicRange
-      { 7,     0,     0x1,       1,     0,    1}, //  testPointSystemTemperatureCompensationEnable
-      { 13,    0,     0x3,       0,     0,    1}, //  testPointSystemTemperatureCompensationGain
+      { 13,    2,     0x3f,      22,    0,    0}, //  testPointSystemInputCommonMode
+      { 4,     4,     0x7,       3,     0,    0}, //  testPointSystemOutputDynamicRange
+      { 7,     0,     0x1,       1,     0,    0}, //  testPointSystemTemperatureCompensationEnable
+      { 13,    0,     0x3,       0,     0,    0}, //  testPointSystemTemperatureCompensationGain
       { 7,     1,     0xf,       0,     0,    0}, //  testPointSytemInputSelect
       { 4,     0,     0x7,       3,     0,    0}, //  testPulserCurrent
       { 2,     0,     0x3ff,     0,     0,    0}, //  testPulserLevel
@@ -233,7 +233,7 @@ namespace Pds {
     unsigned ASIC_ConfigV1::doNotCopy(Registers r) {
       if (r >= NumberOfRegisters) {
         printf("Pds::Epix100aSamplerConfig::ConfigV1::readOnly parameter out of range!! %u\n", r);
-        return DoCopy;
+        return DoNotCopy;
       }
       return (unsigned)_Aregs[r].doNotCopy;
     }
@@ -243,6 +243,8 @@ namespace Pds {
       while (i<NumberOfRegisters) {
         Registers c = (Registers)i++;
         if ((readOnly(c) == ReadWrite) && (doNotCopy(c) == DoCopy)) set(c,foo.get(c));
+        else printf("ASIC_ConfigV1::operator= did not copy %s because %s", name(c),
+        		(readOnly(c) == ReadWrite) ? "(doNotCopy(c) != DoCopy)" : "(readOnly(c) != ReadWrite)");
       }
     }
 
