@@ -31,3 +31,12 @@ ifneq ($(findstring x86_64-rhel6,$(tgt_arch)),)
   packages += pimax
 endif
 
+ifneq ($(findstring x86_64-rhel7,$(tgt_arch)),)
+  packages := service collection xtc
+  packages += config confignfs configsql mon vmon
+  packages += utility management client offlineclient
+  packages += epicstools pnccd epicsArch ioc 
+endif
+
+
+
