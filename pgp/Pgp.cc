@@ -24,6 +24,7 @@ namespace Pds {
       if (pf) printf("Pgp::Pgp(fd(%d)), offset(%u)\n", f, _portOffset);
       Pds::Pgp::RegisterSlaveExportFrame::FileDescr(f);
       for (int i=0; i<BufferWords; i++) _readBuffer[i] = i;
+      _pt.model = sizeof(&_pt); _pt.size = 0; _pt.pgpLane = 0;  _pt.pgpVc = 0;
     }
 
     Pgp::~Pgp() {}
@@ -104,11 +105,10 @@ namespace Pds {
     }
 
     unsigned Pgp::stopPolling() {
-      PgpCardTx p;
+      PgpCardTx* p = &_pt;
 
-      p.model = sizeof(p);
-      p.cmd   = IOCTL_Clear_Polling;
-      p.data  = 0;
+      p->cmd   = IOCTL_Clear_Polling;
+      p->data  = 0;
       return(write(_fd, &p, sizeof(PgpCardTx)));
     }
 
@@ -199,10 +199,9 @@ namespace Pds {
     }
 
     int Pgp::IoctlCommand(unsigned c, unsigned a) {
-      PgpCardTx p;
-      p.model = sizeof(p);
-      p.cmd   = c;
-      p.data  = (unsigned*) a;
+      PgpCardTx* p = &_pt;
+      p->cmd   = c;
+      p->data  = (unsigned*) a;
       return(write(_fd, &p, sizeof(PgpCardTx)));
     }
 
