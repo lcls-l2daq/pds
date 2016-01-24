@@ -18,9 +18,9 @@ using std::string;
 using std::stringstream;
 
 EpicsArchMonitor::EpicsArchMonitor(const Src & src, const std::string & sFnConfig,
-  float fDefaultInterval, int iNumEventNode, Pool & occPool, int iDebugLevel, std::string& sConfigFileWarning):
+  float fDefaultInterval, int iNumEventNode, Pool & occPool, int iDebugLevel, int iIgnoreLevel, std::string& sConfigFileWarning):
   _src(src), _sFnConfig(sFnConfig), _fDefaultInterval(fDefaultInterval), _iNumEventNode(iNumEventNode),
-  _occPool(occPool), _iDebugLevel(iDebugLevel)
+  _occPool(occPool), _iDebugLevel(iDebugLevel), _iIgnoreLevel(iIgnoreLevel)
 {
   if (_sFnConfig == "")
     throw string("EpicsArchMonitor::EpicsArchMonitor(): Invalid parameters");
@@ -163,40 +163,43 @@ int EpicsArchMonitor::writeToXtc(Datagram & dg, UserMessage ** msg, const struct
       bAnyPvWriteOkay = true;
     else if (iFail == 2)  // Error code 2 means this PV has no connection
     {
-      printf("%s (%s) failed to connect\n",
-             epicsPvCur.getPvDescription().c_str(), epicsPvCur.getPvName().c_str());
+      // ignore level 0: do not ignore PV connection errors
+      //              1: ignore PV connection errors with message
+      //              2: ignore PV connection errors silently
+      if ((_iIgnoreLevel == 0) || ((_iDebugLevel >= 1))) {
+        printf("%s (%s) failed to connect\n",
+               epicsPvCur.getPvDescription().c_str(), epicsPvCur.getPvName().c_str());
+      }
 
-      if (bCtrlValue)
-      {     // If this happens in the "config" action (ctrl value is about to be written)
+      if (bCtrlValue) {
+        // If this happens in the "config" action (ctrl value is about to be written)
         epicsPvCur.release(); // release this PV and never update it again
-
-        if ((*msg) == 0)
-        {
-          /*
-           * Push the full list of problematic PVs, if possible.
-           */
-          if (_occPool.numberOfFreeObjects()) {
-            (*msg) = new(&_occPool) UserMessage;
-            (*msg)->append("EpicsArch: Some PVs not connected\n");
-            (*msg)->append(epicsPvCur.getPvDescription().c_str());
-            (*msg)->append(" (");
-            (*msg)->append(epicsPvCur.getPvName().c_str());
-            (*msg)->append(")\n");
-          }
-          else {
-            printf("EpicsArchMonitor::writeToXtc occPool empty\n");
+        if (_iIgnoreLevel < 2) {
+          if ((*msg) == 0) {
+            /*
+             * Push the full list of problematic PVs, if possible.
+             */
+            if (_occPool.numberOfFreeObjects()) {
+              (*msg) = new(&_occPool) UserMessage;
+              (*msg)->append("EpicsArch: Some PVs not connected\n");
+              (*msg)->append(epicsPvCur.getPvDescription().c_str());
+              (*msg)->append(" (");
+              (*msg)->append(epicsPvCur.getPvName().c_str());
+              (*msg)->append(")\n");
+            } else {
+              printf("EpicsArchMonitor::writeToXtc occPool empty\n");
+            }
+          } else {
+            int len = strlen(epicsPvCur.getPvDescription().c_str())+
+              strlen(epicsPvCur.getPvName().c_str()+4);
+            if ((*msg)->remaining() > len) {
+              (*msg)->append(epicsPvCur.getPvDescription().c_str());
+              (*msg)->append(" (");
+              (*msg)->append(epicsPvCur.getPvName().c_str());
+              (*msg)->append(")\n");
+            }
           }
         }
-  else {
-    int len = strlen(epicsPvCur.getPvDescription().c_str())+
-      strlen(epicsPvCur.getPvName().c_str()+4);
-    if ((*msg)->remaining() > len) {
-      (*msg)->append(epicsPvCur.getPvDescription().c_str());
-      (*msg)->append(" (");
-      (*msg)->append(epicsPvCur.getPvName().c_str());
-      (*msg)->append(")\n");
-    }
-  }
       }
 
       bSomePvNotConnected = true;

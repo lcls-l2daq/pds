@@ -17,7 +17,7 @@ namespace Pds
   {
   public:
     EpicsArchMonitor(const Src & src, const std::string & sFnConfig,
-      float fDefaultInterval, int iNumEventNode, Pool & occPool, int iDebugLevel, std::string& sConfigFileWarning);
+      float fDefaultInterval, int iNumEventNode, Pool & occPool, int iDebugLevel, int iIgnoreLevel, std::string& sConfigFileWarning);
     ~EpicsArchMonitor();
   public:
     int writeToXtc(Datagram & dg, UserMessage ** msg, const struct timespec& tsCurrent, unsigned int uVectorCur);
@@ -39,6 +39,7 @@ namespace Pds
     int         _iNumEventNode;
     Pool&       _occPool;
     int         _iDebugLevel;
+    int         _iIgnoreLevel;
     TPvNameSet  _setPv;
     TEpicsMonitorPvList _lpvPvList;    
 

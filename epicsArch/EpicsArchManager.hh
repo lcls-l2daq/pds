@@ -17,7 +17,7 @@ namespace Pds
   {
   public:
     EpicsArchManager(CfgClientNfs & cfg, const std::string & sFnConfig,
-         float fMinTriggerInterval, int iDebugLevel);
+         float fMinTriggerInterval, int iDebugLevel, int iIgnoreLevel);
     ~EpicsArchManager();
 
     Appliance & appliance()
@@ -35,6 +35,11 @@ namespace Pds
     
     void setNumEventNode(int iNumEventNode);
     
+    int ignoreLevel()   // if > 0, ignore PV connection errors (1=ignore with message, 2=ignore silently)
+    {
+      return _iIgnoreLevel;
+    }
+
     // event handlers
     int onActionMap(UserMessage*& pMsg);
     int onActionReset();
@@ -56,6 +61,7 @@ namespace Pds
     std::string       _sFnConfig;
     float             _fMinTriggerInterval;
     int               _iDebugLevel;
+    int               _iIgnoreLevel;
     int               _iNumEventNode;
     EpicsArchMonitor* _pMonitor;
     GenericPool *     _pPool;

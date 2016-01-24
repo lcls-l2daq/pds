@@ -122,6 +122,7 @@ public:
 
     UserMessage*msg = NULL;
     InDatagram *out = new(_manager.getPool())Pds::CDatagram(in->datagram());
+    int ignoreLevel = _manager.ignoreLevel();
     int iFail       = _manager.writeMonitoredContent(out->datagram(), &msg, (struct timespec) {0,0}, 0);
 
     /*
@@ -135,10 +136,19 @@ public:
      * 4              Some PV values have been outputted, but some has write error
      * 5              Some PV values have been outputted, but some has not been connected
      */
-    if (iFail != 0)
-    {
-      // set damage bit          
-      out->datagram().xtc.damage.increase(Pds::Damage::UserDefined);
+    if (_iDebugLevel >= 1) {
+      printf("%s line %d: iFail=%d ignoreLevel=%d\n", __FILE__, __LINE__, iFail, ignoreLevel);
+    }
+    if ((iFail == 5) && (ignoreLevel > 0)) {
+      // ignore error 5
+      if (_iDebugLevel >= 1) {
+        printf("\nIgnoring error code 5 at %s line %d (ignoreLevel=%d)\n", __FILE__, __LINE__, ignoreLevel);
+      }
+    } else {
+      if (iFail != 0) {
+        // set damage bit          
+        out->datagram().xtc.damage.increase(Pds::Damage::UserDefined);
+      }
     }
 
     if (msg != NULL)
@@ -187,6 +197,7 @@ public:
     if (_iDebugLevel >= 1)
       printf("\n\n===== Writing L1 Data =====\n");
     InDatagram *out = new(_manager.getPool())Pds::CDatagram(in->datagram());
+    int ignoreLevel = _manager.ignoreLevel();
     int iFail = _manager.writeMonitoredContent(out->datagram(), NULL, tsCurrent, uVectorCur);
 
     /*
@@ -200,10 +211,21 @@ public:
      * 4              Some PV values have been outputted, but some has write error
      * 5              Some PV values have been outputted, but some has not been connected
      */
-    if (iFail != 0)
+    if ((iFail == 5) && (ignoreLevel > 0))
     {
-      // set damage bit
-      out->datagram().xtc.damage.increase(Pds::Damage::UserDefined);
+      // ignore error 5
+      if (_iDebugLevel >= 1)
+      {
+        printf("\nIgnoring error code 5 at %s line %d (ignoreLevel=%d)\n", __FILE__, __LINE__, ignoreLevel);
+      }
+    }
+    else
+    {
+      if (iFail != 0)
+      {
+        // set damage bit
+        out->datagram().xtc.damage.increase(Pds::Damage::UserDefined);
+      }
     }
 
     if (_iDebugLevel >= 1)
@@ -239,9 +261,9 @@ private:
 
 const Src EpicsArchManager::srcLevel = Src(Level::Reporter);
 
-EpicsArchManager::EpicsArchManager(CfgClientNfs & cfg, const std::string & sFnConfig, float fMinTriggerInterval, int iDebugLevel):
+EpicsArchManager::EpicsArchManager(CfgClientNfs & cfg, const std::string & sFnConfig, float fMinTriggerInterval, int iDebugLevel, int iIgnoreLevel):
   _src(cfg.src()), _sFnConfig(sFnConfig), 
-  _fMinTriggerInterval(fMinTriggerInterval), _iDebugLevel(iDebugLevel), _iNumEventNode(0),
+  _fMinTriggerInterval(fMinTriggerInterval), _iDebugLevel(iDebugLevel), _iIgnoreLevel(iIgnoreLevel),_iNumEventNode(0),
   _pMonitor(NULL) // _pMonitor need to be initialized in the task thread
 {
   _pFsm = new Fsm();
@@ -327,7 +349,7 @@ int EpicsArchManager::initMonitor(string& sConfigFileWarning)
   {
     _pMonitor =
       new EpicsArchMonitor(_src, _sFnConfig, _fMinTriggerInterval, _iNumEventNode,
-        *_occPool, _iDebugLevel, sConfigFileWarning);            
+        *_occPool, _iDebugLevel, _iIgnoreLevel, sConfigFileWarning);            
   }
   catch(string & sError)
   {
