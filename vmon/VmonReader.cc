@@ -34,6 +34,25 @@ VmonReader::VmonReader(const char* name) :
   fseek(_file, -len, SEEK_END);
   fread(_buff,sizeof(VmonRecord),1,_file);
   _end = record->time();
+
+  long curpos = ftell(_file);
+  if (len != record->len() ||
+      ((curpos-_seek_pos-sizeof(VmonRecord))%len)!=0) {
+    printf("Unexpected file end position: len %u  end %u  start %u\n",
+           len, curpos-sizeof(VmonRecord), _seek_pos);
+    printf("Start,End time: %08x.%08x  %08x.%08x\n",
+           _begin.seconds(),_begin.nanoseconds(),
+           _end  .seconds(),_end  .nanoseconds());
+
+    long newpos = -((curpos-_seek_pos-sizeof(VmonRecord))%len)-sizeof(VmonRecord);
+    fseek(_file, newpos, SEEK_CUR);
+    fread(_buff,sizeof(VmonRecord),1,_file);
+    _end = record->time();
+
+    printf("New len %u  End time: %08x.%08x\n",
+           record->len(),
+           _end  .seconds(),_end  .nanoseconds());
+  }
 }
   
 VmonReader::~VmonReader()
