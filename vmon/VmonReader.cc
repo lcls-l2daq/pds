@@ -38,7 +38,7 @@ VmonReader::VmonReader(const char* name) :
   long curpos = ftell(_file);
   if (len != record->len() ||
       ((curpos-_seek_pos-sizeof(VmonRecord))%len)!=0) {
-    printf("Unexpected file end position: len %u  end %u  start %u\n",
+    printf("Unexpected file end position: len %u  end %lu  start %u\n",
            len, curpos-sizeof(VmonRecord), _seek_pos);
     printf("Start,End time: %08x.%08x  %08x.%08x\n",
            _begin.seconds(),_begin.nanoseconds(),
