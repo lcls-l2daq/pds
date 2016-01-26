@@ -11,6 +11,9 @@ typedef Pds::ControlData::ConfigV3 ControlConfigType;
 static Pds::TypeId _controlConfigType(Pds::TypeId::Id_ControlConfig,
 				      ControlConfigType::Version);
 
+static const Pds::ClockTime EndCalibTime(0,0);
+static const Pds::ClockTime EndRunTime  (0,1);
+
 namespace Pds {
   namespace ControlConfig {
 
