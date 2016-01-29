@@ -199,27 +199,31 @@ int Pds::CspadServer::fetch( char* payload, int flags ) {
        clock_gettime(CLOCK_REALTIME, &_lastTime);
      } else {
        clock_gettime(CLOCK_REALTIME, &_thisTime);
-       long long unsigned diff = timeDiff(&_thisTime, &_lastTime);
-       unsigned peak = 0;
-       unsigned max = 0;
-       unsigned count = 0;
-       diff += 500000;
-       diff /= 1000000;
-       if (diff > sizeOfHisto-1) diff = sizeOfHisto-1;
-       _histo[diff] += 1;
-       for (unsigned i=0; i<sizeOfHisto; i++) {
-         if (_histo[i]) {
-           if (_histo[i] > max) {
-             max = _histo[i];
-             peak = i;
+       long long int diff = timeDiff(&_thisTime, &_lastTime);
+       if (diff > 0) {
+         unsigned peak = 0;
+         unsigned max = 0;
+         unsigned count = 0;
+         diff += 500000;
+         diff /= 1000000;
+         if (diff > sizeOfHisto-1) diff = sizeOfHisto-1;
+         _histo[diff] += 1;
+         for (unsigned i=0; i<sizeOfHisto; i++) {
+           if (_histo[i]) {
+             if (_histo[i] > max) {
+               max = _histo[i];
+               peak = i;
+             }
+             count = 0;
            }
-           count = 0;
+           if (i > count && count > 100) break;
+           count += 1;
          }
-         if (i > count && count > 100) break;
-         count += 1;
-       }
-       if ((diff >= (peak<<1)) || (diff <= (peak>>1))) {
-         printf("CspadServer::fetch exceptional period %llu, not %u\n", diff, peak);
+         if ((diff >= (peak<<1)) || (diff <= (peak>>1))) {
+           printf("CspadServer::fetch exceptional period %lld, not %u\n", diff, peak);
+         }
+       } else {
+         printf("CspadServer::fetch Clock backtrack %f ms\n", diff / 1000000.0);
        }
        memcpy(&_lastTime, &_thisTime, sizeof(timespec));
      }

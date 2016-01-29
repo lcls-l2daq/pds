@@ -121,7 +121,7 @@ class Pds::Epix100aServer
    Epix100aManager*                   _mgr;
    GenericPool*                   _occPool;
    unsigned                       _unconfiguredErrors;
-   unsigned                       _timeSinceLastException;
+   float                          _timeSinceLastException;
    unsigned                       _fetchesSinceLastException;
    char*                          _processorBuffer;
    unsigned*                      _scopeBuffer;
