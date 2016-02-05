@@ -31,7 +31,8 @@ namespace Pds_ConfigDb {
                       Ipimb, IpmDiode, PimDiode, PimImage, 
                       Encoder, pnCCD, RunControl, Princeton, Fccd, Cspad, Gsc16ai, 
                       Timepix, Cspad2x2, OceanOptics, Fli, Andor, UsdUsb, Orca, Imp,
-                      Rayonix, EpixSampler, Epix, Pimax, Epix10k, Epix100a, GenericPgp, TimeTool,
+                      Rayonix, EpixSampler, Epix, Pimax, Epix10k, Epix100a, GenericPgp,
+                      TimeTool, Andor3d,
 #ifdef BUILD_EXTRA
                       Phasics, Xamps, Fexamp,
 #endif
