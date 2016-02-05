@@ -30,21 +30,24 @@ class DualAndorPollRoutine : public Routine
 {
   public:
     void SetRunning(int state);
-    void SetTemperature(int temp);
-    DualAndorPollRoutine(DualAndorManager& manager, std::string _sTempPV);
+    void SetTemperature(int tempMaster, int tempSlave);
+    DualAndorPollRoutine(DualAndorManager& manager, std::string sTempMasterPV, std::string sTempSlavePV);
     void routine(void);
   private:
     int               _state;
-    int               _temp;
+    int               _tempMaster;
+    int               _tempSlave;
     DualAndorManager& _manager;
-    chid              _chan;
-    std::string       _sTempPV;
+    chid              _chanMaster;
+    chid              _chanSlave;
+    std::string       _sTempMasterPV;
+    std::string       _sTempSlavePV;
 };
 
 class DualAndorManager
 {
 public:
-  DualAndorManager(CfgClientNfs& cfg, int iCamera, bool bDelayMode, bool bInitTest, std::string sConfigDb, int iSleepInt, int iDebugLevel, std::string sTempPV);
+  DualAndorManager(CfgClientNfs& cfg, int iCamera, bool bDelayMode, bool bInitTest, std::string sConfigDb, int iSleepInt, int iDebugLevel, std::string sTempMasterPV, std::string sTempSlavePV);
   ~DualAndorManager();
 
   Appliance&    appliance() { return *_pFsm; }
@@ -68,6 +71,8 @@ public:
   int   waitData(InDatagram* in, InDatagram*& out);
   bool  inBeamRateMode();
   int   getDataInBeamRateMode(InDatagram* in, InDatagram*& out);
+  int   getTemperatureMaster(bool bForceUpdate);
+  int   getTemperatureSlave (bool bForceUpdate);
 
 private:
   const int             _iCamera;
@@ -76,7 +81,8 @@ private:
   const std::string     _sConfigDb;
   const int             _iSleepInt;
   const int             _iDebugLevel;
-  const std::string     _sTempPV;
+  const std::string     _sTempMasterPV;
+  const std::string     _sTempSlavePV;
 
   Fsm*                  _pFsm;
   Action*               _pActionMap;

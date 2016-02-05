@@ -37,6 +37,7 @@ DualAndorServer::DualAndorServer(int iCamera, bool bDelayMode, bool bInitTest, c
  _fPrevReadoutTime(0), _bSequenceError(false), _clockPrevDatagram(0,0), _iNumExposure(0), _iNumAcq(0),
  _config(),
  _fReadoutTime(0),
+ _iTemperatureMaster(999), _iTemperatureSlave(999),
  _poolFrameData(_iMaxFrameDataSize, _iPoolDataCount), _pDgOut(NULL),
  _CaptureState(CAPTURE_STATE_IDLE), _pTaskCapture(NULL), _routineCapture(*this)
 {
@@ -299,19 +300,17 @@ int DualAndorServer::initSetup()
   --_iMaxSpeedTableIndex;
   printf("Max Speed Table Index: %d\n", _iMaxSpeedTableIndex);
 
-  int iTemperature = 999;
   if (checkMasterSelected()) {
-    iError = GetTemperature(&iTemperature);
-    printf("Current Temperature %d C  Status %s\n", iTemperature, AndorErrorCodes::name(iError));
+    iError = GetTemperature(&_iTemperatureMaster);
+    printf("Current Temperature %d C  Status %s\n", _iTemperatureMaster, AndorErrorCodes::name(iError));
   }
-  iTemperature = 999;
   if (checkSlaveSelected()) {
-    iError = GetTemperature(&iTemperature);
-    printf("Current Temperature %d C  Status %s\n", iTemperature, AndorErrorCodes::name(iError));
+    iError = GetTemperature(&_iTemperatureSlave);
+    printf("Current Temperature %d C  Status %s\n", _iTemperatureSlave, AndorErrorCodes::name(iError));
   }
 
-  printf( "Detector Width %d Height %d Max Speed %d Gain %d Temperature %d C\n",
-    _iDetectorWidth, _iDetectorHeight, _iMaxSpeedTableIndex, _iMaxGainIndex, iTemperature);
+  printf( "Detector Width %d Height %d Max Speed %d Gain %d Temperature %d C %d C\n",
+    _iDetectorWidth, _iDetectorHeight, _iMaxSpeedTableIndex, _iMaxGainIndex, _iTemperatureMaster, _iTemperatureSlave);
 
   if (_bInitTest)
   {
@@ -326,19 +325,17 @@ int DualAndorServer::initSetup()
     return ERROR_FUNCTION_FAILURE;
   }
 
-  iTemperature = 999;
   if (checkMasterSelected()) {
-    iError = GetTemperature(&iTemperature);
-    printf("Current Temperature %d C  Status %s\n", iTemperature, AndorErrorCodes::name(iError));
+    iError = GetTemperature(&_iTemperatureMaster);
+    printf("Current Temperature %d C  Status %s\n", _iTemperatureMaster, AndorErrorCodes::name(iError));
   }
-  iTemperature = 999;
   if (checkSlaveSelected()) {
-    iError = GetTemperature(&iTemperature);
-    printf("Current Temperature %d C  Status %s\n", iTemperature, AndorErrorCodes::name(iError));
+    iError = GetTemperature(&_iTemperatureSlave);
+    printf("Current Temperature %d C  Status %s\n", _iTemperatureSlave, AndorErrorCodes::name(iError));
   }
 
-  printf( "Detector Width %d Height %d Max Speed %d Gain %d Temperature %d C\n",
-    _iDetectorWidth, _iDetectorHeight, _iMaxSpeedTableIndex, _iMaxGainIndex, iTemperature);
+  printf( "Detector Width %d Height %d Max Speed %d Gain %d Temperatures %d C %d C\n",
+    _iDetectorWidth, _iDetectorHeight, _iMaxSpeedTableIndex, _iMaxGainIndex, _iTemperatureMaster, _iTemperatureSlave);
 
   const int iDevId = ((DetInfo&)_src).devId();
   printf( "Andor Camera [%d] (device %d) has been initialized\n", iDevId, _iCamera );
@@ -658,22 +655,19 @@ int DualAndorServer::config(Andor3dConfigType& config, std::string& sConfigWarni
   else
     _iTriggerMode = 0;
 
-  int iTemperatureMaster = 999;
-  int iTemperatureSlave  = 999;
-  
   if (checkMasterSelected())
   {
-    int iError = GetTemperature(&iTemperatureMaster);
-    printf("Current Temperature %d C  Status %s (hcam = %d)\n", iTemperatureMaster, AndorErrorCodes::name(iError), (int) _hCamMaster);
+    int iError = GetTemperature(&_iTemperatureMaster);
+    printf("Current Temperature %d C  Status %s (hcam = %d)\n", _iTemperatureMaster, AndorErrorCodes::name(iError), (int) _hCamMaster);
   }
   if (checkSlaveSelected())
   {
-    int iError = GetTemperature(&iTemperatureSlave);
-    printf("Current Temperature %d C  Status %s (hcam = %d)\n", iTemperatureSlave, AndorErrorCodes::name(iError), (int) _hCamSlave);
+    int iError = GetTemperature(&_iTemperatureSlave);
+    printf("Current Temperature %d C  Status %s (hcam = %d)\n", _iTemperatureSlave, AndorErrorCodes::name(iError), (int) _hCamSlave);
   }
 
   printf( "Detector Width %d Height %d Speed %d/%d Gain %d/%d Temperature %d C and %d C\n",
-    _iDetectorWidth, _iDetectorHeight, _config.readoutSpeedIndex(), _iMaxSpeedTableIndex, _config.gainIndex(), _iMaxGainIndex, iTemperatureMaster, iTemperatureSlave);
+    _iDetectorWidth, _iDetectorHeight, _config.readoutSpeedIndex(), _iMaxSpeedTableIndex, _config.gainIndex(), _iMaxGainIndex, _iTemperatureMaster, _iTemperatureSlave);
 
   return 0;
 }
@@ -1281,24 +1275,54 @@ int DualAndorServer::initTest()
   clock_gettime( CLOCK_REALTIME, &timeVal0 );
 
   int iError;
-  iError = SetHSSpeed(_iReadoutPort, 0);
-  if (!isAndorFuncOk(iError))
-  {
-    printf("DualAndorServer::initTest(): SetHSSpeed(%d,%d): %s\n", _iReadoutPort, 0, AndorErrorCodes::name(iError));
+
+  if (checkSlaveSelected()) {
+    iError = SetHSSpeed(_iReadoutPort, 0);
+    if (!isAndorFuncOk(iError))
+    {
+      printf("DualAndorServer::initTest(): SetHSSpeed(%d,%d) (hcam = %d): %s\n", _iReadoutPort, 0, (int) _hCamSlave, AndorErrorCodes::name(iError));
+      return ERROR_SDK_FUNC_FAIL;
+    }
+
+    iError = SetExposureTime(0.001);
+    if (!isAndorFuncOk(iError))
+    {
+      printf("DualAndorServer::initTest(): SetExposureTime() (hcam = %d): %s\n", (int) _hCamSlave, AndorErrorCodes::name(iError));
+      return ERROR_SDK_FUNC_FAIL;
+    }
+
+    iError = SetImage(1, 1, 1, 128, 1, 128);
+    if (!isAndorFuncOk(iError))
+    {
+      printf("DualAndorServer::initTest(): SetImage() (hcam = %d): %s\n", (int) _hCamSlave, AndorErrorCodes::name(iError));
+      return ERROR_SDK_FUNC_FAIL;
+    }
+  } else {
     return ERROR_SDK_FUNC_FAIL;
   }
 
-  iError = SetExposureTime(0.001);
-  if (!isAndorFuncOk(iError))
-  {
-    printf("DualAndorServer::initTest(): SetExposureTime(): %s\n", AndorErrorCodes::name(iError));
-    return ERROR_SDK_FUNC_FAIL;
-  }
+  if (checkMasterSelected()) {
+    iError = SetHSSpeed(_iReadoutPort, 0);
+    if (!isAndorFuncOk(iError))
+    {
+      printf("DualAndorServer::initTest(): SetHSSpeed(%d,%d) (hcam = %d): %s\n", _iReadoutPort, 0, (int) _hCamMaster, AndorErrorCodes::name(iError));
+      return ERROR_SDK_FUNC_FAIL;
+    }
 
-  iError = SetImage(1, 1, 1, 128, 1, 128);
-  if (!isAndorFuncOk(iError))
-  {
-    printf("DualAndorServer::initTest(): SetImage(): %s\n", AndorErrorCodes::name(iError));
+    iError = SetExposureTime(0.001);
+    if (!isAndorFuncOk(iError))
+    {
+      printf("DualAndorServer::initTest(): SetExposureTime() (hcam = %d): %s\n", (int) _hCamMaster, AndorErrorCodes::name(iError));
+      return ERROR_SDK_FUNC_FAIL;
+    }
+
+    iError = SetImage(1, 1, 1, 128, 1, 128);
+    if (!isAndorFuncOk(iError))
+    {
+      printf("DualAndorServer::initTest(): SetImage() (hcam = %d): %s\n", (int) _hCamMaster, AndorErrorCodes::name(iError));
+      return ERROR_SDK_FUNC_FAIL;
+    }
+  } else {
     return ERROR_SDK_FUNC_FAIL;
   }
 
@@ -1309,20 +1333,55 @@ int DualAndorServer::initTest()
   timespec timeVal1;
   clock_gettime( CLOCK_REALTIME, &timeVal1 );
 
-  iError = StartAcquisition();
-  if (!isAndorFuncOk(iError))
-  {
-    printf("DualAndorServer::initTest(): StartAcquisition() %s\n", AndorErrorCodes::name(iError));
+  if (checkSlaveSelected()) {
+    iError = StartAcquisition();
+    if (!isAndorFuncOk(iError))
+    {
+      printf("DualAndorServer::initTest(): StartAcquisition() (hcam = %d): %s\n", (int) _hCamSlave, AndorErrorCodes::name(iError));
+      return ERROR_SDK_FUNC_FAIL;
+    }
+  } else {
+    return ERROR_SDK_FUNC_FAIL;
+  }
+
+  // Sleep for configured time before starting acq on master
+  timeval timeSleepMicro = {0, _config.exposureStartDelay()};
+  // Use select() to simulate nanosleep(), because experimentally select() controls the sleeping time more precisely
+  select( 0, NULL, NULL, NULL, &timeSleepMicro);
+
+  if (checkMasterSelected()) {
+    iError = StartAcquisition();
+    if (!isAndorFuncOk(iError))
+    {
+      printf("DualAndorServer::initTest(): StartAcquisition() (hcam = %d): %s\n", (int) _hCamMaster, AndorErrorCodes::name(iError));
+      return ERROR_SDK_FUNC_FAIL;
+    }
+  } else {
     return ERROR_SDK_FUNC_FAIL;
   }
 
   timespec timeVal2;
   clock_gettime( CLOCK_REALTIME, &timeVal2 );
 
-  iError = WaitForAcquisitionTimeOut(_iMaxReadoutTime);
-  if (!isAndorFuncOk(iError))
-  {
-    printf("DualAndorServer::waitForNewFrameAvailable(): WaitForAcquisitionTimeOut(): %s\n", AndorErrorCodes::name(iError));
+  if (checkMasterSelected()) {
+    iError = WaitForAcquisitionTimeOut(_iMaxReadoutTime);
+    if (!isAndorFuncOk(iError))
+    {
+      printf("DualAndorServer::waitForNewFrameAvailable(): WaitForAcquisitionTimeOut() (hcam = %d): %s\n", (int) _hCamMaster, AndorErrorCodes::name(iError));
+      return ERROR_SDK_FUNC_FAIL;
+    }
+  } else {
+    return ERROR_SDK_FUNC_FAIL;
+  }
+
+  if (checkSlaveSelected()) {
+    iError = WaitForAcquisitionTimeOut(_iMaxReadoutTime);
+    if (!isAndorFuncOk(iError))
+    {
+      printf("DualAndorServer::waitForNewFrameAvailable(): WaitForAcquisitionTimeOut() (hcam = %d): %s\n", (int) _hCamSlave, AndorErrorCodes::name(iError));
+      return ERROR_SDK_FUNC_FAIL;
+    }
+  } else {
     return ERROR_SDK_FUNC_FAIL;
   }
 
@@ -1361,17 +1420,15 @@ int DualAndorServer::initTest()
 int DualAndorServer::resetCooling()
 {
   int iError;
-  int iTemperature;
   int iStatus = 0;
 
   if (_hCamSlave != -1 && checkSlaveSelected())
   {
-    iTemperature  = 999;
-    iError        = GetTemperature(&iTemperature);
-    printf("Current Temperature %d C  Status %s (hcam = %d)\n", iTemperature, AndorErrorCodes::name(iError), (int) _hCamSlave);
+    iError        = GetTemperature(&_iTemperatureSlave);
+    printf("Current Temperature %d C  Status %s (hcam = %d)\n", _iTemperatureSlave, AndorErrorCodes::name(iError), (int) _hCamSlave);
 
-    if ( iTemperature < 0 )
-      printf("Warning: Temperature is still low (%d C). May results in fast warming.\n", iTemperature);
+    if ( _iTemperatureSlave < 0 )
+      printf("Warning: Temperature is still low (%d C). May results in fast warming.\n", _iTemperatureSlave);
     else
     {
       iError = CoolerOFF();
@@ -1384,12 +1441,11 @@ int DualAndorServer::resetCooling()
 
   if (_hCamMaster != -1 && checkMasterSelected())
   {
-    iTemperature  = 999;
-    iError        = GetTemperature(&iTemperature);
-    printf("Current Temperature %d C  Status %s (hcam = %d)\n", iTemperature, AndorErrorCodes::name(iError), (int) _hCamMaster);
+    iError        = GetTemperature(&_iTemperatureMaster);
+    printf("Current Temperature %d C  Status %s (hcam = %d)\n", _iTemperatureMaster, AndorErrorCodes::name(iError), (int) _hCamMaster);
 
-    if ( iTemperature < 0 )
-      printf("Warning: Temperature is still low (%d C). May results in fast warming.\n", iTemperature);
+    if ( _iTemperatureMaster < 0 )
+      printf("Warning: Temperature is still low (%d C). May results in fast warming.\n", _iTemperatureMaster);
     else
     {
       iError = CoolerOFF();
@@ -1406,19 +1462,17 @@ int DualAndorServer::resetCooling()
 int DualAndorServer::setupCooling(double fCoolingTemperature)
 {
   int iErrorMaster;
-  int iTemperatureMaster  = 999;
   int iErrorSlave;
-  int iTemperatureSlave  = 999;
 
   if (checkMasterSelected()) {
-    iErrorMaster = GetTemperature(&iTemperatureMaster);
-    printf("Temperature Before cooling: %d C  Status %s\n", iTemperatureMaster, AndorErrorCodes::name(iErrorMaster));
+    iErrorMaster = GetTemperature(&_iTemperatureMaster);
+    printf("Temperature Before cooling: %d C  Status %s\n", _iTemperatureMaster, AndorErrorCodes::name(iErrorMaster));
   } else {
     return ERROR_SDK_FUNC_FAIL;
   }
   if (checkSlaveSelected()) {
-    iErrorSlave = GetTemperature(&iTemperatureSlave);
-    printf("Temperature Before cooling: %d C  Status %s\n", iTemperatureSlave, AndorErrorCodes::name(iErrorSlave));
+    iErrorSlave = GetTemperature(&_iTemperatureSlave);
+    printf("Temperature Before cooling: %d C  Status %s\n", _iTemperatureSlave, AndorErrorCodes::name(iErrorSlave));
   } else {
     return ERROR_SDK_FUNC_FAIL;
   }
@@ -1502,14 +1556,12 @@ int DualAndorServer::setupCooling(double fCoolingTemperature)
 
   while (1)
   {
-    iTemperatureMaster = 999;
-    iTemperatureSlave  = 999;
     if (checkMasterSelected())
-      iErrorMaster = GetTemperature(&iTemperatureMaster);
+      iErrorMaster = GetTemperature(&_iTemperatureMaster);
     if (checkSlaveSelected())
-      iErrorSlave  = GetTemperature(&iTemperatureSlave);
+      iErrorSlave  = GetTemperature(&_iTemperatureSlave);
 
-    if ( iTemperatureMaster <= fCoolingTemperature && iTemperatureSlave <= fCoolingTemperature)
+    if ( _iTemperatureMaster <= fCoolingTemperature && _iTemperatureSlave <= fCoolingTemperature)
     {
       if ( ++iRead >= iNumRepateRead )
         break;
@@ -1518,7 +1570,7 @@ int DualAndorServer::setupCooling(double fCoolingTemperature)
       iRead = 0;
 
     if ( (iNumLoop+1) % 200 == 0 )
-      printf("Temperature *Updating*: %d C, %d C\n", iTemperatureMaster, iTemperatureSlave );
+      printf("Temperature *Updating*: %d C, %d C\n", _iTemperatureMaster, _iTemperatureSlave );
 
     timespec timeValCur;
     clock_gettime( CLOCK_REALTIME, &timeValCur );
@@ -1540,28 +1592,26 @@ int DualAndorServer::setupCooling(double fCoolingTemperature)
 
   int iCoolerStatusMaster = -1;
   int iCoolerStatusSlave = -1;
-  iTemperatureMaster = 999;
-  iTemperatureSlave = 999;
 
   if (checkMasterSelected()) {
     iErrorMaster = IsCoolerOn(&iCoolerStatusMaster);
     if (!isAndorFuncOk(iErrorMaster))
       printf("DualAndorServer::setupCooling(): IsCoolerOn(): %s\n", AndorErrorCodes::name(iErrorMaster));
-    iErrorMaster = GetTemperature(&iTemperatureMaster);
-    printf("Temperature After cooling: %d C  Status %s Cooler %d\n", iTemperatureMaster, AndorErrorCodes::name(iErrorMaster), iCoolerStatusMaster);
+    iErrorMaster = GetTemperature(&_iTemperatureMaster);
+    printf("Temperature After cooling: %d C  Status %s Cooler %d\n", _iTemperatureMaster, AndorErrorCodes::name(iErrorMaster), iCoolerStatusMaster);
   }
   if (checkSlaveSelected()) {
     iErrorSlave = IsCoolerOn(&iCoolerStatusSlave);
     if (!isAndorFuncOk(iErrorSlave))
       printf("DualAndorServer::setupCooling(): IsCoolerOn(): %s\n", AndorErrorCodes::name(iErrorSlave));
-    iErrorSlave = GetTemperature(&iTemperatureSlave);
-    printf("Temperature After cooling: %d C  Status %s Cooler %d\n", iTemperatureSlave, AndorErrorCodes::name(iErrorSlave), iCoolerStatusSlave);
+    iErrorSlave = GetTemperature(&_iTemperatureSlave);
+    printf("Temperature After cooling: %d C  Status %s Cooler %d\n", _iTemperatureSlave, AndorErrorCodes::name(iErrorSlave), iCoolerStatusSlave);
   }
 
-  if ( iTemperatureMaster > fCoolingTemperature || iTemperatureSlave > fCoolingTemperature )
+  if ( _iTemperatureMaster > fCoolingTemperature || _iTemperatureSlave > fCoolingTemperature )
   {
     printf("DualAndorServer::setupCooling(): Cooling temperature not reached yet; final temperatures = %d C, %d C",
-     iTemperatureMaster, iTemperatureSlave );
+     _iTemperatureMaster, _iTemperatureSlave );
     return ERROR_TEMPERATURE;
   }
 
@@ -1885,6 +1935,26 @@ bool DualAndorServer::isCapturingData()
 bool DualAndorServer::inBeamRateMode()
 {
   return ( _iTriggerMode == 1 );
+}
+
+int DualAndorServer::getTemperatureMaster(bool bForceUpdate)
+{
+  if (bForceUpdate) {
+    if (checkMasterSelected())
+      GetTemperature(&_iTemperatureMaster);
+  }
+
+  return _iTemperatureMaster;
+}
+
+int DualAndorServer::getTemperatureSlave(bool bForceUpdate)
+{
+  if (bForceUpdate) {
+    if (checkSlaveSelected())
+      GetTemperature(&_iTemperatureSlave);
+  }
+
+  return _iTemperatureSlave;
 }
 
 int DualAndorServer::getDataInBeamRateMode(InDatagram* in, InDatagram*& out)
@@ -2371,17 +2441,15 @@ bool DualAndorServer::checkSlaveSelected()
 int DualAndorServer::updateTemperatureData()
 {
   int iError;
-  int iTemperatureMaster = 999;
-  int iTemperatureSlave = 999;
   if (checkMasterSelected())
-    iError = GetTemperature(&iTemperatureMaster);
+    iError = GetTemperature(&_iTemperatureMaster);
   if (checkSlaveSelected())
-    iError = GetTemperature(&iTemperatureSlave);
+    iError = GetTemperature(&_iTemperatureSlave);
 
   /*
    * Set Info object
    */
-  printf( "Detector Temperature report [%d]: %d C and %d C\n", _iNumExposure, iTemperatureMaster, iTemperatureSlave );
+  printf( "Detector Temperature report [%d]: %d C and %d C\n", _iNumExposure, _iTemperatureMaster, _iTemperatureSlave );
 
   if ( _pDgOut == NULL )
   {
@@ -2391,17 +2459,17 @@ int DualAndorServer::updateTemperatureData()
   {
     unsigned char*  pTemperatureHeader = (unsigned char*) _pDgOut + _iFrameHeaderSize;
     float* pTempData = (float*) pTemperatureHeader;
-    pTempData[0] = iTemperatureMaster;
-    pTempData[1] = iTemperatureSlave;
+    pTempData[0] = _iTemperatureMaster;
+    pTempData[1] = _iTemperatureSlave;
   }
 
-  if (  iTemperatureMaster >= _config.coolingTemp() + _fTemperatureHiTol ||
-        iTemperatureMaster <= _config.coolingTemp() - _fTemperatureLoTol ||
-        iTemperatureSlave  >= _config.coolingTemp() + _fTemperatureHiTol ||
-        iTemperatureSlave  <= _config.coolingTemp() - _fTemperatureLoTol)
+  if (  _iTemperatureMaster >= _config.coolingTemp() + _fTemperatureHiTol ||
+        _iTemperatureMaster <= _config.coolingTemp() - _fTemperatureLoTol ||
+        _iTemperatureSlave  >= _config.coolingTemp() + _fTemperatureHiTol ||
+        _iTemperatureSlave  <= _config.coolingTemp() - _fTemperatureLoTol)
   {
     printf( "** DualAndorServer::updateTemperatureData(): Detector temperatures (%d C and %d C) are not fixed to the configuration (%.1f C)\n",
-      iTemperatureMaster, iTemperatureSlave, _config.coolingTemp() );
+      _iTemperatureMaster, _iTemperatureSlave, _config.coolingTemp() );
     return ERROR_TEMPERATURE;
   }
 

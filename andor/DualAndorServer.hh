@@ -44,6 +44,8 @@ public:
   bool  isCapturingData      ();
   bool  inBeamRateMode       ();
   int   getDataInBeamRateMode(InDatagram* in, InDatagram*& out);
+  int   getTemperatureMaster (bool bForceUpdate);
+  int   getTemperatureSlave  (bool bForceUpdate);
   Andor3dConfigType&
         config()  { return _config; }
   void setOccSend(DualAndorOccurrence* occSend);
@@ -200,6 +202,12 @@ private:
    * Per-frame data
    */
   float               _fReadoutTime;    // in seconds
+
+  /*
+   * Camera temperature values
+   */
+  int                 _iTemperatureMaster; // in Celsius
+  int                 _iTemperatureSlave;  // in Celsius
 
   /*
    * Buffer control

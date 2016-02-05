@@ -26,17 +26,19 @@ using std::string;
 
 namespace Pds
 {
-DualAndorPollRoutine::DualAndorPollRoutine(DualAndorManager& manager, string sTempPV)
-    : _state(1), _temp(0), _manager(manager), _chan(NULL), _sTempPV(sTempPV) {};
+DualAndorPollRoutine::DualAndorPollRoutine(DualAndorManager& manager, string sTempMasterPV, string sTempSlavePV) :
+  _state(1), _tempMaster(0), _tempSlave(0), _manager(manager), _chanMaster(NULL), _chanSlave(NULL),
+  _sTempMasterPV(sTempMasterPV), _sTempSlavePV(sTempSlavePV) {};
 
 void DualAndorPollRoutine::SetRunning(int state)
 {
     _state = state;
 }
 
-void DualAndorPollRoutine::SetTemperature(int temp)
+void DualAndorPollRoutine::SetTemperature(int tempMaster, int tempSlave)
 {
-    _temp = temp;
+    _tempMaster = tempMaster;
+    _tempSlave  = tempSlave;
 }
 
 void DualAndorPollRoutine::routine(void)
@@ -44,7 +46,7 @@ void DualAndorPollRoutine::routine(void)
     int result;
 
     ca_context_create(ca_enable_preemptive_callback);
-    result = ca_create_channel(_sTempPV.c_str(), NULL, NULL, 50, &_chan);
+    result = ca_create_channel(_sTempMasterPV.c_str(), NULL, NULL, 50, &_chanMaster);
     if (result != ECA_NORMAL) {
         fprintf(stderr, "CA error %s while creating channel!\n", ca_message(result));
         return;
@@ -54,14 +56,26 @@ void DualAndorPollRoutine::routine(void)
         fprintf(stderr, "CA error %s while waiting for channel connection!\n", ca_message(result));
         return;
     }
+    result = ca_create_channel(_sTempSlavePV.c_str(), NULL, NULL, 50, &_chanSlave);
+    if (result != ECA_NORMAL) {
+        fprintf(stderr, "CA error %s while creating channel!\n", ca_message(result));
+        return;
+    }
+    result = ca_pend_io(3.0); 
+    if (result != ECA_NORMAL) {
+        fprintf(stderr, "CA error %s while waiting for channel connection!\n", ca_message(result));
+        return;
+    }
 
     for (;;) {
         _manager._sem->take();
         if (_state) {
-            GetTemperature(&_temp);
+            _tempMaster = _manager.getTemperatureMaster(true);
+            _tempSlave  = _manager.getTemperatureSlave (true);
         }
         _manager._sem->give();
-        ca_put(DBR_LONG, _chan, &_temp);
+        ca_put(DBR_LONG, _chanMaster, &_tempMaster);
+        ca_put(DBR_LONG, _chanSlave,  &_tempSlave);
         ca_flush_io();
         usleep(1000000);
     }
@@ -311,11 +325,13 @@ public:
     {
       int         iFail = 0;
       InDatagram* out   = in;
-      int temp;
+      int tempMaster;
+      int tempSlave;
 
       if (_manager._pPoll) {
-          GetTemperature(&temp);
-          _manager._pPoll->SetTemperature(temp);
+          tempMaster = _manager.getTemperatureMaster(false);
+          tempSlave  = _manager.getTemperatureSlave (false);
+          _manager._pPoll->SetTemperature(tempMaster, tempSlave);
       }
 
 /*!! recover from delay mode
@@ -637,10 +653,12 @@ private:
 };
 
 DualAndorManager::DualAndorManager(CfgClientNfs& cfg, int iCamera, bool bDelayMode, bool bInitTest,
-                                   string sConfigDb, int iSleepInt, int iDebugLevel, string sTempPV) :
+                                   string sConfigDb, int iSleepInt, int iDebugLevel,
+                                   string sTempMasterPV, string sTempSlavePV) :
   _iCamera(iCamera), _bDelayMode(bDelayMode), _bInitTest(bInitTest),
   _sConfigDb(sConfigDb), _iSleepInt(iSleepInt),
-  _iDebugLevel(iDebugLevel), _sTempPV(sTempPV), _pServer(NULL), _uNumShotsInCycle(0), _pPoll(NULL)
+  _iDebugLevel(iDebugLevel), _sTempMasterPV(sTempMasterPV), _sTempSlavePV(sTempSlavePV),
+  _pServer(NULL), _uNumShotsInCycle(0), _pPoll(NULL)
 {
   _sem                    = new Semaphore           (Semaphore::FULL);
   _pActionMap             = new DualAndorMapAction      (*this, cfg, _iDebugLevel);
@@ -709,8 +727,8 @@ int DualAndorManager::initServer()
 int DualAndorManager::map(const Allocation& alloc)
 {
   int result = _pServer->map();
-  if (_pTaskPoll == 0 && !_sTempPV.empty()) {
-      _pPoll = new DualAndorPollRoutine(*this, _sTempPV);
+  if (_pTaskPoll == 0 && !_sTempMasterPV.empty() && !_sTempSlavePV.empty()) {
+      _pPoll = new DualAndorPollRoutine(*this, _sTempMasterPV, _sTempSlavePV);
       _pTaskPoll = new Task(TaskObject("DualAndorTempPoll"));
       _pTaskPoll->call( _pPoll );
   }
@@ -862,6 +880,16 @@ bool DualAndorManager::inBeamRateMode()
 int DualAndorManager::getDataInBeamRateMode(InDatagram* in, InDatagram*& out)
 {
   return _pServer->getDataInBeamRateMode(in, out);
+}
+
+int DualAndorManager::getTemperatureMaster(bool bForceUpdate)
+{
+  return _pServer->getTemperatureMaster(bForceUpdate);
+}
+
+int DualAndorManager::getTemperatureSlave(bool bForceUpdate)
+{
+  return _pServer->getTemperatureSlave(bForceUpdate);
 }
 
 /*
