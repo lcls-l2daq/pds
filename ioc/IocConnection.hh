@@ -19,6 +19,7 @@ namespace Pds {
     static void transmit_all(std::string s);
     static void clear_all(void) { _connections.clear(); };
     static std::list<IocConnection*> _connections;
+    static int check_all(void);
     std::string host() { return _host; };
     int getIndex() { _damage.push_back(0); return _idx++; };
     int damage_status(int idx);

@@ -104,6 +104,15 @@ void IocConnection::transmit_all(std::string s)
         (*it)->transmit(s);
 }
 
+int IocConnection::check_all(void)
+{
+    for(std::list<IocConnection*>::iterator it=_connections.begin();
+        it!=_connections.end(); it++)
+        if ((*it)->_sock == -1)
+            return 0;
+    return 1;
+}
+
 int IocConnection::damage_status(int idx)
 {
     char buf[1024], *s;

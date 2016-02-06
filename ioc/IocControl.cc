@@ -19,6 +19,7 @@ IocControl::IocControl() :
   _station(0),
   _expt_id(0),
   _recording(0),
+  _initialized(0),
   _pool      (sizeof(UserMessage),4)
 {
 #ifdef DBUG
@@ -154,6 +155,13 @@ void IocControl::set_partition(const std::list<DetInfo>& iocs)
 	_selected_nodes.push_back(*nit);
 }
 
+InDatagram* IocControl::events(InDatagram* dg)
+{
+    if (!_initialized)
+        dg->xtc.damage = Damage::Uninitialized;
+    return dg;
+}
+
 Transition* IocControl::transitions(Transition* tr)
 {
   char trans[1024];
@@ -177,6 +185,8 @@ Transition* IocControl::transitions(Transition* tr)
               it!=_selected_nodes.end(); it++) {
               (*it)->get_connection(this);
           }
+
+          _initialized = IocConnection::check_all();
 
           unsigned run = tr->env().value();
           unsigned stream = 80;

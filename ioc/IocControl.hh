@@ -38,7 +38,7 @@ namespace Pds {
   public:
     /// Act on a DAQ transition
     Transition* transitions(Transition*);
-    InDatagram* events     (InDatagram* dg) { return dg; }
+    InDatagram* events     (InDatagram* dg);
 
       //  private:
     void _report_error(const std::string&);
@@ -49,6 +49,7 @@ namespace Pds {
     unsigned            _station;        /// Instrument station
     unsigned            _expt_id;        /// Experiment number
     int                 _recording;      /// Are we recording now?
+    int                 _initialized;    /// Are we properly initialized?
 
     std::list<IocNode*> _nodes;          /// Available IOCs
     std::list<IocNode*> _selected_nodes; /// Selected IOCs
