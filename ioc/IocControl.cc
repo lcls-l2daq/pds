@@ -157,8 +157,10 @@ void IocControl::set_partition(const std::list<DetInfo>& iocs)
 
 InDatagram* IocControl::events(InDatagram* dg)
 {
-    if (!_initialized)
-        dg->xtc.damage = Damage::Uninitialized;
+    if (!dg->seq.isEvent() && dg->seq.service() == TransitionId::BeginRun) {
+        if (!_initialized)
+            dg->xtc.damage = Damage::Uninitialized;
+    }
     return dg;
 }
 
