@@ -1345,7 +1345,7 @@ int DualAndorServer::initTest()
   }
 
   // Sleep for configured time before starting acq on master
-  timeval timeSleepMicro = {0, _config.exposureStartDelay()};
+  timeval timeSleepMicro = {0, _iTestExposureStartDelay};
   // Use select() to simulate nanosleep(), because experimentally select() controls the sleeping time more precisely
   select( 0, NULL, NULL, NULL, &timeSleepMicro);
 
@@ -2612,6 +2612,7 @@ const int       DualAndorServer::_iMaxReadoutTime;
 const int       DualAndorServer::_iMaxThreadEndTime;
 const int       DualAndorServer::_iMaxLastEventTime;
 const int       DualAndorServer::_iMaxEventReport;
+const int       DualAndorServer::_iTestExposureStartDelay;
 const float     DualAndorServer::_fEventDeltaTimeFactor = 1.01f;
 
 /*

@@ -91,6 +91,7 @@ private:
   static const int      _iMaxThreadEndTime      = 120000;        // Max thread terminating time (in ms)
   static const int      _iMaxLastEventTime      = 120000;        // Max readout time for the last event
   static const int      _iMaxEventReport        = 20;           // Only report some statistics and non-critical errors in the first few L1 events
+  static const int      _iTestExposureStartDelay= 12500;        // Acq delay to use during initTest()
   static const float    _fEventDeltaTimeFactor;                 // Event delta time factor, for detecting sequence error
 
   /*
