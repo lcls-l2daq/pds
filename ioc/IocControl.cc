@@ -158,6 +158,7 @@ void IocControl::set_partition(const std::list<DetInfo>& iocs)
 InDatagram* IocControl::events(InDatagram* dg)
 {
     if (!dg->seq.isEvent() && dg->seq.service() == TransitionId::BeginRun) {
+        printf("events: _initialized = %d\n", _initialized);
         if (!_initialized)
             dg->xtc.damage = Damage::Uninitialized;
     }
@@ -189,6 +190,7 @@ Transition* IocControl::transitions(Transition* tr)
           }
 
           _initialized = IocConnection::check_all();
+          printf("transitions: _initialized = %d\n", _initialized);
 
           unsigned run = tr->env().value();
           unsigned stream = 80;
