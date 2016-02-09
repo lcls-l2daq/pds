@@ -2041,8 +2041,8 @@ int DualAndorServer::getDataInBeamRateMode(InDatagram* in, InDatagram*& out)
     iMaxReadoutTime     = iMaxReadoutTimeReg;//!!!debug
     bPrevCatpureFailed  = false;//!!!debug
 
-    uint8_t* pImageMaster = (uint8_t*) out + _iFrameHeaderSize + _iDetectorSensor*sizeof(float);
-    uint8_t* pImageSlave  = pImageMaster + _iImageWidth*_iImageHeight*sizeof(uint16_t);
+    uint8_t* pImageSlave  = (uint8_t*) out + _iFrameHeaderSize + _iDetectorSensor*sizeof(float);
+    uint8_t* pImageMaster = pImageSlave + _iImageWidth*_iImageHeight*sizeof(uint16_t);
     if (checkMasterSelected()) {
       int iError = GetOldestImage16((uint16_t*)pImageMaster, _iImageWidth*_iImageHeight);
       if (!isAndorFuncOk(iError))
@@ -2211,8 +2211,8 @@ int DualAndorServer::waitForNewFrameAvailable()
   //  }
   //} // while (true)
 
-  uint8_t* pImageMaster = (uint8_t*) _pDgOut + _iFrameHeaderSize + _iDetectorSensor*sizeof(float);
-  uint8_t* pImageSlave  = pImageMaster + _iImageWidth*_iImageHeight*sizeof(uint16_t);
+  uint8_t* pImageSlave = (uint8_t*) _pDgOut + _iFrameHeaderSize + _iDetectorSensor*sizeof(float);
+  uint8_t* pImageMaster  = pImageSlave + _iImageWidth*_iImageHeight*sizeof(uint16_t);
   if (checkMasterSelected()) {
     iErrorMaster = GetAcquiredData16((uint16_t*)pImageMaster, _iImageWidth*_iImageHeight);
     if (!isAndorFuncOk(iErrorMaster))
@@ -2459,8 +2459,8 @@ int DualAndorServer::updateTemperatureData()
   {
     unsigned char*  pTemperatureHeader = (unsigned char*) _pDgOut + _iFrameHeaderSize;
     float* pTempData = (float*) pTemperatureHeader;
-    pTempData[0] = _iTemperatureMaster;
-    pTempData[1] = _iTemperatureSlave;
+    pTempData[0] = _iTemperatureSlave;
+    pTempData[1] = _iTemperatureMaster;
   }
 
   if (  _iTemperatureMaster >= _config.coolingTemp() + _fTemperatureHiTol ||
