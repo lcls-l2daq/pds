@@ -348,9 +348,9 @@ int Pds::Epix100aServer::fetch( char* payload, int flags ) {
            count += 1;
          }
          if (max > 100) {
-           _timeSinceLastException /= 1000000.0;
            if ( (diff >= ((peak<<1)-(peak>>1))) || (diff <= ((peak>>1))+(peak>>2)) ) {
-             printf("Epix100aServer::fetch exceptional period %3llu, not %3u, frame %5u, frames since last %5u, ms since last %7.3f, ms/f %6.3f\n",
+             _timeSinceLastException /= 1000000.0;
+             printf("Epix100aServer::fetch exceptional period %3lld, not %3u, frame %5u, frames since last %5u, ms since last %7.3f, ms/f %6.3f\n",
                  diff, peak, _count, _fetchesSinceLastException, _timeSinceLastException, (1.0*_timeSinceLastException)/_fetchesSinceLastException);
              _timeSinceLastException = 0;
              _fetchesSinceLastException = 0;
