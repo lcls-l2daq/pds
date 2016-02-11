@@ -37,7 +37,7 @@ DualAndorServer::DualAndorServer(int iCamera, bool bDelayMode, bool bInitTest, c
  _fPrevReadoutTime(0), _bSequenceError(false), _clockPrevDatagram(0,0), _iNumExposure(0), _iNumAcq(0),
  _config(),
  _fReadoutTime(0),
- _iTemperatureMaster(999), _iTemperatureSlave(999),
+ _iTemperatureMaster(999), _iTemperatureSlave(999), _bCallShutdown(false),
  _poolFrameData(_iMaxFrameDataSize, _iPoolDataCount), _pDgOut(NULL),
  _CaptureState(CAPTURE_STATE_IDLE), _pTaskCapture(NULL), _routineCapture(*this)
 {
@@ -556,14 +556,14 @@ int DualAndorServer::deinit()
   if (iError != 0)
     printf("DualAndorServer::deinit(): resetCooling() non-zero exit code: %d\n", iError);
 
-  if (_hCamSlave != -1 && checkSlaveSelected())
+  if (_hCamSlave != -1 && checkSlaveSelected() && _bCallShutdown)
   {
-    iError = ShutDown();
+    //iError = ShutDown();
     if (!isAndorFuncOk(iError))
       printf("DualAndorServer::deinit(): ShutDown() (hcam = %d): %s\n", (int) _hCamSlave, AndorErrorCodes::name(iError));
   }
 
-  if (_hCamMaster != -1 && checkMasterSelected())
+  if (_hCamMaster != -1 && checkMasterSelected() && _bCallShutdown)
   {
     iError = ShutDown();
     if (!isAndorFuncOk(iError))

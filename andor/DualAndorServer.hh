@@ -211,6 +211,11 @@ private:
   int                 _iTemperatureSlave;  // in Celsius
 
   /*
+   * Andor SDK shutdown behavior
+   */
+  bool                _bCallShutdown;   // Call Andor SDK shutdown routine
+
+  /*
    * Buffer control
    */
   GenericPool         _poolFrameData;

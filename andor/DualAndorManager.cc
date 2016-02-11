@@ -703,6 +703,9 @@ DualAndorManager::DualAndorManager(CfgClientNfs& cfg, int iCamera, bool bDelayMo
 
 DualAndorManager::~DualAndorManager()
 {
+  if ( _pTaskPoll != NULL )
+    _pTaskPoll->destroy(); // task object will destroy the thread and release the object memory by itself
+
   delete _pFsm;
 
   delete _sem;
