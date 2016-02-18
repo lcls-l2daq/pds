@@ -12,58 +12,66 @@
 #include "pds/pgp/RegisterSlaveImportFrame.hh"
 #include "pds/pgp/RegisterSlaveExportFrame.hh"
 #include "pds/pgp/Destination.hh"
-//#include "PgpCardMod.h"
+#include "pds/pgp/PgpStatus.hh"
 
 namespace Pds {
-  namespace Pgp {
+	namespace Pgp {
 
-    class Pgp {
-      public:
-        Pgp(int, bool printFlag = true);
-        virtual ~Pgp();
+		class PgpStatus;
 
-      public:
-        enum {BufferWords=2048};
-        enum {Success=0, Failure=1, SelectSleepTimeUSec=10000};
-        Pds::Pgp::RegisterSlaveImportFrame* read(
-                          unsigned size = (sizeof(Pds::Pgp::RegisterSlaveImportFrame)/sizeof(uint32_t)));
-        unsigned       writeRegister(
-                          Destination*,
-                          unsigned,
-                          uint32_t,
-                          bool pf = false,
-                          Pds::Pgp::PgpRSBits::waitState = Pds::Pgp::PgpRSBits::notWaiting);
-        // NB size should be the size of data to be written in uint32_t's
-        unsigned       writeRegisterBlock(
-                          Destination*,
-                          unsigned,
-                          uint32_t*,
-                          unsigned size = 1,
-                          Pds::Pgp::PgpRSBits::waitState = Pds::Pgp::PgpRSBits::notWaiting,
-                          bool pf=false);
+		class Pgp {
+			public:
+				Pgp(int, bool printFlag = true, bool G3Flag = false);
+				virtual ~Pgp();
 
-        // NB size should be the size of the block requested in uint32_t's
-        unsigned      readRegister(
-                          Destination*,
-                          unsigned,
-                          unsigned,
-                          uint32_t*,
-                          unsigned size=1,
-                          bool pf=false);
-        unsigned      readStatus( PgpCardStatus* );
-        unsigned      stopPolling();
-        int           IoctlCommand(unsigned command, unsigned arg = 0);
+			public:
+				enum {BufferWords=8192};
+				enum {Success=0, Failure=1, SelectSleepTimeUSec=10000};
+				Pds::Pgp::RegisterSlaveImportFrame* read(
+						unsigned size = (sizeof(Pds::Pgp::RegisterSlaveImportFrame)/sizeof(uint32_t)));
+				unsigned       writeRegister(
+						Destination*,
+						unsigned,
+						uint32_t,
+						bool pf = false,
+						Pds::Pgp::PgpRSBits::waitState = Pds::Pgp::PgpRSBits::notWaiting);
+				// NB size should be the size of data to be written in uint32_t's
+				unsigned       writeRegisterBlock(
+						Destination*,
+						unsigned,
+						uint32_t*,
+						unsigned size = 1,
+						Pds::Pgp::PgpRSBits::waitState = Pds::Pgp::PgpRSBits::notWaiting,
+						bool pf=false);
 
-        static void       portOffset(unsigned p) { _portOffset = p;    }
-        static unsigned   portOffset()           { return _portOffset; }
+				// NB size should be the size of the block requested in uint32_t's
+				unsigned      readRegister(
+						Destination*,
+						unsigned,
+						unsigned,
+						uint32_t*,
+						unsigned size=1,
+						bool pf=false);
+				unsigned      checkPciNegotiatedBandwidth();
+				void          printStatus();
+				unsigned      stopPolling();
+				int           IoctlCommand(unsigned command, unsigned arg = 0);
+				int           IoctlCommand(unsigned command, long long unsigned arg = 0);
+				void          maskHWerror(bool m) { _maskHWerror = m; }
 
-      private:
-        int               _fd;
-        unsigned          _readBuffer[BufferWords];
-        PgpCardTx         _pt;
-        static unsigned   _portOffset;
-    };
-  }
+				static void       portOffset(unsigned p) { _portOffset = p;    }
+				static unsigned   portOffset()           { return _portOffset; }
+
+			private:
+				int                  _fd;
+				unsigned             _readBuffer[BufferWords];
+				PgpCardTx            _pt;
+				Pds::Pgp::PgpStatus* _status;
+				static unsigned      _portOffset;
+				unsigned             _maskedHWerrorCount[4];
+				bool				 _maskHWerror;
+		};
+	}
 }
 
 #endif /* PGP_HH_ */

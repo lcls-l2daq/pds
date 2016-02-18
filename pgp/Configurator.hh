@@ -26,7 +26,7 @@ namespace Pds {
         AddressRange() {};
         AddressRange(uint32_t b, uint32_t l) : base(b), load(l) {};
         ~AddressRange() {};
-
+      public:
         uint32_t base;
         uint32_t load;
     };
@@ -35,7 +35,7 @@ namespace Pds {
 
     class Configurator {
       public:
-        Configurator(int, unsigned);
+        Configurator(int, unsigned, bool g3=false);
         virtual ~Configurator();
 
       public:
@@ -55,7 +55,7 @@ namespace Pds {
         int                         _fd;
         unsigned                    _debug;
         Pds::Pgp::Pgp*              _pgp;
-
+        bool						_G3;
     };
 
     class ConfigSynch {
@@ -68,13 +68,13 @@ namespace Pds {
 
       private:
         enum {Success=0, Failure=1};
-        unsigned _getOne();
-        unsigned _depth;
-        unsigned _length;
-        unsigned _size;
-        int       _fd;
-        Configurator* _cfgrt;
-        bool     _printFlag;
+        unsigned             _getOne();
+        unsigned             _depth;
+        unsigned             _length;
+        unsigned             _size;
+        int                  _fd;
+        Configurator*        _cfgrt;
+        bool                 _printFlag;
     };
 
   }

@@ -251,6 +251,7 @@ unsigned Epix100aConfigurator::configure( Epix100aConfigType* c, unsigned first)
   printf(" config(%p) first(%u)\n", _config, first);
   unsigned ret = 0;
   clock_gettime(CLOCK_REALTIME, &start);
+//  _pgp->maskHWerror(true);
   printf("Epix100aConfigurator::configure %sreseting front end\n", first ? "" : "not ");
 
   if (first) {
@@ -744,6 +745,7 @@ void Epix100aConfigurator::dumpFrontEnd() {
   clock_gettime(CLOCK_REALTIME, &start);
   int ret = Success;
   if (_debug & 0x100) {
+    dumpPgpCard();
     uint32_t count = 0x1111;
     uint32_t acount = 0x1112;
     count = sequenceCount();
