@@ -41,7 +41,7 @@ namespace Pds {
       bits._tid     = transID & ((1<<23)-1);
       bits._waiting = w;
 //      printf("RegisterSlaveExportFrame::RegisterSlaveExportFrame() lane %u offset %u\n", dest->lane(), Pgp::portOffset());
-      bits._lane   = (dest->lane() & 7) + Pgp::portOffset();
+      bits._lane   = (dest->lane() & 3) + Pgp::portOffset();
       bits.mbz     = 0;
       bits._vc     = dest->vc() & 3;
       bits.oc      = o;

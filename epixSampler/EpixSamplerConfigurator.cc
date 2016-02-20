@@ -137,8 +137,6 @@ unsigned EpixSamplerConfigurator::configure( EpixSamplerConfigType* c, unsigned 
   unsigned ret = 0;
   mask = ~mask;
   unsigned count = 0x1234;
-//    resetFrontEnd();
-    _flush();
   _pgp->readRegister(&_d, ReadFrameCounter, 0xedfa, &count);
   printf("Epix Sampler state:\n\tSequenceCount      (%u)\n", count);
   _pgp->readRegister(&_d, DaqTriggerEnable, 0xedfb, &count);
@@ -148,6 +146,8 @@ unsigned EpixSamplerConfigurator::configure( EpixSamplerConfigType* c, unsigned 
   _pgp->readRegister(&_d, RunTriggerEnable, 0xedfd, &count);
   printf("\tRunTriggerEnable   (%u)\n", count);
   clock_gettime(CLOCK_REALTIME, &start);
+//  resetFrontEnd();
+//  _flush();
   clock_gettime(CLOCK_REALTIME, &end);
   uint64_t diff = timeDiff(&end, &start) + 50000LL;
   printf("- 0x%x - so far %lld.%lld milliseconds\t", ret, diff/1000000LL, diff%1000000LL);

@@ -16,8 +16,8 @@
 namespace Pds {
   namespace Pgp {
 
-    Configurator::Configurator(int f, unsigned d, bool g3) : _fd(f), _debug(d), _G3(g3) {
-      _pgp = new Pds::Pgp::Pgp(_fd, true, g3);
+    Configurator::Configurator(int f, unsigned d) : _fd(f), _debug(d){
+      _pgp = new Pds::Pgp::Pgp(_fd);
     }
 
     Configurator::~Configurator() {}
@@ -43,7 +43,9 @@ namespace Pds {
     }
 
     unsigned Configurator::checkPciNegotiatedBandwidth() {
-      return _pgp->checkPciNegotiatedBandwidth();
+      PgpCardStatus status;
+      _pgp->readStatus(&status);
+      return (status.PciLStatus >> 4)  & 0x3f;
     }
 
     void Configurator::loadRunTimeConfigAdditions(char* name) {
@@ -78,9 +80,51 @@ namespace Pds {
       }
     }
 
+#ifndef NUMBER_OF_LANES
+#define NUMBER_OF_LANES (4)
+#endif
 
     void Configurator::dumpPgpCard() {
-    	_pgp->printStatus();
+      PgpCardStatus status;
+      _pgp->readStatus(&status);
+      printf("PGP Card Status:\n");
+      printf("\tVersion               0x%x\n", status.Version);
+      printf("\tScratchPad            0x%x\n", status.ScratchPad);
+      printf("\tNegotiated Link Width 0x%x\n", (status.PciLStatus>>4)&0x3f);
+      printf("\tPgpLocLinkReady       ");
+      for (int i=0; i<NUMBER_OF_LANES; i++) {
+        printf("%2u%s", status.PgpLink[i].PgpLocLinkReady, i < NUMBER_OF_LANES - 1 ? ", " : "\n");
+      }
+      printf("\tPgpRemLinkReady       ");
+      for (int i=0; i<NUMBER_OF_LANES; i++) {
+        printf("%2u%s", status.PgpLink[i].PgpRemLinkReady, i < NUMBER_OF_LANES - 1 ? ", " : "\n");
+      }
+      printf("\tPgpCellErrCnt         ");
+      for (int i=0; i<NUMBER_OF_LANES; i++) {
+        printf("%2u%s", status.PgpLink[i].PgpCellErrCnt, i < NUMBER_OF_LANES - 1 ? ", " : "\n");
+      }
+      printf("\tPgpLinkDownCnt        ");
+      for (int i=0; i<NUMBER_OF_LANES; i++) {
+        printf("%2u%s", status.PgpLink[i].PgpLinkDownCnt, i < NUMBER_OF_LANES - 1 ? ", " : "\n");
+      }
+      printf("\tPgpLinkErrCnt         ");
+      for (int i=0; i<NUMBER_OF_LANES; i++) {
+        printf("%2u%s", status.PgpLink[i].PgpLinkErrCnt, i < NUMBER_OF_LANES - 1 ? ", " : "\n");
+      }
+      printf("\tPgpFifoErr            ");
+      for (int i=0; i<NUMBER_OF_LANES; i++) {
+        printf("%2u%s", status.PgpLink[i].PgpFifoErr, i < NUMBER_OF_LANES - 1 ? ", " : "\n");
+      }
+      printf("\tTxBufferCount         0x%x\n", status.TxBufferCount);
+      printf("\tTxRead                0x%x\n", status.TxRead);
+      printf("\tRxWrite[client]       ");
+      for (int i=0; i<NUMBER_OF_LANES; i++) {
+        printf("0x%02x%s", status.RxWrite[i], i < NUMBER_OF_LANES - 1 ? ", " : "\n");
+      }
+      printf("\tRxRead[client]        ");
+      for (int i=0; i<NUMBER_OF_LANES; i++) {
+        printf("0x%02x%s", status.RxRead[i], i < NUMBER_OF_LANES - 1 ? ", " : "\n");
+      }
     }
 
     unsigned ConfigSynch::_getOne() {

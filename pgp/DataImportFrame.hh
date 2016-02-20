@@ -25,8 +25,8 @@ namespace Pds {
       public:
         unsigned vc:       2;    // 1:0
         unsigned z:        4;    // 5:2
-        unsigned lane:     3;    // 8:6
-        unsigned tid:     23;    //31:9
+        unsigned lane:     2;    // 7:6
+        unsigned tid:     24;    //31:8
     };
 
     class SecondWordBits {

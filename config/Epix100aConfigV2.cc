@@ -279,7 +279,7 @@ namespace Pds {
       uint32_t ret = 0;
       switch (r) {
         case AdcReadsPerPixel:
-//        case AsicMask :
+        case AsicMask :
           ret = 1;
           break;
         case NumberOfRowsPerAsic :

@@ -185,17 +185,13 @@ int Pds::Cspad2x2Server::fetch( char* payload, int flags ) {
      _firstFetch = false;
      clock_gettime(CLOCK_REALTIME, &_lastTime);
    } else {
-	 clock_gettime(CLOCK_REALTIME, &_thisTime);
-	 long long int diff = timeDiff(&_thisTime, &_lastTime);
-	 if (diff > 0) {
-	  diff += 500000;
-	  diff /= 1000000;
-	  if (diff > sizeOfHisto-1) diff = sizeOfHisto-1;
-	  _histo[diff] += 1;
-	 } else {
-	  printf("Cspad2x2Server::fetch Clock backtrack %f ms\n", diff / 1000000.0);
-	 }
-	 memcpy(&_lastTime, &_thisTime, sizeof(timespec));
+     clock_gettime(CLOCK_REALTIME, &_thisTime);
+     long long unsigned diff = timeDiff(&_thisTime, &_lastTime);
+     diff += 500000;
+     diff /= 1000000;
+     if (diff > sizeOfHisto-1) diff = sizeOfHisto-1;
+     _histo[diff] += 1;
+     memcpy(&_lastTime, &_thisTime, sizeof(timespec));
    }
 
    pgpCardRx.model   = sizeof(&pgpCardRx);

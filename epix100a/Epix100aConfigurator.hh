@@ -93,7 +93,7 @@ namespace Pds {
         enum resultReturn {Success=0, Failure=1, Terminate=2};
 
         unsigned             configure(Epix100aConfigType*, unsigned first=0);
-        Epix100aConfigType&  configuration() { return *_config; };
+        Epix100aConfigType&      configuration() { return *_config; };
         void                 print();
         void                 dumpFrontEnd();
         void                 printMe();
