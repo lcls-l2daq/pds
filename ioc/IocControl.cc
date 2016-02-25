@@ -150,9 +150,9 @@ void IocControl::set_partition(const std::list<DetInfo>& iocs)
   for(std::list<DetInfo>::const_iterator it=iocs.begin();
       it!=iocs.end(); it++)
     for(std::list<IocNode*>::iterator nit=_nodes.begin();
-	nit!=_nodes.end(); nit++)
+        nit!=_nodes.end(); nit++)
       if (it->phy() == (*nit)->src().phy())
-	_selected_nodes.push_back(*nit);
+        _selected_nodes.push_back(*nit);
 }
 
 InDatagram* IocControl::events(InDatagram* dg)
@@ -182,15 +182,16 @@ Transition* IocControl::transitions(Transition* tr)
               tr->sequence().clock().nanoseconds(), tr->sequence().stamp().fiducials());
       break;
   case TransitionId::BeginRun: 
+      /* Make connections to the world. */
+      for(std::list<IocNode*>::iterator it=_selected_nodes.begin();
+          it!=_selected_nodes.end(); it++) {
+          (*it)->get_connection(this);
+      }
+
+      _initialized = IocConnection::check_all();
+
+      /* If we are recording this run then setup and start the recorders. */
       if (tr->size() != sizeof(Transition)) {
-
-          /* Make connections to the world. */
-          for(std::list<IocNode*>::iterator it=_selected_nodes.begin();
-              it!=_selected_nodes.end(); it++) {
-              (*it)->get_connection(this);
-          }
-
-          _initialized = IocConnection::check_all();
 
           unsigned run = tr->env().value();
           unsigned stream = 80;
@@ -232,13 +233,14 @@ Transition* IocControl::transitions(Transition* tr)
       IocConnection::transmit_all(trans);
       break;
   case TransitionId::EndRun:
-      if (!_recording)
-          break;
-      /* Pass along the transition, and then tear down all of the connections. */
-      sprintf(trans, "trans %d %d %d %d\n",
-              tr->id(), tr->sequence().clock().seconds(), 
-              tr->sequence().clock().nanoseconds(), tr->sequence().stamp().fiducials());
-      IocConnection::transmit_all(trans);
+      if (_recording) {
+          /* Pass along the transition, if we were recording. */
+          sprintf(trans, "trans %d %d %d %d\n",
+                  tr->id(), tr->sequence().clock().seconds(), 
+                  tr->sequence().clock().nanoseconds(), tr->sequence().stamp().fiducials());
+          IocConnection::transmit_all(trans);
+      }
+      /* Now tear down all of the connections. */
       IocConnection::clear_all();
       for(std::list<IocNode*>::iterator it=_selected_nodes.begin();
           it!=_selected_nodes.end(); it++) {
