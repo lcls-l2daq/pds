@@ -47,6 +47,14 @@ static EvrFIFOHandler* _fifo_handler;
 
 static EvgrBoardInfo < Evr > *erInfoGlobal; // yuck
 
+long long int timeDiff(timespec* end, timespec* start) {
+  long long int diff;
+  diff =  (end->tv_sec - start->tv_sec) * 1000000000LL;
+  diff += end->tv_nsec;
+  diff -= start->tv_nsec;
+  return diff;
+}
+
 class EvrAction:public Action
 {
 public:
@@ -63,7 +71,8 @@ public:
     EvrAction(er),
     _occPool        (sizeof(Occurrence),2),
     _app            (app),
-    _outOfOrder     (false) {}
+    _outOfOrder     (false),
+    _firstFetch     (true)   {}
 
   Transition* fire(Transition* tr)
   {
@@ -84,6 +93,18 @@ public:
         }
       }
     }
+    if (_firstFetch) {
+      _firstFetch = false;
+      clock_gettime(CLOCK_REALTIME, &_lastTime);
+    }
+    else {
+      clock_gettime(CLOCK_REALTIME, &_currTime);
+      long long int diff = timeDiff(&_currTime, &_lastTime);
+      if (diff < 0) {
+        printf("EvrL1Action::fire Clock backtrack %f ms\n", diff / 1000000.0);
+      }
+      memcpy(&_lastTime,&_currTime, sizeof(timespec));
+    }
     return out;
   }
 
@@ -91,6 +112,9 @@ private:
   GenericPool _occPool;
   Appliance*  _app;
   bool        _outOfOrder;
+  timespec    _currTime;
+  timespec    _lastTime;
+  bool        _firstFetch;
 };
 
 class EvrEnableAction:public EvrAction
