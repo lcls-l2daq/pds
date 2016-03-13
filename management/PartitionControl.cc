@@ -55,6 +55,33 @@
 static const unsigned MaxPayload = 0x1800;
 static timespec disable_tmo;
 
+#ifdef DBUG
+static void dump(const Pds::Datagram* dg)
+{
+  char buff[128];
+  time_t t = dg->seq.clock().seconds();
+  strftime(buff,128,"%H:%M:%S",localtime(&t));
+  printf("%s %08x/%08x %s extent 0x%x damage %x\n",
+         buff,
+         dg->seq.stamp().fiducials(),dg->seq.stamp().vector(),
+         Pds::TransitionId::name(dg->seq.service()),
+         dg->xtc.extent, dg->xtc.damage.value());
+}
+
+static void _dump(const Pds::Transition& tr, int line)
+{
+  char buff[128];
+  const Pds::Sequence& seq = tr.sequence();
+  time_t t = seq.clock().seconds();
+  strftime(buff,128,"%H:%M:%S",localtime(&t));
+  printf("%s %08x/%08x %s LINE:%d\n",
+         buff,
+         seq.stamp().fiducials(),seq.stamp().vector(),
+         Pds::TransitionId::name(seq.service()),
+         line);
+}
+#endif
+
 namespace Pds {
   class SequenceJob : public Routine {
   public:
@@ -154,6 +181,9 @@ namespace Pds {
                                                            i->sequence().clock(),
                                                            i->sequence().stamp()),
                                                   i->env());
+#ifdef DBUG
+          _dump(*tr,__LINE__);
+#endif
           _control.mcast(*tr);
 
           delete tr;
@@ -285,6 +315,9 @@ namespace Pds {
                                         i->env());
     }
 
+#ifdef DBUG
+          _dump(*tr,__LINE__);
+#endif
           _control.mcast(*tr);
           delete tr;
         }
@@ -295,6 +328,10 @@ namespace Pds {
       //       if (i->datagram().xtc.damage.value()&(1<<Damage::UserDefined))
       //  _control.set_target_state(_control.current_state());  // backout one step
 
+#ifdef DBUG
+      printf("complete ");
+      dump(&i->datagram());
+#endif
       _control._complete(i->datagram().seq.service());
       return i;
     }
@@ -718,6 +755,9 @@ void PartitionControl::_execute(Transition& tr) {
 
   _eb.reset(_partition);
 
+#ifdef DBUG
+  _dump(tr,__LINE__);
+#endif
   mcast(tr);
 
   _sem.take();  // block until transition is complete
