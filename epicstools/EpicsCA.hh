@@ -48,7 +48,7 @@ namespace Pds_Epics {
     ConnStatus connected   () const { return _connected; }
   
   protected:
-    char        _epicsName[32];
+    char        _epicsName[64];
     int         _nelements;
     chid	_epicsChanID;
     chtype      _type;
@@ -68,6 +68,8 @@ namespace Pds_Epics {
     virtual void  getData  (const void* value);
     virtual void  putStatus(bool);
   public:
+    unsigned sec    () const;
+    unsigned nsec   () const;
     void*  data     ();
     size_t data_size() const;
     bool   connected() const;
@@ -75,6 +77,7 @@ namespace Pds_Epics {
     EpicsCAChannel   _channel;
     PVMonitorCb*     _monitor;
     char* _pvdata;
+    struct epicsTimeStamp _stamp;
     int   _pvsiz;
     bool  _connected;
   };

@@ -20,6 +20,8 @@
 
 #include <stdio.h>
 
+//#define DBUG
+
 static void ConnStatusCB(struct connection_handler_args chArgs)
 {
   Pds_Epics::EpicsCAChannel* theProxy = (Pds_Epics::EpicsCAChannel*) ca_puser(chArgs.chid);
@@ -41,6 +43,7 @@ static void PutDataCallback(struct event_handler_args ehArgs)
 
 #define handle_type(ctype, stype, dtype) case ctype:	\
   { struct stype* ival = (struct stype*)dbr;		\
+    _stamp      = ival->stamp;                          \
     dtype* inp  = &ival->value;				\
     dtype* outp = (dtype*)_pvdata;			\
     for(int k=0; k<nelem; k++) *outp++ = *inp++;	\
@@ -72,6 +75,11 @@ void EpicsCA::connected   (bool c)
     _pvdata = new char[_pvsiz=sz];
     printf("pvdata allocated @ %p sz %d type %d\n",_pvdata,sz,int(_channel.type()));
   }
+  else {
+#ifdef DBUG
+    printf("pvdata retained @ %p sz %d type %d\n",_pvdata,sz,int(_channel.type()));
+#endif
+  }
   _connected = c;
 }
 
@@ -98,6 +106,9 @@ void* EpicsCA::data        ()
   return _pvdata; 
 }
 
+unsigned EpicsCA::sec () const { return _stamp.secPastEpoch; }
+unsigned EpicsCA::nsec() const { return _stamp.nsec; }
+
 size_t EpicsCA::data_size  () const { return _pvsiz; }
 
 void  EpicsCA::putStatus   (bool s) {}
@@ -110,7 +121,7 @@ EpicsCAChannel::EpicsCAChannel(const char* channelName,
   _monitor  (monitor),
   _proxy    (proxy)
 {
-  snprintf(_epicsName, 32, channelName);
+  snprintf(_epicsName, 64, channelName);
   strtok(_epicsName, "[");
 //   char* index = strtok(NULL,"]");
 //   if (index)
@@ -122,6 +133,10 @@ EpicsCAChannel::EpicsCAChannel(const char* channelName,
   int st = ca_create_channel(_epicsName, ConnStatusCB, this, priority, &_epicsChanID);
   if (st != ECA_NORMAL) 
     printf("EpicsCAChannel::ctor %s : %s\n", _epicsName, ca_message(st));
+
+#ifdef DBUG
+  printf("EpicsCAChannel ca_create_channel[%s]\n",_epicsName);
+#endif  
 }
 
 EpicsCAChannel::~EpicsCAChannel()
@@ -134,6 +149,10 @@ EpicsCAChannel::~EpicsCAChannel()
 
 void EpicsCAChannel::get()
 {
+#ifdef DBUG
+  printf("EpicsCAChannel::get[%s]\n",_epicsName);
+#endif  
+
   int st = ca_array_get_callback (_type,
 				  _nelements,
 				  _epicsChanID,
@@ -169,7 +188,9 @@ void EpicsCAChannel::put_cb()
 
 void EpicsCAChannel::connStatusCallback(struct connection_handler_args chArgs)
 {
-
+#ifdef DBUG
+  printf("EpicsCAChannel::connStatusCallback[%s]\n",_epicsName);
+#endif  
 
   if ( chArgs.op == CA_OP_CONN_UP ) {
     printf("EpicsCAChannel::connStatusCallback %s connected (%p)\n",_epicsName, this);
@@ -208,6 +229,10 @@ void EpicsCAChannel::connStatusCallback(struct connection_handler_args chArgs)
 
 void EpicsCAChannel::getDataCallback(struct event_handler_args ehArgs)
 {
+#ifdef DBUG
+  printf("EpicsCAChannel::getDataCallback[%s]\n",_epicsName);
+#endif  
+
   if (ehArgs.status != ECA_NORMAL)
     printf("%s : %s [getDataCallback ehArgs]\n",_epicsName, ca_message(ehArgs.status));
   else {
