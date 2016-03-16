@@ -31,6 +31,9 @@ BeamMonitorServer::BeamMonitorServer(const char*         pvbase,
 {
   _xtc = Xtc(_data_type, info);
 
+  //
+  //  Create PvServers for fetching configuration data
+  //
   char pvname[64];
   sprintf(pvname,"%s:ChanEnable",pvbase);
   _chan_enable = new PvServer(pvname);
@@ -41,6 +44,9 @@ BeamMonitorServer::BeamMonitorServer(const char*         pvbase,
     _config_pvs[i] = new PvServer(pvname);
   }
 
+  //
+  //  Create EpicsCA for monitoring event data
+  //
   sprintf(pvname,"%s:RAW",pvbase);
   _raw = new Pds_Epics::EpicsCA(pvname,this);
 }
@@ -53,6 +59,9 @@ BeamMonitorServer::~BeamMonitorServer()
     delete _config_pvs[i];
 }
 
+//
+//  Called by "post" function to write event data into the XTC
+//
 int BeamMonitorServer::fill(char* copyTo, const void* data)
 {
   //
@@ -136,6 +145,9 @@ int BeamMonitorServer::fill(char* copyTo, const void* data)
 #include "pds/xtc/XtcType.hh"
 static Pds::GenericPool pool(0x100000,4);
 
+//
+//  Callback when new event data is available
+//
 void BeamMonitorServer::updated()
 {
 #ifdef DBUG
@@ -178,7 +190,7 @@ Pds::InDatagram* BeamMonitorServer::fire(Pds::InDatagram* dg)
 {
   if (dg->seq.service()==Pds::TransitionId::Configure) {
     //
-    //  Set the xtc data lengths to the maximum for each of the two waveform types
+    //  Fetch the configuration data for inserting into the XTC
     //
     _chan_enable  ->fetch((char*)&_chan_mask,4);
     for(unsigned i=0; i<NCHANNELS; i++) {
