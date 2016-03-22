@@ -21,16 +21,17 @@ namespace Pds {
       InDatagram* fire(InDatagram*);
       // PvMonitorCb
       void        updated();
-    private:
       enum { NCHANNELS=16 };
+    private:
       Pds_Epics::EpicsCA*    _raw;
       std::vector<PvServer*> _config_pvs;
+      std::vector<PvServer*> _offset_pvs;
       PvServer*              _chan_enable;
       bool                   _enabled;
       unsigned               _chan_mask;
-      unsigned               _rawlen[NCHANNELS];
-      unsigned               _len_125;
-      unsigned               _len_5;
+      uint32_t               _Length[NCHANNELS];
+      int32_t                _Offset[NCHANNELS];
+      char *                 _ConfigBuff;
     };
   };
 };

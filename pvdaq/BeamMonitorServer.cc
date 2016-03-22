@@ -2,23 +2,26 @@
 #include "pds/pvdaq/PvServer.hh"
 #include "pds/xtc/InDatagram.hh"
 #include "pdsdata/xtc/TypeId.hh"
-#include "pdsdata/psddl/beammonitor.ddl.h"
+#include "pdsdata/psddl/generic1d.ddl.h"
 
 using namespace Pds::PvDaq;
-
+typedef Pds::Generic1D::ConfigV0 G1DCfg;
 //
 //  Things that belong in pds/config/BeamMonitorType.hh
 //
-typedef Pds::BeamMonitor::ConfigV0 BMConfig;
+static const int NCHANNELS = BeamMonitorServer::NCHANNELS;
+static const uint32_t _SampleType[NCHANNELS]= {G1DCfg::UINT16,G1DCfg::UINT16,G1DCfg::UINT16,G1DCfg::UINT16,G1DCfg::UINT16,G1DCfg::UINT16,G1DCfg::UINT16,G1DCfg::UINT16, G1DCfg::UINT32,G1DCfg::UINT32,G1DCfg::UINT32,G1DCfg::UINT32,G1DCfg::UINT32,G1DCfg::UINT32,G1DCfg::UINT32,G1DCfg::UINT32};
+static const double _Period[NCHANNELS]= {8e-9, 8e-9, 8e-9, 8e-9, 8e-9, 8e-9, 8e-9, 8e-9, 2e-7, 2e-7, 2e-7, 2e-7, 2e-7, 2e-7, 2e-7, 2e-7};
+typedef Pds::Generic1D::ConfigV0 G1DConfig;
 
-static Pds::TypeId _config_type( Pds::TypeId::Type(BMConfig::TypeId),
-                                 BMConfig::Version );
-static unsigned    _config_size = sizeof(BMConfig);
 
-typedef Pds::BeamMonitor::DataV0 BMData;
+static Pds::TypeId _config_type( Pds::TypeId::Type(G1DConfig::TypeId),
+                                 G1DConfig::Version );
 
-static Pds::TypeId _data_type( Pds::TypeId::Type(BMData::TypeId),
-                               BMData::Version );
+typedef Pds::Generic1D::DataV0 G1DData;
+
+static Pds::TypeId _data_type( Pds::TypeId::Type(G1DData::TypeId),
+                               G1DData::Version );
 //static unsigned    _data_size = sizeof(BMData);
 
 //#define DBUG
@@ -26,10 +29,14 @@ static Pds::TypeId _data_type( Pds::TypeId::Type(BMData::TypeId),
 BeamMonitorServer::BeamMonitorServer(const char*         pvbase,
                                      const Pds::DetInfo& info) :
   _config_pvs (NCHANNELS),
+  _offset_pvs (NCHANNELS),
   _enabled    (false),
-  _chan_mask  (0)
+  _chan_mask  (0),
+  _ConfigBuff (0)
 {
   _xtc = Xtc(_data_type, info);
+
+
 
   //
   //  Create PvServers for fetching configuration data
@@ -38,10 +45,14 @@ BeamMonitorServer::BeamMonitorServer(const char*         pvbase,
   sprintf(pvname,"%s:ChanEnable",pvbase);
   _chan_enable = new PvServer(pvname);
 
-  for(unsigned i=0; i<16; i++) {
-    sprintf(pvname,"%s:NumberOfSamples%d_RBV",pvbase,i);
+  for(unsigned i=0; i<NCHANNELS; i++) {
+    sprintf(pvname,"%s:NumberOfSamples%d_RBV",pvbase, i);
     printf("Creating EpicsCA(%s)\n",pvname);
     _config_pvs[i] = new PvServer(pvname);
+
+    sprintf(pvname,"%s:Delay%d_RBV",pvbase, i);
+    printf("Creating EpicsCA(%s)\n",pvname);
+    _offset_pvs[i] = new PvServer(pvname);
   }
 
   //
@@ -57,6 +68,8 @@ BeamMonitorServer::~BeamMonitorServer()
   delete _chan_enable;
   for(unsigned i=0; i<_config_pvs.size(); i++)
     delete _config_pvs[i];
+  for(unsigned i=0; i<_offset_pvs.size(); i++)
+    delete _offset_pvs[i];
 }
 
 //
@@ -75,65 +88,50 @@ int BeamMonitorServer::fill(char* copyTo, const void* data)
   //  Parse the raw data and fill the copyTo payload
   //
   unsigned fiducial = _raw->nsec()&0x1ffff;
+
   _seq = Pds::Sequence(Pds::Sequence::Event,
                        Pds::TransitionId::L1Accept,
                        Pds::ClockTime(0,0),
                        Pds::TimeStamp(0,fiducial,0));
-
-  uint32_t* p32 = reinterpret_cast<uint32_t*>(p);
-
+  unsigned size_calc = 0;
+  for(unsigned n=0; n<NCHANNELS; n++){
+    if (_SampleType[n] == G1DCfg::UINT16){
+      size_calc = size_calc + _Length[n]*2;
+    }
+    if (_SampleType[n] == G1DCfg::UINT32){
+      size_calc = size_calc + _Length[n]*4;
+    }
+  }
+  G1DData* dataptr = new (xtc.alloc(size_calc)) G1DData;
+  *reinterpret_cast<uint32_t*>(dataptr)= size_calc;
+  uint32_t* p32 = reinterpret_cast<uint32_t*>(dataptr)+1;
   dbr_double_t* inp = (dbr_double_t*)data;
-
-#ifdef DBUG
-  for(unsigned i=0; i<24; i++)
-    printf("%x ",unsigned(inp[i]));
+#ifdef DBUG					
+  for(unsigned i=0; i<24; i++) 
+  printf("%x ",unsigned(inp[i]));
   printf("\n");
 #endif
-
-  inp += 14;  // skip the header
-
-  // 16-bit samples
-  if (_len_125) {
-    for(unsigned i=0; i<8; i++) {
-      if ((_chan_mask&&(1<<i))==0) continue;
-#ifdef DBUG
-      printf("fill chan[%d] id %x\n",i,unsigned(*inp));
-#endif
-      inp++;
-      unsigned j=0;
-      while(j<_rawlen[i]) {
-        *p32++ = *inp++;
-        j     += 2;
-      }
-      while(j<_len_125) {
-        *p32++ = 0;
-        j     += 2;
-      }
+  inp +=14; //skip event header
+  for(unsigned i=0; i<NCHANNELS/2; i++) {
+    if ((_chan_mask&&(1<<i))==0) continue;
+    inp ++; //skip channel header
+    for(unsigned j=0; j<_Length[i]/2; j++) {
+      *p32++ = *inp++;
+    }
+  }
+  for(unsigned i=NCHANNELS/2; i<NCHANNELS; i++) {
+    if ((_chan_mask&&(1<<i))==0) continue;
+    inp ++; //skip channel header
+    for(unsigned j=0; j<_Length[i]; j++) {
+      *p32++ = *inp++;
     }
   }
 
-  // 32-bit samples
-  if (_len_5) {
-    for(unsigned i=8; i<16; i++) {
-      if ((_chan_mask&&(1<<i))==0) continue;
-#ifdef DBUG
-      printf("fill chan[%d] id %x\n",i,unsigned(*inp));
-#endif
-      inp++;
-      unsigned j=0;
-      while(j<_rawlen[i]) {
-        *p32++ = *inp++;
-        j++;
-      }
-      while(j<_len_5) {
-        *p32++ = 0;
-        j++;
-      }
-    }
-  }
+
   
   int len = reinterpret_cast<char*>(p32)-copyTo;
   _xtc.extent = xtc.extent = len;
+
 #ifdef DBUG
   printf("fill extent %d (0x%x)\n",len,len);
 #endif
@@ -153,9 +151,9 @@ void BeamMonitorServer::updated()
 #ifdef DBUG
   if (!_enabled) {
     InDatagram* dg = new (&pool) CDatagram(Datagram(Transition(Pds::TransitionId::Configure,
-                                                               Pds::Env(0)),
-                                                    _xtcType,
-                                                    ProcInfo(Pds::Level::Segment,0,0)));
+							       Pds::Env(0)),
+						    _xtcType,
+						    ProcInfo(Pds::Level::Segment,0,0)));
     fire(dg);
     delete dg;
     _enabled = true;
@@ -186,6 +184,7 @@ Pds::Transition* BeamMonitorServer::fire(Pds::Transition* tr)
   return tr;
 }
 
+
 Pds::InDatagram* BeamMonitorServer::fire(Pds::InDatagram* dg)
 {
   if (dg->seq.service()==Pds::TransitionId::Configure) {
@@ -193,29 +192,26 @@ Pds::InDatagram* BeamMonitorServer::fire(Pds::InDatagram* dg)
     //  Fetch the configuration data for inserting into the XTC
     //
     _chan_enable  ->fetch((char*)&_chan_mask,4);
+    printf("Channel Mask %x\n", _chan_mask);
     for(unsigned i=0; i<NCHANNELS; i++) {
-      _config_pvs[i]->fetch((char*)&_rawlen[i],4);
-      printf("_rawlen[%d]=%d\n",i,_rawlen[i]);
+      _config_pvs[i]->fetch((char*)&_Length[i],4);
+      _offset_pvs[i]->fetch((char*)&_Offset[i],4);
+      printf("_Length[%d]=%d\n",i,_Length[i]);
+      printf("_Offset[%d]=%d\n",i,_Offset[i]);
     }
 
-    _len_125=0;
-    _len_5  =0;
-    for(unsigned i=0; i<8; i++)
-      if (_rawlen[i]>_len_125) _len_125=_rawlen[i];
-    for(unsigned i=8; i<16; i++)
-      if (_rawlen[i]>_len_5  ) _len_5  =_rawlen[i];
+    //_xtc.extent = sizeof(Pds::Xtc) + 8*_len_125*sizeof(uint16_t) + 8*_len_5*sizeof(uint32_t);
 
-    if ((_chan_mask&0x00ff)==0) _len_125=0;
-    if ((_chan_mask&0xff00)==0) _len_5  =0;
-
-    _xtc.extent = sizeof(Pds::Xtc) + 8*_len_125*sizeof(uint16_t) + 8*_len_5*sizeof(uint32_t);
-    
+    int config_size = G1DConfig(NCHANNELS, 0, 0, 0, 0)._sizeof();
     Pds::Xtc* xtc = new ((char*)dg->xtc.next())
       Pds::Xtc( _config_type, _xtc.src );
-    new (xtc->alloc(_config_size)) BMConfig(_len_125, _len_5);
+    new (xtc->alloc(config_size)) G1DConfig(NCHANNELS, _Length, _SampleType, _Offset, _Period);
     dg->xtc.alloc(xtc->extent);
-
-    printf("BeamMonitorServer::fire len_125,5 = (%u,%u),  chan_mask (0x%x) \n", _len_125, _len_5, _chan_mask);
+    if (_ConfigBuff) {
+      delete _ConfigBuff;
+    }
+    _ConfigBuff = new char[config_size];
+    new (_ConfigBuff) G1DConfig(NCHANNELS, _Length, _SampleType, _Offset, _Period);
   }
   return dg;
 }

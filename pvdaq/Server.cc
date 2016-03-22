@@ -43,7 +43,7 @@ Server* Server::lookup(const char*    pvbase,
 {
   Server* s=0;
   switch(info.device()) {
-  case Pds::DetInfo::BeamMonitor:
+  case Pds::DetInfo::Wave8:
     s = new BeamMonitorServer(pvbase,info);
     break;
   default:
