@@ -1,6 +1,7 @@
 #ifndef Pds_EvrSync_hh
 #define Pds_EvrSync_hh
 
+#include "pds/evgr/EvrSyncCallback.hh"
 #include "pds/service/GenericPool.hh"
 #include "pds/service/Ins.hh"
 #include "evgr/evr/evr.hh"
@@ -40,7 +41,7 @@ namespace Pds {
     static const int EVENT_CODE_SYNC = 40;
   };
 
-  class EvrSyncSlave {
+  class EvrSyncSlave : public EvrSyncCallback {
   public:
     EvrSyncSlave(EvrFIFOHandler& fifo_handler,
 		 Evr&            er,
@@ -50,6 +51,7 @@ namespace Pds {
     ~EvrSyncSlave();
   public:
     void initialize(unsigned, bool);
+  public:
     bool handle(const FIFOEvent&);
     void enable();
   private:

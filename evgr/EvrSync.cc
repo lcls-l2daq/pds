@@ -1,19 +1,13 @@
-#include "EvrSync.hh"
-#include "EvrFIFOHandler.hh"
+#include "pds/evgr/EvrSync.hh"
+#include "pds/evgr/EvrSyncRoutine.hh"
+#include "pds/evgr/EvrFIFOHandler.hh"
 #include "pds/utility/StreamPorts.hh"
 #include "pds/service/Client.hh"
 #include "pds/service/Routine.hh"
 #include "pds/service/Task.hh"
-#include "pds/service/NetServer.hh"
-#include "pds/service/OobPipe.hh"
-#include "pds/service/Semaphore.hh"
 #include "pds/xtc/EvrDatagram.hh"
-#include "pds/utility/Mtu.hh"
 #include "pds/utility/Appliance.hh"
 #include "pds/utility/Occurrence.hh"
-#include "pds/collection/Route.hh"
-
-#include <poll.h>
 
 #define DBG
 //#define ONE_PHASE
@@ -36,81 +30,6 @@ static const int      dummyram        =  1;
 
 
 namespace Pds {
-  class SyncRoutine : public Routine {
-  public:
-    SyncRoutine(Evr&     er,
-    unsigned partition,
-    EvrSyncSlave& sync) :
-      _er(er),
-      _group (StreamPorts::evr(partition)),
-      _server((unsigned)-1,
-        _group,
-        sizeof(EvrDatagram),
-        Mtu::Size),
-      _loopback(sizeof(EvrDatagram)),
-      _sync  (sync),
-      _sem   (Semaphore::EMPTY)
-    {
-      _server.join(_group,Ins(Route::interface()));
-    }
-    virtual ~SyncRoutine()
-    {
-      EvrDatagram dgram;
-      _loopback.unblock(reinterpret_cast<char*>(&dgram));
-      _sem.take();
-    }
-  public:
-    void routine()
-    {
-      const int bsiz = 256;
-      char* payload = new char[bsiz];
-
-      int nfds = 2;
-
-      pollfd* pfd = new pollfd[2];
-      pfd[0].fd = _server.socket();
-      pfd[0].events = POLLIN | POLLERR | POLLHUP;
-      pfd[0].revents = 0;
-      pfd[1].fd = _loopback.fd();
-      pfd[1].events = POLLIN | POLLERR | POLLHUP;
-      pfd[1].revents = 0;
-
-      while(::poll(pfd, nfds, -1) > 0) {
-  if (pfd[0].revents & (POLLIN | POLLERR)) {
-    int len = _server.fetch( payload, 0 );
-    if (len ==0) {
-      const EvrDatagram* dg = reinterpret_cast<const EvrDatagram*>(_server.datagram());
-
-      _sync.initialize(dg->seq.stamp().fiducials(),
-           dg->seq.service()==TransitionId::Enable);
-#ifdef DBG
-      timespec ts;
-      clock_gettime(CLOCK_REALTIME, &ts);
-      printf("sync mcast seq %d.%09d (%x : %d.%09d)\n",
-       int(ts.tv_sec), int(ts.tv_nsec),
-       dg->seq.stamp().fiducials(),
-       dg->seq.clock().seconds(),
-       dg->seq.clock().nanoseconds());
-#endif
-    }
-  }
-  if (pfd[1].revents & (POLLIN | POLLERR)) {
-    _sem.give();
-    break;
-  }
-  pfd[0].revents = 0;
-  pfd[1].revents = 0;
-      }
-    }
-  private:
-    Evr& _er;
-    Ins  _group;
-    NetServer _server;
-    OobPipe   _loopback;
-    EvrSyncSlave& _sync;
-    Semaphore     _sem;
-  };
-
   class ReleaseRoutine : public Routine {
   public:
     ReleaseRoutine(EvrFIFOHandler& fh) : _fh(fh) {}
@@ -134,10 +53,10 @@ namespace Pds {
 using namespace Pds;
 
 EvrSyncMaster::EvrSyncMaster(EvrFIFOHandler& fifo_handler,
-           Evr&            er,
-           unsigned        partition,
-           Task*           task,
-           Client&         outlet,
+                             Evr&            er,
+                             unsigned        partition,
+                             Task*           task,
+                             Client&         outlet,
                              Appliance&      app) :
   _fifo_handler(fifo_handler),
   _er          (er),
@@ -303,9 +222,9 @@ bool EvrSyncMaster::handle(const FIFOEvent& fe)
 
 
 EvrSyncSlave::EvrSyncSlave(EvrFIFOHandler& fifo_handler,
-         Evr&            er,
-         unsigned        partition,
-         Task*           task,
+                           Evr&            er,
+                           unsigned        partition,
+                           Task*           task,
                            Task*           sync_task) :
   _fifo_handler(fifo_handler),
   _er          (er),
@@ -313,7 +232,7 @@ EvrSyncSlave::EvrSyncSlave(EvrFIFOHandler& fifo_handler,
   _target      (0),
   _task        (*task),
   _sync_task   (*sync_task),
-  _routine     (new SyncRoutine(er,partition,*this))
+  _routine     (new EvrSyncRoutine(partition,*this))
 {
   _sync_task.call(_routine);
 }
@@ -324,7 +243,7 @@ EvrSyncSlave::~EvrSyncSlave()
 }
 
 void EvrSyncSlave::initialize(unsigned target,
-            bool     enable)
+                              bool     enable)
 {
   if (enable) {
     _state  = EnableInit;
