@@ -23,7 +23,8 @@ EbTimeouts::EbTimeouts(const EbTimeouts& ebtimeouts, int iSlowEb)
 //#else
 //    _tmos(2)
 //#endif
-  _tmos(iSlowEb > 0 ? 120: 2)
+//  _tmos(iSlowEb > 0 ? 120: 2)
+    _tmos(iSlowEb > 0 ? 500: 2)  // extension for Andor long exposure
 {
 }
 
