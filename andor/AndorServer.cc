@@ -1041,7 +1041,9 @@ int AndorServer::initTest()
     return ERROR_SDK_FUNC_FAIL;
   }
 
-  iError = SetExposureTime(0.001);
+  const float fExposureTime = 0.001;
+  const int   iExposureTime = (int) (fExposureTime * 1000);
+  iError = SetExposureTime(fExposureTime);
   if (!isAndorFuncOk(iError))
   {
     printf("AndorServer::initTest(): SetExposureTime(): %s\n", AndorErrorCodes::name(iError));
@@ -1072,7 +1074,7 @@ int AndorServer::initTest()
   timespec timeVal2;
   clock_gettime( CLOCK_REALTIME, &timeVal2 );
 
-  iError = WaitForAcquisitionTimeOut(_iMaxReadoutTime);
+  iError = WaitForAcquisitionTimeOut(_iMaxReadoutTimeBase + iExposureTime);
   if (!isAndorFuncOk(iError))
   {
     printf("AndorServer::waitForNewFrameAvailable(): WaitForAcquisitionTimeOut(): %s\n", AndorErrorCodes::name(iError));
@@ -1512,6 +1514,8 @@ int AndorServer::waitData(InDatagram* in, InDatagram*& out)
 
   const static timeval timeSleepMicroOrg = {0, 1000}; // 1 milliseconds
 
+  const int _iMaxLastEventTime = _iMaxLastEventTimeBase + (int) (_config.exposureTime() * 1000);
+
   while (_CaptureState != CAPTURE_STATE_DATA_READY)
   {
     // This data will be modified by select(), so need to be reset
@@ -1685,7 +1689,7 @@ int AndorServer::waitForNewFrameAvailable()
   clock_gettime( CLOCK_REALTIME, &tsWaitStart );
 
   int iError;
-  iError = WaitForAcquisitionTimeOut(_iMaxReadoutTime);
+  iError = WaitForAcquisitionTimeOut(_iMaxReadoutTimeBase + (int) (_config.exposureTime() * 1000));
 
   if (_config.fanMode() == (int) AndorConfigType::ENUM_FAN_ACQOFF)
   {
@@ -2068,9 +2072,8 @@ const int       AndorServer::_fTemperatureLoTol;
 const int       AndorServer::_iFrameHeaderSize      = sizeof(CDatagram) + sizeof(Xtc) + sizeof(AndorDataType);
 const int       AndorServer::_iMaxFrameDataSize     = _iFrameHeaderSize + 2048*2048*2;
 const int       AndorServer::_iPoolDataCount;
-const int       AndorServer::_iMaxReadoutTime;
-const int       AndorServer::_iMaxThreadEndTime;
-const int       AndorServer::_iMaxLastEventTime;
+const int       AndorServer::_iMaxReadoutTimeBase;
+const int       AndorServer::_iMaxLastEventTimeBase;
 const int       AndorServer::_iMaxEventReport;
 const float     AndorServer::_fEventDeltaTimeFactor = 1.01f;
 
