@@ -3,6 +3,7 @@
 #include "pds/xtc/InDatagram.hh"
 #include "pdsdata/xtc/TypeId.hh"
 #include "pdsdata/psddl/generic1d.ddl.h"
+#include <stdio.h>
 
 using namespace Pds::PvDaq;
 typedef Pds::Generic1D::ConfigV0 G1DCfg;
