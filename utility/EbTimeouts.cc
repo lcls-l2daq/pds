@@ -39,11 +39,16 @@ EbTimeouts::EbTimeouts(int stream,
   }
 
   switch(level) {
-  case Level::Source : _tmos = (iSlowEb > 0? 120:4); break;
-  case Level::Segment: _tmos = (iSlowEb > 0? 122:5); break;
-  case Level::Event  : _tmos = (iSlowEb > 0? 124:6); break;
-  case Level::Control: _tmos = (iSlowEb > 0? 126:7); break;
-  default            : _tmos = (iSlowEb > 0? 126:7); break;
+//   case Level::Source : _tmos = (iSlowEb > 0? 120:4); break;
+//   case Level::Segment: _tmos = (iSlowEb > 0? 122:5); break;
+//   case Level::Event  : _tmos = (iSlowEb > 0? 124:6); break;
+//   case Level::Control: _tmos = (iSlowEb > 0? 126:7); break;
+//   default            : _tmos = (iSlowEb > 0? 126:7); break;
+  case Level::Source : _tmos = (iSlowEb > 0? 500:4); break;
+  case Level::Segment: _tmos = (iSlowEb > 0? 502:5); break;
+  case Level::Event  : _tmos = (iSlowEb > 0? 504:6); break;
+  case Level::Control: _tmos = (iSlowEb > 0? 506:7); break;
+  default            : _tmos = (iSlowEb > 0? 506:7); break;
   }
 
 //  switch(level) {
