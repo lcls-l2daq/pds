@@ -14,6 +14,7 @@
 #include "pds/xtc/CDatagram.hh"
 #include "pds/service/GenericPool.hh"
 #include "pds/service/Routine.hh"
+#include "pds/utility/EbTimeoutConstants.hh"
 #include "DualAndorOccurrence.hh"
 
 namespace Pds
@@ -78,20 +79,21 @@ private:
   /*
    * private static consts
    */
-  static const int      _iMaxCamera             = 2;          // max number of allowed ccds
-  static const int      _iMaxCoolingTime        = 100;        // in miliseconds
-  static const int      _fTemperatureHiTol      = 5;          // 5 degree Celcius
-  static const int      _fTemperatureLoTol      = 200;        // 200 degree Celcius -> Do not use Low Tolerance now
-  static const int      _iClockSavingExpTime    = 24*60*60*1000;// 24 hours -> Long exposure time for clock saving
-  static const int      _iFrameHeaderSize;                      // Buffer header used to store the CDatagram, Xtc and FrameV1 object
-  static const int      _iMaxFrameDataSize;                     // Buffer for 4 Mega (image pixels) x 2 (bytes per pixel) +
-                                                                //   info size + header size
-  static const int      _iPoolDataCount         = 120;          // to support beam rate mode
-  static const int      _iMaxReadoutTimeBase    = 60000;        // Max readout time (actual max readout time includes camera acq time)
-  static const int      _iMaxLastEventTimeBase  = 60000;        // Max readout time for the last event (actual max readout time includes camera acq time)
-  static const int      _iMaxEventReport        = 20;           // Only report some statistics and non-critical errors in the first few L1 events
-  static const int      _iTestExposureStartDelay= 12500;        // Acq delay to use during initTest()
-  static const float    _fEventDeltaTimeFactor;                 // Event delta time factor, for detecting sequence error
+  static const int      _iMaxCamera             = 2;                  // max number of allowed ccds
+  static const int      _iMaxCoolingTime        = 100;                // in miliseconds
+  static const int      _fTemperatureHiTol      = 5;                  // 5 degree Celcius
+  static const int      _fTemperatureLoTol      = 200;                // 200 degree Celcius -> Do not use Low Tolerance now
+  static const int      _iClockSavingExpTime    = 24*60*60*1000;      // 24 hours -> Long exposure time for clock saving
+  static const int      _iFrameHeaderSize;                            // Buffer header used to store the CDatagram, Xtc and FrameV1 object
+  static const int      _iMaxFrameDataSize;                           // Buffer for 4 Mega (image pixels) x 2 (bytes per pixel) +
+                                                                      //   info size + header size
+  static const int      _iPoolDataCount         = 120;                // to support beam rate mode
+  static const int      _iMaxReadoutTime        = EB_TIMEOUT_SLOW_MS; // Max readout time
+  static const int      _iMaxThreadEndTime      = EB_TIMEOUT_SLOW_MS; // Max thread terminating time (in ms)
+  static const int      _iMaxLastEventTime      = EB_TIMEOUT_SLOW_MS; // Max readout time for the last event
+  static const int      _iMaxEventReport        = 20;                 // Only report some statistics and non-critical errors in the first few L1 events
+  static const int      _iTestExposureStartDelay= 12500;              // Acq delay to use during initTest()
+  static const float    _fEventDeltaTimeFactor;                       // Event delta time factor, for detecting sequence error
 
   /*
    * private classes

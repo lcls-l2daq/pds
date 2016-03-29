@@ -224,6 +224,15 @@ int PrincetonServer::config(PrincetonConfigType& config, std::string& sConfigWar
   if ( configCamera(config, sConfigWarning) != 0 )
     return ERROR_SERVER_INIT_FAIL;
 
+  // Check current config won't hit the event builder contribution timeout
+  if (config.numDelayShots() > 1 && (config.exposureTime() * 1000) > _iMaxReadoutTime) {
+    char sMessage[128];
+    sprintf( sMessage, "Princeton: configured exposure time (%f s) exceeds event builder timeout (%d s)\n", config.exposureTime(), _iMaxReadoutTime / 1000);
+    printf(sMessage);
+    sConfigWarning += sMessage; 
+    return ERROR_INVALID_CONFIG;
+  }
+
   const int iDevId = ((DetInfo&)_src).devId();
 
   if ( (int) config.width() > _i16DetectorWidth || (int) config.height() > _i16DetectorHeight)

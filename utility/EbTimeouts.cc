@@ -2,6 +2,7 @@
 #include <string.h>
 
 #include "EbTimeouts.hh"
+#include "EbTimeoutConstants.hh"
 
 using namespace Pds;
 
@@ -23,8 +24,7 @@ EbTimeouts::EbTimeouts(const EbTimeouts& ebtimeouts, int iSlowEb)
 //#else
 //    _tmos(2)
 //#endif
-//  _tmos(iSlowEb > 0 ? 120: 2)
-    _tmos(iSlowEb > 0 ? 500: 2)  // extension for Andor long exposure
+    _tmos(iSlowEb > 0 ? EB_TIMEOUT_SLOW : EB_TIMEOUT)
 {
 }
 
@@ -39,16 +39,11 @@ EbTimeouts::EbTimeouts(int stream,
   }
 
   switch(level) {
-//   case Level::Source : _tmos = (iSlowEb > 0? 120:4); break;
-//   case Level::Segment: _tmos = (iSlowEb > 0? 122:5); break;
-//   case Level::Event  : _tmos = (iSlowEb > 0? 124:6); break;
-//   case Level::Control: _tmos = (iSlowEb > 0? 126:7); break;
-//   default            : _tmos = (iSlowEb > 0? 126:7); break;
-  case Level::Source : _tmos = (iSlowEb > 0? 500:4); break;
-  case Level::Segment: _tmos = (iSlowEb > 0? 502:5); break;
-  case Level::Event  : _tmos = (iSlowEb > 0? 504:6); break;
-  case Level::Control: _tmos = (iSlowEb > 0? 506:7); break;
-  default            : _tmos = (iSlowEb > 0? 506:7); break;
+   case Level::Source : _tmos = (iSlowEb > 0? EB_TIMEOUT_SLOW:EB_TIMEOUT+2); break;
+   case Level::Segment: _tmos = (iSlowEb > 0? EB_TIMEOUT_SLOW+2:EB_TIMEOUT+3); break;
+   case Level::Event  : _tmos = (iSlowEb > 0? EB_TIMEOUT_SLOW+4:EB_TIMEOUT+4); break;
+   case Level::Control: _tmos = (iSlowEb > 0? EB_TIMEOUT_SLOW+6:EB_TIMEOUT+5); break;
+   default            : _tmos = (iSlowEb > 0? EB_TIMEOUT_SLOW+6:EB_TIMEOUT+5); break;
   }
 
 //  switch(level) {

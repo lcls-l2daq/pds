@@ -610,6 +610,15 @@ int DualAndorServer::config(Andor3dConfigType& config, std::string& sConfigWarni
     return ERROR_SERVER_INIT_FAIL;
   }
 
+  // Check current config won't hit the event builder contribution timeout
+  if (config.numDelayShots() > 1 && (config.exposureTime() * 1000) > _iMaxReadoutTime) {
+    if (_occSend != NULL) {
+      // send occurrence
+      _occSend->userMessage("Andor: configured exposure time exceeds event builder timeout\n");
+    }
+    return ERROR_INVALID_CONFIG;
+  }
+
   const int iDevId = ((DetInfo&)_src).devId();
 
   if ( (int) config.numSensors() != _iDetectorSensor)
@@ -1275,8 +1284,6 @@ int DualAndorServer::initTest()
   clock_gettime( CLOCK_REALTIME, &timeVal0 );
 
   int iError;
-  const float fExposureTime = 0.001;
-  const int   iExposureTime = (int) (fExposureTime * 1000);
 
   if (checkSlaveSelected()) {
     iError = SetHSSpeed(_iReadoutPort, 0);
@@ -1286,7 +1293,7 @@ int DualAndorServer::initTest()
       return ERROR_SDK_FUNC_FAIL;
     }
 
-    iError = SetExposureTime(fExposureTime);
+    iError = SetExposureTime(0.001);
     if (!isAndorFuncOk(iError))
     {
       printf("DualAndorServer::initTest(): SetExposureTime() (hcam = %d): %s\n", (int) _hCamSlave, AndorErrorCodes::name(iError));
@@ -1311,7 +1318,7 @@ int DualAndorServer::initTest()
       return ERROR_SDK_FUNC_FAIL;
     }
 
-    iError = SetExposureTime(fExposureTime);
+    iError = SetExposureTime(0.001);
     if (!isAndorFuncOk(iError))
     {
       printf("DualAndorServer::initTest(): SetExposureTime() (hcam = %d): %s\n", (int) _hCamMaster, AndorErrorCodes::name(iError));
@@ -1366,7 +1373,7 @@ int DualAndorServer::initTest()
   clock_gettime( CLOCK_REALTIME, &timeVal2 );
 
   if (checkMasterSelected()) {
-    iError = WaitForAcquisitionTimeOut(_iMaxReadoutTimeBase + iExposureTime);
+    iError = WaitForAcquisitionTimeOut(_iMaxReadoutTime);
     if (!isAndorFuncOk(iError))
     {
       printf("DualAndorServer::waitForNewFrameAvailable(): WaitForAcquisitionTimeOut() (hcam = %d): %s\n", (int) _hCamMaster, AndorErrorCodes::name(iError));
@@ -1377,7 +1384,7 @@ int DualAndorServer::initTest()
   }
 
   if (checkSlaveSelected()) {
-    iError = WaitForAcquisitionTimeOut(_iMaxReadoutTimeBase + iExposureTime);
+    iError = WaitForAcquisitionTimeOut(_iMaxReadoutTime);
     if (!isAndorFuncOk(iError))
     {
       printf("DualAndorServer::waitForNewFrameAvailable(): WaitForAcquisitionTimeOut() (hcam = %d): %s\n", (int) _hCamSlave, AndorErrorCodes::name(iError));
@@ -1906,8 +1913,6 @@ int DualAndorServer::waitData(InDatagram* in, InDatagram*& out)
 
   const static timeval timeSleepMicroOrg = {0, 1000}; // 1 milliseconds
 
-  const int _iMaxLastEventTime = _iMaxLastEventTimeBase + (int) (_config.exposureTime() * 1000);
-
   while (_CaptureState != CAPTURE_STATE_DATA_READY)
   {
     // This data will be modified by select(), so need to be reset
@@ -2140,10 +2145,9 @@ int DualAndorServer::waitForNewFrameAvailable()
 
   int iErrorMaster = DRV_SUCCESS;
   int iErrorSlave  = DRV_SUCCESS;
-  const int iExposureTime = (int) (_config.exposureTime() * 1000);
   if (checkMasterSelected())
   {
-    iErrorMaster = WaitForAcquisitionTimeOut(_iMaxReadoutTimeBase + iExposureTime);
+    iErrorMaster = WaitForAcquisitionTimeOut(_iMaxReadoutTime);
     
     if (_config.fanMode() == (int) Andor3dConfigType::ENUM_FAN_ACQOFF)
     {
@@ -2154,7 +2158,7 @@ int DualAndorServer::waitForNewFrameAvailable()
   }
   if (checkSlaveSelected())
   {
-    iErrorSlave  = WaitForAcquisitionTimeOut(_iMaxReadoutTimeBase + iExposureTime);
+    iErrorSlave  = WaitForAcquisitionTimeOut(_iMaxReadoutTime);
 
     if (_config.fanMode() == (int) Andor3dConfigType::ENUM_FAN_ACQOFF)
     {
@@ -2613,8 +2617,9 @@ const int       DualAndorServer::_fTemperatureLoTol;
 const int       DualAndorServer::_iFrameHeaderSize      = sizeof(CDatagram) + sizeof(Xtc) + sizeof(Andor3dDataType);
 const int       DualAndorServer::_iMaxFrameDataSize     = _iFrameHeaderSize + _iMaxCamera*sizeof(float) + _iMaxCamera*2048*2048*sizeof(uint16_t);
 const int       DualAndorServer::_iPoolDataCount;
-const int       DualAndorServer::_iMaxReadoutTimeBase;
-const int       DualAndorServer::_iMaxLastEventTimeBase;
+const int       DualAndorServer::_iMaxReadoutTime;
+const int       DualAndorServer::_iMaxThreadEndTime;
+const int       DualAndorServer::_iMaxLastEventTime;
 const int       DualAndorServer::_iMaxEventReport;
 const int       DualAndorServer::_iTestExposureStartDelay;
 const float     DualAndorServer::_fEventDeltaTimeFactor = 1.01f;
