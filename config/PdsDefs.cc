@@ -27,6 +27,7 @@
 #include "pds/config/AndorConfigType.hh"
 #include "pds/config/PimaxConfigType.hh"
 #include "pds/config/UsdUsbConfigType.hh"
+#include "pds/config/UsdUsbFexConfigType.hh"
 #include "pds/config/OrcaConfigType.hh"
 #include "pds/config/RayonixConfigType.hh"
 #include "pds/config/EpixSamplerConfigType.hh"
@@ -104,19 +105,20 @@ const Pds::TypeId* PdsDefs::typeId(ConfigType id)
   case Timepix      : type = &_timepixConfigType;   break;
   case Cspad2x2     : type = &_CsPad2x2ConfigType;  break;
   case OceanOptics  : type = &_oceanOpticsConfigType; break;
-  case Fli          : type = &_fliConfigType; break;
-  case Andor        : type = &_andorConfigType; break;
-  case Pimax        : type = &_pimaxConfigType; break;
-  case UsdUsb       : type = &_usdusbConfigType; break;
-  case Orca         : type = &_orcaConfigType; break;
+  case Fli          : type = &_fliConfigType;       break;
+  case Andor        : type = &_andorConfigType;     break;
+  case Pimax        : type = &_pimaxConfigType;     break;
+  case UsdUsb       : type = &_usdusbConfigType;    break;
+  case Orca         : type = &_orcaConfigType;      break;
   case Rayonix      : type = &_rayonixConfigType;   break;
-  case EpixSampler  : type = &_epixSamplerConfigType;   break;
-  case Epix         : type = &_epixConfigType;   break;
-  case Epix10k      : type = &_epix10kConfigType; break;
-  case Epix100a     : type = &_epix100aConfigType; break;
+  case EpixSampler  : type = &_epixSamplerConfigType; break;
+  case Epix         : type = &_epixConfigType;      break;
+  case Epix10k      : type = &_epix10kConfigType;   break;
+  case Epix100a     : type = &_epix100aConfigType;  break;
   case GenericPgp   : type = &_genericPgpConfigType; break;
-  case TimeTool     : type = &_timetoolConfigType; break;
-  case Andor3d      : type = &_andor3dConfigType; break;
+  case TimeTool     : type = &_timetoolConfigType;  break;
+  case Andor3d      : type = &_andor3dConfigType;   break;
+  case UsdUsbFex    : type = &_usdusbFexConfigType; break;
 
     //  case Projection   : type = &_projectionConfigType; break;
   default: 
@@ -172,6 +174,7 @@ const Pds::TypeId* PdsDefs::typeId(const UTypeName& name)
   test(_genericPgpConfigType);
   test(_timetoolConfigType);
   test(_andor3dConfigType);
+  test(_usdusbFexConfigType);
   //  test(_projectionConfigType);    
 #undef test
   //  database-only types
@@ -226,6 +229,7 @@ const Pds::TypeId* PdsDefs::typeId(const QTypeName& name)
   test(_genericPgpConfigType);
   test(_timetoolConfigType);
   test(_andor3dConfigType);
+  test(_usdusbFexConfigType);
   //  test(_projectionConfigType);    
 #undef test
   //  database-only types

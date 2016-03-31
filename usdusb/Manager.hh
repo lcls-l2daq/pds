@@ -6,10 +6,11 @@ namespace Pds {
   class CfgClientNfs;
   class Fsm;
   namespace UsdUsb {
+    class Fex;
     class Server;
     class Manager {
     public:
-      Manager (unsigned dev, Server&, CfgClientNfs&);
+      Manager (unsigned dev, Server&, CfgClientNfs&, Fex&);
       ~Manager();
     public:
       Appliance& appliance();
