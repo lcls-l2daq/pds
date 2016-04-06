@@ -34,10 +34,13 @@ namespace Pds_Epics {
 		   EpicsCA&    proxy);
     ~EpicsCAChannel();
     
-    void connect    (void);
-    void get        ();
-    void put        ();
-    void put_cb     ();
+    void connect        (void);
+    void get            ();
+    void put            ();
+    void put_cb         ();
+    void set_nelements  (int);
+    void start_monitor  ();
+    void stop_monitor   ();
   public:
     void getDataCallback   (struct event_handler_args ehArgs);
     void putDataCallback   (struct event_handler_args ehArgs);

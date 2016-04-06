@@ -14,6 +14,7 @@ packages += epix10k
 packages += epix100a
 packages += genericpgp
 packages += udpcam
+packages += lecroy
 packages += pvdaq
 
 ifneq ($(findstring x86_64,$(tgt_arch)),)

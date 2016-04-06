@@ -35,6 +35,7 @@
 #include "pds/config/GenericPgpConfigType.hh"
 #include "pds/config/TimeToolConfigType.hh"
 #include "pds/config/Andor3dConfigType.hh"
+#include "pds/config/Generic1DConfigType.hh"
 //#include "pds/config/ProjectionConfigType.hh"
 //#include "pds/config/SeqConfigType.hh"
 #include <cassert>
@@ -119,6 +120,7 @@ const Pds::TypeId* PdsDefs::typeId(ConfigType id)
   case TimeTool     : type = &_timetoolConfigType;  break;
   case Andor3d      : type = &_andor3dConfigType;   break;
   case UsdUsbFex    : type = &_usdusbFexConfigType; break;
+  case Generic1D    : type = &_generic1DConfigType; break;
 
     //  case Projection   : type = &_projectionConfigType; break;
   default: 
@@ -174,6 +176,7 @@ const Pds::TypeId* PdsDefs::typeId(const UTypeName& name)
   test(_genericPgpConfigType);
   test(_timetoolConfigType);
   test(_andor3dConfigType);
+  test(_generic1DConfigType);
   test(_usdusbFexConfigType);
   //  test(_projectionConfigType);    
 #undef test
@@ -229,6 +232,7 @@ const Pds::TypeId* PdsDefs::typeId(const QTypeName& name)
   test(_genericPgpConfigType);
   test(_timetoolConfigType);
   test(_andor3dConfigType);
+  test(_generic1DConfigType);
   test(_usdusbFexConfigType);
   //  test(_projectionConfigType);    
 #undef test

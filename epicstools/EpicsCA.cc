@@ -186,6 +186,70 @@ void EpicsCAChannel::put_cb()
     printf("%s : %s [put_cb st] : %d\n",_epicsName, ca_message(st), dbfType);
 }
 
+void EpicsCAChannel::set_nelements(int nelements)
+{
+#ifdef DBUG
+  printf("EpicsCAChannel::set_nelements[%s]\n",_epicsName);
+#endif
+
+  if (_nelements != nelements) {
+      // update the number of elements
+      _nelements = nelements;
+      if (_monitor) {
+        int st;
+        // clear existing monitoring
+        st = ca_clear_subscription(_event);
+        if (st != ECA_NORMAL)
+          printf("%s : %s [set_nelements]\n", _epicsName, ca_message(st));
+        // establish monitoring
+        st = ca_create_subscription(_type,
+          _nelements,
+          _epicsChanID,
+          DBE_VALUE,
+          GetDataCallback,
+          this,
+          &_event);
+        if (st != ECA_NORMAL)
+          printf("%s : %s [set_nelements]\n", _epicsName, ca_message(st));
+    }
+  }
+}
+
+void EpicsCAChannel::start_monitor()
+{
+#ifdef DBUG
+  printf("EpicsCAChannel::start_monitor[%s]\n",_epicsName);
+#endif
+
+  if (!_monitor) {
+    // establish monitoring
+    _monitor = true;
+    int st = ca_create_subscription(_type,
+      _nelements,
+      _epicsChanID,
+      DBE_VALUE,
+      GetDataCallback,
+      this,
+      &_event);
+    if (st != ECA_NORMAL)
+      printf("%s : %s [start_monitor]\n", _epicsName, ca_message(st));
+  }
+}
+
+void EpicsCAChannel::stop_monitor()
+{
+#ifdef DBUG
+  printf("EpicsCAChannel::stop_monitor[%s]\n",_epicsName);
+#endif
+  if (_monitor) {
+    // clear existing monitoring
+    _monitor = false;
+    int st = ca_clear_subscription(_event);
+    if (st != ECA_NORMAL)
+      printf("%s : %s [set_nelements]\n", _epicsName, ca_message(st));
+  }
+}
+
 void EpicsCAChannel::connStatusCallback(struct connection_handler_args chArgs)
 {
 #ifdef DBUG
