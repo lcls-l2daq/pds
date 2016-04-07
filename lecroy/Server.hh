@@ -56,6 +56,9 @@ namespace Pds {
       int  fill( char*, const void* );
       void post(const void*);
 
+      // Update scope readout status
+      void fetch_readout();
+
     private:
       Xtc       _xtc;
       unsigned  _count;

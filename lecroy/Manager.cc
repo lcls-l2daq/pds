@@ -9,6 +9,7 @@ Manager::Manager(Server& server) : _fsm(*new Pds::Fsm())
   _fsm.callback(Pds::TransitionId::Configure,&server);
   _fsm.callback(Pds::TransitionId::Enable   ,&server);
   _fsm.callback(Pds::TransitionId::Disable  ,&server);
+  _fsm.callback(Pds::TransitionId::L1Accept ,&server);
 }
 
 Manager::~Manager() {}

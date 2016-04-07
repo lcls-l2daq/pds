@@ -23,8 +23,8 @@ ConfigServer::~ConfigServer()
 
 void ConfigServer::updated() 
 {
-  printf("ConfigServer[%s] updated\n",_channel.epicsName());
   if (_srv) _srv->signal();
+  else printf("ConfigServer[%s] updated\n",_channel.epicsName());
 }
 
 #define handle_type(ctype, stype, dtype) case ctype:    \

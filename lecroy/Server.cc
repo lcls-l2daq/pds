@@ -9,7 +9,7 @@
 #include <string.h>
 #include <errno.h>
 #include <stdio.h>
-#define DBUG
+
 using namespace Pds::LeCroy;
 
 const static int CON_POLL  = 100000;
@@ -107,12 +107,6 @@ int Server::fetch( char* payload, int flags )
     return -1;
   }
 
-  if(!_readout) {
-    _count++;
-    printf("Readout failed no data to fetch for readout count: %d\n", _count);
-    return -1;
-  } 
-
   _count++;
 #ifdef DBUG
   printf("Scope readout count: %d\n", _count);
@@ -163,18 +157,23 @@ void Server::signal()
 {
   if (_enabled) {
     _sem.take();
-    double status_val = 0.;
-    _status->fetch((char*)&status_val);
-    if (status_val < 0.5) {
-      // scope timeout
+    fetch_readout();
+    if (!_readout)
       printf("Scope readout has timed out!\n");
-      //_readout = false;
-      //_chan_mask = 0;
-      //post(0);
-      // iterate readout counter
-    }
+#ifdef DBUG
+    else
+      printf("Scope readout has succeeded!\n");
+#endif
     _sem.give();
   }
+}
+
+void Server::fetch_readout()
+{
+  double status_val = 0.;
+  _status->fetch((char*)&status_val);
+  if (status_val < 0.5) _readout=false;
+  else _readout=true;
 }
 
 //
@@ -191,15 +190,14 @@ void Server::updated()
 #endif
     if(_chan_mask == NCHANNELS) {
       double* dataptr = reinterpret_cast<double*>(_DataBuff);
-      if (_readout) {
-        for(unsigned i=0; i<NCHANNELS; i++) {
+      for(unsigned i=0; i<NCHANNELS; i++) {
+        if (_readout)
           memcpy(dataptr, _raw[i]->data(), _Length[i]*sizeof(double));
-          dataptr += _Length[i];
-        }
-        post(_DataBuff);
-      } else {
-        _readout = true;
+        else 
+          memset(dataptr, 0, _Length[i]*sizeof(double));
+        dataptr += _Length[i];
       }
+      post(_DataBuff);
       _chan_mask = 0;
     }
     _sem.give();
@@ -210,9 +208,17 @@ Pds::Transition* Server::fire(Pds::Transition* tr)
 {
   switch (tr->id()) {
   case Pds::TransitionId::Enable:
-    _enabled=true; break;
+    _sem.take();
+    fetch_readout();
+    _chan_mask=0;
+    _enabled=true;
+    _sem.give();
+    break;
   case Pds::TransitionId::Disable:
-    _enabled=false; break;
+    _sem.take();
+    _enabled=false;
+    _sem.give();
+    break;
   case Pds::TransitionId::L1Accept:
   default:
     break;
@@ -246,6 +252,9 @@ Pds::InDatagram* Server::fire(Pds::InDatagram* dg)
       printf("_Period[%d]=%g\n",i,_Period[i]);
     }
 
+    // Wait for monitors to be established
+    ca_pend_io(0);
+
     // reset readout count to zero
     _count = 0;
 
@@ -263,6 +272,13 @@ Pds::InDatagram* Server::fire(Pds::InDatagram* dg)
       _DataBuff = new char[size_calc];
     }
     _data_size = size_calc;
+  } else if (dg->seq.service()==Pds::TransitionId::L1Accept) {
+    if(!_readout) {
+      printf("Scope readout count %d marked as damaged: fid %08X\n",
+             _count,
+             dg->datagram().seq.stamp().fiducials());
+      dg->datagram().xtc.damage.increase(Pds::Damage::UserDefined);
+    }
   }
   return dg;
 }
