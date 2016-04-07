@@ -21,7 +21,7 @@ namespace Pds {
                    public Action, 
                    public Pds_Epics::PVMonitorCb {
     public:
-      Server(const char*, const DetInfo&);
+      Server(const char*, const DetInfo&, const unsigned);
       virtual ~Server();
     public:
       //  Eb interface
@@ -60,10 +60,11 @@ namespace Pds {
       void fetch_readout();
 
     private:
-      Xtc       _xtc;
-      unsigned  _count;
-      bool      _readout;
-      int       _pfd[2];
+      Xtc            _xtc;
+      const unsigned _max_length;
+      unsigned       _count;
+      bool           _readout;
+      int            _pfd[2];
       std::vector<Pds_Epics::PVSubWaveform*>  _raw;
       std::vector<ConfigServer*>              _config_pvs;
       std::vector<ConfigServer*>              _offset_pvs;

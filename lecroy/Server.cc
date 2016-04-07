@@ -15,8 +15,10 @@ using namespace Pds::LeCroy;
 const static int CON_POLL  = 100000;
 
 Server::Server(const char* pvbase,
-                           const Pds::DetInfo& info) :
+               const Pds::DetInfo& info,
+               const unsigned max_length) :
   _xtc        (_generic1DDataType,info),
+  _max_length (max_length),
   _count      (0),
   _readout    (true),
   _raw        (NCHANNELS),
@@ -47,15 +49,21 @@ Server::Server(const char* pvbase,
 
   for(unsigned i=0; i<NCHANNELS; i++) {
     sprintf(pvname,"%s:NUM_SAMPLES_C%d",pvbase, i+1);
+#ifdef DBUG
     printf("Creating EpicsCA(%s)\n",pvname);
+#endif
     _config_pvs[i] = new ConfigServer(pvname);
 
     sprintf(pvname,"%s:FIRST_PIXEL_OFFSET_C%d",pvbase, i+1);
+#ifdef DBUG
     printf("Creating EpicsCA(%s)\n",pvname);
+#endif
     _offset_pvs[i] = new ConfigServer(pvname);
 
     sprintf(pvname,"%s:HORIZ_INTERVAL_C%d",pvbase, i+1);
+#ifdef DBUG
     printf("Creating EpicsCA(%s)\n",pvname);
+#endif
     _period_pvs[i] = new ConfigServer(pvname);
 
     sprintf(pvname,"%s:TRACE_C%d",pvbase, i+1);
@@ -250,6 +258,14 @@ Pds::InDatagram* Server::fire(Pds::InDatagram* dg)
       printf("_Length[%d]=%d\n",i,_Length[i]);
       printf("_Offset[%d]=%d\n",i,_Offset[i]);
       printf("_Period[%d]=%g\n",i,_Period[i]);
+     
+      if(_Length[i] > _max_length) {
+        printf("Invalid configuration: trace %d has %d elements and current max is %d\n",
+               i+1,
+               _Length[i],
+               _max_length);
+        dg->datagram().xtc.damage.increase(Pds::Damage::UserDefined);
+      }
     }
 
     // Wait for monitors to be established
