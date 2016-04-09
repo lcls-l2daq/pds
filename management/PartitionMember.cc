@@ -2,8 +2,12 @@
 
 #include "pds/utility/Transition.hh"
 #include "pds/utility/Occurrence.hh"
+#include "pds/utility/StreamPorts.hh"
+#include "pds/collection/CollectionPorts.hh"
 #include "pds/xtc/CDatagram.hh"
 #include "pds/xtc/XtcType.hh"
+
+#include <poll.h>
 
 using namespace Pds;
 
@@ -126,3 +130,41 @@ void    PartitionMember::dissolved()
 {
 }
 
+void    PartitionMember::confirm(int group)
+{
+  Ins dst(group, StreamPorts::sink().portId());
+  NetServer srv(0, dst, 0, sizeof(Message));
+
+  Message msg(Message::Ping);
+  msg.reply_to(dst);
+
+  pollfd pfd;
+  pfd.fd = srv.fd();
+  pfd.events = POLLIN;
+
+  char buff[sizeof(Message)];
+
+  while(1) {
+    // request source-level to reply to Ins
+    printf("Sending confirm request for %x.%d to %x.%d\n",
+           dst.address(), dst.portId(),
+           CollectionPorts::platform().address(),
+           CollectionPorts::platform().portId());
+    _send(msg, CollectionPorts::platform());
+
+    int r = ::poll(&pfd,1,100);
+    // wait for srv to receive reply
+    if (r==0) {
+      continue;
+    }
+    if (r<0) {
+      perror("Confirm fail\n");
+      continue;
+    }
+
+    if (srv.fetch(buff,0)==sizeof(Message)) {
+      printf("Confirmed\n");
+      return;
+    }
+  }
+}

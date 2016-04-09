@@ -16,6 +16,7 @@ namespace Pds {
   class InDatagram;
   class Transition;
   class Occurrence;
+  class NetServer;
 
   class PartitionMember : public CollectionManager {
   public:
@@ -24,12 +25,14 @@ namespace Pds {
         int           slowEb,
         Arp*          arp);
     virtual ~PartitionMember();
-
+  public:
+    void confirm(int);
+  public:
     virtual bool     attach   () = 0;
     virtual void     detach   () = 0;
   public:
     virtual void     message  (const Node&    hdr,
-             const Message& msg);
+                               const Message& msg);
   public:
     const Ins&       occurrences() const;
   private:

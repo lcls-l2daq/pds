@@ -130,11 +130,12 @@ void    EventLevel::allocated(const Allocation& alloc,
       NetDgServer* srv = new NetDgServer(srvIns,
            node.procInfo(),
            EventStreams::netbufdepth*EventStreams::MaxSize);
-      inlet->add_input(srv);
       Ins mcastIns(ins.address());
       srv->server().join(mcastIns, Ins(header().ip()));
       Ins bcastIns = StreamPorts::bcast(partition, Level::Event);
       srv->server().join(bcastIns, Ins(header().ip()));
+      confirm(bcastIns.address());
+      inlet->add_input(srv);
       printf("EventLevel::allocated assign fragment %d  src %x/%d  dst %x/%d  fd %d\n",
        srv->id(),
        node.procInfo().ipAddr(),node.procInfo().processId(),
