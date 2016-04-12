@@ -21,6 +21,7 @@ Server::Server(const char* pvbase,
   _max_length (max_length),
   _count      (0),
   _readout    (true),
+  _ready      (false),
   _raw        (NCHANNELS),
   _config_pvs (NCHANNELS),
   _offset_pvs (NCHANNELS),
@@ -45,26 +46,26 @@ Server::Server(const char* pvbase,
   //
   char pvname[64];
   sprintf(pvname,"%s:INR_CALC",pvbase);
-  _status = new ConfigServer(pvname,this);
+  _status = new ConfigServer(pvname,this,true);
 
   for(unsigned i=0; i<NCHANNELS; i++) {
     sprintf(pvname,"%s:NUM_SAMPLES_C%d",pvbase, i+1);
 #ifdef DBUG
     printf("Creating EpicsCA(%s)\n",pvname);
 #endif
-    _config_pvs[i] = new ConfigServer(pvname);
+    _config_pvs[i] = new ConfigServer(pvname,this);
 
     sprintf(pvname,"%s:FIRST_PIXEL_OFFSET_C%d",pvbase, i+1);
 #ifdef DBUG
     printf("Creating EpicsCA(%s)\n",pvname);
 #endif
-    _offset_pvs[i] = new ConfigServer(pvname);
+    _offset_pvs[i] = new ConfigServer(pvname,this);
 
     sprintf(pvname,"%s:HORIZ_INTERVAL_C%d",pvbase, i+1);
 #ifdef DBUG
     printf("Creating EpicsCA(%s)\n",pvname);
 #endif
-    _period_pvs[i] = new ConfigServer(pvname);
+    _period_pvs[i] = new ConfigServer(pvname,this);
 
     sprintf(pvname,"%s:TRACE_C%d",pvbase, i+1);
     _raw[i] = new Pds_Epics::PVSubWaveform(pvname,this);
@@ -76,8 +77,9 @@ Server::Server(const char* pvbase,
     while(!_config_pvs[i]->connected() || !_raw[i]->connected()) {
       usleep(CON_POLL);
     }
-    _config_pvs[i]->fetch((char*)&_Length[i]);
-    _raw[i]->set_nelements(_Length[i]);
+
+    // set the number of elements for the CA monitor to max EB can handle
+    _raw[i]->set_nelements(_max_length);
     _raw[i]->start_monitor();
   }
 
@@ -161,17 +163,23 @@ int Server::fill(char* copyTo, const void* data)
   return xtc.extent;
 }
 
-void Server::signal()
+void Server::signal(bool isTrig)
 {
   if (_enabled) {
     _sem.take();
-    fetch_readout();
-    if (!_readout)
-      printf("Scope readout has timed out!\n");
+    if (isTrig) {
+      fetch_readout();
+      if (!_readout)
+        printf("Scope readout has timed out!\n");
 #ifdef DBUG
-    else
-      printf("Scope readout has succeeded!\n");
+      else
+        printf("Scope readout has succeeded!\n");
 #endif
+    } else {
+      if (_ready)
+        printf("Scope configuration has changed during a run!\n");
+      _ready = false;
+    }
     _sem.give();
   }
 }
@@ -250,9 +258,6 @@ Pds::InDatagram* Server::fire(Pds::InDatagram* dg)
       // Calucate integer offset to put in the config
       _Offset[i] = (int32_t) (_RawOffset[i]/_Period[i]);
 
-      // Configure waveform PV objects to grab proper subset of total wave
-      _raw[i]->set_nelements(_Length[i]);
-
       size_calc += _Length[i]*sizeof(double);
 
       printf("_Length[%d]=%d\n",i,_Length[i]);
@@ -268,11 +273,12 @@ Pds::InDatagram* Server::fire(Pds::InDatagram* dg)
       }
     }
 
-    // Wait for monitors to be established
-    ca_pend_io(0);
-
     // reset readout count to zero
     _count = 0;
+    // set config ready flag
+    _sem.take();
+    _ready = true;
+    _sem.give();
 
     Pds::Xtc* xtc = new ((char*)dg->xtc.next())
       Pds::Xtc( _generic1DConfigType, _xtc.src );
@@ -290,7 +296,12 @@ Pds::InDatagram* Server::fire(Pds::InDatagram* dg)
     _data_size = size_calc;
   } else if (dg->seq.service()==Pds::TransitionId::L1Accept) {
     if(!_readout) {
-      printf("Scope readout count %d marked as damaged: fid %08X\n",
+      printf("Scope readout count %d marked as damaged due to trigger timeout: fid %08X\n",
+             _count,
+             dg->datagram().seq.stamp().fiducials());
+      dg->datagram().xtc.damage.increase(Pds::Damage::UserDefined);
+    } else if(!_ready) {
+      printf("Scope readout count %d marked as damaged due to configuration change: fid %08X\n",
              _count,
              dg->datagram().seq.stamp().fiducials());
       dg->datagram().xtc.damage.increase(Pds::Damage::UserDefined);

@@ -14,6 +14,7 @@ namespace Pds_Epics {
     int   get_nelements() const { return _channel.nelements(); }
     void  set_nelements(int nelements) { _channel.set_nelements(nelements); }
     void  start_monitor() { _channel.start_monitor(); }
+    void  stop_monitor() { _channel.stop_monitor(); }
   };
 };
 

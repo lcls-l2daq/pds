@@ -5,15 +5,17 @@
 
 using namespace Pds::LeCroy;
 
-ConfigServer::ConfigServer(const char* name) :
+ConfigServer::ConfigServer(const char* name, Server* srv) :
   Pds_Epics::EpicsCA (name,this),
-  _srv(0)
+  _srv(srv),
+  _trig(false)
 {
 }
 
-ConfigServer::ConfigServer(const char* name, Server* srv) :
+ConfigServer::ConfigServer(const char* name, Server* srv, bool trig) :
   Pds_Epics::EpicsCA (name,this),
-  _srv(srv)
+  _srv(srv),
+  _trig(trig)
 {
 }
 
@@ -23,7 +25,7 @@ ConfigServer::~ConfigServer()
 
 void ConfigServer::updated() 
 {
-  if (_srv) _srv->signal();
+  if (_srv) _srv->signal(_trig);
   else printf("ConfigServer[%s] updated\n",_channel.epicsName());
 }
 

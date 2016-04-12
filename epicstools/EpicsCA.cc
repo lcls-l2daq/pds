@@ -192,26 +192,11 @@ void EpicsCAChannel::set_nelements(int nelements)
   printf("EpicsCAChannel::set_nelements[%s]\n",_epicsName);
 #endif
 
-  if (_nelements != nelements) {
-      // update the number of elements
-      _nelements = nelements;
-      if (_monitor) {
-        int st;
-        // clear existing monitoring
-        st = ca_clear_subscription(_event);
-        if (st != ECA_NORMAL)
-          printf("%s : %s [set_nelements]\n", _epicsName, ca_message(st));
-        // establish monitoring
-        st = ca_create_subscription(_type,
-          _nelements,
-          _epicsChanID,
-          DBE_VALUE,
-          GetDataCallback,
-          this,
-          &_event);
-        if (st != ECA_NORMAL)
-          printf("%s : %s [set_nelements]\n", _epicsName, ca_message(st));
-    }
+  if (!_monitor) {
+    // update the number of elements
+    _nelements = nelements;
+  } else {
+    printf("%s : can't change number of elements while monitoring [set_nelements]\n", _epicsName);
   }
 }
 

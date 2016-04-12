@@ -9,8 +9,8 @@ namespace Pds {
     class ConfigServer : public Pds_Epics::EpicsCA,
                          public Pds_Epics::PVMonitorCb {
     public:
-      ConfigServer(const char*);
       ConfigServer(const char*, Server*);
+      ConfigServer(const char*, Server*, bool);
       ~ConfigServer();
     public:
       void updated();
@@ -19,6 +19,7 @@ namespace Pds {
       void update     ();
     private:
       Server* _srv;
+      bool    _trig;
     };
   }
 }

@@ -48,7 +48,7 @@ namespace Pds {
 
       // PvMonitorCb
       void        updated();
-      void        signal();
+      void        signal(bool);
       enum { NCHANNELS=4 };
 
     protected:
@@ -64,6 +64,7 @@ namespace Pds {
       const unsigned _max_length;
       unsigned       _count;
       bool           _readout;
+      bool           _ready;
       int            _pfd[2];
       std::vector<Pds_Epics::PVSubWaveform*>  _raw;
       std::vector<ConfigServer*>              _config_pvs;
