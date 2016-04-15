@@ -106,6 +106,7 @@ void ControlLevel::allocated(const Allocation& alloc,
       srv->server().join(mcastIns, Ins(header().ip()));
       Ins bcastIns = StreamPorts::bcast(alloc.partitionid(), Level::Control);
       srv->server().join(bcastIns, Ins(header().ip()));
+      confirm(bcastIns.address());
     }
   }
 }
