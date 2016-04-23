@@ -40,5 +40,10 @@ ifneq ($(findstring x86_64-rhel7,$(tgt_arch)),)
   packages += epicstools pnccd epicsArch ioc 
 endif
 
+#
+#  LCLS-II development
+#
+
+packages := tpr xpm
 
 
