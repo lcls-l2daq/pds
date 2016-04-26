@@ -10,3 +10,8 @@ libnames := utility
 
 libsrcs_utility := $(filter-out $(ignore_src),$(wildcard *.cc))
 libincs_utility := pdsdata/include
+
+#
+# LCLS-II development
+#
+libsrcs_utility := Appliance.cc Occurrence.cc Transition.cc

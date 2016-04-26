@@ -43,6 +43,8 @@ namespace Pds {
     void operator delete(void* buffer)
     { Pool::free(buffer); }
 
+    Datagram& datagram() { return *this; }
+
     PDS_DGRAM_STRUCT;
   };
 

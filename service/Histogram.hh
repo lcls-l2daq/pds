@@ -29,6 +29,7 @@ class Histogram
   public:
     void     sum();
     void     dump(char* filesSpec);
+    void     dump() const;
     double   units()     const;
     double   weight()    const;
     double   counts()    const;

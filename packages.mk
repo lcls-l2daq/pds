@@ -44,6 +44,6 @@ endif
 #  LCLS-II development
 #
 
-packages := tpr xpm
+packages := service collection utility tpr xpm
 
 

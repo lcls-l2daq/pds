@@ -132,6 +132,13 @@ void Histogram::dump(char* fileSpec)
     }
   }
 
+void Histogram::dump() const
+{
+  for(unsigned i=0; i<_size; i++)
+    printf("%9u%c", _buffer[i], (i%10)==9 ? '\n':' ');
+  printf("\n------------\n");
+}
+
 /*
 ** ++
 **
