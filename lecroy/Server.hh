@@ -65,6 +65,7 @@ namespace Pds {
       unsigned       _count;
       bool           _readout;
       bool           _ready;
+      bool           _ioc_dmg;
       int            _pfd[2];
       std::vector<Pds_Epics::PVSubWaveform*>  _raw;
       std::vector<ConfigServer*>              _config_pvs;

@@ -10,6 +10,8 @@
 #include <errno.h>
 #include <stdio.h>
 
+//#define DBUG
+
 using namespace Pds::LeCroy;
 
 const static int CON_POLL  = 100000;
@@ -22,6 +24,7 @@ Server::Server(const char* pvbase,
   _count      (0),
   _readout    (true),
   _ready      (false),
+  _ioc_dmg    (false),
   _raw        (NCHANNELS),
   _config_pvs (NCHANNELS),
   _offset_pvs (NCHANNELS),
@@ -68,7 +71,7 @@ Server::Server(const char* pvbase,
     _period_pvs[i] = new ConfigServer(pvname,this);
 
     sprintf(pvname,"%s:TRACE_C%d",pvbase, i+1);
-    _raw[i] = new Pds_Epics::PVSubWaveform(pvname,this);
+    _raw[i] = new Pds_Epics::PVSubWaveform(pvname,this,_max_length);
 
     // initialize sample type array
     _SampleType[i] = Generic1DConfigType::FLOAT64;
@@ -77,10 +80,6 @@ Server::Server(const char* pvbase,
     while(!_config_pvs[i]->connected() || !_raw[i]->connected()) {
       usleep(CON_POLL);
     }
-
-    // set the number of elements for the CA monitor to max EB can handle
-    _raw[i]->set_nelements(_max_length);
-    _raw[i]->start_monitor();
   }
 
   // Wait for monitors to be established
@@ -205,12 +204,18 @@ void Server::updated()
     printf("Received camonitor callback on trace data: %d of %d\n", _chan_mask, NCHANNELS);
 #endif
     if(_chan_mask == NCHANNELS) {
+      _ioc_dmg = false; // clear ioc_dmg flag before checking
       double* dataptr = reinterpret_cast<double*>(_DataBuff);
       for(unsigned i=0; i<NCHANNELS; i++) {
-        if (_readout)
+        if (_readout) {
+          if (_raw[i]->status() != 0) {
+            _ioc_dmg = true;
+            printf("Trace %d PV is an alarm state of severity: %d\n", i+1, _raw[i]->severity());
+          }
           memcpy(dataptr, _raw[i]->data(), _Length[i]*sizeof(double));
-        else 
+        } else {
           memset(dataptr, 0, _Length[i]*sizeof(double));
+        }
         dataptr += _Length[i];
       }
       post(_DataBuff);
@@ -302,6 +307,11 @@ Pds::InDatagram* Server::fire(Pds::InDatagram* dg)
       dg->datagram().xtc.damage.increase(Pds::Damage::UserDefined);
     } else if(!_ready) {
       printf("Scope readout count %d marked as damaged due to configuration change: fid %08X\n",
+             _count,
+             dg->datagram().seq.stamp().fiducials());
+      dg->datagram().xtc.damage.increase(Pds::Damage::UserDefined);
+    } else if(_ioc_dmg) {
+      printf("Scope readout count %d marked as damaged due to ioc failure: fid %08X\n",
              _count,
              dg->datagram().seq.stamp().fiducials());
       dg->datagram().xtc.damage.increase(Pds::Damage::UserDefined);

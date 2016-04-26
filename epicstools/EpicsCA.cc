@@ -41,24 +41,27 @@ static void PutDataCallback(struct event_handler_args ehArgs)
 }
 
 
-#define handle_type(ctype, stype, dtype) case ctype:	\
-  { struct stype* ival = (struct stype*)dbr;		\
-    _stamp      = ival->stamp;                          \
-    dtype* inp  = &ival->value;				\
-    dtype* outp = (dtype*)_pvdata;			\
-    for(int k=0; k<nelem; k++) *outp++ = *inp++;	\
+#define handle_type(ctype, stype, dtype) case ctype: \
+  { struct stype* ival = (struct stype*)dbr;         \
+    _stamp      = ival->stamp;                       \
+    _status     = ival->status;                      \
+    _severity   = ival->severity;                    \
+    dtype* inp  = &ival->value;                      \
+    dtype* outp = (dtype*)_pvdata;                   \
+    for(int k=0; k<nelem; k++) *outp++ = *inp++;     \
   }
 
 using namespace Pds_Epics;
 
 EpicsCA::EpicsCA(const char*   channelName,
-		 PVMonitorCb*  monitor) :
-  _channel(channelName,monitor!=0,*this),
+                 PVMonitorCb*  monitor,
+                 const int maxElements) :
+  _channel(channelName,monitor!=0,*this,maxElements),
   _monitor(monitor),
-  _pvdata(new char[1]), 
+  _pvdata(new char[1]),
   _pvsiz(0),
-  _connected(false) 
-{ 
+  _connected(false)
+{
 }
 
 EpicsCA::~EpicsCA()
@@ -115,11 +118,14 @@ void  EpicsCA::putStatus   (bool s) {}
 
 
 EpicsCAChannel::EpicsCAChannel(const char* channelName,
-			       bool        monitor,
-			       EpicsCA&    proxy) :
-  _connected(NotConnected),
-  _monitor  (monitor),
-  _proxy    (proxy)
+                               bool        monitor,
+                               EpicsCA&    proxy,
+                               const int   maxElements) :
+  _maxElements(maxElements),
+  _connected  (NotConnected),
+  _monitor    (monitor),
+  _monitored  (false),
+  _proxy      (proxy)
 {
   snprintf(_epicsName, 64, channelName);
   strtok(_epicsName, "[");
@@ -186,55 +192,6 @@ void EpicsCAChannel::put_cb()
     printf("%s : %s [put_cb st] : %d\n",_epicsName, ca_message(st), dbfType);
 }
 
-void EpicsCAChannel::set_nelements(int nelements)
-{
-#ifdef DBUG
-  printf("EpicsCAChannel::set_nelements[%s]\n",_epicsName);
-#endif
-
-  if (!_monitor) {
-    // update the number of elements
-    _nelements = nelements;
-  } else {
-    printf("%s : can't change number of elements while monitoring [set_nelements]\n", _epicsName);
-  }
-}
-
-void EpicsCAChannel::start_monitor()
-{
-#ifdef DBUG
-  printf("EpicsCAChannel::start_monitor[%s]\n",_epicsName);
-#endif
-
-  if (!_monitor) {
-    // establish monitoring
-    _monitor = true;
-    int st = ca_create_subscription(_type,
-      _nelements,
-      _epicsChanID,
-      DBE_VALUE,
-      GetDataCallback,
-      this,
-      &_event);
-    if (st != ECA_NORMAL)
-      printf("%s : %s [start_monitor]\n", _epicsName, ca_message(st));
-  }
-}
-
-void EpicsCAChannel::stop_monitor()
-{
-#ifdef DBUG
-  printf("EpicsCAChannel::stop_monitor[%s]\n",_epicsName);
-#endif
-  if (_monitor) {
-    // clear existing monitoring
-    _monitor = false;
-    int st = ca_clear_subscription(_event);
-    if (st != ECA_NORMAL)
-      printf("%s : %s [set_nelements]\n", _epicsName, ca_message(st));
-  }
-}
-
 void EpicsCAChannel::connStatusCallback(struct connection_handler_args chArgs)
 {
 #ifdef DBUG
@@ -252,10 +209,16 @@ void EpicsCAChannel::connStatusCallback(struct connection_handler_args chArgs)
     
     _type = dbrType;
     _nelements = ca_element_count(_epicsChanID);
+    if (_maxElements > 0 && _nelements > _maxElements) {
+#ifdef DBUG
+      printf("EpicsCAChannel::connStatusCallback %s number of elements (%d) is greater than max (%d)\n",_epicsName, _nelements, _maxElements);
+#endif
+      _nelements = _maxElements;
+    }
 
     _proxy.connected(true);
 
-    if (_monitor) {
+    if (_monitor && !_monitored) {
       // establish monitoring
       int st;
       st = ca_create_subscription(_type,
@@ -267,6 +230,8 @@ void EpicsCAChannel::connStatusCallback(struct connection_handler_args chArgs)
 				  &_event);
       if (st != ECA_NORMAL)
         printf("%s : %s [connStatusCallback]\n", _epicsName, ca_message(st));
+      else
+        _monitored = true; // indicate that monitor is established so reconnects don't create additional ones
     }
   }
   else {
