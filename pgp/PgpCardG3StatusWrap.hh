@@ -28,6 +28,9 @@ namespace Pds {
         void              print(); 
         void              read(); 
         unsigned          checkPciNegotiatedBandwidth();
+        unsigned          getCurrentFiducial();
+        bool              getLatestLaneStatus();
+        bool              evrEnabled();
 
       protected:
       PgpCardG3Status     status;

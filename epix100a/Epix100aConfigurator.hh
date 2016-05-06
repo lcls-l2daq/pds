@@ -116,7 +116,8 @@ namespace Pds {
         unsigned             writeASIC();
         unsigned             writePixelBits();
         unsigned             checkWrittenASIC(bool writeBack=true);
-        bool                 _flush(unsigned index=0);
+        unsigned             G3config(Epix100aConfigType*);
+        bool                 _robustReadVersion(unsigned index=0);
         bool                 _getAnAnswer(unsigned size = 4, unsigned count = 6);
 
 

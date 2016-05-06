@@ -23,7 +23,7 @@ using namespace Pds::Pgp;
 
 unsigned Pds::Pgp::Pgp::_portOffset = 0;
 
-Pgp::Pgp(int f, bool pf, bool G3Flag) : _fd(f) {
+Pgp::Pgp(int f, bool pf) : _fd(f) {
 	if (pf) printf("Pgp::Pgp(fd(%d)), offset(%u)\n", f, _portOffset);
 	_pt.model = sizeof(&_pt);
 	_pt.size = sizeof(PgpCardTx); _pt.pgpLane = 0;  _pt.pgpVc = 0;
@@ -33,17 +33,17 @@ Pgp::Pgp(int f, bool pf, bool G3Flag) : _fd(f) {
 	for (int i=0; i<BufferWords; i++) _readBuffer[i] = i;
 	_status = 0;
 	// See if we can determine the type of card
-	bool myG3flag = false;
+	_myG3Flag = false;
 	unsigned* ptr = (unsigned*)malloc(sizeof(PgpCardG3Status)); // the larger one
 	int r = this->IoctlCommand(IOCTL_Read_Status, (long long unsigned)ptr);
 	if (r<0) {
 		perror("Unable to read the card status!\n");
 	} else {
-		myG3flag = ((ptr[0]>>12) & 0xf) == 3;
-		printf("Pgp::Pgp found card version 0x%x which I see is%sa G3 card\n", ptr[0], myG3flag ? " " : " NOT ");
+		_myG3Flag = ((ptr[0]>>12) & 0xf) == 3;
+		printf("Pgp::Pgp found card version 0x%x which I see is %sa G3 card\n", ptr[0], _myG3Flag ? "" : "NOT ");
 	}
 	free(ptr);
-	if (myG3flag) {
+	if (_myG3Flag) {
 		_status = new PgpCardG3StatusWrap(_fd, 0, this);
 	} else {
 		_status = new PgpCardStatusWrap(_fd, 0, this);
@@ -52,9 +52,27 @@ Pgp::Pgp(int f, bool pf, bool G3Flag) : _fd(f) {
 
 Pgp::~Pgp() {}
 
-unsigned Pgp::Pgp::checkPciNegotiatedBandwidth() {
-	return(_status->checkPciNegotiatedBandwidth());
+bool Pgp::evrEnabled() {
+	bool ret = true;
+	if (_myG3Flag) {
+		ret = _status->evrEnabled();
+	}
+	return ret;
 }
+
+unsigned      Pgp::Pgp::checkPciNegotiatedBandwidth() {
+  return _status->checkPciNegotiatedBandwidth();
+}
+unsigned      Pgp::Pgp::getCurrentFiducial() {
+  return _status->getCurrentFiducial();
+}
+bool          Pgp::Pgp::getLatestLaneStatus() {
+  return _status->getLatestLaneStatus();
+}
+int      Pgp::Pgp::resetSequenceCount() {
+  return Pgp::IoctlCommand(IOCTL_ClearFrameCounter, (unsigned)(1<<portOffset()));
+}
+
 
 void Pgp::Pgp::printStatus() {
 	_status->print();
@@ -246,3 +264,12 @@ int Pgp::Pgp::IoctlCommand(unsigned c, long long unsigned a) {
 	return(write(_fd, &_pt, sizeof(PgpCardTx)));
 }
 
+int Pgp::Pgp::resetPgpLane() {
+  unsigned l = _portOffset;
+  int ret = 0;
+  ret |= IoctlCommand(IOCTL_Set_Tx_Reset, l);
+  ret |= IoctlCommand(IOCTL_Clr_Tx_Reset, l);
+  ret |= IoctlCommand(IOCTL_Set_Rx_Reset, l);
+  ret |= IoctlCommand(IOCTL_Clr_Rx_Reset, l);
+  return ret;
+}

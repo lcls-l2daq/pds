@@ -17,11 +17,11 @@
 namespace Pds {
 	namespace Pgp {
 
-		class PgpStatus;
+	  class PgpStatus;
 
 		class Pgp {
 			public:
-				Pgp(int, bool printFlag = true, bool G3Flag = false);
+				Pgp(int, bool printFlag = true);
 				virtual ~Pgp();
 
 			public:
@@ -53,15 +53,19 @@ namespace Pds {
 						unsigned size=1,
 						bool pf=false);
 				unsigned      checkPciNegotiatedBandwidth();
+				unsigned      getCurrentFiducial();
+				bool          getLatestLaneStatus();
+				int           resetPgpLane();
+				int           resetSequenceCount();
 				void          printStatus();
 				unsigned      stopPolling();
 				int           IoctlCommand(unsigned command, unsigned arg = 0);
 				int           IoctlCommand(unsigned command, long long unsigned arg = 0);
 				void          maskHWerror(bool m) { _maskHWerror = m; }
-
-				static void       portOffset(unsigned p) { _portOffset = p;    }
-				static unsigned   portOffset()           { return _portOffset; }
-
+        bool          G3Flag() {return _myG3Flag;}
+				static void   portOffset(unsigned p) { _portOffset = p;    }
+				static unsigned portOffset() { return _portOffset; }
+        bool          evrEnabled();
 			private:
 				int                  _fd;
 				unsigned             _readBuffer[BufferWords];
@@ -69,7 +73,8 @@ namespace Pds {
 				Pds::Pgp::PgpStatus* _status;
 				static unsigned      _portOffset;
 				unsigned             _maskedHWerrorCount[4];
-				bool				 _maskHWerror;
+				bool				         _maskHWerror;
+				bool                 _myG3Flag;
 		};
 	}
 }

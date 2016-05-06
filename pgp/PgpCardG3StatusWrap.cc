@@ -30,7 +30,26 @@ namespace Pds {
     unsigned PgpCardG3StatusWrap::checkPciNegotiatedBandwidth() {
       this->read();
       return (status.PciLStatus >> 4)  & 0x3f;
-    } 
+    }
+
+    unsigned PgpCardG3StatusWrap::getCurrentFiducial() {
+      this->read();
+      return (status.EvrFiducial);
+    }
+
+    bool PgpCardG3StatusWrap::getLatestLaneStatus() {
+      return ((status.EvrLaneStatus >> pgp()->portOffset())&1);
+    }
+
+    bool PgpCardG3StatusWrap::evrEnabled() {
+      this->read();
+      bool enabled = status.EvrEnable && status.EvrReady;
+      if (enabled == false) {
+        printf("PgpCardG3StatusWrap not enabled, enable %s, ready %s\n",
+            status.EvrEnable ? "true" : "false", status.EvrReady ? "true" : "false");
+      }
+      return enabled;
+    }
 
     void PgpCardG3StatusWrap::print() {
   	  int           x;
@@ -212,6 +231,7 @@ namespace Pds {
       printf("               EvrReset: %d\n", status.EvrReset);
       printf("              EvrPllRst: %d\n", status.EvrPllRst);
       printf("              EvrErrCnt: %d\n", status.EvrErrCnt);
+      printf("              EvrFiducial: 0x%x\n", status.EvrFiducial);
       for(x=0;x<8;x++) {
         printf("  EvrEnHdrCheck[%d][0:3]: ", x);
         for(y=0;y<4;y++) {

@@ -360,7 +360,7 @@ class Cspad2x2EndCalibCycleAction : public Action {
     unsigned          _bits;
 };
 
-Cspad2x2Manager::Cspad2x2Manager( Cspad2x2Server* server, unsigned d) :
+Cspad2x2Manager::Cspad2x2Manager( Cspad2x2Server* server) :
     _fsm(*new Fsm), _cfg(*new Cspad2x2ConfigCache(server->client())) {
 
    printf("Cspad2x2Manager being initialized... " );

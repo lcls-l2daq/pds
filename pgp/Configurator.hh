@@ -35,7 +35,7 @@ namespace Pds {
 
     class Configurator {
       public:
-        Configurator(int, unsigned, bool g3=false);
+        Configurator(int, unsigned);
         virtual ~Configurator();
 
       public:
@@ -48,14 +48,27 @@ namespace Pds {
         long long int             timeDiff(timespec*, timespec*);
         Pds::Pgp::Pgp*            pgp() { return _pgp; }
         unsigned                  checkPciNegotiatedBandwidth();
+        unsigned                  getCurrentFiducial(bool pr = false);
+        bool                      getLatestLaneStatus() {return _pgp->getLatestLaneStatus();}
         void                      loadRunTimeConfigAdditions(char *);
+        int                       fiducialTarget(unsigned);
+        int                       waitForFiducialMode(bool);
+        int                       evrRunCode(unsigned);
+        int                       evrRunDelay(unsigned);
+        int                       evrDaqCode(unsigned);
+        int                       evrDaqDelay(unsigned);
+        int                       evrEnable(bool);
+        int                       evrLaneEnable(bool);
+        int                       evrEnableHdrChk(unsigned, bool);
+        bool                      G3Flag() { return _G3; }
+        bool                      evrEnabled();
 
       protected:
         friend class ConfigSynch;
         int                         _fd;
         unsigned                    _debug;
         Pds::Pgp::Pgp*              _pgp;
-        bool						_G3;
+        bool						            _G3;
     };
 
     class ConfigSynch {

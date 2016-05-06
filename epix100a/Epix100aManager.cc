@@ -71,7 +71,7 @@ class Epix100aAllocAction : public Action {
    {
       const Allocate& alloc = reinterpret_cast<const Allocate&>(*tr);
       _cfg.init(alloc.allocation());
-      _svr->allocated();
+      _svr->allocated(alloc);
       return tr;
    }
 

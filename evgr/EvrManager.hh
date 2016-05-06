@@ -2,6 +2,7 @@
 #define PDSEVRMANAGER_HH
 
 #include "EvgrOpcode.hh"
+#include <time.h>
 
 namespace Pds {
 

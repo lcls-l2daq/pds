@@ -44,6 +44,9 @@ namespace Pds {
       public:
         virtual void              print() = 0; 
         virtual unsigned          checkPciNegotiatedBandwidth() = 0;
+        virtual unsigned          getCurrentFiducial() {return 0;}
+        virtual bool              getLatestLaneStatus() {return false;}
+        virtual bool			        evrEnabled() {return true;}
         int                       fd() { return _fd; }
         Pds::Pgp::Pgp*            pgp() { return _pgp; }
 
