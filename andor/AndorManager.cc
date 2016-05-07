@@ -126,6 +126,7 @@ public:
           0.001,  // Exposure time
           25.0f,  // Cooling temperature
           AndorConfigType::ENUM_FAN_FULL,  // fan Mode
+          AndorConfigType::ENUM_CROP_OFF,  // crop Mode
           0,  // baseline clamp
           0,  // high capacity
           1,  // Gain index
@@ -616,9 +617,11 @@ public:
   }
 public:
   Occurrence* fire(Occurrence* occ) {
-    if (_iDebugLevel >= 1)
-      printf( "\n\n===== Get Occurance =========\n" );
-    if (_iDebugLevel>=2) printDataTime(NULL);
+    if (!_manager.inBeamRateMode()) {
+      if (_iDebugLevel >= 1)
+        printf( "\n\n===== Get Occurance =========\n" );
+      if (_iDebugLevel>=2) printDataTime(NULL);
+    }
 
     const EvrCommand& cmd = *reinterpret_cast<const EvrCommand*>(occ);
     if (!_manager.inBeamRateMode() && _manager.checkExposureEventCode(cmd.code)) {
@@ -638,7 +641,8 @@ AndorManager::AndorManager(CfgClientNfs& cfg, int iCamera, bool bDelayMode, bool
                            string sConfigDb, int iSleepInt, int iDebugLevel, string sTempPV) :
   _iCamera(iCamera), _bDelayMode(bDelayMode), _bInitTest(bInitTest),
   _sConfigDb(sConfigDb), _iSleepInt(iSleepInt),
-  _iDebugLevel(iDebugLevel), _sTempPV(sTempPV), _pServer(NULL), _uNumShotsInCycle(0), _pPoll(NULL)
+  _iDebugLevel(iDebugLevel), _sTempPV(sTempPV), _pServer(NULL), _uNumShotsInCycle(0),
+  _pTaskPoll(NULL), _pPoll(NULL)
 {
   _sem                    = new Semaphore           (Semaphore::FULL);
   _pActionMap             = new AndorMapAction      (*this, cfg, _iDebugLevel);

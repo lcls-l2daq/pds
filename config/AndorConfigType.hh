@@ -4,7 +4,7 @@
 #include "pdsdata/xtc/TypeId.hh"
 #include "pdsdata/psddl/andor.ddl.h"
 
-typedef Pds::Andor::ConfigV1 AndorConfigType;
+typedef Pds::Andor::ConfigV2 AndorConfigType;
 
 static Pds::TypeId _andorConfigType(Pds::TypeId::Id_AndorConfig,
           AndorConfigType::Version);

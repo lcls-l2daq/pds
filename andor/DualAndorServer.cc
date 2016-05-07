@@ -1992,9 +1992,7 @@ int DualAndorServer::getDataInBeamRateMode(InDatagram* in, InDatagram*& out)
   const int iWaitPerIter    = 4; // 1milliseconds
   at_32     numAcqNewMaster = _iNumAcq;
   at_32     numAcqNewSlave  = _iNumAcq;
-  static const int  iMaxReadoutTimeReg = 2000; //!!!debug
-  static const int  iMaxReadoutTimeErr = 4; //!!!debug
-  static int        iMaxReadoutTime     = iMaxReadoutTimeReg;
+  static const int  iMaxReadoutTime = 2000;
   static bool       bPrevCatpureFailed;
   if (_iNumAcq == 0)
     bPrevCatpureFailed = false;
@@ -2041,13 +2039,11 @@ int DualAndorServer::getDataInBeamRateMode(InDatagram* in, InDatagram*& out)
     if (!bPrevCatpureFailed)
       printf("DualAndorServer::getDataInBeamRateMode(): Wait image data %d failed\n", _iNumAcq);
     bFrameError = true;
-    iMaxReadoutTime     = iMaxReadoutTimeErr;//!!!debug
     bPrevCatpureFailed  = true;//!!!debug
   }
   else
   {
     ++_iNumAcq;
-    iMaxReadoutTime     = iMaxReadoutTimeReg;//!!!debug
     bPrevCatpureFailed  = false;//!!!debug
 
     uint8_t* pImageSlave  = (uint8_t*) out + _iFrameHeaderSize + _iDetectorSensor*sizeof(float);
