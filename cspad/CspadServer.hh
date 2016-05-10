@@ -75,6 +75,7 @@ class Pds::CspadServer
    void     printState();
    void     manager(CspadManager* m) { _mgr = m; }
    CspadManager* manager() { return _mgr; }
+   void     pgp(Pds::Pgp::Pgp* p) { _pgp = p; }
 
  public:
    static CspadServer* instance() { return _instance; }

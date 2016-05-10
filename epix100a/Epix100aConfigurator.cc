@@ -152,6 +152,8 @@ unsigned Epix100aConfigurator::resyncADC(unsigned c) {
 		  printf("\tEpix100aConfigurator::resyncADC found that ADC alignment FAILED!!! returned %d\n", returned);
 		  if (c<1) ret = resyncADC(c+1);
 		  else ret = 2;
+	  } else {
+	    printf("\tEpix100aConfigurator::resyncADC found that ADC alignment Succeeded, returned %d\n", returned);
 	  }
 	  return ret;
 }

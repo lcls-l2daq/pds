@@ -69,6 +69,7 @@ unsigned CspadServer::configure(CsPadConfigType* config) {
     if (_cnfgrtr == 0) {
       _cnfgrtr = new Pds::CsPad::CspadConfigurator(config, fd(), _debug);
       _cnfgrtr->runTimeConfigName(_runTimeConfigName);
+      pgp(_cnfgrtr->pgp());
     } else {
       printf("CspadConfigurator already instantiated\n");
     }
@@ -371,12 +372,7 @@ unsigned CspadServer::flushInputQueue(int f, bool printFlag) {
 }
 
 void CspadServer::setCspad( int f ) {
-  if (unsigned c = this->flushInputQueue(f)) {
-    printf("CspadServer::setCspad read %u time%s after opening pgpcard driver\n", c, c==1 ? "" : "s");
-  }
   fd( f );
-  _pgp = new Pds::Pgp::Pgp(f);
-  Pds::Pgp::RegisterSlaveExportFrame::FileDescr(f);
 }
 
 void CspadServer::printHisto(bool c) {

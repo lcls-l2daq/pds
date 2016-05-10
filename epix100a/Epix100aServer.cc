@@ -508,13 +508,6 @@ unsigned Epix100aServer::flushInputQueue(int f) {
 
 void Epix100aServer::setEpix100a( int f ) {
   fd( f );
-  Pds::Pgp::RegisterSlaveExportFrame::FileDescr(f);
-//  if (unsigned c = this->flushInputQueue(f)) {
-//    printf("Epix100aServer::setEpix100a read %u time%s after opening pgpcard driver\n", c, c==1 ? "" : "s");
-//  }
-//  if (_cnfgrtr == 0) {
-//    _cnfgrtr = new Pds::Epix100a::Epix100aConfigurator::Epix100aConfigurator(fd(), _debug);
-//  }
 }
 
 void Epix100aServer::clearHisto() {
