@@ -2,7 +2,6 @@
 #define Pds_IocControl_hh
 
 #include "pds/utility/Appliance.hh"
-#include "pds/service/GenericPool.hh"
 #include "pdsdata/xtc/DetInfo.hh"
 
 #include <list>
@@ -12,6 +11,7 @@ namespace Pds {
   class IocHostCallback;
   class IocNode;
   class IocConnection;
+  class IocOccurrence;
 
   class IocControl : public Appliance {
     friend class IocConnection;
@@ -42,6 +42,7 @@ namespace Pds {
 
       //  private:
     void _report_error(const std::string&);
+    void _report_data_error(const std::string&, const unsigned, const unsigned);
 
   private:
     std::list<std::string> _offlinerc;   /// Logbook credentials
@@ -56,7 +57,7 @@ namespace Pds {
 
     char _trans[1024];
 
-    GenericPool         _pool;
+    IocOccurrence*      _occSender;      /// Handles sending occurances from Nodes
   };
 };
 

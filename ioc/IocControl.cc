@@ -2,6 +2,7 @@
 #include "pds/ioc/IocNode.hh"
 #include "pds/ioc/IocConnection.hh"
 #include "pds/ioc/IocHostCallback.hh"
+#include "pds/ioc/IocOccurrence.hh"
 #include "pds/utility/Occurrence.hh"
 #include<unistd.h>
 #include<string>
@@ -20,7 +21,7 @@ IocControl::IocControl() :
   _expt_id(0),
   _recording(0),
   _initialized(0),
-  _pool      (sizeof(UserMessage),4)
+  _occSender(0)
 {
 #ifdef DBUG
   printf("IocControl::ctor empty\n");
@@ -36,7 +37,7 @@ IocControl::IocControl(const char* offlinerc,
   _station   (station),
   _expt_id   (expt_id),
   _recording (0),
-  _pool      (sizeof(UserMessage),4)
+  _occSender(new IocOccurrence(this))
 {
 #ifdef DBUG
   printf("IocControl::ctor offlinerc %s  instrument %s  controlrc %s\n",
@@ -118,12 +119,14 @@ IocControl::~IocControl()
     IocConnection::clear_all();
     _nodes.clear();
     _selected_nodes.clear();
+    if (_occSender) delete _occSender;
 }
 
 void IocControl::write_config(IocConnection *c, unsigned run, unsigned stream)
 {
     char buf[1024];
 
+    c->configure(run, stream);
     c->transmit("hostname " + c->host() + "\n");
     sprintf(buf, "dbinfo daq %d %d %d\n", _expt_id, run, stream);
     c->transmit(buf);
@@ -241,11 +244,11 @@ Transition* IocControl::transitions(Transition* tr)
           IocConnection::transmit_all(trans);
       }
       /* Now tear down all of the connections. */
-      IocConnection::clear_all();
       for(std::list<IocNode*>::iterator it=_selected_nodes.begin();
           it!=_selected_nodes.end(); it++) {
           (*it)->clear_conn();
       }
+      IocConnection::clear_all();
       _recording = 0;
       break;
   default:
@@ -260,3 +263,13 @@ void IocControl::_report_error(const std::string& msg)
   //  UserMessage* usr = new(&_pool) UserMessage(msg.c_str());
   //  post(usr);
 }
+
+void IocControl::_report_data_error(const std::string& msg, const unsigned run, const unsigned stream)
+{
+  printf("%s\n",msg.c_str());
+  if (_occSender) {
+    // Send an occurrance with the error message
+    _occSender->iocControlError(msg, _expt_id, run, stream, 0);
+  }
+}
+
