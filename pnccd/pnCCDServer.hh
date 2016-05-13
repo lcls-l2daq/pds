@@ -26,6 +26,7 @@
 
 namespace Pds
 {
+   class pnCCDTrigMonitor;
    class pnCCDServer;
    class Task;
 }
@@ -80,6 +81,8 @@ class Pds::pnCCDServer
    void     manager(pnCCDManager* m) { _mgr = m; }
    pnCCDManager* manager() { return _mgr; }
    void     firstFetch()   { _firstFetch = true; }
+   void     flagTriggerError();
+   void     attachTrigMonitor(pnCCDTrigMonitor* selfTrigMonitor) { _selfTrigMonitor = selfTrigMonitor; }
 
  public:
    static pnCCDServer* instance() { return _instance; }
@@ -120,6 +123,7 @@ class Pds::pnCCDServer
    bool                           _firstFetch;
    bool                           _getNewComp;
    bool                           _ignoreFetch;
+   pnCCDTrigMonitor*              _selfTrigMonitor;
 };
 
 #endif
