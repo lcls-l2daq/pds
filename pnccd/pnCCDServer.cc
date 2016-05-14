@@ -119,7 +119,7 @@ void Pds::pnCCDServer::enable() {
 }
 
 void Pds::pnCCDServer::disable() {
-  if(_selfTrigMonitor) _selfTrigMonitor->enable(false);
+  if(_selfTrigMonitor) _selfTrigMonitor->enable(true);
   _ignoreFetch = true;
   if (usleep(10000)<0) perror("pnCCDServer::disable ulseep 1 failed\n");
   if (_debug & 0x20) printf("pnCCDServer::disable\n");
