@@ -164,14 +164,15 @@ int IocConnection::damage_status(int idx)
             if (!strncmp(tok, "error ", 6)) {
                 close(_sock);
                 _sock = -1;
-                _cntl->_report_data_error(std::string(tok), _run, _stream);
+                _cntl->_report_data_error(std::string(&tok[6]), _run, _stream);
                 break;
+            } else if (!strncmp(tok, "warn ", 5)) {
+                _cntl->_report_data_warning(std::string(&tok[5]));
             } else if (!strncmp(tok, "dstat ", 6)) {
                 _damage_req = 0;
                 for (i = 0, s = &tok[5]; s && i < _damage.size(); i++, s = index(s, ' ')) {
                     _damage[i] = atoi(++s);
                 }
-                break;
             }
             tok = strsep(&bufp, "\n");
         }

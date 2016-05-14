@@ -18,10 +18,11 @@ namespace Pds {
   public:
     IocControl();
     IocControl(const char* offlinerc,
-	       const char* instrument,
-	       unsigned    station,
-	       unsigned    expt_id,
-               const char* controlrc);
+               const char* instrument,
+               unsigned    station,
+               unsigned    expt_id,
+               const char* controlrc,
+               unsigned    pv_ignore=0);
     ~IocControl();
   public:
     /// Write the global configuration to a new connection.
@@ -42,6 +43,7 @@ namespace Pds {
 
       //  private:
     void _report_error(const std::string&);
+    void _report_data_warning(const std::string&);
     void _report_data_error(const std::string&, const unsigned, const unsigned);
 
   private:
@@ -49,6 +51,7 @@ namespace Pds {
     std::string         _instrument;     /// Instrument
     unsigned            _station;        /// Instrument station
     unsigned            _expt_id;        /// Experiment number
+    unsigned            _pv_ignore;      /// Ignore setting for scalar PV recording
     int                 _recording;      /// Are we recording now?
     int                 _initialized;    /// Are we properly initialized?
 

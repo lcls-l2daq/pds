@@ -19,6 +19,7 @@ using namespace Pds;
 IocControl::IocControl() :
   _station(0),
   _expt_id(0),
+  _pv_ignore(0),
   _recording(0),
   _initialized(0),
   _occSender(0)
@@ -29,13 +30,15 @@ IocControl::IocControl() :
 }
 
 IocControl::IocControl(const char* offlinerc,
-		       const char* instrument,
-		       unsigned    station,
-		       unsigned    expt_id,
-                       const char* controlrc) :
+                       const char* instrument,
+                       unsigned    station,
+                       unsigned    expt_id,
+                       const char* controlrc,
+                       unsigned    pv_ignore) :
   _instrument(instrument),
   _station   (station),
   _expt_id   (expt_id),
+  _pv_ignore (pv_ignore),
   _recording (0),
   _occSender(new IocOccurrence(this))
 {
@@ -136,6 +139,8 @@ void IocControl::write_config(IocConnection *c, unsigned run, unsigned stream)
     sprintf(buf, "output daq/xtc/e%d-r%04d-s%02d\n", _expt_id, run, stream);
     c->transmit(buf);
     c->transmit("quiet\n");
+    sprintf(buf, "pv ignore %d\n", _pv_ignore);
+    c->transmit(buf);
 }
 
 void IocControl::host_rollcall(IocHostCallback* cb)
@@ -219,6 +224,10 @@ Transition* IocControl::transitions(Transition* tr)
               it!=IocConnection::_connections.end(); it++) {
               (*it)->transmit(_trans);
           }
+
+          /* Last check that no nodes died during configuration. */
+          _initialized = IocConnection::check_all();
+
           _recording = 1;
       } else {
           break;
@@ -260,9 +269,17 @@ Transition* IocControl::transitions(Transition* tr)
 void IocControl::_report_error(const std::string& msg)
 {
   printf("%s\n",msg.c_str());
-  //  UserMessage* usr = new(&_pool) UserMessage(msg.c_str());
-  //  post(usr);
 }
+
+void IocControl::_report_data_warning(const std::string& msg)
+{
+  printf("%s\n",msg.c_str());
+  if (_occSender) {
+    // Send an occurrance with the error message
+    _occSender->iocControlWarning(msg);
+  }
+}
+
 
 void IocControl::_report_data_error(const std::string& msg, const unsigned run, const unsigned stream)
 {
