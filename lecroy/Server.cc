@@ -75,11 +75,6 @@ Server::Server(const char* pvbase,
 
     // initialize sample type array
     _SampleType[i] = Generic1DConfigType::FLOAT64;
-
-    // retrieve the current trace length
-    while(!_config_pvs[i]->connected() || !_raw[i]->connected()) {
-      usleep(CON_POLL);
-    }
   }
 
   // Wait for monitors to be established
@@ -105,6 +100,14 @@ Server::~Server()
     delete[] _ConfigBuff;
   if(_DataBuff)
     delete[] _DataBuff;
+}
+
+void Server::waitForInit() const {
+  for(unsigned i=0; i<NCHANNELS; i++) {
+    while(!_config_pvs[i]->connected() || !_raw[i]->connected()) {
+      usleep(CON_POLL);
+    }
+  }
 }
 
 int Server::fetch( char* payload, int flags )

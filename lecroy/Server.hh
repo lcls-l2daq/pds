@@ -51,6 +51,9 @@ namespace Pds {
       void        signal(bool);
       enum { NCHANNELS=4 };
 
+      // Wait for the server process to finish initializing all CA connections
+      void waitForInit() const;
+
     protected:
       // LeCroy specific Server interface
       int  fill( char*, const void* );
