@@ -32,6 +32,10 @@ namespace Pds {
     IocControl *_cntl;
     int _idx;
     int _damage_req;
+    int _conn_req;
+    int _init_conn_req;
+    int _wait_conn_req;
+    int _num_conn_up;
     unsigned _run;
     unsigned _stream;
     std::vector<int> _damage;

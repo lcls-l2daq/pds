@@ -25,6 +25,10 @@ IocConnection::IocConnection(std::string host, uint32_t host_ip,
     _cntl(cntl),
     _idx(1),
     _damage_req(0),
+    _conn_req(0),
+    _init_conn_req(0),
+    _wait_conn_req(1),
+    _num_conn_up(0),
     _run(0),
     _stream(0)
 {
@@ -138,6 +142,7 @@ int IocConnection::damage_status(int idx)
     char buf[1024], *s, *bufp, *tok;
     unsigned int i;
     int len;
+    int nconn, nup;
 
     if (_sock < 0) {
         return _damage[idx];
@@ -173,6 +178,24 @@ int IocConnection::damage_status(int idx)
                 for (i = 0, s = &tok[5]; s && i < _damage.size(); i++, s = index(s, ' ')) {
                     _damage[i] = atoi(++s);
                 }
+            } else if (!strncmp(tok, "cstat ", 6)) {
+                _conn_req = 0;
+                s = &tok[5];
+                s = index(s, ' ');
+                nconn = atoi(++s);
+                s = index(s, ' ');
+                nup = atoi(++s);
+                if (_init_conn_req) {
+                    _init_conn_req = 0;
+                    if (nconn != nup) {
+                        close(_sock);
+                        _sock = -1;
+                        _cntl->_report_data_error("Initial connection to PVs by " + _host + " controls recorder has failed. Please check the IOC for the device!", _run, _stream);
+                    }
+                } else if ((nconn != nup) && (_num_conn_up > nup)) {
+                    _cntl->_report_data_warning("Warning: Some PVs being recorded by " + _host + " controls recorder have disconnected.");
+                }
+                _num_conn_up = nup;
             }
             tok = strsep(&bufp, "\n");
         }
@@ -181,6 +204,15 @@ int IocConnection::damage_status(int idx)
     if (!_damage_req) {
         _damage_req = 1;
         transmit("damage\n");
+    }
+    if (!_conn_req && (idx == 0)) {
+        if (!_wait_conn_req) {
+            _conn_req = 1;
+            transmit("connect\n");
+        } else {
+            _wait_conn_req = 0;
+            _init_conn_req = 1;
+        }
     }
     return _damage[idx];
 }
