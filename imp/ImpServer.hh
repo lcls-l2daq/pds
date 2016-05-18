@@ -73,6 +73,7 @@ class Pds::ImpServer
    void     runTimeConfigName(char*);
    void     manager(ImpManager* m) { _mgr = m; }
    ImpManager* manager() { return _mgr; }
+   void     pgp(Pds::Pgp::Pgp* p) { _pgp = p; }
 
  public:
    static ImpServer* instance() { return _instance; }

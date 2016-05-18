@@ -70,8 +70,11 @@ ImpServer::ImpServer( const Pds::Src& client, unsigned configMask )
 unsigned ImpServer::configure(ImpConfigType* config) {
   if (_cnfgrtr == 0) {
     _cnfgrtr = new Imp::ImpConfigurator(fd(), _debug);
+    pgp(_cnfgrtr->pgp());
+  } else {
+    printf("ImpConfigurator already instantiated\n");
   }
-  _pgp = _cnfgrtr->pgp();
+
   // First calculate payload size in uint32s, 8 for the header 2 for each sample and 1 at the end
   _payloadSize = Pds::ImpData::Uint32sPerHeader + Pds::ImpConfig::get(*config,Imp::ConfigV1::NumberOfSamples) * Pds::ImpData::Uint32sPerSample + 1;
   // then convert to bytes
@@ -313,14 +316,6 @@ unsigned ImpServer::flushInputQueue(int f, bool printFlag) {
 
 void ImpServer::setImp( int f ) {
   fd( f );
-  if (unsigned c = this->flushInputQueue(f)) {
-    printf("ImpServer::setImp read %u time%s after opening pgpcard driver\n", c, c==1 ? "" : "s");
-  }
-//  _pgp = new Pds::Pgp::Pgp::Pgp(f);
-  Pds::Pgp::RegisterSlaveExportFrame::FileDescr(f);
-  if (_cnfgrtr == 0) {
-    _cnfgrtr = new Pds::Imp::ImpConfigurator(fd(), _debug);
-  }
 }
 
 void ImpServer::printHisto(bool c) {

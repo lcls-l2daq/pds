@@ -13,7 +13,7 @@ namespace Pds {
 
   class Pds::Cspad2x2Manager {
     public:
-      Cspad2x2Manager( Cspad2x2Server* server, unsigned d);
+      Cspad2x2Manager( Cspad2x2Server* server);
       Appliance& appliance( void ) { return _fsm; }
 
     private:

@@ -72,6 +72,13 @@ namespace Pds {
       strcpy(_runTimeConfigFileName, "");
        printf("CspadConfigurator constructor _config(%p), quadMask(0x%x)\n",
          _config, (unsigned)_config->quadMask());
+       if (_pgp->G3Flag()) {
+         int ret;
+         if ((ret=_pgp->IoctlCommand(IOCTL_Add_More_Ports, (unsigned) 1)) != SUCCESS) {
+           printf("CspadConfigurator constructor unable to allocate additional port so pulling the plug !!!!!! ret(%d) SUCCESS(%d)\n", ret, SUCCESS);
+           ::exit(-1);
+         }
+       }
       //    printf("\tlocations _pool(%p), _config(%p)\n", _pool, &_config);
       //    _rhisto = (unsigned*) calloc(1000, 4);
       //    _lhisto = (LoopHisto*) calloc(4*10000, 4);

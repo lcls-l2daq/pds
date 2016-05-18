@@ -93,7 +93,7 @@ namespace Pds {
         enum resultReturn {Success=0, Failure=1, Terminate=2};
 
         unsigned             configure(Epix100aConfigType*, unsigned first=0);
-        Epix100aConfigType&      configuration() { return *_config; };
+        Epix100aConfigType&  configuration() { return *_config; };
         void                 print();
         void                 dumpFrontEnd();
         void                 printMe();
@@ -116,7 +116,8 @@ namespace Pds {
         unsigned             writeASIC();
         unsigned             writePixelBits();
         unsigned             checkWrittenASIC(bool writeBack=true);
-        bool                 _flush(unsigned index=0);
+        unsigned             G3config(Epix100aConfigType*);
+        bool                 _robustReadVersion(unsigned index=0);
         bool                 _getAnAnswer(unsigned size = 4, unsigned count = 6);
 
 

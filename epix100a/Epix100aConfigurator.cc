@@ -122,10 +122,6 @@ unsigned Epix100aConfigurator::resetFrontEnd() {
   _d.dest(Epix100aDestination::Registers);
   _pgp->writeRegister(&_d, ResetAddr, 1);
   usleep(10000);
-  if (_flush()) {
-    printf("Epix100aConfigurator::resetFrontEnd determined that we lost contact with the front end, exiting!\n");
-    return 1;
-  }
   uint32_t returned = 0;
   do {
 	  usleep(10000);
@@ -154,8 +150,10 @@ unsigned Epix100aConfigurator::resyncADC(unsigned c) {
 	  } while ((returned & AdcCtrlAckMask) == 0);
 	  if ((returned & AdcCtrlFailMask) != 0) {
 		  printf("\tEpix100aConfigurator::resyncADC found that ADC alignment FAILED!!! returned %d\n", returned);
-		  if (c<3) ret = resyncADC(c+1);
+		  if (c<1) ret = resyncADC(c+1);
 		  else ret = 2;
+	  } else {
+	    printf("\tEpix100aConfigurator::resyncADC found that ADC alignment Succeeded, returned %d\n", returned);
 	  }
 	  return ret;
 }
@@ -163,10 +161,15 @@ unsigned Epix100aConfigurator::resyncADC(unsigned c) {
 void Epix100aConfigurator::resetSequenceCount() {
   _d.dest(Epix100aDestination::Registers);
   if (_pgp) {
+    if (_pgp->G3Flag()) {
+      _pgp->resetSequenceCount();
+    }
     _pgp->writeRegister(&_d, ResetFrameCounter, 1);
     _pgp->writeRegister(&_d, ResetAcqCounter, 1);
     microSpin(10);
-  } else printf("Epix100aConfigurator::resetSequenceCount() found nil _pgp so not reset\n");
+  } else {
+    printf("Epix100aConfigurator::resetSequenceCount() found nil _pgp so not reset\n");
+  }
 }
 
 uint32_t Epix100aConfigurator::sequenceCount() {
@@ -218,24 +221,29 @@ void Epix100aConfigurator::runTimeConfigName(char* name) {
   printf("Epix100aConfigurator::runTimeConfigName(%s)\n", name);
 }
 
-bool Epix100aConfigurator::_flush(unsigned index) {
-  enum {numberOfTries=50};
+bool Epix100aConfigurator::_robustReadVersion(unsigned index) {
+  enum {numberOfTries=5};
   unsigned version = 0;
   unsigned failCount = 0;
-  bool ret = false;
   printf("\n\t--flush-%u-", index);
   while ((failCount++<numberOfTries)
-      && (Failure == _pgp->readRegister(&_d, VersionAddr, 0x5e4, &version))) {
+      && (Failure == _pgp->readRegister(&_d, VersionAddr, 0x5e4+index, &version))) {
     printf("%s(%u)-", _d.name(), failCount);
   }
   if (failCount<numberOfTries) {
     printf("%s version(0x%x)\n\t", _d.name(), version);
+    return false;
+  } else {
+    if (index > 2) {
+    printf("_robustReadVersion FAILED!!\n\t");
+    return true;
+    } else {
+      _pgp->resetPgpLane();
+      microSpin(10);
+      return _robustReadVersion(++index);
+    }
   }
-  else {
-    ret = true;
-    printf("_flush FAILED!!\n\t");
-  }
-  return ret;
+  return false;
 }
 
 unsigned Epix100aConfigurator::configure( Epix100aConfigType* c, unsigned first) {
@@ -247,49 +255,71 @@ unsigned Epix100aConfigurator::configure( Epix100aConfigType* c, unsigned first)
   shortSleepTime.tv_sec = 0;
   shortSleepTime.tv_nsec = 5000000;  // 5ms (10 ms is shortest sleep on some computers
   bool printFlag = true;
-  if (printFlag) printf("Epix100a Config size(%u)", c->_sizeof());
+  if (printFlag) printf("Epix100a Config size(%u)", _config->_sizeof());
   printf(" config(%p) first(%u)\n", _config, first);
   unsigned ret = 0;
   clock_gettime(CLOCK_REALTIME, &start);
+//  _pgp->maskHWerror(true);
   printf("Epix100aConfigurator::configure %sreseting front end\n", first ? "" : "not ");
+    if (first) {
+      resetFrontEnd();
+    }
 
-  if (first) {
-    resetFrontEnd();
+  ret |= _robustReadVersion(0);
+  if (ret == 0) {
+    resetSequenceCount();
+    if (printFlag) {
+      clock_gettime(CLOCK_REALTIME, &end);
+      uint64_t diff = timeDiff(&end, &start) + 50000LL;
+      printf("- 0x%x - so far %lld.%lld milliseconds\t", ret, diff/1000000LL, diff%1000000LL);
+    }
+    if (printFlag) printf("\n\twriting top level config");
+    ret |= this->G3config(c);
+    ret <<= 1;
+    enableRunTrigger(false);
+    ret |= writeConfig();
+    enableRunTrigger(true);
+    if (printFlag) {
+      clock_gettime(CLOCK_REALTIME, &end);
+      uint64_t diff = timeDiff(&end, &start) + 50000LL;
+      printf("- 0x%x - so far %lld.%lld milliseconds\t", ret, diff/1000000LL, diff%1000000LL);
+    }
+    ret <<= 1;
+    if (printFlag) printf("\n\twriting ASIC regs");
+    enableRunTrigger(false);
+    ret |= writeASIC();
+    loadRunTimeConfigAdditions(_runTimeConfigFileName);
+    enableRunTrigger(true);
+    if (printFlag) {
+      clock_gettime(CLOCK_REALTIME, &end);
+      uint64_t diff = timeDiff(&end, &start) + 50000LL;
+      printf("- 0x%x - so far %lld.%lld milliseconds\t", ret, diff/1000000LL, diff%1000000LL);
+    }
+    ret <<= 1;
+    if (usleep(10000)<0) perror("Epix100aConfigurator::configure second ulseep failed\n");
   }
-  resetSequenceCount();
-  if (printFlag) {
-    clock_gettime(CLOCK_REALTIME, &end);
-    uint64_t diff = timeDiff(&end, &start) + 50000LL;
-    printf("- 0x%x - so far %lld.%lld milliseconds\t", ret, diff/1000000LL, diff%1000000LL);
-  }
-  if (printFlag) printf("\n\twriting top level config");
-  enableRunTrigger(false);
-  ret |= writeConfig();
-  enableRunTrigger(true);
-  if (printFlag) {
-    clock_gettime(CLOCK_REALTIME, &end);
-    uint64_t diff = timeDiff(&end, &start) + 50000LL;
-    printf("- 0x%x - so far %lld.%lld milliseconds\t", ret, diff/1000000LL, diff%1000000LL);
-  }
-  ret <<= 1;
-  if (printFlag) printf("\n\twriting ASIC regs");
-  enableRunTrigger(false);
-  ret |= writeASIC();
-  loadRunTimeConfigAdditions(_runTimeConfigFileName);
-  enableRunTrigger(true);
-  if (printFlag) {
-    clock_gettime(CLOCK_REALTIME, &end);
-    uint64_t diff = timeDiff(&end, &start) + 50000LL;
-    printf("- 0x%x - so far %lld.%lld milliseconds\t", ret, diff/1000000LL, diff%1000000LL);
-  }
-  ret <<= 1;
-  if (usleep(10000)<0) perror("Epix100aConfigurator::configure second ulseep failed\n");
   if (printFlag) {
     clock_gettime(CLOCK_REALTIME, &end);
     uint64_t diff = timeDiff(&end, &start) + 50000LL;
     printf("- 0x%x - \n\tdone \n", ret);
     printf(" it took %lld.%lld milliseconds with first %u\n", diff/1000000LL, diff%1000000LL, first);
     if (ret) dumpFrontEnd();
+  }
+  return ret;
+}
+
+unsigned Epix100aConfigurator::G3config(Epix100aConfigType* c) {
+  unsigned ret = 0;
+  if (_pgp->G3Flag()) {
+    if ((c->usePgpEvr() != 0)) {
+      ret |= evrRunCode((unsigned)c->evrRunCode());
+      ret |= evrRunDelay((unsigned)c->evrRunTrigDelay());
+      ret |= evrDaqCode((unsigned)c->evrDaqCode());
+      ret |= evrDaqDelay((unsigned)c->evrRunTrigDelay() + 50);
+      ret |=  waitForFiducialMode(true);
+    } else {
+      ret |=  waitForFiducialMode(false);
+    }
   }
   return ret;
 }
@@ -744,6 +774,7 @@ void Epix100aConfigurator::dumpFrontEnd() {
   clock_gettime(CLOCK_REALTIME, &start);
   int ret = Success;
   if (_debug & 0x100) {
+    dumpPgpCard();
     uint32_t count = 0x1111;
     uint32_t acount = 0x1112;
     count = sequenceCount();

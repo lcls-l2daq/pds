@@ -20,13 +20,19 @@
 #include "pds/utility/Occurrence.hh"
 #include "pdsdata/xtc/Xtc.hh"
 #include "pds/service/GenericPool.hh"
+#include "pds/evgr/EvrSyncCallback.hh"
+#include "pds/evgr/EvrSyncRoutine.hh"
 #include <fcntl.h>
 #include <time.h>
 
 namespace Pds
 {
   class Epix100aServer;
+  class Epix100aSyncSlave;
   class Task;
+  class Allocation;
+  class Routine;
+  class EvrSyncCallback;
 }
 
 class Pds::Epix100aServer
@@ -66,6 +72,7 @@ class Pds::Epix100aServer
    unsigned flushInputQueue(int);
    void     enable();
    void     disable();
+   bool     ignoreFetch() { return _ignoreFetch; }
    void     die();
    void     debug(unsigned d) { _debug = d; }
    unsigned debug() { return _debug; }
@@ -79,7 +86,7 @@ class Pds::Epix100aServer
    void     manager(Epix100aManager* m) { _mgr = m; }
    Epix100aManager* manager() { return _mgr; }
    void     process(char*);
-   void     allocated();
+   void     allocated(const Allocate& a) {_partition = a.allocation().partitionid(); }
    bool     resetOnEveryConfig() { return _resetOnEveryConfig; }
    void     runTimeConfigName(char*);
    void     resetOnEveryConfig(bool r) { _resetOnEveryConfig = r; }
@@ -87,6 +94,7 @@ class Pds::Epix100aServer
    EpixSampler::ConfigV1*  samplerConfig() { return _samplerConfig; }
    const Xtc&      xtcConfig() { return _xtcConfig; }
    void     maintainLostRunTrigger(bool b) { _maintainLostRunTrigger = b; }
+   Pds::Epix100a::Epix100aConfigurator* configurator() {return _cnfgrtr;}
 
  public:
    static Epix100aServer* instance() { return _instance; }
@@ -114,17 +122,21 @@ class Pds::Epix100aServer
    timespec                       _thisTime;
    timespec                       _lastTime;
    unsigned*                      _histo;
-   Pds::Task*                     _task;
    unsigned                       _ioIndex;
    Pds::Epix100a::Epix100aDestination     _d;
    char                           _runTimeConfigName[256];
-   Epix100aManager*                   _mgr;
+   Epix100aManager*               _mgr;
    GenericPool*                   _occPool;
    unsigned                       _unconfiguredErrors;
    float                          _timeSinceLastException;
    unsigned                       _fetchesSinceLastException;
    char*                          _processorBuffer;
    unsigned*                      _scopeBuffer;
+   Pds::Task*                     _task;
+   Task*						              _sync_task;
+   unsigned                       _partition;
+   Epix100aSyncSlave*             _syncSlave;
+   unsigned                       _countBase;
    bool                           _configured;
    bool                           _firstFetch;
    bool                           _ignoreFetch;

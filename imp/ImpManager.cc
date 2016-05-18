@@ -308,44 +308,12 @@ class ImpEndCalibCycleAction : public Action {
     unsigned          _result;
 };
 
-ImpManager::ImpManager( ImpServer* server, unsigned d) :
+ImpManager::ImpManager( ImpServer* server, int d) :
     _fsm(*new Fsm), _cfg(*new ImpConfigCache(server->client())) {
 
    printf("ImpManager being initialized... " );
 
-   unsigned ports = (d >> 4) & 0xf;
-   char devName[128];
-   char err[128];
-   if (ports == 0) {
-     ports = 15;
-     sprintf(devName, "/dev/pgpcard%u", d);
-   } else {
-     sprintf(devName, "/dev/pgpcard_%u_%u", d & 0xf, ports);
-   }
-
-   int imp = open( devName,  O_RDWR | O_NONBLOCK);
-   printf("pgpcard file number %d\n", imp);
-   if (imp < 0) {
-     sprintf(err, "ImpManager::ImpManager() opening %s failed", devName);
-     perror(err);
-     // What else to do if the open fails?
-     ::exit(-1);
-   }
-
-   unsigned offset = 0;
-   while ((((ports>>offset) & 1) == 0) && (offset < 5)) {
-     offset += 1;
-   }
-
-   Pgp::Pgp::portOffset(offset);
-
-   if (offset >= 4) {
-     printf("ImpManager::ImpManager() illegal port mask!! 0x%x\n", ports);
-   }
-
    server->manager(this);
-   server->setImp( imp );
-//   server->laneTest();
 
    _fsm.callback( TransitionId::Map, new ImpAllocAction( _cfg, server ) );
    _fsm.callback( TransitionId::Unmap, new ImpUnmapAction( server ) );

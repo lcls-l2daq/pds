@@ -16,8 +16,9 @@
 namespace Pds {
   namespace Pgp {
 
-    Configurator::Configurator(int f, unsigned d) : _fd(f), _debug(d){
-      _pgp = new Pds::Pgp::Pgp(_fd);
+    Configurator::Configurator(int f, unsigned d) : _fd(f), _debug(d) {
+      _pgp = new Pds::Pgp::Pgp(_fd, true);
+      _G3 = _pgp->G3Flag();
     }
 
     Configurator::~Configurator() {}
@@ -43,9 +44,141 @@ namespace Pds {
     }
 
     unsigned Configurator::checkPciNegotiatedBandwidth() {
-      PgpCardStatus status;
-      _pgp->readStatus(&status);
-      return (status.PciLStatus >> 4)  & 0x3f;
+      return _pgp->checkPciNegotiatedBandwidth();
+    }
+
+    unsigned Configurator::getCurrentFiducial(bool pr) {
+      unsigned ret;
+      timespec start, end;
+      if (pr) {
+        clock_gettime(CLOCK_REALTIME, &start);
+      }
+      ret = _pgp->getCurrentFiducial();
+      if (pr) {
+        clock_gettime(CLOCK_REALTIME, &end);
+      printf("Configurator took %llu nsec to get fiducial\n", timeDiff(&end, &start));
+      }
+      return ret;
+    }
+
+    bool Configurator::evrEnabled() {
+    	return _pgp->evrEnabled();
+    }
+
+    int   Configurator::evrEnable(bool e) {
+      int ret = 0;
+      unsigned z = 0;
+      unsigned count = 0;
+      if (e) {
+        while ((evrEnabled()==false) && (count++ < 3) && (ret==0)) {
+          printf("Configurator attempting to enable evr %u\n", count);
+          ret |= _pgp->IoctlCommand( IOCTL_Evr_Set_PLL_RST, z);
+          ret |= _pgp->IoctlCommand( IOCTL_Evr_Clr_PLL_RST, z);
+          ret |= _pgp->IoctlCommand( IOCTL_Evr_Set_Reset, z);
+          ret |= _pgp->IoctlCommand( IOCTL_Evr_Clr_Reset, z);
+          ret |= _pgp->IoctlCommand( IOCTL_Evr_Enable, z);
+          usleep(4000);
+        }
+      } else {
+        ret = _pgp->IoctlCommand( IOCTL_Evr_Disable, z);
+      }
+      if (ret || (count >= 3) || (evrEnabled()==false)) {
+        printf("Configurator failed to %sable evr!\n", e ? "en" : "dis");
+      }
+    	return ret;
+    }
+
+    int   Configurator::fiducialTarget(unsigned t) {
+    	int ret = 0;
+    	unsigned arg = (_pgp->portOffset()<<28) | (t & 0x1ffff);
+    	ret |= _pgp->IoctlCommand( IOCTL_Evr_Fiducial, arg);
+    	if (ret) {
+    	  printf("Configurator failed to set %u to fiducial 0x%x\n", _pgp->portOffset(), t);
+    	}
+    	return ret;
+    }
+
+    int   Configurator::waitForFiducialMode(bool b) {
+      int ret = 0;
+      unsigned one = 1;
+      ret |= _pgp->IoctlCommand(
+          b ? IOCTL_Evr_LaneModeFiducial : IOCTL_Evr_LaneModeNoFiducial,
+          one << _pgp->portOffset());
+      if (ret) {
+        printf("Configurator failed to set fiducial mode for %u to %s\n",
+            _pgp->portOffset(), b ? "true" : "false");
+      }
+      return ret;
+    }
+
+    int   Configurator::evrRunCode(unsigned u) {
+      int ret = 0;
+      unsigned arg = (_pgp->portOffset() << 28) | (u & 0xff);
+      ret |= _pgp->IoctlCommand( IOCTL_Evr_RunCode, arg);
+      if (ret) {
+        printf("Configurator failed to set evr run code %u for %u\n",
+            u, _pgp->portOffset());
+      }
+      return ret;
+    }
+
+    int   Configurator::evrRunDelay(unsigned u) {
+      int ret = 0;
+      unsigned arg = (_pgp->portOffset() << 28) | (u & 0xfffffff);
+      ret |= _pgp->IoctlCommand( IOCTL_Evr_RunDelay, arg);
+      if (ret) {
+        printf("Configurator failed to set evr run delay %u for %u\n",
+            u, _pgp->portOffset());
+      }
+      return ret;
+    }
+
+    int   Configurator::evrDaqCode(unsigned u) {
+      int ret = 0;
+      unsigned arg = (_pgp->portOffset() << 28) | (u & 0xff);
+      ret |= _pgp->IoctlCommand( IOCTL_Evr_AcceptCode, arg);
+      if (ret) {
+        printf("Configurator failed to set evr daq code %u for %u\n",
+            u, _pgp->portOffset());
+      }
+      return ret;
+    }
+
+    int   Configurator::evrDaqDelay(unsigned u) {
+      int ret = 0;
+      unsigned arg = (_pgp->portOffset() << 28) | (u & 0xfffffff);
+      ret |= _pgp->IoctlCommand( IOCTL_Evr_AcceptDelay, arg);
+      if (ret) {
+        printf("Configurator failed to set evr daq delay %u for %u\n",
+            u, _pgp->portOffset());
+      }
+      return ret;
+    }
+
+    int   Configurator::evrLaneEnable(bool e) {
+      int ret = 0;
+      unsigned mask = 1 << _pgp->portOffset();
+      if (e) {
+        ret |= _pgp->IoctlCommand( IOCTL_Evr_LaneEnable, mask);
+      } else {
+        ret |= _pgp->IoctlCommand( IOCTL_Evr_LaneDisable, mask);
+      }
+//      if (ret) {
+//        printf("Configurator failed to %sable lane mask %u\n", e ? "en" : "dis", mask);
+//      } else {
+//        printf("Configurator did %sable lane mask %u\n",  e ? "en" : "dis", mask);
+//      }
+      return ret;
+    }
+
+
+    int Configurator::evrEnableHdrChk(unsigned vc, bool e) {
+      int ret;
+      unsigned arg = (_pgp->portOffset()<<28) | (vc<<24) | (e ? 1 : 0);
+      ret = _pgp->IoctlCommand( IOCTL_Evr_En_Hdr_Check, arg);
+      printf("Configurator::evrEnableHdrChk offset %d, arg 0x%x, %s\n",
+          _pgp->portOffset(), arg, e ? "true" : "false");
+      return ret;
     }
 
     void Configurator::loadRunTimeConfigAdditions(char* name) {
@@ -80,51 +213,8 @@ namespace Pds {
       }
     }
 
-#ifndef NUMBER_OF_LANES
-#define NUMBER_OF_LANES (4)
-#endif
-
     void Configurator::dumpPgpCard() {
-      PgpCardStatus status;
-      _pgp->readStatus(&status);
-      printf("PGP Card Status:\n");
-      printf("\tVersion               0x%x\n", status.Version);
-      printf("\tScratchPad            0x%x\n", status.ScratchPad);
-      printf("\tNegotiated Link Width 0x%x\n", (status.PciLStatus>>4)&0x3f);
-      printf("\tPgpLocLinkReady       ");
-      for (int i=0; i<NUMBER_OF_LANES; i++) {
-        printf("%2u%s", status.PgpLink[i].PgpLocLinkReady, i < NUMBER_OF_LANES - 1 ? ", " : "\n");
-      }
-      printf("\tPgpRemLinkReady       ");
-      for (int i=0; i<NUMBER_OF_LANES; i++) {
-        printf("%2u%s", status.PgpLink[i].PgpRemLinkReady, i < NUMBER_OF_LANES - 1 ? ", " : "\n");
-      }
-      printf("\tPgpCellErrCnt         ");
-      for (int i=0; i<NUMBER_OF_LANES; i++) {
-        printf("%2u%s", status.PgpLink[i].PgpCellErrCnt, i < NUMBER_OF_LANES - 1 ? ", " : "\n");
-      }
-      printf("\tPgpLinkDownCnt        ");
-      for (int i=0; i<NUMBER_OF_LANES; i++) {
-        printf("%2u%s", status.PgpLink[i].PgpLinkDownCnt, i < NUMBER_OF_LANES - 1 ? ", " : "\n");
-      }
-      printf("\tPgpLinkErrCnt         ");
-      for (int i=0; i<NUMBER_OF_LANES; i++) {
-        printf("%2u%s", status.PgpLink[i].PgpLinkErrCnt, i < NUMBER_OF_LANES - 1 ? ", " : "\n");
-      }
-      printf("\tPgpFifoErr            ");
-      for (int i=0; i<NUMBER_OF_LANES; i++) {
-        printf("%2u%s", status.PgpLink[i].PgpFifoErr, i < NUMBER_OF_LANES - 1 ? ", " : "\n");
-      }
-      printf("\tTxBufferCount         0x%x\n", status.TxBufferCount);
-      printf("\tTxRead                0x%x\n", status.TxRead);
-      printf("\tRxWrite[client]       ");
-      for (int i=0; i<NUMBER_OF_LANES; i++) {
-        printf("0x%02x%s", status.RxWrite[i], i < NUMBER_OF_LANES - 1 ? ", " : "\n");
-      }
-      printf("\tRxRead[client]        ");
-      for (int i=0; i<NUMBER_OF_LANES; i++) {
-        printf("0x%02x%s", status.RxRead[i], i < NUMBER_OF_LANES - 1 ? ", " : "\n");
-      }
+    	_pgp->printStatus();
     }
 
     unsigned ConfigSynch::_getOne() {
@@ -137,7 +227,7 @@ namespace Pds {
          count += 1;;
        }
        if (_printFlag) {
-         printf("CspadConfigSynch::_getOne _pgp->read failed\n");
+         printf("ConfigSynch::_getOne _pgp->read failed\n");
          if (count) printf(" after skipping %u\n", count);
        }
        return Failure;

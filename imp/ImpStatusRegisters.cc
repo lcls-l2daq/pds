@@ -50,9 +50,9 @@ void ImpStatusRegisters::print() {
 
 
 void StatusLane::print() {
-  printf("\tusLocLinked(%s) usRemLinked(%s) usCellErrCount(%u) usLinkErrCount(%u) usLinkDownCount(%u)\n",
+  printf("\tusLocLinked(%s)\tusRemLinked(%s)\n\tusCellErrCount(%u)\tusLinkErrCount(%u)\tusLinkDownCount(%u)\n",
       usRemLinked ? "true" : "false", usLocLinked ? "true" : "false", usCellErrCount, usLinkErrCount, usLinkDownCount);
-  printf("\t\tpowersOkay(0x%x)\n", powersOkay);
+  printf("\tpowersOkay(0x%x)\n", powersOkay);
 }
 
 int ImpStatusRegisters::read() {

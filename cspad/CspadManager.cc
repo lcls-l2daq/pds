@@ -508,45 +508,14 @@ public:
   virtual InDatagram* events     (InDatagram* in) {return in;}
 };
 
-CspadManager::CspadManager( CspadServer* server, unsigned d, bool c) :
+CspadManager::CspadManager( CspadServer* server, int d, bool c) :
     _fsm(*new Fsm), _cfg(*new CspadConfigCache(server->client())),
     _appProcessor(*new AppProcessor()), _compressionProcessor(_appProcessor, 14, 32, server->debug())
 {
 
    printf("CspadManager being initialized... " );
 
-   unsigned ports = (d >> 4) & 0xf;
-   char devName[128];
-   char err[128];
-   if (ports == 0) {
-     ports = 15;
-     sprintf(devName, "/dev/pgpcard%u", d);
-   } else {
-     sprintf(devName, "/dev/pgpcard_%u_%u", d & 0xf, ports);
-   }
-
-   int cspad = open( devName,  O_RDWR | O_NONBLOCK);
-   printf("pgpcard device name %s, file number %d\n", devName, cspad);
-   if (cspad < 0) {
-     sprintf(err, "CspadManager::CspadManager() opening %s failed", devName);
-     perror(err);
-     // What else to do if the open fails?
-     ::exit(-1);
-   }
-
-   unsigned offset = 0;
-   while ((((ports>>offset) & 1) == 0) && (offset < 5)) {
-     offset += 1;
-   }
-
-   Pgp::Pgp::portOffset(offset);
-
-   if (offset >= 4) {
-     printf("CspadManager::CspadManager() illegal port mask!! 0x%x\n", ports);
-   }
-
    server->manager(this);
-   server->setCspad( cspad );
 
    CspadL1Action* l1 = new CspadL1Action( server, _compressionProcessor, c );
    _fsm.callback( TransitionId::L1Accept, l1 );
