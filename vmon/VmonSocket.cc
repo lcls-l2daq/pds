@@ -59,6 +59,9 @@ int VmonSocket::peek(MonMessage* msg)
 int VmonSocket::flush()
 {
   if (_peeked) {
+    MonMessage msg(MonMessage::NoOp);
+    _iovs[0].iov_base = (char*)&msg;
+    _iovs[0].iov_len  = sizeof(msg);
     _rhdr.msg_iov    = _iovs;
     _rhdr.msg_iovlen = 1;
     _peeked = false;
