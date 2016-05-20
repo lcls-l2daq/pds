@@ -48,7 +48,8 @@ int MonSocket::writev(const iovec* iov, int iovcnt)
 {
   _hdr.msg_iov          = const_cast<iovec*>(iov);
   _hdr.msg_iovlen       = iovcnt;
-  return ::sendmsg(_socket, &_hdr, MSG_DONTROUTE);
+  //  return ::sendmsg(_socket, &_hdr, MSG_DONTROUTE);
+  return ::sendmsg(_socket, &_hdr, 0);
 }
 
 int MonSocket::setsndbuf(unsigned size) 

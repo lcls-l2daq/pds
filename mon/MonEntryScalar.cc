@@ -10,6 +10,8 @@ MonEntryScalar::MonEntryScalar(const MonDescScalar& desc) :
   _desc(desc)
 {
   _y = static_cast<double*>(allocate(sizeof(double)*_desc.elements()));
+  for(unsigned i=0; i<_desc.elements(); i++)
+    _y[i]=0;
 }
 
 const MonDescScalar& MonEntryScalar::desc() const {return _desc;}
@@ -43,6 +45,7 @@ void MonEntryScalar::setto(const MonEntryScalar& o)
   params(o.desc());
   for(unsigned i=0; i<_desc.elements(); i++)
     _y[i]=o._y[i];
+  time(o.time());
 }
 
 void MonEntryScalar::setvalues(const double* o)
