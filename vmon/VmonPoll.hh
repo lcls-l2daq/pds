@@ -2,6 +2,7 @@
 #define Pds_VmonPoll_hh
 
 #include "pds/service/Routine.hh"
+#include "pds/service/Semaphore.hh"
 
 #include <poll.h>
 
@@ -26,6 +27,7 @@ namespace Pds {
     MonSocket* _loopback;
     MonFd*     _ofd;
     pollfd     _pfd[2];
+    Semaphore  _sem;
   };
 
 };
