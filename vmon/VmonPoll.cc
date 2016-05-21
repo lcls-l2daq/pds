@@ -15,7 +15,8 @@ using namespace Pds;
 VmonPoll::VmonPoll() :
   _task    (new Task(TaskObject("vmonMgr"))),
   _loopback(new MonLoopback),
-  _ofd     (0)
+  _ofd     (0),
+  _sem     (Semaphore::EMPTY)
 {
   _pfd[0].fd = _loopback->socket();
   _pfd[0].events = POLLIN;
@@ -42,6 +43,7 @@ void VmonPoll::unmanage(MonFd& fd)
 {
   int msg=0;
   _loopback->write(&msg,sizeof(msg));
+  _sem.take();
 }
 
 int VmonPoll::poll()
@@ -66,6 +68,7 @@ int VmonPoll::poll()
 void VmonPoll::routine()
 {
   while(poll());
+  _sem.give();
 }
 
 

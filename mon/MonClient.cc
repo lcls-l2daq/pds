@@ -61,9 +61,12 @@ MonClient::MonClient(MonConsumerClient& consumer,
 
 MonClient::~MonClient() 
 {
-  delete _cds;
-  delete [] _iovload;
-  delete [] _desc;
+  if (_cds)
+    delete _cds;
+  if (_iovload)
+    delete [] _iovload;
+  if (_desc)
+    delete [] _desc;
 }
 
 MonSocket& MonClient::socket() { return _socket; }

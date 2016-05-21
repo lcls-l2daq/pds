@@ -31,6 +31,7 @@ void MonEntry::payload(iovec& iov) const
 void MonEntry::reset()
 {
   memset(_payload, 0, _payloadsize);
+  time(ClockTime(0));
 }
 
 void* MonEntry::allocate(unsigned size)
