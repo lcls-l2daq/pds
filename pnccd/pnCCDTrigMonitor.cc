@@ -51,12 +51,12 @@ void pnCCDTrigMonitor::disable(bool writePV)
 
 void pnCCDTrigMonitor::enable(bool writePV)
 {
+  _expect_off = false;
   if (writePV) {
     if (check()) {
       put(TRIG_ON, true);
     } else printf("pnCCDTrigMonitor::enable channel access data is not of the expected type\n");
   }
-  _expect_off = false;
 }
 
 bool pnCCDTrigMonitor::check() {
