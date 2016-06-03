@@ -1,6 +1,6 @@
 // This software is covered by the GNU GENERAL PUBLIC LICENSE (GPL).
 // $URL: http://subversion:8080/svn/gsc/trunk/drivers/gsc_common/linux/driver/gsc_write.c $
-// $Rev: 6255 $
+// $Rev$
 // $Date$
 
 #include "gsc_main.h"

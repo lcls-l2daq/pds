@@ -1,6 +1,6 @@
 // This software is covered by the GNU GENERAL PUBLIC LICENSE (GPL).
 // $URL: http://subversion:8080/svn/gsc/trunk/drivers/LINUX/16AI32SSC/driver/16ai32ssc.h $
-// $Rev: 5987 $
+// $Rev$
 // $Date$
 
 #ifndef __16AI32SSC_H__

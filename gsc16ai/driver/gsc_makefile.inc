@@ -1,5 +1,5 @@
 # $URL: http://subversion:8080/svn/gsc/trunk/drivers/gsc_common/linux/driver/gsc_makefile.inc $
-# $Rev: 9243 $
+# $Rev$
 # $Date$
 
 # Common Linux driver makefile.
