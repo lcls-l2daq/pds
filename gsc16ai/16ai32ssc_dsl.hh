@@ -1,5 +1,5 @@
 // $URL: http://subversion:8080/svn/gsc/trunk/drivers/LINUX/16AI32SSC/docsrc/16ai32ssc_dsl.h $
-// $Rev: 1588 $
+// $Rev$
 // $Date$
 
 #ifndef __16AI32SSC_DSL_HH
