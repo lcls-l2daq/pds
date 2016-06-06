@@ -11,6 +11,8 @@
 
 #include "pds/utility/Transition.hh"
 
+#include <string.h>
+
 namespace Pds {
 
   class Datagram {
@@ -43,7 +45,12 @@ namespace Pds {
     void operator delete(void* buffer)
     { Pool::free(buffer); }
 
-    Datagram& datagram() { return *this; }
+    void insert(const Xtc& tc, const void* payload) {
+      int payloadsiz = tc.extent - sizeof(Xtc);
+      memcpy(xtc.alloc(sizeof(Xtc)), &tc, sizeof(Xtc));
+      memcpy(xtc.alloc(payloadsiz), payload, payloadsiz);
+      xtc.damage.increase(tc.damage.value());
+    }
 
     PDS_DGRAM_STRUCT;
   };

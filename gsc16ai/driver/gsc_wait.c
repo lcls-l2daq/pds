@@ -1,6 +1,6 @@
 // This software is covered by the GNU GENERAL PUBLIC LICENSE (GPL).
 // $URL:$
-// $Rev:$
+// $Rev$
 // $Date$
 
 #include "main.h"

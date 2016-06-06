@@ -20,6 +20,8 @@ public:
   unsigned        platform () const;
   ///  Readout group (for Segment levels)
   unsigned        group    () const;
+  ///  Physical address (for Segment levels)
+  unsigned        paddr    () const;
   ///  Is a triggered Segment level
   bool            triggered() const;
   ///  Which EVR module provides the trigger
@@ -46,12 +48,14 @@ public:
 
 public:
   void fixup       (int ip, const Ether& ether);
-  void setGroup    (uint16_t group);
+  void setGroup    (unsigned group);
+  void setPaddr    (unsigned paddr);
   void setTransient(bool);
   void setTrigger  (unsigned module,unsigned channel);
 private:
   uint16_t  _platform;
   uint16_t  _group;    // segment level only: each group has different readout rates
+  uint32_t  _paddr;    // segment level only: fast control physical address 
   int32_t   _uid;
   ProcInfo  _procInfo;
   Ether     _ether;

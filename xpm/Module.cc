@@ -3,7 +3,21 @@
 #include <unistd.h>
 #include <stdio.h>
 
-using namespace Xpm;
+using namespace Pds::Xpm;
+using Pds::Cphw::Reg;
+
+void L0Stats::dump() const
+{
+#define PU64(title,stat) printf("%9.9s: %lx\n",#title,stat)
+        PU64(Enabled  ,l0Enabled);
+        PU64(Inhibited,l0Inhibited);
+        PU64(L0,numl0);
+        PU64(L0Inh,numl0Inh);
+        PU64(L0Acc,numl0Acc);
+#undef PU64
+        printf("%9.9s: %x\n","rxErrs",rx0Errs);
+}
+
 
 Module::Module()
 { init(); }
@@ -13,6 +27,7 @@ void Module::init()
   printf("Module\n");
   printf("enabled  %x\n", unsigned(_enabled));
   printf("l0Select %x\n", unsigned(_l0Select));
+  printf("linkEna  %x\n", unsigned(_dsLinkEnable));
   printf("txLinkSt %x\n", unsigned(_dsTxLinkStatus));
   printf("rxLinkSt %x\n", unsigned(_dsRxLinkStatus));
   printf("l0Enabld %x\n", unsigned(_l0Enabled));
@@ -28,6 +43,14 @@ void Module::linkEnable(unsigned link, bool v)
     _dsLinkEnable.setBit(link);
   else
     _dsLinkEnable.clearBit(link);
+}
+
+void Module::linkLoopback(unsigned link, bool v)
+{
+  if (v)
+    _dsLinkEnable.setBit(link+16);
+  else
+    _dsLinkEnable.clearBit(link+16);
 }
 
 void Module::txLinkReset(unsigned link)
@@ -46,17 +69,30 @@ void Module::rxLinkReset(unsigned link)
   _dsLinkReset.clearBit(b);
 }
 
-bool Module::l0Enabled() const { return unsigned(_enabled)!=0; }
+bool Module::l0Enabled() const { return unsigned(_enabled&0x10001)==0x10000; }
 
 L0Stats Module::l0Stats() const
 {
+  //  Lock the counters
+  const_cast<Module&>(*this).lockL0Stats(true);
   L0Stats s;
   s.l0Enabled   = _l0Enabled;
   s.l0Inhibited = _l0Inhibited;
   s.numl0       = _numl0;
   s.numl0Inh    = _numl0Inh;
   s.numl0Acc    = _numl0Acc;
-  s.rx0Errs     = (_dsRxLinkStatus>>16)&0x3fff;
+  //  Release the counters
+  const_cast<Module&>(*this).lockL0Stats(false);
+
+  unsigned e=_dsLinkEnable;
+  unsigned v=0;
+  for(unsigned i=0; e!=0; i++)
+    if (e & (1<<i)) {
+      e ^= (1<<i);
+      v += rxLinkErrs(i);
+    }
+  s.rx0Errs     = v;
+
   return s;
 }
 
@@ -70,9 +106,27 @@ unsigned Module::rxLinkStat() const
   return unsigned(_dsRxLinkStatus);
 }
 
+unsigned Module::rxLinkErrs(unsigned link) const
+{
+  unsigned v=_rxLinkErrs[link>>1];
+  return (v >> (16*(link&1))) & 0xffff;
+}
+
+void Module::resetL0(bool v)
+{
+  unsigned r = _enabled;
+  if (v)
+    _enabled = r|1;
+  else
+    _enabled = r&~1;
+}
+
 void Module::setL0Enabled(bool v)
 {
-  _enabled = v ? 1:0;
+  if (v)
+    _enabled = 0x10000;
+  else
+    _enabled = 0;
 }
 
 void Module::setL0Select_FixedRate(unsigned rate)
@@ -94,4 +148,13 @@ void Module::setL0Select_Sequence (unsigned seq , unsigned bit)
   unsigned rateSel = (2<<14) | ((seq&0x3f)<<8) | (bit&0xf);
   unsigned destSel = _l0Select >> 16;
   _l0Select = (destSel<<16) | rateSel;
+}
+
+void Module::lockL0Stats(bool v)
+{
+  unsigned r = _enabled;
+  if (v)
+    _enabled = r|(1<<31);
+  else
+    _enabled = r&~(1<<31);
 }

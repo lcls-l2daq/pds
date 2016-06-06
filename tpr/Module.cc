@@ -2,7 +2,7 @@
 
 #include <stdio.h>
 
-using namespace Tpr;
+using namespace Pds::Tpr;
 
 std::string AxiVersion::buildStamp() const {
   uint32_t tmp[64];
@@ -48,19 +48,13 @@ void TprBase::dump() const {
   printf("\n");
 }
 
-void TprBase::setupDaq    (unsigned i,
-                           unsigned partition) {
-  channel[i].evtSel   = (1<<31) | (3<<14) | partition; // 
-  //  channel[i].evtSel   = (1<<31) | (0<<14) | 4; // 
-  channel[i].control = 5;
+void TprBase::setupDma    (unsigned fullThr) {
+  dmaFullThr = fullThr;
 }
 
-void TprBase::setupDataSim(unsigned i,
-                           unsigned partition,
-                           unsigned dataLength) {
-  channel[i].evtSel   = (1<<31) | (3<<14) | partition; // 
-  //  channel[i].evtSel   = (1<<31) | (0<<14) | 4; // 
-  channel[i].bsaDelay = dataLength;
+void TprBase::setupDaq    (unsigned i,
+                           unsigned partition) {
+  channel[i].evtSel   = (1<<30) | (3<<14) | partition; // 
   channel[i].control = 5;
 }
 
@@ -70,7 +64,7 @@ void TprBase::setupChannel(unsigned i,
                            unsigned    bsaPresample,
                            unsigned    bsaDelay,
                            unsigned    bsaWidth) {
-  channel[i].evtSel   = (1<<31) | unsigned(r); //
+  channel[i].evtSel   = (1<<30) | unsigned(r); //
   channel[i].bsaDelay = (bsaPresample<<20) | bsaDelay;
   channel[i].bsaWidth = bsaWidth;
   channel[i].control = 7;

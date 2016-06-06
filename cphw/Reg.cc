@@ -1,4 +1,4 @@
-#include "Reg.hh"
+#include "pds/cphw/Reg.hh"
 
 #include <sys/socket.h>
 #include <arpa/inet.h>
@@ -13,7 +13,7 @@ static unsigned _fd;
 static unsigned _context=0;
 static unsigned _mem;
 
-using namespace Xpm;
+using namespace Pds::Cphw;
 
 void Reg::setBit  (unsigned b)
 {
@@ -155,5 +155,5 @@ Reg::operator unsigned() const
   }
 
   printf("Reg[%p]::operator unsigned() FAILED\n",this);
-  exit(1);
+  return 0;
 }

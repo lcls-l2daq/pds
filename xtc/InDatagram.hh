@@ -4,7 +4,13 @@
 #include "pds/xtc/Datagram.hh"
 
 namespace Pds {
-  typedef Datagram InDatagram;
+  class InDatagram : public Datagram {
+  public:
+    InDatagram(const Datagram& dg) : Datagram(dg) {}
+
+    Datagram& datagram() { return *this; }
+    const Datagram& datagram() const { return *this; }
+  };
 };
 
 #endif

@@ -12,15 +12,15 @@ static Sequence now(TransitionId::Value id)
 {
   timespec tp;
   clock_gettime(CLOCK_REALTIME, &tp);
-  unsigned pulseId = -1;
+  uint64_t pulseId = -1UL;
   ClockTime clocktime(tp.tv_sec, tp.tv_nsec);
-  TimeStamp timestamp(0, pulseId, 0);
+  TimeStamp timestamp(pulseId, 0);
   return Sequence(Sequence::Event, id, clocktime, timestamp);
 }
 
 static Sequence none(TransitionId::Value id)
 {
-  return Sequence(Sequence::Event, id, ClockTime(-1, -1), TimeStamp(0,-1,0) );
+  return Sequence(Sequence::Event, id, ClockTime(-1, -1), TimeStamp(-1UL,0) );
 }
 
 Transition::Transition(TransitionId::Value id,
@@ -36,8 +36,8 @@ Transition::Transition(TransitionId::Value id,
 {}
 
 Transition::Transition(TransitionId::Value id,
-           const Env&          env, 
-           unsigned            size) :
+                       const Env&          env, 
+                       unsigned            size) :
   Message  (Message::Transition, size),
   _id      (id),
   _phase   (Execute),

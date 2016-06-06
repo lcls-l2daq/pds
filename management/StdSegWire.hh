@@ -31,6 +31,7 @@ namespace Pds {
 		  int interface);
     const std::list<Src>&      sources () const;
     const std::list<SrcAlias>* pAliases() const;
+    bool     needs_evr      () const;
     bool     is_triggered   () const;
     unsigned module         () const;
     unsigned channel        () const;

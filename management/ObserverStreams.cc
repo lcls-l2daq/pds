@@ -35,7 +35,7 @@ ObserverStreams::ObserverStreams(CollectionObserver& cmgr,
        _xtcType,
        level,
        *stream(s)->inlet(), *_outlets[s], s, ipaddress,
-       max_size, ebdepth, slowEb,
+       max_size, ebdepth,
        new VmonEb(src,32,ebdepth,(1<<23),max_size));
 
     _inlet_wires[s] = eb;

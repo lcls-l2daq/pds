@@ -9,18 +9,14 @@ namespace Pds {
 
   class SegWireSettings;
   class WiredStreams;
-  class Arp;
   class EventCallback;
   class EvrServer;
 
   class SegmentLevel: public PartitionMember {
   public:
     SegmentLevel(unsigned platform,
-     SegWireSettings& settings,
-     EventCallback& callback,
-     Arp* arp,
-     int slowEb = 0
-    );
+                 SegWireSettings& settings,
+                 EventCallback& callback);
 
     virtual ~SegmentLevel();
 

@@ -19,7 +19,6 @@ class EbS : public Eb
   int ipaddress,
   unsigned eventsize,
   unsigned eventpooldepth,
-  int slowEb,
   VmonEb* vmoneb=0);
     ~EbS();
 

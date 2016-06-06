@@ -78,14 +78,13 @@ EbBase::EbBase(const Src& id,
          OutletWire& outlet,
          int stream,
          int ipaddress,
-         int slowEb,
          VmonEb* vmoneb,
          const Ins* dstack
          ) :
   InletWireServer(inlet, outlet, ipaddress, stream,
       TaskPriority-stream, TaskName(level, stream, inlet),
       EbTimeouts::duration(stream)),
-  _ebtimeouts(stream,level, slowEb),
+  _ebtimeouts(stream,level, 0),
   _output(inlet),
   _id(id),
   _ctns(ctns),
@@ -253,7 +252,7 @@ void EbBase::_post(EbEventBase* event)
       const int buffsize=256;
       char buff[buffsize];
       EbBitMask r = remaining;
-      sprintf(buff,"EbBase::_post sink seq %08x remaining ",
+      sprintf(buff,"EbBase::_post sink seq %016lx remaining ",
               datagram->seq.stamp().fiducials());
       r.write(&buff[strlen(buff)]);
       EbBitMask id(EbBitMask::ONE);
@@ -282,6 +281,7 @@ void EbBase::_post(EbEventBase* event)
         }
       }
       _vmoneb->fixup(-1);
+      _vmoneb->update(indatagram->datagram().seq.clock());
     }
 
     delete indatagram;
@@ -300,7 +300,7 @@ void EbBase::_post(EbEventBase* event)
       const int buffsize=256;
       char buff[buffsize];
       EbBitMask r = remaining;
-      sprintf(buff,"EbBase::_post fixup key %08x seq %08x remaining ",
+      sprintf(buff,"EbBase::_post fixup key %08x seq %016lx remaining ",
               event->key().value(),
               datagram->seq.stamp().fiducials());
       r.write(&buff[strlen(buff)]);
@@ -449,7 +449,7 @@ int EbBase::processTmo()
       const Datagram* datagram = &indatagram->datagram();
       EbBitMask value(event->allocated().remaining() & _valued_clients);
       if (!value.isZero())
-  printf("EbBase::processTmo seq %x/%x  remaining %08x : %g [%d,%d]\n",
+  printf("EbBase::processTmo seq %x/%lx  remaining %08x : %g [%d,%d]\n",
          datagram->seq.service(), datagram->seq.stamp().fiducials(),
          event->remaining().value(), dts,
          _ebtimeouts.duration(), _ebtimeouts.timeouts(0));
@@ -668,10 +668,10 @@ void EbBase::_dump_events() const
   EbEventBase* empty = _pending.empty();
   while( event != empty ) {
     const Sequence seq = event->key().sequence();
-    printf("%08x %08x/%08x %08x/%08x %08x %08x %08x\n",
+    printf("%08x %08x/%08x %016lx %08x %08x %08x\n",
            event->key().value(),
            seq.clock().seconds(),seq.clock().nanoseconds(),
-           seq.stamp().fiducials(), seq.stamp().ticks(),
+           seq.stamp().fiducials(),
            event->allocated().remaining().value(),
            event->segments().value(),
            event->remaining().value());

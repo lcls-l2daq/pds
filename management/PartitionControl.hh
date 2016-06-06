@@ -32,10 +32,7 @@ namespace Pds {
   public:
     PartitionControl       (unsigned platform,
                             ControlCallback&,
-                            int      slowReadout,
-                            Routine* tmo = 0,
-                            Arp*     arp = 0
-                            );
+                            Routine* tmo = 0);
     ~PartitionControl      ();
   public:
     void  platform_rollcall(PlatformCallback*);

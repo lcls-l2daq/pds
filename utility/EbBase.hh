@@ -26,7 +26,6 @@ namespace Pds {
      OutletWire& outlet,
      int stream,
      int ipaddress,
-     int slowEb,
      VmonEb* vmoneb,
      const Ins* dstack
      );

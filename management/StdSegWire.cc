@@ -74,6 +74,11 @@ const std::list<SrcAlias>* StdSegWire::pAliases() const
   return (_aliases.size() > 0) ? &_aliases : NULL;
 }
 
+bool     StdSegWire::needs_evr     () const
+{
+  return true; 
+}
+
 bool     StdSegWire::is_triggered   () const
 {
   return _istriggered; 

@@ -40,12 +40,11 @@ Eb::Eb(const Src& id,
        int ipaddress,
        unsigned eventsize,
        unsigned eventpooldepth,
-       int slowEb,
        VmonEb* vmoneb,
        const Ins* dstack
        ) :
   EbBase(id, ctns, level, inlet, outlet, stream, ipaddress,
-   slowEb, vmoneb, dstack ),
+   vmoneb, dstack ),
   _datagrams(eventsize, eventpooldepth),
   _events(sizeof(EbEvent), eventpooldepth)
 {

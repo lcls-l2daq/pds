@@ -44,6 +44,9 @@ endif
 #  LCLS-II development
 #
 
-packages := service collection utility tpr xpm
-
+packages := service collection xtc
+packages += config confignfs configsql mon vmon
+packages += utility management client offlineclient
+packages += epicstools ioc 
+packages += cphw tpr tprds xpm evgr
 

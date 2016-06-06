@@ -14,29 +14,29 @@ static const int MaxSegMasters   = 8;
 static const int MaxPartitionL1s = 32;
 static const int MaxPartitionL2s = 64;
 //static const int MaxBLDServers   = 32;
-static const int BaseMcastAddr = 0xefff1010;
+static const int BaseMcastAddr = 0xeffe1010;
 
-// EVR -> L1 : 0xefff1010
+// EVR -> L1 : 0xeffe1010
 static const int SegmentMcastAddr  = BaseMcastAddr;
-// L1  -> L2 : 0xefff1210
+// L1  -> L2 : 0xeffe1210
 static const int EventMcastAddr    = SegmentMcastAddr +StreamPorts::MaxPartitions * MaxSegGroups * MaxSegMasters;
-// L2  -> L0 : 0xefff1410
+// L2  -> L0 : 0xeffe1410
 static const int ControlMcastAddr  = EventMcastAddr   +StreamPorts::MaxPartitions * MaxPartitionL2s;
-// EVR -> L1(soft triggers) 0xefff1418
+// EVR -> L1(soft triggers) 0xeffe1418
 static const int ObserverMcastAddr = ControlMcastAddr +StreamPorts::MaxPartitions;
-// VMON server<->client     0xeffff1420
+// VMON server<->client     0xeffe1420
 static const int VmonMcastAddr     = ObserverMcastAddr+StreamPorts::MaxPartitions;
-// EVR Master -> Slaves     0xeffff1428
+// EVR Master -> Slaves     0xeffe1428
 static const int EvrMcastAddr      = VmonMcastAddr    +StreamPorts::MaxPartitions;
-// L1 -> nowhere : 0xeffff1430
+// L1 -> nowhere : 0xeffe1430
 static const int SinkMcastAddr     = EvrMcastAddr     +StreamPorts::MaxPartitions;
 // L2 -> mon
 static const int MonReqMcastAddr   = SinkMcastAddr    +1;
 
-// BLD -> L1,L2 : 0xefff1800
-static const int BLDMcastAddr      = 0xefff1800;  // FIXED value for external code
+// BLD -> L1,L2 : 0xeffe1800
+static const int BLDMcastAddr      = 0xeffe1800;  // FIXED value for external code
 
-static const unsigned PortBase         = 10150;
+static const unsigned PortBase         = 12150;
 static const unsigned SegmentPortBase  = PortBase;                                                      // 10150
 static const unsigned EventPortBase    = SegmentPortBase +StreamPorts::MaxPartitions * MaxSegGroups * MaxSegMasters;    // 10662
 static const unsigned ControlPortBase  = EventPortBase   +StreamPorts::MaxPartitions * MaxPartitionL1s; // 10918
@@ -45,7 +45,7 @@ static const unsigned VmonPortBase     = ObserverPortBase+StreamPorts::MaxPartit
 static const unsigned EvrPortBase      = VmonPortBase    +1;                                            // 11439
 static const unsigned SinkPortBase     = EvrPortBase     +StreamPorts::MaxPartitions;                   // 11447
 static const unsigned MonReqPortBase   = SinkPortBase    +1;
-static const unsigned BLDPortBase      = 10148;   // FIXED value for external code
+static const unsigned BLDPortBase      = 12148;   // FIXED value for external code
 
 
 Ins StreamPorts::bcast(unsigned    partition,

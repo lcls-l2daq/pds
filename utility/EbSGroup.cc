@@ -7,19 +7,18 @@
 using namespace Pds;
 
 EbSGroup::EbSGroup(const Src& id,
-   const TypeId& ctns,
-   Level::Type level,
-   Inlet& inlet,
-   OutletWire& outlet,
-   int stream,
-   int ipaddress,
-   unsigned eventsize,
-   unsigned eventpooldepth,
-   int slowEb,
-   VmonEb* vmoneb) :
+                   const TypeId& ctns,
+                   Level::Type level,
+                   Inlet& inlet,
+                   OutletWire& outlet,
+                   int stream,
+                   int ipaddress,
+                   unsigned eventsize,
+                   unsigned eventpooldepth,
+                   VmonEb* vmoneb) :
   EbS(id, ctns, level, inlet, outlet,
-     stream, ipaddress,
-     eventsize, eventpooldepth, slowEb, vmoneb)
+      stream, ipaddress,
+      eventsize, eventpooldepth, vmoneb)
 {
   // groups means that an earlier event is not necessarily completed
   // before a later event, when fragments dont contribute to both groups

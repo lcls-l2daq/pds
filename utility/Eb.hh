@@ -26,7 +26,6 @@ class Eb : public EbBase
        int ipaddress,
        unsigned eventsize,
        unsigned eventpooldepth,
-       int slowEb,
        VmonEb* vmoneb,
        const Ins* dstack=0);
     virtual ~Eb();

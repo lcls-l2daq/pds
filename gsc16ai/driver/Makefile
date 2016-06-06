@@ -1,5 +1,5 @@
 # $URL: http://subversion:8080/svn/gsc/trunk/drivers/LINUX/16AI32SSC/driver/Makefile $
-# $Rev: 9231 $
+# $Rev$
 # $Date$
 
 # Makefile for the 16AI32SSC driver.

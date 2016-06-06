@@ -9,19 +9,18 @@ using namespace Pds;
 extern unsigned nEbPrints;
 
 EbS::EbS(const Src& id,
-   const TypeId& ctns,
-   Level::Type level,
-   Inlet& inlet,
-   OutletWire& outlet,
-   int stream,
-   int ipaddress,
-   unsigned eventsize,
-   unsigned eventpooldepth,
-   int slowEb,
-   VmonEb* vmoneb) :
+         const TypeId& ctns,
+         Level::Type level,
+         Inlet& inlet,
+         OutletWire& outlet,
+         int stream,
+         int ipaddress,
+         unsigned eventsize,
+         unsigned eventpooldepth,
+         VmonEb* vmoneb) :
   Eb(id, ctns, level, inlet, outlet,
      stream, ipaddress,
-     eventsize, eventpooldepth, slowEb, vmoneb),
+     eventsize, eventpooldepth, vmoneb),
   _keys( sizeof(EbSequenceKey), eventpooldepth )
 {
   memset(_no_builds,0,sizeof(_no_builds));
@@ -41,8 +40,8 @@ void EbS::no_build(Sequence::Type type, unsigned mask)
 //
 EbEventBase* EbS::_new_event(const EbBitMask& serverId, char* payload, unsigned sizeofPayload)
 {
-  CDatagram* datagram = new(&_datagrams) CDatagram(_ctns, _id);
-  EbSequenceKey* key = new(&_keys) EbSequenceKey(datagram->dg());
+  CDatagram* datagram = new(&_datagrams) CDatagram(Datagram(_ctns, _id));
+  EbSequenceKey* key = new(&_keys) EbSequenceKey(datagram->datagram());
   EbEvent* event = new(&_events) EbEvent(serverId, _clients, datagram, key);
   event->allocated().insert(serverId);
   event->recopy(payload, sizeofPayload, serverId);
@@ -80,8 +79,8 @@ EbEventBase* EbS::_new_event(const EbBitMask& serverId)
   //    arm(_post(_pending.forward()));
   }
 
-  CDatagram* datagram = new(&_datagrams) CDatagram(_ctns, _id);
-  EbSequenceKey* key = new(&_keys) EbSequenceKey(datagram->dg());
+  CDatagram* datagram = new(&_datagrams) CDatagram(Datagram(_ctns, _id));
+  EbSequenceKey* key = new(&_keys) EbSequenceKey(datagram->datagram());
   return new(&_events) EbEvent(serverId, _clients, datagram, key);
 }
 

@@ -15,10 +15,8 @@
 using namespace Pds;
 
 ControlLevel::ControlLevel(unsigned platform,
-         ControlCallback& callback,
-         int slowEb,
-         Arp* arp) :
-  PartitionMember(platform, Level::Control, slowEb, arp),
+                           ControlCallback& callback) :
+  PartitionMember(platform, Level::Control),
   _reason   (-1),
   _callback (callback),
   _streams  (0),
@@ -77,7 +75,7 @@ Message& ControlLevel::reply(Message::Type)
 }
 
 void ControlLevel::allocated(const Allocation& alloc,
-           unsigned          index)
+                             unsigned          index)
 {
   _allocation = alloc;
   PartitionAllocation pa(_allocation);
@@ -90,17 +88,17 @@ void ControlLevel::allocated(const Allocation& alloc,
   unsigned eventid = 0;
   for (unsigned n=0; n<nnodes; n++) {
     const Node* node = alloc.node(n);
-    if (node->level() == Level::Event) {
+    if (node->level() == Level::Segment) {
       // Add vectored output clients on wire
       Ins ins = StreamPorts::event(alloc.partitionid(),
-           Level::Control,
-           index,
-           eventid++);
+                                   Level::Control,
+                                   index,
+                                   eventid++);
 
       Ins srvIns(ins.portId());
       NetDgServer* srv = new NetDgServer(ins,
-           node->procInfo(),
-           ControlStreams::netbufdepth*ControlStreams::MaxSize);
+                                         node->procInfo(),
+                                         ControlStreams::netbufdepth*ControlStreams::MaxSize);
       wire->add_input(srv);
       Ins mcastIns(ins.address());
       srv->server().join(mcastIns, Ins(header().ip()));
@@ -149,7 +147,7 @@ void ControlLevel::message(const Node& hdr, const Message& msg)
     const Query& query = reinterpret_cast<const Query&>(msg);
     if (query.type() == Query::Group) {
       _partitionid =
-  reinterpret_cast<const PartitionGroup&>(query).partitionid();
+        reinterpret_cast<const PartitionGroup&>(query).partitionid();
     }
     else if (query.type() == Query::Partition) {
       PartitionAllocation pa(_allocation);

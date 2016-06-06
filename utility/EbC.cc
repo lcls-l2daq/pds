@@ -18,11 +18,10 @@ EbC::EbC(const Src& id,
    int ipaddress,
    unsigned eventsize,
    unsigned eventpooldepth,
-   int slowEb,
    VmonEb* vmoneb) :
   Eb(id, ctns, level, inlet, outlet,
      stream, ipaddress,
-     eventsize, eventpooldepth, slowEb, vmoneb),
+     eventsize, eventpooldepth, vmoneb),
   _keys( sizeof(EbCountKey), eventpooldepth)
 {
 }
@@ -49,8 +48,8 @@ EbEventBase* EbC::_new_event(const EbBitMask& serverId, char* payload, unsigned 
   EbEvent* event = 0;
 
   if (_datagrams.atHead()!=_datagrams.empty()) {
-    CDatagram* datagram = new(&_datagrams) CDatagram(_ctns, _id);
-    EbCountKey* key = new(&_keys) EbCountKey(datagram->dg());
+    CDatagram* datagram = new(&_datagrams) CDatagram(Datagram(_ctns, _id));
+    EbCountKey* key = new(&_keys) EbCountKey(datagram->datagram());
     event = new(&_events) EbEvent(serverId, _clients, datagram, key);
     event->allocated().insert(serverId);
     event->recopy(payload, sizeofPayload, serverId);
@@ -77,8 +76,8 @@ EbEventBase* EbC::_new_event(const EbBitMask& serverId)
   EbEvent* event = 0;
 
   if (_datagrams.atHead()!=_datagrams.empty()) {
-    CDatagram* datagram = new(&_datagrams) CDatagram(_ctns, _id);
-    EbCountKey* key = new(&_keys) EbCountKey(datagram->dg());
+    CDatagram* datagram = new(&_datagrams) CDatagram(Datagram(_ctns, _id));
+    EbCountKey* key = new(&_keys) EbCountKey(datagram->datagram());
     event = new(&_events) EbEvent(serverId, _clients, datagram, key);
   }
 

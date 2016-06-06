@@ -15,8 +15,8 @@ namespace Pds {
     VmonEb(const Src&,
 	   unsigned nservers,
 	   unsigned maxdepth,
-	   unsigned maxtime,
-	   unsigned maxsize,
+	   unsigned maxtime,  // ns
+	   unsigned maxsize,  // bytes
 	   const char* group="Eb");
     ~VmonEb();
   public:
@@ -34,7 +34,6 @@ namespace Pds {
     MonEntryScalar*   _fixup;
     MonEntryTH1F*     _depth;
     MonEntryTH1F*     _fetch_time;
-    MonEntryTH1F*     _fetch_time_long;
     MonEntryScalar*   _damage_count;
     MonEntryTH1F*     _post_time;
     MonEntryTH1F*     _post_time_log;
@@ -42,7 +41,6 @@ namespace Pds {
     unsigned          _tshift;
     unsigned          _sshift;
     unsigned          _fshift;
-    unsigned          _lshift;
   };
 
 };

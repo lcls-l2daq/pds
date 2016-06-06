@@ -13,9 +13,7 @@ namespace Pds {
   class ControlLevel: public PartitionMember {
   public:
     ControlLevel(unsigned platform,
-     ControlCallback& callback,
-     int slowEb,
-     Arp* arp);
+                 ControlCallback& callback);
     virtual ~ControlLevel();
 
     unsigned partitionid() const;

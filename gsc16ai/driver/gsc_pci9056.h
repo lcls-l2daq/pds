@@ -1,6 +1,6 @@
 // This software is covered by the GNU GENERAL PUBLIC LICENSE (GPL).
 // $URL: http://subversion:8080/svn/gsc/trunk/drivers/gsc_common/linux/driver/gsc_pci9056.h $
-// $Rev: 3175 $
+// $Rev$
 // $Date$
 
 #ifndef __GSC_PCI9056_H__

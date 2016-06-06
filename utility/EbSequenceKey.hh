@@ -26,9 +26,7 @@ namespace Pds {
     {
       const TimeStamp& ts = key.seq.stamp();
       key.seq = Sequence(key.seq.clock(),
-			 TimeStamp(ts.ticks(),
-				   s.sequence().stamp().fiducials(),
-				   ts.vector(),
+			 TimeStamp(s.sequence().stamp().fiducials(),
 				   ts.control()));
     }
 

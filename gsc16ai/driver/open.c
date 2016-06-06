@@ -1,6 +1,6 @@
 // This software is covered by the GNU GENERAL PUBLIC LICENSE (GPL).
 // $URL: http://subversion:8080/svn/gsc/trunk/drivers/LINUX/16AI32SSC/driver/open.c $
-// $Rev: 6276 $
+// $Rev$
 // $Date$
 
 #include "main.h"

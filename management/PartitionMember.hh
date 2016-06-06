@@ -13,17 +13,15 @@ namespace Pds {
 
   class Allocation;
   class Arp;
-  class InDatagram;
   class Transition;
+  class InDatagram;
   class Occurrence;
   class NetServer;
 
   class PartitionMember : public CollectionManager {
   public:
     PartitionMember(unsigned char platform,
-        Level::Type   level,
-        int           slowEb,
-        Arp*          arp);
+                    Level::Type   level);
     virtual ~PartitionMember();
   public:
     void confirm(int);

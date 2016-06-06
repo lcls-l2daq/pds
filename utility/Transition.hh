@@ -17,14 +17,14 @@ namespace Pds {
 
   public:
     Transition(TransitionId::Value id,
-         Phase           phase,
-         const Sequence& sequence,
-         const Env&      env, 
-         unsigned        size=sizeof(Transition));
+               Phase           phase,
+               const Sequence& sequence,
+               const Env&      env, 
+               unsigned        size=sizeof(Transition));
 
     Transition(TransitionId::Value id,
-         const Env&          env, 
-         unsigned            size=sizeof(Transition));
+               const Env&          env, 
+               unsigned            size=sizeof(Transition));
 
     Transition(const Transition&);
 
@@ -41,6 +41,7 @@ namespace Pds {
     Phase        _phase;
     Sequence     _sequence;
     Env          _env;
+    uint32_t     _reserved; // maintain 8-byte alignment?
   private:
     void         _stampIt();
     friend class TimeStampApp;

@@ -1,8 +1,8 @@
-#include "RingBuffer.hh"
+#include "pds/cphw/RingBuffer.hh"
 
 #include <stdio.h>
 
-using namespace Xpm;
+using namespace Pds::Cphw;
 
 void RingBuffer::enable(bool v)
 {

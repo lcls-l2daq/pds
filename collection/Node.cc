@@ -21,6 +21,7 @@ Node::Node() : _procInfo(Level::Control,0,0) {}
 Node::Node(const Node& rhs) :
   _platform (rhs._platform), 
   _group    (rhs._group),
+  _paddr    (rhs._paddr),
   _uid      (rhs._uid),
   _procInfo (rhs._procInfo),
   _ether    (rhs._ether)
@@ -29,6 +30,7 @@ Node::Node(const Node& rhs) :
 Node::Node(Level::Type level, uint16_t platform) :
   _platform(platform),
   _group   (0),
+  _paddr   (-1),
   _uid(getuid()),
   _procInfo(level,getpid(),0)
 { memset(&_ether, 0, sizeof(_ether)); }
@@ -40,6 +42,7 @@ bool     Node::transient() const {return (_group&Transient_mask)>>Transient;}
 bool     Node::triggered() const {return (_group&Trigger_mask);}
 unsigned Node::evr_module () const { return (_group&Module_mask )>>Module;}
 unsigned Node::evr_channel() const { return (_group&Channel_mask)>>Channel;}
+unsigned Node::paddr    () const {return _paddr;}
 
 int Node::pid() const {return _procInfo.processId();}
 int Node::uid() const {return _uid;}
@@ -55,7 +58,7 @@ int Node::operator == (const Node& rhs) const
   else return 0;
 }
 
-void Node::setGroup(uint16_t group)
+void Node::setGroup(unsigned group)
 {
   _group = (_group&~Group_mask) | ((group<<Group)&Group_mask);
 }
@@ -75,6 +78,11 @@ void Node::setTrigger(unsigned module,
     ((module <<Module )&Module_mask) |
     ((channel<<Channel)&Channel_mask) |
     Trigger_mask;
+}
+
+void Node::setPaddr(unsigned paddr)
+{
+  _paddr = paddr;
 }
 
 void Node::fixup(int ip, const Ether& ether) 
