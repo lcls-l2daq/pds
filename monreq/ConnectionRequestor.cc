@@ -41,12 +41,6 @@ using namespace Pds::MonReq ;
 		}
 		printf("tcp bind successful\n");
 
-		socklen_t sz;
-		if(getsockname(_listen_socket, listen_server.name(), &sz) == -1) {
-		perror("getsockname");
-		exit (1);
-		}
-
 		_info = ConnInfo(interface, listen_server.get().portId(), nodes);
 	
         	listen(_listen_socket, 5);
