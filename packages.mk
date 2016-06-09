@@ -16,6 +16,7 @@ packages += genericpgp
 packages += udpcam
 packages += lecroy
 packages += pvdaq
+packages += monreq
 
 ifneq ($(findstring x86_64,$(tgt_arch)),)
   packages += firewire
