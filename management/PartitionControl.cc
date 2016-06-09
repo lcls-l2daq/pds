@@ -442,13 +442,13 @@ bool PartitionControl::set_partition(const char* name,
                                      const Node* nodes,
                                      unsigned    nnodes,
                                      unsigned    masterid,
-                                     uint64_t    bldmask,
-                                     uint64_t    bldmask_mon,
+                                     const BldBitMask* bldmask,
+                                     const BldBitMask* bldmask_mon,
                                      unsigned    options,
                                      float       l3_unbias,
                                      const PartitionConfigType* cfg,
                                      const EvrIOConfigType*     iocfg,
-             const AliasConfigType*     alias)
+                                     const AliasConfigType*     alias)
 {
   if (options&Allocation::ShortDisableTmo) {
     disable_tmo.tv_sec =0;

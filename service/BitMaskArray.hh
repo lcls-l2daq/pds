@@ -59,6 +59,11 @@ namespace Pds {
     inline BitMaskArray operator &=  (const BitMaskArray& mask);
     inline BitMaskArray operator |=  (const BitMaskArray& mask);
 
+    inline BitMaskArray operator -   (const BitMaskArray& mask)  const;
+    inline BitMaskArray operator +   (const BitMaskArray& mask)  const;
+    inline BitMaskArray operator -=  (const BitMaskArray& mask);
+    inline BitMaskArray operator +=  (const BitMaskArray& mask);
+
     inline BitMaskArray setBit       (unsigned index);
     inline BitMaskArray clearBit     (unsigned index);
     inline BitMaskArray clearAll     (void);
@@ -72,6 +77,8 @@ namespace Pds {
     inline unsigned     hasBitSet    (unsigned index)     const;
     inline unsigned     hasBitClear  (unsigned index)     const;
     inline unsigned     value        (unsigned index = 0) const;
+
+    inline int          setValue     (unsigned index, unsigned mask);
 
     void print() const;
 
@@ -125,6 +132,16 @@ template<unsigned N> inline unsigned Pds::BitMaskArray<N>::value(unsigned index)
 {
   if (index < N)
     return _mask[index];
+  return 0;
+}
+
+template<unsigned N> inline int Pds::BitMaskArray<N>::setValue(unsigned index, unsigned mask)
+{
+  if (index < N)
+    _mask[index] = mask;
+  else
+    return 1;
+
   return 0;
 }
 
@@ -332,6 +349,74 @@ template<unsigned N> inline Pds::BitMaskArray<N> Pds::BitMaskArray<N>::operator 
 {
   for (unsigned i = 0; i < N; i++)
     _mask[i] |= mask._mask[i];
+
+  return *this;
+}
+
+template<unsigned N> inline Pds::BitMaskArray<N> Pds::BitMaskArray<N>::operator -   (const Pds::BitMaskArray<N>& mask)  const
+{
+  Pds::BitMaskArray<N> tempMask(*this);
+  bool carry = false;
+
+  for (unsigned i = 0; i < N; i++) {
+    if (carry) {
+      carry = (tempMask._mask[i]==0);
+      tempMask._mask[i]--;
+    }
+    if (mask.value(i) > tempMask._mask[i])
+      carry = true;
+    tempMask._mask[i] -= mask.value(i);
+  }
+
+  return tempMask;
+}
+
+template<unsigned N> inline Pds::BitMaskArray<N> Pds::BitMaskArray<N>::operator +   (const Pds::BitMaskArray<N>& mask)  const
+{
+  Pds::BitMaskArray<N> tempMask(*this);
+  bool carry = false;
+
+  for (unsigned i = 0; i < N; i++) {
+    if (carry) {
+      tempMask._mask[i]++;
+      carry = (tempMask._mask[i]==0);
+    }
+    tempMask._mask[i] += mask.value(i);
+    if (tempMask._mask[i] < mask.value(i))
+      carry = true;
+  }
+  
+  return tempMask;
+}
+
+template<unsigned N> inline Pds::BitMaskArray<N> Pds::BitMaskArray<N>::operator -=  (const Pds::BitMaskArray<N>& mask)
+{
+  bool carry = false;
+  for (unsigned i = 0; i < N; i++) {
+    if (carry) {
+      carry = (_mask[i]==0);
+      _mask[i]--;
+    }
+    if (mask.value(i) > _mask[i])
+      carry = true;
+    _mask[i] -= mask.value(i);
+  }
+
+  return *this;
+}
+
+template<unsigned N> inline Pds::BitMaskArray<N> Pds::BitMaskArray<N>::operator +=  (const Pds::BitMaskArray<N>& mask)  
+{
+  bool carry = false;
+  for (unsigned i = 0; i < N; i++) {
+    if (carry) {
+      _mask[i]++;
+      carry = (_mask[i]==0);
+    }
+    _mask[i] += mask.value(i);
+    if (_mask[i] < mask.value(i))
+      carry = true;
+  }
 
   return *this;
 }

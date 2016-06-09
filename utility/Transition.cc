@@ -1,5 +1,7 @@
 #include "Transition.hh"
 
+#include "pds/service/BldBitMask.hh"
+
 #include <string.h>
 #include <time.h>
 #include <stdio.h>
@@ -101,13 +103,13 @@ Allocation::Allocation() :
   _bld_mask_mon[0] = _bld_mask_mon[1] = 0;
 }
 
-Allocation::Allocation(const char* partition,
-                       const char* dbpath,
-                       unsigned    partitionid,
-                       unsigned    masterid,
-                       uint64_t    bld_mask,
-                       uint64_t    bld_mask_mon,
-                       unsigned    options) :
+Allocation::Allocation(const char*       partition,
+                       const char*       dbpath,
+                       unsigned          partitionid,
+                       unsigned          masterid,
+                       const BldBitMask* bld_mask,
+                       const BldBitMask* bld_mask_mon,
+                       unsigned          options) :
   _partitionid(partitionid),
   _masterid   (masterid),
   _nnodes     (0),
@@ -118,20 +120,25 @@ Allocation::Allocation(const char* partition,
   strncpy(_partition, partition, MaxPName-1);
   strncpy(_dbpath   , dbpath   , MaxDbPath-1);
   _l3path[0] = 0;
-  _bld_mask[1] = (bld_mask>>32)&0xffffffff;
-  _bld_mask[0] = (bld_mask>> 0)&0xffffffff;
-  _bld_mask_mon[1] = (bld_mask_mon>>32)&0xffffffff;
-  _bld_mask_mon[0] = (bld_mask_mon>> 0)&0xffffffff;
+  for (unsigned i=0; i<PDS_BLD_MASKSIZE; i++) {
+    if (bld_mask) {
+      _bld_mask[i] = bld_mask->value(i);
+      _bld_mask_mon[i] = bld_mask_mon->value(i);
+    } else {
+      _bld_mask[i] = 0;
+      _bld_mask_mon[i] = 0;
+    }
+  }
 }
 
-Allocation::Allocation(const char* partition,
-                       const char* dbpath,
-                       const char* l3path,
-                       unsigned    partitionid,
-                       unsigned    masterid,
-                       uint64_t    bld_mask,
-                       uint64_t    bld_mask_mon,
-                       unsigned    options,
+Allocation::Allocation(const char*       partition,
+                       const char*       dbpath,
+                       const char*       l3path,
+                       unsigned          partitionid,
+                       unsigned          masterid,
+                       const BldBitMask* bld_mask,
+                       const BldBitMask* bld_mask_mon,
+                       unsigned          options,
 		       float unbiased_fraction) : 
   _partitionid(partitionid),
   _masterid   (masterid),
@@ -143,10 +150,15 @@ Allocation::Allocation(const char* partition,
   strncpy(_partition, partition, MaxPName-1);
   strncpy(_l3path   , l3path   , MaxName-MaxPName-1);
   strncpy(_dbpath   , dbpath   , MaxDbPath-1);
-  _bld_mask[1] = (bld_mask>>32)&0xffffffff;
-  _bld_mask[0] = (bld_mask>> 0)&0xffffffff;
-  _bld_mask_mon[1] = (bld_mask_mon>>32)&0xffffffff;
-  _bld_mask_mon[0] = (bld_mask_mon>> 0)&0xffffffff;
+  for (unsigned i=0; i<PDS_BLD_MASKSIZE; i++) {
+    if (bld_mask) {
+      _bld_mask[i] = bld_mask->value(i);
+      _bld_mask_mon[i] = bld_mask_mon->value(i);
+    } else {
+      _bld_mask[i] = 0;
+      _bld_mask_mon[i] = 0;
+    }
+  }
 }
 
 bool Allocation::add   (const Node& node)
@@ -241,17 +253,21 @@ unsigned Allocation::nnodes(Level::Type level) const
   return n;
 }
 
-uint64_t Allocation::bld_mask() const 
+BldBitMask Allocation::bld_mask() const 
 {
-  uint64_t mask = _bld_mask[1];
-  mask = (mask<<32) | _bld_mask[0];
+  BldBitMask mask = BldBitMask();
+  for (unsigned i=0; i<PDS_BLD_MASKSIZE; i++) {
+    mask.setValue(i, _bld_mask[i]);
+  }
   return mask;
 }
 
-uint64_t Allocation::bld_mask_mon() const 
+BldBitMask Allocation::bld_mask_mon() const 
 {
-  uint64_t mask = _bld_mask_mon[1];
-  mask = (mask<<32) | _bld_mask_mon[0];
+  BldBitMask mask = BldBitMask();
+  for (unsigned i=0; i<PDS_BLD_MASKSIZE; i++) {
+    mask.setValue(i, _bld_mask_mon[i]);
+  }
   return mask;
 }
 

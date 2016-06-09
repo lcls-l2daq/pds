@@ -4,11 +4,14 @@
 #include "pds/collection/Message.hh"
 #include "pds/collection/Node.hh"
 #include "pds/service/Pool.hh"
+#include "pds/service/BldBitMaskSize.hh"
 #include "pdsdata/xtc/Sequence.hh"
 #include "pdsdata/xtc/TransitionId.hh"
 #include "pdsdata/xtc/Env.hh"
 
 namespace Pds {
+  template <unsigned N> class BitMaskArray;
+  typedef BitMaskArray<PDS_BLD_MASKSIZE> BldBitMask;
 
   class Transition : public Message {
   public:
@@ -50,25 +53,25 @@ namespace Pds {
   public:
     enum { ShapeTmo       =1,
            ShortDisableTmo=2,
-	   L3Tag          =4,
-	   L3Veto         =8 };
+           L3Tag          =4,
+           L3Veto         =8 };
     Allocation();
     Allocation(const char* partition,
                const char* dbpath,
                unsigned    partitionid,
-	       unsigned    masterid=0,
-               uint64_t    bld_mask=0,
-	       uint64_t    bld_mask_mon=0,
+               unsigned    masterid=0,
+               const BldBitMask* bld_mask=0,
+               const BldBitMask* bld_mask_mon=0,
                unsigned    options=0);
     Allocation(const char* partition,
                const char* dbpath,
-	       const char* l3path,
+               const char* l3path,
                unsigned    partitionid,
-	       unsigned    masterid=0,
-               uint64_t    bld_mask=0,
-	       uint64_t    bld_mask_mon=0,
+               unsigned    masterid=0,
+               const BldBitMask* bld_mask=0,
+               const BldBitMask* bld_mask_mon=0,
                unsigned    options=0,
-	       float       unbiased_fraction=0.);
+               float       unbiased_fraction=0.);
 
     bool add   (const Node& node);
     bool remove(const ProcInfo&);
@@ -87,8 +90,8 @@ namespace Pds {
     const char* l3path() const;
     unsigned    partitionid() const;
     unsigned    masterid() const;
-    uint64_t    bld_mask() const;
-    uint64_t    bld_mask_mon() const;
+    BldBitMask  bld_mask() const;
+    BldBitMask  bld_mask_mon() const;
     unsigned    options() const;
     unsigned    size() const;
     bool        l3tag () const;
@@ -107,8 +110,8 @@ namespace Pds {
     char     _dbpath   [MaxDbPath];
     uint32_t _partitionid;
     uint32_t _masterid;
-    uint32_t _bld_mask[2];
-    uint32_t _bld_mask_mon[2];
+    uint32_t _bld_mask[PDS_BLD_MASKSIZE];
+    uint32_t _bld_mask_mon[PDS_BLD_MASKSIZE];
     uint32_t _nnodes;
     uint32_t _options;
     float    _unbiased_f;
