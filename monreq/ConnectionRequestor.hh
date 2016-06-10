@@ -1,5 +1,5 @@
-#ifndef Pds_MonReq_ConnectionManager_hh
-#define Pds_MonReq_ConnectionManager_hh
+#ifndef Pds_MonReq_ConnectionRequestor_hh
+#define Pds_MonReq_ConnectionRequestor_hh
 
 #include "pds/monreq/ConnInfo.hh"
 #include "pds/service/Sockaddr.hh"
