@@ -9,17 +9,19 @@
 
 using namespace Pds;
 
-VmonRecorder::VmonRecorder(const char* base) :
+VmonRecorder::VmonRecorder(const char* root, 
+                           const char* base) :
   _state  (Disabled),
   _dbuff  (new char[VmonRecord::MaxLength]),
   _pbuff  (new char[VmonRecord::MaxLength]),
   _drecord(0),
   _precord(0),
+  _root   (root),
   _base   (base),
   _size   (0),
   _output (0)
 {
-  sprintf(_path,"%s/",base);
+  sprintf(_path,"%s/",root);
 }
 
 VmonRecorder::~VmonRecorder()
@@ -41,8 +43,10 @@ void VmonRecorder::disable()
 
 void VmonRecorder::begin(int n)
 {
-  _open(n);
-  _state = Recording;
+  if (_state==Enabled || _state==Describing) {
+    _open(n);
+    _state = Recording;
+  }
 }
 
 void VmonRecorder::end()
@@ -102,7 +106,7 @@ void VmonRecorder::flush()
   timespec ts;
   clock_gettime(CLOCK_REALTIME, &ts);
   ClockTime ctime(ts.tv_sec,ts.tv_nsec);
-  _precord = new (_pbuff)VmonRecord(VmonRecord::Payload,ctime,_len);
+  _precord = new (_pbuff)VmonRecord(VmonRecord::Payload,ctime,sizeof(*_precord));
 }
 
 void VmonRecorder::_flush(const VmonRecord* record)
@@ -121,16 +125,16 @@ void VmonRecorder::_open(int n)
   localtime_r(&tm_t,&tm_s);
   char path[256];
   if (n>=0)
-    sprintf(_path,"vmon_run%04d",n);
+    sprintf(_path,"%s_run%04d",_base.c_str(),n);
   else
-    sprintf(_path,"vmon");
+    sprintf(_path,"%s",_base.c_str());
   strftime(_path+strlen(_path),MAX_FNAME_SIZE,"_%F_%T.dat",&tm_s);
-  sprintf(path,"%s/%s",_base,_path);
+  sprintf(path,"%s/%s",_root.c_str(),_path);
   printf("Opening %s\n",path);
   _size   = 0;
   _output = ::fopen(path,"w");
 
-
+  
   _drecord->time(ctime);
   _flush(_drecord);
 }
