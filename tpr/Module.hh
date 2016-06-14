@@ -143,6 +143,8 @@ namespace Pds {
       volatile uint32_t RxDecErrs;
       volatile uint32_t RxDspErrs;
       volatile uint32_t CSR;
+      uint32_t          reserved;
+      volatile uint32_t TxRefClks;
     };
 
     class RingB {
@@ -194,9 +196,7 @@ namespace Pds {
       TprBase  base;
       volatile uint32_t reserved_0    [(0x400-sizeof(TprBase))/4];
       DmaControl dma;
-      volatile uint32_t reserved_1    [(0x10000-0x400-sizeof(DmaControl))/4];
-      XBar     xbar;
-      volatile uint32_t reserved_xbar [(0x30000-sizeof(XBar))/4];
+      volatile uint32_t reserved_1    [(0x40000-0x400-sizeof(DmaControl))/4];
       TprCore  tpr;
       volatile uint32_t reserved_tpr  [(0x10000-sizeof(TprCore))/4];
       RingB    ring0;

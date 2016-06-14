@@ -57,6 +57,8 @@ namespace Pds {
       Cphw::Reg64 _numl0Inh;
       Cphw::Reg64 _numl0Acc;
       Cphw::Reg   _rxLinkErrs[8];
+      Cphw::Reg   _analysisRst;
+      Cphw::Reg   _analysisTag; // [0:15] tag, [16:31] mask
     };
   };
 };

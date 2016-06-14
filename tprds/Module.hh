@@ -60,9 +60,7 @@ namespace Pds {
       TprBase         base;
       volatile uint32_t reserved_0    [(0x400-sizeof(TprBase))/4];
       Tpr::DmaControl dma;
-      volatile uint32_t reserved_1    [(0x10000-0x400-sizeof(Tpr::DmaControl))/4];
-      Tpr::XBar       xbar;
-      volatile uint32_t reserved_xbar [(0x30000-sizeof(Tpr::XBar))/4];
+      volatile uint32_t reserved_1    [(0x40000-0x400-sizeof(Tpr::DmaControl))/4];
       Tpr::TprCore    tpr;
       volatile uint32_t reserved_tpr  [(0x10000-sizeof(Tpr::TprCore))/4];
       Tpr::RingB      ring0;

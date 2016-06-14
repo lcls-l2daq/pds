@@ -6,12 +6,14 @@
 #include <unistd.h>
 #include <poll.h>
 #include <stdlib.h>
+#include <semaphore.h>
 
 //#define DBUG
 
 static unsigned _fd;
 static unsigned _context=0;
 static unsigned _mem;
+static sem_t    _sem;
 
 using namespace Pds::Cphw;
 
@@ -39,6 +41,8 @@ void Reg::set(unsigned ip,
   socklen_t addrlen = sizeof(saddr);
   ::connect(_fd, reinterpret_cast<const sockaddr*>(&saddr), addrlen);
   _mem = mem;
+
+  sem_init(&_sem,0,1);
 }
 
 Reg& Reg::operator=(const unsigned r)
@@ -51,6 +55,8 @@ Reg& Reg::operator=(const unsigned r)
   tbuff[3] = 0;
 
   int tmo = 20;
+
+  sem_wait(&_sem);
 
   for(unsigned i=0; i<10; i++) {
 #ifdef DBUG
@@ -92,10 +98,12 @@ Reg& Reg::operator=(const unsigned r)
       printf("Ack error %08x:%08x\n",rbuff[2],r);
       continue;
     }
+    sem_post(&_sem);
     return *this;
   }
 
   printf("Reg[%p]::operator=[%08x]  FAILED\n",this,r);
+  sem_post(&_sem);
   return *this;
 }
 
@@ -113,6 +121,8 @@ Reg::operator unsigned() const
   tbuff[3] = 0;
 
   int tmo = 20;
+
+  sem_wait(&_sem);
 
   for(unsigned i=0; i<10; i++) {
 #ifdef DBUG
@@ -151,9 +161,11 @@ Reg::operator unsigned() const
       continue;
     }
   
+    sem_post(&_sem);
     return rbuff[2];
   }
 
   printf("Reg[%p]::operator unsigned() FAILED\n",this);
+  sem_post(&_sem);
   return 0;
 }
