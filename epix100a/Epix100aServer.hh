@@ -69,10 +69,13 @@ class Pds::Epix100aServer
 
    unsigned payloadSize(void)   { return _payloadSize; }
    unsigned numberOfElements(void) { return _elements; }
-   unsigned flushInputQueue(int);
+   unsigned flushInputQueue(int, bool printFlag = true);
    void     enable();
    void     disable();
+   bool     g3sync() { return _g3sync; }
+   void     g3sync(bool b) { _g3sync = b; }
    bool     ignoreFetch() { return _ignoreFetch; }
+   void     ignoreFetch(bool b) { _ignoreFetch = b; }
    void     die();
    void     debug(unsigned d) { _debug = d; }
    unsigned debug() { return _debug; }
@@ -137,8 +140,10 @@ class Pds::Epix100aServer
    unsigned                       _partition;
    Epix100aSyncSlave*             _syncSlave;
    unsigned                       _countBase;
+   unsigned                       _neScopeCount;
    bool                           _configured;
    bool                           _firstFetch;
+   bool                           _g3sync;
    bool                           _ignoreFetch;
    bool                           _resetOnEveryConfig;
    bool                           _scopeEnabled;

@@ -31,7 +31,8 @@ namespace Pds {
           bits._addr, bits._waiting ? "waiting" : "not waiting", bits._tid);
       uint32_t* u = &_data;
       printf("\tdata: ");
-      for (unsigned i=0; i<(size-2);) {  //
+      unsigned psize = size < 128 ? size : 128;
+      for (unsigned i=0; i<(psize-(psize>3 ? 2 : 0));) {  //
         printf("0x%04x ", u[i++]);
         if (!(i&7)) printf("\n\t      ");
       }

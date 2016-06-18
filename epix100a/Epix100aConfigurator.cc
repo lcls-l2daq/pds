@@ -116,12 +116,14 @@ Epix100aConfigurator::Epix100aConfigurator(int f, unsigned d) :
   //    _lhisto = (LoopHisto*) calloc(4*10000, 4);
 }
 
-Epix100aConfigurator::~Epix100aConfigurator() {}
+Epix100aConfigurator::~Epix100aConfigurator() {
+	evrLaneEnable(false);
+}
 
 unsigned Epix100aConfigurator::resetFrontEnd() {
   _d.dest(Epix100aDestination::Registers);
   _pgp->writeRegister(&_d, ResetAddr, 1);
-  usleep(10000);
+  usleep(100000);
   uint32_t returned = 0;
   do {
 	  usleep(10000);
@@ -129,9 +131,9 @@ unsigned Epix100aConfigurator::resetFrontEnd() {
   } while ((returned & AdcCtrlAckMask) == 0);
   if ((returned & AdcCtrlFailMask) != 0) {
 	  printf("Epix100aConfigurator::resetFrontEnd found that ADC alignment FAILED!!! returned %d\n", returned);
-	  return resyncADC();
+	  return resyncADC(1);
   }
-	  printf("Epix100aConfigurator::resetFrontEnd found  ADC alignment returned %d\n", returned);
+	  printf("Epix100aConfigurator::resetFrontEnd found ADC alignment Succeeded, returned %d\n", returned);
 	  return 0;
 }
 
@@ -145,7 +147,7 @@ unsigned Epix100aConfigurator::resyncADC(unsigned c) {
 //	_pgp->writeRegister(&_d, AdcControlAddr, 0);
 	  uint32_t returned = 0;
 	  do {
-		  usleep(10000);
+		  usleep(100000);
 		  _pgp->readRegister(&_d, AdcControlAddr, 0x5e1, &returned);
 	  } while ((returned & AdcCtrlAckMask) == 0);
 	  if ((returned & AdcCtrlFailMask) != 0) {
@@ -153,7 +155,7 @@ unsigned Epix100aConfigurator::resyncADC(unsigned c) {
 		  if (c<1) ret = resyncADC(c+1);
 		  else ret = 2;
 	  } else {
-	    printf("\tEpix100aConfigurator::resyncADC found that ADC alignment Succeeded, returned %d\n", returned);
+	    printf("\tEpix100aConfigurator::resyncADC found ADC alignment Succeeded, returned %d\n", returned);
 	  }
 	  return ret;
 }
@@ -265,6 +267,7 @@ unsigned Epix100aConfigurator::configure( Epix100aConfigType* c, unsigned first)
       resetFrontEnd();
     }
 
+  ret |= this->G3config(c);
   ret |= _robustReadVersion(0);
   if (ret == 0) {
     resetSequenceCount();
@@ -274,7 +277,6 @@ unsigned Epix100aConfigurator::configure( Epix100aConfigType* c, unsigned first)
       printf("- 0x%x - so far %lld.%lld milliseconds\t", ret, diff/1000000LL, diff%1000000LL);
     }
     if (printFlag) printf("\n\twriting top level config");
-    ret |= this->G3config(c);
     ret <<= 1;
     enableRunTrigger(false);
     ret |= writeConfig();
@@ -316,6 +318,10 @@ unsigned Epix100aConfigurator::G3config(Epix100aConfigType* c) {
       ret |= evrRunDelay((unsigned)c->evrRunTrigDelay());
       ret |= evrDaqCode((unsigned)c->evrDaqCode());
       ret |= evrDaqDelay((unsigned)c->evrRunTrigDelay() + 50);
+      ret |=  waitForFiducialMode(false);
+      microSpin(10);
+      evrLaneEnable(false);
+      microSpin(10);
       ret |=  waitForFiducialMode(true);
     } else {
       ret |=  waitForFiducialMode(false);

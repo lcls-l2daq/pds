@@ -157,11 +157,16 @@ namespace Pds {
 
     int   Configurator::evrLaneEnable(bool e) {
       int ret = 0;
-      unsigned mask = 1 << _pgp->portOffset();
-      if (e) {
-        ret |= _pgp->IoctlCommand( IOCTL_Evr_LaneEnable, mask);
+      if (_pgp) {
+        unsigned mask = 1 << _pgp->portOffset();
+        if (e) {
+          ret |= _pgp->IoctlCommand( IOCTL_Evr_LaneEnable, mask);
+        } else {
+          ret |= _pgp->IoctlCommand( IOCTL_Evr_LaneDisable, mask);
+        }
+        printf("Configurator  pgpEVR %sable lane completed\n", e ? "en" : "dis");
       } else {
-        ret |= _pgp->IoctlCommand( IOCTL_Evr_LaneDisable, mask);
+    	  printf("Configurator failed to %sable lane because no pgp object\n", e ? "en" : "dis");
       }
 //      if (ret) {
 //        printf("Configurator failed to %sable lane mask %u\n", e ? "en" : "dis", mask);
