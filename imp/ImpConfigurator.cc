@@ -40,8 +40,11 @@ static uint32_t configAddrs[Pds::ImpConfig::NumberOfValues] = {
 ImpConfigurator::ImpConfigurator(int f, unsigned d) :
   Pds::Pgp::Configurator(f, d),
   _testModeState(0), _runControl(0), _rhisto(0) {
-  _statRegs.pgp = pgp();
   printf("ImpConfigurator constructor\n");
+  strcpy(_runTimeConfigFileName, "");
+  new(&_statRegs) ImpStatusRegisters();
+  _statRegs.pgp = pgp();
+
   //    printf("\tlocations _pool(%p), _config(%p)\n", _pool, &_config);
   //    _rhisto = (unsigned*) calloc(1000, 4);
   //    _lhisto = (LoopHisto*) calloc(4*10000, 4);
@@ -91,6 +94,7 @@ bool ImpConfigurator::_flush(unsigned index=0) {
 }
 
 unsigned ImpConfigurator::configure( ImpConfigType* c, unsigned mask) {
+
   _config = c;
   timespec      start, end, sleepTime, shortSleepTime;
   sleepTime.tv_sec = 0;
@@ -126,7 +130,7 @@ unsigned ImpConfigurator::configure( ImpConfigType* c, unsigned mask) {
     uint64_t diff = timeDiff(&end, &start) + 50000LL;
     printf("- 0x%x - \n\tdone, %s \n", ret, ret ? "FAILED" : "SUCCEEDED");
     printf(" it took %lld.%lld milliseconds with mask 0x%x\n", diff/1000000LL, diff%1000000LL, mask&0x1f);
-    /*if (ret)*/ dumpFrontEnd();
+//    /*if (ret)*/ dumpFrontEnd();
   }
   return ret;
 }
@@ -177,10 +181,7 @@ unsigned ImpConfigurator::checkWrittenConfig(bool writeBack) {
 
 
 void ImpConfigurator::dumpFrontEnd() {
-  timespec      start, end;
-  clock_gettime(CLOCK_REALTIME, &start);
   int ret = Success;
-  if (_debug & 0x100) {
     ret = _statRegs.read();
     if (ret == Success) {
       _statRegs.print();
@@ -190,18 +191,6 @@ void ImpConfigurator::dumpFrontEnd() {
     } else {
       printf("\tImp Status Registers could not be read!\n");
     }
-  }
-  if (_debug & 0x400 && _pgp) {
-    printf("Checking Configuration, no news is good news ...\n");
-    if (Failure == checkWrittenConfig(false)) {
-      printf("ImpConfigurator::checkWrittenConfig() FAILED !!!\n");
-    }
-  }
-  clock_gettime(CLOCK_REALTIME, &end);
-  uint64_t diff = timeDiff(&end, &start) + 50000LL;
-  if (_debug & 0x700) {
-    printf("ImpConfigurator::dumpFrontEnd took %lld.%lld milliseconds", diff/1000000LL, diff%1000000LL);
-    printf(" - %s\n", ret == Success ? "Success" : "Failed!");
-  }
+  dumpPgpCard();
   return;
 }

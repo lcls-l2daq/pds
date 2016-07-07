@@ -8,6 +8,7 @@
 #include<unistd.h>
 #include<stdlib.h>
 #include<fcntl.h>
+#include<errno.h>
 #include<strings.h>
 
 //#define DBUG
@@ -23,7 +24,13 @@ IocConnection::IocConnection(std::string host, uint32_t host_ip,
     _port(port),
     _cntl(cntl),
     _idx(1),
-    _damage_req(0)
+    _damage_req(0),
+    _conn_req(0),
+    _init_conn_req(0),
+    _wait_conn_req(1),
+    _num_conn_up(0),
+    _run(0),
+    _stream(0)
 {
     _damage.clear();
     _damage.push_back(0);
@@ -55,6 +62,12 @@ IocConnection *IocConnection::get_connection(std::string host, uint32_t host_ip,
     IocConnection *c = new IocConnection(host, host_ip, port, cntl);
     _connections.push_back(c);
     return c;
+}
+
+void IocConnection::configure(unsigned run, unsigned stream)
+{
+  _run = run;
+  _stream = stream;
 }
 
 void IocConnection::transmit(const char *s)
@@ -104,6 +117,14 @@ void IocConnection::transmit_all(std::string s)
         (*it)->transmit(s);
 }
 
+void IocConnection::clear_all(void)
+{
+  for(std::list<IocConnection*>::iterator it=_connections.begin();
+      it!=_connections.end(); it++)
+      delete (*it);
+  _connections.clear();
+}
+
 int IocConnection::check_all(void)
 {
     for(std::list<IocConnection*>::iterator it=_connections.begin();
@@ -115,21 +136,83 @@ int IocConnection::check_all(void)
 
 int IocConnection::damage_status(int idx)
 {
-    char buf[1024], *s;
+#ifdef DBUG
+    printf("IocConnection::damage_status(%d): %s\n",idx, _host.c_str());
+#endif
+    char buf[1024], *s, *bufp, *tok;
     unsigned int i;
     int len;
+    int nconn, nup;
 
-    if ((len = read(_sock, buf, sizeof(buf))) > 0 && !strncmp(buf, "dstat ", 6)) {
+    if (_sock < 0) {
+        return _damage[idx];
+    }
+
+#ifdef DBUG
+    printf("IocConnection::damage_status(%d): attempting to read %s\n",idx, _host.c_str());
+#endif
+
+    if ((len = read(_sock, buf, sizeof(buf))) == 0) {
+        close(_sock);
+        _sock = -1;
+        _cntl->_report_data_error("Connection to " + _host + " controls recorder has closed unexpectedly.", _run, _stream);
+    } else if (len < 0 && errno != EAGAIN && errno != EWOULDBLOCK) {
+        perror("IocConnection read failed:");
+        close(_sock);
+        _sock = -1;
+        _cntl->_report_data_error("Connection to " + _host + " controls recorder has died.", _run, _stream);
+    } else if (len > 0) {
         buf[len] = 0;
-        _damage_req = 0;
-        for (i = 0, s = &buf[5]; s && i < _damage.size(); i++, s = index(s, ' ')) {
-            _damage[i] = atoi(++s);
+        bufp = buf; 
+        tok = strsep(&bufp, "\n");
+        while (tok) {
+            if (!strncmp(tok, "error ", 6)) {
+                close(_sock);
+                _sock = -1;
+                _cntl->_report_data_error(std::string(&tok[6]), _run, _stream);
+                break;
+            } else if (!strncmp(tok, "warn ", 5)) {
+                _cntl->_report_data_warning(std::string(&tok[5]));
+            } else if (!strncmp(tok, "dstat ", 6)) {
+                _damage_req = 0;
+                for (i = 0, s = &tok[5]; s && i < _damage.size(); i++, s = index(s, ' ')) {
+                    _damage[i] = atoi(++s);
+                }
+            } else if (!strncmp(tok, "cstat ", 6)) {
+                _conn_req = 0;
+                s = &tok[5];
+                s = index(s, ' ');
+                nconn = atoi(++s);
+                s = index(s, ' ');
+                nup = atoi(++s);
+                if (_init_conn_req) {
+                    _init_conn_req = 0;
+                    if (nconn != nup) {
+                        close(_sock);
+                        _sock = -1;
+                        _cntl->_report_data_error("Initial connection to PVs by " + _host + " controls recorder has failed. Please check the IOC for the device!", _run, _stream);
+                    }
+                } else if ((nconn != nup) && (_num_conn_up > nup)) {
+                    _cntl->_report_data_warning("Warning: Some PVs being recorded by " + _host + " controls recorder have disconnected.");
+                }
+                _num_conn_up = nup;
+            }
+            tok = strsep(&bufp, "\n");
         }
     } else
         buf[0] = 0;
     if (!_damage_req) {
         _damage_req = 1;
         transmit("damage\n");
+    }
+    if (!_conn_req && (idx == 0)) {
+        if (!_wait_conn_req) {
+            _conn_req = 1;
+            transmit("connect\n");
+        } else {
+            _wait_conn_req = 0;
+            _init_conn_req = 1;
+        }
     }
     return _damage[idx];
 }

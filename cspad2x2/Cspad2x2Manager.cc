@@ -360,47 +360,13 @@ class Cspad2x2EndCalibCycleAction : public Action {
     unsigned          _bits;
 };
 
-Cspad2x2Manager::Cspad2x2Manager( Cspad2x2Server* server, unsigned d) :
+Cspad2x2Manager::Cspad2x2Manager( Cspad2x2Server* server) :
     _fsm(*new Fsm), _cfg(*new Cspad2x2ConfigCache(server->client())) {
 
    printf("Cspad2x2Manager being initialized... " );
 
-   unsigned ports = (d >> 4) & 0xf;
-   char devName[128];
-   char err[128];
-   if (ports == 0) {
-     ports = 15;
-     sprintf(devName, "/dev/pgpcard%u", d);
-   } else {
-     sprintf(devName, "/dev/pgpcard_%u_%u", d & 0xf, ports);
-   }
-
-   int cspad2x2 = open( devName,  O_RDWR | O_NONBLOCK);
-   printf("pgpcard file number %d\n", cspad2x2);
-   if (cspad2x2 < 0) {
-     sprintf(err, "Cspad2x2Manager::Cspad2x2Manager() opening %s failed", devName);
-     perror(err);
-     // What else to do if the open fails?
-     ::exit(-1);
-   } else {
-     printf("pgpcard file number %d\n", cspad2x2);
-   }
-
-   unsigned offset = 0;
-   while ((((ports>>offset) & 1) == 0) && (offset < 5)) {
-     offset += 1;
-   }
-
-   Pgp::Pgp::portOffset(offset);
-
-   if (offset >= 4) {
-     printf("Cspad2x2Manager::Cspad2x2Manager() illegal port mask!! 0x%x\n", ports);
-   }
-
-   usleep(25000);
 
    server->manager(this);
-   server->setCspad2x2( cspad2x2 );
 
    Cspad2x2L1Action* l1 = new Cspad2x2L1Action( server );
    _fsm.callback( TransitionId::L1Accept, l1 );

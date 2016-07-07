@@ -634,9 +634,11 @@ public:
   }
 public:
   Occurrence* fire(Occurrence* occ) {
-    if (_iDebugLevel >= 1)
-      printf( "\n\n===== Get Occurance =========\n" );
-    if (_iDebugLevel>=2) printDataTime(NULL);
+    if (!_manager.inBeamRateMode()) {
+      if (_iDebugLevel >= 1)
+        printf( "\n\n===== Get Occurance =========\n" );
+      if (_iDebugLevel>=2) printDataTime(NULL);
+    }
 
     const EvrCommand& cmd = *reinterpret_cast<const EvrCommand*>(occ);
     if (!_manager.inBeamRateMode() && _manager.checkExposureEventCode(cmd.code)) {
@@ -658,7 +660,7 @@ DualAndorManager::DualAndorManager(CfgClientNfs& cfg, int iCamera, bool bDelayMo
   _iCamera(iCamera), _bDelayMode(bDelayMode), _bInitTest(bInitTest),
   _sConfigDb(sConfigDb), _iSleepInt(iSleepInt),
   _iDebugLevel(iDebugLevel), _sTempMasterPV(sTempMasterPV), _sTempSlavePV(sTempSlavePV),
-  _pServer(NULL), _uNumShotsInCycle(0), _pPoll(NULL)
+  _pServer(NULL), _uNumShotsInCycle(0), _pTaskPoll(NULL), _pPoll(NULL)
 {
   _sem                    = new Semaphore           (Semaphore::FULL);
   _pActionMap             = new DualAndorMapAction      (*this, cfg, _iDebugLevel);

@@ -13,7 +13,7 @@ namespace Pds {
 
   class Pds::ImpManager {
     public:
-      ImpManager( ImpServer* server, unsigned d);
+      ImpManager( ImpServer* server, int d);
       Appliance& appliance( void ) { return _fsm; }
 
     private:

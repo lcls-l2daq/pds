@@ -39,21 +39,21 @@ namespace Pds {
   public:
     bool  set_partition    (const char* name,
                             const char* db_path,
-			    const char* l3_path,
+                            const char* l3_path,
                             const Node* nodes,
                             unsigned    nnodes,
-			    unsigned    masterid,
-                            uint64_t    bld_mask,
-			    uint64_t    bld_mask_mon,
+                            unsigned    masterid,
+                            const BldBitMask* bld_mask,
+                            const BldBitMask* bld_mask_mon,
                             unsigned    options =0,
-			    float       l3_unbias=0.,
+                            float       l3_unbias=0.,
                             const       PartitionConfigType* =0,
                             const       EvrIOConfigType* iocfg=0,
-			    const       AliasConfigType* alias=0);
+                            const       AliasConfigType* alias=0);
     bool  set_partition    (const Allocation&,
                             const       PartitionConfigType*,
                             const       EvrIOConfigType* iocfg,
-			    const       AliasConfigType* alias);
+                            const       AliasConfigType* alias);
     bool  set_partition    (const Allocation&,
                             const       PartitionConfigType*);
     const Allocation& partition() const;

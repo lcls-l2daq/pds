@@ -2,6 +2,7 @@
 #define Pds_VmonRecorder_hh
 
 #include <map>
+#include <string>
 
 #include <stdio.h>
 
@@ -12,7 +13,8 @@ namespace Pds {
 
   class VmonRecorder {
   public:
-    VmonRecorder(const char* base=".");
+    VmonRecorder(const char* root=".",
+                 const char* base="vmon");
     ~VmonRecorder();
   public:
     void enable();
@@ -42,11 +44,13 @@ namespace Pds {
     std::map<MonClient*,int> _clients;
     unsigned                 _len;
 
-    const char* _base;
+    std::string _root;
+    std::string _base;
     enum { MAX_FNAME_SIZE=128 };
     char     _path[MAX_FNAME_SIZE];
     unsigned _size;
     FILE*    _output;
+    bool     _persistent;
   };
 };
 

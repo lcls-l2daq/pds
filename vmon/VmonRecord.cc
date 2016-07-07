@@ -72,6 +72,7 @@ int VmonRecord::append(const MonClient& client)
 void VmonRecord::append(const MonClient& client, int offset)
 {
   char* where = (char*)(this+1) + offset;
+  char* w = where;
   //  record the payload
   const MonCds& cds = client.cds();
   for(unsigned short g=0; g<cds.ngroups(); g++) {
@@ -101,6 +102,7 @@ void VmonRecord::append(const MonClient& client, int offset)
       }
     }
   }
+  _len += where-w;
 }
 
 // process the header

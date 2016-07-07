@@ -6,6 +6,7 @@
  */
 
 #include "pds/pnccd/pnCCDServer.hh"
+#include "pds/pnccd/pnCCDTrigMonitor.hh"
 #include "pds/pnccd/pnCCDConfigurator.hh"
 #include "pds/xtc/CDatagram.hh"
 #include "pds/config/pnCCDConfigType.hh"
@@ -61,7 +62,8 @@ pnCCDServer::pnCCDServer( const Pds::Src& client, unsigned configMask )
      _configured(false),
      _firstFetch(true),
      _getNewComp(false),
-     _ignoreFetch(true) {
+     _ignoreFetch(true),
+     _selfTrigMonitor(0) {
   _histo = (unsigned*)calloc(sizeOfHisto, sizeof(unsigned));
   _task = new Pds::Task(Pds::TaskObject("IMPprocessor"));
   _dummy = (unsigned*)malloc(DummySize);
@@ -111,11 +113,13 @@ void pnCCDServer::allocated() {
 }
 
 void Pds::pnCCDServer::enable() {
+  if(_selfTrigMonitor) _selfTrigMonitor->disable(true);
   _ignoreFetch = false;
   if (_debug & 0x20) printf("pnCCDServer::enable\n");
 }
 
 void Pds::pnCCDServer::disable() {
+  if(_selfTrigMonitor) _selfTrigMonitor->enable(true);
   _ignoreFetch = true;
   if (usleep(10000)<0) perror("pnCCDServer::disable ulseep 1 failed\n");
   if (_debug & 0x20) printf("pnCCDServer::disable\n");
@@ -337,4 +341,12 @@ void pnCCDServer::printHisto(bool c) {
       if (c) _histo[i] = 0;
     }
   }
+}
+
+void pnCCDServer::flagTriggerError() {
+  printf("CspadServer::flagSyncError pnCCD has entered self-triggered mode\n");
+  Pds::Occurrence* occ = new (_occPool) Pds::Occurrence(Pds::OccurrenceId::ClearReadout);
+  _mgr->appliance().post(occ);
+  UserMessage* umsg = new (_occPool) UserMessage("pnCCD has entered self triggered mode during a run");
+  _mgr->appliance().post(umsg);
 }

@@ -13,6 +13,50 @@
 #include "pds/cspad/CspadLinkRegisters.hh"
 #include "pds/cspad/CspadDestination.hh"
 
+
+//The upstream status register bits:
+//
+//   0  - Upstream lane 0 VC0 local buffer almost full
+//   1  - Upstream lane 0 VC0 local buffer full
+//   2  - Upstream lane 0 VC0 remote buffer almost full
+//   3  - Upstream lane 0 VC0 remote buffer full
+
+//   4  - Upstream lane 0 VC1 local buffer almost full
+//   5  - Upstream lane 0 VC1 local buffer full
+//   6  - Upstream lane 0 VC1 remote buffer almost full
+//   7  - Upstream lane 0 VC1 remote buffer full
+
+//   8  - Upstream lane 0 VC2 local buffer almost full
+//   9  - Upstream lane 0 VC2 local buffer full
+//   10 - Upstream lane 0 VC2 remote buffer almost full
+//   11 - Upstream lane 0 VC2 remote buffer full
+
+//   12 - Upstream lane 0 VC3 local buffer almost full
+//   13 - Upstream lane 0 VC3 local buffer full
+//   14 - Upstream lane 0 VC3 remote buffer almost full
+//   15 - Upstream lane 0 VC3 remote buffer full
+
+//   16 - '0'
+//   17 - '0'
+//   18 - '0'
+//   19 - '0'
+
+//   20 - Upstream lane 1 VC1 local buffer almost full
+//   21 - Upstream lane 1 VC1 local buffer full
+//   22 - Upstream lane 1 VC1 remote buffer almost full
+//   23 - Upstream lane 1 VC1 remote buffer full
+
+//   24 - Upstream lane 1 VC2 local buffer almost full
+//   25 - Upstream lane 1 VC2 local buffer full
+//   26 - Upstream lane 1 VC2 remote buffer almost full
+//   27 - Upstream lane 1 VC2 remote buffer full
+
+//   28 - '0'
+//   29 - '0'
+//   30 - Upstream lane 1 VC3 remote buffer almost full
+//   31 - Upstream lane 1 VC3 remote buffer full
+
+
 namespace Pds {
   namespace CsPad {
 

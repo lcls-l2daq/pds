@@ -1579,9 +1579,7 @@ int AndorServer::getDataInBeamRateMode(InDatagram* in, InDatagram*& out)
   int       iWaitTime       = 0;
   const int iWaitPerIter    = 4; // 1milliseconds
   at_32     numAcqNew       = _iNumAcq;
-  static const int  iMaxReadoutTimeReg = 2000; //!!!debug
-  static const int  iMaxReadoutTimeErr = 4; //!!!debug
-  static int        iMaxReadoutTime     = iMaxReadoutTimeReg;
+  static const int  iMaxReadoutTime = 2000;
   static bool       bPrevCatpureFailed;
   if (_iNumAcq == 0)
     bPrevCatpureFailed = false;
@@ -1611,13 +1609,11 @@ int AndorServer::getDataInBeamRateMode(InDatagram* in, InDatagram*& out)
     if (!bPrevCatpureFailed)
       printf("AndorServer::getDataInBeamRateMode(): Wait image data %d failed\n", _iNumAcq);
     bFrameError = true;
-    iMaxReadoutTime     = iMaxReadoutTimeErr;//!!!debug
     bPrevCatpureFailed  = true;//!!!debug
   }
   else
   {
     ++_iNumAcq;
-    iMaxReadoutTime     = iMaxReadoutTimeReg;//!!!debug
     bPrevCatpureFailed  = false;//!!!debug
 
     uint8_t* pImage = (uint8_t*) out + _iFrameHeaderSize;
@@ -1894,12 +1890,35 @@ int AndorServer::setupROI()
   if (iReadMode == 4)
   {
     int iError;
-    iError = SetImage(_config.binX(), _config.binY(), _config.orgX() + 1, _config.orgX() + _config.width(),
-      _config.orgY() + 1, _config.orgY() + _config.height());
-    if (!isAndorFuncOk(iError))
+    if (_config.cropMode() == AndorConfigType::ENUM_CROP_OFF)
     {
-      printf("AndorServer::setupROI(): SetImage(): %s\n", AndorErrorCodes::name(iError));
-      return ERROR_SDK_FUNC_FAIL;
+      iError = SetIsolatedCropMode(0, _config.height(), _config.width(), _config.binY(), _config.binX());
+      if (!isAndorFuncOk(iError))
+      {
+        printf("AndorServer::setupROI(): SetIsolatedCropMode(): %s\n", AndorErrorCodes::name(iError));
+        return ERROR_SDK_FUNC_FAIL;
+      }
+      iError = SetImage(_config.binX(), _config.binY(), _config.orgX() + 1, _config.orgX() + _config.width(),
+        _config.orgY() + 1, _config.orgY() + _config.height());
+      if (!isAndorFuncOk(iError))
+      {
+        printf("AndorServer::setupROI(): SetImage(): %s\n", AndorErrorCodes::name(iError));
+        return ERROR_SDK_FUNC_FAIL;
+      }
+    }
+    else if(_config.cropMode() == AndorConfigType::ENUM_CROP_ON)
+    {
+      iError = SetIsolatedCropMode(1, _config.height(), _config.width(), _config.binY(), _config.binX());
+      if (!isAndorFuncOk(iError))
+      {
+        printf("AndorServer::setupROI(): SetIsolatedCropMode(): %s\n", AndorErrorCodes::name(iError));
+        return ERROR_SDK_FUNC_FAIL;
+      }
+    }
+    else
+    {
+      printf("AndorServer::setupROI(): Unsupported CropMode in configuration %d\n", _config.cropMode());
+      return ERROR_INVALID_CONFIG;
     }
   }
   else if (iReadMode == 3) // single track

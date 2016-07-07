@@ -51,6 +51,9 @@ namespace Pds {
       void        signal(bool);
       enum { NCHANNELS=4 };
 
+      // Wait for the server process to finish initializing all CA connections
+      void waitForInit() const;
+
     protected:
       // LeCroy specific Server interface
       int  fill( char*, const void* );
@@ -65,6 +68,7 @@ namespace Pds {
       unsigned       _count;
       bool           _readout;
       bool           _ready;
+      bool           _ioc_dmg;
       int            _pfd[2];
       std::vector<Pds_Epics::PVSubWaveform*>  _raw;
       std::vector<ConfigServer*>              _config_pvs;

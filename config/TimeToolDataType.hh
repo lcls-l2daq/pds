@@ -6,7 +6,7 @@
 
 typedef Pds::TimeTool::DataV2  TimeToolDataType;
 
-static Pds::TypeId _timetoolDataType(Pds::TypeId::Id_TimeToolConfig,
+static Pds::TypeId _timetoolDataType(Pds::TypeId::Id_TimeToolData,
                                      TimeToolDataType::Version);
 
 #endif

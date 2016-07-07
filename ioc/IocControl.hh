@@ -2,7 +2,6 @@
 #define Pds_IocControl_hh
 
 #include "pds/utility/Appliance.hh"
-#include "pds/service/GenericPool.hh"
 #include "pdsdata/xtc/DetInfo.hh"
 
 #include <list>
@@ -12,16 +11,18 @@ namespace Pds {
   class IocHostCallback;
   class IocNode;
   class IocConnection;
+  class IocOccurrence;
 
   class IocControl : public Appliance {
     friend class IocConnection;
   public:
     IocControl();
     IocControl(const char* offlinerc,
-	       const char* instrument,
-	       unsigned    station,
-	       unsigned    expt_id,
-               const char* controlrc);
+               const char* instrument,
+               unsigned    station,
+               unsigned    expt_id,
+               const char* controlrc,
+               unsigned    pv_ignore=0);
     ~IocControl();
   public:
     /// Write the global configuration to a new connection.
@@ -42,12 +43,15 @@ namespace Pds {
 
       //  private:
     void _report_error(const std::string&);
+    void _report_data_warning(const std::string&);
+    void _report_data_error(const std::string&, const unsigned, const unsigned);
 
   private:
     std::list<std::string> _offlinerc;   /// Logbook credentials
     std::string         _instrument;     /// Instrument
     unsigned            _station;        /// Instrument station
     unsigned            _expt_id;        /// Experiment number
+    unsigned            _pv_ignore;      /// Ignore setting for scalar PV recording
     int                 _recording;      /// Are we recording now?
     int                 _initialized;    /// Are we properly initialized?
 
@@ -56,7 +60,7 @@ namespace Pds {
 
     char _trans[1024];
 
-    GenericPool         _pool;
+    IocOccurrence*      _occSender;      /// Handles sending occurances from Nodes
   };
 };
 

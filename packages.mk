@@ -16,6 +16,7 @@ packages += genericpgp
 packages += udpcam
 packages += lecroy
 packages += pvdaq
+packages += monreq
 
 ifneq ($(findstring x86_64,$(tgt_arch)),)
   packages += firewire
@@ -37,7 +38,7 @@ ifneq ($(findstring x86_64-rhel7,$(tgt_arch)),)
   packages := service collection xtc
   packages += config confignfs configsql mon vmon
   packages += utility management client offlineclient
-  packages += epicstools pnccd epicsArch ioc 
+  packages += epicstools pnccd epicsArch ioc monreq
 endif
 
 #

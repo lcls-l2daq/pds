@@ -6,15 +6,13 @@
 namespace Pds_Epics {
   class PVSubWaveform : public EpicsCA {
   public:
-    PVSubWaveform(const char* pvName, PVMonitorCb* cb) : EpicsCA(pvName,0) {
-      _monitor = cb;
-    }
+    PVSubWaveform(const char* pvName, PVMonitorCb* cb, const int maxElements) :
+      EpicsCA(pvName,cb,maxElements) {}
     ~PVSubWaveform() {}
   public:
     int   get_nelements() const { return _channel.nelements(); }
-    void  set_nelements(int nelements) { _channel.set_nelements(nelements); }
-    void  start_monitor() { _channel.start_monitor(); }
-    void  stop_monitor() { _channel.stop_monitor(); }
+    dbr_short_t status() { return _status; }
+    dbr_short_t severity() { return _severity; }
   };
 };
 

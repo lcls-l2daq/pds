@@ -30,17 +30,15 @@ namespace Pds_Epics {
     enum ConnStatus { NotConnected, Connecting, Connected };
 
     EpicsCAChannel(const char* channelName,
-		   bool        monitor,
-		   EpicsCA&    proxy);
+                   bool        monitor,
+                   EpicsCA&    proxy,
+                   const int   maxElements=0);
     ~EpicsCAChannel();
     
     void connect        (void);
     void get            ();
     void put            ();
     void put_cb         ();
-    void set_nelements  (int);
-    void start_monitor  ();
-    void stop_monitor   ();
   public:
     void getDataCallback   (struct event_handler_args ehArgs);
     void putDataCallback   (struct event_handler_args ehArgs);
@@ -53,18 +51,20 @@ namespace Pds_Epics {
   protected:
     char        _epicsName[64];
     int         _nelements;
+    const int   _maxElements;
     chid	_epicsChanID;
     chtype      _type;
     evid        _event;
     ConnStatus  _connected;
     bool        _monitor;
+    bool        _monitored;
     EpicsCA&    _proxy;
   };
 
   //==============================================================================
   class EpicsCA {
   public:
-    EpicsCA(const char *channelName, PVMonitorCb*);
+    EpicsCA(const char *channelName, PVMonitorCb*, const int maxElements=0);
     virtual ~EpicsCA();
   public:  
     virtual void  connected(bool);
@@ -83,6 +83,8 @@ namespace Pds_Epics {
     struct epicsTimeStamp _stamp;
     int   _pvsiz;
     bool  _connected;
+    dbr_short_t _status;
+    dbr_short_t _severity;
   };
 };
 
