@@ -46,8 +46,7 @@ endif
 #
 
 packages := service collection xtc
-packages += config confignfs configsql mon vmon
+packages += config confignfs configsql mon vmon monreq
 packages += utility management client offlineclient
 packages += epicstools ioc 
 packages += cphw tpr tprds xpm evgr
-

@@ -70,8 +70,10 @@ class Pool
 
 inline void* Pds::Pool::alloc(size_t size)
   {
-  _numberofAllocs++;
-  return (size > _sizeofObject) ? (void*)0 : deque();
+  void* p = (size > _sizeofObject) ? (void*)0 : deque();
+  if (p)
+    _numberofAllocs++;
+  return p;
   }
 
 /*
