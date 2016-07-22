@@ -1,6 +1,8 @@
 #ifndef EPICS_ARCH_MANAGER_HH
 #define EPICS_ARCH_MANAGER_HH
 
+#include "cadef.h"
+
 #include <string>
 
 namespace Pds
@@ -17,7 +19,8 @@ namespace Pds
   {
   public:
     EpicsArchManager(CfgClientNfs & cfg, const std::string & sFnConfig,
-         float fMinTriggerInterval, int iDebugLevel, int iIgnoreLevel);
+         float fMinTriggerInterval, int iDebugLevel, int iIgnoreLevel,
+         ca_client_context* context);
     ~EpicsArchManager();
 
     Appliance & appliance()
@@ -58,14 +61,15 @@ namespace Pds
     Action *_pActionL1Accept;
     Action *_pActionUpdate;
 
-    std::string       _sFnConfig;
-    float             _fMinTriggerInterval;
-    int               _iDebugLevel;
-    int               _iIgnoreLevel;
-    int               _iNumEventNode;
-    EpicsArchMonitor* _pMonitor;
-    GenericPool *     _pPool;
-    GenericPool *     _occPool;
+    std::string        _sFnConfig;
+    float              _fMinTriggerInterval;
+    int                _iDebugLevel;
+    int                _iIgnoreLevel;
+    int                _iNumEventNode;
+    EpicsArchMonitor*  _pMonitor;
+    GenericPool *      _pPool;
+    GenericPool *      _occPool;
+    ca_client_context* _context;
   };
 
 }       // namespace Pds

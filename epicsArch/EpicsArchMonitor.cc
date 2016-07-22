@@ -127,8 +127,6 @@ int EpicsArchMonitor::writeToXtc(Datagram & dg, UserMessage ** msg, const struct
     dg.xtc.alloc(pXtcConfig->sizeofPayload());
   }
 
-  ca_poll();
-
   TypeId typeIdXtc(EpicsArchMonitor::typeXtc, EpicsArchMonitor::iXtcVersion);
   char *pPoolBufferOverflowWarning =
     (char *) &dg + (int) (0.9 * EpicsArchMonitor::iMaxXtcSize);
@@ -246,8 +244,6 @@ int EpicsArchMonitor::writeToXtc(Datagram & dg, UserMessage ** msg, const struct
 
 int EpicsArchMonitor::validate(int iNumEventNode)
 {
-  ca_poll();
-
   const int iNumPv = _lpvPvList.size();
 
   int nNotConnected = 0;
@@ -256,7 +252,7 @@ int EpicsArchMonitor::validate(int iNumEventNode)
     EpicsMonitorPv & epicsPvCur = _lpvPvList[iPvName];
 
     if (!epicsPvCur.isConnected()) {
-      epicsPvCur.reconnect();
+      //epicsPvCur.reconnect();
       printf("%s (%s) not connected\n",
              epicsPvCur.getPvDescription().c_str(), epicsPvCur.getPvName().c_str());
       nNotConnected++;
@@ -316,7 +312,6 @@ int EpicsArchMonitor::_setupPvList(const Pds::PvConfigFile::TPvList & vPvList,
 
   /* flush all CA monitor requests */
   ca_flush_io();
-  ca_pend_event(0.5);   // empirically, 0.5s is enough for 1000 PVs to be updated
   return 0;
 }
 
