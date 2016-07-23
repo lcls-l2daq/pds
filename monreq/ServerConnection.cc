@@ -65,7 +65,7 @@ using namespace Pds::MonReq;
 
 
 		            	 // send an event
-		            	 int ca = ::send(_socket, &dg, sizeof(dg)+ dg.xtc.sizeofPayload(), 0 );
+		            	 int ca = ::send(_socket, &dg, sizeof(dg)+ dg.xtc.sizeofPayload(), MSG_NOSIGNAL );
 		            	 //printf("Datagram that is sending: %i\n", ca);
 
 				 //checking if sending correctly
@@ -76,7 +76,7 @@ using namespace Pds::MonReq;
 				}
 			}
 		        else {
-		         int ca = ::send(_socket, &dg, sizeof(Dgram)+ dg.xtc.sizeofPayload(), 0 );
+		         int ca = ::send(_socket, &dg, sizeof(Dgram)+ dg.xtc.sizeofPayload(), MSG_NOSIGNAL );
 		             //printf("%i\n", ca);
 		    	}
 			
