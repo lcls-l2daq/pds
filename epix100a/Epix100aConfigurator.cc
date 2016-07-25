@@ -29,7 +29,7 @@ class Epix100aDestination;
 
 static uint32_t configAddrs[Epix100aConfigShadow::NumberOfValues][2] = {
     {0x00,  1}, //  version
-    {0,     2}, //  usePgpEvr
+    {0x3d,  0}, //  usePgpEvr
     {0,		2}, //  evrRunCode
     {0,     2}, //  evrDaqCode
     {0,     2}, //  evrRunTrigDelay
@@ -107,9 +107,9 @@ static uint32_t AconfigAddrs[Epix100aASIC_ConfigShadow::NumberOfValues][2] = {
 
 
 Epix100aConfigurator::Epix100aConfigurator(int f, unsigned d) :
-                           Pds::Pgp::Configurator(f, d),
-                           _testModeState(0), _config(0), _s(0), _rhisto(0),
-                          _maintainLostRunTrigger(0) {
+                               Pds::Pgp::Configurator(f, d),
+                               _testModeState(0), _config(0), _s(0), _rhisto(0),
+                               _maintainLostRunTrigger(0) {
   printf("Epix100aConfigurator constructor\n");
   //    printf("\tlocations _pool(%p), _config(%p)\n", _pool, &_config);
   //    _rhisto = (unsigned*) calloc(1000, 4);
@@ -117,7 +117,7 @@ Epix100aConfigurator::Epix100aConfigurator(int f, unsigned d) :
 }
 
 Epix100aConfigurator::~Epix100aConfigurator() {
-	evrLaneEnable(false);
+  evrLaneEnable(false);
 }
 
 unsigned Epix100aConfigurator::resetFrontEnd() {
@@ -126,38 +126,38 @@ unsigned Epix100aConfigurator::resetFrontEnd() {
   usleep(100000);
   uint32_t returned = 0;
   do {
-	  usleep(10000);
-	  _pgp->readRegister(&_d, AdcControlAddr, 0x5e1, &returned);
+    usleep(10000);
+    _pgp->readRegister(&_d, AdcControlAddr, 0x5e1, &returned);
   } while ((returned & AdcCtrlAckMask) == 0);
   if ((returned & AdcCtrlFailMask) != 0) {
-	  printf("Epix100aConfigurator::resetFrontEnd found that ADC alignment FAILED!!! returned %d\n", returned);
-	  return resyncADC(1);
+    printf("Epix100aConfigurator::resetFrontEnd found that ADC alignment FAILED!!! returned %d\n", returned);
+    return resyncADC(1);
   }
-	  printf("Epix100aConfigurator::resetFrontEnd found ADC alignment Succeeded, returned %d\n", returned);
-	  return 0;
+  printf("Epix100aConfigurator::resetFrontEnd found ADC alignment Succeeded, returned %d\n", returned);
+  return 0;
 }
 
 unsigned Epix100aConfigurator::resyncADC(unsigned c) {
-	unsigned ret = 0;
-	_d.dest(Epix100aDestination::Registers);
-	_pgp->writeRegister(&_d, AdcControlAddr, 0);
-	  microSpin(10);
-	_pgp->writeRegister(&_d, AdcControlAddr, AdcCtrlReqMask);
-	  microSpin(10);
-//	_pgp->writeRegister(&_d, AdcControlAddr, 0);
-	  uint32_t returned = 0;
-	  do {
-		  usleep(100000);
-		  _pgp->readRegister(&_d, AdcControlAddr, 0x5e1, &returned);
-	  } while ((returned & AdcCtrlAckMask) == 0);
-	  if ((returned & AdcCtrlFailMask) != 0) {
-		  printf("\tEpix100aConfigurator::resyncADC found that ADC alignment FAILED!!! returned %d\n", returned);
-		  if (c<1) ret = resyncADC(c+1);
-		  else ret = 2;
-	  } else {
-	    printf("\tEpix100aConfigurator::resyncADC found ADC alignment Succeeded, returned %d\n", returned);
-	  }
-	  return ret;
+  unsigned ret = 0;
+  _d.dest(Epix100aDestination::Registers);
+  _pgp->writeRegister(&_d, AdcControlAddr, 0);
+  microSpin(10);
+  _pgp->writeRegister(&_d, AdcControlAddr, AdcCtrlReqMask);
+  microSpin(10);
+  //	_pgp->writeRegister(&_d, AdcControlAddr, 0);
+  uint32_t returned = 0;
+  do {
+    usleep(100000);
+    _pgp->readRegister(&_d, AdcControlAddr, 0x5e1, &returned);
+  } while ((returned & AdcCtrlAckMask) == 0);
+  if ((returned & AdcCtrlFailMask) != 0) {
+    printf("\tEpix100aConfigurator::resyncADC found that ADC alignment FAILED!!! returned %d\n", returned);
+    if (c<1) ret = resyncADC(c+1);
+    else ret = 2;
+  } else {
+    printf("\tEpix100aConfigurator::resyncADC found ADC alignment Succeeded, returned %d\n", returned);
+  }
+  return ret;
 }
 
 void Epix100aConfigurator::resetSequenceCount() {
@@ -237,8 +237,8 @@ bool Epix100aConfigurator::_robustReadVersion(unsigned index) {
     return false;
   } else {
     if (index > 2) {
-    printf("_robustReadVersion FAILED!!\n\t");
-    return true;
+      printf("_robustReadVersion FAILED!!\n\t");
+      return true;
     } else {
       _pgp->resetPgpLane();
       microSpin(10);
@@ -251,6 +251,8 @@ bool Epix100aConfigurator::_robustReadVersion(unsigned index) {
 unsigned Epix100aConfigurator::configure( Epix100aConfigType* c, unsigned first) {
   _config = c;
   _s = (Epix100aConfigShadow*) c;
+  unsigned debugSaved = _debug;
+  _debug = 0;
   timespec      start, end, sleepTime, shortSleepTime;
   sleepTime.tv_sec = 0;
   sleepTime.tv_nsec = 25000000; // 25ms
@@ -261,14 +263,21 @@ unsigned Epix100aConfigurator::configure( Epix100aConfigType* c, unsigned first)
   printf(" config(%p) first(%u)\n", _config, first);
   unsigned ret = 0;
   clock_gettime(CLOCK_REALTIME, &start);
-//  _pgp->maskHWerror(true);
+  //  _pgp->maskHWerror(true);
   printf("Epix100aConfigurator::configure %sreseting front end\n", first ? "" : "not ");
-    if (first) {
-      resetFrontEnd();
-    }
-
+  if (first) {
+    resetFrontEnd();
+  }
   ret |= this->G3config(c);
   ret |= _robustReadVersion(0);
+  uint32_t returned = 0;
+  _pgp->readRegister(&_d, AdcControlAddr, 0x5e9, &returned);
+  if ((returned & AdcCtrlFailMask) != 0) {
+    printf("Epix100aConfigurator::configure found that ADC alignment FAILED!!! returned %d\n", returned);
+    ret |= 1;
+  } else {
+    printf("Epix100aConfigurator::configure found ADC alignment Succeeded, returned %d\n", returned);
+  }
   if (ret == 0) {
     resetSequenceCount();
     if (printFlag) {
@@ -307,6 +316,7 @@ unsigned Epix100aConfigurator::configure( Epix100aConfigType* c, unsigned first)
     printf(" it took %lld.%lld milliseconds with first %u\n", diff/1000000LL, diff%1000000LL, first);
     if (ret) dumpFrontEnd();
   }
+  _debug = debugSaved;
   return ret;
 }
 
@@ -333,19 +343,19 @@ unsigned Epix100aConfigurator::G3config(Epix100aConfigType* c) {
 static uint32_t FPGAregs[6][3] = {
     {PowerEnableAddr, PowerEnableValue, 0},
     {SaciClkBitAddr, SaciClkBitValue, 0},
-//    {NumberClockTicksPerRunTriggerAddr, NumberClockTicksPerRunTrigger, 0},  // remove when in config
-//    {EnableAutomaticRunTriggerAddr, 0, 0},  // remove when in config
+    //    {NumberClockTicksPerRunTriggerAddr, NumberClockTicksPerRunTrigger, 0},  // remove when in config
+    //    {EnableAutomaticRunTriggerAddr, 0, 0},  // remove when in config
     {EnableAutomaticDaqTriggerAddr, 0, 0},
     {0,0,1}
 };
 
 char idNames[6][40] = {
-        {"DigitalCardId0"},
-        {"DigitalCardId1"},
-        {"AnalogCardId0"},
-        {"AnalogCardId1"},
-        {"CarrierId0"},
-        {"CarrierId1"}
+    {"DigitalCardId0"},
+    {"DigitalCardId1"},
+    {"AnalogCardId0"},
+    {"AnalogCardId1"},
+    {"CarrierId0"},
+    {"CarrierId1"}
 };
 
 unsigned Epix100aConfigurator::writeConfig() {
@@ -370,18 +380,14 @@ unsigned Epix100aConfigurator::writeConfig() {
     printf("Epix100aConfigurator::writeConfig failed writing %s\n", "TotalPixelsAddr");
     ret = Failure;
   }
-  if (_debug&1) {
-    printf("Epix100aConfigurator::writeConfig FPGA values:\n");
-    for (unsigned i=0; i<Epix100aConfigShadow::NumberOfValues; i++) {
-      printf("\treg %3u writing 0x%x at 0x%x\n", i, u[i], configAddrs[i][0]);
-    }
-  }
   for (unsigned i=0; !ret && i<(Epix100aConfigShadow::NumberOfValues); i++) {
     if (configAddrs[i][1] == ReadWrite) {
-      if (_debug & 1) printf("Epix100aConfigurator::writeConfig writing addr(0x%x) data(0x%x) configValue(%u)\n", configAddrs[i][0], u[i], i);
       if (_pgp->writeRegister(&_d, configAddrs[i][0], u[i])) {
         printf("Epix100aConfigurator::writeConfig failed writing %s\n", _s->name((Epix100aConfigShadow::Registers)i));
         ret = Failure;
+      } else {
+        if (_debug & 1) printf("Epix100aConfigurator::writeConfig writing %s addr(0x%x) data(0x%x) configValue(%u)\n",
+            _s->name((Epix100aConfigShadow::Registers)i), configAddrs[i][0], u[i], i);
       }
     } else if (configAddrs[i][1] == ReadOnly) {
       if (_debug & 1) printf("Epix100aConfigurator::writeConfig reading addr(0x%x)", configAddrs[i][0]);
@@ -391,8 +397,8 @@ unsigned Epix100aConfigurator::writeConfig() {
       }
       if (_debug & 1) printf(" data(0x%x) configValue[%u]\n", u[i], i);
       if (((configAddrs[i][0]>>4) == 3) && (configAddrs[i][0] != 0x3a)) {
-    	  printf("\t%s\t0x%x\n", idNames[idn++], u[i]);
-       }
+        printf("\t%s\t0x%x\n", idNames[idn++], u[i]);
+      }
     }
     if (_pgp->writeRegister(&_d, DaqTrigggerDelayAddr, RunToDaqTriggerDelay+_s->get(Epix100aConfigShadow::EpixRunTrigDelay))) {
       printf("Epix100aConfigurator::writeConfig failed writing DaqTrigggerDelay\n");
@@ -474,24 +480,24 @@ unsigned Epix100aConfigurator::writeASIC() {
             ret |= Failure;
           }
           if (_debug & 1) printf(" data(0x%x) configValue[%u] Asic(%u)\n", u[i], i, index);
-       }
+        }
       }
-//      unsigned j=0;
-//      while ((ret == Success) && (maskLineRegs[j][2] == 0)) {
-//        if (_debug & 1) printf("Epix100aConfigurator::writeConfig writing addr(0x%x) data(0x%x) FPGAregs[%u]\n", a+maskLineRegs[j][0], maskLineRegs[j][1], j);
-//        for (unsigned i=0; (ret == Success) && (i<RepeatControlCount); i++) {
-//          if (_pgp->writeRegister(&_d, a+maskLineRegs[j][0], maskLineRegs[j][1], false, Pgp::PgpRSBits::Waiting)) {
-//            printf("Epix100aConfigurator::writeConfig failed writing maskLineRegs[%u]\n", j);
-//            ret = Failure;
-//          }
-//          _getAnAnswer();
-//        }
-//        j+=1;
-//      }
+      //      unsigned j=0;
+      //      while ((ret == Success) && (maskLineRegs[j][2] == 0)) {
+      //        if (_debug & 1) printf("Epix100aConfigurator::writeConfig writing addr(0x%x) data(0x%x) FPGAregs[%u]\n", a+maskLineRegs[j][0], maskLineRegs[j][1], j);
+      //        for (unsigned i=0; (ret == Success) && (i<RepeatControlCount); i++) {
+      //          if (_pgp->writeRegister(&_d, a+maskLineRegs[j][0], maskLineRegs[j][1], false, Pgp::PgpRSBits::Waiting)) {
+      //            printf("Epix100aConfigurator::writeConfig failed writing maskLineRegs[%u]\n", j);
+      //            ret = Failure;
+      //          }
+      //          _getAnAnswer();
+      //        }
+      //        j+=1;
+      //      }
     }
   }
-  writePixelBits();
-  if (ret==Success) return ret; //checkWrittenASIC(true);
+  ret |= writePixelBits();
+  if (ret==Success) return checkWrittenASIC(true);
   else return ret;
 }
 
@@ -538,7 +544,7 @@ class block {
 //And row on bottom would do the same as the existing block write for 4x pixels, but with row: 0x00030000
 
 unsigned Epix100aConfigurator::writePixelBits() {
-  enum { writeAhead = 68 };
+  enum { writeAhead = 32 };
   unsigned ret = Success;
   _d.dest(Epix100aDestination::Registers);
   unsigned m    = _config->asicMask();
@@ -612,7 +618,7 @@ unsigned Epix100aConfigurator::writePixelBits() {
   for (unsigned row=0; row<rows; row++) {
     blk.row(row);
     for (unsigned col=0; col<cols; col++) {
-      if (!written[row][col] && ((_config->asicPixelConfigArray()[row][col]&3) != pixel)) {
+      if ((!written[row][col]) && ((_config->asicPixelConfigArray()[row][col]&3) != pixel)) {
         blk.col(col);
         unsigned half = col < halfRow ? 0 : halfRow;
         for (unsigned i=0; i<BanksPerAsic; i++) {
@@ -649,29 +655,29 @@ unsigned Epix100aConfigurator::writePixelBits() {
     for (unsigned col=0; col<((1+BanksPerAsic)*PixelsPerBank); col++) {
       if (col == PixelsPerBank) col = halfRow; // do this for the first bank in each asic
       blk.col(col);
-//      printf("\tpixel %u calib %u\n", pixel&3, _config->calibPixelConfigArray()[row][col] & 3);
-//      if ( pixel&3 != (_config->calibPixelConfigArray()[row][col]&3)) {
-        unsigned half = col < halfRow ? 0 : halfRow;
-        for (unsigned i=0; i<BanksPerAsic; i++) {
-          unsigned thisCol = half + (i * PixelsPerBank) + (col % PixelsPerBank);
-          blk.b()[i] = _config->calibPixelConfigArray()[row][thisCol] & 3;
-        }
-        if (mySynch.take() == false) {
-          printf("Epix100aConfigurator::writePixelBits synchronization failed on write of calib row %u\n", row);
-          ret |= Failure;
-        }
-        if (_pgp->writeRegisterBlock(
-            &_d,
-            MultiplePixelWriteCommandAddr,
-            (unsigned*)&blk,
-            sizeof(block)/sizeof(uint32_t),
-            Pds::Pgp::PgpRSBits::Waiting,
-            (_debug&1)?true:false))
-        {
-          printf("Epix100aConfigurator::writePixelBits failed on calib row %u, col %u\n", row, col);
-          ret |= Failure;
-        }
-//      }
+      //      printf("\tpixel %u calib %u\n", pixel&3, _config->calibPixelConfigArray()[row][col] & 3);
+      //      if ( pixel&3 != (_config->calibPixelConfigArray()[row][col]&3)) {
+      unsigned half = col < halfRow ? 0 : halfRow;
+      for (unsigned i=0; i<BanksPerAsic; i++) {
+        unsigned thisCol = half + (i * PixelsPerBank) + (col % PixelsPerBank);
+        blk.b()[i] = _config->calibPixelConfigArray()[row][thisCol] & 3;
+      }
+      if (mySynch.take() == false) {
+        printf("Epix100aConfigurator::writePixelBits synchronization failed on write of calib row %u\n", row);
+        ret |= Failure;
+      }
+      if (_pgp->writeRegisterBlock(
+          &_d,
+          MultiplePixelWriteCommandAddr,
+          (unsigned*)&blk,
+          sizeof(block)/sizeof(uint32_t),
+          Pds::Pgp::PgpRSBits::Waiting,
+          (_debug&1)?true:false))
+      {
+        printf("Epix100aConfigurator::writePixelBits failed on calib row %u, col %u\n", row, col);
+        ret |= Failure;
+      }
+      //      }
     }
   }
   if (mySynch.clear() == false) {
@@ -709,7 +715,7 @@ bool Epix100aConfigurator::_getAnAnswer(unsigned size, unsigned count) {
   count = 0;
   while ((count < 6) && (rsif = _pgp->read(size)) != 0) {
     if (rsif->waiting() == Pds::Pgp::PgpRSBits::Waiting) {
-//      printf("_getAnAnswer in %u tries\n", count+1);
+      //      printf("_getAnAnswer in %u tries\n", count+1);
       return true;
     }
     count += 1;
@@ -721,12 +727,14 @@ unsigned Epix100aConfigurator::checkWrittenASIC(bool writeBack) {
   unsigned ret = Success;
   bool done = false;
   while (!done && _config && _pgp) {
+    printf("Epix100aConfigurator::checkWrittenASIC ");
     _d.dest(Epix100aDestination::Registers);
     unsigned m = _config->asicMask();
     uint32_t myBuffer[sizeof(Epix100aASIC_ConfigShadow)/sizeof(uint32_t)];
     Epix100aASIC_ConfigShadow* readAsic = (Epix100aASIC_ConfigShadow*) myBuffer;
     for (unsigned index=0; index<_config->numberOfAsics(); index++) {
       if (m&(1<<index)) {
+        printf("reading ");
         uint32_t a = AsicAddrBase + (AsicAddrOffset * index);
         for (int i = 0; (i<Epix100aASIC_ConfigShadow::NumberOfValues) && (ret==Success); i++) {
           if ((AconfigAddrs[i][1] != WriteOnly) && _pgp) {
@@ -738,6 +746,7 @@ unsigned Epix100aConfigurator::checkWrittenASIC(bool writeBack) {
             myBuffer[i] &= 0xffff;
           }
         }
+        printf("checking ");
         Epix100aASIC_ConfigShadow* confAsic = (Epix100aASIC_ConfigShadow*) &( _config->asics(index));
         if ( (ret==Success) && (*confAsic != *readAsic) && _pgp) {
           printf("Epix100aConfigurator::checkWrittenASIC failed on ASIC %u\n", index);
@@ -746,6 +755,7 @@ unsigned Epix100aConfigurator::checkWrittenASIC(bool writeBack) {
         }
       }
     }
+    printf("\n");
     done = true;
   }
   if (!_pgp) printf("Epix100aConfigurator::checkWrittenASIC found nil pgp\n");
@@ -764,15 +774,15 @@ unsigned Epix100aConfigurator::checkWrittenASIC(bool writeBack) {
 #define NumberOfEnviroDatas 9
 
 static char enviroNames[NumberOfEnviroDatas+1][120] = {
-		{"Thermistor 0 in degrees Celcius...."},
-		{"Thermistor 1 in degrees Celcius...."},
-		{"Relative humidity in percent......."},
-		{"ASIC analog current in mA.........."},
-		{"ASIC digital current in mA........."},
-		{"Detector guard ring current in uA.."},
-		{"Detector bias current in uA........"},
-		{"Analog input voltage in mV........."},
-		{"Digital input voltage in mV........"}
+    {"Thermistor 0 in degrees Celcius...."},
+    {"Thermistor 1 in degrees Celcius...."},
+    {"Relative humidity in percent......."},
+    {"ASIC analog current in mA.........."},
+    {"ASIC digital current in mA........."},
+    {"Detector guard ring current in uA.."},
+    {"Detector bias current in uA........"},
+    {"Analog input voltage in mV........."},
+    {"Digital input voltage in mV........"}
 };
 
 void Epix100aConfigurator::dumpFrontEnd() {
@@ -788,20 +798,20 @@ void Epix100aConfigurator::dumpFrontEnd() {
     printf("\tSequence Count(%u), Acquisition Count(%u)\n", count, acount);
     printf("Environmental Data:\n");
     for (int i=0; i<NumberOfEnviroDatas; i++) {
-    	if (i<3) printf("\t%s%5.2f\n", enviroNames[i], 0.01*(signed int)enviroData(i));
-    	else printf("\t%s%5d\n", enviroNames[i], enviroData(i));
+      if (i<3) printf("\t%s%5.2f\n", enviroNames[i], 0.01*(signed int)enviroData(i));
+      else printf("\t%s%5d\n", enviroNames[i], enviroData(i));
     }
   }
   if (_debug & 0x400) {
-//    printf("Checking Configuration, no news is good news ...\n");
-//    if (Failure == checkWrittenConfig(false)) {
-//      printf("Epix100aConfigurator::checkWrittenConfig() FAILED !!!\n");
-//    }
-//    enableRunTrigger(false);
-//    if (Failure == checkWrittenASIC(false)) {
-//      printf("Epix100aConfigurator::checkWrittenASICConfig() FAILED !!!\n");
-//    }
-//    enableRunTrigger(true);
+    //    printf("Checking Configuration, no news is good news ...\n");
+    //    if (Failure == checkWrittenConfig(false)) {
+    //      printf("Epix100aConfigurator::checkWrittenConfig() FAILED !!!\n");
+    //    }
+    //    enableRunTrigger(false);
+    //    if (Failure == checkWrittenASIC(false)) {
+    //      printf("Epix100aConfigurator::checkWrittenASICConfig() FAILED !!!\n");
+    //    }
+    //    enableRunTrigger(true);
   }
   clock_gettime(CLOCK_REALTIME, &end);
   uint64_t diff = timeDiff(&end, &start) + 50000LL;

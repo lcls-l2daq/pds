@@ -60,6 +60,7 @@ namespace Pds {
         int                       evrEnable(bool);
         int                       evrLaneEnable(bool);
         int                       evrEnableHdrChk(unsigned, bool);
+        void                      printRes();
         bool                      G3Flag() { return _G3; }
         bool                      evrEnabled();
 

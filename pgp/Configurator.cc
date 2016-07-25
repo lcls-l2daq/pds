@@ -19,6 +19,7 @@ namespace Pds {
     Configurator::Configurator(int f, unsigned d) : _fd(f), _debug(d) {
       _pgp = new Pds::Pgp::Pgp(_fd, true);
       _G3 = _pgp->G3Flag();
+      printRes();
     }
 
     Configurator::~Configurator() {}
@@ -40,6 +41,16 @@ namespace Pds {
       while (gap < m) {
         clock_gettime(CLOCK_REALTIME, &now);
         gap = timeDiff(&now, &start) / 1000LL;
+      }
+    }
+
+    void Configurator::printRes() {
+      timespec now;
+      clock_getres(CLOCK_REALTIME, &now);
+      if (now.tv_sec == 0) {
+        printf("Configurator sees time resolution in ns %u\n", (unsigned)now.tv_nsec);
+      } else {
+        printf("Configurator confused resolution %u:%u\n", (unsigned)now.tv_sec, (unsigned)now.tv_nsec);
       }
     }
 

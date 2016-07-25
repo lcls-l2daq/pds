@@ -85,7 +85,7 @@ namespace Pds {
     };
 
     static char _ARegNames[ASIC_ConfigV1::NumberOfRegisters+1][120] = {
-        "RowStartAddr",
+    "RowStartAddr",
 	"RowStopAddr",
 	"ColumnStartAddr",
 	"ColumnStopAddr",
@@ -254,6 +254,7 @@ namespace Pds {
       while (i<NumberOfRegisters && ret) {
         Registers c = (Registers)i++;
         if (doNotCopy(c) == DoCopy) {
+          // don't compare if not ReadWrite
           ret = ( (readOnly(c) != ReadWrite) || (get(c) == foo.get(c)));
           if (ret == false) {
             printf("\tEpix100a ASIC_ConfigV1 %u != %u at %s\n", get(c), foo.get(c), ASIC_ConfigV1::name(c));

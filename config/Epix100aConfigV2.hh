@@ -106,7 +106,7 @@ namespace Pds {
           NumberOfRegisters
         };
 
-        enum readOnlyStates { ReadWrite=0, ReadOnly=1, UseOnly=2 };
+        enum readOnlyStates { ReadWrite=0, ReadOnly=1, UseOnly=2, DoNotUse=3 };
         enum types { decimal=0, hex=1, selection=2 };
 
         enum {
