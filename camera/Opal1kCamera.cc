@@ -317,14 +317,16 @@ int  Opal1kCamera::camera_width () const
 {
 
   int v = Pds::Opal1k::max_column_pixels(_src); 
-  if (_inputConfig) 
-    switch(_inputConfig->vertical_binning()) {
-    case Opal1kConfigType::x2: v/=2; break;
-    case Opal1kConfigType::x4: v/=4; break;
-    case Opal1kConfigType::x8: v/=8; break;
-    default: break;
-    }
   return v;
+  //  No horizontal binning
+//   if (_inputConfig) 
+//     switch(_inputConfig->vertical_binning()) {
+//     case Opal1kConfigType::x2: v/=2; break;
+//     case Opal1kConfigType::x4: v/=4; break;
+//     case Opal1kConfigType::x8: v/=8; break;
+//     default: break;
+//     }
+//   return v;
 }
 
 int  Opal1kCamera::camera_height() const 
