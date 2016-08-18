@@ -52,9 +52,11 @@ EbEventBase* EbS::_new_event(const EbBitMask& serverId, char* payload, unsigned 
   if (_vmoneb) _vmoneb->depth(depth);
 
   if (depth<=1 && _pending.forward()!=_pending.empty()) {
-    if (nEbPrints)
+    if (nEbPrints) {
       printf("EbC::new_event claiming buffer for srv %08x payload %d\n",
              serverId.value(),sizeofPayload);
+      nEbPrints--;
+    }
 
     _post(_pending.forward());
   //    arm(_post(_pending.forward()));
@@ -72,9 +74,11 @@ EbEventBase* EbS::_new_event(const EbBitMask& serverId)
   if (_vmoneb) _vmoneb->depth(depth);
 
   if (depth==1 && _pending.forward()!=_pending.empty()) { // keep one buffer for recopy possibility
-    if (nEbPrints)
+    if (nEbPrints) {
       printf("EbC::new_event claiming buffer for srv %08x\n",
              serverId.value());
+      nEbPrints--;
+    }
 
     _post(_pending.forward());
   //    arm(_post(_pending.forward()));
