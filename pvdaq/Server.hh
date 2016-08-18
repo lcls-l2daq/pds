@@ -12,6 +12,9 @@
 //  Sub classes will implement Action, fill(), and construct _xtc.
 //
 namespace Pds {
+  class Appliance;
+  class Occurrence;
+  class GenericPool;
   namespace PvDaq {
     class Server : public EbServer,
 		   public BldSequenceSrv,
@@ -19,8 +22,13 @@ namespace Pds {
 
     public:
       Server();
-      virtual ~Server() {}
-      
+      virtual ~Server();
+
+    public:
+      void setApp (Appliance&);
+      void sendOcc(Occurrence*);
+
+    public:
       //  Eb interface
       void       dump ( int detail ) const {}
       bool       isValued( void ) const    { return true; }
@@ -55,6 +63,8 @@ namespace Pds {
       int        _pfd[2];
       Sequence   _seq;
       Env        _env;
+      Appliance* _app;
+      GenericPool* _occPool;
     };
   };
 };

@@ -56,7 +56,7 @@ void PvServer::get()
 
 int PvServer::fetch(char* payload, size_t sz)
 {
-  printf("PvServer[%s] fetch %p\n",_channel.epicsName(),payload);
+  //  printf("PvServer[%s] fetch %p\n",_channel.epicsName(),payload);
   int result = 0;
   int nelem = _channel.nelements();
   switch(_channel.type()) {
