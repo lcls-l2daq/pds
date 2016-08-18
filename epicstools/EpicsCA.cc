@@ -98,6 +98,12 @@ void EpicsCA::getData     (const void* dbr)
     handle_type(DBR_TIME_LONG  , dbr_time_long  , dbr_long_t  ) break;
     handle_type(DBR_TIME_DOUBLE, dbr_time_double, dbr_double_t) break;
     handle_type(DBR_TIME_CHAR  , dbr_time_char  , dbr_char_t  ) break;
+  case DBR_TIME_STRING:
+  { struct dbr_time_string* ival = (struct dbr_time_string*)dbr;
+    _stamp      = ival->stamp;                       
+    _status     = ival->status;                      
+    _severity   = ival->severity;                    
+    memcpy(_pvdata, &ival->value, sizeof(dbr_string_t)); } break;
   default: printf("Unknown type %d\n", int(_channel.type())); break;
   }
 
