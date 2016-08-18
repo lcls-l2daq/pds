@@ -194,9 +194,8 @@ void BeamMonitorServer::updated()
   int len = sizeof(Xtc);
 
   do {
-#if 0
     // validate raw data
-    unsigned nord = *reinterpret_cast<double*>(_raw_nord->data());
+    unsigned nord = unsigned(*reinterpret_cast<double*>(_raw_nord->data()));
     if (nord != _exp_nord) {
       if (_nprint) {
         printf("Incorrect .NORD; read %d, expected %d\n",
@@ -207,7 +206,6 @@ void BeamMonitorServer::updated()
       dg->xtc.damage.userBits(1);
       break;
     }
-#endif
 
     // validate raw data
     unsigned sync = *reinterpret_cast<uint32_t*>(_sync->data());
@@ -337,15 +335,15 @@ Pds::InDatagram* BeamMonitorServer::fire(Pds::InDatagram* dg)
       printf("_Offset[%d]=%d\n",i,_Offset[i]);
     }
 
-    _exp_nord = 0;
+    _exp_nord = 15;  // event header and trailer word
     for(unsigned i=0; i<NCHANNELS/2; i++) {
       if (_chan_mask & (1<<i)) {
-        _exp_nord += 14+_Length[i]/2;
+        _exp_nord += 1+_Length[i]/2;
       }
     }
     for(unsigned i=NCHANNELS/2; i<NCHANNELS; i++) {
       if (_chan_mask & (1<<i)) {
-        _exp_nord += 14+_Length[i];
+        _exp_nord += 1+_Length[i];
       }
     }
     printf("Exp nord %u\n",_exp_nord);
