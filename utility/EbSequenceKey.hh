@@ -20,14 +20,14 @@ namespace Pds {
     virtual bool coincides(const EbSequenceSrv& s) { return key.seq.stamp() == s.sequence().stamp(); } 
     virtual void assign   (const EbSequenceSrv& s) { key.seq = s.sequence(); key.env = s.env(); }
 
-    virtual bool precedes (const BldSequenceSrv& s) { return key.seq.stamp() <= s.sequence().stamp(); } 
-    virtual bool coincides(const BldSequenceSrv& s) { return key.seq.stamp() == s.sequence().stamp(); } 
+    virtual bool precedes (const BldSequenceSrv& s) { return key.seq.stamp().fiducials() <= s.fiducials(); } 
+    virtual bool coincides(const BldSequenceSrv& s) { return key.seq.stamp().fiducials() == s.fiducials(); } 
     virtual void assign   (const BldSequenceSrv& s) 
     {
       const TimeStamp& ts = key.seq.stamp();
       key.seq = Sequence(key.seq.clock(),
 			 TimeStamp(ts.ticks(),
-				   s.sequence().stamp().fiducials(),
+				   s.fiducials(),
 				   ts.vector(),
 				   ts.control()));
     }

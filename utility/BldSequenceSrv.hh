@@ -9,8 +9,7 @@ namespace Pds {
   class BldSequenceSrv {
   public:
     virtual ~BldSequenceSrv() {}
-    virtual const Sequence& sequence() const = 0;
-    virtual const Env&      env() const = 0;
+    virtual unsigned fiducials() const = 0;
   };
 
 }

@@ -46,8 +46,7 @@ namespace Pds {
       int pend( int flag = 0 ) { return -1; }
       int fetch( char* payload, int flags );
 
-      const Sequence& sequence() const { return _seq; }
-      const Env&      env     () const { return _env; }
+      unsigned fiducials() const { return _seq.stamp().fiducials(); }
 
     protected:
       //  Subclasses call post when their data is ready
