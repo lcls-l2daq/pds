@@ -30,6 +30,7 @@ public:
   virtual bool     is_triggered   () const = 0;
   virtual unsigned module         () const { return -1U; }
   virtual unsigned channel        () const { return -1U; }
+  virtual bool     has_fiducial   () const { return false; }
 };
 }
 #endif

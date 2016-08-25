@@ -1,5 +1,6 @@
 #include "SegmentLevel.hh"
 #include "SegStreams.hh"
+#include "TaggedStreams.hh"
 #include "pds/collection/Node.hh"
 #include "pds/collection/Message.hh"
 #include "pds/utility/Transition.hh"
@@ -10,9 +11,11 @@
 #include "pds/utility/InletWireServer.hh"
 #include "pds/utility/InletWireIns.hh"
 #include "pds/utility/EvrServer.hh"
+#include "pds/utility/TagServer.hh"
 #include "pds/utility/ToEventWireScheduler.hh"
 #include "pds/xtc/CDatagram.hh"
 #include "pds/xtc/XtcType.hh"
+#include "pds/config/EvrConfigType.hh"
 #include "pds/management/EventBuilder.hh"
 #include "pds/management/EventCallback.hh"
 #include "pdsdata/xtc/DetInfo.hh"
@@ -31,11 +34,11 @@ using namespace Pds;
 static const unsigned NetBufferDepth = 1024;
 
 SegmentLevel::SegmentLevel(unsigned platform,
-         SegWireSettings& settings,
-         EventCallback& callback,
-         Arp* arp,
-         int slowEb
-         ) :
+                           SegWireSettings& settings,
+                           EventCallback& callback,
+                           Arp* arp,
+                           int slowEb
+                           ) :
   PartitionMember(platform, Level::Segment, slowEb, arp),
   _settings      (settings),
   _callback      (callback),
@@ -69,10 +72,18 @@ bool SegmentLevel::attach()
       if (_settings.is_triggered())
 	_header.setTrigger(_settings.module(),_settings.channel());
 
-      _streams = new SegStreams(*this,
-                                _settings.max_event_size (),
-                                _settings.max_event_depth(),
-                                vname);
+      if (_settings.has_fiducial()) {
+        _streams = new TaggedStreams(*this,
+                                     _settings.max_event_size (),
+                                     _settings.max_event_depth(),
+                                     vname);
+      }
+      else {
+        _streams = new SegStreams(*this,
+                                  _settings.max_event_size (),
+                                  _settings.max_event_depth(),
+                                  vname);
+      }
       _streams->connect();
 
       _callback.attached(*_streams);
@@ -96,19 +107,19 @@ bool SegmentLevel::attach()
 Message& SegmentLevel::reply    (Message::Type type)
 {
   switch (type) {
-    case Message::Alias:
-      //  Need to append L1 detector alias (SrcAlias) to the reply
-      return _aliasReply;
+  case Message::Alias:
+    //  Need to append L1 detector alias (SrcAlias) to the reply
+    return _aliasReply;
 
-    case Message::Ping:
-    default:
-      //  Need to append L1 detector info (Src) to the reply
-      return _reply;
+  case Message::Ping:
+  default:
+    //  Need to append L1 detector info (Src) to the reply
+    return _reply;
   }
 }
 
 void    SegmentLevel::allocated(const Allocation& alloc,
-        unsigned          index)
+                                unsigned          index)
 {
   InletWire& inlet = *_streams->wire(StreamParams::FrameWork);
 
@@ -116,12 +127,12 @@ void    SegmentLevel::allocated(const Allocation& alloc,
   for (unsigned n=0; n<alloc.nnodes(); n++) {
     const Node& node = *alloc.node(n);
     if (node.level() == Level::Segment &&
-  node == _header) {
+        node == _header) {
       if (node.group() != _header.group())
-  {
-    _header.setGroup(node.group());
-    printf("Assign group to %d\n", _header.group());
-  }
+        {
+          _header.setGroup(node.group());
+          printf("Assign group to %d\n", _header.group());
+        }
 
       _contains = node.transient()?_transientXtcType:_xtcType;  // transitions
       static_cast<EbBase&>(inlet).contains(_contains);  // l1accepts
@@ -137,13 +148,25 @@ void    SegmentLevel::allocated(const Allocation& alloc,
   Node evrNode(Level::Source,header().platform());
   evrNode.fixup(source.address(),Ether());
   DetInfo evrInfo(evrNode.pid(),DetInfo::NoDetector,0,DetInfo::Evr,0);
-  EvrServer* esrv = new EvrServer(source, evrInfo, 
-				  static_cast<InletWireServer&>(inlet)._inlet,
-				  NetBufferDepth); // revisit
+
+  Server* esrv;
+  if (_settings.has_fiducial()) {
+    TagServer* srv = new TagServer(source, evrInfo, 
+                                   sizeof(EvrDataType)+256*sizeof(Pds::EvrData::FIFOEvent),
+                                   NetBufferDepth); // revisit
+    srv->server().join(source, Ins(header().ip()));
+    esrv=srv;
+  }
+  else {
+    EvrServer* srv = new EvrServer(source, evrInfo, 
+                                   static_cast<InletWireServer&>(inlet)._inlet,
+                                   NetBufferDepth); // revisit
+    srv->server().join(source, Ins(header().ip()));
+    esrv=srv;
+  }
   inlet.add_input(esrv);
-  esrv->server().join(source, Ins(header().ip()));
   printf("Assign evr %d  (trigger %d masterid %d module %d) %x/%d\n",
-   esrv->id(), _header.triggered(), alloc.masterid(), _header.evr_module(), source.address(),source.portId());
+         esrv->id(), _header.triggered(), alloc.masterid(), _header.evr_module(), source.address(),source.portId());
   _evr = esrv;
 
   // setup event servers
@@ -154,21 +177,21 @@ void    SegmentLevel::allocated(const Allocation& alloc,
     if (node.level()==Level::Event) {
       // Add vectored output clients on inlet
       Ins ins = StreamPorts::event(partition,
-           Level::Event,
-           vectorid,
-           index);
+                                   Level::Event,
+                                   vectorid,
+                                   index);
       InletWireIns wireIns(vectorid, ins);
       inlet.add_output(wireIns);
       printf("SegmentLevel::allocated adding output %d to %x/%d\n",
-       vectorid, ins.address(), ins.portId());
+             vectorid, ins.address(), ins.portId());
       vectorid++;
     }
   }
 
   OutletWire* owire = _streams->stream(StreamParams::FrameWork)->outlet()->wire();
   owire->bind(OutletWire::Bcast, StreamPorts::bcast(partition,
-                Level::Event,
-                index));
+                                                    Level::Event,
+                                                    index));
 
   //
   //  Assign traffic shaping phase

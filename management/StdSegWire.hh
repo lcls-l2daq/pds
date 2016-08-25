@@ -16,14 +16,16 @@ namespace Pds {
                unsigned    maxeventdepth=64,
                bool        is_triggered =false,
                unsigned    evr_module   =0,
-               unsigned    evr_channel  =0);
+               unsigned    evr_channel  =0,
+               bool        has_fiducial = false);
     StdSegWire(std::list<EbServer*> server,
                const char* alias        =0,
                unsigned    maxeventsize =(1<<20),
                unsigned    maxeventdepth=64,
                bool        is_triggered =false,
                unsigned    evr_module   =0,
-               unsigned    evr_channel  =0);
+               unsigned    evr_channel  =0,
+               bool        has_fiducial =false);
     ~StdSegWire();
   public:
     void connect (InletWire& wire,
@@ -36,6 +38,7 @@ namespace Pds {
     unsigned channel        () const;
     unsigned max_event_size () const;
     unsigned max_event_depth() const;
+    bool     has_fiducial   () const;
   private:
     std::list<EbServer*> _server;
     std::list<Src>       _sources;
@@ -45,6 +48,7 @@ namespace Pds {
     bool                 _istriggered;
     unsigned             _evrmodule;
     unsigned             _evrchannel;
+    bool                 _hasfiducial;
   };
 };
 

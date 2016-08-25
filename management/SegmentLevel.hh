@@ -11,7 +11,7 @@ namespace Pds {
   class WiredStreams;
   class Arp;
   class EventCallback;
-  class EvrServer;
+  class Server;
 
   class SegmentLevel: public PartitionMember {
   public:
@@ -41,7 +41,7 @@ namespace Pds {
     SegWireSettings& _settings;
     EventCallback& _callback;
     WiredStreams*  _streams;
-    EvrServer*     _evr;
+    Server*        _evr;
     PingReply      _reply;
     AliasReply     _aliasReply;
   };
