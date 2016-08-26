@@ -31,7 +31,7 @@ SegmentLevel::SegmentLevel(unsigned         platform,
   _callback      (callback),
   _streams       (0),
   _evr           (0),
-  _reply         (settings.sources())
+  _reply         (settings.sources(), settings.max_event_size())
 {
   if (settings.pAliases()) {
     _aliasReply = *(settings.pAliases());
@@ -60,7 +60,8 @@ bool SegmentLevel::attach()
       if (_settings.needs_evr() && _settings.is_triggered())
 	_header.setTrigger(_settings.module(),_settings.channel());
 
-      _header.setPaddr(_settings.paddr());
+      _header.setPaddr  (_settings.paddr());
+      _header.setPayload(_settings.max_event_size());
 
       _streams = new SegStreams(*this,
                                 _settings,

@@ -12,8 +12,6 @@ libsrcs_management := CollectionObserver.cc \
 		      ControlStreams.cc \
 		      EventAppCallback.cc \
 		      MsgAppliance.cc \
-		      ObserverLevel.cc \
-		      ObserverStreams.cc \
 		      PartitionControl.cc \
 		      PartitionMember.cc \
 		      QualifiedControl.cc \
