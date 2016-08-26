@@ -41,7 +41,8 @@ public:
   ///  
   const ProcInfo& procInfo () const;
   int operator == (const Node& rhs) const;
-
+  ///  Payload
+  unsigned        payload  () const;
 public:
   static int user_name(int uid, char* buf, int bufsiz);
   static int ip_name  (int ip, char* buf, int bufsiz);
@@ -52,6 +53,7 @@ public:
   void setPaddr    (unsigned paddr);
   void setTransient(bool);
   void setTrigger  (unsigned module,unsigned channel);
+  void setPayload  (unsigned payload);
 private:
   uint16_t  _platform;
   uint16_t  _group;    // segment level only: each group has different readout rates
@@ -59,6 +61,7 @@ private:
   int32_t   _uid;
   ProcInfo  _procInfo;
   Ether     _ether;
+  uint32_t  _payload;
 };
 
 }

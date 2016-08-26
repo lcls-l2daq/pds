@@ -24,7 +24,8 @@ Node::Node(const Node& rhs) :
   _paddr    (rhs._paddr),
   _uid      (rhs._uid),
   _procInfo (rhs._procInfo),
-  _ether    (rhs._ether)
+  _ether    (rhs._ether),
+  _payload  (0)
 {}
 
 Node::Node(Level::Type level, uint16_t platform) :
@@ -32,7 +33,8 @@ Node::Node(Level::Type level, uint16_t platform) :
   _group   (0),
   _paddr   (-1),
   _uid(getuid()),
-  _procInfo(level,getpid(),0)
+  _procInfo(level,getpid(),0),
+  _payload (0)
 { memset(&_ether, 0, sizeof(_ether)); }
 
 Level::Type Node::level () const {return _procInfo.level();}
@@ -48,6 +50,8 @@ int Node::pid() const {return _procInfo.processId();}
 int Node::uid() const {return _uid;}
 int Node::ip() const {return _procInfo.ipAddr();}
 const Ether& Node::ether() const {return _ether;}
+
+unsigned Node::payload  () const {return _payload;}
 
 int Node::operator == (const Node& rhs) const
 {
@@ -83,6 +87,11 @@ void Node::setTrigger(unsigned module,
 void Node::setPaddr(unsigned paddr)
 {
   _paddr = paddr;
+}
+
+void Node::setPayload(unsigned payload)
+{
+  _payload = payload;
 }
 
 void Node::fixup(int ip, const Ether& ether) 
