@@ -78,7 +78,8 @@ namespace Pds {
                         unsigned source,
                         unsigned polarity,
                         unsigned delay,
-                        unsigned width);
+                        unsigned width,
+                        unsigned delayTap=0);
     public:
       volatile uint32_t irqEnable;
       volatile uint32_t irqStatus;;
@@ -108,7 +109,7 @@ namespace Pds {
         volatile uint32_t control; // input, polarity, enabled
         volatile uint32_t delay;
         volatile uint32_t width;
-        volatile uint32_t reserved_t;
+        volatile uint32_t delayTap;
       } trigger[NTRIGGERS];
     };
 

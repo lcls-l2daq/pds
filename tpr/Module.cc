@@ -45,6 +45,8 @@ void TprBase::dump() const {
   for(unsigned i=0; i<NChan; i++)      printf("%08x ",trigger[i].delay);
   printf("\ntrgWidth: ");
   for(unsigned i=0; i<NChan; i++)      printf("%08x ",trigger[i].width);
+  printf("\ntrgDelayTap: ");
+  for(unsigned i=0; i<NChan; i++)      printf("%08x ",trigger[i].delayTap);
   printf("\n");
 }
 
@@ -74,11 +76,13 @@ void TprBase::setupTrigger(unsigned i,
                            unsigned source,
                            unsigned polarity,
                            unsigned delay,
-                           unsigned width) {
-  trigger[i].control = (polarity ? (1<<16):0);
-  trigger[i].delay   = delay;
-  trigger[i].width   = width;
-  trigger[i].control = (source&0xffff) | (polarity ? (1<<16):0) | (1<<31);
+                           unsigned width,
+                           unsigned delayTap) {
+  trigger[i].control  = (polarity ? (1<<16):0);
+  trigger[i].delay    = delay;
+  trigger[i].width    = width;
+  trigger[i].control  = (source&0xffff) | (polarity ? (1<<16):0) | (1<<31);
+  trigger[i].delayTap = delayTap;
 }
 
 void DmaControl::dump() const {
