@@ -46,6 +46,7 @@ endif
 #
 
 packages := service collection xtc
+packages += montag
 packages += config confignfs configsql mon vmon monreq
 packages += utility management client offlineclient
 packages += epicstools ioc 
