@@ -99,6 +99,7 @@ namespace Pds {
     bool        l3veto() const;
     float       unbiased_fraction() const;
     float       traffic_interval() const;  // seconds
+    void        dump() const;
   public:
     static void set_traffic_interval(float);
   private:

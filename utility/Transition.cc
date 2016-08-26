@@ -292,6 +292,28 @@ bool        Allocation::l3tag() const { return _options&L3Tag; }
 
 bool        Allocation::l3veto() const { return _options&L3Veto; }
 
+void        Allocation::dump() const
+{
+  printf("Partition: %s\n", _partition);
+  printf("L3Path   : %s\n", _l3path);
+  printf("DbPath   : %s\n", _dbpath);
+  printf("Part Id  : %u\n", _partitionid);
+  printf("Master Id: %u\n", _masterid);
+  printf("Bld Mask : 0x%08x%08x\n", _bld_mask[1], _bld_mask[0]);
+  printf("Bld Mask Mon : 0x%08x%08x\n", _bld_mask_mon[1], _bld_mask_mon[0]);
+  printf("NNodes   : %u\n", _nnodes);
+  printf("Options  : 0x%x\n", _options);
+  printf("UnbiasedFrac: %g\n", _unbiased_f);
+  printf("Traffic Interval: %g\n", _traffic_interval);
+  for(unsigned i=0; i<_nnodes; i++) {
+    const Node& no = _nodes[i];
+    printf("%s %08x.%08x %08x\n", 
+           Level::name(no.level()),
+           no.procInfo().log(),
+           no.procInfo().phy(),
+           no.paddr());
+  }
+}
 
 Allocate::Allocate(const Allocation& allocation) :
   Transition(TransitionId::Map, Transition::Execute, none(TransitionId::Map), 0,
@@ -310,6 +332,7 @@ Allocate::Allocate(const Allocation& allocation,
 
 const Allocation& Allocate::allocation() const
 { return _allocation; }
+
 
 RunInfo::RunInfo(unsigned run, unsigned experiment) :
   Transition(TransitionId::BeginRun, Transition::Execute,

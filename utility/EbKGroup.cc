@@ -59,9 +59,9 @@ EbBase::IsComplete EbKGroup::_is_complete( EbEventBase* event, const EbBitMask& 
       }
     }
 
-    EbBitMask remain1 = event->remaining();
+    //    EbBitMask remain1 = event->remaining();
     event->setClientGroup(maskClientGroup);
-    EbBitMask remain2 = event->remaining();
+    //    EbBitMask remain2 = event->remaining();
 
     //!!!debug
     //printf( "EbKGroup::_is_complete(): service 0x%x group 0x%x server 0x%x Client 0x%x remaining 0x%x -> 0x%x\n",
