@@ -45,7 +45,8 @@ namespace Pds {
     public:
       void expired();
       Task* task() { return _task; }
-      unsigned duration  () const { return 1000; }
+      //      unsigned duration  () const { return 1000; }
+      unsigned duration  () const { return 1010; }
       unsigned repetitive() const { return 1; }
     private:
       TprReg&         _dev;
@@ -282,7 +283,7 @@ void StatsTimer::expired()
   INCSTAT(_dev.base.channel[0].evtCount,evtCount,0);
   INCSTAT(_dev.base.pauseCount         ,pauseCount,1);
   INCSTAT(_dev.base.overflowCount      ,overflowCount,2);
-  INCSTAT(_dev.base.channel[12].evtCount,frameCount,3);
+  INCSTAT(_dev.base.frameCount         ,frameCount,3);
 #undef INCSTAT
 #define INCSTAT(b,v,i) { _rxlink->addvalue(b-_s.v,i); _s.v=b; }
   INCSTAT(_dev.tpr.RxRstDone,rxRstDone,0);
