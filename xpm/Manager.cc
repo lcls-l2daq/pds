@@ -1,17 +1,13 @@
 #include "pds/xpm/Manager.hh"
 #include "pds/xpm/Server.hh"
-#include "pds/cphw/RingBuffer.hh"
 
 #include "pds/config/TriggerConfigType.hh"
 #include "pds/config/CfgClientNfs.hh"
-#include "pds/client/Action.hh"
-#include "pds/client/Fsm.hh"
 #include "pds/utility/Appliance.hh"
 #include "pds/service/GenericPool.hh"
 #include "pds/service/Routine.hh"
 #include "pds/service/Task.hh"
 #include "pds/service/Timer.hh"
-#include "pdsdata/xtc/XtcIterator.hh"
 
 #include "pds/vmon/VmonServerManager.hh"
 #include "pds/mon/MonGroup.hh"
@@ -19,6 +15,12 @@
 #include "pds/mon/MonEntryScalar.hh"
 
 #include "pds/xpm/Module.hh"
+
+#include "pds/epicstools/PVWriter.hh"
+using Pds_Epics::PVWriter;
+
+#include <string>
+#include <sstream>
 
 #include <errno.h>
 #include <signal.h>
@@ -29,206 +31,225 @@
 
 namespace Pds {
   namespace Xpm {
-    //  This should record the official time for each event
-    //  and any global trigger information
-    class L1Action : public Action {
+    class PVStats {
     public:
-      L1Action(Module& dev) : _dev(dev) {}
-      InDatagram* fire(InDatagram* in) {
-        return in;
-      }
-      Transition* fire(Transition* in) {
-        _dev.setL0Enabled(false);
-        printf("L0T off\n");
-        return in;
-      }
-    private:
-      Module& _dev;
-    };
-    class EnableAction : public Action {
+      PVStats() : _pv(0) {}
+      ~PVStats() {}
     public:
-      EnableAction(Module& dev,
-                   L0Stats& s) : _dev(dev), _s(s) {}
-      Transition* fire(Transition* in) { return in; }
-      InDatagram* fire(InDatagram* in) {
-        _s = _dev.l0Stats();
-        _s.dump();
-        _dev.setL0Enabled(true);
-        printf("L0T on [%x]\n",unsigned(_dev._enabled));
-        return in;
+      void allocate(const Allocation& alloc) {
+        if (ca_current_context() == NULL) {
+          printf("Initializing context\n");
+          SEVCHK ( ca_context_create(ca_enable_preemptive_callback ), 
+                   "Calling ca_context_create" );
+        }
+
+        for(unsigned i=0; i<_pv.size(); i++)
+          delete _pv[i];
+
+        std::ostringstream o;
+        o << "DAQ:" << alloc.partition() << ":";
+        std::string pvbase = o.str();
+        _pv.resize(6);
+        _pv[0] = new PVWriter((pvbase+"L0RATE").c_str());
+        _pv[1] = new PVWriter((pvbase+"L1RATE").c_str());
+        _pv[2] = new PVWriter((pvbase+"NUML0" ).c_str());
+        _pv[3] = new PVWriter((pvbase+"NUML1" ).c_str());
+        _pv[4] = new PVWriter((pvbase+"DEADFRAC").c_str());
+        _pv[5] = new PVWriter((pvbase+"DEADTIME").c_str());
+        printf("PV stats allocated\n");
       }
-    private:
-      Module&  _dev;
-      L0Stats& _s;
-    };
-    class DisableAction : public Action {
     public:
-      DisableAction(Module& dev,
-                    L0Stats& s) : _dev(dev), _s(s) {}
-      Transition* fire(Transition* in) {
-        L0Stats s = _dev.l0Stats();
-        s.dump();
-#define PDIFF(title,stat) //printf("%9.9s: %lu\n",#title,s.stat-_s.stat)
-        PDIFF(Enabled  ,l0Enabled);
-        PDIFF(Inhibited,l0Inhibited);
-        PDIFF(L0,numl0);
-        PDIFF(L0Inh,numl0Inh);
-        PDIFF(L0Acc,numl0Acc);
-        PDIFF(rxErrs,rx0Errs);
-#undef PDIFF
-        return in;
-      }
+#define PVPUT(i,v) { *reinterpret_cast<double*>(_pv[i]->data()) = double(v); _pv[i]->put(); }
+      void update(const L0Stats& ns, const L0Stats& os, double dt) 
+      { PVPUT(0,double(ns.numl0-os.numl0)/dt);
+        PVPUT(2,ns.numl0);
+        PVPUT(4,ns.numl0    ?double(ns.numl0Inh)   /double(ns.numl0    ):0);
+        PVPUT(5,ns.l0Enabled?double(ns.l0Inhibited)/double(ns.l0Enabled):0);
+        ca_flush_io(); }
     private:
-      Module&  _dev;
-      L0Stats& _s;
+      std::vector<PVWriter*> _pv;
     };
 
-    class ConfigAction : public Action {
-      enum {MaxConfigSize=0x1000};
+    class PvAllocate : public Routine {
     public:
-      ConfigAction(Xpm::Module&      dev,
-                   const Src&        src,
-                   Manager&          mgr,
-                   CfgClientNfs&     cfg,
-                   const Allocation& alloc) :
-        _dev    (dev),
-        _config (new char[MaxConfigSize]),
-//         _cfgtc  (_generic1DConfigType,src),
-        _mgr    (mgr),
-        _cfg    (cfg),
-        _alloc  (alloc),
-        _occPool(sizeof(UserMessage),1) {}
-      ~ConfigAction() {}
-      InDatagram* fire(InDatagram* dg) 
-      {
-//         dg->insert(_cfgtc, &_config);
-        if (_nerror) {
-          printf("*** Found %d configuration errors\n",_nerror);
-          dg->datagram().xtc.damage.increase(Pds::Damage::UserDefined);
-        }
-        return dg;
-      }
-      Transition* fire(Transition* tr) 
-      {
-        _nerror = 0;
-
-        int len     = _cfg.fetch( *tr,
-                                  _trgConfigType,
-                                  _config,
-                                  MaxConfigSize );
-        
-        if (len) {
-          TriggerConfigType& c = *reinterpret_cast<TriggerConfigType*>(_config);    
-          _dev.setL0Select_FixedRate(c.l0Select()[0].fixedRate()); 
-        }
-          
-        for(unsigned i=0; i<_alloc.nnodes(); i++) {
-          unsigned paddr = _alloc.node(i)->paddr();
-          if (paddr&0xffff0000)
-            continue;
-          _dev.rxLinkReset(paddr&0xf);
-        }
-        usleep(1000);
-
-        _dev.init();
-        printf("rx/tx Status: %08x/%08x\n", 
-               _dev.rxLinkStat(), _dev.txLinkStat());
-
-        _dev.resetL0(true);
-        bool lenable=true;
-
-        for(unsigned i=0; i<_alloc.nnodes(); i++) {
-          unsigned paddr = _alloc.node(i)->paddr();
-          if (paddr&0xffff0000)
-            continue;
-          _dev.linkEnable(paddr&0xf,lenable);
-        }
-        
-        printf("Configuration Done\n");
-        
-        _nerror = 0;  // override
-        
-        if (_nerror) {
-          
-          UserMessage* msg = new (&_occPool) UserMessage;
-          msg->append("Xpm: failed to apply configuration.\n");
-          _mgr.appliance().post(msg);
-          
-        }
-        return tr;
+      PvAllocate(PVStats& pv,
+                 const Allocation& alloc,
+                 const L0Stats& s) :
+        _pv(pv), _alloc(alloc), _s(s) {}
+    public:
+      void routine() {
+        _pv.allocate(_alloc); 
+        //        _pv.update(_s,_s);
+        delete this;
       }
     private:
-      Xpm::Module&        _dev;
-      char*               _config;
-//       Xtc                 _cfgtc;
-      Manager&            _mgr;
-      CfgClientNfs&       _cfg;
-      const Allocation&   _alloc;
-      GenericPool         _occPool;
-      unsigned            _nerror;
+      PVStats&   _pv;
+      Allocation _alloc;
+      L0Stats    _s;
     };
+
     class StatsTimer : public Timer {
     public:
       StatsTimer(Module& dev);
       ~StatsTimer() { _task->destroy(); }
     public:
-      void partition(unsigned p) { _partition=p; }
-      void expired();
+      void allocate(const Allocation&);
+      void expired ();
       Task* task() { return _task; }
-      unsigned duration  () const { return 1000; }
+      //      unsigned duration  () const { return 1000; }
+      unsigned duration  () const { return 1010; }  // 1% error on timer
       unsigned repetitive() const { return 1; }
     private:
       Module&         _dev;
       Task*           _task;
       MonEntryScalar* _stats;
-      unsigned        _partition;
       L0Stats         _s;
+      timespec        _t;
+      PVStats         _pv;
     };
-    class MapAction : public Action {
+
+    class XpmAppliance : public Appliance {
+      enum { MaxConfigSize=0x100000 };
     public:
-      MapAction(Allocation& alloc, 
-                CfgClientNfs& cfg,
-                StatsTimer& t) : _alloc(alloc), _cfg(cfg), _t(t) {}
-      ~MapAction() {}
+      XpmAppliance(Module&       dev,
+                   Server&       srv,
+                   CfgClientNfs& cfg) :
+        _dev    (dev),
+        _cfg    (cfg),
+        _config (new char[MaxConfigSize]),
+//         _cfgtc  (_generic1DConfigType,src),
+        _occPool(sizeof(UserMessage),1),
+        _timer  (dev) {}
     public:
-      InDatagram* fire(InDatagram* dg) { return dg; }
-      Transition* fire(Transition* tr) {
-        const Allocation& alloc = static_cast<Allocate*>(tr)->allocation();
-        _cfg.initialize(alloc);
-        _t.partition(alloc.partitionid());
-        _alloc = alloc;
+      Transition* transitions(Transition* tr) {
+        switch(tr->id()) {
+        case TransitionId::L1Accept:
+          _dev.setL0Enabled(false);
+          break;
+        case TransitionId::Disable:
+          { L0Stats s = _dev.l0Stats();
+            s.dump();
+#define PDIFF(title,stat) //printf("%9.9s: %lu\n",#title,s.stat-_enableStats.stat)
+            PDIFF(Enabled  ,l0Enabled);
+            PDIFF(Inhibited,l0Inhibited);
+            PDIFF(L0,numl0);
+            PDIFF(L0Inh,numl0Inh);
+            PDIFF(L0Acc,numl0Acc);
+            PDIFF(rxErrs,rx0Errs);
+#undef PDIFF
+          }
+          break;
+        case TransitionId::BeginRun:
+          _timer.start();
+          break;
+        case TransitionId::EndRun:
+          _timer.cancel();
+          break;
+        case TransitionId::Configure:
+          { _nerror = 0;
+
+            int len     = _cfg.fetch( *tr,
+                                      _trgConfigType,
+                                      _config,
+                                      MaxConfigSize );
+        
+            if (len) {
+              const TriggerConfigType& c = *reinterpret_cast<const TriggerConfigType*>(_config);
+              const L0SelectType& l0t = c.l0Select()[_alloc.partitionid()];
+              switch(l0t.rateSelect()) {
+              case L0SelectType::_FixedRate:
+                _dev.setL0Select_FixedRate(l0t.fixedRate()); 
+                break;
+              case L0SelectType::_PowerSyncRate:
+                _dev.setL0Select_ACRate   (l0t.powerSyncRate(),
+                                           l0t.powerSyncMask());
+                break;
+              case L0SelectType::_ControlSequence:
+                _dev.setL0Select_Sequence (l0t.controlSeqNum(),
+                                           l0t.controlSeqBit());
+                break;
+              case L0SelectType::_EventCode:  // Firmware doesn't support this yet
+                //             _dev.setL0Select_EventCode(l0t.eventCode());
+                //            break;
+              default:
+                break;
+              }
+            }
+          
+            _alloc.dump();
+            for(unsigned i=0; i<_alloc.nnodes(); i++) {
+              unsigned paddr = _alloc.node(i)->paddr();
+              if (paddr&0xffff0000)
+                continue;
+              _dev.rxLinkReset(paddr&0xf);
+            }
+            usleep(1000);
+
+            _dev.init();
+            printf("rx/tx Status: %08x/%08x\n", 
+                   _dev.rxLinkStat(), _dev.txLinkStat());
+
+            _dev.resetL0(true);
+            bool lenable=true;
+
+            for(unsigned i=0; i<_alloc.nnodes(); i++) {
+              unsigned paddr = _alloc.node(i)->paddr();
+              if (paddr&0xffff0000)
+                continue;
+              _dev.linkEnable(paddr&0xf,lenable);
+            }
+        
+            printf("Configuration Done\n");
+        
+            _nerror = 0;  // override
+        
+            if (_nerror) {
+              UserMessage* msg = new (&_occPool) UserMessage;
+              msg->append("Xpm: failed to apply configuration.\n");
+              post(msg);
+            }
+          }
+          break;
+        case TransitionId::Map:
+          { const Allocation& alloc = static_cast<Allocate*>(tr)->allocation();
+            _cfg.initialize(alloc);
+            _timer.allocate(alloc);
+            _alloc = alloc; }
+          break;
+        default:
+          break;
+        }
         return tr;
       }
+    public:
+      InDatagram* events     (InDatagram* dg) {
+        switch(dg->datagram().seq.service()) {
+        case TransitionId::L1Accept:
+          break;
+        case TransitionId::Enable:
+          (_enableStats=_dev.l0Stats()).dump();
+          _dev.setL0Enabled(true);
+          break;
+        case TransitionId::Configure:
+//         dg->insert(_cfgtc, &_config);
+          if (_nerror) {
+            printf("*** Found %d configuration errors\n",_nerror);
+            dg->datagram().xtc.damage.increase(Pds::Damage::UserDefined);
+          }
+        default:
+          break;
+        }
+        return dg;
+      }
     private:
-      Allocation& _alloc;
+      Module&       _dev;
       CfgClientNfs& _cfg;
-      StatsTimer& _t;
-    };
-    class BeginRun : public Action {
-    public:
-      BeginRun(StatsTimer& t) : _t(t) {}
-      ~BeginRun() {}
-    public:
-      InDatagram* fire(InDatagram* dg) { return dg; }
-      Transition* fire(Transition* tr) {
-        _t.start();
-        return tr;
-      }
-    private:
-      StatsTimer& _t;
-    };
-    class EndRun : public Action {
-    public:
-      EndRun(StatsTimer& t) : _t(t) {}
-      ~EndRun() {}
-    public:
-      InDatagram* fire(InDatagram* dg) { return dg; }
-      Transition* fire(Transition* tr) {
-        _t.cancel();
-        return tr;
-      }
-    private:
-      StatsTimer& _t;
+      char*         _config;
+      Allocation    _alloc;
+      GenericPool   _occPool;
+      StatsTimer    _timer;
+      L0Stats       _enableStats;
+      unsigned      _nerror;
     };
   }
 }
@@ -254,6 +275,21 @@ StatsTimer::StatsTimer(Module& dev) :
     group->add(_stats); }
 }
 
+void StatsTimer::allocate(const Allocation& alloc)
+{ 
+  clock_gettime(CLOCK_REALTIME,&_t);
+  _s.l0Enabled=0;
+  _s.l0Inhibited=0;
+  _s.numl0=0;
+  _s.numl0Inh=0;
+  _s.numl0Acc=0;
+  _s.rx0Errs=0;
+  _task->call(new PvAllocate(_pv,alloc,_s));
+}
+
+//
+//  Update VMON plots and EPICS PVs
+//
 void StatsTimer::expired()
 {
   timespec t; clock_gettime(CLOCK_REALTIME,&t);
@@ -267,31 +303,22 @@ void StatsTimer::expired()
   INCSTAT(rx0Errs    ,5);
 #undef INCSTAT
   _stats->time(ClockTime(t));
-  //  s.dump();
+  s.dump();
+  _pv.update(s,_s,double(t.tv_sec-_t.tv_sec)+1.e-9*(double(t.tv_nsec)-double(_t.tv_nsec)));
   _s=s;
+  _t=t;
 }
 
 
-Manager::Manager(Module& dev, Server& server, CfgClientNfs& cfg) : _fsm(*new Fsm())
+Manager::Manager(Module& dev, Server& server, CfgClientNfs& cfg) : _app(new Xpm::XpmAppliance(dev,server,cfg))
 {
-  L0Stats* s = new L0Stats;
 
-  _stats = new StatsTimer(dev);
-  _alloc = new Allocation;
-  _fsm.callback(TransitionId::Map      ,new MapAction    (*_alloc, cfg, *_stats));
-  _fsm.callback(TransitionId::Configure,new ConfigAction (dev, server.client(), *this, cfg, *_alloc));
-  _fsm.callback(TransitionId::BeginRun ,new BeginRun     (*_stats));
-  _fsm.callback(TransitionId::Enable   ,new EnableAction (dev,*s));
-  _fsm.callback(TransitionId::Disable  ,new DisableAction(dev,*s));
-  _fsm.callback(TransitionId::L1Accept ,new L1Action     (dev));
-  _fsm.callback(TransitionId::EndRun   ,new EndRun       (*_stats));
 }
 
 Manager::~Manager() 
 {
-  delete _stats;
-  delete _alloc;
+  delete _app;
 }
 
-Pds::Appliance& Manager::appliance() {return _fsm;}
+Pds::Appliance& Manager::appliance() {return *_app;}
 

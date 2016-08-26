@@ -41,14 +41,28 @@ namespace Pds {
       void setL0Select_FixedRate(unsigned rate);
       void setL0Select_ACRate   (unsigned rate, unsigned tsmask);
       void setL0Select_Sequence (unsigned seq , unsigned bit);
+      //      void setL0Select_EventCode(unsigned code);
       void lockL0Stats (bool);
       //    private:
+    public:
+      void setRingBChan(unsigned);
+    public:
+      void pllBwSel    (unsigned);
+      void pllFrqSel   (unsigned);
+      void pllRateSel  (unsigned);
+      void pllBypass   (bool);
+      void pllReset    ();
+      void pllSkew     (int);
     public:
       Cphw::Reg   _dsLinkEnable;    
       Cphw::Reg   _dsLinkReset;
       Cphw::Reg   _enabled;
       Cphw::Reg   _l0Select;
-      uint32_t    _reserved_8[(0x80-0x10)/4];
+      Cphw::Reg   _pllConfig0;
+      Cphw::Reg   _pllConfig1;
+      Cphw::Reg   _pllStatus0;
+      Cphw::Reg   _pllStatus1;
+      uint32_t    _reserved_1c[(0x80-0x20)/4];
       Cphw::Reg   _dsTxLinkStatus;    
       Cphw::Reg   _dsRxLinkStatus;
       Cphw::Reg64 _l0Enabled;    

@@ -84,14 +84,17 @@ L0Stats Module::l0Stats() const
   //  Release the counters
   const_cast<Module&>(*this).lockL0Stats(false);
 
-  unsigned e=_dsLinkEnable;
+  /*
+  unsigned e=_dsLinkEnable&0xffff;
   unsigned v=0;
-  for(unsigned i=0; e!=0; i++)
-    if (e & (1<<i)) {
-      e ^= (1<<i);
-      v += rxLinkErrs(i);
-    }
+  { for(unsigned i=0; e!=0; i++)
+      if (e & (1<<i)) {
+        e ^= (1<<i);
+        v += rxLinkErrs(i);
+      } }
   s.rx0Errs     = v;
+  */
+  s.rx0Errs = rxLinkErrs(0);
 
   return s;
 }
@@ -154,7 +157,76 @@ void Module::lockL0Stats(bool v)
 {
   unsigned r = _enabled;
   if (v)
-    _enabled = r|(1<<31);
-  else
     _enabled = r&~(1<<31);
+  else
+    _enabled = r|(1<<31);
+}
+
+void Module::setRingBChan(unsigned chan)
+{
+  unsigned r = _pllConfig0;
+  r &= ~0x0f000000;
+  r |= ((chan&0x7)<<24);
+  _pllConfig0 = r;
+}
+
+void Module::pllBwSel    (unsigned sel)
+{
+  unsigned r = _pllConfig0;
+  r &= ~0xf;
+  r |= (sel&0xf);
+  _pllConfig0 = r;
+}
+
+void Module::pllFrqSel    (unsigned sel)
+{
+  unsigned r = _pllConfig0;
+  r &= ~0xfff0;
+  r |= (sel&0xfff)<<4;
+  _pllConfig0 = r;
+}
+
+void Module::pllRateSel    (unsigned sel)
+{
+  unsigned r = _pllConfig0;
+  r &= ~0xf0000;
+  r |= (sel&0xf)<<16;
+  _pllConfig0 = r;
+}
+
+void Module::pllBypass   (bool v)
+{
+  unsigned r = _pllConfig0;
+  if (v)
+    r |= (1<<22);
+  else
+    r &= ~(1<<22);
+  _pllConfig0 = r;
+}
+  
+void Module::pllReset    ()
+{
+  unsigned r = _pllConfig0;
+  _pllConfig0 = r & ~(1<<23);
+  usleep(10);
+  _pllConfig0 = r | (1<<23);
+}
+
+void Module::pllSkew(int skewSteps)
+{
+  unsigned v = _pllConfig0;
+  while(skewSteps > 0) {
+    _pllConfig0 = v|(1<<20);
+    usleep(10);
+    _pllConfig0 = v;
+    usleep(10);
+    skewSteps--;
+  }
+  while(skewSteps < 0) {
+    _pllConfig0 = v|(1<<21);
+    usleep(10);
+    _pllConfig0 = v;
+    usleep(10);
+    skewSteps++;
+  }
 }
