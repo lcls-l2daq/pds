@@ -14,6 +14,8 @@ void L0Stats::dump() const
         PU64(L0,numl0);
         PU64(L0Inh,numl0Inh);
         PU64(L0Acc,numl0Acc);
+        for(unsigned i=0; i<8; i++)
+          printf("Inhibit[%u]: %x\n", i, linkInh[i]);
 #undef PU64
         printf("%9.9s: %x\n","rxErrs",rx0Errs);
 }
@@ -25,16 +27,30 @@ Module::Module()
 void Module::init()
 {
   printf("Module\n");
-  printf("enabled  %x\n", unsigned(_enabled));
-  printf("l0Select %x\n", unsigned(_l0Select));
-  printf("linkEna  %x\n", unsigned(_dsLinkEnable));
-  printf("txLinkSt %x\n", unsigned(_dsTxLinkStatus));
-  printf("rxLinkSt %x\n", unsigned(_dsRxLinkStatus));
+  printf("l0 enabled [%x]  reset [%x]\n", 
+         unsigned(_enabled)>>16, unsigned(_enabled)&0xffff);
+  printf("l0 rate [%x]  dest [%x]\n", 
+         unsigned(_l0Select)&0xffff, unsigned(_l0Select)>>16);
+  printf("link  fullEn [%x]  loopEn [%x]\n", 
+         unsigned(_dsLinkEnable)&0xffff,
+         unsigned(_dsLinkEnable)>>16);
+  printf("txReset PMA [%x]  All [%x]\n", 
+         unsigned(_dsTxLinkStatus)&0xffff,
+         unsigned(_dsTxLinkStatus)>>16);
+  printf("rxReset PMA [%x]  All [%x]\n", 
+         unsigned(_dsRxLinkStatus)&0xffff,
+         unsigned(_dsRxLinkStatus)>>16);
   printf("l0Enabld %x\n", unsigned(_l0Enabled));
   printf("l0Inh    %x\n", unsigned(_l0Inhibited));
   printf("numl0    %x\n", unsigned(_numl0));
   printf("numl0Inh %x\n", unsigned(_numl0Inh));
   printf("numl0Acc %x\n", unsigned(_numl0Acc));
+}
+
+void Module::clearLinks()
+{
+  unsigned b = _dsLinkEnable;
+  _dsLinkEnable = b&0xffff0000;
 }
 
 void Module::linkEnable(unsigned link, bool v)
@@ -81,6 +97,12 @@ L0Stats Module::l0Stats() const
   s.numl0       = _numl0;
   s.numl0Inh    = _numl0Inh;
   s.numl0Acc    = _numl0Acc;
+  unsigned mask = _dsLinkEnable&0x00ff;
+  for(unsigned i=0; mask; i++)
+    if (mask&(1<<i)) {
+      mask &= ~(1<<i);
+      s.linkInh[i] = _dsLinkInh[i];
+    }
   //  Release the counters
   const_cast<Module&>(*this).lockL0Stats(false);
 

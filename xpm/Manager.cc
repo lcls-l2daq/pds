@@ -56,6 +56,7 @@ namespace Pds {
         _pv[3] = new PVWriter((pvbase+"NUML1" ).c_str());
         _pv[4] = new PVWriter((pvbase+"DEADFRAC").c_str());
         _pv[5] = new PVWriter((pvbase+"DEADTIME").c_str());
+        _pv[6] = new PVWriter((pvbase+"DEADFLNK").c_str(),8);
         printf("PV stats allocated\n");
       }
     public:
@@ -65,6 +66,10 @@ namespace Pds {
         PVPUT(2,ns.numl0);
         PVPUT(4,ns.numl0    ?double(ns.numl0Inh)   /double(ns.numl0    ):0);
         PVPUT(5,ns.l0Enabled?double(ns.l0Inhibited)/double(ns.l0Enabled):0);
+        for(unsigned i=0; i<8; i++) {
+          reinterpret_cast<double*>(_pv[6]->data())[i] = double(ns.linkInh[i]-os.linkInh[i])/double(ns.l0Enabled-os.l0Enabled);
+        }
+        _pv[6]->put();
         ca_flush_io(); }
     private:
       std::vector<PVWriter*> _pv;
@@ -155,7 +160,7 @@ namespace Pds {
         
             if (len) {
               const TriggerConfigType& c = *reinterpret_cast<const TriggerConfigType*>(_config);
-              const L0SelectType& l0t = c.l0Select()[_alloc.partitionid()];
+              const L0SelectType& l0t = c.l0Select()[0];
               switch(l0t.rateSelect()) {
               case L0SelectType::_FixedRate:
                 _dev.setL0Select_FixedRate(l0t.fixedRate()); 
@@ -177,17 +182,16 @@ namespace Pds {
             }
           
             _alloc.dump();
+
+            _dev.clearLinks();
             for(unsigned i=0; i<_alloc.nnodes(); i++) {
               unsigned paddr = _alloc.node(i)->paddr();
               if (paddr&0xffff0000)
                 continue;
+              _dev.txLinkReset(paddr&0xf);
               _dev.rxLinkReset(paddr&0xf);
             }
-            usleep(1000);
-
-            _dev.init();
-            printf("rx/tx Status: %08x/%08x\n", 
-                   _dev.rxLinkStat(), _dev.txLinkStat());
+            usleep(10000);
 
             _dev.resetL0(true);
             bool lenable=true;
@@ -199,6 +203,10 @@ namespace Pds {
               _dev.linkEnable(paddr&0xf,lenable);
             }
         
+            _dev.init();
+            printf("rx/tx Status: %08x/%08x\n", 
+                   _dev.rxLinkStat(), _dev.txLinkStat());
+
             printf("Configuration Done\n");
         
             _nerror = 0;  // override
