@@ -23,6 +23,7 @@ namespace Pds {
       void setupDaq    (unsigned i,
                         unsigned partition,
                         unsigned dataLength);
+      void disable     (unsigned i);
     public:
       volatile uint32_t irqEnable;
       volatile uint32_t irqStatus;;

@@ -53,6 +53,7 @@ namespace Pds {
       Task*           _task;
       MonEntryScalar* _stats;
       MonEntryScalar* _rxlink;
+      MonEntryScalar* _dma;
       class MyStats {
       public:
         unsigned evtCount;
@@ -248,6 +249,21 @@ namespace Pds {
     private:
       StatsTimer& _t;
     };
+    class UnconfigAction : public Action {
+    public:
+      UnconfigAction(TprDS::TprReg& dev) :
+        _dev    (dev) {}
+      ~UnconfigAction() {}
+      InDatagram* fire(InDatagram* dg) 
+      { return dg; }
+      Transition* fire(Transition* tr)
+      {
+        _dev.base.disable(0);
+        return tr;
+      }
+    private:
+      TprDS::TprReg&      _dev;
+    };
   }
 }
 
@@ -274,6 +290,11 @@ StatsTimer::StatsTimer(TprReg&   dev,
     MonDescScalar desc("RxLink",names);
     _rxlink = new MonEntryScalar(desc);
     group.add(_rxlink); }
+  { std::vector<std::string> names;
+    names.push_back("BuffFree");
+    MonDescScalar desc("Dma",names);
+    _dma = new MonEntryScalar(desc);
+    group.add(_dma); }
 }
 
 void StatsTimer::expired()
@@ -290,8 +311,11 @@ void StatsTimer::expired()
   INCSTAT(_dev.tpr.RxDecErrs,rxDecErrs,1);
   INCSTAT(_dev.tpr.RxDspErrs,rxDspErrs,2);
 #undef INCSTAT
-  _stats ->time(ClockTime(t));
-  _rxlink->time(ClockTime(t));
+  _dma->addvalue(_dev.dma.rxFreeStat&0x3ff,0);
+  ClockTime ct(t);
+  _stats ->time(ct);
+  _rxlink->time(ct);
+  _dma   ->time(ct);
 }
 
 Manager::Manager(TprReg&       dev,
@@ -306,6 +330,7 @@ Manager::Manager(TprReg&       dev,
   _fsm.callback(TransitionId::BeginRun ,new BeginRun     (*stats));
   _fsm.callback(TransitionId::L1Accept ,new L1Action     (*group));
   _fsm.callback(TransitionId::EndRun   ,new EndRun       (*stats));
+  _fsm.callback(TransitionId::Unconfigure,new UnconfigAction (dev));
 }
 
 Manager::~Manager() {}

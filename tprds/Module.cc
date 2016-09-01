@@ -43,3 +43,8 @@ void TprBase::setupDaq    (unsigned i,
   channel[i].control  = 5;
 }
 
+void TprBase::disable    (unsigned i)
+{
+  channel[i].control  = 0;
+}
+
