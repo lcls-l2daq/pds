@@ -10,7 +10,7 @@ namespace Pds {
     class Server;
     class Manager {
     public:
-      Manager (TprReg&, Server&, CfgClientNfs&);
+      Manager (TprReg&, Server&, CfgClientNfs&, bool lmonitor=false);
       ~Manager();
     public:
       Appliance& appliance();

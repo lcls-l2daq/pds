@@ -6,10 +6,13 @@ using namespace Pds::TprDS;
 
 void TprBase::dump() const {
   static const unsigned NChan=12;
-  printf("irqEnable [%p]: %08x\n",&irqEnable,irqEnable);
-  printf("irqStatus [%p]: %08x\n",&irqStatus,irqStatus);
-  printf("gtxDebug  [%p]: %08x\n",&gtxDebug  ,gtxDebug);
-  printf("trigSel   [%p]: %08x\n",&dmaFullThr,dmaFullThr);
+#define DUMPREG(r) { printf("%16.16s [%p]: %08x\n",#r, &r, r); }
+  DUMPREG(irqEnable);
+  DUMPREG(irqStatus);
+  DUMPREG(partitionAddr);
+  DUMPREG(gtxDebug);
+  DUMPREG(countReset);
+  DUMPREG(dmaFullThr);
   printf("channel0  [%p]\n",&channel[0].control);
   printf("control : ");
   for(unsigned i=0; i<NChan; i++)      printf("%08x ",channel[i].control);
@@ -46,5 +49,23 @@ void TprBase::setupDaq    (unsigned i,
 void TprBase::disable    (unsigned i)
 {
   channel[i].control  = 0;
+}
+
+void TprBase::resetCounts()
+{
+  unsigned b = countReset;
+  countReset = b|1;
+  usleep(1);
+  countReset = b&~1;
+}
+
+void TprBase::dmaHistEna (bool v)
+{
+  unsigned b = countReset;
+  if (v)
+    b |= (1<<1);
+  else
+    b &= ~(1<<1);
+  countReset = b;
 }
 

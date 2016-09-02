@@ -49,14 +49,23 @@ namespace Pds {
         std::ostringstream o;
         o << "DAQ:" << alloc.partition() << ":";
         std::string pvbase = o.str();
-        _pv.resize(6);
-        _pv[0] = new PVWriter((pvbase+"L0RATE").c_str());
-        _pv[1] = new PVWriter((pvbase+"L1RATE").c_str());
-        _pv[2] = new PVWriter((pvbase+"NUML0" ).c_str());
-        _pv[3] = new PVWriter((pvbase+"NUML1" ).c_str());
-        _pv[4] = new PVWriter((pvbase+"DEADFRAC").c_str());
-        _pv[5] = new PVWriter((pvbase+"DEADTIME").c_str());
-        _pv[6] = new PVWriter((pvbase+"DEADFLNK").c_str(),8);
+        _pv.push_back( new PVWriter((pvbase+"L0RATE").c_str()) );
+        _pv.push_back( new PVWriter((pvbase+"L1RATE").c_str()) );
+        _pv.push_back( new PVWriter((pvbase+"NUML0" ).c_str()) );
+        _pv.push_back( new PVWriter((pvbase+"NUML1" ).c_str()) );
+        _pv.push_back( new PVWriter((pvbase+"DEADFRAC").c_str()) );
+        _pv.push_back( new PVWriter((pvbase+"DEADTIME").c_str()) );
+#if 1
+        _pv.push_back( new PVWriter((pvbase+"DEADFLNK").c_str(),8) );
+#else
+#define PVADD(idx) {                                                    \
+          std::ostringstream q; s << pvbase << "DEADFLNK" << idx;       \
+          _pv.push_back( new PVWriter(q.str().c_str()) ); }
+        for(unsigned i=0; i<8; i++) {
+          PVADD(idx);
+        }
+#undef PVADD
+#endif
         printf("PV stats allocated\n");
       }
     public:
@@ -66,10 +75,16 @@ namespace Pds {
         PVPUT(2,ns.numl0);
         PVPUT(4,ns.numl0    ?double(ns.numl0Inh)   /double(ns.numl0    ):0);
         PVPUT(5,ns.l0Enabled?double(ns.l0Inhibited)/double(ns.l0Enabled):0);
+#if 1
         for(unsigned i=0; i<8; i++) {
           reinterpret_cast<double*>(_pv[6]->data())[i] = double(ns.linkInh[i]-os.linkInh[i])/double(ns.l0Enabled-os.l0Enabled);
         }
         _pv[6]->put();
+#else
+        for(unsigned i=0; i<8; i++) {
+          PVPUT(6+i,double(ns.linkInh[i]-os.linkInh[i])/double(ns.l0Enabled-os.l0Enabled));
+        }
+#endif
         ca_flush_io(); }
     private:
       std::vector<PVWriter*> _pv;

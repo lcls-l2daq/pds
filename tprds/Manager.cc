@@ -147,12 +147,14 @@ namespace Pds {
       ConfigAction(TprDS::TprReg& dev,
                    const Src&     src,
                    Manager&       mgr,
-                   CfgClientNfs&  cfg) :
+                   CfgClientNfs&  cfg,
+                   bool           lmon) :
         _dev    (dev),
         _config (new char[MaxConfigSize]),
         _cfgtc  (_generic1DConfigType,src),
         _mgr    (mgr),
         _cfg    (cfg),
+        _lmon   (lmon),
         _occPool(sizeof(UserMessage),1) {}
       ~ConfigAction() {}
       InDatagram* fire(InDatagram* dg) 
@@ -177,6 +179,7 @@ namespace Pds {
           TprDSConfigType& c = *reinterpret_cast<TprDSConfigType*>(_config);
           nsamples[0] = c.dataSize();
           _dev.base.dmaFullThr=c.fullThreshold(); 
+          _dev.base.dmaHistEna(_lmon);
         }
         else {
           nsamples[0] = 20;
@@ -190,9 +193,7 @@ namespace Pds {
         _dev.tpr.resetCounts();
         _dev.dma.setEmptyThr(2);
           
-        _dev.base.countReset = 1;
-        usleep(1);
-        _dev.base.countReset = 0;
+        _dev.base.resetCounts();
 
         _dev.base.setupDaq(0,0,nsamples[0]);
         
@@ -219,6 +220,7 @@ namespace Pds {
       Xtc                 _cfgtc;
       Manager&            _mgr;
       CfgClientNfs&       _cfg;
+      bool                _lmon;
       GenericPool         _occPool;
       unsigned            _nerror;
     };
@@ -320,13 +322,14 @@ void StatsTimer::expired()
 
 Manager::Manager(TprReg&       dev,
                  Server&       server,
-                 CfgClientNfs& cfg) : _fsm(*new Fsm())
+                 CfgClientNfs& cfg,
+                 bool          lmonitor) : _fsm(*new Fsm())
 {
   MonGroup* group = new MonGroup("TprDS");
   VmonServerManager::instance()->cds().add(group);
   StatsTimer* stats = new StatsTimer(dev, *group);
   _fsm.callback(TransitionId::Map      ,new AllocAction (cfg));
-  _fsm.callback(TransitionId::Configure,new ConfigAction(dev, server.client(), *this, cfg));
+  _fsm.callback(TransitionId::Configure,new ConfigAction(dev, server.client(), *this, cfg, lmonitor));
   _fsm.callback(TransitionId::BeginRun ,new BeginRun     (*stats));
   _fsm.callback(TransitionId::L1Accept ,new L1Action     (*group));
   _fsm.callback(TransitionId::EndRun   ,new EndRun       (*stats));

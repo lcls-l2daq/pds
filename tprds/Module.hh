@@ -24,6 +24,8 @@ namespace Pds {
                         unsigned partition,
                         unsigned dataLength);
       void disable     (unsigned i);
+      void dmaHistEna  (bool);
+      void resetCounts ();
     public:
       volatile uint32_t irqEnable;
       volatile uint32_t irqStatus;;

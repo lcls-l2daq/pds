@@ -37,9 +37,10 @@ int TprDS::Server::fetch(char* payload,
   int nb = ::read(_fd, _desc, sizeof(*_desc));
 
   if ((_desc->data[1]&0xffff)==0xffff) {
-    unsigned len = _desc->data[0];
+    unsigned len = _desc->data[0]-2;
     for(unsigned i=0; i<len; i++)
       printf("%08x%c",_desc->data[i+2],(i&7)==7 ? '\n':' ');
+    printf("--\n");
     return -1;
   }
 
