@@ -50,7 +50,8 @@ void Module::init()
 void Module::clearLinks()
 {
   unsigned b = _dsLinkEnable;
-  _dsLinkEnable = b&0xffff0000;
+  //  _dsLinkEnable = b&0xffff0000;
+  _dsLinkEnable = 0;
 }
 
 void Module::linkEnable(unsigned link, bool v)
