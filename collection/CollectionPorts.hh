@@ -5,8 +5,9 @@
 
 namespace Pds {
   namespace CollectionPorts {
-    Ins platform();
+    Ins platform  ();
     Ins collection(unsigned char platform);
+    Ins tagserver (unsigned char platform);
   }
 }
 
