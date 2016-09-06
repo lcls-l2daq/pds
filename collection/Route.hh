@@ -21,6 +21,7 @@ public:
   static int broadcast();
   static int netmask();
   static const Ether& ether();
+  static int mastercrate();
 
 private:
   static char _name[RouteTable::MaxNameLen];
@@ -28,6 +29,7 @@ private:
   static int _broadcast;
   static int _netmask;
   static Ether _ether;
+  static int _mastercrate;
 };
 
 }
