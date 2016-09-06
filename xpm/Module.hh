@@ -118,6 +118,9 @@ namespace Pds {
       //  [15: 0] analysis tag bit value
       //  [31:16] analysis tag bit write enable
       Cphw::Reg   _analysisTag; // [0:15] tag, [16:31] mask
+      //  Count writes and reads to the analysisTag FIFO
+      Cphw::Reg   _analysisTagWr;
+      Cphw::Reg   _analysisTagRd;
     };
   };
 };

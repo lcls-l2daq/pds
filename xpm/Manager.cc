@@ -14,7 +14,10 @@
 #include "pds/mon/MonDescScalar.hh"
 #include "pds/mon/MonEntryScalar.hh"
 
+#include "pds/collection/CollectionPorts.hh"
+
 #include "pds/xpm/Module.hh"
+#include "pds/tag/Server.hh"
 
 #include "pds/epicstools/PVWriter.hh"
 using Pds_Epics::PVWriter;
@@ -29,8 +32,38 @@ using Pds_Epics::PVWriter;
 #include <sys/mman.h>
 #include <unistd.h>
 
+#define DBUG
+
 namespace Pds {
   namespace Xpm {
+    class TagServer : public Pds::Tag::ServerImpl {
+    public:
+      TagServer(Module& dev) : _dev(dev) 
+      {
+        _dev._analysisRst = 0xffff;
+        _dev._analysisRst = 0; 
+        _anar[0] = _anar[1] = 0;
+        _anac[0] = _anac[1] = -1;
+      }
+    public:
+      void insert(Pds::Tag::Key key, unsigned buffer) {
+        unsigned v = key.mask() | key.tag(buffer);
+#ifdef DBUG
+        unsigned g = key.member();
+        if (buffer != ((_anac[g]+1)&0xf))
+            printf("Xpm::TagServer inserting %x  anac %x  anar %x\n", 
+                   buffer, _anac[g], _anar[g]);
+        _anac[g] = buffer;
+        _anar[g]++;
+#endif
+        _dev._analysisTag = v;
+      }
+    private:
+      Module& _dev;
+      unsigned _anar[2];
+      unsigned _anac[2];
+    };
+
     class PVStats {
     public:
       PVStats() : _pv(0) {}
@@ -49,29 +82,43 @@ namespace Pds {
         std::ostringstream o;
         o << "DAQ:" << alloc.partition() << ":";
         std::string pvbase = o.str();
-        _pv.push_back( new PVWriter((pvbase+"L0RATE").c_str()) );
+        _pv.push_back( new PVWriter((pvbase+"L0INPRATE").c_str()) );
+        _pv.push_back( new PVWriter((pvbase+"L0ACCRATE").c_str()) );
         _pv.push_back( new PVWriter((pvbase+"L1RATE").c_str()) );
-        _pv.push_back( new PVWriter((pvbase+"NUML0" ).c_str()) );
+        _pv.push_back( new PVWriter((pvbase+"NUML0INP" ).c_str()) );
+        _pv.push_back( new PVWriter((pvbase+"NUML0ACC" ).c_str()) );
         _pv.push_back( new PVWriter((pvbase+"NUML1" ).c_str()) );
         _pv.push_back( new PVWriter((pvbase+"DEADFRAC").c_str()) );
         _pv.push_back( new PVWriter((pvbase+"DEADTIME").c_str()) );
         _pv.push_back( new PVWriter((pvbase+"DEADFLNK").c_str(),8) );
         printf("PV stats allocated\n");
       }
+      void begin(const L0Stats& s) 
+      { 
+        _begin=s; 
+        printf("Begin NumL0 %lu  Acc %lu\n",
+               s.numl0, s.numl0Acc);
+      }
     public:
 #define PVPUT(i,v) { *reinterpret_cast<double*>(_pv[i]->data()) = double(v); _pv[i]->put(); }
       void update(const L0Stats& ns, const L0Stats& os, double dt) 
-      { PVPUT(0,double(ns.numl0-os.numl0)/dt);
-        PVPUT(2,ns.numl0);
-        PVPUT(4,ns.numl0    ?double(ns.numl0Inh)   /double(ns.numl0    ):0);
-        PVPUT(5,ns.l0Enabled?double(ns.l0Inhibited)/double(ns.l0Enabled):0);
+      { unsigned numl0    = ns.numl0-os.numl0;
+        PVPUT(0,double(numl0)/dt);
+        unsigned numl0Acc = ns.numl0Acc-os.numl0Acc; 
+        PVPUT(1,double(numl0Acc)/dt);
+        PVPUT(3,ns.numl0   -_begin.numl0);
+        PVPUT(4,ns.numl0Acc-_begin.numl0Acc);
+        PVPUT(6,numl0    ?double(ns.numl0Inh-os.numl0Inh)/double(numl0):0);
+        unsigned l0Enabled= ns.l0Enabled-os.l0Enabled;
+        PVPUT(7,l0Enabled?double(ns.l0Inhibited-os.l0Inhibited)/double(l0Enabled):0);
         for(unsigned i=0; i<8; i++) {
-          reinterpret_cast<double*>(_pv[6]->data())[i] = double(ns.linkInh[i]-os.linkInh[i])/double(ns.l0Enabled-os.l0Enabled);
+          reinterpret_cast<double*>(_pv[8]->data())[i] = double(ns.linkInh[i]-os.linkInh[i])/double(l0Enabled);
         }
-        _pv[6]->put();
+        _pv[8]->put();
         ca_flush_io(); }
     private:
       std::vector<PVWriter*> _pv;
+      L0Stats _begin;
     };
 
     class PvAllocate : public Routine {
@@ -98,6 +145,8 @@ namespace Pds {
       ~StatsTimer() { _task->destroy(); }
     public:
       void allocate(const Allocation&);
+      void start   ();
+      void cancel  ();
       void expired ();
       Task* task() { return _task; }
       //      unsigned duration  () const { return 1000; }
@@ -148,6 +197,9 @@ namespace Pds {
           break;
         case TransitionId::EndRun:
           _timer.cancel();
+          printf("analysisTag writes %x  reads %x\n",
+                 unsigned(_dev._analysisTagWr),
+                 unsigned(_dev._analysisTagRd));
           break;
         case TransitionId::Configure:
           { _nerror = 0;
@@ -183,6 +235,7 @@ namespace Pds {
             _alloc.dump();
 
             _dev.clearLinks();
+            /*
             for(unsigned i=0; i<_alloc.nnodes(); i++) {
               unsigned paddr = _alloc.node(i)->paddr();
               if (paddr&0xffff0000)
@@ -191,7 +244,7 @@ namespace Pds {
               _dev.rxLinkReset(paddr&0xf);
             }
             usleep(10000);
-
+            */
             _dev.resetL0(true);
             bool lenable=true;
 
@@ -294,6 +347,18 @@ void StatsTimer::allocate(const Allocation& alloc)
   _task->call(new PvAllocate(_pv,alloc,_s));
 }
 
+void StatsTimer::start()
+{
+  _pv.begin(_dev.l0Stats());
+  Timer::start();
+}
+
+void StatsTimer::cancel()
+{
+  Timer::cancel();
+  expired();
+}
+
 //
 //  Update VMON plots and EPICS PVs
 //
@@ -319,7 +384,8 @@ void StatsTimer::expired()
 
 Manager::Manager(Module& dev, Server& server, CfgClientNfs& cfg) : _app(new Xpm::XpmAppliance(dev,server,cfg))
 {
-
+  (new Pds::Tag::Server(Pds::CollectionPorts::tagserver(0).portId(), 
+                        *new TagServer(dev)))->start();
 }
 
 Manager::~Manager() 
