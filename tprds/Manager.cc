@@ -18,6 +18,10 @@
 #include "pds/mon/MonDescScalar.hh"
 #include "pds/mon/MonEntryScalar.hh"
 
+#include "pds/tag/Client.hh"
+#include "pds/tag/Key.hh"
+#include "pds/collection/CollectionPorts.hh"
+
 #include "pds/tprds/Module.hh"
 
 #include <errno.h>
@@ -27,7 +31,7 @@
 #include <sys/mman.h>
 #include <math.h>
 
-//#define DBUG
+#define DBUG
 
 static unsigned nsamples  [] = { 20 };
 static unsigned sampletype[] = { Generic1DConfigType::UINT32 };
@@ -65,11 +69,63 @@ namespace Pds {
         unsigned rxDspErrs;
       } _s;
     };
+
+    class AnaTag {
+    public:
+      AnaTag(TprDS::TprReg& dev) : _dev(dev), _client(0), _anaw(0), _anar(-1), _anac(-1) {}
+    public:
+      void allocate(const Allocation& alloc) 
+      {
+        _client = new Tag::Client( Ins(alloc.master()->ip(), 
+                                       CollectionPorts::tagserver(0).portId()),
+                                   0, 1 );
+        for(unsigned i=0; i<128; i++)
+          _client->request(_anaw++&0xf);
+      }
+      void deallocate() { delete _client; }
+      void analyze(const Datagram& dg, unsigned& tags, unsigned& errs) 
+      {
+        tags=errs=0;
+        int index = _client->key().buffer(dg.env.value());
+        if (index >= 0) {
+          tags=1;
+          if ((unsigned)index != ((_anac+1)&0xf)) {
+#ifdef DBUG
+            printf("AnaTag::analyze env %08x  indx %x  anac %x  anar %x  anaw %x\n", 
+                   dg.env.value(), index, _anac, _anar, _anaw);
+            printf(" -- rst %x  dsp %x  dec %x  crc %x\n",
+                   unsigned(_dev.tpr.RxRstDone),
+                   unsigned(_dev.tpr.RxDecErrs),
+                   unsigned(_dev.tpr.RxDspErrs),
+                   unsigned(_dev.tpr.CRCerrors));
+#endif
+            errs=1;
+          }
+          _anac = index;
+          _anar++;
+          
+          _client->request(_anaw++&0xf);
+        }
+      }
+      void dump() const { 
+        printf("  anac %x  anar %x  anaw %x\n",
+               _anac, _anar, _anaw);
+      }
+    private:
+      TprDS::TprReg& _dev;
+      Tag::Client* _client;
+      unsigned _anaw;
+      unsigned _anar;
+      unsigned _anac;
+    };
+
     class L1Action : public Action {
     public:
-      L1Action(MonGroup& group) { 
+      L1Action(MonGroup& group,
+               AnaTag&   tag) : _tag(tag) { 
         { std::vector<std::string> names;
           names.push_back("Events");
+          names.push_back("AnaTags");
           MonDescScalar desc("L1Stats",names);
           _stats = new MonEntryScalar(desc);
           group.add(_stats); }
@@ -77,6 +133,7 @@ namespace Pds {
           names.push_back("TagMisses");
           names.push_back("RepeatPIDs");
           names.push_back("Corrupt");
+          names.push_back("AnaErrs");
           MonDescScalar desc("L1Errors",names);
           _errors = new MonEntryScalar(desc);
           group.add(_errors); }
@@ -116,6 +173,12 @@ namespace Pds {
 //         if (xtc->contains.value() == _generic1DDataType.value()) {
 //           const Generic1DDataType& data = *reinterpret_cast<const Generic1DDataType*>(xtc->payload());
 //         }
+
+        unsigned atags=0, atagerrs=0;
+        _tag.analyze(in->datagram(), atags, atagerrs); 
+        _stats ->addvalue(atags, 1);
+        _errors->addvalue(atagerrs, 3);
+
         timespec t; clock_gettime(CLOCK_REALTIME,&t);
         _stats->addvalue(1, 0);
         _stats->time(ClockTime(t));
@@ -123,6 +186,7 @@ namespace Pds {
         return in;
       }
     private:
+      AnaTag&  _tag;
       int      _ntag;
       uint64_t _pid;
       MonEntryScalar* _stats;
@@ -131,14 +195,28 @@ namespace Pds {
 
     class AllocAction : public Action {
     public:
-      AllocAction(CfgClientNfs& cfg) : _cfg(cfg) {}
+      AllocAction(CfgClientNfs& cfg,
+                  AnaTag&       tag) : _cfg(cfg), _tag(tag) {}
       Transition* fire(Transition* tr) {
         const Allocate& alloc = reinterpret_cast<const Allocate&>(*tr);
+        _tag.allocate  (alloc.allocation());
         _cfg.initialize(alloc.allocation());
         return tr;
       }
     private:
       CfgClientNfs& _cfg;
+      AnaTag&       _tag;
+    };
+
+    class UnmapAction : public Action {
+    public:
+      UnmapAction(AnaTag& tag) : _tag(tag) {}
+      Transition* fire(Transition* tr) {
+        _tag.deallocate();
+        return tr;
+      }
+    private:
+      AnaTag& _tag;
     };
 
     class ConfigAction : public Action {
@@ -226,30 +304,36 @@ namespace Pds {
     };
     class BeginRun : public Action {
     public:
-      BeginRun(StatsTimer& t) : _t(t) {}
+      BeginRun(StatsTimer& t,
+               AnaTag& tag) : _t(t), _tag(tag) {}
       ~BeginRun() {}
     public:
       InDatagram* fire(InDatagram* dg) { return dg; }
       Transition* fire(Transition* tr) {
+        _tag.dump();
         nPrint=10;
         _t.start();
         return tr;
       }
     private:
       StatsTimer& _t;
+      AnaTag& _tag;
     };
     class EndRun : public Action {
     public:
-      EndRun(StatsTimer& t) : _t(t) {}
+      EndRun(StatsTimer& t,
+             AnaTag& tag) : _t(t), _tag(tag) {}
       ~EndRun() {}
     public:
       InDatagram* fire(InDatagram* dg) { return dg; }
       Transition* fire(Transition* tr) {
         _t.cancel();
+        _tag.dump();
         return tr;
       }
     private:
       StatsTimer& _t;
+      AnaTag& _tag;
     };
     class UnconfigAction : public Action {
     public:
@@ -328,12 +412,15 @@ Manager::Manager(TprReg&       dev,
   MonGroup* group = new MonGroup("TprDS");
   VmonServerManager::instance()->cds().add(group);
   StatsTimer* stats = new StatsTimer(dev, *group);
-  _fsm.callback(TransitionId::Map      ,new AllocAction (cfg));
+  AnaTag*     tags  = new AnaTag(dev);
+
+  _fsm.callback(TransitionId::Map      ,new AllocAction (cfg,*tags));
   _fsm.callback(TransitionId::Configure,new ConfigAction(dev, server.client(), *this, cfg, lmonitor));
-  _fsm.callback(TransitionId::BeginRun ,new BeginRun     (*stats));
-  _fsm.callback(TransitionId::L1Accept ,new L1Action     (*group));
-  _fsm.callback(TransitionId::EndRun   ,new EndRun       (*stats));
+  _fsm.callback(TransitionId::BeginRun ,new BeginRun     (*stats,*tags));
+  _fsm.callback(TransitionId::L1Accept ,new L1Action     (*group,*tags));
+  _fsm.callback(TransitionId::EndRun   ,new EndRun       (*stats,*tags));
   _fsm.callback(TransitionId::Unconfigure,new UnconfigAction (dev));
+  _fsm.callback(TransitionId::Unmap    ,new UnmapAction  (*tags));
 }
 
 Manager::~Manager() {}
