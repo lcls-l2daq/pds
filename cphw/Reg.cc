@@ -29,10 +29,12 @@ void Reg::clearBit(unsigned b)
   *this = r &~(1<<b);
 }
 
-void Reg::set(unsigned ip,
+void Reg::set(const char* host,
               unsigned short port,
-              unsigned mem)
+              unsigned mem,
+              unsigned long long memsz)
 {
+  unsigned ip = ntohl(inet_addr(host));
   _fd = ::socket(AF_INET, SOCK_DGRAM, 0);
   struct sockaddr_in saddr;
   saddr.sin_family      = AF_INET;

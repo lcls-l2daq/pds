@@ -13,7 +13,10 @@ namespace Pds {
       void setBit  (unsigned);
       void clearBit(unsigned);
     public:
-      static void set(unsigned ip, unsigned short port, unsigned mem);
+      static void set(const char* ip,
+                      unsigned short port,
+                      unsigned mem, 
+                      unsigned long long memsz=(1ULL<<32));
     private:
       uint32_t _reserved;
     };
