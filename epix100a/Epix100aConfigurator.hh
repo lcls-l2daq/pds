@@ -29,6 +29,11 @@ namespace Pds {
     //    0x000012, bits 31:0 - number of clock cycles between autotriggers (for 120 Hz, this should be set to 1041667, or 0xFE503)
     //    0x000013, bit 0 - enable automatic daq triggers (only works if the normal DaqTrigEnable at register 0x000003 is also set)
 
+    enum contolValues {
+      disable = 0,
+      enable  = 1
+    };
+
 
     enum controlAddrs {
       VersionAddr                       = 0x0,
@@ -59,8 +64,6 @@ namespace Pds {
       SaciClkBitValue                   = 0x4,
       TopCalibRow                       = 0x10000, //0x00010000
       BottomCalibRow                    = 0x30000,
-//      EnableAutomaticRunTriggerAddr     = 0x11,  // added to config
-//      NumberClockTicksPerRunTriggerAddr = 0x12,
 //      NumberClockTicksPerRunTrigger     = 0xFE503, // 120 Hz  add to config
 //                                        // 0x1fca05 // 60 Hz
 //                                        // 0x3f940b // 30 Hz
@@ -69,7 +72,8 @@ namespace Pds {
 //                                        //0x7735940 //  1 Hz
       EnableAutomaticDaqTriggerAddr     = 0x13,  // do not add to config
       DaqTrigggerDelayAddr              = 0x4,
-      RunToDaqTriggerDelay              = 1250
+      RunToDaqTriggerDelay              = 1250,
+      MonitorEnableAddr                 = 0x3e
     };
 
     enum asicControlAddrs {
@@ -108,6 +112,9 @@ namespace Pds {
         void                 enableRunTrigger(bool);
         void                 maintainLostRunTrigger(bool b) { _maintainLostRunTrigger = b; }
         uint32_t             enviroData(unsigned);
+        Epix100aConfigShadow* shadow() { return _s; }
+        void                 fiberTriggering(bool b) { _fiberTriggering = b; }
+
 
 
       private:
@@ -125,13 +132,14 @@ namespace Pds {
         typedef unsigned     LoopHisto[4][10000];
         enum {MicroSecondsSleepTime=50};
         uint32_t                    _testModeState;
-        Epix100aConfigType*             _config;
-        Epix100aConfigShadow*           _s;
-        Epix100aDestination             _d;
+        Epix100aConfigType*         _config;
+        Epix100aConfigShadow*       _s;
+        Epix100aDestination         _d;
         unsigned*                   _rhisto;
-        char                       _runTimeConfigFileName[256];
-//      LoopHisto*                _lhisto;
+        char                        _runTimeConfigFileName[256];
+//      LoopHisto*                   _lhisto;
         bool                        _maintainLostRunTrigger;
+        bool                        _fiberTriggering;
     };
 
   }

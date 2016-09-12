@@ -115,11 +115,11 @@ namespace Pds {
     	   std::cout << "     RxRetFifoCount: " << std::hex << std::setw(3) << std::setfill('0') << status.RxRetFifoCount << std::endl;
     	   std::cout << "            RxCount: " << std::hex << std::setw(8) << std::setfill('0') << status.RxCount << std::endl;
     	   std::cout << "      RxBufferCount: " << std::hex << std::setw(2) << std::setfill('0') << status.RxBufferCount << std::endl << "    RxWrite[client]: " ;
-    	   for (i=0; i<4; i++ ) {
+    	   for (i=0; i<8; i++ ) {
     	     std::cout << std::hex << std::setw(2) << status.RxWrite[i] << " ";
     	   }
     	   std::cout << std::endl << "     RxRead[client]: ";
-    	   for (i=0; i<4; i++ ) {
+    	   for (i=0; i<8; i++ ) {
     	     std::cout << std::hex << std::setw(2) << status.RxRead[i] << " ";
     	   }
     	   std::cout << std::endl;

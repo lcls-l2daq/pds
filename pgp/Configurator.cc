@@ -85,8 +85,10 @@ namespace Pds {
           printf("Configurator attempting to enable evr %u\n", count);
           ret |= _pgp->IoctlCommand( IOCTL_Evr_Set_PLL_RST, z);
           ret |= _pgp->IoctlCommand( IOCTL_Evr_Clr_PLL_RST, z);
+          usleep(40);
           ret |= _pgp->IoctlCommand( IOCTL_Evr_Set_Reset, z);
           ret |= _pgp->IoctlCommand( IOCTL_Evr_Clr_Reset, z);
+          usleep(400);
           ret |= _pgp->IoctlCommand( IOCTL_Evr_Enable, z);
           usleep(4000);
         }
@@ -195,6 +197,12 @@ namespace Pds {
       printf("Configurator::evrEnableHdrChk offset %d, arg 0x%x, %s\n",
           _pgp->portOffset(), arg, e ? "true" : "false");
       return ret;
+    }
+
+    int Configurator::allocateVC(unsigned vcm, unsigned l) {
+      unsigned arg = (vcm<<8) | (_pgp->portOffset()+l);
+      printf("Configurator::allocateVC 0x%x\n", arg);
+      return _pgp->IoctlCommand( IOCTL_Set_VC_Mask, arg);
     }
 
     void Configurator::loadRunTimeConfigAdditions(char* name) {

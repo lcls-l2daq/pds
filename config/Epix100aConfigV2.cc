@@ -30,7 +30,7 @@ namespace Pds {
     static uint32_t _regsfoo[ConfigV2::NumberOfRegisters][7] = {
     //offset shift mask default readOnly type selectionIndex
         {  0,  0, 0xffffffff, 0,      1, 1, 0},    //  Version,
-        {  1,  0, 1,          0,      2, 0, 0},    //  UsePgpEvr,
+        {  1,  0, 1,          0,      3, 0, 0},    //  UsePgpEvr,
         {  2,  0, 0xff,       0,      2, 0, 0},    //  evrRunCode,
         {  3,  0, 0xff,       0,      2, 0, 0},    //  evrDaqCode,
         {  4,  0, 0x7fffffff, 0,      2, 0, 0},    //  evrRunTrigDelay,

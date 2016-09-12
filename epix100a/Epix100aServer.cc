@@ -64,6 +64,7 @@ class Pds::Epix100aSyncSlave : public EvrSyncCallback {
     Pds::Task&      _task;
     Routine*        _routine;
     Epix100aServer* _srvr;
+    bool            _printed;
 };
 
 Pds::Epix100aSyncSlave::Epix100aSyncSlave(
@@ -74,6 +75,7 @@ Pds::Epix100aSyncSlave::Epix100aSyncSlave(
 				_routine(new EvrSyncRoutine(partition,*this)),
 				_srvr(srvr) {
 	printf("%s\n", "Epix100aSyncSlave constructor");
+	_printed = false;
 	_task.call(_routine);
 }
 
@@ -82,24 +84,28 @@ void Epix100aSyncSlave::initialize(unsigned target, bool enable) {
     _srvr->configurator()->fiducialTarget(target);
     _srvr->configurator()->evrLaneEnable(enable);
     unsigned fid = _srvr->configurator()->getCurrentFiducial();
-    printf("Epix100aSyncSlave target 0x%x, pgpcard fiducial 0x%x after %s ",
+    printf("Epix100aSyncSlave target 0x%x, pgpcard fiducial 0x%x after %s\n",
         target, fid, enable ? "enabling" : "disabling");
-    if (fid < target) {
-      if (target-fid > 4) usleep((target-fid-2)*2777);
-      while (fid < (target + 2) && (_srvr->configurator()->getLatestLaneStatus() != enable)) {
-        fid = _srvr->configurator()->getCurrentFiducial();
-        if (fid == target) {
-          _srvr->ignoreFetch(false);
-//          _srvr->g3sync(false);
-          printf("then saw 0x%x\n", fid);
-        }
-        usleep(80);
-      }
+    //if fiducial less than target or check for wrap
+    if ((fid < target) || ((fid > (0x1ffff-32-720-7)) && (target < (720+7)))) {
+//      if (target-fid > 4) usleep((target-fid-2)*2777);
+//      while (fid < (target + 2) && (_srvr->configurator()->getLatestLaneStatus() != enable)) {
+//        fid = _srvr->configurator()->getCurrentFiducial();
+//        if (fid == target) {
+//          printf("\tthen saw 0x%x\n", fid);
+//        }
+//        usleep(80);
+//      }
     } else {
-      printf("Fiducial was not before target\n");
+      printf("Fiducial was not before target so retrying four later than now ...\n");
+      _srvr->configurator()->fiducialTarget(fid+4);
     }
+    _srvr->ignoreFetch(false);
   } else {
-	printf("g3sync was not true\n");
+    if (!_printed) {
+      printf("g3sync was not true\n");
+      _printed = true;
+    }
   }
 }
 
@@ -109,6 +115,8 @@ Epix100aServer::Epix100aServer( const Pds::Src& client, unsigned configMask )
      _xtcSamplr(_epixSamplerDataType, client),
      _xtcConfig(TypeId(TypeId::Id_EpixSamplerConfig,2), client),
      _samplerConfig(0),
+     _count(0),
+     _fiducials(0),
      _cnfgrtr(0),
      _elements(ElementsPerSegmentLevel),
      _payloadSize(0),
@@ -120,15 +128,18 @@ Epix100aServer::Epix100aServer( const Pds::Src& client, unsigned configMask )
      _fetchesSinceLastException(0),
      _processorBuffer(0),
      _scopeBuffer(0),
-	 _task      (new Pds::Task(Pds::TaskObject("EPIX100aprocessor"))),
-	 _sync_task (new Pds::Task(Pds::TaskObject("Epix100aSlaveSync"))),
+	   _task      (new Pds::Task(Pds::TaskObject("EPIX100aprocessor"))),
+	   _sync_task (new Pds::Task(Pds::TaskObject("Epix100aSlaveSync"))),
   	 _partition(0),
-	 _syncSlave(0),
-	 _countBase(0),
-	 _neScopeCount(0),
+	   _syncSlave(0),
+	   _countBase(0),
+	   _neScopeCount(0),
+	   _dummy(0),
+	   _lastOpCode(0),
      _configured(false),
      _firstFetch(true),
-	 _g3sync(false),
+	   _g3sync(false),
+	   _fiberTriggering(false),
      _ignoreFetch(true),
      _resetOnEveryConfig(false),
      _scopeEnabled(false),
@@ -138,6 +149,12 @@ Epix100aServer::Epix100aServer( const Pds::Src& client, unsigned configMask )
   strcpy(_runTimeConfigName, "");
   instance(this);
   printf("Epix100aServer::Epix100aServer() payload(%u)\n", _payloadSize);
+  _dummy = (unsigned*)malloc(DummySize);
+}
+
+void  Pds::Epix100aServer::setEpix100a( int f ) {
+  _myfd = f;
+  fd(f);
 }
 
 unsigned Pds::Epix100aServer::configure(Epix100aConfigType* config, bool forceConfig) {
@@ -148,23 +165,8 @@ unsigned Pds::Epix100aServer::configure(Epix100aConfigType* config, bool forceCo
     _cnfgrtr->runTimeConfigName(_runTimeConfigName);
     _cnfgrtr->maintainLostRunTrigger(_maintainLostRunTrigger);
     printf("Epix100aServer::configure making new configurator %p, firstConfig %u\n", _cnfgrtr, firstConfig);
-    if ((config->usePgpEvr() == 0) && (_syncSlave != 0)) {
-      delete _syncSlave;
-      _syncSlave = 0;
-    }
   }
-  if (_cnfgrtr->G3Flag()) {
-    if (config->usePgpEvr() != 0) {
-      if (_cnfgrtr->evrEnabled() == false) {
-        _cnfgrtr->evrEnable(true);
-      }
-      if  (_syncSlave == 0) {
-        _syncSlave = new Pds::Epix100aSyncSlave(_partition, _sync_task, this);
-      }
-      _cnfgrtr->evrEnableHdrChk(Epix100a::Epix100aDestination::Data, true);
-      _g3sync = true;
-    }
-  }
+  _cnfgrtr->fiberTriggering(fiberTriggering());
   _xtcTop.extent = sizeof(Xtc);
   _xtcSamplr.extent = 0;
   unsigned c = flushInputQueue(fd());
@@ -214,6 +216,21 @@ unsigned Pds::Epix100aServer::configure(Epix100aConfigType* config, bool forceCo
         _scopeBuffer = 0;
       }
     }
+    if (_cnfgrtr->G3Flag()) {
+      if (fiberTriggering()) {
+        if  (_syncSlave == 0) {
+          _syncSlave = new Pds::Epix100aSyncSlave(_partition, _sync_task, this);
+        }
+        _g3sync = true;
+      } else {
+        _g3sync = false;
+        if (_syncSlave) {
+          delete _syncSlave;
+          _syncSlave = 0;
+        }
+      }
+    }
+
     printf("Epix100aServer::configure _elements(%u) _payloadSize(%u) _xtcTop.extent(%u) _xtcEpix.extent(%u) firstConfig(%u)\n",
         _elements, _payloadSize, _xtcTop.extent, _xtcEpix.extent, firstConfig);
 
@@ -394,7 +411,8 @@ int Pds::Epix100aServer::fetch( char* payload, int flags ) {
        printf("\n");
      } else {
        unsigned oldCount = _count;
-       _count = data->frameNumber() - 1/* - _countBase*/;  // epix100a starts counting at 1, not zero
+       _count = data->frameNumber() - 1;  // epix100a starts counting at 1, not zero
+       _fiducials = data->fiducials();    // for fiber triggering
 //       printf("Epix100a fetch frame number %u 0x%x\n", _count, _count);
        if ((_debug & 5) || ret < 0) {
          printf("\telementId(%u) frameType(0x%x) acqcount(0x%x) _oldCount(%u) _count(%u) _elementsThisCount(%u) lane(%u) vc(%u)\n",
@@ -404,9 +422,6 @@ int Pds::Epix100aServer::fetch( char* payload, int flags ) {
        }
      }
      if (_firstFetch) {
-//       _countBase = _count;
-//       printf("Epix100aServer count base is %u 0x%x\n", _countBase, _countBase);
-//       _count = 0;
        _firstFetch = false;
        clock_gettime(CLOCK_REALTIME, &_lastTime);
      } else {
@@ -447,8 +462,13 @@ int Pds::Epix100aServer::fetch( char* payload, int flags ) {
        } else {
          printf("Epix100aServer::fetch Clock backtrack %f ms\n", diff / 1000000.0);
        }
+//       if (g3sync() && (data->opCode() != (_lastOpCode + 1)%256)) {
+//         printf("Epix100aServer::fetch opCode mismatch last(%u) this(%u) on frame(0x%x)\n",
+//             _lastOpCode, data->opCode(), _count);
+//       }
        memcpy(&_lastTime, &_thisTime, sizeof(timespec));
      }
+     _lastOpCode = data->opCode();
      offset = sizeof(Xtc);
      if (_scopeHasArrived) {
        memcpy(payload + offset, &_xtcSamplr, sizeof(Xtc));
@@ -484,9 +504,14 @@ unsigned Epix100aServer::offset() const {
   return (ret);
 }
 
-unsigned Epix100aServer::count() const {
-  if (_debug & 2) printf( "Epix100aServer::count(%u)\n", _count + _offset);
+unsigned Epix100aServerCount::count() const {
+  if (_debug & 2) printf( "Epix100aServerCount::count(%u)\n", _count + _offset);
   return _count + _offset;
+}
+
+unsigned Epix100aServerSequence::fiducials() const {
+  if (_debug & 2) printf( "Epix100aServerSequence::fiducials(%u)\n", _fiducials);
+  return _fiducials;
 }
 
 unsigned Epix100aServer::flushInputQueue(int f, bool flag) {
@@ -495,13 +520,12 @@ unsigned Epix100aServer::flushInputQueue(int f, bool flag) {
   timeout.tv_sec  = 0;
   timeout.tv_usec = 2500;
   int ret;
-  unsigned dummy[8192];
   unsigned count = 0;
   unsigned scopeCount = 0;
   PgpCardRx       pgpCardRx;
   pgpCardRx.model   = sizeof(&pgpCardRx);
-  pgpCardRx.maxSize = 8192;
-  pgpCardRx.data    = dummy;
+  pgpCardRx.maxSize = DummySize;
+  pgpCardRx.data    = _dummy;
   do {
     FD_ZERO(&fds);
     FD_SET(f,&fds);
@@ -518,10 +542,6 @@ unsigned Epix100aServer::flushInputQueue(int f, bool flag) {
     printf("Epix100aServer::flushInputQueue flushed %u scope buffers and %u other buffers\n", scopeCount, count-scopeCount);
   }
   return count;
-}
-
-void Epix100aServer::setEpix100a( int f ) {
-  fd( f );
 }
 
 void Epix100aServer::clearHisto() {

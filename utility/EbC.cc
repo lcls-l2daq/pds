@@ -25,6 +25,7 @@ EbC::EbC(const Src& id,
      eventsize, eventpooldepth, slowEb, vmoneb),
   _keys( sizeof(EbCountKey), eventpooldepth)
 {
+  _events.dump();
 }
 
 EbC::~EbC()

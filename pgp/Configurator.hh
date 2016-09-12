@@ -63,6 +63,7 @@ namespace Pds {
         void                      printRes();
         bool                      G3Flag() { return _G3; }
         bool                      evrEnabled();
+        int                       allocateVC(unsigned, unsigned l=0);  // l is the offset relative to the first port, assumption is first port
 
       protected:
         friend class ConfigSynch;

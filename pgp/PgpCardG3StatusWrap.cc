@@ -45,7 +45,7 @@ namespace Pds {
       this->read();
       bool enabled = status.EvrEnable && status.EvrReady;
       if (enabled == false) {
-        printf("PgpCardG3StatusWrap not enabled, enable %s, ready %s\n",
+        printf("PgpCardG3StatusWrap EVR not enabled, enable %s, ready %s\n",
             status.EvrEnable ? "true" : "false", status.EvrReady ? "true" : "false");
       }
       return enabled;
@@ -249,7 +249,6 @@ namespace Pds {
       printf("         TxReadReady: 0x%x\n", status.TxReadReady);
       printf("      TxRetFifoCount: 0x%x\n", status.TxRetFifoCount);
       printf("             TxCount: 0x%x\n", status.TxCount);
-      printf("             TxWrite: 0x%x\n", status.TxWrite);
       printf("              TxRead: 0x%x\n", status.TxRead);
       printf("\n");
 
