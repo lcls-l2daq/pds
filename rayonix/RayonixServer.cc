@@ -285,6 +285,7 @@ int Pds::RayonixServer::fetch( char* payload, int flags )
   }
 
   if (damage) {
+     // copy "damaged" xtc header to payload
      memcpy(payload, &_xtcDamaged, sizeof(Xtc));
   }
   else {
@@ -295,7 +296,7 @@ int Pds::RayonixServer::fetch( char* payload, int flags )
      memcpy(payload, &_xtc, sizeof(Xtc));
   }
 
-  return (_xtc.extent);
+  return (damage ? _xtcDamaged.extent : _xtc.extent);
 }
                                
 
