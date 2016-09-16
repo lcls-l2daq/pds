@@ -78,6 +78,7 @@ namespace Pds {
 
         for(unsigned i=0; i<_pv.size(); i++)
           delete _pv[i];
+        _pv.resize(0);
 
         std::ostringstream o;
         o << "DAQ:" << alloc.partition() << ":";
