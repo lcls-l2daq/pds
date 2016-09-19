@@ -102,7 +102,7 @@ InDatagram* MonReqServer::events(InDatagram* in)
       _sem2.give();
     }
     else {
-      return in;
+      return 0;
     }
   }
   else {
