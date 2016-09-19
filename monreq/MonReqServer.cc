@@ -17,9 +17,9 @@ MonReqServer::MonReqServer(unsigned int nodenumber, unsigned int platform) :
   _task2(new Task(TaskObject("que"))), 
   _servers(0),
   _connMgr(Route::interface(), StreamPorts::monRequest(platform), nodenumber, _servers),
-  _sem(Semaphore::EMPTY),
-  _counter(0),
-  _sem2(Semaphore::FULL)
+  _queued(0),
+  _handled(0),
+  _sem(Semaphore::EMPTY)
 {
   _task->call(this);
   _id=nodenumber;
@@ -81,11 +81,12 @@ InDatagram* MonReqServer::fire (InDatagram* dg)
   //
   //  Pass the datagram to all connections
   //
-  _sem2.take();
-  _counter--;
-  _sem2.give();
+
+  _handled++;
+    if (_queued - _handled < 32) {
   for(unsigned i=0; i<_servers.size(); i++)
     _servers[i].send(dg->datagram());
+	}
   post(dg);
   return 0;
 }
@@ -95,22 +96,15 @@ InDatagram* MonReqServer::events(InDatagram* in)
 
   if (in->datagram().seq.service()==TransitionId::L1Accept) {
     //  Prevent the fire thread from holding all the buffers
-    if (_counter < 32) {
+  
       _task2->call(new QueuedAction(in,*this));
-      _sem2.take();
-      _counter++;
-      _sem2.give();
-    }
-    else {
-      return 0;
-    }
+      _queued++;
+    
   }
   else {
     _task2->call(new QueuedAction(in,*this,&_sem));
     _sem.take();
-    _sem2.take();
-    _counter++;
-    _sem2.give();
+    _queued++;
   }
   return (InDatagram*)Appliance::DontDelete;
 }
