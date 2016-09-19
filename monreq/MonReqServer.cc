@@ -17,9 +17,9 @@ MonReqServer::MonReqServer(unsigned int nodenumber, unsigned int platform) :
   _task2(new Task(TaskObject("que"))), 
   _servers(0),
   _connMgr(Route::interface(), StreamPorts::monRequest(platform), nodenumber, _servers),
-  _queued(0),
-  _handled(0),
-  _sem(Semaphore::EMPTY)
+  _sem(Semaphore::EMPTY),
+  _counter(0),
+  _sem2(Semaphore::FULL)
 {
   _task->call(this);
   _id=nodenumber;
@@ -52,25 +52,25 @@ void MonReqServer::routine()
       pfd[i+1].events = POLLIN|POLLERR;
     }
 
-    poll(&pfd[0], pfd.size(), 1000);
+        poll(&pfd[0], pfd.size(), 1000);
 	
-    if(pfd[0].revents&POLLIN) { //add new connections to array
-      int fd=_connMgr.receiveConnection();
-      if( fd<0) {
-      }
-      else {
-        _servers.push_back(Pds::MonReq::ServerConnection(fd));
-      }
-    }
+		if(pfd[0].revents&POLLIN) { //add new connections to array
+			int fd=_connMgr.receiveConnection();
+			if( fd<0) {
+			}
+			else {
+				_servers.push_back(Pds::MonReq::ServerConnection(fd));
+			}
+		}
 
-    for(unsigned j=1; j<pfd.size(); j++) {
-      if(pfd[j].revents&POLLIN) {  //if there is new data from existing connection, recv it 
-        if( _servers[j-1].recv() < 0){
-          _servers.erase(_servers.begin()+j-1); 
-          pfd.erase(pfd.begin()+j);
-        }
-      }
-    }
+		for(unsigned j=1; j<pfd.size(); j++) {
+			if(pfd[j].revents&POLLIN) {  //if there is new data from existing connection, recv it 
+				if( _servers[j-1].recv() < 0){
+					_servers.erase(_servers.begin()+j-1); 
+					pfd.erase(pfd.begin()+j);
+				}
+			}
+		}
 	
   }
 
@@ -81,12 +81,11 @@ InDatagram* MonReqServer::fire (InDatagram* dg)
   //
   //  Pass the datagram to all connections
   //
-
-  _handled++;
-    if (_queued - _handled < 32) {
+  _sem2.take();
+  _counter--;
+  _sem2.give();
   for(unsigned i=0; i<_servers.size(); i++)
     _servers[i].send(dg->datagram());
-	}
   post(dg);
   return 0;
 }
@@ -95,16 +94,23 @@ InDatagram* MonReqServer::events(InDatagram* in)
 {
 
   if (in->datagram().seq.service()==TransitionId::L1Accept) {
-    //  Prevent the fire thread from holding all the buffers
-  
-      _task2->call(new QueuedAction(in,*this));
-      _queued++;
-    
+         if (_counter < 32) {
+	_task2->call(new QueuedAction(in,*this));
+        _sem2.take();
+	_counter++;
+	_sem2.give();
+	}
+	else {
+	return 0;
+	}
+
   }
   else {
     _task2->call(new QueuedAction(in,*this,&_sem));
     _sem.take();
-    _queued++;
+    _sem2.take();
+    _counter++;
+    _sem2.give();
   }
   return (InDatagram*)Appliance::DontDelete;
 }

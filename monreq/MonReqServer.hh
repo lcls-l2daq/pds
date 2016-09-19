@@ -30,13 +30,12 @@ namespace Pds {
     Task*    _task2;
     int      _id;
     unsigned _platform;
+    int      _counter;
 
     std::vector<Pds::MonReq::ServerConnection> _servers;
     Pds::MonReq::ConnectionManager _connMgr;
-    int      _queued;
-    int      _handled;
     Semaphore _sem;
-
+    Semaphore _sem2;
   };
 };
 
