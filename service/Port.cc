@@ -109,7 +109,7 @@ int Port::_bind(const Ins& ins)
     int parm = (_sizeofDatagram + _maxPayload + sizeof(struct sockaddr_in)) *
                _maxDatagrams;
 #ifdef __linux__
-    parm += 2048; // 1125
+    parm += 4096; // 1125
 #endif
     if(setsockopt(s, SOL_SOCKET, SO_RCVBUF, (char*)&parm, sizeof(parm)) == -1)
       return errno;
