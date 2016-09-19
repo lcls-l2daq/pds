@@ -52,25 +52,25 @@ void MonReqServer::routine()
       pfd[i+1].events = POLLIN|POLLERR;
     }
 
-        poll(&pfd[0], pfd.size(), 1000);
+    poll(&pfd[0], pfd.size(), 1000);
 	
-		if(pfd[0].revents&POLLIN) { //add new connections to array
-			int fd=_connMgr.receiveConnection();
-			if( fd<0) {
-			}
-			else {
-				_servers.push_back(Pds::MonReq::ServerConnection(fd));
-			}
-		}
+    if(pfd[0].revents&POLLIN) { //add new connections to array
+      int fd=_connMgr.receiveConnection();
+      if( fd<0) {
+      }
+      else {
+        _servers.push_back(Pds::MonReq::ServerConnection(fd));
+      }
+    }
 
-		for(unsigned j=1; j<pfd.size(); j++) {
-			if(pfd[j].revents&POLLIN) {  //if there is new data from existing connection, recv it 
-				if( _servers[j-1].recv() < 0){
-					_servers.erase(_servers.begin()+j-1); 
-					pfd.erase(pfd.begin()+j);
-				}
-			}
-		}
+    for(unsigned j=1; j<pfd.size(); j++) {
+      if(pfd[j].revents&POLLIN) {  //if there is new data from existing connection, recv it 
+        if( _servers[j-1].recv() < 0){
+          _servers.erase(_servers.begin()+j-1); 
+          pfd.erase(pfd.begin()+j);
+        }
+      }
+    }
 	
   }
 
@@ -94,16 +94,16 @@ InDatagram* MonReqServer::events(InDatagram* in)
 {
 
   if (in->datagram().seq.service()==TransitionId::L1Accept) {
-         if (_counter < 32) {
-	_task2->call(new QueuedAction(in,*this));
-        _sem2.take();
-	_counter++;
-	_sem2.give();
-	}
-	else {
-	return 0;
-	}
-
+    //  Prevent the fire thread from holding all the buffers
+    if (_counter < 32) {
+      _task2->call(new QueuedAction(in,*this));
+      _sem2.take();
+      _counter++;
+      _sem2.give();
+    }
+    else {
+      return in;
+    }
   }
   else {
     _task2->call(new QueuedAction(in,*this,&_sem));
