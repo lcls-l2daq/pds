@@ -12,9 +12,10 @@
 #include "pgpcard/PgpCardStatus.h"
 #include <fcntl.h>
 #include <sstream>
-#include <string>
+#include <string.h>
 #include <iomanip>
 #include <iostream>
+
 
 namespace Pds {
 
