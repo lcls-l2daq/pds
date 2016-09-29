@@ -9,6 +9,9 @@
 #include "pdsdata/xtc/TransitionId.hh"
 #include "pdsdata/xtc/Env.hh"
 
+#include <list>
+#include <vector>
+
 namespace Pds {
   template <unsigned N> class BitMaskArray;
   typedef BitMaskArray<PDS_BLD_MASKSIZE> BldBitMask;
@@ -132,18 +135,36 @@ namespace Pds {
     Allocation _allocation;
   };
 
+  class SegPayload {
+  public:
+    SegPayload() : info(Level::Segment, 0, 0), offset(0) {}
+    ProcInfo info;
+    unsigned offset;
+  };
+
   class RunInfo : public Transition {
   public:
+    RunInfo();
+    RunInfo(const std::list<SegPayload>&);
     RunInfo(unsigned run, unsigned experiment);
     RunInfo(unsigned run, unsigned experiment, char *expname);
-    unsigned run();
-    unsigned experiment();
-    char *expname();
+    RunInfo(const std::list<SegPayload>&, unsigned run, unsigned experiment);
+    RunInfo(const std::list<SegPayload>&, unsigned run, unsigned experiment, char *expname);
+  public:
+    bool     recording () const;
+    unsigned run       () const;
+    unsigned experiment() const;
+    const char* expname() const;
+    int      offset    (const ProcInfo&) const;
+    std::vector<SegPayload> payloads() const;
   private:
     static const unsigned MaxExpName=16;
-    uint32_t _run;
-    uint32_t _experiment;
-    char     _expname  [MaxExpName];
+    static const unsigned MaxSegs=64;
+    uint32_t   _run;
+    uint32_t   _experiment;
+    char       _expname  [MaxExpName];
+    unsigned   _nsegs;
+    SegPayload _payload[MaxSegs];
   };
 
   class Kill : public Transition {

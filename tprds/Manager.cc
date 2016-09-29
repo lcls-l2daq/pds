@@ -141,7 +141,9 @@ namespace Pds {
       }
       void reset() { _ntag=-1; _pid=0; }
       InDatagram* fire(InDatagram* in) {
-
+#if 0
+        return 0;
+#endif
         if (in->datagram().xtc.damage.value() ||
             in->datagram().xtc.extent != 2*sizeof(Xtc)+(nsamples[0]+1)*4) {
           _errors->addvalue(1,2); // corruptFrames++;
@@ -183,6 +185,9 @@ namespace Pds {
         _stats->addvalue(1, 0);
         _stats->time(ClockTime(t));
         _errors->time(ClockTime(t));
+#if 0
+        return 0;
+#endif
         return in;
       }
     private:
@@ -196,16 +201,22 @@ namespace Pds {
     class AllocAction : public Action {
     public:
       AllocAction(CfgClientNfs& cfg,
-                  AnaTag&       tag) : _cfg(cfg), _tag(tag) {}
+                  AnaTag&       tag,
+                  ProcInfo&     info) : _cfg(cfg), _tag(tag), _info(info) {}
       Transition* fire(Transition* tr) {
         const Allocate& alloc = reinterpret_cast<const Allocate&>(*tr);
         _tag.allocate  (alloc.allocation());
         _cfg.initialize(alloc.allocation());
         return tr;
       }
+      InDatagram* fire(InDatagram* dg) {
+        _info = static_cast<ProcInfo&>(dg->xtc.src);
+        return dg;
+      }
     private:
       CfgClientNfs& _cfg;
       AnaTag&       _tag;
+      ProcInfo&     _info;
     };
 
     class UnmapAction : public Action {
@@ -284,11 +295,14 @@ namespace Pds {
         _nerror = 0;  // override
         
         if (_nerror) {
-          
           UserMessage* msg = new (&_occPool) UserMessage;
           msg->append("TprDS: failed to apply configuration.\n");
           _mgr.appliance().post(msg);
-          
+        }
+        else {
+          RegisterPayload* msg = new (&_occPool) 
+            RegisterPayload(cfg.data_offset(-1)+sizeof(Dgram)+sizeof(Xtc));
+          _mgr.appliance().post(msg);
         }
         return tr;
       }
@@ -305,11 +319,16 @@ namespace Pds {
     class BeginRun : public Action {
     public:
       BeginRun(StatsTimer& t,
-               AnaTag& tag) : _t(t), _tag(tag) {}
+               AnaTag& tag,
+               const ProcInfo& info) : _t(t), _tag(tag), _info(info) {}
       ~BeginRun() {}
     public:
       InDatagram* fire(InDatagram* dg) { return dg; }
       Transition* fire(Transition* tr) {
+        int offset = static_cast<const RunInfo*>(tr)->offset(_info);
+        printf("BeginRun::offset is %d  [%x.%x]\n",
+               offset, _info.log(), _info.phy());
+
         _tag.dump();
         nPrint=10;
         _t.start();
@@ -318,6 +337,7 @@ namespace Pds {
     private:
       StatsTimer& _t;
       AnaTag& _tag;
+      const ProcInfo& _info;
     };
     class EndRun : public Action {
     public:
@@ -413,10 +433,11 @@ Manager::Manager(TprReg&       dev,
   VmonServerManager::instance()->cds().add(group);
   StatsTimer* stats = new StatsTimer(dev, *group);
   AnaTag*     tags  = new AnaTag(dev);
+  ProcInfo*   info  = new ProcInfo(Level::Segment,0,0);
 
-  _fsm.callback(TransitionId::Map      ,new AllocAction (cfg,*tags));
+  _fsm.callback(TransitionId::Map      ,new AllocAction (cfg,*tags,*info));
   _fsm.callback(TransitionId::Configure,new ConfigAction(dev, server.client(), *this, cfg, lmonitor));
-  _fsm.callback(TransitionId::BeginRun ,new BeginRun     (*stats,*tags));
+  _fsm.callback(TransitionId::BeginRun ,new BeginRun     (*stats,*tags,*info));
   _fsm.callback(TransitionId::L1Accept ,new L1Action     (*group,*tags));
   _fsm.callback(TransitionId::EndRun   ,new EndRun       (*stats,*tags));
   _fsm.callback(TransitionId::Unconfigure,new UnconfigAction (dev));

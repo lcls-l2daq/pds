@@ -35,6 +35,9 @@ int TprDS::Server::fetch(char* payload,
   //    (...) Payload
   //
   int nb = ::read(_fd, _desc, sizeof(*_desc));
+#if 0
+  return -1;
+#endif
 
   if ((_desc->data[1]&0xffff)==0xffff) {
     unsigned len = _desc->data[0]-2;

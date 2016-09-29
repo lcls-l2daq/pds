@@ -628,7 +628,7 @@ void PartitionControl::message(const Node& hdr, const Message& msg)
         pause();
         break;
       case OccurrenceId::EvrCommandRequest:
-        { const EvrCommandRequest& r = reinterpret_cast<const EvrCommandRequest&>(msg);
+        { const EvrCommandRequest& r = static_cast<const EvrCommandRequest&>(msg);
           if (r.forward) {
             printf("Received EvrCommandRequest occurrence from %x/%d\n",
                    hdr.procInfo().ipAddr(),
@@ -637,6 +637,12 @@ void PartitionControl::message(const Node& hdr, const Message& msg)
             ro.forward=0;
             mcast(ro);
           }
+        } break;
+      case OccurrenceId::RegisterPayload:
+        { SegPayload p; 
+          p.info = hdr.procInfo(); 
+          p.offset = static_cast<const RegisterPayload&>(msg).payload;
+          _payload.push_back(p); 
         } break;
       default:
         break;
@@ -660,19 +666,23 @@ void PartitionControl::_next()
   else if (_target_state > _current_state)
     switch(_current_state) {
     case Unmapped  : { Allocate alloc(_partition); _queue(alloc); break; }
-    case Mapped    : _queue(TransitionId::Configure      ); break;
+    case Mapped    : _payload.clear(); _queue(TransitionId::Configure      ); break;
     case Configured: {
+      { unsigned p=0;
+        for(std::list<SegPayload>::iterator it=_payload.begin(); it!=_payload.end(); it++) {
+          unsigned q=it->offset+sizeof(Xtc);
+          it->offset=p;
+          p += q;
+        }
+      }
       if (_use_run_info) {
         unsigned run = _runAllocator->alloc();
         if (run!=RunAllocator::Error) {
-          RunInfo rinfo(run,_experiment); _queue(rinfo);
+          RunInfo rinfo(_payload, run,_experiment); _queue(rinfo);
         }
       }
       else {
-        timespec ts;
-        clock_gettime(CLOCK_REALTIME,&ts);
-        Transition rinfo(TransitionId::BeginRun, ts.tv_sec);
-        _queue(rinfo );
+        RunInfo rinfo(_payload); _queue(rinfo);
       }
       break;
     }

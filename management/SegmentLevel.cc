@@ -176,6 +176,18 @@ void    SegmentLevel::post     (const Occurrence& tr)
 
 void    SegmentLevel::post     (const InDatagram& in)
 {
+  //
+  //  Add DetInfo advertisement on Map
+  //
+  if (in.seq.service()==TransitionId::Map) {
+    const std::list<Src>& sources = _settings.sources();
+    char* pool = new char[sizeof(Xtc)*64];
+    Xtc* tc = new(pool) Xtc(_transientXtcType,header().procInfo());
+    for(std::list<Src>::const_iterator it=sources.begin(); it!=sources.end(); it++)
+      new (tc) Xtc(_transientXtcType,(*it));
+    const_cast<InDatagram&>(in).insert(*tc,tc->payload());
+    delete[] pool;
+  }
   _streams->wire(StreamParams::FrameWork)->post(in);
 }
 

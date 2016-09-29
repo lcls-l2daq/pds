@@ -146,6 +146,7 @@ namespace Pds {
       volatile uint32_t CSR;
       uint32_t          reserved;
       volatile uint32_t TxRefClks;
+      volatile uint32_t BypassCnts;
     };
 
     class RingB {

@@ -36,8 +36,8 @@ class Eb : public EbBase
     void         _insert     ( EbEventBase* );
     void         _dump       ( int detail );
   protected:
-    GenericPoolW _datagrams;    // Datagram freelist
-    GenericPool  _events;
+    GenericPoolW _datagrams;    // Datagram freelist : This needs to be thread-safe, but don't need blocking on empty; can use atomics for counter increments
+    GenericPool  _events;       // This doesn't need to be thread-safe!
   };
 }
 #endif

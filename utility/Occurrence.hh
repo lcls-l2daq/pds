@@ -102,6 +102,14 @@ namespace Pds {
     unsigned forward;
     unsigned ncodes;
   };
+
+  class RegisterPayload : public Occurrence
+  {
+  public:
+    RegisterPayload(unsigned v);
+  public:
+    unsigned payload;
+  };
 }
 
 #endif

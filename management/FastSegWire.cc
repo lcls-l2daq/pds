@@ -41,7 +41,7 @@ FastSegWire::FastSegWire(std::list<EbServer*> servers,
   for(std::list<EbServer*>::iterator it=servers.begin(); it!=servers.end(); it++)
     _sources.push_back((*it)->client()); 
 
-  if (alias) {
+  if (alias && !servers.empty()) {
     SrcAlias tmpAlias(servers.front()->client(), alias);
     _aliases.push_back(tmpAlias);
   }

@@ -22,8 +22,9 @@ class Task;
 class TaskObject {
  public:
   TaskObject( const char* name,
-		 int priority=127,
-		 int stackSize=20*1024, char* stackBase=NULL);
+              int priority=127,
+              int stackSize=20*1024, char* stackBase=NULL,
+              int queueSize=0);
   TaskObject(const TaskObject& tparam );
   TaskObject();
   void operator= (const TaskObject&);
@@ -35,8 +36,10 @@ class TaskObject {
   char* stackBase() const {return (char*)_stackbase;}
   int stackSize() const {return _stacksize;}
   int taskID() const {return (int)_threadID;}
+  int queueSize() const { return _queueSize; }
 
   friend class Task;
+  friend class SpinTask;
  private:
   char* _name;
   size_t _stacksize;
@@ -44,6 +47,7 @@ class TaskObject {
   int _priority;
   pthread_attr_t _flags;
   pthread_t _threadID;
+  int _queueSize;
 };
 
 }
