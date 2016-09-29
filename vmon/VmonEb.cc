@@ -79,8 +79,8 @@ VmonEb::VmonEb(const Src& src,
   //  Add new log(t) histogram
   //
   const int logt_bins = 32;
-  const float lt0 = 3.; // 1us
-  const float lt1 = 9; //  1s
+  const float lt0 = 1.; // 1ns
+  const float lt1 = 5; //  1ms
   MonDescTH1F post_time_log("Log Post Time", "log10 [ns]", "",
 			    logt_bins, lt0, lt1);
   _post_time_log = new MonEntryTH1F(post_time_log);
@@ -95,6 +95,16 @@ VmonEb::VmonEb(const Src& src,
                            maxf>>_fshift,ft0,ft1);
     _fetch_time = new MonEntryTH1F(fetch_time);
     group->add(_fetch_time);
+  }
+
+  {
+    const int logt_bins = 32;
+    const float lt0 = 1.; // 1ns
+    const float lt1 = 5; //  1ms
+    MonDescTH1F fetch_time_log("Log Fetch Time", "log10 [ns]", "",
+                               logt_bins, lt0, lt1);
+    _fetch_time_log = new MonEntryTH1F(fetch_time_log);
+    group->add(_fetch_time_log);
   }
 
   std::vector<std::string> bit_names(32);
@@ -156,6 +166,8 @@ void VmonEb::fetch_time(unsigned t)
     _fetch_time->addcontent(1, bin);
   else
     _fetch_time->addinfo(1, MonEntryTH1F::Overflow);
+
+  _fetch_time_log->addcontent(1., log10f(double(t)));
 }
 
 // damage histogram
@@ -188,6 +200,7 @@ void VmonEb::update(const ClockTime& now)
   _post_time ->time(now);
   _post_time_log ->time(now);
   _fetch_time->time(now);
+  _fetch_time_log->time(now);
   _damage_count->time(now);
   _post_size ->time(now);
 }

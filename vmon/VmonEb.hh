@@ -34,6 +34,7 @@ namespace Pds {
     MonEntryScalar*   _fixup;
     MonEntryTH1F*     _depth;
     MonEntryTH1F*     _fetch_time;
+    MonEntryTH1F*     _fetch_time_log;
     MonEntryScalar*   _damage_count;
     MonEntryTH1F*     _post_time;
     MonEntryTH1F*     _post_time_log;
