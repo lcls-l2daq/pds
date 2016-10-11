@@ -357,6 +357,7 @@ void MasterFIFOHandler::startL1Accept(const FIFOEvent& fe, bool bEvrDataIncomple
     {
       _lastTime.tv_nsec = ts.tv_nsec;
       _lastTime.tv_sec = ts.tv_sec;
+      _evtCounterAcc = 0;
     }
 
   if (_state.uMaskReadout == 0) {   // Only commands, no readout
@@ -391,11 +392,23 @@ void MasterFIFOHandler::startL1Accept(const FIFOEvent& fe, bool bEvrDataIncomple
       {
         clock_gettime(CLOCK_REALTIME, &_thisTime);
         long long int nanoseconds = timeDiff(&_thisTime, &_lastTime);
-        float rate = 1000.0 / (nanoseconds * 1.e-9);
-        printf("Evr event %d, high/low 0x%05x/0x%x, rate(Hz): %7.2f\n",
-               _evtCounter, fe.TimestampHigh, fe.TimestampLow, rate);
-        _lastTime.tv_nsec = _thisTime.tv_nsec;
-        _lastTime.tv_sec  = _thisTime.tv_sec;
+        float rate = (1000.0 + _evtCounterAcc) / (nanoseconds * 1.e-9);
+        if (rate < 150.0) {
+          printf("Evr event %d, high/low 0x%05x/0x%x, rate(Hz): %7.2f\n",
+              _evtCounter, fe.TimestampHigh, fe.TimestampLow, rate);
+          _lastTime.tv_nsec = _thisTime.tv_nsec;
+          _lastTime.tv_sec  = _thisTime.tv_sec;
+        } else {
+          if (_thisTime.tv_sec > (_lastTime.tv_sec + 4)) {
+            printf("Evr event %d, high/low 0x%05x/0x%x, rate(Hz): %7.2f\n",
+                _evtCounter, fe.TimestampHigh, fe.TimestampLow, rate);
+            _lastTime.tv_nsec = _thisTime.tv_nsec;
+            _lastTime.tv_sec  = _thisTime.tv_sec;
+            _evtCounterAcc = 0;
+          } else {
+            _evtCounterAcc += 1000;
+          }
+        }
       }
 
     if (_evtCounter == _evtStop)
