@@ -115,6 +115,11 @@ void DmaControl::setEmptyThr(unsigned v)
   rxFifoSize = ((v&0x3ff)<<16) | (v1&0x3ff);
 }
 
+bool TprCore::rxPolarity() const {
+  uint32_t v = CSR;
+  return v&(1<<2);
+}
+
 void TprCore::rxPolarity(bool p) {
   volatile uint32_t v = CSR;
   v = p ? (v|(1<<2)) : (v&~(1<<2));
@@ -123,6 +128,20 @@ void TprCore::rxPolarity(bool p) {
   CSR = v|(1<<3);
   usleep(10);
   CSR = v&~(1<<3);
+}
+
+void TprCore::resetRx() {
+  volatile uint32_t v = CSR;
+  CSR = (v|(1<<3));
+  usleep(10);
+  CSR = (v&~(1<<3));
+}
+
+void TprCore::resetRxPll() {
+  volatile uint32_t v = CSR;
+  CSR = (v|(1<<7));
+  usleep(10);
+  CSR = (v&~(1<<7));
 }
 
 void TprCore::resetCounts() {

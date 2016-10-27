@@ -82,7 +82,7 @@ namespace Pds {
                         unsigned delayTap=0);
     public:
       volatile uint32_t irqEnable;
-      volatile uint32_t irqStatus;;
+      volatile uint32_t irqStatus;
       volatile uint32_t partitionAddr;
       volatile uint32_t gtxDebug;
       volatile uint32_t countReset;
@@ -131,7 +131,10 @@ namespace Pds {
 
     class TprCore {
     public:
+      bool rxPolarity () const;
       void rxPolarity (bool p);
+      void resetRx    ();
+      void resetRxPll ();
       void resetCounts();
       void dump() const;
     public:
