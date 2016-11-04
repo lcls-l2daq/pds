@@ -60,6 +60,7 @@ class Pds::Cspad2x2Server
    unsigned enable();
    unsigned disable(bool flush = true);
    void     die();
+   Pds::Pgp::Pgp* pgp() { return _pgp; }
    void     debug(unsigned d) { _debug = d; }
    unsigned debug() { return _debug; }
    void     offset(unsigned c) { _offset = c; }

@@ -29,7 +29,13 @@ namespace Pds {
 
     unsigned PgpCardG3StatusWrap::checkPciNegotiatedBandwidth() {
       this->read();
-      return (status.PciLStatus >> 4)  & 0x3f;
+      unsigned val = (status.PciLStatus >> 4)  & 0x3f;
+      if (val != 4) {
+        sprintf(esp, "Negotiated bandwidth too low, %u\n Try reinstalling or replacing PGP G3 card\n", val);
+        printf("%s", esp);
+        esp = es + strlen(es);
+      }
+      return  val;
     }
 
     unsigned PgpCardG3StatusWrap::getCurrentFiducial() {
@@ -41,12 +47,17 @@ namespace Pds {
       return ((status.EvrLaneStatus >> pgp()->portOffset())&1);
     }
 
-    bool PgpCardG3StatusWrap::evrEnabled() {
+    bool PgpCardG3StatusWrap::evrEnabled(bool pf) {
       this->read();
       bool enabled = status.EvrEnable && status.EvrReady;
-      if (enabled == false) {
-        printf("PgpCardG3StatusWrap EVR not enabled, enable %s, ready %s\n",
+      if ((enabled == false) && pf) {
+        printf("PgpCardG3StatusWrap: EVR not enabled, enable %s, ready %s\n",
             status.EvrEnable ? "true" : "false", status.EvrReady ? "true" : "false");
+        if (status.EvrReady == false) {
+          sprintf(esp, "PgpCardG3StatusWrap: EVR not enabled\nMake sure MCC fiber is connected to pgpG3 card\n");
+          printf("%s", esp);
+          esp = es+strlen(es);
+        }
       }
       return enabled;
     }

@@ -63,9 +63,12 @@ namespace Pds {
 				int           IoctlCommand(unsigned command, long long unsigned arg = 0);
 				void          maskHWerror(bool m) { _maskHWerror = m; }
         bool          G3Flag() {return _myG3Flag;}
-				static void   portOffset(unsigned p) { _portOffset = p;    }
+        char*         errorString();
+        void          errorStringAppend(char*);
+        void          clearErrorString();
+				static void   portOffset(unsigned p) { _portOffset = p; }
 				static unsigned portOffset() { return _portOffset; }
-        bool          evrEnabled();
+        bool          evrEnabled(bool);
 			private:
 				int                  _fd;
 				unsigned             _readBuffer[BufferWords];

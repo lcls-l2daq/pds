@@ -74,6 +74,7 @@ class Pds::ImpServer
    void     manager(ImpManager* m) { _mgr = m; }
    ImpManager* manager() { return _mgr; }
    void     pgp(Pds::Pgp::Pgp* p) { _pgp = p; }
+   Pds::Pgp::Pgp* pgp() { return _pgp; }
 
  public:
    static ImpServer* instance() { return _instance; }

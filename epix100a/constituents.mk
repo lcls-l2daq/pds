@@ -10,4 +10,7 @@ libincs_epix100a := pgpcard pgp pdsdata/include ndarray/include boost/include
 CPPFLAGS += -fno-strict-aliasing
 CPPFLAGS += -fopenmp
 LXFlAGS += -fopenmp
+LXFlAGS += -z now
+LXFLAGS += -fopenmp
+LXFLAGS += -z now
 DEFINES += -fopenmp

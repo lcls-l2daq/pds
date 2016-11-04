@@ -157,8 +157,8 @@ unsigned Epix100aConfigurator::resyncADC(unsigned c) {
   } while ((returned & AdcCtrlAckMask) == 0);
   if ((returned & AdcCtrlFailMask) != 0) {
     printf("\tEpix100aConfigurator::resyncADC found that ADC alignment FAILED!!! returned %d\n", returned);
-    if (c<1) ret = resyncADC(c+1);
-    else ret = 2;
+    if (c>0) ret = resyncADC(c-1);
+    else ret = 1;
   } else {
     printf("\tEpix100aConfigurator::resyncADC found ADC alignment Succeeded, returned %d\n", returned);
   }
@@ -229,7 +229,7 @@ void Epix100aConfigurator::runTimeConfigName(char* name) {
 }
 
 bool Epix100aConfigurator::_robustReadVersion(unsigned index) {
-  enum {numberOfTries=5};
+  enum {numberOfTries=3};
   unsigned version = 0;
   unsigned failCount = 0;
   printf("\n\t--flush-%u-", index);
@@ -258,6 +258,7 @@ unsigned Epix100aConfigurator::configure( Epix100aConfigType* c, unsigned first)
   _s = (Epix100aConfigShadow*) c;
   _s->set(Epix100aConfigShadow::UsePgpEvr, _fiberTriggering ? 1 : 0);
   unsigned debugSaved = _debug;
+  char* str = (char*) calloc( 256, sizeof(char));
   _debug = 0;
   timespec      start, end, sleepTime, shortSleepTime;
   sleepTime.tv_sec = 0;
@@ -279,7 +280,9 @@ unsigned Epix100aConfigurator::configure( Epix100aConfigType* c, unsigned first)
   uint32_t returned = 0;
   _pgp->readRegister(&_d, AdcControlAddr, 0x5e9, &returned);
   if ((returned & AdcCtrlFailMask) != 0) {
-    printf("Epix100aConfigurator::configure found that ADC alignment FAILED!!! returned %d\n", returned);
+    sprintf(str, "Epix100aConfigurator::configure found that ADC alignment FAILED!!! returned %d\n", returned);
+    _pgp->errorStringAppend(str);
+    printf("%s", str);
     ret |= 1;
   } else {
     printf("Epix100aConfigurator::configure found ADC alignment Succeeded, returned %d\n", returned);
@@ -333,6 +336,7 @@ unsigned Epix100aConfigurator::G3config(Epix100aConfigType* c) {
       if (evrEnabled() == false) {
         evrEnable(true);
       }
+      if (evrEnabled(true) == true) {
       ret |= evrEnableHdrChk(Epix100a::Epix100aDestination::Data, true);
       ret |= evrRunCode((unsigned)c->evrRunCode());
       ret |= evrRunDelay((unsigned)c->evrRunTrigDelay());
@@ -343,6 +347,9 @@ unsigned Epix100aConfigurator::G3config(Epix100aConfigType* c) {
       ret |= evrLaneEnable(false);
       microSpin(10);
       ret |=  waitForFiducialMode(true);
+      } else {
+        ret = 1;
+      }
     } else {
       ret |= evrEnableHdrChk(Epix100a::Epix100aDestination::Data, false);
       ret |= waitForFiducialMode(false);

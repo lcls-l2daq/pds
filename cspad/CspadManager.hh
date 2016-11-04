@@ -4,14 +4,12 @@
 #include "pds/utility/Appliance.hh"
 #include "pds/client/Fsm.hh"
 #include "pds/cspad/CompressionProcessor.hh"
-#include "pds/cspad/CspadOccurrence.hh"
 
 namespace Pds {
     class CspadServer;
     class CspadManager;
     class CfgClientNfs;
     class CspadConfigCache;
-    class CspadOccurrence;
   }
 
   class Pds::CspadManager {
@@ -25,7 +23,6 @@ namespace Pds {
       CspadConfigCache&              _cfg;
       Appliance&                     _appProcessor;
       Pds::CspadCompressionProcessor _compressionProcessor;
-      CspadOccurrence*               _occSend;
   };
 
 #endif

@@ -7,7 +7,6 @@
 
 #include "pds/pgp/PgpStatus.hh"
 #include "stdio.h"
-#include "stdlib.h"
 
 namespace Pds {
   namespace Pgp {
@@ -17,5 +16,15 @@ namespace Pds {
 	  Pds::Pgp::Pgp*     PgpStatus::_pgp = 0;
 	  PgpCardTx*         PgpStatus::p = (PgpCardTx*)calloc(1, sizeof(PgpCardTx));
 
+	  void PgpStatus::errorStringAppend(char* s) {
+	    sprintf(esp, "%s", s);
+	    esp = es + strlen(es);
+	  }
+	  void PgpStatus::clearErrorString() {
+	    for(int i=0; i<4096; i++) {
+	      es[i] = 0;
+	    }
+	    esp = es;
+	  }
   }
 }

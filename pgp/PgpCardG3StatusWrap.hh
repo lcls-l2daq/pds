@@ -30,7 +30,7 @@ namespace Pds {
         unsigned          checkPciNegotiatedBandwidth();
         unsigned          getCurrentFiducial();
         bool              getLatestLaneStatus();
-        bool              evrEnabled();
+        bool              evrEnabled(bool);
 
       protected:
       PgpCardG3Status     status;

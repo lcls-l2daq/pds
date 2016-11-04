@@ -19,6 +19,7 @@ namespace Pds {
     Configurator::Configurator(int f, unsigned d) : _fd(f), _debug(d) {
       _pgp = new Pds::Pgp::Pgp(_fd, true);
       _G3 = _pgp->G3Flag();
+      checkPciNegotiatedBandwidth();
       printRes();
     }
 
@@ -72,8 +73,8 @@ namespace Pds {
       return ret;
     }
 
-    bool Configurator::evrEnabled() {
-    	return _pgp->evrEnabled();
+    bool Configurator::evrEnabled(bool pf) {
+    	return _pgp->evrEnabled(pf);
     }
 
     int   Configurator::evrEnable(bool e) {
@@ -95,7 +96,7 @@ namespace Pds {
       } else {
         ret = _pgp->IoctlCommand( IOCTL_Evr_Disable, z);
       }
-      if (ret || (count >= 3) || (evrEnabled()==false)) {
+      if (ret || (count >= 3)) {
         printf("Configurator failed to %sable evr!\n", e ? "en" : "dis");
       }
     	return ret;

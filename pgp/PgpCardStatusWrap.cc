@@ -12,10 +12,9 @@
 #include "pgpcard/PgpCardStatus.h"
 #include <fcntl.h>
 #include <sstream>
-#include <string.h>
+#include <string>
 #include <iomanip>
 #include <iostream>
-
 
 namespace Pds {
 
@@ -30,7 +29,13 @@ namespace Pds {
       
       unsigned PgpCardStatusWrap::checkPciNegotiatedBandwidth() {
           this->read();
-          return (status.PciLStatus >> 4)  & 0x3f;
+          unsigned val = (status.PciLStatus >> 4)  & 0x3f;
+          if (val != 8) {
+            sprintf(esp, "Negotiated bandwidth too low, %u\n Try reinstalling or replacing PGP card\n", val);
+            printf("%s", esp);
+            esp = es + strlen(es);
+          }
+          return  val;
       }
       
       void PgpCardStatusWrap::print() {

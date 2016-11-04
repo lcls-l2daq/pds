@@ -22,13 +22,14 @@
 #include "pds/epix100a/Epix100aServer.hh"
 #include "pds/pgp/DataImportFrame.hh"
 #include "pdsdata/xtc/DetInfo.hh"
-//#include "pdsdata/psddl/epix.ddl.h"
 #include "pds/epix100a/Epix100aManager.hh"
 #include "pds/config/CfgClientNfs.hh"
 #include "pdsdata/xtc/TypeId.hh"
 #include "pdsdata/xtc/Xtc.hh"
 #include "pdsdata/xtc/Damage.hh"
 #include "pds/config/CfgCache.hh"
+#include "pds/utility/Occurrence.hh"
+#include "pds/service/GenericPool.hh"
 
 namespace Pds {
   class Allocation;
@@ -152,7 +153,8 @@ class Epix100aConfigAction : public Action {
 
   public:
     Epix100aConfigAction( Pds::Epix100aConfigCache& cfg, Epix100aServer* server)
-    : _cfg( cfg ), _server(server), _result(0)
+      : _cfg( cfg ), _server(server),
+      _occPool(new GenericPool(sizeof(UserMessage),4)), _result(0)
       {}
 
     ~Epix100aConfigAction() {}
@@ -189,19 +191,32 @@ class Epix100aConfigAction : public Action {
           in->datagram().xtc.damage.increase(Damage::UserDefined);
           in->datagram().xtc.damage.userBits(_result);
         }
+        char message[400];
+        sprintf(message, "Epix100a  on host %s failed to configure!\n", getenv("HOSTNAME"));
+        UserMessage* umsg = new (_occPool) UserMessage;
+        umsg->append(message);
+        umsg->append(DetInfo::name(static_cast<const DetInfo&>(_server->xtc().src)));
+        umsg->append("\n");
+        umsg->append(_server->configurator()->pgp()->errorString());
+        printf("Epix100aConfigAction %s %s", message, _server->configurator()->pgp()->errorString());
+        _server->configurator()->pgp()->clearErrorString();
+        _server->manager()->appliance().post(umsg);
       }
       return in;
     }
 
   private:
-    Epix100aConfigCache&  _cfg;
+    Epix100aConfigCache& _cfg;
     Epix100aServer*      _server;
-  unsigned           _result;
+    GenericPool*         _occPool;
+    unsigned             _result;
 };
 
 class Epix100aBeginCalibCycleAction : public Action {
   public:
-    Epix100aBeginCalibCycleAction(Epix100aServer* s, Epix100aConfigCache& cfg) : _server(s), _cfg(cfg), _result(0) {};
+    Epix100aBeginCalibCycleAction(Epix100aServer* s, Epix100aConfigCache& cfg)
+     : _server(s), _cfg(cfg),_occPool(new GenericPool(sizeof(UserMessage),4)), _result(0)
+     {}
 
     Transition* fire(Transition* tr) {
       printf("Epix100aBeginCalibCycleAction:;fire(tr) ");
@@ -240,13 +255,24 @@ class Epix100aBeginCalibCycleAction : public Action {
           in->datagram().xtc.damage.increase(Damage::UserDefined);
           in->datagram().xtc.damage.userBits(_result);
         }
+        char message[400];
+        sprintf(message, "Epix100a  on host %s failed to configure!\n", getenv("HOSTNAME"));
+        UserMessage* umsg = new (_occPool) UserMessage;
+        umsg->append(message);
+        umsg->append(DetInfo::name(static_cast<const DetInfo&>(_server->xtc().src)));
+        umsg->append("\n");
+        umsg->append(_server->configurator()->pgp()->errorString());
+        printf("Epix100aBeginCalibCycleAction %s %s", message, _server->configurator()->pgp()->errorString());
+        _server->configurator()->pgp()->clearErrorString();
+        _server->manager()->appliance().post(umsg);
       }
       return in;
     }
   private:
     Epix100aServer*       _server;
     Epix100aConfigCache&  _cfg;
-    unsigned          _result;
+    GenericPool*          _occPool;
+    unsigned              _result;
 };
 
 

@@ -62,7 +62,7 @@ namespace Pds {
         int                       evrEnableHdrChk(unsigned, bool);
         void                      printRes();
         bool                      G3Flag() { return _G3; }
-        bool                      evrEnabled();
+        bool                      evrEnabled(bool pf = false);
         int                       allocateVC(unsigned, unsigned l=0);  // l is the offset relative to the first port, assumption is first port
 
       protected:

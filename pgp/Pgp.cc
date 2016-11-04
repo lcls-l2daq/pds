@@ -52,10 +52,10 @@ Pgp::Pgp(int f, bool pf) : _fd(f) {
 
 Pgp::~Pgp() {}
 
-bool Pgp::evrEnabled() {
+bool Pgp::evrEnabled(bool pf) {
 	bool ret = true;
 	if (_myG3Flag) {
-		ret = _status->evrEnabled();
+		ret = _status->evrEnabled(pf);
 	}
 	return ret;
 }
@@ -71,6 +71,15 @@ bool          Pgp::Pgp::getLatestLaneStatus() {
 }
 int      Pgp::Pgp::resetSequenceCount() {
   return Pgp::IoctlCommand(IOCTL_ClearFrameCounter, (unsigned)(1<<portOffset()));
+}
+char*         Pgp::Pgp::errorString() {
+  return _status->errorString();
+}
+void          Pgp::Pgp::errorStringAppend(char* s) {
+  _status->errorStringAppend(s);
+}
+void          Pgp::Pgp::clearErrorString() {
+  _status->clearErrorString();
 }
 
 

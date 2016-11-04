@@ -217,7 +217,7 @@ class Cspad2x2ConfigAction : public Action {
       printf("Cspad2x2ConfigAction::fire(InDatagram) recorded\n");
       _cfg.record(in);
       if (_result == 0 && _server->debug() & 0x10) _cfg.printRO();
-      if( _result ) {
+      if( _result || strlen(_server->pgp()->errorString())) {
         printf( "*** Cspad2x2ConfigAction found configuration errors _result(0x%x)\n", _result );
         if (in->datagram().xtc.damage.value() == 0) {
           in->datagram().xtc.damage.increase(Damage::UserDefined);
@@ -228,6 +228,9 @@ class Cspad2x2ConfigAction : public Action {
         UserMessage* umsg = new (_occPool) UserMessage;
         umsg->append(message);
         umsg->append(DetInfo::name(static_cast<const DetInfo&>(_server->xtc().src)));
+        umsg->append("\n");
+        umsg->append(_server->pgp()->errorString());
+        _server->pgp()->clearErrorString();
         _server->manager()->appliance().post(umsg);
       }
       return in;
@@ -273,7 +276,7 @@ class Cspad2x2BeginCalibCycleAction : public Action {
         _cfg.record(in);
         if (_server->debug() & 0x10) _cfg.printRO();
       } else printf("\n");
-      if( _result ) {
+      if( _result || strlen(_server->pgp()->errorString()) ) {
         printf( "*** Cspad2x2ConfigAction found configuration errors _result(0x%x)\n", _result );
         if (in->datagram().xtc.damage.value() == 0) {
           in->datagram().xtc.damage.increase(Damage::UserDefined);
@@ -284,6 +287,9 @@ class Cspad2x2BeginCalibCycleAction : public Action {
         UserMessage* umsg = new (_occPool) UserMessage;
         umsg->append(message);
         umsg->append(DetInfo::name(static_cast<const DetInfo&>(_server->xtc().src)));
+        umsg->append("\n");
+        umsg->append(_server->pgp()->errorString());
+        _server->pgp()->clearErrorString();
         _server->manager()->appliance().post(umsg);
       }
       return in;

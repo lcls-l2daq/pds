@@ -218,11 +218,10 @@ InDatagram* CspadL1Action::fire(InDatagram* in) {
     char*    payload;
     if (xtc->contains.id() == Pds::TypeId::Id_Xtc) {
       xtc = (Xtc*) xtc->payload();
-      if ((xtc->contains.id() == Pds::TypeId::Id_CspadElement) ||
-          (xtc->contains.id() == Pds::TypeId::Id_Cspad2x2Element)) {
+      if ((xtc->contains.id() == Pds::TypeId::Id_CspadElement) ) {
         payload = xtc->payload();
       } else {
-        printf("CspadL1Action::fire inner xtc not Id_Cspad[2x2]Element, but %s!\n",
+        printf("CspadL1Action::fire inner xtc not Id_Cspad Element, but %s!\n",
             xtc->contains.name(xtc->contains.id()));
             
         return postData(in);
@@ -244,31 +243,6 @@ InDatagram* CspadL1Action::fire(InDatagram* in) {
             printf("acqCount(0x%x), lastMatchedAcqCount(0x%x)\n", data->acqCount(), _lastMatchedAcqCount);
           }
         }
-      } else {
-        bool noWrap = true;
-        unsigned acq = data->acqCount();
-        if ((acq < _lastMatchedAcqCount) || (evrFiducials < _lastMatchedFiducial)) {
-          noWrap = false;
-          _resetCount += 1;
-        }
-        if (evrFiducials == _lastMatchedFiducial) _resetCount += 4;
-        if (_resetCount)  {
-          reset(false);
-          if (server->debug() & 0x80) printf("CspadL1Action::reset(%u) evrFiducials(0x%x) acq(0x%x)\n", _resetCount, evrFiducials, acq);
-          _resetCount--;
-          noWrap = false;
-        }
-        if (noWrap && ((evrFiducials-_lastMatchedFiducial) != (3 * (acq-_lastMatchedAcqCount)))) {
-          frameError |= 1;
-          if (_frameSyncErrorCount < FiducialErrorCountLimit) {
-            printf("CspadL1Action::fire(in) frame mismatch!  evr(0x%x) lastMatchedFiducial(0x%x)\n\tframeNumber(0x%x), lastMatchedFrameNumber(0x%x), ",
-                evrFiducials, _lastMatchedFiducial, data->frameNumber(), _lastMatchedFrameNumber);
-            printf("acqCount(0x%x), lastMatchedAcqCount(0x%x)\n", acq, _lastMatchedAcqCount);
-          }
-        }
-        _lastMatchedFiducial = evrFiducials;
-        _lastMatchedAcqCount = acq;
-        if (_frameSyncErrorCount) frameError |= 1;
       }
       if (!frameError) {
         _lastMatchedFiducial = evrFiducials;
@@ -277,15 +251,6 @@ InDatagram* CspadL1Action::fire(InDatagram* in) {
         _frameSyncErrorCount = 0;
       }
       if (server->debug() & 0x40) printf("L1 acq - frm# %d\n", data->acqCount() - data->frameNumber());
-      // Kludge test of sending nothing ....                  !!!!!!!!!!!!!!!!!!!!!!
-//      if (data->frameNumber()) {
-//        if ((data->frameNumber() & 0xfff) == 0) {
-//          printf("CspadL1Action::CspadL1Action sending nothing %u 0x%x\n",
-//              data->frameNumber(),
-//              data->fiducials());
-//          return NULL;
-//        }
-//      }
     }
     if (frameError) {
       dg.xtc.damage.increase(Pds::Damage::UserDefined);
@@ -367,6 +332,10 @@ class CspadConfigAction : public Action {
         UserMessage* umsg = new (_occPool) UserMessage;
         umsg->append(message);
         umsg->append(DetInfo::name(static_cast<const DetInfo&>(_server->xtc().src)));
+        umsg->append("\n");
+        umsg->append(_server->pgp()->errorString());
+        printf("CspadConfigAction %s%s", message, _server->pgp()->errorString());
+        _server->pgp()->clearErrorString();
         _server->manager()->appliance().post(umsg);
       }
       
@@ -417,7 +386,7 @@ class CspadBeginCalibCycleAction : public Action {
         if (_server->debug() & 0x10) _cfg.printRO();
       } else printf("\n");
       if( _result ) {
-        printf( "*** CspadConfigAction found configuration errors _result(0x%x)\n", _result );
+        printf( "*** CspadBeginCalibCycleAction found configuration errors _result(0x%x)\n", _result );
         if (in->datagram().xtc.damage.value() == 0) {
           in->datagram().xtc.damage.increase(Damage::UserDefined);
           in->datagram().xtc.damage.userBits(_result);
@@ -427,6 +396,10 @@ class CspadBeginCalibCycleAction : public Action {
         UserMessage* umsg = new (_occPool) UserMessage;
         umsg->append(message);
         umsg->append(DetInfo::name(static_cast<const DetInfo&>(_server->xtc().src)));
+        umsg->append("\n");
+        umsg->append(_server->pgp()->errorString());
+        printf("CspadBeginCalibCycleAction %s%s", message, _server->pgp()->errorString());
+        _server->pgp()->clearErrorString();
         _server->manager()->appliance().post(umsg);
       }
       return in;

@@ -33,25 +33,37 @@ namespace Pds {
   class PgpStatus {
       public:
         PgpStatus(int f, unsigned d, Pgp* pgp)   {
+        	es = (char*)calloc(4096,1);
+        	esp = es;
         	_fd = f;
         	_debug = d;
         	_pgp = pgp;
         	p = new PgpCardTx;
         	p->model = sizeof(p);
         };
-        virtual ~PgpStatus() {};
+        virtual ~PgpStatus() {
+          delete(p);
+          free(es);
+        };
 
       public:
         virtual void              print() = 0; 
         virtual unsigned          checkPciNegotiatedBandwidth() = 0;
         virtual unsigned          getCurrentFiducial() {return 0;}
         virtual bool              getLatestLaneStatus() {return false;}
-        virtual bool			        evrEnabled() {return true;}
+        virtual bool			        evrEnabled(bool printFlag = false) {return true;}
+        virtual char*             errorString() {return es;}
+        void                      errorStringAppend(char*);
+        void                      clearErrorString();
         int                       fd() { return _fd; }
         Pds::Pgp::Pgp*            pgp() { return _pgp; }
 
+      public:
+        char*                     es;
+
       protected:
         virtual void                 read() = 0;
+        char*                        esp;
         static int                   _fd;
         static unsigned              _debug;
         static Pds::Pgp::Pgp*        _pgp;
