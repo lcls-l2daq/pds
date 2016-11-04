@@ -23,6 +23,7 @@
 #include "pds/pgp/Pgp.hh"
 #include "pgpcard/PgpCardMod.h"
 #include <time.h>
+#include <stdlib.h>
 
 namespace Pds {
 
