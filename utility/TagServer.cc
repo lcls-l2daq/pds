@@ -23,6 +23,7 @@ TagServer::TagServer(const Ins& ins,
   _occPool   (sizeof(EvrCommand),64)
 {
   _payload = new char[MaxPayload];
+  fd(_server.fd());
 }
 
 TagServer::~TagServer() { delete[] _payload; }
