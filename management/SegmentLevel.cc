@@ -152,15 +152,15 @@ void    SegmentLevel::allocated(const Allocation& alloc,
   Server* esrv;
   if (_settings.has_fiducial()) {
     TagServer* srv = new TagServer(source, evrInfo, 
-                                   sizeof(EvrDataType)+256*sizeof(Pds::EvrData::FIFOEvent),
-                                   NetBufferDepth); // revisit
+                                   static_cast<InletWireServer&>(inlet)._inlet,
+                                   NetBufferDepth);
     srv->server().join(source, Ins(header().ip()));
     esrv=srv;
   }
   else {
     EvrServer* srv = new EvrServer(source, evrInfo, 
                                    static_cast<InletWireServer&>(inlet)._inlet,
-                                   NetBufferDepth); // revisit
+                                   NetBufferDepth);
     srv->server().join(source, Ins(header().ip()));
     esrv=srv;
   }
