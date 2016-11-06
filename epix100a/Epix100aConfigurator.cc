@@ -341,7 +341,7 @@ unsigned Epix100aConfigurator::G3config(Epix100aConfigType* c) {
       ret |= evrRunCode((unsigned)c->evrRunCode());
       ret |= evrRunDelay((unsigned)c->evrRunTrigDelay());
       ret |= evrDaqCode((unsigned)c->evrDaqCode());
-      ret |= evrDaqDelay((unsigned)c->evrRunTrigDelay() + 50);
+      ret |= evrDaqDelay((unsigned)c->evrRunTrigDelay() + 1250);
       ret |=  waitForFiducialMode(false);
       microSpin(10);
       ret |= evrLaneEnable(false);
