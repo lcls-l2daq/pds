@@ -178,7 +178,13 @@ unsigned Pds::RayonixServer::configure(RayonixConfigType& config)
       // send occurrence
       _occSend->userMessage("Rayonix: Failed to configure.\n");
     }
+  } else {
+    // If the readoutMode is RM_LowNoise, send an occurrence
+    if (readoutMode == 3) {
+      _occSend->userMessage("Rayonix: Low noise mode limits readout rate.\n");
+    }
   }
+
   return (numErrs);
  }
 
