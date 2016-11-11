@@ -458,6 +458,9 @@ void *workRoutine(void *arg)
             case ReadoutModeHDR:
               _readoutMode = ReadoutModeHDR;
               break;
+            case ReadoutModeLowNoise:
+              _readoutMode = ReadoutModeLowNoise;
+              break;
             default:
               sprintf(logbuf, "Warning: Readout mode %d not supported", (int) readoutMode);
               printf("%s\n", logbuf);
