@@ -1,12 +1,15 @@
-#ifndef QuadAdc_I2cDevice_hh
-#define QuadAdc_I2cDevice_hh
+#ifndef QuadAdc_I2cSwitch_hh
+#define QuadAdc_I2cSwitch_hh
+
+#include <stdint.h>
 
 namespace Pds {
   namespace QuadAdc {
     class I2cSwitch {
     public:
-      void    set(uint8_t);
-      uint8_t get() const;
+      enum Port { PrimaryFmc=1, SecondaryFmc=2, SFP=4, LocalBus=8 };
+      void select(Port);
+      void dump () const;
     private:
       volatile uint32_t _control;
       uint32_t          _reserved[255];
