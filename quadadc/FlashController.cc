@@ -19,7 +19,7 @@ void FlashController::write(const uint32_t* p, unsigned nwords)
     _data = *p++;
     i++;
     if ((i%(nwords/10))==0)
-      printf("%u%% complete [%u B]\n",100*i/nwords, i*sizeof(uint32_t));
+      printf("%u%% complete [%lu B]\n",100*i/nwords, i*sizeof(uint32_t));
     else if ((i%(nwords/100))==0) {
       if ((i%(nwords/10))==(nwords/100))
         printf("Writing");
@@ -79,7 +79,7 @@ int  FlashController::read(const uint32_t* p, unsigned nwords)
   _bytes_to_read = nwords*sizeof(uint32_t);
 
   nwords <<= 1;
-  unsigned vold = 0;
+  //  unsigned vold = 0;
   for(unsigned i=0; i<nwords; ) {
     unsigned v = _data;
     //  if (v!=vold || (v&(1<<31)))
@@ -87,21 +87,21 @@ int  FlashController::read(const uint32_t* p, unsigned nwords)
     if (v>>31) {
       uint16_t data = v&0xffff;
       if (*q != data) {
-        printf("\nVerify failed [%04x:%04x] at %u\n",
+        printf("\nVerify failed [%04x:%04x] at %lu\n",
                data,*q,q-reinterpret_cast<const uint16_t*>(p));
         break;
       }
       q++;
       i++;
       if ((i%(nwords/10))==0)
-        printf("Verify %u%% complete [%u B]\n",100*i/nwords, i*sizeof(uint16_t));
+        printf("Verify %u%% complete [%lu B]\n",100*i/nwords, i*sizeof(uint16_t));
     }
     else {
       // if (i*10>9*nwords && v!=vold)
       //   printf("[%u B]\n",i*sizeof(uint16_t));
       usleep(10);
     }
-    vold=v;
+    //    vold=v;
   }
   printf("\n");
 

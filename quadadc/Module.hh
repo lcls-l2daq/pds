@@ -13,6 +13,7 @@
 #include "pds/quadadc/QABase.hh"
 #include "pds/quadadc/Adt7411.hh"
 #include "pds/quadadc/AdcCore.hh"
+#include "pds/quadadc/AdcSync.hh"
 #include "pds/quadadc/FmcCore.hh"
 #include "pds/quadadc/FlashController.hh"
 
@@ -104,9 +105,10 @@ namespace Pds {
       Mmcm     mmcm;             // 0x80800
       FmcCore  fmc_core;         // 0x81000
       AdcCore  adc_core;         // 0x81400
-
+      uint32_t rsvd_to_0x82000  [(0x800)/4];
+      AdcSync  adc_sync;
+      uint32_t rsvd_to_0x90000  [(0xE000-sizeof(AdcSync))/4];
     public:
-      uint32_t rsvd_to_0x90000  [(0xEC00)/4];
       uint32_t gthAlign[64];     // 0x90000
       uint32_t gthAlignTarget;
       uint32_t gthAlignLast;
