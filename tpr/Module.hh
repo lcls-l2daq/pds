@@ -29,7 +29,6 @@ namespace Pds {
       volatile uint32_t UserConstants[64];
       volatile uint32_t reserved_0x140[0x200-0x140];
       volatile uint32_t BuildStamp[64];
-      volatile uint32_t reserved_0x240[0x4000-0x240];
     };
 
     class XBar {
@@ -136,6 +135,8 @@ namespace Pds {
       void resetRx    ();
       void resetRxPll ();
       void resetCounts();
+      void setLCLS    ();
+      void setLCLSII  ();
       void dump() const;
     public:
       volatile uint32_t SOFcounts;

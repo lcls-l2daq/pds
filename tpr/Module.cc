@@ -151,6 +151,16 @@ void TprCore::resetCounts() {
   CSR = (v&~1);
 }
 
+void TprCore::setLCLS() {
+  volatile uint32_t v = CSR;
+  CSR = v & ~(1<<4);
+}
+
+void TprCore::setLCLSII() {
+  volatile uint32_t v = CSR;
+  CSR = v | (1<<4);
+}
+
 void TprCore::dump() const {
   printf("SOFcounts: %08x\n", SOFcounts);
   printf("EOFcounts: %08x\n", EOFcounts);
