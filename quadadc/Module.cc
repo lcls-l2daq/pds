@@ -95,7 +95,7 @@ void Module::fmc_init()
     clksrc_clktree = CLOCKTREE_CLKSRC_EXTERNAL;
   }
 
-  if (fmca_spi.cpld_init(clksrc_cpld))
+  if (fmca_spi.cpld_init())
     printf("cpld_init failed\n");
 
   if (fmca_spi.clocktree_init(clksrc_clktree, vcotype))

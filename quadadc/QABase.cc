@@ -58,8 +58,6 @@ void QABase::setupDaq(unsigned partition,
   prescale  = 1;
   unsigned v = csr & ~(1<<0);
   csr = v | (1<<0);
-  usleep(10);
-  csr = v | (1<<31);
 }
 
 void QABase::setupLCLS(unsigned rate,
@@ -70,8 +68,6 @@ void QABase::setupLCLS(unsigned rate,
   prescale  = 1;
   unsigned v = csr & ~(1<<0);
   csr = v | (1<<0);
-  usleep(10);
-  csr = v | (1<<31);
 }
 
 void QABase::setupLCLSII(unsigned rate,
@@ -82,8 +78,6 @@ void QABase::setupLCLSII(unsigned rate,
   prescale  = 1;
   unsigned v = csr & ~(1<<0);
   csr = v | (1<<0);
-  usleep(10);
-  csr = v | (1<<31);
 }
 
 void QABase::enableDmaTest(bool enable)

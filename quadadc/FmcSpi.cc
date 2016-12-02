@@ -92,14 +92,16 @@ int FmcSpi::initSPI()
   return 0;
 }
 
-int FmcSpi::cpld_init(unsigned clksrc,
-                      unsigned syncsrc)
+int FmcSpi::cpld_init()
 {
   unsigned char fans = 0;
+  unsigned syncsrc = 1; // FPGA
 #ifdef TIMINGREF
   unsigned char dirs = 0xF;
+  unsigned clksrc = 3;  // external ref
 #else
   unsigned char dirs = 0;
+  unsigned clksrc = 6;  // internal ref
 #endif
 
   resetSPIclocktree();
@@ -191,7 +193,8 @@ int FmcSpi::clocktree_init(unsigned clocksource, unsigned vcotype)
   _writeAD9517( 0x1A, 0x00); //LD = DLD
   _writeAD9517( 0x1B, 0x00); //REFMON = GND
 #ifdef TIMINGREF
-  _writeAD9517( 0x1C, 0x86); //REF1 input
+  //  _writeAD9517( 0x1C, 0x86); //REF1 input
+  _writeAD9517( 0x1C, 0x87); //Diff ref input
 #else
   _writeAD9517( 0x1C, 0x87); //Diff ref input
 #endif

@@ -12,8 +12,7 @@ namespace Pds {
       int resetSPIadc      ();
 
       enum SyncSrc { NoSync=0, FPGA=1 };
-      int cpld_init(unsigned clksrc,
-                    unsigned syncsrc  =FPGA);
+      int cpld_init();
         
       int clocktree_init   (unsigned clksrc, 
                             unsigned vcotype);

@@ -38,6 +38,7 @@ void AdcSync::dump_status() const
   for(unsigned j=0; j<4; j++) {
     stats[j] = 0;
     for(unsigned i=0; i<8; i++) {
+      usleep(1);
       _select = (j<<16) | i;
       usleep(1);
       stats[j] += _stats;
@@ -46,13 +47,14 @@ void AdcSync::dump_status() const
   printf("---sync stats---\n");
   for(unsigned i=0; i<8; i++) {
     for(unsigned j=0; j<4; j++) {
+      usleep(1);
       _select = (j<<16) | i;
       usleep(1);
       unsigned v = _stats;
       if (stats[j])
-        printf(" %08x [%02u%%]", v, 100*v/stats[j]);
+        printf(" %04x [%02u%%]", v, 100*v/stats[j]);
       else
-        printf(" %08x [---]", v);
+        printf(" %04x [---]", v);
     }
     printf("\n");
   }

@@ -30,7 +30,8 @@ void Mmcm::setLCLSII(unsigned delay_int, unsigned delay_frac)
   //  PowerU = 0;
 }
 
-
+//  only compiles on rhel7
+#if 0
 static const uint64_t _lock[64] = {
   // This table is composed of:
   // LockRefDly(5b):LockFBDly(5b)LockCnt(10b)LockSatHigh(10b)UnlockCnt(10b)
@@ -237,7 +238,11 @@ static const uint16_t _filter_high[] = {
   0b1100101011,
   0b1100101011
 };
-
+#else
+static const uint64_t _lock[] = {0};
+static const uint16_t _filter_low[] = {0};
+static const uint16_t _filter_high[] = {0};
+#endif
 
 
 void Mmcm::_setFbMult(unsigned m)
