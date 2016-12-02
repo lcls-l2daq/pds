@@ -29,7 +29,7 @@ EpicsCfg::EpicsCfg(const char* base) :
   _channelMask(pvname(base,"CHAN_MASK")),
   _sampleRate (pvname(base,"SAMP_RATE")),
   _numSamples (pvname(base,"NSAMPLES" )),
-  _delay      (pvname(base,"DELAY_TKS")),
+  _delay      (pvname(base,"DELAY_NS")),
   _evtCode    (pvname(base,"EVT_CODE" ))
 {
 }
