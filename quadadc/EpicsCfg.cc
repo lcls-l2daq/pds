@@ -44,11 +44,11 @@ unsigned EpicsCfg::channelMask ()
   _channelMask.fetch(reinterpret_cast<char*>(&v),sizeof(v));
   return v;
 }
-unsigned EpicsCfg::ratePrescale()
+unsigned EpicsCfg::sampleRate()
 {
   unsigned v;
   _sampleRate.fetch(reinterpret_cast<char*>(&v),sizeof(v));
-  return 1.25e9/v;
+  return v;
 }
 
 unsigned EpicsCfg::numSamples  ()
@@ -58,7 +58,7 @@ unsigned EpicsCfg::numSamples  ()
   return v;
 }
 
-unsigned EpicsCfg::delay       ()
+unsigned EpicsCfg::delay_ns    ()
 {
   unsigned v;
   _delay.fetch(reinterpret_cast<char*>(&v),sizeof(v));

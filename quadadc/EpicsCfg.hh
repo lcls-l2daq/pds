@@ -14,9 +14,9 @@ namespace Pds {
       ~EpicsCfg();
     public:
       unsigned channelMask ();
-      unsigned ratePrescale();
+      unsigned sampleRate  (); // Hz
       unsigned numSamples  ();
-      unsigned delay       ();
+      unsigned delay_ns    (); // ns
       unsigned evtCode     ();
     private:
       Pds_Epics::PvServer _channelMask;
