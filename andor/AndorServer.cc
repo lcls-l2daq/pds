@@ -35,6 +35,7 @@ AndorServer::AndorServer(int iCamera, bool bDelayMode, bool bInitTest, const Src
  _iADChannel(-1), _iReadoutPort(-1), _iMaxSpeedTableIndex(-1), _iMaxGainIndex(-1),
  _iTempMin(-1), _iTempMax(-1), _iFanModeNonAcq(-1),
  _fPrevReadoutTime(0), _bSequenceError(false), _clockPrevDatagram(0,0), _iNumExposure(0), _iNumAcq(0),
+ _iReadoutWaitTime(_iMaxReadoutTime),
  _config(),
  _fReadoutTime(0),
  _poolFrameData(_iMaxFrameDataSize, _iPoolDataCount), _pDgOut(NULL),
@@ -500,6 +501,12 @@ int AndorServer::config(AndorConfigType& config, std::string& sConfigWarning)
     }
     return ERROR_INVALID_CONFIG;
   }
+
+  // If numDelayShots <= 1 then increase the readout wait time - allows long integrations with readout groups.
+  if (config.numDelayShots() > 1)
+    _iReadoutWaitTime = _iMaxReadoutTime;
+  else
+    _iReadoutWaitTime = _iMaxReadoutTime + (int) (config.exposureTime() * 1000);
 
   const int iDevId = ((DetInfo&)_src).devId();
 
@@ -1081,7 +1088,7 @@ int AndorServer::initTest()
   timespec timeVal2;
   clock_gettime( CLOCK_REALTIME, &timeVal2 );
 
-  iError = WaitForAcquisitionTimeOut(_iMaxReadoutTime);
+  iError = WaitForAcquisitionTimeOut(_iReadoutWaitTime);
   if (!isAndorFuncOk(iError))
   {
     printf("AndorServer::waitForNewFrameAvailable(): WaitForAcquisitionTimeOut(): %s\n", AndorErrorCodes::name(iError));
@@ -1690,7 +1697,7 @@ int AndorServer::waitForNewFrameAvailable()
   clock_gettime( CLOCK_REALTIME, &tsWaitStart );
 
   int iError;
-  iError = WaitForAcquisitionTimeOut(_iMaxReadoutTime);
+  iError = WaitForAcquisitionTimeOut(_iReadoutWaitTime);
 
   if (_config.fanMode() == (int) AndorConfigType::ENUM_FAN_ACQOFF)
   {
@@ -1731,10 +1738,10 @@ int AndorServer::waitForNewFrameAvailable()
   //
   //  int iWaitTime = (tsCurrent.tv_nsec - tsWaitStart.tv_nsec) / 1000000 +
   //   ( tsCurrent.tv_sec - tsWaitStart.tv_sec ) * 1000; // in milliseconds
-  //  if ( iWaitTime >= _iMaxReadoutTime )
+  //  if ( iWaitTime >= _iReadoutWaitTime )
   //  {
   //    printf( "AndorServer::waitForNewFrameAvailable(): Readout time is longer than %d miliseconds. Capture is stopped\n",
-  //     _iMaxReadoutTime );
+  //     _iReadoutWaitTime );
   //
   //    iError = AbortAcquisition();
   //    if (!isAndorFuncOk(iError) && iError != DRV_IDLE)

@@ -35,6 +35,7 @@ DualAndorServer::DualAndorServer(int iCamera, bool bDelayMode, bool bInitTest, c
  _iImageWidth(-1), _iImageHeight(-1), _iADChannel(-1), _iReadoutPort(-1), _iMaxSpeedTableIndex(-1),
  _iMaxGainIndex(-1), _iTempMin(-1), _iTempMax(-1), _iFanModeNonAcq(-1),
  _fPrevReadoutTime(0), _bSequenceError(false), _clockPrevDatagram(0,0), _iNumExposure(0), _iNumAcq(0),
+ _iReadoutWaitTime(_iMaxReadoutTime),
  _config(),
  _fReadoutTime(0),
  _iTemperatureMaster(999), _iTemperatureSlave(999), _bCallShutdown(false),
@@ -618,6 +619,12 @@ int DualAndorServer::config(Andor3dConfigType& config, std::string& sConfigWarni
     }
     return ERROR_INVALID_CONFIG;
   }
+
+  // If numDelayShots <= 1 then increase the readout wait time - allows long integrations with readout groups.
+  if (config.numDelayShots() > 1)
+    _iReadoutWaitTime = _iMaxReadoutTime;
+  else
+    _iReadoutWaitTime = _iMaxReadoutTime + (int) (config.exposureTime() * 1000);
 
   const int iDevId = ((DetInfo&)_src).devId();
 
@@ -1373,7 +1380,7 @@ int DualAndorServer::initTest()
   clock_gettime( CLOCK_REALTIME, &timeVal2 );
 
   if (checkMasterSelected()) {
-    iError = WaitForAcquisitionTimeOut(_iMaxReadoutTime);
+    iError = WaitForAcquisitionTimeOut(_iReadoutWaitTime);
     if (!isAndorFuncOk(iError))
     {
       printf("DualAndorServer::waitForNewFrameAvailable(): WaitForAcquisitionTimeOut() (hcam = %d): %s\n", (int) _hCamMaster, AndorErrorCodes::name(iError));
@@ -1384,7 +1391,7 @@ int DualAndorServer::initTest()
   }
 
   if (checkSlaveSelected()) {
-    iError = WaitForAcquisitionTimeOut(_iMaxReadoutTime);
+    iError = WaitForAcquisitionTimeOut(_iReadoutWaitTime);
     if (!isAndorFuncOk(iError))
     {
       printf("DualAndorServer::waitForNewFrameAvailable(): WaitForAcquisitionTimeOut() (hcam = %d): %s\n", (int) _hCamSlave, AndorErrorCodes::name(iError));
@@ -2143,7 +2150,7 @@ int DualAndorServer::waitForNewFrameAvailable()
   int iErrorSlave  = DRV_SUCCESS;
   if (checkMasterSelected())
   {
-    iErrorMaster = WaitForAcquisitionTimeOut(_iMaxReadoutTime);
+    iErrorMaster = WaitForAcquisitionTimeOut(_iReadoutWaitTime);
     
     if (_config.fanMode() == (int) Andor3dConfigType::ENUM_FAN_ACQOFF)
     {
@@ -2154,7 +2161,7 @@ int DualAndorServer::waitForNewFrameAvailable()
   }
   if (checkSlaveSelected())
   {
-    iErrorSlave  = WaitForAcquisitionTimeOut(_iMaxReadoutTime);
+    iErrorSlave  = WaitForAcquisitionTimeOut(_iReadoutWaitTime);
 
     if (_config.fanMode() == (int) Andor3dConfigType::ENUM_FAN_ACQOFF)
     {
@@ -2199,10 +2206,10 @@ int DualAndorServer::waitForNewFrameAvailable()
   //
   //  int iWaitTime = (tsCurrent.tv_nsec - tsWaitStart.tv_nsec) / 1000000 +
   //   ( tsCurrent.tv_sec - tsWaitStart.tv_sec ) * 1000; // in milliseconds
-  //  if ( iWaitTime >= _iMaxReadoutTime )
+  //  if ( iWaitTime >= _iReadoutWaitTime )
   //  {
   //    printf( "DualAndorServer::waitForNewFrameAvailable(): Readout time is longer than %d miliseconds. Capture is stopped\n",
-  //     _iMaxReadoutTime );
+  //     _iReadoutWaitTime );
   //
   //    iError = AbortAcquisition();
   //    if (!isAndorFuncOk(iError) && iError != DRV_IDLE)

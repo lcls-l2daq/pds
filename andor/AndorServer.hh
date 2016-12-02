@@ -182,6 +182,7 @@ private:
   ClockTime           _clockPrevDatagram;
   int                 _iNumExposure;
   int                 _iNumAcq; // # of acquisition with trigger (reset on Enable/Disable)
+  int                 _iReadoutWaitTime;
 
   /*
    * Config data
