@@ -1,7 +1,7 @@
 libnames := epicstools
 
 # List source files for each library
-libsrcs_epicstools := EpicsCA.cc
+libsrcs_epicstools := EpicsCA.cc PvServer.cc
 
 libincs_epicstools := epics/include epics/include/os/Linux
 
