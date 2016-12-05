@@ -248,6 +248,8 @@ void FmcSpi::_applySync()
 {
   //  Apply sync
   uint32_t v = _readCPLD(0);
+  printf("applySync %x\n",v);
+
   v &= ~0x10;
   _writeCPLD(0,v);
   usleep(50000);
@@ -255,6 +257,9 @@ void FmcSpi::_applySync()
   v |= 0x10;
   _writeCPLD(0,v);
   usleep(50000);
+
+  v = _readCPLD(0);
+  printf("applySync %x\n",v);
 }
 
 int FmcSpi::adc_enable_test(unsigned pattern)
@@ -271,6 +276,7 @@ int FmcSpi::adc_enable_test(unsigned pattern)
 
   _writeADC(0x5,pattern);
   v = _readADC(0x5);
+  printf("Enable pattern %x\n",v);
 
   if (v!=pattern) {
     printf("adc_enable_test read pattern %x[%x]\n",

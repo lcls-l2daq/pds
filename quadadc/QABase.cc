@@ -112,6 +112,16 @@ void QABase::resetClock(bool r)
   }
 }
 
+void QABase::resetDma()
+{
+  unsigned v = csr;
+  v |= (1<<4);
+  csr = v;
+  usleep(10);
+  v &= ~(1<<4);
+  csr = v;
+}
+
 bool QABase::clockLocked() const
 {
   unsigned v = adcSync;

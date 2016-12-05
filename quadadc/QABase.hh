@@ -22,7 +22,8 @@ namespace Pds {
       void start();
       void stop ();
       void resetCounts();
-      void resetClock(bool);
+      void resetClock (bool);
+      void resetDma   ();
       bool clockLocked() const;
       void dump() const;
     public:
@@ -36,6 +37,7 @@ namespace Pds {
       // [ 1:1]  dma size histogram enable
       // [ 2:2]  dma test pattern enable
       // [ 3:3]  adc sync reset
+      // [ 4:4]  dma reset
       // [31:31] acqEnable
       uint32_t acqSelect;
       //   AcqSelect
