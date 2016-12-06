@@ -136,6 +136,7 @@ Epix100aServer::Epix100aServer( const Pds::Src& client, unsigned configMask )
 	   _neScopeCount(0),
 	   _dummy(0),
 	   _lastOpCode(0),
+     _firstconfig(1),
      _configured(false),
      _firstFetch(true),
 	   _g3sync(false),
@@ -155,13 +156,14 @@ Epix100aServer::Epix100aServer( const Pds::Src& client, unsigned configMask )
 void  Pds::Epix100aServer::setEpix100a( int f ) {
   _myfd = f;
   fd(f);
+  _cnfgrtr = new Pds::Epix100a::Epix100aConfigurator(fd(), _debug);
 }
 
 unsigned Pds::Epix100aServer::configure(Epix100aConfigType* config, bool forceConfig) {
   unsigned firstConfig = _resetOnEveryConfig || forceConfig;
-  if (_cnfgrtr == 0) {
+  if (_firstconfig == true) {
+    _firstconfig = false;
     firstConfig = 1;
-    _cnfgrtr = new Pds::Epix100a::Epix100aConfigurator(fd(), _debug);
     _cnfgrtr->runTimeConfigName(_runTimeConfigName);
     _cnfgrtr->maintainLostRunTrigger(_maintainLostRunTrigger);
     printf("Epix100aServer::configure making new configurator %p, firstConfig %u\n", _cnfgrtr, firstConfig);

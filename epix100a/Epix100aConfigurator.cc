@@ -111,6 +111,9 @@ Epix100aConfigurator::Epix100aConfigurator(int f, unsigned d) :
                                _testModeState(0), _config(0), _s(0), _rhisto(0),
                                _maintainLostRunTrigger(0) {
   allocateVC(7);
+  _d.dest(Epix100aDestination::Registers);  // Turn on monitoring immediately.
+  _pgp->writeRegister(&_d, 1, 1);
+  _pgp->writeRegister(&_d, 0x3d, 1);
   printf("Epix100aConfigurator constructor\n");
   //    printf("\tlocations _pool(%p), _config(%p)\n", _pool, &_config);
   //    _rhisto = (unsigned*) calloc(1000, 4);

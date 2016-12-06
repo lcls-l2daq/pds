@@ -146,6 +146,7 @@ class Pds::Epix100aServer
    unsigned*                      _dummy;
    int                            _myfd;
    unsigned                       _lastOpCode;
+   bool                           _firstconfig;
    bool                           _configured;
    bool                           _firstFetch;
    bool                           _g3sync;
