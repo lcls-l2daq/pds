@@ -335,31 +335,37 @@ Pds::InDatagram* BeamMonitorServer::fire(Pds::InDatagram* dg)
       printf("_Offset[%d]=%d\n",i,_Offset[i]);
     }
 
+    unsigned nch = 0;
+    uint32_t length    [NCHANNELS];
+    int32_t  offset    [NCHANNELS];
+    uint32_t sampleType[NCHANNELS];
+    double   period    [NCHANNELS];
+
     _exp_nord = 15;  // event header and trailer word
-    for(unsigned i=0; i<NCHANNELS/2; i++) {
+    for(unsigned i=0; i<NCHANNELS; i++) {
       if (_chan_mask & (1<<i)) {
-        _exp_nord += 1+_Length[i]/2;
-      }
-    }
-    for(unsigned i=NCHANNELS/2; i<NCHANNELS; i++) {
-      if (_chan_mask & (1<<i)) {
-        _exp_nord += 1+_Length[i];
+        _exp_nord += 1+ (_SampleType[i]== G1DCfg::UINT16?_Length[i]/2:_Length[i]);
+        length    [nch] = _Length    [i];
+        offset    [nch] = _Offset    [i];
+        sampleType[nch] = _SampleType[i];
+        period    [nch] = _Period    [i];
+        nch++;
       }
     }
     printf("Exp nord %u\n",_exp_nord);
 
     //_xtc.extent = sizeof(Pds::Xtc) + 8*_len_125*sizeof(uint16_t) + 8*_len_5*sizeof(uint32_t);
 
-    int config_size = G1DConfig(NCHANNELS, 0, 0, 0, 0)._sizeof();
+    int config_size = G1DConfig(nch, 0, 0, 0, 0)._sizeof();
     Pds::Xtc* xtc = new ((char*)dg->xtc.next())
       Pds::Xtc( _config_type, _xtc.src );
-    new (xtc->alloc(config_size)) G1DConfig(NCHANNELS, _Length, _SampleType, _Offset, _Period);
+    new (xtc->alloc(config_size)) G1DConfig(nch, length, sampleType, offset, period);
     dg->xtc.alloc(xtc->extent);
     if (_ConfigBuff) {
       delete _ConfigBuff;
     }
     _ConfigBuff = new char[config_size];
-    new (_ConfigBuff) G1DConfig(NCHANNELS, _Length, _SampleType, _Offset, _Period);
+    new (_ConfigBuff) G1DConfig(nch, length, sampleType, offset, period);
 
     //  Print the IOC software version
     printf("IOC software version is %s\n",reinterpret_cast<char*>(_ioc_version->data()));
