@@ -17,9 +17,10 @@ packages += udpcam
 packages += lecroy
 packages += pvdaq
 packages += monreq
+packages += archon
 
 ifneq ($(findstring x86_64,$(tgt_arch)),)
-  packages += firewire
+  packages += firewire jungfrau
 ##  No DDL
 #  packages += phasics
 else
