@@ -58,13 +58,6 @@ namespace Pds {
         char*             _cmdbuf[MAX_JUNGFRAU_CMDS];
         slsDetectorUsers* _det;
         JungfrauConfigType::SpeedMode _speed;
-
-        //bool          _connected;
-        //unsigned char _msgref;
-        //unsigned      _readbuf_sz;
-        //unsigned      _writebuf_sz;
-        //char*         _readbuf;
-        //char*         _writebuf;
     };
   }
 }
