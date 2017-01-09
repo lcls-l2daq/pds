@@ -42,6 +42,9 @@ namespace Pds {
     void* operator new(size_t size, Pds::Pool* pool)
     { return pool->alloc(size); }
 
+    void* operator new(size_t size, char* p)
+    { return p; }
+
     void operator delete(void* buffer)
     { Pool::free(buffer); }
 
