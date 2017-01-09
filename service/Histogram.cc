@@ -138,6 +138,8 @@ void Histogram::dump() const
   for(unsigned i=0; i<_size; i++)
     printf("%10u%c", _buffer[i], (i%10)==9 ? '\n':' ');
   printf("\n------------\n");
+  const_cast<Histogram*>(this)->sum();
+  printf("mean %f\n",_totalWeight/_totalCounts);
 }
 
 /*

@@ -30,6 +30,9 @@ class GenericPool : public Queue<PoolEntry>, public Pool
     GenericPool(size_t sizeofObject, int numberofObjects);
     GenericPool(size_t sizeofObject, int numberofObjects, unsigned alignBoundary);
     ~GenericPool();
+  public:
+    void*  buffer() const;
+    size_t size  () const;
   protected:
     virtual void* deque(); 
     virtual void  enque(PoolEntry*);
@@ -87,6 +90,16 @@ inline Pds::GenericPool::~GenericPool()
   {
   delete[] _buffer;
   }
+
+inline void*  Pds::GenericPool::buffer() const
+{
+  return _buffer;
+}
+
+inline size_t Pds::GenericPool::size() const
+{
+  return _bounds;
+}
 
 /*
 ** ++
