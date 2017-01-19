@@ -432,7 +432,6 @@ int Pds::Epix100aServer::fetch( char* payload, int flags ) {
        if (diff > 0) {
          unsigned peak = 0;
          unsigned max = 0;
-         unsigned count = 0;
          diff += 500000;
          diff /= 1000000;
          _timeSinceLastException += (float)(diff & 0xffffffff);
@@ -445,13 +444,10 @@ int Pds::Epix100aServer::fetch( char* payload, int flags ) {
                max = _histo[i];
                peak = i;
              }
-             count = 0;
            }
-           if (i > count && count > 200) break;
-           count += 1;
          }
          if (max > 100) {
-           if ( (diff >= ((peak<<1)-(peak>>1))) || (diff <= ((peak>>1))+(peak>>2)) ) {
+           if ( (diff >= (peak + 2)) || (diff <= (peak - 2)) ) {
              _timeSinceLastException /= 1000000.0;
 //             printf("Epix100aServer::fetch exceptional period %3lld, not %3u, frame %5u, frames since last %5u, ms since last %7.3f, ms/f %6.3f\n",
 //             diff, peak, _count, _fetchesSinceLastException, _timeSinceLastException, (1.0*_timeSinceLastException)/_fetchesSinceLastException);

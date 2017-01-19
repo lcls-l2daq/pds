@@ -170,6 +170,7 @@ int Pds::CspadServer::fetch( char* payload, int flags ) {
    int ret = 0;
    PgpCardRx       pgpCardRx;
    unsigned        offset = 0;
+   bool            exceptional = false;
    enum {Ignore=-1};
 
    if (_ignoreFetch) {
@@ -205,23 +206,26 @@ int Pds::CspadServer::fetch( char* payload, int flags ) {
     	   unsigned peak = 0;
     	   unsigned max = 0;
     	   unsigned count = 0;
+    	   bool     doTest = false;
     	   diff += 500000;
     	   diff /= 1000000;
     	   if (diff > sizeOfHisto-1) diff = sizeOfHisto-1;
     	   _histo[diff] += 1;
-    	   for (unsigned i=0; i<sizeOfHisto; i++) {
+    	   for (unsigned i=0; i<(sizeOfHisto); i++) {
     		   if (_histo[i]) {
     			   if (_histo[i] > max) {
     				   max = _histo[i];
     				   peak = i;
     			   }
-    			   count = 0;
+    			   count += _histo[i];
     		   }
-    		   if (i > count && count > 100) break;
-    		   count += 1;
+    		   if (count > 100) {
+    		     doTest = true;
+    		   }
     	   }
-    	   if ((diff >= (peak<<1)) || (diff <= (peak>>1))) {
-    		   printf("CspadServer::fetch exceptional period %lld, not %u\n", diff, peak);
+    	   if (doTest && ((diff >= (peak+2)) || (diff <= (peak-2)))) {
+    		   printf("CspadServer::fetch exceptional period %3lld, not %3u ", diff, peak);
+    		   exceptional = true;
     	   }
        } else {
     	   printf("CspadServer::fetch Clock backtrack %f ms\n", diff / 1000000.0);
@@ -301,6 +305,9 @@ int Pds::CspadServer::fetch( char* payload, int flags ) {
          memcpy( payload, &_xtc, sizeof(Xtc) );
          ret = sizeof(Xtc);
        }
+     }
+     if (exceptional) {
+       printf(" frame %u\n", _count);
      }
    }
    if (ret > 0) {
