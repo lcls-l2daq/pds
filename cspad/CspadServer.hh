@@ -86,11 +86,11 @@ class Pds::CspadServer
    static void instance(CspadServer* s) { _instance = s; }
 
  private:
-   enum     {sizeOfHisto=1000, DummySize=(1<<19)};
+   enum     {sizeOfHisto=1000, sizeOfRHisto=1000, DummySize=(1<<19)};
    Xtc                            _xtc;
    Pds::CsPad::CspadConfigurator* _cnfgrtr;
    unsigned                       _quads;
-   unsigned			              _quadMask;
+   unsigned			                  _quadMask;
    unsigned                       _count;
    unsigned                       _quadsThisCount;
    unsigned                       _payloadSize;
@@ -100,6 +100,9 @@ class Pds::CspadServer
    unsigned                       _offset;
    timespec                       _thisTime;
    timespec                       _lastTime;
+   timespec                       _readTime1;
+   timespec                       _readTime2;
+   unsigned*                      _rHisto;
    unsigned*                      _histo;
    Pds::Task*                     _task;
    unsigned                       _ioIndex;

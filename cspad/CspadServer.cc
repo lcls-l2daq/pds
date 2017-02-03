@@ -52,6 +52,7 @@ CspadServer::CspadServer( const Pds::Src& client, Pds::TypeId& myDataType, unsig
      _firstFetch(true),
      _ignoreFetch(true) {
   _histo = (unsigned*)calloc(sizeOfHisto, sizeof(unsigned));
+  _rHisto = (unsigned*)calloc(sizeOfRHisto, sizeof(unsigned));
   _task = new Pds::Task(Pds::TaskObject("CSPADprocessor"));
   _dummy = (unsigned*)malloc(DummySize);
   strcpy(_runTimeConfigName, "");
@@ -239,6 +240,7 @@ int Pds::CspadServer::fetch( char* payload, int flags ) {
    pgpCardRx.data    = (__u32*)(payload + offset);
    Pds::Pgp::DataImportFrame* data = (Pds::Pgp::DataImportFrame*)(payload + offset);
 
+   clock_gettime(CLOCK_REALTIME, &_readTime1);
    if ((ret = read(fd(), &pgpCardRx, sizeof(PgpCardRx))) < 0) {
      if (errno == ERESTART) {
        disable(false);
@@ -256,6 +258,12 @@ int Pds::CspadServer::fetch( char* payload, int flags ) {
      perror ("CspadServer::fetch pgpCard read error");
      ret =  Ignore;
    } else ret *= sizeof(__u32);
+   clock_gettime(CLOCK_REALTIME, &_readTime2);
+   long long int diff = timeDiff(&_readTime2, &_readTime1);
+   diff += 5000;
+   diff /= 10000;
+   if (diff > sizeOfRHisto-1) diff = sizeOfRHisto-1;
+   _rHisto[diff] += 1;
 
    if ((ret > 0) && (ret < (int)_payloadSize)) {
      printf("CspadServer::fetch() returning Ignore, ret was %d, looking for %u, frame(%u) quad(%u) quadmask(%x) ",
@@ -388,6 +396,13 @@ void CspadServer::printHisto(bool c) {
     if (_histo[i]) {
       printf("\t%3u ms   %8u\n", i, _histo[i]);
       if (c) _histo[i] = 0;
+    }
+  }
+  printf("CspadServer read histo periods\n");
+  for (unsigned i=0; i<sizeOfRHisto; i++) {
+    if (_rHisto[i]) {
+      printf("\t%3u0 us   %8u\n", i, _rHisto[i]);
+      if (c) _rHisto[i] = 0;
     }
   }
 }
