@@ -72,11 +72,11 @@ tgtincs_camsend := pds/camera
 tgtlibs_camsend := pds/service pds/collection pds/utility pds/client pds/camera pds/xtc
 tgtlibs_camsend += pds/vmon pds/mon pds/camleutron pds/configdata
 tgtlibs_camsend += pds/config pds/configdbc pds/confignfs pds/configsql
-tgtlibs_camsend += pdsdata/xtcdata pdsdata/psddl_pdsdata
+tgtlibs_camsend += pdsdata/xtcdata pdsdata/psddl_pdsdata offlinedb/mysqlclient
 tgtlibs_camsend += $(leutron_libs)
 tgtincs_camsend += leutron/include
 tgtincs_camsend += pdsdata/include ndarray/include boost/include 
-tgtslib_camsend += $(USRLIBDIR)/mysql/mysqlclient
+#tgtslib_camsend += $(USRLIBDIR)/mysql/mysqlclient
 
 tgtsrcs_camsendm := camsendm.cc
 tgtlibs_camsendm := pds/service pds/collection pds/utility pds/config pds/camera pds/client pds/xtc
@@ -109,8 +109,8 @@ tgtincs_pdvcamsend := edt/include pdsdata/include ndarray/include boost/include
 tgtlibs_pdvcamsend := pds/service pds/collection pds/utility pds/config pds/client pds/xtc
 tgtlibs_pdvcamsend += pds/vmon pds/mon pds/camera pds/camedt pds/configdata
 tgtlibs_pdvcamsend += pds/configdbc pds/confignfs pds/configsql
-tgtlibs_pdvcamsend += pdsdata/xtcdata pdsdata/psddl_pdsdata
+tgtlibs_pdvcamsend += pdsdata/xtcdata pdsdata/psddl_pdsdata offlinedb/mysqlclient
 tgtlibs_pdvcamsend += edt/pdv
 tgtslib_pdvcamsend := $(USRLIBDIR)/rt dl
-tgtslib_pdvcamsend += $(USRLIBDIR)/mysql/mysqlclient
+#tgtslib_pdvcamsend += $(USRLIBDIR)/mysql/mysqlclient
 
