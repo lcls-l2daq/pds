@@ -40,17 +40,18 @@ long long int timeDiff(timespec* end, timespec* start) {
 }
 
 CspadServer::CspadServer( const Pds::Src& client, Pds::TypeId& myDataType, unsigned configMask )
-   : _xtc( myDataType, client ),
+   : _debug(0),
+     _offset(0),
+     _xtc( myDataType, client ),
      _cnfgrtr(0),
      _quads(0),
      _configMask(configMask),
      _configureResult(0xdead),
-     _debug(0),
-     _offset(0),
      _occPool(new GenericPool(sizeof(UserMessage),4)),
      _configured(false),
      _firstFetch(true),
-     _ignoreFetch(true) {
+     _ignoreFetch(true),
+     _sequenceServer(false) {
   _histo = (unsigned*)calloc(sizeOfHisto, sizeof(unsigned));
   _rHisto = (unsigned*)calloc(sizeOfRHisto, sizeof(unsigned));
   _task = new Pds::Task(Pds::TaskObject("CSPADprocessor"));
@@ -88,7 +89,7 @@ unsigned CspadServer::configure(CsPadConfigType* config) {
           _quads, _payloadSize, _xtc.extent);
     }
     _firstFetch = true;
-    _count = _quadsThisCount = 0;
+    _fiducials = _count = _quadsThisCount = 0;
     _configured = _configureResult == 0;
     c = this->flushInputQueue(fd());
     if (c) printf("CspadServer::configure flushed %u event%s after confguration\n", c, c>1 ? "s" : "");
@@ -101,8 +102,8 @@ void Pds::CspadServer::die() {
 }
 
 void Pds::CspadServer::printState() {
-  printf("  CspadServer _quads(%u) _quadMask(%x) _count(%u) _quadsThisCount(%x)\n",
-      _quads, _quadMask, _count + _offset, _quadsThisCount);
+  printf("  CspadServer _quads(%u) _quadMask(%x) _count(%u) _fiducials(%x) _quadsThisCount(%x)\n",
+      _quads, _quadMask, _count + _offset, _fiducials, _quadsThisCount);
 }
 
 void Pds::CspadServer::dumpFrontEnd() {
@@ -297,9 +298,10 @@ int Pds::CspadServer::fetch( char* payload, int flags ) {
    } else {
      unsigned oldCount = _count;
      _count = data->frameNumber() - 1;  // cspad starts counting at 1, not zero
+     _fiducials = data->fiducials();    // for the other event builder
      if (_debug & 4 || ret < 0) printf("\n\tquad(%u) opcode(0x%x) acqcount(0x%x) fiducials(0x%x) _oldCount(%u) _count(%u) _quadsThisCount(%u) lane(%u) vc(%u)\n",
          data->elementId(), data->second.opCode, data->acqCount(), data->fiducials(), oldCount, _count, _quadsThisCount, pgpCardRx.pgpLane, pgpCardRx.pgpVc);
-     if ((_count != oldCount) && (_quadsThisCount)) {
+     if ((_count != oldCount) && (_quadsThisCount) && (!_sequenceServer)) {
        if ((_count < oldCount) || (_count - oldCount > 10)) {
          printf("CsPadServer::fetch ignoring unreasonable frame number, %u followed %u, quadMask 0x%x, quad %u\n", _count, oldCount, _quadMask, data->elementId());
          ret = Ignore;
@@ -315,7 +317,7 @@ int Pds::CspadServer::fetch( char* payload, int flags ) {
        }
      }
      if (exceptional) {
-       printf(" frame %u\n", _count);
+       printf(" frame %u, fiducials 0x%x\n", _count, _fiducials);
      }
    }
    if (ret > 0) {
@@ -345,9 +347,14 @@ unsigned CspadServer::offset() const {
   return (ret);
 }
 
-unsigned CspadServer::count() const {
-  if (_debug & 2) printf( "CspadServer::count(%u)\n", _count);
+unsigned CspadServerCount::count() const {
+  if (_debug & 2) printf( "CspadServerCount::count(%u)\n", _count);
   return _count + _offset;
+}
+
+unsigned CspadServerSequence::fiducials() const {
+  if (_debug & 2) printf( "CspadServerSequence::fiducials(0x%x)\n", _fiducials);
+  return _fiducials;
 }
 
 unsigned CspadServer::flushInputQueue(int f, bool printFlag) {

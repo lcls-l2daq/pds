@@ -213,6 +213,12 @@ namespace Pds {
       }
 
 
+      printf("       EvrRunMask[0:7]:  ");
+      for(x=0;x<8;x++){
+        printf("%d", ((status.EvrRunMask>>x)&1));
+        if (x==7) printf("\n"); else printf(", ");
+      }
+
       printf("       EvrLaneMode[0:7]: ");
       for(x=0;x<8;x++) {
         printf("%d", ((status.EvrLaneMode>>x)&1));

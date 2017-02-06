@@ -165,7 +165,10 @@ namespace Pds {
 //      clock_gettime(CLOCK_REALTIME, &end); printf("\n\ttxClock %d %ld\n", (int)end.tv_sec, end.tv_nsec);
       _pgp->writeRegister(&_d, resetAddr, 1);
       nanosleep(&sleepTime, 0); //nanosleep(&sleepTime, 0); nanosleep(&sleepTime, 0); nanosleep(&sleepTime, 0); nanosleep(&sleepTime, 0);
-      if (_flush(0)) printf("Cspad2x2Configurator::configure _flush(0) FAILED\n");
+      if (_flush(0)) {
+        printf("Cspad2x2Configurator::configure _flush(0) FAILED\n");
+        return 0xdead;
+      }
       ret |= _pgp->writeRegister(&_d, TriggerWidthAddr, TriggerWidthValue);
       ret |= _pgp->writeRegister(&_d, ResetSeqCountRegisterAddr, 1);
       ret |= _pgp->writeRegister(&_d, externalTriggerDelayAddr, externalTriggerDelayValue);
@@ -215,7 +218,10 @@ namespace Pds {
         }
       }
       ret <<= 1;
-      if (_flush(1)) printf("Cspad2x2Configurator::configure _flush(1) FAILED\n");
+      if (_flush(1)) {
+        printf("Cspad2x2Configurator::configure _flush(1) FAILED\n");
+        return 0xdead;
+      }
       loadRunTimeConfigAdditions(_runTimeConfigFileName);
       if (mask&16 && ret==0) {
         if (printFlag) printf("- 0x%x - \n\treading ", ret);

@@ -113,7 +113,7 @@ Epix100aConfigurator::Epix100aConfigurator(int f, unsigned d) :
   allocateVC(7);
   _d.dest(Epix100aDestination::Registers);  // Turn on monitoring immediately.
   _pgp->writeRegister(&_d, 1, 1);
-  _pgp->writeRegister(&_d, 0x3d, 1);
+  _pgp->writeRegister(&_d, MonitorEnableAddr, 1);
   printf("Epix100aConfigurator constructor\n");
   //    printf("\tlocations _pool(%p), _config(%p)\n", _pool, &_config);
   //    _rhisto = (unsigned*) calloc(1000, 4);
@@ -125,6 +125,7 @@ Epix100aConfigurator::~Epix100aConfigurator() {
 }
 
 unsigned Epix100aConfigurator::resetFrontEnd() {
+  unsigned count = 0;
   unsigned monitorEnable = 0;
   _d.dest(Epix100aDestination::Registers);
   _pgp->readRegister(&_d, MonitorEnableAddr, 0xf00, &monitorEnable, 1);
@@ -135,7 +136,7 @@ unsigned Epix100aConfigurator::resetFrontEnd() {
   do {
     usleep(10000);
     _pgp->readRegister(&_d, AdcControlAddr, 0x5e1, &returned);
-  } while ((returned & AdcCtrlAckMask) == 0);
+  } while (((returned & AdcCtrlAckMask) == 0) && (count++ < 10));
   if ((returned & AdcCtrlFailMask) != 0) {
     printf("Epix100aConfigurator::resetFrontEnd found that ADC alignment FAILED!!! returned %d\n", returned);
     return resyncADC(1);
@@ -147,6 +148,7 @@ unsigned Epix100aConfigurator::resetFrontEnd() {
 
 unsigned Epix100aConfigurator::resyncADC(unsigned c) {
   unsigned ret = 0;
+  unsigned count = 0;
   _d.dest(Epix100aDestination::Registers);
   _pgp->writeRegister(&_d, AdcControlAddr, 0);
   microSpin(10);
@@ -157,7 +159,7 @@ unsigned Epix100aConfigurator::resyncADC(unsigned c) {
   do {
     usleep(100000);
     _pgp->readRegister(&_d, AdcControlAddr, 0x5e1, &returned);
-  } while ((returned & AdcCtrlAckMask) == 0);
+  } while (((returned & AdcCtrlAckMask) == 0) && (count++ < 10));
   if ((returned & AdcCtrlFailMask) != 0) {
     printf("\tEpix100aConfigurator::resyncADC found that ADC alignment FAILED!!! returned %d\n", returned);
     if (c>0) ret = resyncADC(c-1);
@@ -214,8 +216,11 @@ void Epix100aConfigurator::enableExternalTrigger(bool f) {
 }
 
 void Epix100aConfigurator::enableRunTrigger(bool f) {
+  unsigned mask = 1<<(_pgp->portOffset());
   _d.dest(Epix100aDestination::Registers);
   _pgp->writeRegister(&_d, RunTriggerEnable, f ? Enable : Disable);
+  _pgp->maskRunTrigger(mask, f ? Enable : Disable);
+  printf("Epix100aConfigurator::enableRunTrigger(%s), mask 0x%x\n", f ? "true" : "false", mask);
 }
 
 void Epix100aConfigurator::print() {}

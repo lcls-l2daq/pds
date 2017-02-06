@@ -56,6 +56,7 @@ namespace Pds {
 				unsigned      getCurrentFiducial();
 				bool          getLatestLaneStatus();
 				int           resetPgpLane();
+				int           maskRunTrigger(unsigned m, bool b);
 				int           resetSequenceCount();
 				void          printStatus();
 				unsigned      stopPolling();

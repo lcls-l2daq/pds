@@ -72,6 +72,11 @@ bool          Pgp::Pgp::getLatestLaneStatus() {
 int      Pgp::Pgp::resetSequenceCount() {
   return Pgp::IoctlCommand(IOCTL_ClearFrameCounter, (unsigned)(1<<portOffset()));
 }
+int      Pgp::Pgp::maskRunTrigger(unsigned mask, bool b) {
+  unsigned flag = b ? 0 : 1;
+  printf("Pgp::maskRunTrigger(0x%x, %s)\n", mask, flag == 0 ? "False" : "True");
+  return Pgp::IoctlCommand(IOCTL_Evr_RunMask, (unsigned)((mask<<24) | flag));
+}
 char*         Pgp::Pgp::errorString() {
   return _status->errorString();
 }
@@ -261,7 +266,7 @@ int Pgp::Pgp::IoctlCommand(unsigned c, unsigned a) {
 	PgpCardTx* p = &_pt;
 	p->cmd   = c;
 	p->data  = (__u32*) a;
-//	printf("IoctlCommand writing unsigned\n");
+	printf("IoctlCommand %u writing unsigned 0x%x\n", c, a);
 	return(write(_fd, &_pt, sizeof(PgpCardTx)));
 }
 
@@ -269,7 +274,7 @@ int Pgp::Pgp::IoctlCommand(unsigned c, long long unsigned a) {
 	PgpCardTx* p = &_pt;
 	p->cmd   = c;
 	p->data  = (__u32*) a;
-//	printf("IoctlCommand writing long long\n");
+//	printf("IoctlCommand %u writing long long 0x%llx\n", c, a);
 	return(write(_fd, &_pt, sizeof(PgpCardTx)));
 }
 

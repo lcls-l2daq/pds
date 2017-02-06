@@ -42,7 +42,7 @@ TaggedStreams::TaggedStreams(PartitionMember& cmgr,
                        ipaddress,
                        max_event_size, max_event_depth, 0,
                        new VmonEb(src,32,max_event_depth,(1<<23),max_event_size));
-    ebs->require_in_order(true);
+    ebs->require_in_order(false);
     ebs->printSinks(false); // these are routine
     _inlet_wires[s] = ebs;
 

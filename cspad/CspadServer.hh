@@ -19,13 +19,16 @@
 
 namespace Pds
 {
-   class CspadServer;
    class Task;
+   class CspadServer;
+   class CspadServerSequence;
+   class CspadServerCount;
+   class EbCountSrv;
+   class BldSequenceSrv;
 }
 
 class Pds::CspadServer
-   : public EbServer,
-     public EbCountSrv
+   : public EbServer
 {
  public:
    CspadServer( const Src&, Pds::TypeId&, unsigned configMask=0 );
@@ -41,15 +44,11 @@ class Pds::CspadServer
    unsigned   offset( void ) const;
    unsigned   length() const       { return _xtc.extent; }
 
-   //  Eb-key interface
-   EbServerDeclare;
-
    //  Server interface
    int pend( int flag = 0 ) { return -1; }
    int fetch( char* payload, int flags );
    bool more() const;
 
-   unsigned count() const;
    void setCspad( int fd );
 
    unsigned configure(CsPadConfigType*);
@@ -77,6 +76,8 @@ class Pds::CspadServer
    CspadManager* manager() { return _mgr; }
    void     pgp(Pds::Pgp::Pgp* p) { _pgp = p; }
    Pds::Pgp::Pgp* pgp() { return _pgp; }
+   void     sequenceServer(bool b) {_sequenceServer = b;}
+   bool     sequenceServer() { return _sequenceServer;}
 
  public:
    static CspadServer* instance() { return _instance; }
@@ -85,19 +86,22 @@ class Pds::CspadServer
    static CspadServer*            _instance;
    static void instance(CspadServer* s) { _instance = s; }
 
+ protected:
+   unsigned                       _debug;
+   unsigned                       _count;
+   unsigned                       _fiducials;
+   unsigned                       _offset;
+
  private:
    enum     {sizeOfHisto=1000, sizeOfRHisto=1000, DummySize=(1<<19)};
    Xtc                            _xtc;
    Pds::CsPad::CspadConfigurator* _cnfgrtr;
    unsigned                       _quads;
    unsigned			                  _quadMask;
-   unsigned                       _count;
    unsigned                       _quadsThisCount;
    unsigned                       _payloadSize;
    unsigned                       _configMask;
    unsigned                       _configureResult;
-   unsigned                       _debug;
-   unsigned                       _offset;
    timespec                       _thisTime;
    timespec                       _lastTime;
    timespec                       _readTime1;
@@ -115,6 +119,35 @@ class Pds::CspadServer
    bool                           _configured;
    bool                           _firstFetch;
    bool                           _ignoreFetch;
+   bool                           _sequenceServer;
+};
+
+#include "pds/utility/EbCountSrv.hh"
+class Pds::CspadServerCount
+    :  public CspadServer,
+       public EbCountSrv {
+         public:
+    CspadServerCount( const Pds::Src& client, Pds::TypeId& myDataType, unsigned configMask )
+         : Pds::CspadServer(client, myDataType, configMask) {}
+    ~CspadServerCount() {}
+         public:
+    //  Eb-key interface
+    EbServerDeclare;
+    unsigned count() const;
+};
+
+#include "pds/utility/BldSequenceSrv.hh"
+class Pds::CspadServerSequence
+    :  public CspadServer,
+       public BldSequenceSrv {
+         public :
+    CspadServerSequence( const Pds::Src& client, Pds::TypeId& myDataType, unsigned configMask)
+         : Pds::CspadServer(client, myDataType, configMask) {}
+    ~CspadServerSequence() {}
+         public:
+    //  Eb-key interface
+    EbServerDeclare;
+    unsigned fiducials() const;
 };
 
 #endif

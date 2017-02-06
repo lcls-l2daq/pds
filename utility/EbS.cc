@@ -53,7 +53,7 @@ EbEventBase* EbS::_new_event(const EbBitMask& serverId, char* payload, unsigned 
 
   if (depth<=1 && _pending.forward()!=_pending.empty()) {
     if (nEbPrints) {
-      printf("EbC::new_event claiming buffer for srv %08x payload %d\n",
+      printf("EbS::new_event claiming buffer for srv %08x payload %d\n",
              serverId.value(),sizeofPayload);
       nEbPrints--;
     }
@@ -75,7 +75,7 @@ EbEventBase* EbS::_new_event(const EbBitMask& serverId)
 
   if (depth==1 && _pending.forward()!=_pending.empty()) { // keep one buffer for recopy possibility
     if (nEbPrints) {
-      printf("EbC::new_event claiming buffer for srv %08x\n",
+      printf("EbS::new_event claiming buffer for srv %08x\n",
              serverId.value());
       nEbPrints--;
     }
@@ -107,4 +107,26 @@ EbBase::IsComplete EbS::_is_complete( EbEventBase* event,
   if (_no_builds[seq.type()] & (1<<seq.service()))
     return NoBuild;
   return EbBase::_is_complete(event, serverId);
+}
+//
+//  The following two routines override the base class, so that
+//  these event builders will always have a full "select mask";
+//  i.e. fetch will be called for all pending IO.  This overrides
+//  the base class behavior which only selects upon servers that
+//  haven't yet contributed to the current event under construction.
+//  This specialization is useful where the server data has
+//  limited buffering (segment levels) and needs better realtime
+//  response.
+//
+int EbS::poll()
+{
+  if(!ServerManager::poll()) return 0;
+  if(active().isZero()) ServerManager::arm(managed());
+  return 1;
+}
+
+int EbS::processIo(Server* srv)
+{
+  Eb::processIo(srv);
+  return 1;
 }
