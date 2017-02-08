@@ -95,6 +95,7 @@ EbBase::EbBase(const Src& id,
   _discards(0),
   _ack(0),
   _vmoneb(vmoneb),
+  _level           (level),
   _require_in_order(true)
 {
   if (dstack) {

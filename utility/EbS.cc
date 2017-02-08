@@ -120,13 +120,21 @@ EbBase::IsComplete EbS::_is_complete( EbEventBase* event,
 //
 int EbS::poll()
 {
-  if(!ServerManager::poll()) return 0;
-  if(active().isZero()) ServerManager::arm(managed());
-  return 1;
+  if (_level == Level::Segment) {
+    if(!ServerManager::poll()) return 0;
+    if(active().isZero()) ServerManager::arm(managed());
+    return 1;
+  }
+  else
+    return EbBase::poll();
 }
 
 int EbS::processIo(Server* srv)
 {
-  Eb::processIo(srv);
-  return 1;
+  if (_level == Level::Segment) {
+    Eb::processIo(srv);
+    return 1;
+  }
+  else
+    return Eb::processIo(srv);
 }

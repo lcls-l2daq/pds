@@ -85,6 +85,7 @@ namespace Pds {
     unsigned    _discards;     // # of discards due to aged datagram
     Client*     _ack;          // connected port to send ack on.
     VmonEb*     _vmoneb;
+    Level::Type _level;
     bool        _require_in_order;
   };
 }
