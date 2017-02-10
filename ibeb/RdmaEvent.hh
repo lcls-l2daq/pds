@@ -4,6 +4,7 @@
 #include "pds/ibeb/RdmaBase.hh"
 
 #include "pds/ibeb/RdmaRdPort.hh"
+#include "pds/ibeb/CmpSendPort.hh"
 #include "pds/ibeb/ibcommon.hh"
 #include "pds/service/GenericPool.hh"
 #include "pds/service/RingPool.hh"
@@ -43,20 +44,23 @@ namespace Pds {
       uint64_t nbytespush() const { return _nbytespush; }
       uint64_t nbytespull() const { return _nbytespull; }
     private:
-      unsigned                 _id;
-      unsigned                 _nbuff;
-      unsigned                 _nsrc;
-      GenericPool*             _pool;
-      RingPool*                _rpool;
-      std::vector<RdmaRdPort*> _ports;
-      ibv_mr*                  _mr;
-      ibv_mr*                  _rmr;
-      uint64_t*                _buff;
-      uint64_t                 _pid;
-      uint64_t                 _ncomplete;
-      uint64_t                 _ncorrupt;
-      uint64_t                 _nbytespush;
-      uint64_t                 _nbytespull;
+      unsigned                  _id;
+      unsigned                  _nbuff;
+      unsigned                  _nsrc;
+      GenericPool*              _pool;
+      GenericPool*              _cpool;
+      RingPool*                 _rpool;
+      std::vector<RdmaRdPort*>  _ports;
+      std::vector<CmpSendPort*> _sends;
+      ibv_mr*                   _mr;
+      ibv_mr*                   _rmr;
+      ibv_mr*                   _cmr;
+      uint64_t*                 _buff;
+      uint64_t                  _pid;
+      uint64_t                  _ncomplete;
+      uint64_t                  _ncorrupt;
+      uint64_t                  _nbytespush;
+      uint64_t                  _nbytespull;
     };
   };
 };

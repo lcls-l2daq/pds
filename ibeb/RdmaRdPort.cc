@@ -44,10 +44,11 @@ RdmaRdPort::RdmaRdPort(int       fd,
     sr.wr_id   = i;
         
     ibv_recv_wr* bad_wr=NULL;
-    if (ibv_post_recv(qp(), &sr, &bad_wr))
-      perror("Failed to post SR");
+    int err = ibv_post_recv(qp(), &sr, &bad_wr);
+    if(err)
+      fprintf(stderr, "Failed to post SR: %s\n",  strerror(err));
     if (bad_wr)
-      perror("ibv_post_recv bad_wr");
+      fprintf(stderr, "ibv_post_recv bad_wr: %lu\n", bad_wr->wr_id);
   }    
 
   //  Work requests for RDMA_READ
@@ -113,23 +114,9 @@ void RdmaRdPort::complete(unsigned buf)
 {
   ibv_recv_wr& sr = _wr[buf];
   ibv_recv_wr* bad_wr=NULL;
-  if (ibv_post_recv(qp(), &sr, &bad_wr))
-    perror("Failed to post SR");
+  int err = ibv_post_recv(qp(), &sr, &bad_wr);
+  if (err)
+    fprintf(stderr, "Failed to post SR: %s\n",  strerror(err));
   if (bad_wr)
-    perror("ibv_post_recv bad_wr");
+    fprintf(stderr, "ibv_post_recv bad_wr: %lu\n", bad_wr->wr_id);
 }
-
-void RdmaRdPort::ack(unsigned buf)
-{
-  if (lverbose)
-    printf("RdmaRdPort::ack  buf %u  dst %u  dg %p\n",
-           buf, _dst, _rpull[buf]);
-
-  //  Acknowledge reception
-  RdmaComplete cmpl;
-  cmpl.dst    = _dst;
-  cmpl.dstIdx = buf;
-  cmpl.dg     = _rpull[buf];
-  ::write(fd(),&cmpl,sizeof(cmpl));
-}
-

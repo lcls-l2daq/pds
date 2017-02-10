@@ -5,6 +5,10 @@
 
 using namespace Pds::IbEb;
 
+static bool lverbose = false;
+
+void RdmaEvent::verbose(bool v) { lverbose=v; }
+
 RdmaEvent::RdmaEvent(unsigned                  nbuff,
                      unsigned                  maxEventSize,
                      unsigned                  id,
@@ -14,8 +18,10 @@ RdmaEvent::RdmaEvent(unsigned                  nbuff,
   _nbuff   (nbuff),
   _nsrc    (remote.size()),
   _pool    (new GenericPool(MAX_PUSH_SZ,nbuff*_nsrc)),
+  _cpool   (new GenericPool(sizeof(RdmaComplete),nbuff*_nsrc)),
   _rpool   (new RingPool(maxEventSize*nbuff,maxEventSize)),
   _ports   (_nsrc),
+  _sends   (_nsrc),
   _pid       (0),
   _ncomplete (0),
   _ncorrupt  (0),
@@ -24,6 +30,7 @@ RdmaEvent::RdmaEvent(unsigned                  nbuff,
 {
   _mr  = reg_mr( _pool->buffer(), _pool->size());
   _rmr = reg_mr(_rpool->buffer(),_rpool->size());
+  _cmr = reg_mr(_cpool->buffer(),_cpool->size());
 
   for(unsigned i=0; i<_nsrc; i++) {
     int fd = ::socket(AF_INET, SOCK_STREAM, 0);
@@ -53,8 +60,57 @@ RdmaEvent::RdmaEvent(unsigned                  nbuff,
     _ports[i] = port;
   }
 
+  // Set up the completion ports now
+  for(unsigned i=0; i<_nsrc; i++) {
+    int cfd = ::socket(AF_INET, SOCK_STREAM, 0);
+
+    in_addr cia;
+    inet_aton(remote[i].c_str(),&cia);
+    sockaddr_in csaddr;
+    csaddr.sin_family = AF_INET;
+    csaddr.sin_addr.s_addr = cia.s_addr;
+    csaddr.sin_port        = htons(RdmaPort::completion_port);
+
+    while (::connect(cfd, (sockaddr*)&csaddr, sizeof(csaddr))<0) {
+      perror(remote[i].c_str());
+      sleep(1);
+    }
+
+    if (lverbose)
+      printf("RdmaEvent sending completion buffer info\n");
+    ::write(cfd, &nbuff, sizeof(unsigned));
+
+    std::vector<void*> caddr(nbuff);
+    for(unsigned j=0; j<nbuff; j++)
+      caddr[j] = (void*)_cpool->alloc(_cpool->sizeofObject());
+
+    CmpSendPort* send = new CmpSendPort(cfd,
+                                        *this,
+                                        *_cmr,
+                                        caddr,
+                                        id);
+    _sends[i] = send;
+  }
+
   _buff     = new uint64_t[2*nbuff];
   memset(_buff,0,2*nbuff*sizeof(uint64_t));
+}
+
+RdmaEvent::~RdmaEvent()
+{
+  for(unsigned i=0; i<_ports.size(); i++)
+    delete _ports[i];
+
+  for(unsigned i=0; i<_sends.size(); i++)
+    delete _sends[i];
+
+  ibv_dereg_mr(_mr);
+  ibv_dereg_mr(_cmr);
+  ibv_dereg_mr(_rmr);
+
+  delete _pool;
+  delete _cpool;
+  delete _rpool;
 }
 
 void RdmaEvent::complete(ibv_wc& wc)
@@ -93,7 +149,7 @@ void RdmaEvent::complete(ibv_wc& wc)
       //  Remove the data
       for(unsigned i=0; i<_nsrc; i++) {
         RingPool::free(_ports[i]->pull(dst));
-        _ports[i]->ack(dst);
+        _sends[i]->ack(dst, _ports[i]->rpull(dst));
       }
     }
   }

@@ -42,7 +42,7 @@ void     RdmaWrPort::write(unsigned src,
                            size_t   psize)
 {
   if (lverbose) {
-    printf("RdmaWrPort::write src %u  idx %u  laddr %p  raddr %llx  sz 0x%x\n",
+    printf("RdmaWrPort::write src %u  idx %u  laddr %p  raddr %llx  sz 0x%lx\n",
            src, idx, p, (unsigned long long)_raddr[idx], psize);
   }
 

@@ -28,9 +28,9 @@ namespace Pds {
                         void*    p,
                         unsigned psize);
       void     complete(unsigned buf);
-      void     ack     (unsigned idx);
       char*    push(unsigned idx) const { return _push[idx]; }
       char*    pull(unsigned idx) const { return _pull[idx]; }
+      char*    rpull(unsigned idx) const { return _rpull[idx]; }
     public:
       static void decode(uint32_t, unsigned& src, unsigned& dst);
       static void decode(uint64_t, unsigned& src, unsigned& dst);

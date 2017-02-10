@@ -4,7 +4,9 @@
 #include "pds/ibeb/RdmaBase.hh"
 
 #include "pds/ibeb/RdmaWrPort.hh"
+#include "pds/ibeb/CmpRecvPort.hh"
 #include "pds/ibeb/ibcommon.hh"
+#include "pds/service/GenericPool.hh"
 #include "pds/service/RingPool.hh"
 
 #include <list>
@@ -33,6 +35,7 @@ namespace Pds {
                   Datagram* p,
                   size_t    psize);
       void dequeue(const RdmaComplete&);
+      void complete(ibv_wc& wc);
     private:
       bool _alloc  (unsigned eb, 
                     unsigned buf);
@@ -42,16 +45,19 @@ namespace Pds {
                      unsigned  index, 
                      Datagram* dg);
     private:
-      RingPool*             _pool;
-      unsigned              _src;
-      unsigned              _wr_id;
-      ibv_mr*               _mr;
-      std::vector<RdmaWrPort*> _ports;
-      unsigned              _elemSize;
-      uint32_t*             _buff;
-      std::list<unsigned>   _dqueue;
-      std::list<unsigned>   _tqueue;
-      std::list<Datagram*>  _pqueue;
+      RingPool*                 _pool;
+      GenericPool*              _cpool;
+      unsigned                  _src;
+      unsigned                  _wr_id;
+      ibv_mr*                   _mr;
+      ibv_mr*                   _cmr;
+      std::vector<RdmaWrPort*>  _ports;
+      std::vector<CmpRecvPort*> _recvs;
+      unsigned                  _elemSize;
+      uint32_t*                 _buff;
+      std::list<unsigned>       _dqueue;
+      std::list<unsigned>       _tqueue;
+      std::list<Datagram*>      _pqueue;
     };
   };
 };

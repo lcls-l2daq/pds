@@ -1,6 +1,7 @@
 #include "pds/ibeb/RdmaSegment.hh"
 #include "pds/ibeb/RdmaWrPort.hh"
 #include "pds/xtc/Datagram.hh"
+#include "pds/service/Semaphore.hh"
 #include "pds/service/Routine.hh"
 #include "pds/service/Task.hh"
 #include "pdsdata/xtc/DetInfo.hh"
@@ -139,6 +140,72 @@ typedef Pds::Generic1D::DataV0 GenD;
 static const TypeId  smlType((TypeId::Type)SmlD::TypeId,SmlD::Version);
 static const TypeId  genType((TypeId::Type)GenD::TypeId,GenD::Version);
 
+namespace Pds {
+  class HeaderSim : public Routine {
+  public:
+    HeaderSim(unsigned maxEventSize, DetInfo& info, DmaSim& sim, RdmaSegment& outlet, Semaphore& sem) :
+      _pid(0),
+      _maxEventSize(maxEventSize),
+      _sim(sim),
+      _info(info),
+      _outlet(outlet),
+      _sem(sem),
+      _task   (new Task(TaskObject("header")))
+    { _task->call(this); }
+    ~HeaderSim() {}
+  public:
+    void routine() {
+
+      while(1) {
+
+        char* buffer = (char*)_outlet.alloc(_maxEventSize);
+        if (buffer==0) {
+          continue;
+        }
+
+        char* p;
+        if (::read(_sim.fd(),&p,sizeof(p))<0)
+          perror("read");
+        else {
+          // Fake datagram header
+          _sem.take();
+          struct timespec ts;
+          clock_gettime(CLOCK_REALTIME,&ts);
+          Dgram dg;
+          dg.seq = Sequence(Sequence::Event,TransitionId::L1Accept,
+                            ClockTime(ts),TimeStamp(_pid++));
+
+          // Make proxy to data (small data)
+          Datagram* pdg = new (buffer)
+          Datagram(dg,smlType,_info);
+          {SmlD* t = new (pdg->xtc.next())
+            SmlD((char*)pdg->xtc.next()-(char*)0+sizeof(Datagram),
+                   genType,
+                   _sim.words(p)*sizeof(uint32_t)+sizeof(GenD));
+            pdg->xtc.alloc(t->_sizeof()); }
+          Datagram* tdg = new ((char*)pdg->xtc.next())
+          Datagram(genType,_info);
+          new (tdg->xtc.alloc(_sim.words(p)*sizeof(uint32_t)+sizeof(GenD)))
+          GenD(_sim.words(p)*sizeof(uint32_t),_sim.data(p));
+
+          _outlet.queue(_sim.dst(p), _sim.tgt(p),
+                        pdg, (char*)tdg->xtc.next()-buffer);
+          _sim.ack(p);
+          _sem.give();
+        }
+      }
+    }
+  private:
+    uint64_t      _pid;
+    unsigned      _maxEventSize;
+    DmaSim&       _sim;
+    DetInfo&      _info;
+    RdmaSegment&  _outlet;
+    Semaphore&    _sem;
+    Task*         _task;
+  };
+};
+
 int main(int argc, char* argv[])
 {
   unsigned   bigSize   = 4096;
@@ -188,18 +255,9 @@ int main(int argc, char* argv[])
   //
   //  Simulate DMA in a separate thread
   //
+  Semaphore sem(Semaphore::FULL);
   DmaSim sim(bigSize,numEbs,outlet.nBuffers());
-
-  pollfd pfd[numEbs+1];
-  for(unsigned i=0; i<numEbs; i++) {
-    pfd[i].fd      = outlet.fd(i);
-    pfd[i].events  = POLLIN;
-    pfd[i].revents = 0;
-  }
-  pfd[numEbs].fd      = sim.fd();
-  pfd[numEbs].events  = POLLIN;
-  pfd[numEbs].revents = 0;
-  int nfd = numEbs+1;
+  HeaderSim header(maxEventSize, info, sim, outlet, sem);
 
   timespec ts_last;
   clock_gettime(CLOCK_REALTIME,&ts_last);
@@ -218,87 +276,21 @@ int main(int argc, char* argv[])
   //          If target was queued
   //            Launch RDMA_WR
   //
-  uint64_t pid=0;
+  const int MAX_WC=32;
+  ibv_wc wc[MAX_WC];
   while(1) {
-    timespec ts_now;
-    clock_gettime(CLOCK_REALTIME,&ts_now);
-
-    int n = ::poll(pfd,nfd,-1);
-    if (n<0) {
-      perror("poll");
-      return -1;
-    }
-
-    //
-    //  Recover RDMA_RD completions
-    //
-    for(unsigned i=0; i<numEbs; i++) {
-      if (pfd[i].revents & POLLIN) {
-        RdmaComplete cmpl;
-        int nb = ::recv(pfd[i].fd, &cmpl, sizeof(cmpl), MSG_WAITALL);
-        if (nb<=0) {
-          perror("recv");
-          return -1;
-        }
-        else {
-          if (lverbose) {
-            printf("Recv complete dst %x  idx %x  dg %p\n",
-                   cmpl.dst, cmpl.dstIdx, cmpl.dg);
-          }
-          outlet.dequeue(cmpl);
-          nfd=numEbs+1;  // allow DMAs to wake up poll
-        }
-      }
-    }
-
-    if (pfd[numEbs].revents & POLLIN) {
-      char* buffer = (char*)outlet.alloc(maxEventSize);
-      if (buffer==0) {
-        nfd=numEbs;  // don't allow DMAs to wake up poll
-        continue;
-      }
-
-      char* p;
-      if (::read(pfd[numEbs].fd,&p,sizeof(p))<0)
-        perror("read");
-      else {
-        // Fake datagram header
-        struct timespec ts;
-        clock_gettime(CLOCK_REALTIME,&ts);
-        Dgram dg;
-        dg.seq = Sequence(Sequence::Event,TransitionId::L1Accept,
-                          ClockTime(ts),TimeStamp(pid++));
-
-        // Make proxy to data (small data)
-        Datagram* pdg = new (buffer)
-          Datagram(dg,smlType,info);
-        {SmlD* t = new (pdg->xtc.next())
-            SmlD((char*)pdg->xtc.next()-(char*)0+sizeof(Datagram),
-                 genType,
-                 sim.words(p)*sizeof(uint32_t)+sizeof(GenD));
-          pdg->xtc.alloc(t->_sizeof()); }
-        Datagram* tdg = new ((char*)pdg->xtc.next())
-          Datagram(genType,info);
-        new (tdg->xtc.alloc(sim.words(p)*sizeof(uint32_t)+sizeof(GenD))) 
-          GenD(sim.words(p)*sizeof(uint32_t),sim.data(p));
-
-        outlet.queue(sim.dst(p), sim.tgt(p), 
-                     pdg, (char*)tdg->xtc.next()-buffer);
-        sim.ack(p);
-      }
-    }
-
-    const int MAX_WC=32;
-    ibv_wc wc[MAX_WC];
     int nc = ibv_poll_cq(outlet.cq(), MAX_WC, wc);
-    if (lverbose) {
-      if (nc<0) continue;
-      for(int i=0; i<nc; i++) {
+    if (nc<0) continue;
+    for(int i=0; i<nc; i++) {
+      if (wc[i].status!=IBV_WC_SUCCESS) {
         printf("wc error %x  opcode %x  wr_id %llx\n",
                wc[i].status,wc[i].opcode,(unsigned long long)wc[i].wr_id);
-        if (wc[i].status != IBV_WC_SUCCESS)
-          abort();
+        abort();
+        continue;
       }
+      sem.take();
+      outlet.complete(wc[i]);
+      sem.give();
     }
   }
 

@@ -16,10 +16,12 @@ RdmaSegment::RdmaSegment(unsigned   poolSize,
                          unsigned   numEbs) :
   RdmaBase(),
   _pool   (new RingPool(poolSize,maxEventSize)),
+  _cpool  (0),
   _src    (index),
   //  _ndst   (numEbs),
   _wr_id  (0),
-  _ports  (numEbs)
+  _ports  (numEbs),
+  _recvs  (numEbs)
 {
   _mr = reg_mr(_pool->buffer(),_pool->size());
 
@@ -33,14 +35,56 @@ RdmaSegment::RdmaSegment(unsigned   poolSize,
   ::setsockopt(lfd, SOL_SOCKET, SO_REUSEADDR, &oval, sizeof(oval));
   ::bind(lfd, (sockaddr*)&rsaddr, sizeof(rsaddr));
   ::listen(lfd, 5);
+
   for(unsigned i=0; i<numEbs; i++) {
     sockaddr_in saddr;
     socklen_t   saddr_len=sizeof(saddr);
+
     int fd = ::accept(lfd, (sockaddr*)&saddr, &saddr_len);
     RdmaWrPort* port = new RdmaWrPort(fd, *this, *_mr, _src);
     _ports[port->idx()] = port;
   }
   ::close(lfd);
+
+  // Set up the completion ports now
+  sockaddr_in csaddr;
+  csaddr.sin_family = AF_INET;
+  csaddr.sin_addr.s_addr = htonl(INADDR_ANY);
+  csaddr.sin_port        = htons(RdmaPort::completion_port);
+
+  int cfd = ::socket(AF_INET, SOCK_STREAM, 0);
+  int coval=1;
+  ::setsockopt(cfd, SOL_SOCKET, SO_REUSEADDR, &coval, sizeof(coval));
+  ::bind(cfd, (sockaddr*)&csaddr, sizeof(csaddr));
+  ::listen(cfd, 5);
+
+  unsigned completionPoolSize = 0;
+  unsigned nbuffs[numEbs];
+  int fds[numEbs];
+
+  // Grab buffer sizes from each of the event builders
+  for(unsigned i=0; i<numEbs; i++) {
+    sockaddr_in saddr;
+    socklen_t   saddr_len=sizeof(saddr);
+
+    fds[i] = ::accept(cfd, (sockaddr*)&saddr, &saddr_len);
+    ::read(fds[i], &nbuffs[i], sizeof(unsigned));
+    completionPoolSize += nbuffs[i];
+  }
+
+  // Once we know the buffer size allocate the completion pool and register it
+  _cpool = new GenericPool(sizeof(RdmaComplete),completionPoolSize);
+  _cmr = reg_mr(_cpool->buffer(),_cpool->size());
+
+  for(unsigned i=0; i<numEbs; i++) {
+    std::vector<char*> laddr(nbuffs[i]);
+    for(unsigned j=0; j<nbuffs[i]; j++)
+      laddr[j] = (char*)_cpool->alloc(_cpool->sizeofObject());
+    //fd = ::accept(cfd, (sockaddr*)&saddr, &saddr_len);
+    CmpRecvPort* recv = new CmpRecvPort(fds[i], *this, *_cmr, laddr, _src);
+    _recvs[recv->idx()] = recv;
+  }
+  ::close(cfd);
 
   _elemSize = (_ports[0]->nbuff()+31)>>5;
   _buff     = new uint32_t[numEbs*_elemSize];
@@ -54,9 +98,14 @@ RdmaSegment::~RdmaSegment()
   for(unsigned i=0; i<_ports.size(); i++)
     delete _ports[i];
 
+  for(unsigned i=0; i<_recvs.size(); i++)
+    delete _recvs[i];
+
   ibv_dereg_mr(_mr);
+  ibv_dereg_mr(_cmr);
 
   delete _pool;
+  delete _cpool;
   delete[] _buff;
 }
 
@@ -142,4 +191,14 @@ void RdmaSegment::req_write(unsigned  eb,
 {
   _ports[eb]->write(_src, index, (void*)dg, 
                     sizeof(*dg)+dg->xtc.sizeofPayload());
+}
+
+void RdmaSegment::complete(ibv_wc& wc)
+{
+  if (wc.opcode==IBV_WC_RECV_RDMA_WITH_IMM) {
+    unsigned dst, dstIdx;
+    CmpRecvPort::decode(wc.imm_data,dst,dstIdx);
+    dequeue(*_recvs[dst]->completion(dstIdx));
+    _recvs[dst]->complete(dstIdx);
+  }
 }

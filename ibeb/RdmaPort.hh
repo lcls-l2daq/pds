@@ -9,7 +9,8 @@ namespace Pds {
     
     class RdmaPort {
     public:
-      enum { outlet_port = 11000 };
+      enum { outlet_port      = 11000,
+             completion_port  = 11001 };
     public:
       RdmaPort(int       fd,    // TCP connection
                RdmaBase& base,  // IB device
