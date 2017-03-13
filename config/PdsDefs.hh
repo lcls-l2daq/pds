@@ -32,7 +32,7 @@ namespace Pds_ConfigDb {
                       Encoder, pnCCD, RunControl, Princeton, Fccd, Cspad, Gsc16ai, 
                       Timepix, Cspad2x2, OceanOptics, Fli, Andor, UsdUsb, Orca, Imp,
                       Rayonix, EpixSampler, Epix, Pimax, Epix10k, Epix100a, GenericPgp,
-                      TimeTool, Andor3d, UsdUsbFex, Generic1D, Archon, Jungfrau,
+                      TimeTool, Andor3d, UsdUsbFex, Generic1D, Archon, Jungfrau, QuadAdc,
 #ifdef BUILD_EXTRA
                       Phasics, Xamps, Fexamp,
 #endif

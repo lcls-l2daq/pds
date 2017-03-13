@@ -40,6 +40,7 @@
 #include "pds/config/JungfrauConfigType.hh"
 //#include "pds/config/ProjectionConfigType.hh"
 //#include "pds/config/SeqConfigType.hh"
+#include "pds/config/QuadAdcConfigType.hh"
 #include <cassert>
 
 #ifdef BUILD_EXTRA
@@ -125,7 +126,7 @@ const Pds::TypeId* PdsDefs::typeId(ConfigType id)
   case Generic1D    : type = &_generic1DConfigType; break;
   case Archon       : type = &_archonConfigType;    break;
   case Jungfrau     : type = &_jungfrauConfigType;  break;
-
+  case QuadAdc      : type = &_QuadAdcConfigType;   break;
     //  case Projection   : type = &_projectionConfigType; break;
   default: 
     printf("PdsDefs::typeId id %d not found\n",unsigned(id));
@@ -184,6 +185,7 @@ const Pds::TypeId* PdsDefs::typeId(const UTypeName& name)
   test(_usdusbFexConfigType);
   test(_archonConfigType);
   test(_jungfrauConfigType);
+  test(_QuadAdcConfigType);
   //  test(_projectionConfigType);    
 #undef test
   //  database-only types
@@ -242,6 +244,7 @@ const Pds::TypeId* PdsDefs::typeId(const QTypeName& name)
   test(_usdusbFexConfigType);
   test(_archonConfigType);
   test(_jungfrauConfigType);
+  test(_QuadAdcConfigType);
   //  test(_projectionConfigType);    
 #undef test
   //  database-only types
