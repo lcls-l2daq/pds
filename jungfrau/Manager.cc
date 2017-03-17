@@ -122,8 +122,7 @@ namespace Pds {
 
           printf("ConfigAction: failed to retrieve configuration: (%d) %s.\n", errno, strerror(errno));
 
-          UserMessage* msg = new (&_occPool) UserMessage;
-          msg->append("Jungfrau: failed to retrieve configuration.\n");
+          UserMessage* msg = new (&_occPool) UserMessage("Jungfrau Config Error: failed to retrieve configuration.\n");
           _mgr.appliance().post(msg);
         } else {
           _cfgtc.extent = sizeof(Xtc) + sizeof(JungfrauConfigType);
@@ -133,8 +132,8 @@ namespace Pds {
 
             printf("ConfigAction: failed to apply configuration.\n");
 
-            UserMessage* msg = new (&_occPool) UserMessage;
-            msg->append("Jungfrau: failed to apply configuration.\n");
+            UserMessage* msg = new (&_occPool) UserMessage("Jungfrau Config ");
+            msg->append(_driver.error());
             _mgr.appliance().post(msg);
           }
           _server.resetCount();

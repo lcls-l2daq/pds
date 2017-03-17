@@ -16,6 +16,7 @@
 #define PACKET_NUM 128
 #define DATA_SIZE 8192
 #define CMD_LEN 128
+#define MSG_LEN 256
 
 // Temporary fixed sizes :(
 #define NUM_MODULES 1
@@ -36,6 +37,9 @@
 
 #define clearbit_print(cmd, val, ...) \
   { printf("clearbit %#x - %d: %s\n", cmd, val, clearbit(cmd, val, ##__VA_ARGS__).c_str()); }
+
+#define error_print(fmt, ...) \
+  { snprintf(_msgbuf, MSG_LEN, fmt, ##__VA_ARGS__); fprintf(stderr, _msgbuf); }
 
 using namespace Pds::Jungfrau;
 
@@ -67,6 +71,7 @@ Driver::Driver(const int id, const char* control, const char* host, unsigned por
   _speed(JungfrauConfigType::Quarter)
 {
   _readbuf = new char[_readbuf_sz];
+  _msgbuf  = new char[MSG_LEN];
   for (int i=0; i<MAX_JUNGFRAU_CMDS; i++) {
     _cmdbuf[i] = new char[CMD_LEN];
   }
@@ -78,6 +83,7 @@ Driver::Driver(const int id, const char* control, const char* host, unsigned por
   std::string type  = get_command("type");
 
   bool needs_config = false;
+  bool detmac_status = false;
   std::string rx_ip  = get_command("rx_udpip");
   std::string rx_mac = get_command("rx_udpmac");
 
@@ -93,7 +99,23 @@ Driver::Driver(const int id, const char* control, const char* host, unsigned por
     put_command_print("rx_udpmac", _mac);
     put_command_print("detectorip", _det_ip);
     put_command_print("detectormac", "00:aa:bb:cc:dd:ee");
-    put_command_print("configuremac", 0);
+    std::string cfgmac_reply = put_command("configuremac", 0);
+    printf("cmd_put configuremac: %s\n", cfgmac_reply.c_str());
+    if (!strcmp(cfgmac_reply.c_str(), "3")) {
+      detmac_status = true;
+      printf("detector udp_rx interface is up\n");
+    } else if (!strcmp(cfgmac_reply.c_str(), "0")) {
+      printf("detector udp_rx interface did not come up - attempting server restart\n");
+      put_command_print("exitserver", 0);
+      sleep(1);
+      cfgmac_reply = put_command("configuremac", 0);
+      if (!strcmp(cfgmac_reply.c_str(), "3")) {
+        detmac_status = true;
+        printf("detector udp_rx interface is up\n");
+      } else {
+        printf("detector udp_rx interface did not come up - server restart failed!\n");
+      }
+    }
   } else {
     printf("detector udp_rx interface is being set externally\n");
   }
@@ -109,13 +131,13 @@ Driver::Driver(const int id, const char* control, const char* host, unsigned por
 
     int nb = ::bind(_socket, (sockaddr*)&sa, sizeof(sa));
     if (nb<0) {
-      fprintf(stderr, "Error: failed to bind to Jungfrau data receiver at %s on port %d: %s\n", host, port, strerror(errno));
+      error_print("Error: failed to bind to Jungfrau data receiver at %s on port %d: %s\n", host, port, strerror(errno));
     } else if (strncmp(control, reply.c_str(), strlen(control)) != 0) {
-      fprintf(stderr, "Error: failed to connect to Jungfrau control interface at %s: %s\n", control, reply.c_str());
+      error_print("Error: failed to connect to Jungfrau control interface at %s: %s\n", control, reply.c_str());
     } else if (strcmp(type.c_str(), "Jungfrau+") !=0) {
-      fprintf(stderr, "Error: detector at %s on port %d is not a Jungfrau: %s\n", host, port, type.c_str());
+      error_print("Error: detector at %s on port %d is not a Jungfrau: %s\n", host, port, type.c_str());
     } else {
-      _connected=true;
+      _connected=detmac_status;
     }
   }
 }
@@ -127,6 +149,9 @@ Driver::~Driver()
   }
   if (_readbuf) {
     delete[] _readbuf;
+  }
+  if (_msgbuf) {
+    delete[] _msgbuf;
   }
   if (_det) {
     put_command("free", "0");
@@ -140,14 +165,14 @@ Driver::~Driver()
 bool Driver::configure(uint64_t nframes, JungfrauConfigType::GainMode gain, JungfrauConfigType::SpeedMode speed, double trig_delay, double exposure_time, uint32_t bias)
 {
   if (!_connected) {
-    fprintf(stderr, "Error: failed to configure to Jungfrau at %s\n", _control);
+    error_print("Error: failed to connect to Jungfrau at address %s\n", _control);
     return false;
   }
 
   // stop the detector if not!
   if (status() == RUNNING) {
     if (!stop()) {
-      fprintf(stderr, "Error: can't configure when the detector is in a running state\n");
+      error_print("Error: can't configure when the detector is in a running state\n");
       return false;
     }
   }
@@ -230,7 +255,7 @@ bool Driver::configure(uint64_t nframes, JungfrauConfigType::GainMode gain, Jung
       put_command_print("adcphase", 65);
       break;
     default:
-      fprintf(stderr,"Error: invalid clock speed setting for the camera %d\n", speed);
+      error_print("Error: invalid clock speed setting for the camera %d\n", speed);
       return false;
     } 
     _speed = speed;
@@ -521,11 +546,17 @@ int32_t Driver::get_frame(uint16_t* data)
   return drop?-1:frame;
 }
 
+const char* Driver::error()
+{
+  return _msgbuf;
+}
+
 #undef EVENTS_TO_BUFFER
 #undef BUFFER_SIZE
 #undef PACKET_NUM
 #undef DATA_SIZE
 #undef CMD_LEN
+#undef MSG_LEN
 #undef NUM_MODULES
 #undef NUM_ROWS
 #undef NUM_COLUMNS
@@ -534,3 +565,4 @@ int32_t Driver::get_frame(uint16_t* data)
 #undef put_adcreg_print
 #undef setbit_print
 #undef clearbit_print
+#undef error_print

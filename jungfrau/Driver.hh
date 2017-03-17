@@ -39,6 +39,7 @@ namespace Pds {
         bool stop();
         void reset();
         int32_t get_frame(uint16_t* data);
+        const char* error();
       private:
         //int           _recv(char* buf, unsigned bufsz);
         const int         _id;
@@ -55,6 +56,7 @@ namespace Pds {
         unsigned          _frame_sz;
         unsigned          _frame_elem;
         char*             _readbuf;
+        char*             _msgbuf;
         char*             _cmdbuf[MAX_JUNGFRAU_CMDS];
         slsDetectorUsers* _det;
         JungfrauConfigType::SpeedMode _speed;
