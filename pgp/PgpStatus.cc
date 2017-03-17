@@ -7,6 +7,7 @@
 
 #include "pds/pgp/PgpStatus.hh"
 #include "stdio.h"
+#include "string.h"
 
 namespace Pds {
   namespace Pgp {
