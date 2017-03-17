@@ -35,11 +35,11 @@ void Reg::set(const char* ip,
     INetIODev::PortBuilder bldr = INetIODev::createPortBuilder();
     bldr->setSRPVersion              ( INetIODev::SRP_UDP_V3 );
     bldr->setUdpPort                 (                  8193 );
+    bldr->useRssi                    (                  true );
     bldr->setSRPTimeoutUS            (                 90000 );
     bldr->setSRPRetryCount           (                     5 );
     bldr->setSRPMuxVirtualChannel    (                     0 );
     bldr->useDepack                  (                  true );
-    bldr->useRssi                    (                  true );
     bldr->setTDestMuxTDEST           (                     0 );
 
     MMIODev   mmio = IMMIODev::create ("mmio", memsz);
