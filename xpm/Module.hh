@@ -1,11 +1,11 @@
-#ifndef Xpm_Module_hh
-#define Xpm_Module_hh
+#ifndef Xpm2_Module_hh
+#define Xpm2_Module_hh
 
 #include "pds/cphw/Reg.hh"
 #include "pds/cphw/Reg64.hh"
 
 namespace Pds {
-  namespace Xpm {
+  namespace Xpm2 {
 
     class L0Stats {
     public:
@@ -21,6 +21,7 @@ namespace Pds {
     };
 
     class Module {
+      enum { NDSLinks=7 };
     public:
       Module();
       void init();
@@ -49,6 +50,7 @@ namespace Pds {
     public:
       void setRingBChan(unsigned);
     public:
+      void dumpPll     () const;
       void pllBwSel    (unsigned);
       void pllFrqSel   (unsigned);
       void pllRateSel  (unsigned);
@@ -56,21 +58,38 @@ namespace Pds {
       void pllReset    ();
       void pllSkew     (int);
     public:
-      //  lower 16 bits enables a link to contribute to FULL
-      //  upper 16 bits sets loopback mode for a link
-      Cphw::Reg   _dsLinkEnable;
-      //  lower 16 bits resets Tx for a link
-      //  upper 16 bits resets Rx for a link
-      Cphw::Reg   _dsLinkReset;
-      //  lower 16 bits resets  L0 selection for a partition (only partition 0 for now)
-      //  upper 16 bits enables L0 selection for a partition (only partition 0 for now)
-      Cphw::Reg   _enabled;
-      //  L0 selection criteria
-      //    [15:14]=00 (fixed rate), [3:0] fixed rate marker
-      //    [15:14]=01 (ac rate), [8:3] timeslot mask, [2:0] ac rate marker
-      //    [15:14]=10 (sequence), [13:8] sequencer, [3:0] sequencer bit
-      //    [31]=1 any destination or match any of [14:0] mask of destinations
-      Cphw::Reg   _l0Select;
+      // Indexing
+      void setPartition(unsigned);
+      void setAmc      (unsigned);
+      void setLink     (unsigned) const;
+    public:
+      //  physical link address
+      Cphw::Reg   _paddr;
+      //  programming index
+      //  [3:0]   partition
+      //  [7:4]   link
+      //  [11:8]  linkDebug
+      //  [12]    tagStream
+      //  [16]    amc
+      //  [21:20] inhibit
+      Cphw::Reg   _index;
+      //  ds link configuration
+      //  [19:0]  txDelay
+      //  [23:20] partition
+      //  [27:24] trigsrc
+      //  [28]    loopback
+      //  [29]    txReset
+      //  [30]    rxReset
+      //  [31]    enable
+      Cphw::Reg  _dsLinkConfig;
+      //  ds link status
+      //  [15:0]  rx error counts
+      //  [16]    tx reset done
+      //  [17]    tx ready
+      //  [18]    rx reset done
+      //  [19]    rx ready
+      //  [20]    is xpm
+      Cphw::Reg  _dsLinkStatus;
       //  AMC0 PLL configuration
       //    [3:0] loop filter bandwidth selection
       //    [5:4] frequency table - character {L,H,M} = 00,01,1x
@@ -80,27 +99,22 @@ namespace Pds {
       //    [21] decrement phase
       //    [22] bypass PLL
       //    [23] reset PLL
-      //   ([26:24] input link number for AxiLiteRingBuffer)
-      Cphw::Reg   _pllConfig0;
-      //  AMC1 PLL configuration
-      Cphw::Reg   _pllConfig1;
-      //  AMC0 PLL status
-      //    [14:0] loss-of-signal count
-      //    [15]   current loss-of-signal
-      //    [30:16] loss-of-lock count
-      //    [31]   current loss-of-lock
-      Cphw::Reg   _pllStatus0;
-      //  AMC1 PLL status
-      Cphw::Reg   _pllStatus1;
-      //  L0 inhibit counts by link
-      Cphw::Reg   _dsLinkInh[8];
-      uint32_t    _reserved_1c[(0x80-0x40)/4];
-      //  [15: 0] link tx PMA reset done
-      //  [31:16] link tx complete reset done
-      Cphw::Reg   _dsTxLinkStatus;   
-      //  [15: 0] link rx PMA reset done
-      //  [31:16] link rx complete reset done
-      Cphw::Reg   _dsRxLinkStatus;
+      //    [26:24] pllcount[0] for amc[index]
+      //    [27]    pll stat[0] for amc[index]
+      //    [30:28] pllcount[1] for amc[index]
+      //    [31]    pll stat[1] for amc[index]
+      Cphw::Reg   _pllConfig;
+      //  L0 selection control
+      //    [0]     reset
+      //    [16]    enable
+      //    [31]    enable counter update
+      Cphw::Reg   _l0Control;
+      //  L0 selection criteria for partition[index]
+      //    [15:14]=00 (fixed rate), [3:0] fixed rate marker
+      //    [15:14]=01 (ac rate), [8:3] timeslot mask, [2:0] ac rate marker
+      //    [15:14]=10 (sequence), [13:8] sequencer, [3:0] sequencer bit
+      //    [31]=1 any destination or match any of [14:0] mask of destinations
+      Cphw::Reg   _l0Select;
       //  Clks enabled
       Cphw::Reg64 _l0Enabled;    
       //  Clks inhibited
@@ -111,16 +125,40 @@ namespace Pds {
       Cphw::Reg64 _numl0Inh;
       //  Num L0s accepted
       Cphw::Reg64 _numl0Acc;
-      //  rx link error counts [link number]
-      Cphw::Reg   _rxLinkErrs[8];
-      //  [15:0] analysis tag bit FIFO reset
+      //  Num L1s accepted
+      Cphw::Reg64 _numl1Acc;
+      //  L1 select config
+      //  [0]     clear    
+      //  [16]    enable
+      Cphw::Reg64 _l1config0;
+      //  L1 select config
+      //  [3:0]   src    
+      //  [12:4]  word
+      //  [16]    wr
+      Cphw::Reg64 _l1config1;
+      //  Analysis tag reset
+      //  [3:0] reset
       Cphw::Reg   _analysisRst;
-      //  [15: 0] analysis tag bit value
-      //  [31:16] analysis tag bit write enable
-      Cphw::Reg   _analysisTag; // [0:15] tag, [16:31] mask
-      //  Count writes and reads to the analysisTag FIFO
+      //  Analysis tag
+      //  [31:0] tag[3:0]
+      Cphw::Reg   _analysisTag;
+      //  Analysis push
+      //  [3:0]  push
+      Cphw::Reg   _analysisPush;
+      //  
       Cphw::Reg   _analysisTagWr;
       Cphw::Reg   _analysisTagRd;
+      Cphw::Reg   _pipelineDepth;
+    private:
+      uint32_t    _reserved_108[5];
+    public:
+      //  Inhibit configurations
+      //  [11:0]  interval (929kHz ticks)
+      //  [15:12] max # accepts within interval
+      //  [31]    enable
+      Cphw::Reg    _inhibitConfig[4];
+      //  Inhibit assertions by DS link
+      Cphw::Reg    _inhibitCounts[NDSLinks];
     };
   };
 };
