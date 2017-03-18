@@ -126,7 +126,9 @@ namespace Pds {
           _mgr.appliance().post(msg);
         } else {
           _cfgtc.extent = sizeof(Xtc) + sizeof(JungfrauConfigType);
-          if(!_driver.configure(0, _config.gainMode(), _config.speedMode(), _config.triggerDelay(), _config.exposureTime(), _config.biasVoltage()) ||
+          DacsConfig dacs_config(_config.vb_ds(), _config.vb_comp(), _config.vb_pixbuf(), _config.vref_ds(),
+                                 _config.vref_comp(), _config.vref_prech(), _config.vin_com(), _config.vdd_prot());
+          if(!_driver.configure(0, _config.gainMode(), _config.speedMode(), _config.triggerDelay(), _config.exposureTime(), _config.exposurePeriod(), _config.biasVoltage(), dacs_config) ||
               !_driver.check_size(_config.numberOfModules(), _config.numberOfRowsPerModule(), _config.numberOfColumnsPerModule())) {
             _error = true;
 

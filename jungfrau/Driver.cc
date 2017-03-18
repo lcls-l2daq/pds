@@ -64,6 +64,29 @@ static socklen_t clientaddrlen = sizeof(clientaddr);
   };
 #pragma pack(pop)
 
+DacsConfig::DacsConfig(uint16_t vb_ds, uint16_t vb_comp, uint16_t vb_pixbuf, uint16_t vref_ds,
+                       uint16_t vref_comp, uint16_t vref_prech, uint16_t vin_com, uint16_t  vdd_prot):
+  _vb_ds(vb_ds),
+  _vb_comp(vb_comp),
+  _vb_pixbuf(vb_pixbuf),
+  _vref_ds(vref_ds),
+  _vref_comp(vref_comp),
+  _vref_prech(vref_prech),
+  _vin_com(vin_com),
+  _vdd_prot(vdd_prot)
+{}
+
+DacsConfig::~DacsConfig() {}
+
+uint16_t DacsConfig::vb_ds() const      { return _vb_ds; }
+uint16_t DacsConfig::vb_comp() const    { return _vb_comp; }
+uint16_t DacsConfig::vb_pixbuf() const  { return _vb_pixbuf; }
+uint16_t DacsConfig::vref_ds() const    { return _vref_ds; }
+uint16_t DacsConfig::vref_comp() const  { return _vref_comp; }
+uint16_t DacsConfig::vref_prech() const { return _vref_prech; }
+uint16_t DacsConfig::vin_com() const    { return _vin_com; }
+uint16_t DacsConfig::vdd_prot() const   { return _vdd_prot; }
+
 Driver::Driver(const int id, const char* control, const char* host, unsigned port, const char* mac, const char* det_ip, bool config_det_ip) :
   _id(id), _control(control), _host(host), _port(port), _mac(mac), _det_ip(det_ip),
   _socket(-1), _connected(false), _boot(true),
@@ -162,7 +185,7 @@ Driver::~Driver()
   }
 }
 
-bool Driver::configure(uint64_t nframes, JungfrauConfigType::GainMode gain, JungfrauConfigType::SpeedMode speed, double trig_delay, double exposure_time, uint32_t bias)
+bool Driver::configure(uint64_t nframes, JungfrauConfigType::GainMode gain, JungfrauConfigType::SpeedMode speed, double trig_delay, double exposure_time, double exposure_period, uint32_t bias, const DacsConfig& dac_config)
 {
   if (!_connected) {
     error_print("Error: failed to connect to Jungfrau at address %s\n", _control);
@@ -180,47 +203,38 @@ bool Driver::configure(uint64_t nframes, JungfrauConfigType::GainMode gain, Jung
   if (_boot) {
     // Setting Dacs 12bit on 2.5V  (i.e. 2.5v=4096)
     printf("Setting Dacs:\n");
-    // TODO - should these be in the config object?
-    int vb_ds = 1000;
-    int vb_comp = 1220;
-    int vb_pixbuf = 750;
-    int vref_ds = 480;
-    int vref_comp = 420;
-    int vref_prech = 1450;
-    int vin_com = 1053;
-    int vdd_prot = 3000;
   
     // setting vb_ds
-    printf("setting vb_ds to %d\n", vb_ds);
-    put_command_print("dac:5", vb_ds);
+    printf("setting vb_ds to %hu\n", dac_config.vb_ds());
+    put_command_print("dac:5", dac_config.vb_ds());
 
     // setting vb_comp
-    printf("setting vb_comp to %d\n", vb_comp);
-    put_command_print("dac:0", vb_comp);
+    printf("setting vb_comp to %hu\n", dac_config.vb_comp());
+    put_command_print("dac:0", dac_config.vb_comp());
 
     // setting vb_pixbuf
-    printf("setting vb_pixbuf to %d\n", vb_pixbuf);
-    put_command_print("dac:4", vb_pixbuf);
+    printf("setting vb_pixbuf to %hu\n", dac_config.vb_pixbuf());
+    put_command_print("dac:4", dac_config.vb_pixbuf());
 
     // setting vref_ds
-    printf("setting vref_ds to %d\n", vref_ds);
-    put_command_print("dac:6", vref_ds);
+    printf("setting vref_ds to %hu\n", dac_config.vref_ds());
+    put_command_print("dac:6", dac_config.vref_ds());
 
     // setting vref_comp
-    printf("setting vref_comp to %d\n", vref_comp);
-    put_command_print("dac:7", vref_comp);
+    printf("setting vref_comp to %hu\n", dac_config.vref_comp());
+    put_command_print("dac:7", dac_config.vref_comp());
 
     // setting vref_prech
-    printf("setting vref_prech to %d\n", vref_prech);  
-    put_command_print("dac:3", vref_prech);
+    printf("setting vref_prech to %hu\n", dac_config.vref_prech());  
+    put_command_print("dac:3", dac_config.vref_prech());
 
     // setting vin_com
-    printf("setting vin_com to %d\n", vin_com);
-    put_command_print("dac:2", vin_com);
+    printf("setting vin_com to %hu\n", dac_config.vin_com());
+    put_command_print("dac:2", dac_config.vin_com());
 
     // setting vdd_prot
-    printf("setting vdd_prot to %d\n", vdd_prot);
-    put_command_print("dac:1", vdd_prot);
+    printf("setting vdd_prot to %hu\n", dac_config.vdd_prot());
+    put_command_print("dac:1", dac_config.vdd_prot());
 
     // power on the chips
     printf("powering on the chip\n");
@@ -272,13 +286,13 @@ bool Driver::configure(uint64_t nframes, JungfrauConfigType::GainMode gain, Jung
     put_register_print(0x4e, 0x3333);
     put_command_print("cycles", 10000000000);
     put_command_print("frames", 1);
-    put_command_print("period", 0.005);
+    put_command_print("period", exposure_period);
   } else {
     printf("configuring for free run\n");
     put_register_print(0x4e, 0x0000);
     put_command_print("cycles", 1);
     put_command_print("frames", nframes);
-    put_command_print("period", 0.2);
+    put_command_print("period", exposure_period);
   }
 
   printf("setting exposure time to %.6f seconds\n", exposure_time);
@@ -341,6 +355,26 @@ std::string Driver::put_command(const char* cmd, const char* value, int pos)
   }
 }
 
+std::string Driver::put_command(const char* cmd, const short value, int pos)
+{
+  if (strlen(cmd) >= CMD_LEN) {
+    return "invalid command or value length";
+  }
+  strcpy(_cmdbuf[0], cmd);
+  sprintf(_cmdbuf[1], "%hd", value);
+  return _det->putCommand(2, _cmdbuf, pos);
+}
+
+std::string Driver::put_command(const char* cmd, const unsigned short value, int pos)
+{
+  if (strlen(cmd) >= CMD_LEN) {
+    return "invalid command or value length";
+  }
+  strcpy(_cmdbuf[0], cmd);
+  sprintf(_cmdbuf[1], "%hu", value);
+  return _det->putCommand(2, _cmdbuf, pos);
+}
+
 std::string Driver::put_command(const char* cmd, const int value, int pos)
 {
   if (strlen(cmd) >= CMD_LEN) {
@@ -377,7 +411,7 @@ std::string Driver::put_command(const char* cmd, const unsigned long value, int 
     return "invalid command or value length";
   }
   strcpy(_cmdbuf[0], cmd);
-  sprintf(_cmdbuf[1], "%ld", value);
+  sprintf(_cmdbuf[1], "%lu", value);
   return _det->putCommand(2, _cmdbuf, pos);
 }
 
