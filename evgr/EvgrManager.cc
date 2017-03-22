@@ -31,7 +31,8 @@ static unsigned _opcodecount=0;
 static unsigned _lastopcode=0;
 static int _ram=0;
 
-static const unsigned EVTCLK_TO_360HZ=991666/3;
+//  Need to synchronize fiducials to 8.5MHz
+static const unsigned EVTCLK_TO_360HZ=991664/3;  // 119MHz clks
 static const unsigned TRM_OPCODE=1;
 static const unsigned IRQ_OPCODE=2;
 typedef struct {
