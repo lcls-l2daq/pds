@@ -47,7 +47,7 @@ void* statusThread(void*);
   
 int main(int argc, char* argv[])
 {
-  unsigned    nbuff = 12;
+  unsigned    nbuff = 32;
   unsigned    id    = 0;
   unsigned    maxEventSize = 4096;
   std::vector<std::string> addr;

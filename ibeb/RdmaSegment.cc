@@ -193,12 +193,14 @@ void RdmaSegment::req_write(unsigned  eb,
                     sizeof(*dg)+dg->xtc.sizeofPayload());
 }
 
-void RdmaSegment::complete(ibv_wc& wc)
+void RdmaSegment::complete(ibv_wc& wc, Semaphore& sem)
 {
   if (wc.opcode==IBV_WC_RECV_RDMA_WITH_IMM) {
     unsigned dst, dstIdx;
     CmpRecvPort::decode(wc.imm_data,dst,dstIdx);
+    sem.take();
     dequeue(*_recvs[dst]->completion(dstIdx));
     _recvs[dst]->complete(dstIdx);
+    sem.give();
   }
 }

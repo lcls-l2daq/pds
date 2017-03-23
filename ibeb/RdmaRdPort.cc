@@ -41,14 +41,14 @@ RdmaRdPort::RdmaRdPort(int       fd,
     // stuff index into upper 32 bits
     sr.sg_list = &sge;
     sr.num_sge = 1;
-    sr.wr_id   = i;
+    sr.wr_id   = ((uint64_t) i) << 32;
         
     ibv_recv_wr* bad_wr=NULL;
     int err = ibv_post_recv(qp(), &sr, &bad_wr);
     if(err)
       fprintf(stderr, "Failed to post SR: %s\n",  strerror(err));
     if (bad_wr)
-      fprintf(stderr, "ibv_post_recv bad_wr: %lu\n", bad_wr->wr_id);
+      fprintf(stderr, "ibv_post_recv bad_wr: %#014lx\n", bad_wr->wr_id);
   }    
 
   //  Work requests for RDMA_READ
@@ -113,10 +113,11 @@ void RdmaRdPort::req_read(unsigned buf,
 void RdmaRdPort::complete(unsigned buf)
 {
   ibv_recv_wr& sr = _wr[buf];
+  sr.wr_id += 1; // update the wr_id
   ibv_recv_wr* bad_wr=NULL;
   int err = ibv_post_recv(qp(), &sr, &bad_wr);
   if (err)
     fprintf(stderr, "Failed to post SR: %s\n",  strerror(err));
   if (bad_wr)
-    fprintf(stderr, "ibv_post_recv bad_wr: %lu\n", bad_wr->wr_id);
+    fprintf(stderr, "ibv_post_recv bad_wr: %#014lx\n", bad_wr->wr_id);
 }

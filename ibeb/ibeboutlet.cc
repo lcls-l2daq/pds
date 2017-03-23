@@ -42,17 +42,18 @@ using Pds::IbEb::RdmaSegment;
 namespace Pds {
 
   class DmaSim : public Routine {
-    enum { DMA_DEPTH=32 };
     enum { ALIGN_BYTES=32 };
   public:
     DmaSim(unsigned sz,
+           unsigned depth,
            unsigned ndst,
            unsigned ndstbuf) :
       _sz     (sz),
+      _depth  (depth),
       _ndst   (ndst),
       _ndstbuf(ndstbuf),
       _bsz    ((sz+32+ALIGN_BYTES-1)&~(ALIGN_BYTES-1)),
-      _pool   (new char[_bsz*DMA_DEPTH+ALIGN_BYTES]),
+      _pool   (new char[_bsz*_depth+ALIGN_BYTES]),
       _rd     (0),
       _wr     (0),
       _task   (new Task(TaskObject("dma")))
@@ -96,8 +97,8 @@ namespace Pds {
         printf("DmaSim writing to pool at %p, bsz %x\n",ptr,_bsz);
 
       while(1) {
-        if (_wr < _rd+DMA_DEPTH) {
-          char* bptr = ptr + _bsz*(_wr % DMA_DEPTH);
+        if (_wr < _rd+_depth) {
+          char* bptr = ptr + _bsz*(_wr % _depth);
           memcpy(bptr, data, _bsz);
           //  Tag the event for destination
           reinterpret_cast<uint16_t*>(bptr)[2] = (_wr%_ndst);
@@ -112,6 +113,7 @@ namespace Pds {
     }
   private:
     unsigned             _sz;
+    unsigned             _depth;
     unsigned             _ndst;
     unsigned             _ndstbuf;
     unsigned             _bsz;
@@ -209,16 +211,16 @@ namespace Pds {
 int main(int argc, char* argv[])
 {
   unsigned   bigSize   = 4096;
-  unsigned   ringSize  = 4096*64;
+  unsigned   evtDepth  = 32;
   unsigned   id        = 0;
   unsigned   numEbs    = 1;
 
   int c;
-  while ( (c=getopt( argc, argv, "i:s:S:r:e:hv")) != EOF ) {
+  while ( (c=getopt( argc, argv, "i:s:n:e:hv")) != EOF ) {
     switch(c) {
     case 'i': id         = strtoul(optarg,NULL,0); break;
     case 's': bigSize    = strtoul(optarg,NULL,0); break;
-    case 'S': ringSize   = strtoul(optarg,NULL,0); break;
+    case 'n': evtDepth   = strtoul(optarg,NULL,0); break;
     case 'e': numEbs     = strtoul(optarg,NULL,0); break;
     case 'v': lverbose   = true; break;
     default:
@@ -245,7 +247,7 @@ int main(int argc, char* argv[])
   
   DetInfo info    (0,DetInfo::XppGon,0,DetInfo::Wave8,id);
 
-  RdmaSegment outlet(ringSize,
+  RdmaSegment outlet(maxEventSize*evtDepth,
                      maxEventSize,
                      id,
                      numEbs);
@@ -256,7 +258,7 @@ int main(int argc, char* argv[])
   //  Simulate DMA in a separate thread
   //
   Semaphore sem(Semaphore::FULL);
-  DmaSim sim(bigSize,numEbs,outlet.nBuffers());
+  DmaSim sim(bigSize,evtDepth,numEbs,outlet.nBuffers());
   HeaderSim header(maxEventSize, info, sim, outlet, sem);
 
   timespec ts_last;
@@ -288,9 +290,7 @@ int main(int argc, char* argv[])
         abort();
         continue;
       }
-      sem.take();
-      outlet.complete(wc[i]);
-      sem.give();
+      outlet.complete(wc[i], sem);
     }
   }
 

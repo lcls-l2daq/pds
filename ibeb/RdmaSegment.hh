@@ -8,6 +8,7 @@
 #include "pds/ibeb/ibcommon.hh"
 #include "pds/service/GenericPool.hh"
 #include "pds/service/RingPool.hh"
+#include "pds/service/Semaphore.hh"
 
 #include <list>
 #include <vector>
@@ -35,7 +36,7 @@ namespace Pds {
                   Datagram* p,
                   size_t    psize);
       void dequeue(const RdmaComplete&);
-      void complete(ibv_wc& wc);
+      void complete(ibv_wc& wc, Semaphore& sem);
     private:
       bool _alloc  (unsigned eb, 
                     unsigned buf);
