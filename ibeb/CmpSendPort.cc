@@ -16,8 +16,9 @@ CmpSendPort::CmpSendPort(int       fd,
                          RdmaBase& base,
                          ibv_mr&   mr,
                          std::vector<void*> laddr,
-                         unsigned  idx) :
-  RdmaPort(fd, base, mr, idx, laddr.size(), sizeof(RdmaComplete)),
+                         unsigned  idx,
+                         unsigned  wr_max) :
+  RdmaPort(fd, base, mr, idx, wr_max, sizeof(RdmaComplete)),
   _wr_id  (0),
   _src    (idx),
   _laddr  (laddr)

@@ -22,7 +22,8 @@ namespace Pds {
       RdmaSegment(unsigned   poolSize,
                   unsigned   maxEventSize,
                   unsigned   index,
-                  unsigned   numEbs);
+                  unsigned   numEbs,
+                  unsigned   evtDepth);
       ~RdmaSegment();
     public:
       static void verbose(bool);

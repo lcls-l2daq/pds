@@ -13,7 +13,8 @@ void RdmaSegment::verbose(bool v) { lverbose=v; }
 RdmaSegment::RdmaSegment(unsigned   poolSize,
                          unsigned   maxEventSize,
                          unsigned   index,
-                         unsigned   numEbs) :
+                         unsigned   numEbs,
+                         unsigned   evtDepth) :
   RdmaBase(),
   _pool   (new RingPool(poolSize,maxEventSize)),
   _cpool  (0),
@@ -41,7 +42,7 @@ RdmaSegment::RdmaSegment(unsigned   poolSize,
     socklen_t   saddr_len=sizeof(saddr);
 
     int fd = ::accept(lfd, (sockaddr*)&saddr, &saddr_len);
-    RdmaWrPort* port = new RdmaWrPort(fd, *this, *_mr, _src);
+    RdmaWrPort* port = new RdmaWrPort(fd, *this, *_mr, _src, evtDepth);
     _ports[port->idx()] = port;
   }
   ::close(lfd);
@@ -81,7 +82,7 @@ RdmaSegment::RdmaSegment(unsigned   poolSize,
     for(unsigned j=0; j<nbuffs[i]; j++)
       laddr[j] = (char*)_cpool->alloc(_cpool->sizeofObject());
     //fd = ::accept(cfd, (sockaddr*)&saddr, &saddr_len);
-    CmpRecvPort* recv = new CmpRecvPort(fds[i], *this, *_cmr, laddr, _src);
+    CmpRecvPort* recv = new CmpRecvPort(fds[i], *this, *_cmr, laddr, _src, 3*nbuffs[i]/2); // add 50% above nominal to max wr size
     _recvs[recv->idx()] = recv;
   }
   ::close(cfd);

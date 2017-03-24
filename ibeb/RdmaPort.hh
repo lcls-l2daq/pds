@@ -16,7 +16,7 @@ namespace Pds {
                RdmaBase& base,    // IB device
                ibv_mr&   mr,
                unsigned  idx,     // event builder ID of local end
-               unsigned  num_wr=32,     // max number of wr in the qp
+               unsigned  num_wr,        // max number of outstanding wr allowed
                unsigned  inline_sz=0);  // max size of inline data
       ~RdmaPort();
     public:

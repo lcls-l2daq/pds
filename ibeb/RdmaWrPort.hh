@@ -14,7 +14,8 @@ namespace Pds {
       RdmaWrPort(int       fd,
                  RdmaBase& base,
                  ibv_mr&   mr,
-                 unsigned  idx);
+                 unsigned  idx,
+                 unsigned  wr_max);
       ~RdmaWrPort();
     public:
       static void verbose(bool);

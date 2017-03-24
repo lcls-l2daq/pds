@@ -56,7 +56,8 @@ RdmaEvent::RdmaEvent(unsigned                  nbuff,
                                       *_mr,
                                       *_rmr,
                                       laddr,
-                                      id);
+                                      id,
+                                      3*nbuff/2); // add 50% above nominal to max wr size
     _ports[i] = port;
   }
 
@@ -88,7 +89,8 @@ RdmaEvent::RdmaEvent(unsigned                  nbuff,
                                         *this,
                                         *_cmr,
                                         caddr,
-                                        id);
+                                        id,
+                                        nbuff);
     _sends[i] = send;
   }
 

@@ -250,7 +250,8 @@ int main(int argc, char* argv[])
   RdmaSegment outlet(maxEventSize*evtDepth,
                      maxEventSize,
                      id,
-                     numEbs);
+                     numEbs,
+                     evtDepth);
 
   rseg = &outlet;
 

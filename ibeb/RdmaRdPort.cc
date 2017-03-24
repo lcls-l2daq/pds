@@ -17,8 +17,9 @@ RdmaRdPort::RdmaRdPort(int       fd,
                        ibv_mr&   mr,
                        ibv_mr&   rmr,
                        std::vector<char*>& laddr,
-                       unsigned  idx) :
-  RdmaPort(fd, base, mr, idx, 3*laddr.size()/2), // add 50% above nominal to max wr size
+                       unsigned  idx,
+                       unsigned  wr_max) :
+  RdmaPort(fd, base, mr, idx, wr_max),
   _wr     (laddr.size()),
   _swr    (laddr.size()),
   _push   (laddr),

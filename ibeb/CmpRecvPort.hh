@@ -18,7 +18,8 @@ namespace Pds {
                   RdmaBase& base,
                   ibv_mr&   mr,
                   std::vector<char*>& laddr,
-                  unsigned  idx);
+                  unsigned  idx,
+                  unsigned  wr_max);
       ~CmpRecvPort();
     public:
       static void verbose(bool);

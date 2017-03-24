@@ -18,7 +18,8 @@ namespace Pds {
                  ibv_mr&   mr,
                  ibv_mr&   rmr,
                  std::vector<char*>& laddr,
-                 unsigned  idx);
+                 unsigned  idx,
+                 unsigned  wr_max);
       ~RdmaRdPort();
     public:
       static void verbose(bool);

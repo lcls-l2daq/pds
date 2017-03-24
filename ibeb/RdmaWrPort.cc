@@ -13,8 +13,9 @@ void RdmaWrPort::verbose(bool v) { lverbose=v; }
 RdmaWrPort::RdmaWrPort(int       fd,
                        RdmaBase& base,
                        ibv_mr&   mr,
-                       unsigned  idx) :
-  RdmaPort(fd, base, mr, idx),
+                       unsigned  idx,
+                       unsigned  wr_max) :
+  RdmaPort(fd, base, mr, idx, wr_max),
   _wr_id  (0)
 {
   if (lverbose)
