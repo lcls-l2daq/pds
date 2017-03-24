@@ -12,10 +12,12 @@ namespace Pds {
       enum { outlet_port      = 11000,
              completion_port  = 11001 };
     public:
-      RdmaPort(int       fd,    // TCP connection
-               RdmaBase& base,  // IB device
+      RdmaPort(int       fd,      // TCP connection
+               RdmaBase& base,    // IB device
                ibv_mr&   mr,
-               unsigned  idx);  // event builder ID of local end
+               unsigned  idx,     // event builder ID of local end
+               unsigned  num_wr=32,     // max number of wr in the qp
+               unsigned  inline_sz=0);  // max size of inline data
       ~RdmaPort();
     public:
       int      fd  () const { return _fd; }  // TCP connection

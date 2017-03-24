@@ -17,7 +17,7 @@ CmpSendPort::CmpSendPort(int       fd,
                          ibv_mr&   mr,
                          std::vector<void*> laddr,
                          unsigned  idx) :
-  RdmaPort(fd, base, mr, idx),
+  RdmaPort(fd, base, mr, idx, laddr.size(), sizeof(RdmaComplete)),
   _wr_id  (0),
   _src    (idx),
   _laddr  (laddr)
@@ -72,7 +72,7 @@ void CmpSendPort::ack(unsigned buf, char* dg)
   sr.imm_data= index;
   sr.opcode  = IBV_WR_RDMA_WRITE_WITH_IMM;
   //      sr.send_flags = IBV_SEND_SIGNALED;
-  sr.send_flags = 0;
+  sr.send_flags = IBV_SEND_INLINE;
   sr.wr.rdma.remote_addr = _raddr[buf];
   sr.wr.rdma.rkey        = _rkey;
 

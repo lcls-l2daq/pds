@@ -14,7 +14,9 @@ static const int ib_port=1;
 RdmaPort::RdmaPort(int       fd,
                    RdmaBase& base,
                    ibv_mr&   mr,
-                   unsigned  idx) :
+                   unsigned  idx,
+                   unsigned  num_wr,
+                   unsigned  inline_sz) :
   _fd(fd),
   _qp(0),
   _mr(mr),
@@ -36,11 +38,11 @@ RdmaPort::RdmaPort(int       fd,
   qp_init_attr.sq_sig_all = 1;
   qp_init_attr.send_cq = base.cq();
   qp_init_attr.recv_cq = base.cq();
-  qp_init_attr.cap.max_send_wr = 32;
-  qp_init_attr.cap.max_recv_wr = 32;
+  qp_init_attr.cap.max_send_wr = num_wr;
+  qp_init_attr.cap.max_recv_wr = num_wr;
   qp_init_attr.cap.max_send_sge = 1;
   qp_init_attr.cap.max_recv_sge = 1;
-  qp_init_attr.cap.max_inline_data = 32*sizeof(unsigned);
+  qp_init_attr.cap.max_inline_data = inline_sz;
 
   if ((_qp = ibv_create_qp(base.pd(),&qp_init_attr))==0) {
     perror("Failed to create QP");

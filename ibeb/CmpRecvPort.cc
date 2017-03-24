@@ -17,7 +17,7 @@ CmpRecvPort::CmpRecvPort(int        fd,
                          ibv_mr&    mr,
                          std::vector<char*>& laddr,
                          unsigned   idx) :
-  RdmaPort(fd, base, mr, idx),
+  RdmaPort(fd, base, mr, idx, 3*laddr.size()/2), // add 50% above nominal to max wr size
   _wr     (laddr.size()),
   _comps  (laddr)
 {
