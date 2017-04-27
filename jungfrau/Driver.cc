@@ -12,9 +12,8 @@
 #include <errno.h>
 
 #define EVENTS_TO_BUFFER 10
-#define BUFFER_SIZE 8214
 #define PACKET_NUM 128
-#define DATA_SIZE 8192
+#define DATA_ELEM 4096
 #define CMD_LEN 128
 #define MSG_LEN 256
 
@@ -60,7 +59,7 @@ static socklen_t clientaddrlen = sizeof(clientaddr);
     uint64_t bunchid;
     /* uint64_t framenum;   //  modified dec 15 */
     /* uint64_t packetnum;     */
-    uint16_t data[DATA_SIZE];
+    uint16_t data[DATA_ELEM];
   };
 #pragma pack(pop)
 
@@ -90,7 +89,7 @@ uint16_t DacsConfig::vdd_prot() const   { return _vdd_prot; }
 Driver::Driver(const int id, const char* control, const char* host, unsigned port, const char* mac, const char* det_ip, bool config_det_ip) :
   _id(id), _control(control), _host(host), _port(port), _mac(mac), _det_ip(det_ip),
   _socket(-1), _connected(false), _boot(true),
-  _sockbuf_sz(BUFFER_SIZE*PACKET_NUM*EVENTS_TO_BUFFER), _readbuf_sz(BUFFER_SIZE), _frame_sz(DATA_SIZE), _frame_elem(DATA_SIZE / sizeof(uint16_t)),
+  _sockbuf_sz(sizeof(jungfrau_dgram)*PACKET_NUM*EVENTS_TO_BUFFER), _readbuf_sz(sizeof(jungfrau_dgram)), _frame_sz(DATA_ELEM * sizeof(uint16_t)), _frame_elem(DATA_ELEM),
   _speed(JungfrauConfigType::Quarter)
 {
   _readbuf = new char[_readbuf_sz];
@@ -551,7 +550,7 @@ int32_t Driver::get_frame(uint16_t* data)
   bool drop = false;
 
   for (int i=0; i<PACKET_NUM; i++) {
-    nb = ::recvfrom(_socket, _readbuf, BUFFER_SIZE, 0, (struct sockaddr *)&clientaddr, &clientaddrlen);
+    nb = ::recvfrom(_socket, _readbuf, sizeof(jungfrau_dgram), 0, (struct sockaddr *)&clientaddr, &clientaddrlen);
     if (nb<0) {
       fprintf(stderr,"Error: failure receiving packet from Jungfru at %s on port %d: %s\n", _host, _port, strerror(errno));
       return -1;
@@ -586,9 +585,8 @@ const char* Driver::error()
 }
 
 #undef EVENTS_TO_BUFFER
-#undef BUFFER_SIZE
 #undef PACKET_NUM
-#undef DATA_SIZE
+#undef DATA_ELEM
 #undef CMD_LEN
 #undef MSG_LEN
 #undef NUM_MODULES
