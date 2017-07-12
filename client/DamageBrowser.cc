@@ -1,29 +1,27 @@
 #include "DamageBrowser.hh"
 
 #include "pds/xtc/InDatagram.hh"
-#include "pds/xtc/CDatagramIterator.hh"
-#include "pds/client/XtcIterator.hh"
 #include "pds/service/GenericPool.hh"
+#include "pdsdata/xtc/XtcIterator.hh"
 
 namespace Pds {
-  class MyIterator : public PdsClient::XtcIterator {
+  class MyIterator : public XtcIterator {
   public:
     MyIterator(const Xtc& xtc,
-	       InDatagramIterator* it,
 	       std::list<Xtc>& list) :
-      XtcIterator(xtc, it),
+      XtcIterator(const_cast<Xtc*>(&xtc)),
       _list(list),
       _damage(0)
     {
     }
     ~MyIterator() {}
   public:
-    int process(const Xtc& xtc, InDatagramIterator* it)
+    int process(Xtc* pxtc)
     {
-      int advance = 0;
+      Xtc& xtc = *pxtc;
       if (xtc.contains.id() == TypeId::Id_Xtc) {
-	MyIterator iter(xtc,it,_list);
-	advance += iter.iterate();
+	MyIterator iter(xtc,_list);
+	iter.iterate();
 	unsigned damage = xtc.damage.value() & ~iter.damage();
 	if (damage) {
 	  bool lFound=false;
@@ -37,7 +35,7 @@ namespace Pds {
 	}
       }
       _damage |= xtc.damage.value();
-      return advance;
+      return 1;
     }
   public:
     unsigned damage() const { return _damage; }
@@ -51,8 +49,7 @@ using namespace Pds;
 
 DamageBrowser::DamageBrowser(const InDatagram& dg) 
 {
-  GenericPool* pool = new GenericPool(sizeof(CDatagramIterator),2);
-  MyIterator iter(dg.datagram().xtc, dg.iterator(pool),_damaged);
+  MyIterator iter(const_cast<InDatagram&>(dg).datagram().xtc,_damaged);
   iter.iterate();
 }
 

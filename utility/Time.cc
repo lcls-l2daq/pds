@@ -1,5 +1,5 @@
 //
-// $Id$
+// $Id: Time.cc 67 2008-11-14 18:27:33Z cpo $
 //
 
 #include <time.h>

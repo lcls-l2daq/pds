@@ -3,10 +3,10 @@
 
 namespace Pds {
 
-  class Transition;
-  class Occurrence;
   class Datagram;
+  class Transition;
   class InDatagram;
+  class Occurrence;
   class Outlet;
   class Ins;
 
@@ -15,9 +15,9 @@ namespace Pds {
     OutletWire(Outlet& outlet);
     virtual ~OutletWire();
 
-    virtual Transition* forward(Transition* dg) = 0;
+    virtual Transition* forward(Transition* dg ) = 0;
     virtual Occurrence* forward(Occurrence* occ) = 0;
-    virtual InDatagram* forward(InDatagram* dg) = 0;
+    virtual InDatagram* forward(InDatagram* dg ) = 0;
 
     enum NamedConnection { Bcast };
     virtual void bind(NamedConnection, const Ins& ) = 0;

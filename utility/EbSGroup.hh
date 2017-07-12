@@ -7,21 +7,20 @@
 namespace Pds
 {
 
-class EbSGroup : public EbS
-{
-public:
-  EbSGroup(const Src& id,
-    const TypeId& ctns,
-    Level::Type level,
-    Inlet& inlet,
-    OutletWire& outlet,
-    int stream,
-    int ipaddress,
-    unsigned eventsize,
-    unsigned eventpooldepth,
-    int slowEb,
-    VmonEb* vmoneb=0);
-  ~EbSGroup();
+  class EbSGroup : public EbS
+  {
+  public:
+    EbSGroup(const Src& id,
+             const TypeId& ctns,
+             Level::Type level,
+             Inlet& inlet,
+             OutletWire& outlet,
+             int stream,
+             int ipaddress,
+             unsigned eventsize,
+             unsigned eventpooldepth,
+             VmonEb* vmoneb=0);
+    ~EbSGroup();
 
 protected:
   virtual EbBase::IsComplete _is_complete( EbEventBase*, const EbBitMask& );

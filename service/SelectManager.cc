@@ -29,11 +29,6 @@ using namespace Pds;
 template<class T>
 void SelectManager<T>::_verify() const
 {
-}
-#else
-template<class T>
-void SelectManager<T>::_verify() const
-{
   fd_set fds;
   FD_ZERO(&fds);
 
@@ -336,13 +331,15 @@ int SelectManager<T>::_dispatchIo()
     {
     if((id & remaining).isZero()) continue;
     server = *next;    
-    if(disable(server)) {
-      if(!processIo(server)) {
+    if(disable(server))
+      {
+      if(!processIo(server))
+        {
         active &= ~id;
-      }
+        }
       else
         enable(server);
-    }
+      }
     else
       enable(server);
     remaining &= ~id;

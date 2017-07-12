@@ -14,15 +14,15 @@ static Sequence now(TransitionId::Value id)
 {
   timespec tp;
   clock_gettime(CLOCK_REALTIME, &tp);
-  unsigned pulseId = -1;
+  uint64_t pulseId = -1UL;
   ClockTime clocktime(tp.tv_sec, tp.tv_nsec);
-  TimeStamp timestamp(0, pulseId, 0);
+  TimeStamp timestamp(pulseId, 0);
   return Sequence(Sequence::Event, id, clocktime, timestamp);
 }
 
 static Sequence none(TransitionId::Value id)
 {
-  return Sequence(Sequence::Event, id, ClockTime(-1, -1), TimeStamp(0,-1,0) );
+  return Sequence(Sequence::Event, id, ClockTime(-1, -1), TimeStamp(-1UL,0) );
 }
 
 Transition::Transition(TransitionId::Value id,
@@ -38,8 +38,8 @@ Transition::Transition(TransitionId::Value id,
 {}
 
 Transition::Transition(TransitionId::Value id,
-           const Env&          env, 
-           unsigned            size) :
+                       const Env&          env, 
+                       unsigned            size) :
   Message  (Message::Transition, size),
   _id      (id),
   _phase   (Execute),
@@ -292,6 +292,28 @@ bool        Allocation::l3tag() const { return _options&L3Tag; }
 
 bool        Allocation::l3veto() const { return _options&L3Veto; }
 
+void        Allocation::dump() const
+{
+  printf("Partition: %s\n", _partition);
+  printf("L3Path   : %s\n", _l3path);
+  printf("DbPath   : %s\n", _dbpath);
+  printf("Part Id  : %u\n", _partitionid);
+  printf("Master Id: %u\n", _masterid);
+  printf("Bld Mask : 0x%08x%08x\n", _bld_mask[1], _bld_mask[0]);
+  printf("Bld Mask Mon : 0x%08x%08x\n", _bld_mask_mon[1], _bld_mask_mon[0]);
+  printf("NNodes   : %u\n", _nnodes);
+  printf("Options  : 0x%x\n", _options);
+  printf("UnbiasedFrac: %g\n", _unbiased_f);
+  printf("Traffic Interval: %g\n", _traffic_interval);
+  for(unsigned i=0; i<_nnodes; i++) {
+    const Node& no = _nodes[i];
+    printf("%s %08x.%08x %08x\n", 
+           Level::name(no.level()),
+           no.procInfo().log(),
+           no.procInfo().phy(),
+           no.paddr());
+  }
+}
 
 Allocate::Allocate(const Allocation& allocation) :
   Transition(TransitionId::Map, Transition::Execute, none(TransitionId::Map), 0,
@@ -311,25 +333,132 @@ Allocate::Allocate(const Allocation& allocation,
 const Allocation& Allocate::allocation() const
 { return _allocation; }
 
-RunInfo::RunInfo(unsigned run, unsigned experiment) :
-  Transition(TransitionId::BeginRun, Transition::Execute,
-             none(TransitionId::BeginRun), run,
+static const unsigned PayloadAlignment = 256;
+
+RunInfo::RunInfo() :
+  Transition(TransitionId::BeginRun, 
+             Transition::Execute,
+             none(TransitionId::BeginRun), 
+             time(0),
              sizeof(RunInfo)),
-  _run(run),_experiment(experiment)
+  _run(0),
+  _experiment(0),
+  _nsegs(0)
 {
   _expname[0] = '\0';
 }
-RunInfo::RunInfo(unsigned run, unsigned experiment, char *expname) :
-  Transition(TransitionId::BeginRun, Transition::Execute,
-             none(TransitionId::BeginRun), run,
+
+RunInfo::RunInfo(const std::list<SegPayload>& payload) :
+  Transition(TransitionId::BeginRun, 
+             Transition::Execute,
+             none(TransitionId::BeginRun), 
+             time(0),
              sizeof(RunInfo)),
-  _run(run),_experiment(experiment)
+  _run(0),
+  _experiment(0),
+  _nsegs(0)
+{
+  _expname[0] = '\0';
+  std::list<SegPayload>::const_iterator it=payload.begin(); 
+  while(it!=payload.end() && _nsegs<MaxSegs)
+    _payload[_nsegs++] = *it++;
+  if (it!=payload.end()) {}
+}
+
+RunInfo::RunInfo(unsigned                     run, 
+                 unsigned                     experiment) :
+  Transition(TransitionId::BeginRun, 
+             Transition::Execute,
+             none(TransitionId::BeginRun), 
+             run,
+             sizeof(RunInfo)),
+  _run(run),
+  _experiment(experiment), 
+  _nsegs(0)
+{
+  _expname[0] = '\0';
+}
+
+RunInfo::RunInfo(unsigned                     run, 
+                 unsigned                     experiment, 
+                 char*                        expname) :
+  Transition(TransitionId::BeginRun, 
+             Transition::Execute,
+             none(TransitionId::BeginRun), 
+             run,
+             sizeof(RunInfo)),
+  _run(run),
+  _experiment(experiment), 
+  _nsegs(0)
 {
   strncpy(_expname, expname, MaxExpName-1);
 }
-unsigned RunInfo::run() {return _run;}
-unsigned RunInfo::experiment() {return _experiment;}
-char *RunInfo::expname() {return _expname;}
+
+RunInfo::RunInfo(const std::list<SegPayload>& payload, 
+                 unsigned                     run, 
+                 unsigned                     experiment) :
+  Transition(TransitionId::BeginRun, 
+             Transition::Execute,
+             none(TransitionId::BeginRun), 
+             run,
+             sizeof(RunInfo)),
+  _run(run),
+  _experiment(experiment), 
+  _nsegs(0)
+{
+  _expname[0] = '\0';
+  std::list<SegPayload>::const_iterator it=payload.begin(); 
+  while(it!=payload.end() && _nsegs<MaxSegs)
+    _payload[_nsegs++] = *it++;
+  if (it!=payload.end()) {}
+}
+
+RunInfo::RunInfo(const std::list<SegPayload>& payload, 
+                 unsigned                     run, 
+                 unsigned                     experiment, 
+                 char*                        expname) :
+  Transition(TransitionId::BeginRun, 
+             Transition::Execute,
+             none(TransitionId::BeginRun), 
+             run,
+             sizeof(RunInfo)),
+  _run(run),
+  _experiment(experiment), 
+  _nsegs(0)
+{
+  strncpy(_expname, expname, MaxExpName-1);
+  std::list<SegPayload>::const_iterator it=payload.begin(); 
+  while(it!=payload.end() && _nsegs<MaxSegs)
+    _payload[_nsegs++] = *it++;
+  if (it!=payload.end()) {}
+}
+
+bool     RunInfo::recording () const {return _run;}
+
+unsigned RunInfo::run       () const {return _run;}
+
+unsigned RunInfo::experiment() const {return _experiment;}
+
+const char* RunInfo::expname() const {return _expname;}
+
+int      RunInfo::offset    (const ProcInfo& info) const 
+{
+  unsigned p=0;
+  for(unsigned i=0; i<_nsegs; i++) {
+    if (info == _payload[i].info)
+      return p;
+    p += (_payload[i].offset+PayloadAlignment-1)&~(PayloadAlignment-1);
+  }
+  return -1;
+}
+
+std::vector<SegPayload> RunInfo::payloads() const
+{
+  std::vector<SegPayload> v(_nsegs);
+  for(unsigned i=0; i<_nsegs; i++)
+    v[i] = _payload[i];
+  return v;
+}
 
 Kill::Kill(const Node& allocator) : 
   Transition(TransitionId::Unmap, Transition::Execute, none(TransitionId::Unmap), 0, 

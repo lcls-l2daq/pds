@@ -15,11 +15,10 @@ ObserverEb::ObserverEb(const Src& id,
                        int ipaddress,
                        unsigned eventsize,
                        unsigned eventpooldepth,
-                       int slowEb,
                        VmonEb* vmoneb) :
   EbSGroup(id, ctns, level, inlet, outlet,
            stream, ipaddress,
-           eventsize, eventpooldepth, slowEb, vmoneb)
+           eventsize, eventpooldepth, vmoneb)
 {
 }
 

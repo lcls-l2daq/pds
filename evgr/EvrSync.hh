@@ -29,14 +29,14 @@ namespace Pds {
     bool handle(const FIFOEvent&);
   private:
     EvrFIFOHandler& _fifo_handler;
-    Evr&     _er;
+    Evr&        _er;
     EvrSyncState _state;
-    Ins      _dst;
-    Task&    _task;
-    Client&  _outlet;
-    Appliance& _app;
+    Ins         _dst;
+    Task&       _task;
+    Client&     _outlet;
+    Appliance&  _app;
     GenericPool _pool;
-    unsigned _target;
+    uint64_t    _target;
   public:
     static const int EVENT_CODE_SYNC = 40;
   };

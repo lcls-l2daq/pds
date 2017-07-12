@@ -5,7 +5,7 @@
 // Enumeration of the types of Marker that are available
 // (see /utility/Marker.hh). 
 //
-// $Id$
+// $Id: MarkerId.hh 5 2008-09-13 00:15:17Z weaver $
 // $Name$
 //
 

@@ -32,10 +32,7 @@ namespace Pds {
   public:
     PartitionControl       (unsigned platform,
                             ControlCallback&,
-                            int      slowReadout,
-                            Routine* tmo = 0,
-                            Arp*     arp = 0
-                            );
+                            Routine* tmo = 0);
     ~PartitionControl      ();
   public:
     void  platform_rollcall(PlatformCallback*);
@@ -85,7 +82,7 @@ namespace Pds {
     void  use_run_info(bool);
   public: // Implements ControlLevel
     void  message          (const Node& hdr,
-          const Message& msg);
+                            const Message& msg);
   private:
     void  _next            ();
     void  _queue           (TransitionId::Value id);
@@ -116,6 +113,7 @@ namespace Pds {
     unsigned   _run;
     unsigned   _experiment;
     bool       _use_run_info;
+    std::list<SegPayload> _payload;
     unsigned   _pulse_id;
     Task*      _reportTask;
     friend class ControlAction;

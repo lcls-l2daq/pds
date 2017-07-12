@@ -8,10 +8,8 @@ namespace Pds {
   class QualifiedControl : public PartitionControl {
   public:
     QualifiedControl(unsigned         platform,
-         ControlCallback& cb,
-         int              slowReadout,
-         Routine*         tmo=0,
-         Arp*             arp=0);
+                     ControlCallback& cb,
+                     Routine*         tmo=0);
   public:
     void set_target_state(PartitionControl::State);
     void enable (PartitionControl::State,bool);

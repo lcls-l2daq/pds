@@ -35,10 +35,12 @@ using namespace Pds;
  *  THR_DAEMON    -- this process is not counted in the process exit decision
  */
 TaskObject::TaskObject(const char* name, int priority,
-			     int stackSize, char* stackBase) :
+                       int stackSize, char* stackBase,
+                       int queueSize) :
   _stacksize((size_t)stackSize), 
   _stackbase(stackBase),
-  _priority(priority)
+  _priority(priority),
+  _queueSize(queueSize)
 {
   _name = new char[strlen(name)+1];
   strcpy(_name, name);
@@ -73,7 +75,8 @@ TaskObject::TaskObject(const char* name, int priority,
 TaskObject::TaskObject() : 
   _name(0), 
   _stacksize(0), 
-  _stackbase(0)
+  _stackbase(0),
+  _queueSize(0)
 {
   pthread_attr_init(&_flags);
   _threadID = pthread_self();
@@ -98,6 +101,7 @@ TaskObject::TaskObject(const TaskObject& tobject )
   _priority = tobject._priority;
   memcpy(&_flags,&tobject._flags,sizeof(pthread_attr_t));
   memcpy(&_threadID,&tobject._threadID,sizeof(pthread_t));
+  _queueSize = tobject._queueSize;
 }
 
 /*
@@ -114,6 +118,7 @@ void TaskObject::operator= (const TaskObject& tobject)
   _priority = tobject._priority;
   memcpy(&_flags,&tobject._flags,sizeof(pthread_attr_t));
   memcpy(&_threadID,&tobject._threadID,sizeof(pthread_t));
+  _queueSize = tobject._queueSize;
 }
 
 /*

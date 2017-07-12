@@ -14,8 +14,6 @@ class EventLevel: public PartitionMember {
 public:
   EventLevel(unsigned       platform,
 	     EventCallback& callback,
-	     int            slowEb,
-	     Arp*           arp,
              unsigned       max_eventsize = 0,
              unsigned       max_buffers = 0,
 	     bool           is_triggered = false);

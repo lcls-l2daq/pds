@@ -34,10 +34,10 @@ namespace Pds {
           _fail++;
       }
       else
-        printf("%s transition: time %08x/%08x  stamp %08x/%08x, dmg %08x, payloadSize 0x%x  pass:fail=%d:%d\n",
+        printf("%s transition: time %u.%09d  stamp %016lx, dmg %08x, payloadSize 0x%x  pass:fail=%d:%d\n",
                TransitionId::name(dg->seq.service()),
                dg->seq.clock().seconds(),dg->seq.clock().nanoseconds(),
-               dg->seq.stamp().fiducials(),dg->seq.stamp().ticks(),
+               dg->seq.stamp().fiducials(),
                dg->xtc.damage.value(),
                dg->xtc.sizeofPayload(),
                _pass,_fail);
@@ -171,11 +171,11 @@ int main(int argc, char* argv[]) {
   //  unsigned damage=0;
   while ((dg = iter.next())) {
 
-    Datagram& ddg = *reinterpret_cast<Datagram*>(dg);
-    CDatagram* odg = new(&pool) CDatagram(ddg,ddg.xtc);
-
+    InDatagram* ddg = new(&pool) InDatagram(*dg);
+    ddg->insert(dg->xtc,dg->xtc.payload());
+    
     events++;
-    inlet->post(odg);
+    inlet->post(ddg);
     sem.take();
   }
 

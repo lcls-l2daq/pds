@@ -43,6 +43,7 @@ class OccurrenceId
       RequestConfigure,
       EvrEnabled,
       EvrCommandRequest,
+      RegisterPayload,
       NumberOf
     };
   };

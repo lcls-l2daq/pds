@@ -11,14 +11,12 @@ StdSegWire::StdSegWire(EbServer&   server,
                        unsigned    maxeventdepth,
                        bool        is_triggered,
                        unsigned    evr_module,
-                       unsigned    evr_channel,
-                       bool        has_fiducial) :
+                       unsigned    evr_channel) :
   _maxeventsize (maxeventsize),
   _maxeventdepth(maxeventdepth),
   _istriggered  (is_triggered),
   _evrmodule    (evr_module),
-  _evrchannel   (evr_channel),
-  _hasfiducial  (has_fiducial)
+  _evrchannel   (evr_channel)
 {
   _sources.push_back(server.client()); 
 
@@ -36,15 +34,13 @@ StdSegWire::StdSegWire(std::list<EbServer*> servers,
                        unsigned    maxeventdepth,
                        bool        is_triggered,
                        unsigned    evr_module,
-                       unsigned    evr_channel,
-                       bool        has_fiducial) :
+                       unsigned    evr_channel) :
   _server       (servers),
   _maxeventsize (maxeventsize),
   _maxeventdepth(maxeventdepth),
   _istriggered  (is_triggered),
   _evrmodule    (evr_module),
-  _evrchannel   (evr_channel),
-  _hasfiducial  (has_fiducial)
+  _evrchannel   (evr_channel)
 {
   for(std::list<EbServer*>::iterator it=servers.begin(); it!=servers.end(); it++)
     _sources.push_back((*it)->client()); 
@@ -78,6 +74,11 @@ const std::list<SrcAlias>* StdSegWire::pAliases() const
   return (_aliases.size() > 0) ? &_aliases : NULL;
 }
 
+bool     StdSegWire::needs_evr     () const
+{
+  return true; 
+}
+
 bool     StdSegWire::is_triggered   () const
 {
   return _istriggered; 
@@ -101,9 +102,4 @@ unsigned StdSegWire::max_event_size () const
 unsigned StdSegWire::max_event_depth() const
 {
   return _maxeventdepth;
-}
-
-bool StdSegWire::has_fiducial() const
-{
-  return _hasfiducial;
 }

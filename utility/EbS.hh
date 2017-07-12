@@ -19,14 +19,10 @@ class EbS : public Eb
   int ipaddress,
   unsigned eventsize,
   unsigned eventpooldepth,
-  int slowEb,
   VmonEb* vmoneb=0);
     ~EbS();
 
     void no_build(Sequence::Type type, unsigned mask);
-  public:
-    int  poll();
-    int  processIo(Server*);
   protected:
     EbEventBase* _new_event  ( const EbBitMask& );
     EbEventBase* _new_event  ( const EbBitMask&, char* payload, unsigned sizeofPayload );

@@ -21,7 +21,7 @@
 #include "Browser.hh"
 #include <stdio.h>
 
-#include "pds/xtc/CDatagramIterator.hh"
+#include "pdsdata/xtc/XtcIterator.hh"
 
 using namespace Pds;
 
@@ -32,8 +32,7 @@ using namespace Pds;
 ** --
 */
 
-Decoder::Decoder(Level::Type level) :
-  _pool(sizeof(CDatagramIterator),16)
+Decoder::Decoder(Level::Type level)
 {
   if      (level == Level::Control)  _depth = 1;
   else if (level == Level::Event)    _depth = 0;
@@ -99,12 +98,8 @@ InDatagram* Decoder::occurrences(InDatagram* in)
 */
 
 InDatagram* Decoder::_handleDg(InDatagram* in){
-  InDatagramIterator* iter = in->iterator(&_pool);
-  int advance=0;
-  Browser browser(in->datagram(), iter, _depth, advance);
+  Browser browser(in->datagram(), _depth);
   if (in->datagram().xtc.contains.id() == TypeId::Id_Xtc)
-    if (browser.iterate() < 0)
-      printf("..Terminated.\n");
-  delete iter;
+    browser.iterate();
   return in;
 }

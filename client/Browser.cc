@@ -1,8 +1,5 @@
-//#include "odfClocktFix.hh"
-
-#include "Browser.hh"
+#include "pds/client/Browser.hh"
 #include "pds/xtc/Datagram.hh"
-#include "pds/xtc/InDatagramIterator.hh"
 
 #include <stdio.h>
 
@@ -21,28 +18,25 @@ static bool _containsXtc(TypeId type)
 ** --
 */
 
-Browser::Browser(const Datagram& dg, InDatagramIterator* iter, int depth, int& advance) : 
-  XtcIterator(dg.xtc, iter), 
+Browser::Browser(const Datagram& dg, int depth) : 
+  XtcIterator(const_cast<Xtc*>(&dg.xtc)), 
   _header(1),
   _depth(depth)
 {
   const Xtc& xtc = dg.xtc;
   // This construction of the identity and contains values is a sleazy
   // trick which lets us print their contents as a simple hex value. 
-  printf(" sequence # %08X/%08X/%02X with environment 0x%08X service %d\n",
-         dg.seq.stamp().fiducials(), dg.seq.stamp().ticks(), dg.seq.stamp().control(),
+  printf(" sequence # %016lx with environment 0x%08X service %d\n",
+         dg.seq.stamp().fiducials(),
 	 dg.env.value(), dg.seq.service()); 
   printf(" source %08X/%08X, contains %x, extent %d, damage 0x%X\n", 
 	 xtc.src.log(), xtc.src.phy(), 
 	 xtc.contains.value(), 
 	 xtc.extent, xtc.damage.value());
-  if (!_containsXtc(xtc.contains))
-    advance += _dumpBinaryPayload(xtc, iter);
-  //  if (_depth < 0) advance = _dumpBinaryPayload(xtc, iter);
 }
 
-Browser::Browser(const Xtc& xtc, InDatagramIterator* iter, int depth, int& advance) : 
-  XtcIterator(xtc, iter), 
+Browser::Browser(const Xtc& xtc, int depth) : 
+  XtcIterator(const_cast<Xtc*>(&xtc)), 
   _header(1),
   _depth(depth)
 {
@@ -52,9 +46,7 @@ Browser::Browser(const Xtc& xtc, InDatagramIterator* iter, int depth, int& advan
   //	 &xtc, xtc.src.pid(), xtc.src.did(), 
   //	 *identity, *contains, 
   //	 xtc.tag.extent(), xtc.damage.value());
-  if (!_containsXtc(xtc.contains))
-    advance += _dumpBinaryPayload(xtc, iter);
-  }
+}
 
 /*
 ** ++
@@ -63,8 +55,9 @@ Browser::Browser(const Xtc& xtc, InDatagramIterator* iter, int depth, int& advan
 ** --
 */
 
-int Browser::process(const Xtc& xtc, InDatagramIterator* iter)
+int Browser::process(Xtc* pxtc)
   {
+    const Xtc& xtc = *pxtc;
   // This construction of the identity and contains values is a sleazy
   // trick which lets us print their contents as a simple hex value. 
   for (int i = _depth; i < 2; i++) printf("  ");
@@ -74,11 +67,11 @@ int Browser::process(const Xtc& xtc, InDatagramIterator* iter)
 	 xtc.extent, xtc.damage.value());
   if (_containsXtc(xtc.contains)) {
     //  if (_depth && (xtc.sizeofPayload() >= (int) sizeof(Xtc))){
-    int advance=0;
-    Browser browser(xtc, iter, _depth - 1, advance);
-    return (advance + browser.iterate());
+    Browser browser(xtc, _depth - 1);
+    (browser.iterate());
+    return 1;
   }
-  return _dumpBinaryPayload(xtc, iter);
+  return _dumpBinaryPayload(xtc);
   }
 
 
@@ -86,19 +79,15 @@ static int DumpWords=4;
 
 void Browser::setDumpLength(unsigned l) { DumpWords = l>>2; }
 
-int Browser::_dumpBinaryPayload(const Xtc& xtc, InDatagramIterator* iter){
+int Browser::_dumpBinaryPayload(const Xtc& xtc){
   int advance = xtc.sizeofPayload() >> 2;
   if(advance)
     {
       //      const int DumpWords=10;
       advance = advance < DumpWords ? advance : DumpWords;
       int remaining = advance;
-      iovec iov[1];
-      int rlen = iter->read(iov,1,remaining<<2);
-      if (rlen != remaining<<2)
-	return rlen;
 
-      unsigned* next = (unsigned*)iov[0].iov_base;
+      unsigned* next = (unsigned*)xtc.payload();
       unsigned  value;
       do 
 	{

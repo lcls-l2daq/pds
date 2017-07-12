@@ -96,3 +96,9 @@ std::vector<unsigned> EvrCommandRequest::eventCodes() const
     codes[i] = p[i];
   return codes;
 }
+
+RegisterPayload::RegisterPayload(unsigned v) :
+  Occurrence(OccurrenceId::RegisterPayload,sizeof(RegisterPayload)),
+  payload   (v)
+{
+}

@@ -6,12 +6,12 @@
 namespace Pds {
 
   class PartitionMember;
+  class SegWireSettings;
 
   class SegStreams : public WiredStreams {
   public:
     SegStreams(PartitionMember&, 
-               unsigned max_event_size,
-               unsigned max_event_depth,
+               const SegWireSettings&,
                const char* name);
 
     virtual ~SegStreams();

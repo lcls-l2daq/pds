@@ -3,9 +3,23 @@ libnames := management
 libsrcs_management := $(wildcard *.cc)
 libincs_management := pdsdata/include ndarray/include boost/include 
 
-#DEFINES += -DBUILD_SLOW_DISABLE -DBUILD_LARGE_STREAM_BUFFER # for princeton camera
-#DEFINES += -DBUILD_SLOW_DISABLE        # for long exposure. No need if princeton runs with "delay shots"
+#
+#  LCLS-II development
+#
 
-#ifneq ($(findstring -opt,$(tgt_arch)),)
-#DEFINES += -DBUILD_ZCP
-#endif
+libsrcs_management := CollectionObserver.cc \
+		      ControlLevel.cc \
+		      ControlStreams.cc \
+		      EventAppCallback.cc \
+		      MsgAppliance.cc \
+		      PartitionControl.cc \
+		      PartitionMember.cc \
+		      QualifiedControl.cc \
+		      Query.cc \
+		      SegmentLevel.cc \
+		      SegStreams.cc \
+		      SourceLevel.cc \
+		      FastSegWire.cc \
+		      StdSegWire.cc \
+		      VmonClientManager.cc \
+		      VmonServerAppliance.cc

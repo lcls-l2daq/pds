@@ -38,7 +38,6 @@ class Decoder : public Appliance
     InDatagram* markers    (InDatagram* in);
     InDatagram* _handleDg(InDatagram* in);
   private:
-    GenericPool _pool;
     int _depth;
   };
 }

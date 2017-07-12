@@ -34,7 +34,8 @@ namespace Pds {
     int      fetch       (char* payload, int flags);
   public:
     NetServer&      server();
-    unsigned        fiducials() const;
+    const Sequence& sequence() const;
+    const Env&      env     () const;
   private:
     NetServer   _server;
     Src         _client;
@@ -47,9 +48,14 @@ inline Pds::NetServer& Pds::BldServer::server()
   return _server;
 }
 
-inline unsigned Pds::BldServer::fiducials() const
+inline const Pds::Sequence& Pds::BldServer::sequence() const
 {
-  return reinterpret_cast<const Pds::Datagram*>(_server.datagram())->seq.stamp().fiducials();
+  return reinterpret_cast<const Pds::Datagram*>(_server.datagram())->seq;
+}
+
+inline const Pds::Env&      Pds::BldServer::env     () const
+{
+  return reinterpret_cast<const Pds::Datagram*>(_server.datagram())->env;
 }
 
 #endif

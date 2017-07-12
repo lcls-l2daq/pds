@@ -115,7 +115,7 @@ bool EvrSyncMaster::handle(const FIFOEvent& fe)
       timespec ts;
       clock_gettime(CLOCK_REALTIME, &ts);
       ClockTime ctime(ts.tv_sec, ts.tv_nsec);
-      TimeStamp stamp(fe.TimestampLow, _target, SyncCode);
+      TimeStamp stamp(_target, SyncCode);
       Sequence seq(Sequence::Occurrence, TransitionId::Enable, ctime, stamp);
       EvrDatagram datagram(seq, -1, 0);
       _outlet.send((char *) &datagram, 0, 0, _dst);
@@ -130,7 +130,7 @@ bool EvrSyncMaster::handle(const FIFOEvent& fe)
 
   if (_state == EnableSeek) {
     if (fe.EventCode == TermCode) {
-      unsigned dtarget = (fe.TimestampHigh
+      uint64_t dtarget = (fe.TimestampHigh
         + TimeStamp::MaxFiducials
         - _target)%TimeStamp::MaxFiducials;
       if (dtarget > EnableDelay &&
@@ -179,7 +179,7 @@ bool EvrSyncMaster::handle(const FIFOEvent& fe)
       timespec ts;
       clock_gettime(CLOCK_REALTIME, &ts);
       ClockTime ctime(ts.tv_sec, ts.tv_nsec);
-      TimeStamp stamp(fe.TimestampLow, _target, SyncCode);
+      TimeStamp stamp(_target, SyncCode);
       Sequence seq(Sequence::Occurrence, TransitionId::Disable, ctime, stamp);
       EvrDatagram datagram(seq, -1, 0);
       _outlet.send((char *) &datagram, 0, 0, _dst);

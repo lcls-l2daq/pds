@@ -43,6 +43,7 @@ public:
   static void   free(void* buffer);
          void*  shrink(void* buffer, const size_t);
 public:
+  char*         buffer()  const;
   size_t        size()    const;
   unsigned      allocs()  const;
   unsigned      frees()   const;
@@ -146,6 +147,11 @@ inline Pds::RingEntry* Pds::RingPool::_atTail() const
 inline Pds::RingEntry* Pds::RingPool::_empty() const
 {
   return (Pds::RingEntry*)_allocatedList.empty();
+}
+
+inline char* Pds::RingPool::buffer() const
+{
+  return _pool;
 }
 
 /*

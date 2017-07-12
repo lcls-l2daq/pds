@@ -36,11 +36,10 @@
 #include "pds/config/TimeToolConfigType.hh"
 #include "pds/config/Andor3dConfigType.hh"
 #include "pds/config/Generic1DConfigType.hh"
-#include "pds/config/ArchonConfigType.hh"
-#include "pds/config/JungfrauConfigType.hh"
+#include "pds/config/TriggerConfigType.hh"
+#include "pds/config/TprDSConfigType.hh"
 //#include "pds/config/ProjectionConfigType.hh"
 //#include "pds/config/SeqConfigType.hh"
-#include "pds/config/QuadAdcConfigType.hh"
 #include <cassert>
 
 #ifdef BUILD_EXTRA
@@ -124,9 +123,9 @@ const Pds::TypeId* PdsDefs::typeId(ConfigType id)
   case Andor3d      : type = &_andor3dConfigType;   break;
   case UsdUsbFex    : type = &_usdusbFexConfigType; break;
   case Generic1D    : type = &_generic1DConfigType; break;
-  case Archon       : type = &_archonConfigType;    break;
-  case Jungfrau     : type = &_jungfrauConfigType;  break;
-  case QuadAdc      : type = &_QuadAdcConfigType;   break;
+  case Trigger      : type = &_trgConfigType;       break;
+  case TprDS        : type = &_tprdsConfigType;    break;
+
     //  case Projection   : type = &_projectionConfigType; break;
   default: 
     printf("PdsDefs::typeId id %d not found\n",unsigned(id));
@@ -182,10 +181,9 @@ const Pds::TypeId* PdsDefs::typeId(const UTypeName& name)
   test(_timetoolConfigType);
   test(_andor3dConfigType);
   test(_generic1DConfigType);
+  test(_trgConfigType);
+  test(_tprdsConfigType);
   test(_usdusbFexConfigType);
-  test(_archonConfigType);
-  test(_jungfrauConfigType);
-  test(_QuadAdcConfigType);
   //  test(_projectionConfigType);    
 #undef test
   //  database-only types
@@ -241,10 +239,9 @@ const Pds::TypeId* PdsDefs::typeId(const QTypeName& name)
   test(_timetoolConfigType);
   test(_andor3dConfigType);
   test(_generic1DConfigType);
+  test(_trgConfigType);
+  test(_tprdsConfigType);
   test(_usdusbFexConfigType);
-  test(_archonConfigType);
-  test(_jungfrauConfigType);
-  test(_QuadAdcConfigType);
   //  test(_projectionConfigType);    
 #undef test
   //  database-only types

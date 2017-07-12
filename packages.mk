@@ -17,10 +17,9 @@ packages += udpcam
 packages += lecroy
 packages += pvdaq
 packages += monreq
-packages += archon
 
 ifneq ($(findstring x86_64,$(tgt_arch)),)
-  packages += firewire jungfrau
+  packages += firewire
 ##  No DDL
 #  packages += phasics
 else
@@ -36,8 +35,23 @@ ifneq ($(findstring x86_64-rhel6,$(tgt_arch)),)
 endif
 
 ifneq ($(findstring x86_64-rhel7,$(tgt_arch)),)
-	packages += 
+  packages := service collection xtc
+  packages += config confignfs configsql mon vmon
+  packages += utility management client offlineclient
+  packages += epicstools pnccd epicsArch ioc monreq
 endif
 
+#
+#  LCLS-II development
+#
 
-
+packages := service collection xtc
+ifeq ($(findstring x86_64-linux,$(tgt_arch)),)
+  packages += ibeb
+endif
+packages += montag tag
+packages += config confignfs configsql mon vmon monreq
+packages += utility management client offlineclient
+packages += epicstools ioc 
+#packages += cphw tpr tprds xpm evgr quadadc
+packages += cphw tpr tprds xpm2 evgr

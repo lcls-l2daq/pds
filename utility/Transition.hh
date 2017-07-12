@@ -9,6 +9,9 @@
 #include "pdsdata/xtc/TransitionId.hh"
 #include "pdsdata/xtc/Env.hh"
 
+#include <list>
+#include <vector>
+
 namespace Pds {
   template <unsigned N> class BitMaskArray;
   typedef BitMaskArray<PDS_BLD_MASKSIZE> BldBitMask;
@@ -20,14 +23,14 @@ namespace Pds {
 
   public:
     Transition(TransitionId::Value id,
-         Phase           phase,
-         const Sequence& sequence,
-         const Env&      env, 
-         unsigned        size=sizeof(Transition));
+               Phase           phase,
+               const Sequence& sequence,
+               const Env&      env, 
+               unsigned        size=sizeof(Transition));
 
     Transition(TransitionId::Value id,
-         const Env&          env, 
-         unsigned            size=sizeof(Transition));
+               const Env&          env, 
+               unsigned            size=sizeof(Transition));
 
     Transition(const Transition&);
 
@@ -44,6 +47,7 @@ namespace Pds {
     Phase        _phase;
     Sequence     _sequence;
     Env          _env;
+    uint32_t     _reserved; // maintain 8-byte alignment?
   private:
     void         _stampIt();
     friend class TimeStampApp;
@@ -98,6 +102,7 @@ namespace Pds {
     bool        l3veto() const;
     float       unbiased_fraction() const;
     float       traffic_interval() const;  // seconds
+    void        dump() const;
   public:
     static void set_traffic_interval(float);
   private:
@@ -130,18 +135,36 @@ namespace Pds {
     Allocation _allocation;
   };
 
+  class SegPayload {
+  public:
+    SegPayload() : info(Level::Segment, 0, 0), offset(0) {}
+    ProcInfo info;
+    unsigned offset;
+  };
+
   class RunInfo : public Transition {
   public:
+    RunInfo();
+    RunInfo(const std::list<SegPayload>&);
     RunInfo(unsigned run, unsigned experiment);
     RunInfo(unsigned run, unsigned experiment, char *expname);
-    unsigned run();
-    unsigned experiment();
-    char *expname();
+    RunInfo(const std::list<SegPayload>&, unsigned run, unsigned experiment);
+    RunInfo(const std::list<SegPayload>&, unsigned run, unsigned experiment, char *expname);
+  public:
+    bool     recording () const;
+    unsigned run       () const;
+    unsigned experiment() const;
+    const char* expname() const;
+    int      offset    (const ProcInfo&) const;
+    std::vector<SegPayload> payloads() const;
   private:
     static const unsigned MaxExpName=16;
-    uint32_t _run;
-    uint32_t _experiment;
-    char     _expname  [MaxExpName];
+    static const unsigned MaxSegs=64;
+    uint32_t   _run;
+    uint32_t   _experiment;
+    char       _expname  [MaxExpName];
+    unsigned   _nsegs;
+    SegPayload _payload[MaxSegs];
   };
 
   class Kill : public Transition {

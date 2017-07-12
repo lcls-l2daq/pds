@@ -30,7 +30,7 @@ namespace Pds {
     static uint32_t _regsfoo[ConfigV2::NumberOfRegisters][7] = {
     //offset shift mask default readOnly type selectionIndex
         {  0,  0, 0xffffffff, 0,      1, 1, 0},    //  Version,
-        {  1,  0, 1,          0,      3, 0, 0},    //  UsePgpEvr,
+        {  1,  0, 1,          0,      2, 0, 0},    //  UsePgpEvr,
         {  2,  0, 0xff,       0,      2, 0, 0},    //  evrRunCode,
         {  3,  0, 0xff,       0,      2, 0, 0},    //  evrDaqCode,
         {  4,  0, 0x7fffffff, 0,      2, 0, 0},    //  evrRunTrigDelay,
@@ -49,7 +49,7 @@ namespace Pds {
         {  8,  4, 1, 0, 0, 0, 0},    //  asicPpbeControl,
         {  7,  5, 1, 0, 0, 0, 0},    //  asicRoClk,
         {  8,  5, 1, 0, 0, 0, 0},    //  asicR0ClkControl,
-        {  8,  6, 1, 1, 3, 0, 0},    //  prepulseR0En,
+        {  8,  6, 1, 1, 0, 0, 0},    //  prepulseR0En,
         {  8,  7, 1, 0, 0, 0, 0},    //  adcStreamMode,
         {  8,  8, 1, 0, 0, 0, 0},    //  testPatternEnable,
         {  8,  9, 3, 0, 0, 0, 0},    //  SyncMode
@@ -64,15 +64,15 @@ namespace Pds {
         { 15,  0, 3,             1,       0, 0, 0},    //  AdcReadsPerPixel,
         { 16,  0, 0x7fffffff,    1,       0, 0, 0},    //  AdcClkHalfT,
         { 17,  0, 0x7fffffff,   30,       0, 0, 0},    //  AsicR0Width,
-        { 18,  0, 0x7fffffff,   31,       3, 0, 0},    //  AdcPipelineDelay,
+        { 18,  0, 0x7fffffff,   31,       0, 0, 0},    //  AdcPipelineDelay,
         { 19,  0, 0x7fffffff,   31,       0, 0, 0},    //  AdcPipelineDelay0,
         { 20,  0, 0x7fffffff,   31,       0, 0, 0},    //  AdcPipelineDelay1,
         { 21,  0, 0x7fffffff,   31,       0, 0, 0},    //  AdcPipelineDelay2,
         { 22,  0, 0x7fffffff,   31,       0, 0, 0},    //  AdcPipelineDelay3,
-        { 23,  0, 0xffff,       30,       3, 0, 0},    //  SnycWidth,
-        { 23, 16, 0xffff,       30,       3, 0, 0},    //  SyncDelay,
-        { 24,  0, 0x7fffffff,   30,       3, 0, 0},    //  PrepulseR0Width,
-        { 25,  0, 0x7fffffff, 32000,      3, 0, 0},    //  PrepulseR0Delay,
+        { 23,  0, 0xffff,       30,       0, 0, 0},    //  SnycWidth,
+        { 23, 16, 0xffff,       30,       0, 0, 0},    //  SyncDelay,
+        { 24,  0, 0x7fffffff,   30,       0, 0, 0},    //  PrepulseR0Width,
+        { 25,  0, 0x7fffffff, 32000,      0, 0, 0},    //  PrepulseR0Delay,
         { 26,  0, 0x7fffffff, 0,          1, 0, 0},    //  DigitalCardId0,
         { 27,  0, 0x7fffffff, 0,          1, 0, 0},    //  DigitalCardId1,
         { 28,  0, 0x7fffffff, 0,          1, 0, 0},    //  AnalogCardId0,
@@ -329,7 +329,7 @@ namespace Pds {
           types t = (types) type(r);
           if (t==hex) sprintf(range, "  (0x%x->0x%x)    ", rangeLow(r), rangeHigh(r));
           else if (t==decimal) sprintf(range, "  (%u->%u)    ", rangeLow(r), rangeHigh(r));
-          if ((_regs[r].readOnly != ReadOnly) && (_regs[r].readOnly != DoNotUse) && (t != selection)) {
+          if ((_regs[r].readOnly != ReadOnly) && (t != selection)) {
             strncat(_regNames[r], range, 40);
 //            printf("ConfigV2::initNames %u %s %s\n", i, range, _regNames[r]);
           }

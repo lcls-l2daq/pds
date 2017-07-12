@@ -105,7 +105,6 @@ namespace Pds {
   private:
     ///  Current event number
     unsigned              _evtCounter;
-    unsigned              _evtCounterAcc;
     ///  Event number per readout group
     std::vector<unsigned> _lSegEvtCounter;
     ///  Event number to stop at

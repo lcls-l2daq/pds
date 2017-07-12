@@ -4,7 +4,7 @@
 //--------------------------------------------------------------------------
 //
 // File and Version Information:
-// 	$Id$
+// 	$Id: EpicsCA.hh 6181 2016-07-07 01:06:10Z tookey@SLAC.STANFORD.EDU $
 //
 // Environment:
 //      This software was developed for the BaBar collaboration.  If you

@@ -117,7 +117,7 @@ InDatagram* MasterFIFOHandler::l1accept(InDatagram* in)
 
   do {
     const ClockTime&   iTriggerCounter  = in->seq.clock();
-    int                iVector          = in->seq.stamp().vector();
+    int                iVector          = 0;
 
     const EvrDataType* pEvrData         = NULL;
     bool               bOutOfOrder      = false;
@@ -126,13 +126,13 @@ InDatagram* MasterFIFOHandler::l1accept(InDatagram* in)
 
     if ( bShowFirstFiducial )
       {
-        printf("First Vector %3d Fiducial 0x%x prev 0x%x last 0x%x\n",
-               in->seq.stamp().vector(), in->seq.stamp().fiducials(), uFiducialPrev, _lastFiducial );
+        printf("First Fiducial 0x%x prev 0x%x last 0x%x\n",
+               in->seq.stamp().fiducials(), uFiducialPrev, _lastFiducial );
         bShowFirstFiducial = false;
       }
     else if ( bShowFiducial )
-      printf("Vector %3d Fiducial 0x%x prev 0x%x last 0x%x\n",
-             in->seq.stamp().vector(), in->seq.stamp().fiducials(), uFiducialPrev, _lastFiducial );
+      printf("Fiducial 0x%x prev 0x%x last 0x%x\n",
+             in->seq.stamp().fiducials(), uFiducialPrev, _lastFiducial );
 
     bool bNoL1Data = ( pEvrData == NULL );
     if ( bNoL1Data ) {
@@ -214,7 +214,7 @@ InDatagram* MasterFIFOHandler::l1accept(InDatagram* in)
   //
   //  Special software trigger service to L1 nodes
   //
-  out->send(_swtrig_out, _swtrig_dst);
+  _swtrig_out.send(static_cast<CDatagram*>(out), _swtrig_dst);
 
   return out;
 }
@@ -295,41 +295,13 @@ void MasterFIFOHandler::startL1Accept(const FIFOEvent& fe, bool bEvrDataIncomple
   if (_validateFiducial && fe.TimestampHigh == 0 && uFiducialPrev < 0x1fe00)
     {
       printf("MasterFIFOHandler::startL1Accept():"
-             "[%d] vector %d fiducial 0x%x prev 0x%x Incomplete %c "
+             "[%d] vector 0x%x fiducial 0x%x prev 0x%x Incomplete %c "
              "last 0x%x timeLow 0x%x code %d\n",
              uNumBeginCalibCycle, _evtCounter, fe.TimestampHigh, uFiducialPrev, (bEvrDataIncomplete?'Y':'n'),
              _lastFiducial, fe.TimestampLow, fe.EventCode );
     }
 
-  unsigned vector;
-  if (_randomize_nodes) {
-    //
-    //  Schedule the event node destinations for the next batch of events
-    //
-    unsigned node_index = _evtCounter%_nnodes;
-    if (node_index==0) {
-      for(unsigned i=0; i<_nnodes; i++) _vector[i]=-1;
-      for(unsigned i=0; i<_nnodes; i++) {
-        const unsigned NBITS=24;
-        const unsigned NB_MASK=((1<<NBITS)-1);
-        unsigned j = ((_nnodes-i)*(rand()&NB_MASK))>>NBITS;
-        for(unsigned k=0; (1); k++) {
-          if (_vector[k]<0)
-            if (j-- == 0) {
-              _vector[k] = i;
-              break;
-            }
-        }
-      }
-    }
-    vector = _evtCounter - node_index + _vector[node_index];
-  }
-  else {
-    vector = _evtCounter;
-  }
-
   static timespec   tsPrev        = {0,0};
-  static unsigned   vectorPrev    = 0;
   static unsigned   evtCountPrev  = 0;
   static FIFOEvent  fePrev        = {0,0,0};
   static unsigned   ntsPrints = 10;
@@ -338,26 +310,24 @@ void MasterFIFOHandler::startL1Accept(const FIFOEvent& fe, bool bEvrDataIncomple
 
   if(ts.tv_nsec == tsPrev.tv_nsec && ts.tv_sec == tsPrev.tv_sec && fe.TimestampHigh != fePrev.TimestampHigh && ntsPrints!=0) {
     printf("!!! Clocktime duplicated:\n"
-           "  Prev clock %09ld.%09ld  evr 0x%x vector 0x%x  high/low 0x%x/0x%x event %d\n"
-           "  Cur  clock %09ld.%09ld  evr 0x%x vector 0x%x  high/low 0x%x/0x%x event %d\n",
-           (long) tsPrev.tv_sec, (long) tsPrev.tv_nsec, evtCountPrev, vectorPrev, fePrev.TimestampHigh, fePrev.TimestampLow, fePrev.EventCode,
-           (long) ts.tv_sec, (long) ts.tv_nsec, _evtCounter, vector, fe.TimestampHigh, fe.TimestampLow, fe.EventCode
+           "  Prev clock %09ld.%09ld  evr 0x%x high/low 0x%x/0x%x event %d\n"
+           "  Cur  clock %09ld.%09ld  evr 0x%x high/low 0x%x/0x%x event %d\n",
+           (long) tsPrev.tv_sec, (long) tsPrev.tv_nsec, evtCountPrev, fePrev.TimestampHigh, fePrev.TimestampLow, fePrev.EventCode,
+           (long) ts.tv_sec, (long) ts.tv_nsec, _evtCounter, fe.TimestampHigh, fe.TimestampLow, fe.EventCode
            );
     ntsPrints--;
   }
   tsPrev      = ts;
-  vectorPrev  = vector;
   evtCountPrev  = _evtCounter;
   fePrev      = fe;
 
   ClockTime ctime(ts.tv_sec, ts.tv_nsec);
-  TimeStamp stamp(fe.TimestampLow, fe.TimestampHigh, vector);
+  TimeStamp stamp(fe.TimestampHigh);
 
   if (_evtCounter == 0)
     {
       _lastTime.tv_nsec = ts.tv_nsec;
       _lastTime.tv_sec = ts.tv_sec;
-      _evtCounterAcc = 0;
     }
 
   if (_state.uMaskReadout == 0) {   // Only commands, no readout
@@ -392,23 +362,11 @@ void MasterFIFOHandler::startL1Accept(const FIFOEvent& fe, bool bEvrDataIncomple
       {
         clock_gettime(CLOCK_REALTIME, &_thisTime);
         long long int nanoseconds = timeDiff(&_thisTime, &_lastTime);
-        float rate = (1000.0 + _evtCounterAcc) / (nanoseconds * 1.e-9);
-        if (rate < 150.0) {
-          printf("Evr event %d, high/low 0x%05x/0x%x, rate(Hz): %7.2f\n",
-              _evtCounter, fe.TimestampHigh, fe.TimestampLow, rate);
-          _lastTime.tv_nsec = _thisTime.tv_nsec;
-          _lastTime.tv_sec  = _thisTime.tv_sec;
-        } else {
-          if (_thisTime.tv_sec > (_lastTime.tv_sec + 4)) {
-            printf("Evr event %d, high/low 0x%05x/0x%x, rate(Hz): %7.2f\n",
-                _evtCounter, fe.TimestampHigh, fe.TimestampLow, rate);
-            _lastTime.tv_nsec = _thisTime.tv_nsec;
-            _lastTime.tv_sec  = _thisTime.tv_sec;
-            _evtCounterAcc = 0;
-          } else {
-            _evtCounterAcc += 1000;
-          }
-        }
+        float rate = 1000.0 / (nanoseconds * 1.e-9);
+        printf("Evr event %d, high/low 0x%05x/0x%x, rate(Hz): %7.2f\n",
+               _evtCounter, fe.TimestampHigh, fe.TimestampLow, rate);
+        _lastTime.tv_nsec = _thisTime.tv_nsec;
+        _lastTime.tv_sec  = _thisTime.tv_sec;
       }
 
     if (_evtCounter == _evtStop)

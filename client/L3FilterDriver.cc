@@ -15,15 +15,12 @@
 
 using namespace Pds;
 
-L3FilterDriver::L3FilterDriver(L3FilterModule* m,
-                               const char*     exp) :
+L3FilterDriver::L3FilterDriver(L3FilterModule* m) :
   _m     (m),
   _lUse  (false),
   _lVeto (false),
   _iUnbias(0)
 {
-  if (exp)
-    _m->set_experiment(std::string(exp));
 }
 
 L3FilterDriver::~L3FilterDriver()

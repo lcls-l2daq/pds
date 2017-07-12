@@ -159,11 +159,11 @@ namespace Pds {
           //
           //  Cspad + Opal1k seems to need more time?
           //
-//#ifdef BUILD_SLOW_DISABLE // no need if princeton runs with "delay shots"
-//          tv.tv_sec = 1; tv.tv_nsec = 0;
-//#else
-//          tv.tv_sec = 0; tv.tv_nsec = 300000000; // 300 ms
-//#endif
+          //#ifdef BUILD_SLOW_DISABLE // no need if princeton runs with "delay shots"
+          //          tv.tv_sec = 1; tv.tv_nsec = 0;
+          //#else
+          //          tv.tv_sec = 0; tv.tv_nsec = 300000000; // 300 ms
+          //#endif
           //  This works!
           //          tv.tv_sec = 0; tv.tv_nsec = 300000000; // 300 ms
 
@@ -172,7 +172,7 @@ namespace Pds {
           //          tv.tv_sec = 0; tv.tv_nsec = 20000000;
           nanosleep(&tv, 0);
 
-    const_cast<ControlEb&>(_control.eb()).reset(_control.partition());
+          const_cast<ControlEb&>(_control.eb()).reset(_control.partition());
 
           Transition* tr = new(&_pool) Transition(TransitionId::Disable,
                                                   Transition::Execute,
@@ -201,11 +201,11 @@ namespace Pds {
           //
           //  Cspad + Opal1k seems to need more time?
           //
-//#ifdef BUILD_SLOW_DISABLE // no need if princeton runs with "delay shots"
-//          tv.tv_sec = 2; tv.tv_nsec = 0;
-//#else
-//          tv.tv_sec = 0; tv.tv_nsec = 300000000; // 300 ms
-//#endif
+          //#ifdef BUILD_SLOW_DISABLE // no need if princeton runs with "delay shots"
+          //          tv.tv_sec = 2; tv.tv_nsec = 0;
+          //#else
+          //          tv.tv_sec = 0; tv.tv_nsec = 300000000; // 300 ms
+          //#endif
           tv.tv_sec = 0; tv.tv_nsec = 300000000; // 300 ms
 
           //  20 milliseconds is apparently not long enough
@@ -213,17 +213,17 @@ namespace Pds {
           nanosleep(&tv, 0);
         }
 #endif
-        else if (i->id()==TransitionId::Map) {
+//         else if (i->id()==TransitionId::Map) {
           //
           //  The map transition instructs the event-builder streams
           //  to register for multicasts.  Without some ping/reply
           //  protocol, we can't verify the registration is complete;
           //  so wait some reasonable time.
           //
-          timespec tv;
-          tv.tv_sec = 0; tv.tv_nsec = 50000000;
-          nanosleep(&tv, 0);
-        }
+//           timespec tv;
+//           tv.tv_sec = 0; tv.tv_nsec = 50000000;
+//           nanosleep(&tv, 0);
+//         }
         if (i->id()==TransitionId::Unmap) {
           _control._complete(i->id());
         }
@@ -242,10 +242,10 @@ namespace Pds {
             if (_control._alias_xtc)                // Alias configuration
               payload_size += _control._alias_xtc   ->extent;
 
-      if (payload_size+sizeof(Xtc) > MaxPayload) {
+            if (payload_size+sizeof(Xtc) > MaxPayload) {
               printf("PartitionControl transition payload size (0x%x) exceeds maximum.  Aborting.\n",payload_size);
-        abort();
-      }
+              abort();
+            }
 
             if (payload_size) payload_size += sizeof(Xtc);
 
@@ -256,7 +256,7 @@ namespace Pds {
                                                  i->sequence().clock(),
                                                  i->sequence().stamp()),
                                         i->env(),
-          sizeof(Transition)+payload_size);
+                                        sizeof(Transition)+payload_size);
 
             if (payload_size) {
               Xtc* top = new(reinterpret_cast<char*>(tr+1)) Xtc(_xtcType,_control.header().procInfo());
@@ -267,45 +267,45 @@ namespace Pds {
                 top->extent += cxtc->extent;
               }
 
-#define ADD_XTC(xtc)              \
-        if (xtc) {            \
+#define ADD_XTC(xtc)                                                    \
+              if (xtc) {                                                \
                 Xtc* cxtc = new(reinterpret_cast<char*>(top->next())) Xtc(*xtc); \
-                memcpy(cxtc->alloc(xtc->sizeofPayload()),   \
-                       xtc->payload(),          \
-                       xtc->sizeofPayload());       \
-                top->extent += cxtc->extent;        \
-              }               \
-
+                memcpy(cxtc->alloc(xtc->sizeofPayload()),               \
+                       xtc->payload(),                                  \
+                       xtc->sizeofPayload());                           \
+                top->extent += cxtc->extent;                            \
+              }                                                         \
+                                                                        \
               //  Attach the partition configuration
-        ADD_XTC(_control._partition_xtc);
+              ADD_XTC(_control._partition_xtc);
               //  Attach the EVR IO configuration
-        ADD_XTC(_control._ioconfig_xtc);
+              ADD_XTC(_control._ioconfig_xtc);
               //  Attach the alias configuration header and payload
               ADD_XTC(_control._alias_xtc);
             }
 
 #undef ADD_XTC
-    }
+          }
 
-    else if (xtc) {
-      if (xtc->extent > MaxPayload) {
+          else if (xtc) {
+            if (xtc->extent > MaxPayload) {
               printf("PartitionControl transition payload size (0x%x) exceeds maximum.  Aborting.\n",xtc->extent);
-        abort();
-      }
+              abort();
+            }
 
-      tr = new(&_pool) Transition(i->id(),
+            tr = new(&_pool) Transition(i->id(),
                                         Transition::Record,
                                         Sequence(Sequence::Event,
                                                  i->id(),
                                                  i->sequence().clock(),
                                                  i->sequence().stamp()),
                                         i->env(),
-          sizeof(Transition)+xtc->extent);
-      Xtc* top = new(reinterpret_cast<char*>(tr+1)) Xtc(*xtc);
-      memcpy(top->alloc(xtc->sizeofPayload()),_control._transition_payload[i->id()],xtc->sizeofPayload());
-    }
+                                        sizeof(Transition)+xtc->extent);
+            Xtc* top = new(reinterpret_cast<char*>(tr+1)) Xtc(*xtc);
+            memcpy(top->alloc(xtc->sizeofPayload()),_control._transition_payload[i->id()],xtc->sizeofPayload());
+          }
 
-    else {
+          else {
             tr = new(&_pool) Transition(i->id(),
                                         Transition::Record,
                                         Sequence(Sequence::Event,
@@ -313,7 +313,7 @@ namespace Pds {
                                                  i->sequence().clock(),
                                                  i->sequence().stamp()),
                                         i->env());
-    }
+          }
 
 #ifdef DBUG
           _dump(*tr,__LINE__);
@@ -379,18 +379,15 @@ using namespace Pds;
 
 PartitionControl::PartitionControl(unsigned platform,
                                    ControlCallback& cb,
-                                   int      slowReadout,
-                                   Routine* tmo,
-                                   Arp*     arp
-                                   ) :
-  ControlLevel    (platform, *new MyCallback(*this, cb), slowReadout, arp),
+                                   Routine* tmo ) :
+  ControlLevel    (platform, *new MyCallback(*this, cb)),
   _current_state  (Unmapped),
   _target_state   (Unmapped),
   _queued_target  (Mapped),
 #ifdef RECOVER_TMO
-  _eb             (header(),new TimeoutRecovery(*this), (slowReadout > 0? 60000: 10000)),
+  _eb             (header(),new TimeoutRecovery(*this), 10000),
 #else
-  _eb             (header(),tmo, (slowReadout > 0? 60000: 10000)),
+  _eb             (header(),tmo, 10000),
 #endif
   _sequenceTask   (new Task(TaskObject("controlSeq"))),
   _sem            (Semaphore::EMPTY),
@@ -499,7 +496,7 @@ void PartitionControl::set_target_state(State state)
 {
   if (state != _target_state || state != _target_state)
     printf("PartitionControl::set_target_state curr %s  prevtgt %s  tgt %s\n",
-         name(_current_state), name(_target_state), name(state));
+           name(_current_state), name(_target_state), name(state));
 
   State prev_target = _target_state;
   _target_state = state;
@@ -588,16 +585,16 @@ void PartitionControl::message(const Node& hdr, const Message& msg)
     {
       const Transition& tr = reinterpret_cast<const Transition&>(msg);
       if (tr.phase() == Transition::Execute) {
-
-        if (hdr==header()) {
-        }
-
+        //
+        //  Build the transition phase replies
+        //
         Transition* out = _eb.build(hdr,tr);
-        if (!out) return;
-
-        PartitionMember::message(header(),*out);
-        delete out;
-        _sem.give();
+        if (out) {
+          PartitionMember::message(header(),*out);
+          delete out;
+          _sem.give();
+        }
+        return;
       }
     }
     break;
@@ -631,7 +628,7 @@ void PartitionControl::message(const Node& hdr, const Message& msg)
         pause();
         break;
       case OccurrenceId::EvrCommandRequest:
-        { const EvrCommandRequest& r = reinterpret_cast<const EvrCommandRequest&>(msg);
+        { const EvrCommandRequest& r = static_cast<const EvrCommandRequest&>(msg);
           if (r.forward) {
             printf("Received EvrCommandRequest occurrence from %x/%d\n",
                    hdr.procInfo().ipAddr(),
@@ -640,6 +637,12 @@ void PartitionControl::message(const Node& hdr, const Message& msg)
             ro.forward=0;
             mcast(ro);
           }
+        } break;
+      case OccurrenceId::RegisterPayload:
+        { SegPayload p; 
+          p.info = hdr.procInfo(); 
+          p.offset = static_cast<const RegisterPayload&>(msg).payload;
+          _payload.push_back(p); 
         } break;
       default:
         break;
@@ -655,7 +658,7 @@ void PartitionControl::_next()
 {
 #ifdef DBUG
   printf("PartitionControl::_next  current %s  target %s\n",
-   name(_current_state), name(_target_state));
+         name(_current_state), name(_target_state));
 #endif
   if      (_current_state==_target_state) {
     pthread_cond_signal(&_target_cond);
@@ -663,19 +666,23 @@ void PartitionControl::_next()
   else if (_target_state > _current_state)
     switch(_current_state) {
     case Unmapped  : { Allocate alloc(_partition); _queue(alloc); break; }
-    case Mapped    : _queue(TransitionId::Configure      ); break;
+    case Mapped    : _payload.clear(); _queue(TransitionId::Configure      ); break;
     case Configured: {
+      { unsigned p=0;
+        for(std::list<SegPayload>::iterator it=_payload.begin(); it!=_payload.end(); it++) {
+          unsigned q=it->offset+sizeof(Xtc);
+          it->offset=p;
+          p += q;
+        }
+      }
       if (_use_run_info) {
         unsigned run = _runAllocator->alloc();
         if (run!=RunAllocator::Error) {
-          RunInfo rinfo(run,_experiment); _queue(rinfo);
+          RunInfo rinfo(_payload, run,_experiment); _queue(rinfo);
         }
       }
       else {
-        timespec ts;
-        clock_gettime(CLOCK_REALTIME,&ts);
-        Transition rinfo(TransitionId::BeginRun, ts.tv_sec);
-        _queue(rinfo );
+        RunInfo rinfo(_payload); _queue(rinfo);
       }
       break;
     }

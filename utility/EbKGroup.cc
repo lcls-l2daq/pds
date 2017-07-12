@@ -7,19 +7,18 @@
 using namespace Pds;
 
 EbKGroup::EbKGroup(const Src& id,
-   const TypeId& ctns,
-   Level::Type level,
-   Inlet& inlet,
-   OutletWire& outlet,
-   int stream,
-   int ipaddress,
-   unsigned eventsize,
-   unsigned eventpooldepth,
-   int slowEb,
-   VmonEb* vmoneb) :
+                   const TypeId& ctns,
+                   Level::Type level,
+                   Inlet& inlet,
+                   OutletWire& outlet,
+                   int stream,
+                   int ipaddress,
+                   unsigned eventsize,
+                   unsigned eventpooldepth,
+                   VmonEb* vmoneb) :
   EbK(id, ctns, level, inlet, outlet,
-     stream, ipaddress,
-     eventsize, eventpooldepth, slowEb, vmoneb)
+      stream, ipaddress,
+      eventsize, eventpooldepth, vmoneb)
 {
   // groups means that an earlier event is not necessarily completed
   // before a later event, when fragments dont contribute to both groups
@@ -60,9 +59,9 @@ EbBase::IsComplete EbKGroup::_is_complete( EbEventBase* event, const EbBitMask& 
       }
     }
 
-    EbBitMask remain1 = event->remaining();
+    //    EbBitMask remain1 = event->remaining();
     event->setClientGroup(maskClientGroup);
-    EbBitMask remain2 = event->remaining();
+    //    EbBitMask remain2 = event->remaining();
 
     //!!!debug
     //printf( "EbKGroup::_is_complete(): service 0x%x group 0x%x server 0x%x Client 0x%x remaining 0x%x -> 0x%x\n",

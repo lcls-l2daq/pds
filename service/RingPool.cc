@@ -221,7 +221,7 @@ inline void* RingPool::_alloc(const size_t minSize,
     ++_allocs;                          // Bumped, to be like Heap, etc
     ++_empties;
 
-    if (size)  *retSize = 0;
+    if (size && retSize)  *retSize = 0;
 
     return 0;
   }

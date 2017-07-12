@@ -187,7 +187,7 @@ namespace Pds {
       timespec ts;
       clock_gettime(CLOCK_REALTIME, &ts);
       ClockTime ctime(ts.tv_sec, ts.tv_nsec);
-      TimeStamp stamp(0,_fiducial, _count);
+      TimeStamp stamp(_fiducial);
 
       Sequence seq(Sequence::Event, TransitionId::L1Accept, ctime, stamp);
       EvrDatagram datagram(seq, _count, 0);
@@ -214,7 +214,7 @@ namespace Pds {
     void forward(InDatagram* dg) 
     { 
       if (_lmaster)
-	dg->send(*_swtrig_out,_swtrig_dst);
+        _swtrig_out->send(static_cast<CDatagram*>(dg),_swtrig_dst);
     }
   private:
     SimEvrTimer    _timer;

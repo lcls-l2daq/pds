@@ -356,7 +356,7 @@ void EvrSlaveFIFOHandler::startCommandAndQueueEvent(const FIFOEvent& fe, bool bE
     //  No one should depend upon it.
     //
     ClockTime   ctime   (ts.tv_sec, ts.tv_nsec);
-    TimeStamp   stamp   (fe.TimestampLow, fe.TimestampHigh, 0);
+    TimeStamp   stamp   (fe.TimestampHigh);
     Sequence    seq     (Sequence::Occurrence, TransitionId::Unknown, ctime, stamp);
     EvrDatagram datagram(seq, _evtCounter, _ncommands);
     for (int iGroup = 0; iGroup < (int) _ldst.size(); ++iGroup) {
@@ -384,7 +384,7 @@ void EvrSlaveFIFOHandler::startCommandAndQueueEvent(const FIFOEvent& fe, bool bE
         printf("EvrSlaveFIFOHandler::startL1Accept(): slaveQ was full for %d times!\n", _numSlaveQFull);
       _numSlaveQFull = 0;
     }
-    SlaveEvent slaveEvent      = { TimeStamp(fe.TimestampLow, fe.TimestampHigh, _evtCounter), _uMaskReadout };
+    SlaveEvent slaveEvent      = { TimeStamp(fe.TimestampHigh), _uMaskReadout };
     _slaveQ[_wrptrSlave%QSize] = slaveEvent;
 
     //printf("Wr slave [%04d, r %04d] fiducial 0x%x  count %d  mask 0x%x\n", _wrptrSlave, _rdptrSlave, fe.TimestampHigh, _evtCounter, _uMaskReadout);//!!!debug

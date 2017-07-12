@@ -16,15 +16,12 @@ static const unsigned MaxPayload = 0x1000000;  // 16MB
 static const unsigned ConnectTimeOut = 250; // 1/4 second
 
 PartitionMember::PartitionMember(unsigned char platform,
-           Level::Type   level,
-           int           slowEb,
-           Arp*          arp) :
-  CollectionManager(level, platform, MaxPayload, ConnectTimeOut, arp),
+                                 Level::Type   level) :
+  CollectionManager(level, platform, MaxPayload, ConnectTimeOut),
   _isallocated     (false),
   _pool            (MaxPayload,16),
   _index           ((unsigned)-1),
-  _contains        (_xtcType),
-  _slowEb          (slowEb)
+  _contains        (_xtcType)
 {
 }
 
@@ -55,7 +52,7 @@ void PartitionMember::message(const Node& hdr, const Message& msg)
 
         const Transition& tr = reinterpret_cast<const Transition&>(msg);
         if (tr.phase() == Transition::Execute &&
-            tr.id() == TransitionId::Map) {
+            tr.id   () == TransitionId::Map) {
           if (_isallocated) break;
           const Allocation& alloc =
             reinterpret_cast<const Allocate&>(tr).allocation();
@@ -76,7 +73,7 @@ void PartitionMember::message(const Node& hdr, const Message& msg)
           }
         }
         else if (tr.phase() == Transition::Execute &&
-                 tr.id() == TransitionId::Unmap) {
+                 tr.id   () == TransitionId::Unmap) {
           const Kill& kill = reinterpret_cast<const Kill&>(tr);
           if (_isallocated && kill.allocator() == _allocator) {
             lkill = true;
@@ -122,7 +119,7 @@ void PartitionMember::message(const Node& hdr, const Message& msg)
 
 
 void    PartitionMember::allocated(const Allocation& allocate,
-           unsigned          index)
+                                   unsigned          index)
 {
 }
 

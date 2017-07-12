@@ -20,13 +20,11 @@ using namespace Pds;
 
 EventLevel::EventLevel(unsigned platform,
                        EventCallback& callback,
-                       int slowEb,
-                       Arp* arp,
                        unsigned max_eventsize,
                        unsigned max_buffers,
 		       bool     is_triggered
                        ) :
-  PartitionMember(platform, Level::Event, slowEb, arp),
+  PartitionMember(platform, Level::Event),
   _callback   (callback),
   _streams    (0),
   _max_eventsize(max_eventsize),
@@ -97,7 +95,7 @@ Message& EventLevel::reply(Message::Type)
 }
 
 void    EventLevel::allocated(const Allocation& alloc,
-            unsigned          index)
+                              unsigned          index)
 {
   InletWire* inlet = _streams->wire(StreamParams::FrameWork);
 

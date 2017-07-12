@@ -7,20 +7,19 @@
 
 namespace Pds {
 
-class EbK : public Eb
+  class EbK : public Eb
   {
   public:
     EbK(const Src& id,
-  const TypeId& ctns,
-  Level::Type level,
-  Inlet& inlet,
-  OutletWire& outlet,
-  int stream,
-  int ipaddress,
-  unsigned eventsize,
-  unsigned eventpooldepth,
-  int slowEb,
-  VmonEb* vmoneb=0);
+        const TypeId& ctns,
+        Level::Type level,
+        Inlet& inlet,
+        OutletWire& outlet,
+        int stream,
+        int ipaddress,
+        unsigned eventsize,
+        unsigned eventpooldepth,
+        VmonEb* vmoneb=0);
     ~EbK();
 
     void no_build(Sequence::Type type, unsigned mask);
