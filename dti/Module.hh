@@ -9,6 +9,22 @@ namespace Pds {
 
     class UsLink {
     public:
+      bool     enabled   () const;
+      bool     tagEnabled() const;
+      bool     l1Enabled () const;
+      unsigned partition () const;
+      unsigned trigDelay () const;
+      unsigned fwdMask   () const;
+      bool     fwdMode   () const;
+    public:
+      void enable   (bool    );
+      void tagEnable(bool    );
+      void l1Enable (bool    );
+      void partition(unsigned);
+      void trigDelay(unsigned);
+      void fwdMask  (unsigned);
+      void fwdMode  (bool    );
+    public:
       //  0x0000 - RW: Link config
       //  [0]      enable      Enable link
       //  [1]      tagEnable   Enable link event tag support
@@ -30,7 +46,23 @@ namespace Pds {
       enum { NUSLinks=7 };
     public:
       Module();
-      void init();
+    public:
+      unsigned usLinkUp(        ) const;
+      void     usLinkUp(unsigned);
+      bool     bpLinkUp(        ) const;
+      void     bpLinkUp(bool    );
+      unsigned dsLinkUp(        ) const;
+      void     dsLinkUp(unsigned);
+    public:
+      void usLink(unsigned) const; // Callable from a const method
+      void dsLink(unsigned) const; // Callable from a const method
+      void clearCounters();
+      void updateCounters();
+    public:
+      unsigned monClkRate() const;
+      bool     monClkSlow() const;
+      bool     monClkFast() const;
+      bool     monClkLock() const;
     public:
       UsLink      _usLink[NUsLinks];
       //  0x0070 - RO: Link up statuses

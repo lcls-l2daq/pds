@@ -10,6 +10,7 @@ namespace Pds {
   namespace Cphw {
     class AmcTiming {
     public:
+      void setPolarity     (bool);
       void setLCLS         ();
       void setLCLSII       ();
       void resetStats      ();

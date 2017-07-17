@@ -52,6 +52,6 @@ endif
 packages += montag tag
 packages += config confignfs configsql mon vmon monreq
 packages += utility management client offlineclient
-packages += epicstools ioc 
+packages += epicstools ioc
 #packages += cphw tpr tprds xpm evgr quadadc
-packages += cphw tpr tprds xpm2 evgr
+packages += cphw tpr tprds xpm evgr

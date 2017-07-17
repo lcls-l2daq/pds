@@ -5,6 +5,16 @@
 
 using namespace Pds::Cphw;
 
+void AmcTiming::setPolarity(bool inverted)
+{
+  unsigned v = CSR;
+  if (!inverted)
+    v &= ~(1<<2);
+  else
+    v |= (1<<2);                        // Inverted
+  CSR = v;
+}
+
 void AmcTiming::setLCLS()
 {
   unsigned v = CSR;
@@ -77,7 +87,7 @@ void AmcTiming::dumpRxAlign     () const
 {
   printf("\nTarget: %u\tRstLen: %u\tLast: %u\n",
          gthAlignTarget&0x7f,
-         (gthAlignTarget>>16)&0xf, 
+         (gthAlignTarget>>16)&0xf,
          gthAlignLast&0x7f);
   for(unsigned i=0; i<128; i++) {
     printf(" %04x",(gthAlign[i/2] >> (16*(i&1)))&0xffff);
