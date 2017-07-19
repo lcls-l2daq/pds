@@ -54,4 +54,4 @@ packages += config confignfs configsql mon vmon monreq
 packages += utility management client offlineclient
 packages += epicstools ioc
 #packages += cphw tpr tprds xpm evgr quadadc
-packages += cphw tpr tprds xpm evgr
+packages += cphw tpr tprds xpm dti evgr

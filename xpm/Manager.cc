@@ -81,7 +81,7 @@ namespace Pds {
         _pv.resize(0);
 
         std::ostringstream o;
-        o << "DAQ:" << alloc.partition() << ":";
+        o << "DAQ:" << alloc.partition() << ":XPM:";
         std::string pvbase = o.str();
         _pv.push_back( new PVWriter((pvbase+"L0INPRATE").c_str()) );
         _pv.push_back( new PVWriter((pvbase+"L0ACCRATE").c_str()) );

@@ -7,6 +7,8 @@
 namespace Pds {
   namespace Dti {
 
+    class Stats;
+
     class UsLink {
     public:
       bool     enabled   () const;
@@ -43,9 +45,13 @@ namespace Pds {
     };
 
     class Module {
-      enum { NUSLinks=7 };
+    public:
+      enum { NUsLinks=7 };
+      enum { NDsLinks=7 };
     public:
       Module();
+    public:
+      Stats stats() const;
     public:
       unsigned usLinkUp(        ) const;
       void     usLinkUp(unsigned);
@@ -56,14 +62,15 @@ namespace Pds {
     public:
       void usLink(unsigned) const; // Callable from a const method
       void dsLink(unsigned) const; // Callable from a const method
-      void clearCounters();
-      void updateCounters();
+      void clearCounters()  const;
+      void updateCounters() const;
     public:
-      unsigned monClkRate() const;
-      bool     monClkSlow() const;
-      bool     monClkFast() const;
-      bool     monClkLock() const;
+      unsigned monClkRate(unsigned) const;
+      bool     monClkSlow(unsigned) const;
+      bool     monClkFast(unsigned) const;
+      bool     monClkLock(unsigned) const;
     public:
+      //  0x0000 - RW: Upstream link control
       UsLink      _usLink[NUsLinks];
       //  0x0070 - RO: Link up statuses
       //  [6:0]    usLinkUp    Upstream link status
@@ -92,16 +99,16 @@ namespace Pds {
       //  [47:0]   obSent
       Cphw::Reg64 _dsObSent;
       //  0x00A0 - RO: Indexed upstream link - rx control words count
-      Cphw::Reg   _usAppObReceived;
+      Cphw::Reg   _usObRecv;
     private:
       uint32_t    _reserved_164;
     public:
       //  0x00A8 - RO: Indexed upstream link - tx control words count
-      Cphw::Reg   _usAppObSent;
+      Cphw::Reg   _usObSent;
       //  0x00B0 - RO: Lock status of QPLLs
       //  [1:0]    qpllLock
       Cphw::Reg   _qpllLock;
-      //  0x0000 - RO: Monitor clock status
+      //  0x00B4 - RO: Monitor clock status
       //  [28:0]   monClkRate  Monitor clock rate
       //  [29]     monClkSlow  Monitor clock too slow
       //  [30]     monClkFast  Monitor clock too fast
@@ -116,6 +123,45 @@ namespace Pds {
       //  0x00C8 - RO: Count of outbound L1R triggers
       //  [19:0]   usStatus.obL1R
       Cphw::Reg   _usLinkObL1R;
+    };
+
+    class Stats {
+    public:
+      void dump() const;
+    public:
+      // Revisit: Useful?  unsigned enabled;
+      // Revisit: Useful?  unsigned tagEnabled;
+      // Revisit: Useful?  unsigned l1Enabled;
+
+      unsigned usLinkUp;
+      unsigned bpLinkUp;
+      unsigned dsLinkUp;
+      struct
+      {
+        unsigned rxErrs;
+        unsigned rxFull;
+        unsigned ibRecv;
+        unsigned ibEvt;
+        unsigned obRecv;
+        unsigned obSent;
+      }        us[Module::NUsLinks];
+      struct
+      {
+        unsigned rxErrs;
+        unsigned rxFull;
+        uint64_t obSent;
+      }        ds[Module::NDsLinks];
+      unsigned qpllLock;
+      struct
+      {
+        unsigned rate;
+        unsigned slow;
+        unsigned fast;
+        unsigned lock;
+      }        monClk[4];
+      unsigned usLinkObL0;
+      unsigned usLinkObL1A;
+      unsigned usLinkObL1R;
     };
   };
 };
