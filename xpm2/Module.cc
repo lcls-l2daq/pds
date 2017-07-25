@@ -67,7 +67,7 @@ void Module::init()
 
   printf("%8.8s %8.8s %8.8s %8.8s %8.8s %8.8s %8.8s %8.8s\n",
          "Link", "TxDelay", "Partn", "TrigSrc", "Lb", "txReset", "rxReset", "enable");
-  for(unsigned i=0; i<NDSLinks; i++) {
+  for(unsigned i=0; i<32; i++) {
     setLink(i);
     printf("%8u %8u %8u %8u %8u %8u %8u %8u\n",
            i,
@@ -82,7 +82,7 @@ void Module::init()
 
   printf("%8.8s %8.8s %8.8s %8.8s %8.8s %8.8s %8.8s\n",
          "Link", "RxErr", "TxRstD", "TxRdy", "RxRstD", "RxRdy", "isXpm");
-  for(unsigned i=0; i<NDSLinks; i++) {
+  for(unsigned i=0; i<32; i++) {
     setLink(i);
     printf("%8u %8u %8u %8u %8u %8u %8u\n",
            i,
