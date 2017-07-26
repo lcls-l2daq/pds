@@ -5,6 +5,9 @@
 #include "pds/cphw/Reg64.hh"
 
 namespace Pds {
+  namespace Cphw {
+    class HsRepeater;
+  }
   namespace Dti {
 
     class Stats;
@@ -49,6 +52,9 @@ namespace Pds {
       enum { NUsLinks=7 };
       enum { NDsLinks=7 };
     public:
+      static class Module* module();
+      static Pds::Cphw::HsRepeater* hsRepeater();
+    public:
       Module();
     public:
       Stats stats() const;
@@ -60,10 +66,10 @@ namespace Pds {
       unsigned dsLinkUp(        ) const;
       void     dsLinkUp(unsigned);
     public:
-      void usLink(unsigned) const; // Callable from a const method
-      void dsLink(unsigned) const; // Callable from a const method
-      void clearCounters()  const;
-      void updateCounters() const;
+      void usLink(unsigned) const; // Callable from const methods
+      void dsLink(unsigned) const; // Callable from const methods
+      void clearCounters()  const; // Callable from const methods
+      void updateCounters() const; // Callable from const methods
     public:
       unsigned monClkRate(unsigned) const;
       bool     monClkSlow(unsigned) const;

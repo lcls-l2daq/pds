@@ -1,7 +1,10 @@
 #include "Module.hh"
 
+#include "pds/cphw/HsRepeater.hh"
+
 #include <unistd.h>
 #include <stdio.h>
+#include <new>
 
 using namespace Pds::Dti;
 using Pds::Cphw::Reg;
@@ -68,6 +71,16 @@ void Stats::dump() const
   printf("usLinkOb  L0 %08x  L1A %08x  L1R %08x\n", usLinkObL0, usLinkObL1A, usLinkObL1R);
 }
 
+
+Module* Module::module()
+{
+  return new((void*)0x80000000) Module;
+}
+
+Pds::Cphw::HsRepeater* Module::hsRepeater()
+{
+  return new((void*)0x09000000) Pds::Cphw::HsRepeater;
+}
 
 Module::Module()
 {

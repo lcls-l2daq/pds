@@ -1,7 +1,10 @@
 #include "Module.hh"
 
+#include "pds/cphw/HsRepeater.hh"
+
 #include <unistd.h>
 #include <stdio.h>
+#include <new>
 
 using namespace Pds::Xpm;
 using Pds::Cphw::Reg;
@@ -58,7 +61,7 @@ void CoreCounts::dump() const
 
 Core& Core::get()
 {
-  return *new((void*)0) Core;
+  return *Module::core();
 }
 
 CoreCounts Core::counts() const
@@ -96,8 +99,23 @@ void L0Stats::dump() const
 }
 
 
+Module* Module::module()
+{
+  return new((void*)0x80000000) Module;
+}
+
+Core* Module::core()
+{
+  return new((void*)0) Core;
+}
+
+Pds::Cphw::HsRepeater* Module::hsRepeater()
+{
+  return new((void*)0x09000000) Pds::Cphw::HsRepeater;
+}
+
 Module::Module()
-{ init(); }
+{ /*init();*/ }
 
 void Module::init()
 {
@@ -178,10 +196,10 @@ void Module::linkEnable(unsigned link, bool v)
 {
   setLink(link);
   usleep(10);
-  unsigned q = _dsLinkConfig;
+  //unsigned q = _dsLinkConfig;
   setf(_dsLinkConfig,v?1:0,1,31);
-  unsigned r = _dsLinkConfig;
-  printf("linkEnable[%u,%c] %x -> %x\n", link,v?'T':'F',q,r);
+  //unsigned r = _dsLinkConfig;
+  //printf("linkEnable[%u,%c] %x -> %x\n", link,v?'T':'F',q,r);
 }
 
 void Module::linkLoopback(unsigned link, bool v)

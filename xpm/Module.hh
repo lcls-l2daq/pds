@@ -7,6 +7,9 @@
 #include "pds/cphw/Reg64.hh"
 
 namespace Pds {
+  namespace Cphw {
+    class HsRepeater;
+  }
   namespace Xpm {
 
     class CoreCounts {
@@ -48,8 +51,13 @@ namespace Pds {
     };
 
     class Module {
+    public:
       enum { NAmcs=2 };
       enum { NDSLinks=14 };
+    public:
+      static class Module* module();
+      static Core* core();
+      static Pds::Cphw::HsRepeater* hsRepeater();
     public:
       Module();
       void init();
