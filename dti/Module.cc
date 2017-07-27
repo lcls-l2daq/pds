@@ -112,13 +112,8 @@ void     UsLink::fwdMode(bool v)       {        setf(_config, v,  1, 31); }
 
 
 unsigned Module::usLinkUp() const      { return getf(_linkUp,     6,  0); }
-void     Module::usLinkUp(unsigned v)  {        setf(_linkUp, v,  6,  0); }
-
 bool     Module::bpLinkUp() const      { return getf(_linkUp,     1, 15); }
-void     Module::bpLinkUp(bool v)      {        setf(_linkUp, v,  1, 15); }
-
 unsigned Module::dsLinkUp() const      { return getf(_linkUp,     7, 16); }
-void     Module::dsLinkUp(unsigned v)  {        setf(_linkUp, v,  7, 16); }
 
 void     Module::usLink(unsigned v) const
 {
