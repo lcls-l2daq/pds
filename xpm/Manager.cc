@@ -91,20 +91,20 @@ namespace Pds {
         _pv.push_back( new PVWriter((pvbase+"NUML1" ).c_str()) );
         _pv.push_back( new PVWriter((pvbase+"DEADFRAC").c_str()) );
         _pv.push_back( new PVWriter((pvbase+"DEADTIME").c_str()) );
-        _pv.push_back( new PVWriter((pvbase+"DEADFLNK").c_str(),8) );
+        _pv.push_back( new PVWriter((pvbase+"DEADFLNK").c_str(),32) );
 
-        _pv.push_back( new PVWriter((pvbase+"RXCLKCOUNT").c_str()) );
-        _pv.push_back( new PVWriter((pvbase+"TXCLKCOUNT").c_str()) );
-        _pv.push_back( new PVWriter((pvbase+"RXRSTCOUNT").c_str()) );
-        _pv.push_back( new PVWriter((pvbase+"CRCERRCOUNT").c_str()) );
-        _pv.push_back( new PVWriter((pvbase+"RXDECERRCOUNT").c_str()) );
-        _pv.push_back( new PVWriter((pvbase+"RXDSPERRCOUNT").c_str()) );
-        _pv.push_back( new PVWriter((pvbase+"BYPASSRESETCOUNT").c_str()) );
-        _pv.push_back( new PVWriter((pvbase+"BYPASSDONECOUNT").c_str()) );
+        _pv.push_back( new PVWriter((pvbase+"RXCLKS").c_str()) );
+        _pv.push_back( new PVWriter((pvbase+"TXCLKS").c_str()) );
+        _pv.push_back( new PVWriter((pvbase+"RXRSTS").c_str()) );
+        _pv.push_back( new PVWriter((pvbase+"CRCERRS").c_str()) );
+        _pv.push_back( new PVWriter((pvbase+"RXDECERRS").c_str()) );
+        _pv.push_back( new PVWriter((pvbase+"RXDSPERRS").c_str()) );
+        _pv.push_back( new PVWriter((pvbase+"BYPASSRSTS").c_str()) );
+        _pv.push_back( new PVWriter((pvbase+"BYPASSDONES").c_str()) );
         _pv.push_back( new PVWriter((pvbase+"RXLINKUP").c_str()) );
-        _pv.push_back( new PVWriter((pvbase+"FIDCOUNT").c_str()) );
-        _pv.push_back( new PVWriter((pvbase+"SOFCOUNT").c_str()) );
-        _pv.push_back( new PVWriter((pvbase+"EOFCOUNT").c_str()) );
+        _pv.push_back( new PVWriter((pvbase+"FIDS").c_str()) );
+        _pv.push_back( new PVWriter((pvbase+"SOFS").c_str()) );
+        _pv.push_back( new PVWriter((pvbase+"EOFS").c_str()) );
         printf("PVs allocated\n");
       }
       void begin(const L0Stats& s)
@@ -116,20 +116,24 @@ namespace Pds {
     public:
 #define PVPUT(i,v) { *reinterpret_cast<double*>(_pv[i]->data()) = double(v); _pv[i]->put(); }
       void update(const L0Stats& ns, const L0Stats& os, double dt)
-      { unsigned numl0    = ns.numl0-os.numl0;
-        PVPUT(0,double(numl0)/dt);
-        unsigned numl0Acc = ns.numl0Acc-os.numl0Acc;
-        PVPUT(1,double(numl0Acc)/dt);
-        PVPUT(3,ns.numl0   -_begin.numl0);
-        PVPUT(4,ns.numl0Acc-_begin.numl0Acc);
-        PVPUT(6,numl0    ?double(ns.numl0Inh-os.numl0Inh)/double(numl0):0);
-        unsigned l0Enabled= ns.l0Enabled-os.l0Enabled;
-        PVPUT(7,l0Enabled?double(ns.l0Inhibited-os.l0Inhibited)/double(l0Enabled):0);
-        for(unsigned i=0; i<8; i++) {
-          reinterpret_cast<double*>(_pv[8]->data())[i] = double(ns.linkInh[i]-os.linkInh[i])/double(l0Enabled);
+      {
+        unsigned numl0     = ns.numl0    - os.numl0;
+        PVPUT(0, double(numl0)/dt);
+        unsigned numl0Acc  = ns.numl0Acc - os.numl0Acc;
+        PVPUT(1, double(numl0Acc)/dt);
+        PVPUT(3, ns.numl0    - _begin.numl0);
+        PVPUT(4, ns.numl0Acc - _begin.numl0Acc);
+        PVPUT(6, numl0 ? double(ns.numl0Inh - os.numl0Inh) / double(numl0) : 0);
+        unsigned l0Enabled = ns.l0Enabled - os.l0Enabled;
+        if (l0Enabled) {
+          PVPUT(7, double(ns.l0Inhibited - os.l0Inhibited) / double(l0Enabled));
+          for(unsigned i=0; i<32; i++) {
+            reinterpret_cast<double*>(_pv[8]->data())[i] = double(ns.linkInh[i] - os.linkInh[i]) / double(l0Enabled);
+          }
+          _pv[8]->put();
         }
-        _pv[8]->put();
-        ca_flush_io(); }
+        ca_flush_io();
+      }
       void update(const CoreCounts& nc, const CoreCounts& oc, double dt)
       {
         PVPUT( 9, double(nc.rxClkCount       - oc.rxClkCount      ) / dt);
@@ -212,8 +216,8 @@ namespace Pds {
           break;
         case TransitionId::Disable:
           { CoreCounts c = _dev.counts();
+            L0Stats    s = _dev.l0Stats();
             c.dump();
-            L0Stats s = _dev.l0Stats();
             s.dump();
 #define PDIFF(title,stat) //printf("%9.9s: %lu\n",#title,s.stat-_enableStats.stat)
             PDIFF(Enabled  ,l0Enabled);
@@ -237,11 +241,10 @@ namespace Pds {
         case TransitionId::Configure:
           { _nerror = 0;
 
-            int len     = _cfg.fetch( *tr,
-                                      _trgConfigType,
-                                      _config,
-                                      MaxConfigSize );
-
+            int len = _cfg.fetch( *tr,
+                                  _trgConfigType,
+                                  _config,
+                                  MaxConfigSize );
             if (len) {
               const TriggerConfigType& c = *reinterpret_cast<const TriggerConfigType*>(_config);
               const L0SelectType& l0t = c.l0Select()[0];
@@ -284,6 +287,7 @@ namespace Pds {
 
             for(unsigned i=0; i<_alloc.nnodes(); i++) {
               unsigned paddr = _alloc.node(i)->paddr();
+              printf("i = %d, paddr = %08x, f = %d\n", i, paddr, paddr&0xf);
               if (paddr&0xffff0000)
                 continue;
               _dev.linkEnable(paddr&0xf,lenable);
@@ -424,7 +428,8 @@ void StatsTimer::expired()
 }
 
 
-Manager::Manager(Module& dev, Server& server, CfgClientNfs& cfg) : _app(new Xpm::XpmAppliance(dev,server,cfg))
+Manager::Manager(Module& dev, Server& server, CfgClientNfs& cfg) :
+  _app(new Xpm::XpmAppliance(dev,server,cfg))
 {
   (new Pds::Tag::Server(Pds::CollectionPorts::tagserver(0).portId(),
                         *new TagServer(dev)))->start();

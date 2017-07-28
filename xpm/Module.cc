@@ -178,7 +178,7 @@ void Module::clearLinks()
 void Module::linkEnable(unsigned link, bool v)
 {
   setLink(link);
-  usleep(10);
+  //usleep(10);
   //unsigned q = _dsLinkConfig;
   setf(_dsLinkConfig,v?1:0,1,31);
   //unsigned r = _dsLinkConfig;
