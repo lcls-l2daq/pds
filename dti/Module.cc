@@ -104,9 +104,9 @@ void Module::init()
 
   printf("UsLnkStat:  %4.4s %8.8s %8.8s %10.10s %10.10s %10.10s %10.10s %10.10s\n",
          "Link", "RxErr", "RemLnkId", "RxFull", "IbDump", "IbEvt", "ObRecv", "ObSent");
-  for(unsigned i = 0; i<NDsLinks; ++i) {
+  for(unsigned i = 0; i<NUsLinks; ++i) {
     usLink(i);
-    printf("            %4u %8u %8u %10u %10u %10u %10u %10u\n",
+    printf("            %4u %8u %8x %10u %10u %10u %10u %10u\n",
            i,
            _usStatus.rxErrs(),
            _usStatus.remLinkId(),
@@ -119,9 +119,9 @@ void Module::init()
 
   printf("DsLnkStat:  %4.4s %8.8s %8.8s %10.10s %10.10s\n",
          "Link", "RxErr", "RemLnkId", "RxFull", "ObSent");
-  for(unsigned i = 0; i<NUsLinks; ++i) {
-    usLink(i);
-    printf("            %4u %8u %8u %10u %10u\n",
+  for(unsigned i = 0; i<NDsLinks; ++i) {
+    dsLink(i);
+    printf("            %4u %8u %8x %10u %10u\n",
            i,
            _dsStatus.rxErrs(),
            _dsStatus.remLinkId(),

@@ -100,6 +100,11 @@ namespace Pds {
       //  [30]     clear       Clear link counters
       //  [31]     update      Update link counters
       Cphw::Reg   _index;
+
+      Cphw::Reg   _bpObSent;
+    private:
+      uint32_t    _reserved_124;
+    public:
       class UsStatus
       {
       public:
@@ -142,6 +147,9 @@ namespace Pds {
     public:
       //  0x00A8 - RO: Indexed upstream link - tx control words count
       Cphw::Reg   _usObSent;
+    private:
+      uint32_t    _reserved_172;
+    public:
       //  0x00B0 - RO:
       //  [1:0]    qpllLock    Lock status of QPLLs
       //  [23:16]  bpPeriod    rxFull push interval - 125 MHz ticks
