@@ -197,7 +197,7 @@ unsigned HsRepeater::scanLink(unsigned chan, MeasFn measFn, void* arg)
   printf("Error data for HSR @ %p, chan %d:\n", this, chan);
   for (unsigned i = 0; i < sizeof(errs)/sizeof(*errs); ++i)
   {
-    printf("  %04x", errs[i]);
+    printf("  %06x", errs[i]);
     if (i % 8 == 7)  printf("\n");
   }
 

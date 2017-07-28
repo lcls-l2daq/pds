@@ -171,7 +171,7 @@ namespace Pds {
 
     class StatsTimer : public Timer {
     public:
-      StatsTimer(Core& core, Module& dev);
+      StatsTimer(Module& dev);
       ~StatsTimer() { _task->destroy(); }
     public:
       void allocate(const Allocation&);
@@ -183,7 +183,6 @@ namespace Pds {
       unsigned duration  () const { return 1010; }  // 1% error on timer
       unsigned repetitive() const { return 1; }
     private:
-      Core&           _core;
       Module&         _dev;
       Task*           _task;
       MonEntryScalar* _stats;
@@ -199,13 +198,12 @@ namespace Pds {
       XpmAppliance(Module&       dev,
                    Server&       srv,
                    CfgClientNfs& cfg) :
-        _core   (Core::get()),
         _dev    (dev),
         _cfg    (cfg),
         _config (new char[MaxConfigSize]),
 //         _cfgtc  (_generic1DConfigType,src),
         _occPool(sizeof(UserMessage),1),
-        _timer  (_core, dev) {}
+        _timer  (dev) {}
     public:
       Transition* transitions(Transition* tr) {
         switch(tr->id()) {
@@ -213,7 +211,7 @@ namespace Pds {
           _dev.setL0Enabled(false);
           break;
         case TransitionId::Disable:
-          { CoreCounts c = _core.counts();
+          { CoreCounts c = _dev.counts();
             c.dump();
             L0Stats s = _dev.l0Stats();
             s.dump();
@@ -281,6 +279,7 @@ namespace Pds {
             usleep(10000);
             */
             _dev.resetL0(true);
+            _dev.resetL0(false);
             bool lenable=true;
 
             for(unsigned i=0; i<_alloc.nnodes(); i++) {
@@ -291,10 +290,8 @@ namespace Pds {
             }
 
             _dev.init();
-            for(unsigned i=0; i<7; i++) { // Revisit: How many links?
-                printf("rx/tx %d Status: %08x/%08x\n",
-                       i, _dev.rxLinkStat(i), _dev.txLinkStat(i));
-              }
+            printf("rx/tx Status: %08x/%08x\n",
+                   _dev.rxLinkStat(), _dev.txLinkStat());
 
             printf("Configuration Done\n");
 
@@ -324,7 +321,7 @@ namespace Pds {
         case TransitionId::L1Accept:
           break;
         case TransitionId::Enable:
-          _core.counts().dump();
+          _dev.counts().dump();
           (_enableStats=_dev.l0Stats()).dump();
           _dev.setL0Enabled(true);
           break;
@@ -340,7 +337,6 @@ namespace Pds {
         return dg;
       }
     private:
-      Core&         _core;
       Module&       _dev;
       CfgClientNfs& _cfg;
       char*         _config;
@@ -355,8 +351,7 @@ namespace Pds {
 
 using namespace Pds::Xpm;
 
-StatsTimer::StatsTimer(Core& core, Module& dev) :
-  _core     (core),
+StatsTimer::StatsTimer(Module& dev) :
   _dev      (dev),
   _task     (new Task(TaskObject("PtnS")))
 {
@@ -389,7 +384,7 @@ void StatsTimer::allocate(const Allocation& alloc)
 
 void StatsTimer::start()
 {
-  _core.resetStats();
+  _dev._timing.resetStats();
 
   _pv.begin(_dev.l0Stats());
   Timer::start();
@@ -407,8 +402,8 @@ void StatsTimer::cancel()
 void StatsTimer::expired()
 {
   timespec t; clock_gettime(CLOCK_REALTIME,&t);
-  CoreCounts c = _core.counts();
-  L0Stats s = _dev.l0Stats();
+  CoreCounts c = _dev.counts();
+  L0Stats    s = _dev.l0Stats();
 #define INCSTAT(v,i) _stats->addvalue(s.v-_s.v, i)
   INCSTAT(l0Enabled  ,0);
   INCSTAT(l0Inhibited,1);

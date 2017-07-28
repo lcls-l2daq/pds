@@ -1,7 +1,5 @@
 #include "Module.hh"
 
-#include "pds/cphw/HsRepeater.hh"
-
 #include <unistd.h>
 #include <stdio.h>
 #include <new>
@@ -59,26 +57,21 @@ void CoreCounts::dump() const
 }
 
 
-Core& Core::get()
-{
-  return *Module::core();
-}
-
-CoreCounts Core::counts() const
+CoreCounts Module::counts() const
 {
   CoreCounts c;
-  c.rxClkCount       = RxRecClks;
-  c.txClkCount       = TxRefClks;
-  c.rxRstCount       = RxRstDone;
-  c.crcErrCount      = CRCerrors;
-  c.rxDecErrCount    = RxDecErrs;
-  c.rxDspErrCount    = RxDspErrs;
-  c.bypassResetCount = (BuffByCnts >> 16) & 0xffff;
-  c.bypassDoneCount  = (BuffByCnts >>  0) & 0xffff;
-  c.rxLinkUp         = (CSR >> 1) & 0x01;
-  c.fidCount         = Msgcounts;
-  c.sofCount         = SOFcounts;
-  c.eofCount         = EOFcounts;
+  c.rxClkCount       = _timing.RxRecClks;
+  c.txClkCount       = _timing.TxRefClks;
+  c.rxRstCount       = _timing.RxRstDone;
+  c.crcErrCount      = _timing.CRCerrors;
+  c.rxDecErrCount    = _timing.RxDecErrs;
+  c.rxDspErrCount    = _timing.RxDspErrs;
+  c.bypassResetCount = (_timing.BuffByCnts >> 16) & 0xffff;
+  c.bypassDoneCount  = (_timing.BuffByCnts >>  0) & 0xffff;
+  c.rxLinkUp         = (_timing.CSR >> 1) & 0x01;
+  c.fidCount         = _timing.Msgcounts;
+  c.sofCount         = _timing.SOFcounts;
+  c.eofCount         = _timing.EOFcounts;
 
   return c;
 }
@@ -99,19 +92,9 @@ void L0Stats::dump() const
 }
 
 
-Module* Module::module()
+Module* Module::locate()
 {
-  return new((void*)0x80000000) Module;
-}
-
-Core* Module::core()
-{
-  return new((void*)0) Core;
-}
-
-Pds::Cphw::HsRepeater* Module::hsRepeater()
-{
-  return new((void*)0x09000000) Pds::Cphw::HsRepeater;
+  return new((void*)0) Module;
 }
 
 Module::Module()
@@ -119,9 +102,9 @@ Module::Module()
 
 void Module::init()
 {
-  printf("Module: paddr %x\n", unsigned(_paddr));
+  printf("Module:    paddr %x\n", unsigned(_paddr));
 
-  printf("Index:  partition %u  link %u  linkDebug %u  amc %u  inhibit %u  tagStream %u\n",
+  printf("Index:     partition %u  link %u  linkDebug %u  amc %u  inhibit %u  tagStream %u\n",
          getf(_index,4,0),
          getf(_index,6,4),
          getf(_index,4,10),
@@ -131,11 +114,11 @@ void Module::init()
 
   unsigned il = getLink();
 
-  printf("%8.8s %8.8s %8.8s %8.8s %8.8s %8.8s %8.8s %8.8s\n",
+  printf("DsLnkCfg:  %4.4s %8.8s %8.8s %8.8s %8.8s %8.8s %8.8s %8.8s\n",
          "Link", "TxDelay", "Partn", "TrigSrc", "Loopback", "TxReset", "RxReset", "Enable");
   for(unsigned i=0; i<NDSLinks; i++) {
     setLink(i);
-    printf("%8u %8u %8u %8u %8u %8u %8u %8u\n",
+    printf("           %4u %8u %8u %8u %8u %8u %8u %8u\n",
            i,
            getf(_dsLinkConfig,20,0),
            getf(_dsLinkConfig,4,20),
@@ -146,11 +129,11 @@ void Module::init()
            getf(_dsLinkConfig,1,31));
   }
 
-  printf("%8.8s %8.8s %8.8s %8.8s %8.8s %8.8s %8.8s\n",
+  printf("DsLnkStat: %4.4s %8.8s %8.8s %8.8s %8.8s %8.8s %8.8s\n",
          "Link", "RxErr", "TxRstDn", "TxRdy", "RxRstDn", "RxRdy", "isXpm");
   for(unsigned i=0; i<NDSLinks; i++) {
     setLink(i);
-    printf("%8u %8u %8u %8u %8u %8u %8u\n",
+    printf("           %4u %8u %8u %8u %8u %8u %8u\n",
            i,
            getf(_dsLinkStatus,16,0),
            getf(_dsLinkStatus,1,16),
@@ -257,16 +240,24 @@ unsigned Module::rxLinkErrs(unsigned link) const
 }
 
 
-unsigned Module::txLinkStat(unsigned link) const
+unsigned Module::txLinkStat() const
 {
-  setLink(link);
-  return getf(_dsLinkStatus,1,17);
+  unsigned ls = 0;
+  for(unsigned i=0; i<NDSLinks; i++) {
+    setLink(i);
+    ls |= getf(_dsLinkStatus,1,17) << i;
+  }
+  return ls;
 }
 
-unsigned Module::rxLinkStat(unsigned link) const
+unsigned Module::rxLinkStat() const
 {
-  setLink(link);
-  return getf(_dsLinkStatus,1,19);
+  unsigned ls = 0;
+  for(unsigned i=0; i<NDSLinks; i++) {
+    setLink(i);
+    ls |= getf(_dsLinkStatus,1,19) << i;
+  }
+  return ls;
 }
 void Module::resetL0(bool v)
 {

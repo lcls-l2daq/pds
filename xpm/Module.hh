@@ -5,11 +5,10 @@
 
 #include "pds/cphw/Reg.hh"
 #include "pds/cphw/Reg64.hh"
+#include "pds/cphw/AmcTiming.hh"
+#include "pds/cphw/HsRepeater.hh"
 
 namespace Pds {
-  namespace Cphw {
-    class HsRepeater;
-  }
   namespace Xpm {
 
     class CoreCounts {
@@ -30,13 +29,6 @@ namespace Pds {
       uint64_t eofCount;
     };
 
-    class Core : public Pds::Cphw::AmcTiming {
-    public:
-      static class Core& get();
-    public:
-      CoreCounts counts() const;
-    };
-
     class L0Stats {
     public:
       void dump() const;
@@ -55,17 +47,24 @@ namespace Pds {
       enum { NAmcs=2 };
       enum { NDSLinks=14 };
     public:
-      static class Module* module();
-      static Core* core();
-      static Pds::Cphw::HsRepeater* hsRepeater();
+      static class Module* locate();
     public:
       Module();
       void init();
     public:
-      bool     l0Enabled () const;
-      L0Stats  l0Stats   () const;
-      unsigned txLinkStat(unsigned) const;
-      unsigned rxLinkStat(unsigned) const;
+      Pds::Cphw::AmcTiming  _timing;
+    private:
+      uint32_t _reserved_AT[(0x09000000-sizeof(Module::_timing))>>2];
+    public:
+      Pds::Cphw::HsRepeater _hsRepeater[6];
+    private:
+      uint32_t _reserved_HR[(0x77000000-sizeof(Module::_hsRepeater))>>2];
+    public:
+      CoreCounts counts    () const;
+      bool       l0Enabled () const;
+      L0Stats    l0Stats   () const;
+      unsigned   txLinkStat() const;
+      unsigned   rxLinkStat() const;
     public:
       void clearLinks  ();
       void linkEnable  (unsigned, bool);
@@ -140,18 +139,18 @@ namespace Pds {
       //  [20]    rxIsXpm       Remote side is XPM
       Cphw::Reg  _dsLinkStatus;
       //  0x0010 - RW: PLL configuration for AMC[index]
-      //  [3:0]   loop filter bandwidth selection
-      //  [5:4]   frequency table - character {L,H,M} = 00,01,1x
-      //  [15:8]  frequency selection - 4 characters
-      //  [19:16] rate - 2 characters
-      //  [20]    increment phase
-      //  [21]    decrement phase
-      //  [22]    bypass PLL
-      //  [23]    reset PLL (inverted)
-      //  [26:24] pllcount[0] for amc[index] (RO)
-      //  [27]    pll stat[0] for amc[index] (RO)
-      //  [30:28] pllcount[1] for amc[index] (RO)
-      //  [31]    pll stat[1] for amc[index] (RO)
+      //  [3:0]   bwSel         Loop filter bandwidth selection
+      //  [5:4]   frqTbl        Frequency table - character {L,H,M} = 00,01,1x
+      //  [15:8]  frqSel        Frequency selection - 4 characters
+      //  [19:16] rate          Rate - 2 characters
+      //  [20]    inc           Increment phase
+      //  [21]    dec           Decrement phase
+      //  [22]    bypass        Bypass PLL
+      //  [23]    rstn          Reset PLL (inverted)
+      //  [26:24] pllCount[0]   PLL count[0] for AMC[index] (RO)
+      //  [27]    pllStat[0]    PLL stat[0]  for AMC[index] (RO)
+      //  [30:28] pllCount[1]   PLL count[1] for AMC[index] (RO)
+      //  [31]    pllStat[1]    PLL stat[1]  for AMC[index] (RO)
       Cphw::Reg   _pllConfig;
       //  0x0014 - RW: L0 selection control for partition[index]
       //  [0]     reset
@@ -163,8 +162,8 @@ namespace Pds {
       //  [31:16]  destSel      L0 destination selection
       //
       //  [15:14]=00 (fixed rate), [3:0] fixed rate marker
-      //  [15:14]=01 (ac rate), [8:3] timeslot mask, [2:0] ac rate marker
-      //  [15:14]=10 (sequence), [13:8] sequencer, [3:0] sequencer bit
+      //  [15:14]=01 (ac rate),    [8:3] timeslot mask, [2:0] ac rate marker
+      //  [15:14]=10 (sequence),   [13:8] sequencer, [3:0] sequencer bit
       //  [31]=1 any destination or match any of [14:0] mask of destinations
       Cphw::Reg   _l0Select;
       //  0x001c - RO: Clks enabled for partition[index]
@@ -184,9 +183,9 @@ namespace Pds {
       //  [16]    NL1Triggers enable mask bits
       Cphw::Reg   _l1config0;
       //  0x0050 - RW: L1 select config for partition[index]
-      //  [3:0]   src           L1 trigger source link
-      //  [12:4]  word          L1 trigger word
-      //  [16]    wr            L1 trigger write mask
+      //  [3:0]   trigsrc       L1 trigger source link
+      //  [12:4]  trigword      L1 trigger word
+      //  [16]    trigwr        L1 trigger write mask
       Cphw::Reg   _l1config1;
       //  0x0054 - RW: Analysis tag reset for partition[index]
       //  [3:0]   reset
@@ -213,20 +212,18 @@ namespace Pds {
       uint32_t    _reserved_116[3];
     public:
       //  0x0080 - RW: Inhibit configurations for partition[index]
-      //  [11:0]  interval (929kHz ticks)
-      //  [15:12] max # accepts within interval
-      //  [31]    enable
+      //  [11:0]  interval      interval (929kHz ticks)
+      //  [15:12] limit         max # accepts within interval
+      //  [31]    enable        enable
       Cphw::Reg    _inhibitConfig[4];
       //  0x0090 - RO: Inhibit assertions by DS link for partition[index]
-      Cphw::Reg    _inhibitCounts[NDSLinks];
-    private:
-      uint32_t    _reserved_148_268[32-NDSLinks];
+      Cphw::Reg    _inhibitCounts[32];
     public:
       //  0x0110 - RO: Monitor clock
       //  [28: 0]  Rate
-      //  [29]     Lock
-      //  [30]     Slow
-      //  [31]     Fast
+      //  [29]     Slow
+      //  [30]     Fast
+      //  [31]     Lock
       Cphw::Reg _monClk[4];
     };
   };

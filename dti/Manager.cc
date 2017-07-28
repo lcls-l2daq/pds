@@ -100,7 +100,7 @@ namespace Pds {
             unsigned links = _usLinks;
             for (unsigned i = 0; links; ++i) {
               if (links & (1 << i)) {
-                _dev._usLink[i].l1Enable(false);
+                _dev._usLinkConfig[i].l1Enable(false);
                 links &= ~(1 << i);
               }
             }
@@ -175,8 +175,8 @@ namespace Pds {
             unsigned links = _usLinks;
             for (unsigned i = 0; links; ++i) {
               if (links & (1 << i)) {
-                _dev._usLink[i].enable(true);
-                _dev._usLink[i].tagEnable(true);
+                _dev._usLinkConfig[i].enable(true);
+                _dev._usLinkConfig[i].tagEnable(true);
                 links &= ~(1 << i);
               }
             }
@@ -226,7 +226,7 @@ namespace Pds {
             unsigned links = _usLinks;
             for (unsigned i = 0; links; ++i) {
               if (links & (1 << i)) {
-                _dev._usLink[i].l1Enable(true);
+                _dev._usLinkConfig[i].l1Enable(true);
                 links &= ~(1 << i);
               }
             }

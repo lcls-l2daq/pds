@@ -1,7 +1,5 @@
 #include "Module.hh"
 
-#include "pds/cphw/HsRepeater.hh"
-
 #include <unistd.h>
 #include <stdio.h>
 #include <new>
@@ -72,69 +70,132 @@ void Stats::dump() const
 }
 
 
-Module* Module::module()
+Module* Module::locate()
 {
-  return new((void*)0x80000000) Module;
-}
-
-Pds::Cphw::HsRepeater* Module::hsRepeater()
-{
-  return new((void*)0x09000000) Pds::Cphw::HsRepeater;
+  return new((void*)0) Module;
 }
 
 Module::Module()
 {
   clearCounters();
   updateCounters();                     // Revisit: Necessary?
+
+  /*init();*/
+}
+
+void Module::init()
+{
+  printf("Index:      UsLink %u  DsLink %u\n", usLink(), dsLink());
+  printf("Link Up:    Us %02x  Bp %d  Ds %02x\n", usLinkUp(), bpLinkUp(), dsLinkUp());
+
+  printf("UsLnkCfg:   %4.4s %8.8s %8.8s %8.8s %8.8s %8.8s %8.8s %8.8s\n",
+         "Link", "Enable", "TagEnbl", "L1Enbl", "Partn", "TrgDelay", "FwdMask", "FwdMode");
+  for(unsigned i = 0; i<NUsLinks; ++i) {
+    printf("            %4u %8u %8u %8u %8u %8u %8u %8u\n",
+           i,
+           _usLinkConfig[i].enabled(),
+           _usLinkConfig[i].tagEnabled(),
+           _usLinkConfig[i].l1Enabled(),
+           _usLinkConfig[i].partition(),
+           _usLinkConfig[i].trigDelay(),
+           _usLinkConfig[i].fwdMask(),
+           _usLinkConfig[i].fwdMode());
+  }
+
+  printf("UsLnkStat:  %4.4s %8.8s %8.8s %10.10s %10.10s %10.10s %10.10s %10.10s\n",
+         "Link", "RxErr", "RemLnkId", "RxFull", "IbDump", "IbEvt", "ObRecv", "ObSent");
+  for(unsigned i = 0; i<NDsLinks; ++i) {
+    usLink(i);
+    printf("            %4u %8u %8u %10u %10u %10u %10u %10u\n",
+           i,
+           _usStatus.rxErrs(),
+           _usStatus.remLinkId(),
+           unsigned(_usStatus._rxFull),
+           unsigned(_usStatus._ibDump),
+           unsigned(_usStatus._ibEvt),
+           unsigned(_usObRecv),
+           unsigned(_usObSent));
+  }
+
+  printf("DsLnkStat:  %4.4s %8.8s %8.8s %10.10s %10.10s\n",
+         "Link", "RxErr", "RemLnkId", "RxFull", "ObSent");
+  for(unsigned i = 0; i<NUsLinks; ++i) {
+    usLink(i);
+    printf("            %4u %8u %8u %10u %10u\n",
+           i,
+           _dsStatus.rxErrs(),
+           _dsStatus.remLinkId(),
+           unsigned(_dsStatus._rxFull),
+           unsigned(_dsStatus._obSent));
+  }
+
+  printf("QPLL:       Lock %u  BpTxPd %u\n", qpllLock(), bpTxInterval());
+  printf("MonClk:     %4.4s %4.4s %4.4s %4.4s\n", "Rate", "Slow", "Fast", "Lock");
+  for(unsigned i = 0; i < sizeof(_monClk)/sizeof(*_monClk); ++i) {
+    printf("       %9u %4u %4u %4u\n",
+           monClkRate(i), monClkSlow(i), monClkFast(i), monClkLock(i));
+  }
 }
 
 
-bool     UsLink::enabled() const       { return getf(_config,     1,  0); }
-void     UsLink::enable(bool v)        {        setf(_config, v,  1,  0); }
+bool     Module::UsLink::enabled()       const { return getf(_config,     1,  0); }
+void     Module::UsLink::enable(bool v)        {        setf(_config, v,  1,  0); }
 
-bool     UsLink::tagEnabled() const    { return getf(_config,     1,  1); }
-void     UsLink::tagEnable(bool v)     {        setf(_config, v,  1,  1); }
+bool     Module::UsLink::tagEnabled()    const { return getf(_config,     1,  1); }
+void     Module::UsLink::tagEnable(bool v)     {        setf(_config, v,  1,  1); }
 
-bool     UsLink::l1Enabled() const     { return getf(_config,     1,  2); }
-void     UsLink::l1Enable(bool v)      {        setf(_config, v,  1,  2); }
+bool     Module::UsLink::l1Enabled()     const { return getf(_config,     1,  2); }
+void     Module::UsLink::l1Enable(bool v)      {        setf(_config, v,  1,  2); }
 
-unsigned UsLink::partition() const     { return getf(_config,     4,  4); }
-void     UsLink::partition(unsigned v) {        setf(_config, v,  4,  4); }
+unsigned Module::UsLink::partition()     const { return getf(_config,     4,  4); }
+void     Module::UsLink::partition(unsigned v) {        setf(_config, v,  4,  4); }
 
-unsigned UsLink::trigDelay() const     { return getf(_config,     8,  8); }
-void     UsLink::trigDelay(unsigned v) {        setf(_config, v,  8,  8); }
+unsigned Module::UsLink::trigDelay()     const { return getf(_config,     8,  8); }
+void     Module::UsLink::trigDelay(unsigned v) {        setf(_config, v,  8,  8); }
 
-unsigned UsLink::fwdMask() const       { return getf(_config,    13, 16); }
-void     UsLink::fwdMask(unsigned v)   {        setf(_config, v, 13, 16); }
+unsigned Module::UsLink::fwdMask()       const { return getf(_config,    13, 16); }
+void     Module::UsLink::fwdMask(unsigned v)   {        setf(_config, v, 13, 16); }
 
-bool     UsLink::fwdMode() const       { return getf(_config,     1, 31); }
-void     UsLink::fwdMode(bool v)       {        setf(_config, v,  1, 31); }
+bool     Module::UsLink::fwdMode()       const { return getf(_config,     1, 31); }
+void     Module::UsLink::fwdMode(bool v)       {        setf(_config, v,  1, 31); }
 
 
-unsigned Module::usLinkUp() const      { return getf(_linkUp,     6,  0); }
+unsigned Module::usLinkUp() const      { return getf(_linkUp,     7,  0); }
 bool     Module::bpLinkUp() const      { return getf(_linkUp,     1, 15); }
 unsigned Module::dsLinkUp() const      { return getf(_linkUp,     7, 16); }
 
+unsigned Module::usLink() const        { return getf(_index,      4,  0); }
 void     Module::usLink(unsigned v) const
 {
-  setf(const_cast<Pds::Cphw::Reg&>(_linkIndices), v, 4,  0);
+  setf(const_cast<Pds::Cphw::Reg&>(_index), v, 4,  0);
 }
+unsigned Module::dsLink() const        { return getf(_index,      4, 16); }
 void     Module::dsLink(unsigned v) const
 {
-  setf(const_cast<Pds::Cphw::Reg&>(_linkIndices), v, 4, 16);
+  setf(const_cast<Pds::Cphw::Reg&>(_index), v, 4, 16);
 }
 void     Module::clearCounters() const
 {
-  setf(const_cast<Pds::Cphw::Reg&>(_linkIndices), 1, 1, 30);
+  setf(const_cast<Pds::Cphw::Reg&>(_index), 1, 1, 30);
   usleep(10);
-  setf(const_cast<Pds::Cphw::Reg&>(_linkIndices), 0, 1, 30);
+  setf(const_cast<Pds::Cphw::Reg&>(_index), 0, 1, 30);
 }
 void     Module::updateCounters() const
 {
-  setf(const_cast<Pds::Cphw::Reg&>(_linkIndices), 1, 1, 31);
+  setf(const_cast<Pds::Cphw::Reg&>(_index), 1, 1, 31);
   usleep(10);
-  setf(const_cast<Pds::Cphw::Reg&>(_linkIndices), 0, 1, 31);
+  setf(const_cast<Pds::Cphw::Reg&>(_index), 0, 1, 31);
 }
+
+unsigned Module::UsStatus::rxErrs()    const  { return getf(_rxErrs,    24,  0); }
+unsigned Module::UsStatus::remLinkId() const  { return getf(_rxErrs,     8, 24); }
+
+unsigned Module::DsStatus::rxErrs()    const  { return getf(_rxErrs,    24,  0); }
+unsigned Module::DsStatus::remLinkId() const  { return getf(_rxErrs,     8, 24); }
+
+unsigned Module::qpllLock()     const         { return getf(_qpllLock,       2,  0); }
+unsigned Module::bpTxInterval() const         { return getf(_qpllLock,       8, 16); }
+void     Module::bpTxInterval(unsigned v)     {        setf(_qpllLock,   v,  8, 16); }
 
 unsigned Module::monClkRate(unsigned i) const { return getf(_monClk[i], 29,  0); }
 bool     Module::monClkSlow(unsigned i) const { return getf(_monClk[i],  1, 29); }
@@ -157,10 +218,11 @@ Stats Module::stats() const
   {
     usLink(i);
 
-    s.us[i].rxErrs = _usRxErrs;
-    s.us[i].rxFull = _usRxFull;
-    s.us[i].ibRecv = _usIbRecv;
-    s.us[i].ibEvt  = _usIbEvt;
+    s.us[i].rxErrs = _usStatus.rxErrs();
+    s.us[i].rxFull = _usStatus._rxFull;
+    //s.us[i].ibRecv = _usStatus._ibRecv;
+    s.us[i].ibRecv = _usStatus._ibDump;
+    s.us[i].ibEvt  = _usStatus._ibEvt;
     s.us[i].obRecv = _usObRecv;
     s.us[i].obSent = _usObSent;
   }
@@ -169,12 +231,12 @@ Stats Module::stats() const
   {
     dsLink(i);
 
-    s.ds[i].rxErrs = _dsRxErrs;
-    s.ds[i].rxFull = _dsRxFull;
-    s.ds[i].obSent = _dsObSent;
+    s.ds[i].rxErrs = _dsStatus.rxErrs();
+    s.ds[i].rxFull = _dsStatus._rxFull;
+    s.ds[i].obSent = _dsStatus._obSent;
   }
 
-  s.qpllLock = _qpllLock;
+  s.qpllLock = qpllLock();
 
   updateCounters();                     // Revisit: Is this needed?
 
