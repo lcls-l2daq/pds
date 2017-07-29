@@ -100,7 +100,7 @@ namespace Pds {
       //  [30]     clear       Clear link counters
       //  [31]     update      Update link counters
       Cphw::Reg   _index;
-
+      //  0x0078 - RO: Tx words count
       Cphw::Reg   _bpObSent;
     private:
       uint32_t    _reserved_124;
@@ -191,6 +191,7 @@ namespace Pds {
         unsigned obRecv;
         unsigned obSent;
       }        us[Module::NUsLinks];
+      unsigned bpObSent;
       struct
       {
         unsigned rxErrs;

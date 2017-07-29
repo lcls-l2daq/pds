@@ -43,6 +43,8 @@ void Stats::dump() const
            us[i].obSent);
   }
 
+  PU32(bpObSent, bpObSent);
+
   printf("DsLink  RxErrs    RxFull      ObSent\n");
   //      0      00000000  00000000  000000000000
   for (unsigned i = 0; i < Module::NDsLinks; ++i)
@@ -129,6 +131,7 @@ void Module::init()
            unsigned(_dsStatus._obSent));
   }
 
+  printf("BpObSent:   %u\n", unsigned(_bpObSent));
   printf("QPLL:       Lock %u  BpTxPd %u\n", qpllLock(), bpTxInterval());
   printf("MonClk:     %4.4s %4.4s %4.4s %4.4s\n", "Rate", "Slow", "Fast", "Lock");
   for(unsigned i = 0; i < sizeof(_monClk)/sizeof(*_monClk); ++i) {
@@ -226,6 +229,8 @@ Stats Module::stats() const
     s.us[i].obRecv = _usObRecv;
     s.us[i].obSent = _usObSent;
   }
+
+  s.bpObSent = _bpObSent;
 
   for (unsigned i = 0; i < NDsLinks; ++i)
   {
