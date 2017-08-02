@@ -33,97 +33,82 @@ namespace Pds {
       o << title << ":DTI:";
       std::string pvbase = o.str();
 
-      _pv.push_back( new PVWriter((pvbase+"USLINKS").c_str()) );
-      _pv.push_back( new PVWriter((pvbase+"BPLINK" ).c_str()) );
-      _pv.push_back( new PVWriter((pvbase+"DSLINKS").c_str()) );
+      _pv.push_back( new PVWriter((pvbase+"UsLinks").c_str()) );
+      _pv.push_back( new PVWriter((pvbase+"BpLink" ).c_str()) );
+      _pv.push_back( new PVWriter((pvbase+"DsLinks").c_str()) );
 
-      for (unsigned i = 0; i < Module::NUsLinks; ++i)
-      {
-        std::ostringstream u;
-        u << pvbase << "US:" << i << ":";
-        std::string base = u.str();
-        _pv.push_back( new PVWriter((base+"RXERRS").c_str()) );
-        _pv.push_back( new PVWriter((base+"RXFULL").c_str()) );
-        _pv.push_back( new PVWriter((base+"IBRECV").c_str()) );
-        _pv.push_back( new PVWriter((base+"IBEVT" ).c_str()) );
-        _pv.push_back( new PVWriter((base+"OBRCVD").c_str()) );
-        _pv.push_back( new PVWriter((base+"OBSENT").c_str()) );
-      }
+      _pv.push_back( new PVWriter((pvbase+"USRxErrs").c_str(), Module::NUsLinks) );
+      _pv.push_back( new PVWriter((pvbase+"UsRxFull").c_str(), Module::NUsLinks) );
+      _pv.push_back( new PVWriter((pvbase+"UsIbRecv").c_str(), Module::NUsLinks) );
+      _pv.push_back( new PVWriter((pvbase+"UsIbEvt" ).c_str(), Module::NUsLinks) );
+      _pv.push_back( new PVWriter((pvbase+"UsObRecv").c_str(), Module::NUsLinks) );
+      _pv.push_back( new PVWriter((pvbase+"UsObSent").c_str(), Module::NUsLinks) );
 
-      for (unsigned i = 0; i < Module::NDsLinks; ++i)
-      {
-        std::ostringstream d;
-        d << pvbase << "DS:" << i << ":";
-        std::string base = d.str();
-        _pv.push_back( new PVWriter((base+"RXERRS").c_str()) );
-        _pv.push_back( new PVWriter((base+"RXFULL").c_str()) );
-        _pv.push_back( new PVWriter((base+"OBSENT").c_str()) );
-      }
+      _pv.push_back( new PVWriter((pvbase+"BpObSent").c_str()) );
 
-      _pv.push_back( new PVWriter((pvbase+"QPLLLOCK").c_str()) );
+      _pv.push_back( new PVWriter((pvbase+"DsRxErrs").c_str(), Module::NDsLinks) );
+      _pv.push_back( new PVWriter((pvbase+"DsRxFull").c_str(), Module::NDsLinks) );
+      _pv.push_back( new PVWriter((pvbase+"DsObSent").c_str(), Module::NDsLinks) );
 
-      for (unsigned i = 0; i < 4; ++i)
-      {
-        std::ostringstream m;
-        m << pvbase << "MONCLK:" << i << ":";
-        std::string base = m.str();
-        _pv.push_back( new PVWriter((base+"RATE").c_str()) );
-        _pv.push_back( new PVWriter((base+"SLOW").c_str()) );
-        _pv.push_back( new PVWriter((base+"FAST").c_str()) );
-        _pv.push_back( new PVWriter((base+"LOCK").c_str()) );
-      }
+      _pv.push_back( new PVWriter((pvbase+"QpllLock").c_str()) );
 
-      // @todo: _pv.push_back( new PVWriter((pvbase+"USLINKOBL0").c_str()) );
-      // @todo: _pv.push_back( new PVWriter((pvbase+"USLINKOBL1A").c_str()) );
-      // @todo: _pv.push_back( new PVWriter((pvbase+"USLINKOBL1R").c_str()) );
+      _pv.push_back( new PVWriter((pvbase+"MonClkRate").c_str(), 4) );
+      _pv.push_back( new PVWriter((pvbase+"MonClkSlow").c_str(), 4) );
+      _pv.push_back( new PVWriter((pvbase+"MonClkFast").c_str(), 4) );
+      _pv.push_back( new PVWriter((pvbase+"MonClkLock").c_str(), 4) );
+
+      _pv.push_back( new PVWriter((pvbase+"UsLinkObL0").c_str()) );
+      _pv.push_back( new PVWriter((pvbase+"UsLinkObL1A").c_str()) );
+      _pv.push_back( new PVWriter((pvbase+"UsLinkObL1R").c_str()) );
 
       printf("PVs allocated\n");
     }
 
     void PVStats::update(const Stats& ns, const Stats& os, double dt)
     {
-#define PVPUTU(i,v) { *reinterpret_cast<unsigned*>(_pv[i]->data()) = unsigned(v); _pv[i]->put(); }
-#define PVPUTD(i,v) { *reinterpret_cast<double  *>(_pv[i]->data()) = double  (v); _pv[i]->put(); }
+#define PVPUTU(i,v)    { *reinterpret_cast<unsigned*>(_pv[i]->data())    = unsigned(v); _pv[i]->put(); }
+#define PVPUTD(i,v)    { *reinterpret_cast<double  *>(_pv[i]->data())    = double  (v); _pv[i]->put(); }
+#define PVPUTAU(p,m,v) { for (unsigned i = 0; i < m; ++i)                                \
+                           reinterpret_cast<unsigned*>(_pv[p]->data())[i] = unsigned(v); \
+                         _pv[p]->put();                                                  \
+                       }
+#define PVPUTAD(p,m,v) { for (unsigned i = 0; i < m; ++i)                                \
+                           reinterpret_cast<double  *>(_pv[p]->data())[i] = double  (v); \
+                         _pv[p]->put();                                                  \
+                       }
 
-      unsigned p = 0;
+      PVPUTU ( 0, ns.usLinkUp);
+      PVPUTU ( 1, ns.bpLinkUp);
+      PVPUTU ( 2, ns.dsLinkUp);
 
-      PVPUTU(p++, ns.usLinkUp);
-      PVPUTU(p++, ns.bpLinkUp);
-      PVPUTU(p++, ns.dsLinkUp);
+      PVPUTAD( 3, Module::NUsLinks, double(ns.us[i].rxErrs - os.us[i].rxErrs) / dt);
+      PVPUTAD( 4, Module::NUsLinks, double(ns.us[i].rxFull - os.us[i].rxFull) / dt);
+      PVPUTAD( 5, Module::NUsLinks, double(ns.us[i].ibRecv - os.us[i].ibRecv) / dt);
+      PVPUTAD( 6, Module::NUsLinks, double(ns.us[i].ibEvt  - os.us[i].ibEvt ) / dt);
+      PVPUTAD( 7, Module::NUsLinks, double(ns.us[i].obRecv - os.us[i].obRecv) / dt);
+      PVPUTAD( 8, Module::NUsLinks, double(ns.us[i].obSent - os.us[i].obSent) / dt);
 
-      for (unsigned i = 0; i < Module::NUsLinks; ++i)
-      {
-        PVPUTD(p++, double(ns.us[i].rxErrs - os.us[i].rxErrs) / dt);
-        PVPUTD(p++, double(ns.us[i].rxFull - os.us[i].rxFull) / dt);
-        PVPUTD(p++, double(ns.us[i].ibRecv - os.us[i].ibRecv) / dt);
-        PVPUTD(p++, double(ns.us[i].ibEvt  - os.us[i].ibEvt ) / dt);
-        PVPUTD(p++, double(ns.us[i].obRecv - os.us[i].obRecv) / dt);
-        PVPUTD(p++, double(ns.us[i].obSent - os.us[i].obSent) / dt);
-      }
+      PVPUTD ( 9, double(ns.bpObSent - os.bpObSent) / dt);
 
-      for (unsigned i = 0; i < Module::NDsLinks; ++i)
-      {
-        PVPUTD(p++, double(ns.ds[i].rxErrs - os.ds[i].rxErrs) / dt);
-        PVPUTD(p++, double(ns.ds[i].rxFull - os.ds[i].rxFull) / dt);
-        PVPUTD(p++, double(ns.ds[i].obSent - os.ds[i].obSent) / dt);
-      }
+      PVPUTAD(10, Module::NDsLinks, double(ns.ds[i].rxErrs - os.ds[i].rxErrs) / dt);
+      PVPUTAD(11, Module::NDsLinks, double(ns.ds[i].rxFull - os.ds[i].rxFull) / dt);
+      PVPUTAD(12, Module::NDsLinks, double(ns.ds[i].obSent - os.ds[i].obSent) / dt);
 
-      PVPUTU(p++, ns.qpllLock);
+      PVPUTU (13, ns.qpllLock);
 
-      for (unsigned i = 0; i < 4; ++i)
-      {
-        PVPUTD(p++, (ns.monClk[i].rate)*1.e-6);
-        PVPUTU(p++,  ns.monClk[i].slow);
-        PVPUTU(p++,  ns.monClk[i].fast);
-        PVPUTU(p++,  ns.monClk[i].lock);
-      }
+      PVPUTAD(14, 4, (ns.monClk[i].rate)*1.e-6);
+      PVPUTAU(15, 4,  ns.monClk[i].slow);
+      PVPUTAU(16, 4,  ns.monClk[i].fast);
+      PVPUTAU(17, 4,  ns.monClk[i].lock);
 
-      // @todo: PVPUTD(p++, double(ns.usLinkObL0  - os.usLinkObL0)  / dt);
-      // @todo: PVPUTD(p++, double(ns.usLinkObL1A - os.usLinkObL1A) / dt);
-      // @todo: PVPUTD(p++, double(ns.usLinkObL1R - os.usLinkObL1R) / dt);
+      PVPUTD (18, double(ns.usLinkObL0  - os.usLinkObL0)  / dt);
+      PVPUTD (19, double(ns.usLinkObL1A - os.usLinkObL1A) / dt);
+      PVPUTD (20, double(ns.usLinkObL1R - os.usLinkObL1R) / dt);
 
 #undef PVPUTU
 #undef PVPUTD
+#undef PVPUTAU
+#undef PVPUTAD
 
       ca_flush_io();
     }

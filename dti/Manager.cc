@@ -120,6 +120,7 @@ namespace Pds {
               PDIFF("usObRecv", i, us[i].obRecv);
               PDIFF("usObSent", i, us[i].obSent);
             }
+            PDIFF("bpObSent", 16, bpObSent); // Revisit: bogus index
             for (unsigned i = 0; i < Module::NDsLinks; ++i)
             {
               PDIFF("dsRxErrs", i, ds[i].rxErrs);
@@ -191,7 +192,7 @@ namespace Pds {
             //  _dev.linkEnable(paddr&0xf,lenable);
             //}
 
-            // Revisit: _dev.init();
+            _dev.init();
 
             printf("Configuration Done\n");
 
@@ -281,6 +282,7 @@ StatsTimer::StatsTimer(Module& dev) :
       names.push_back("UsObRecv"+idx);   _s.us[i].obRecv=0;
       names.push_back("UsObSent"+idx);   _s.us[i].obSent=0;
     }
+    names.push_back("BpObSent");         _s.bpObSent=0;
     for (unsigned i = 0; i < Module::NDsLinks; ++i)
     {
       std::ostringstream str;
@@ -308,6 +310,7 @@ void StatsTimer::allocate(const Allocation& alloc)
     _s.us[i].obRecv=0;
     _s.us[i].obSent=0;
   }
+  _s.bpObSent = 0;
   for (unsigned i = 0; i < Module::NDsLinks; ++i)
   {
     _s.ds[i].rxErrs=0;
@@ -346,6 +349,7 @@ void StatsTimer::expired()
     INCSTAT(us[i].obRecv, m++);
     INCSTAT(us[i].obSent, m++);
   }
+  INCSTAT(bpObSent, m++);
   for (unsigned i = 0; i < Module::NDsLinks; ++i)
   {
     INCSTAT(ds[i].rxErrs, m++);

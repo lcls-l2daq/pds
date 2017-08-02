@@ -83,28 +83,28 @@ namespace Pds {
         std::ostringstream o;
         o << "DAQ:" << alloc.partition() << ":XPM:";
         std::string pvbase = o.str();
-        _pv.push_back( new PVWriter((pvbase+"L0INPRATE").c_str()) );
-        _pv.push_back( new PVWriter((pvbase+"L0ACCRATE").c_str()) );
-        _pv.push_back( new PVWriter((pvbase+"L1RATE").c_str()) );
-        _pv.push_back( new PVWriter((pvbase+"NUML0INP" ).c_str()) );
-        _pv.push_back( new PVWriter((pvbase+"NUML0ACC" ).c_str()) );
-        _pv.push_back( new PVWriter((pvbase+"NUML1" ).c_str()) );
-        _pv.push_back( new PVWriter((pvbase+"DEADFRAC").c_str()) );
-        _pv.push_back( new PVWriter((pvbase+"DEADTIME").c_str()) );
-        _pv.push_back( new PVWriter((pvbase+"DEADFLNK").c_str(),32) );
+        _pv.push_back( new PVWriter((pvbase+"L0InpRate").c_str()) );
+        _pv.push_back( new PVWriter((pvbase+"L0AccRate").c_str()) );
+        _pv.push_back( new PVWriter((pvbase+"L1Rate").c_str()) );
+        _pv.push_back( new PVWriter((pvbase+"NumL0Inp" ).c_str()) );
+        _pv.push_back( new PVWriter((pvbase+"NumL0Acc" ).c_str()) );
+        _pv.push_back( new PVWriter((pvbase+"NumL1" ).c_str()) );
+        _pv.push_back( new PVWriter((pvbase+"DeadFrac").c_str()) );
+        _pv.push_back( new PVWriter((pvbase+"DeadTime").c_str()) );
+        _pv.push_back( new PVWriter((pvbase+"DeadFLnk").c_str(),32) );
 
-        _pv.push_back( new PVWriter((pvbase+"RXCLKS").c_str()) );
-        _pv.push_back( new PVWriter((pvbase+"TXCLKS").c_str()) );
-        _pv.push_back( new PVWriter((pvbase+"RXRSTS").c_str()) );
-        _pv.push_back( new PVWriter((pvbase+"CRCERRS").c_str()) );
-        _pv.push_back( new PVWriter((pvbase+"RXDECERRS").c_str()) );
-        _pv.push_back( new PVWriter((pvbase+"RXDSPERRS").c_str()) );
-        _pv.push_back( new PVWriter((pvbase+"BYPASSRSTS").c_str()) );
-        _pv.push_back( new PVWriter((pvbase+"BYPASSDONES").c_str()) );
-        _pv.push_back( new PVWriter((pvbase+"RXLINKUP").c_str()) );
-        _pv.push_back( new PVWriter((pvbase+"FIDS").c_str()) );
-        _pv.push_back( new PVWriter((pvbase+"SOFS").c_str()) );
-        _pv.push_back( new PVWriter((pvbase+"EOFS").c_str()) );
+        _pv.push_back( new PVWriter((pvbase+"RxClks").c_str()) );
+        _pv.push_back( new PVWriter((pvbase+"TxClks").c_str()) );
+        _pv.push_back( new PVWriter((pvbase+"RxRsts").c_str()) );
+        _pv.push_back( new PVWriter((pvbase+"CrcErrs").c_str()) );
+        _pv.push_back( new PVWriter((pvbase+"RxDecErrs").c_str()) );
+        _pv.push_back( new PVWriter((pvbase+"RxDspErrs").c_str()) );
+        _pv.push_back( new PVWriter((pvbase+"BypassRsts").c_str()) );
+        _pv.push_back( new PVWriter((pvbase+"BypassDones").c_str()) );
+        _pv.push_back( new PVWriter((pvbase+"RxLinkUp").c_str()) );
+        _pv.push_back( new PVWriter((pvbase+"FIDs").c_str()) );
+        _pv.push_back( new PVWriter((pvbase+"SOFs").c_str()) );
+        _pv.push_back( new PVWriter((pvbase+"EOFs").c_str()) );
         printf("PVs allocated\n");
       }
       void begin(const L0Stats& s)
@@ -114,7 +114,11 @@ namespace Pds {
                s.numl0, s.numl0Acc);
       }
     public:
-#define PVPUT(i,v) { *reinterpret_cast<double*>(_pv[i]->data()) = double(v); _pv[i]->put(); }
+#define PVPUT(i,v)    { *reinterpret_cast<double*>(_pv[i]->data()) = double(v); _pv[i]->put(); }
+#define PVPUTA(p,m,v) { for (unsigned i = 0; i < m; ++i)                                \
+                          reinterpret_cast<double  *>(_pv[p]->data())[i] = double  (v); \
+                        _pv[p]->put();                                                  \
+                      }
       void update(const L0Stats& ns, const L0Stats& os, double dt)
       {
         unsigned numl0     = ns.numl0    - os.numl0;
@@ -126,11 +130,8 @@ namespace Pds {
         PVPUT(6, numl0 ? double(ns.numl0Inh - os.numl0Inh) / double(numl0) : 0);
         unsigned l0Enabled = ns.l0Enabled - os.l0Enabled;
         if (l0Enabled) {
-          PVPUT(7, double(ns.l0Inhibited - os.l0Inhibited) / double(l0Enabled));
-          for(unsigned i=0; i<32; i++) {
-            reinterpret_cast<double*>(_pv[8]->data())[i] = double(ns.linkInh[i] - os.linkInh[i]) / double(l0Enabled);
-          }
-          _pv[8]->put();
+          PVPUT (7,     double(ns.l0Inhibited - os.l0Inhibited) / double(l0Enabled));
+          PVPUTA(8, 32, double(ns.linkInh[i]  - os.linkInh[i])  / double(l0Enabled));
         }
         ca_flush_io();
       }
@@ -148,7 +149,7 @@ namespace Pds {
         PVPUT(18, double(nc.fidCount         - oc.fidCount        ) / dt);
         PVPUT(19, double(nc.sofCount         - oc.sofCount        ) / dt);
         PVPUT(20, double(nc.eofCount         - oc.eofCount        ) / dt);
-        //ca_flush_io();  // Maybe let the L0Stats update do the flush...
+        //ca_flush_io();  // Revisit: Let the L0Stats update do the flush...
       }
     private:
       std::vector<PVWriter*> _pv;
