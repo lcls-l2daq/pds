@@ -160,15 +160,56 @@ namespace Pds {
       //  [30]     monClkFast  Monitor clock too fast
       //  [31]     monClkLock  Monitor clock locked
       Cphw::Reg   _monClk[4];
-      //  0x00C0 - RO: Count of outbound L0 triggers
+#if 0                            // These don't exist in the f/w right now
+      //  0x00C4 - RO: Count of outbound L0 triggers
       //  [19:0]   usStatus.obL0
       Cphw::Reg   _usLinkObL0;
-      //  0x00C4 - RO: Count of outbound L1A triggers
+      //  0x00C8 - RO: Count of outbound L1A triggers
       //  [19:0]   usStatus.obL1A
       Cphw::Reg   _usLinkObL1A;
-      //  0x00C8 - RO: Count of outbound L1R triggers
+      //  0x00CC - RO: Count of outbound L1R triggers
       //  [19:0]   usStatus.obL1R
       Cphw::Reg   _usLinkObL1R;
+#else
+    private:
+      uint32_t    _reserved_196[3];
+#endif
+    private:
+      uint32_t    _reserved_208[(0x10000000-208)>>2];
+    public:
+      class Pgp2bAxi
+      {
+      public:
+        Cphw::Reg   _countReset;        // 0xd4
+      private:
+        uint32_t    _reserved[16];      // 0xd8
+      public:
+        Cphw::Reg   _rxFrameErrs;       // 0x118
+        Cphw::Reg   _rxFrames;          // 0x11c
+      private:
+        uint32_t    _reserved2[4];      // 0x120
+      public:
+        Cphw::Reg   _txFrameErrs;       // 0x130
+        Cphw::Reg   _txFrames;          // 0x134
+      private:
+        uint32_t    _reserved3[5];      // 0x138
+      public:
+        Cphw::Reg   _txOpcodes;         // 0x14c
+        Cphw::Reg   _rxOpcodes;         // 0x150
+      private:
+        uint32_t    _reserved4[0x80>>2]; // 0x154 - 0x1d0
+      public:
+        void clearCounters() const;    // Const so that we can call it from const methods
+      }           _pgp[2];               // Revisit: Only US[0] and DS[0] for now
+    private:
+      uint32_t    _reserved_724[(0x10000000-724)>>2];
+    public:
+      // 0x2d8 - RO
+      class TheRingBuffer : public Cphw::RingBuffer
+      {
+      public:
+        void acqNdump();
+      }           _ringBuffer;
     };
 
     class Stats {
@@ -209,6 +250,15 @@ namespace Pds {
       unsigned usLinkObL0;
       unsigned usLinkObL1A;
       unsigned usLinkObL1R;
+      struct
+      {
+         unsigned rxFrameErrs;
+         unsigned rxFrames;
+         unsigned txFrameErrs;
+         unsigned txFrames;
+         unsigned txOpcodes;
+         unsigned rxOpcodes;
+      }        pgp[2];
     };
   };
 };

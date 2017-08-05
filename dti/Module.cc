@@ -68,7 +68,21 @@ void Stats::dump() const
            monClk[i].lock);
   }
 
-  printf("usLinkOb  L0 %08x  L1A %08x  L1R %08x\n", usLinkObL0, usLinkObL1A, usLinkObL1R);
+  // Revisit: Not provided by the f/w yet
+  //printf("usLinkOb  L0 %08x  L1A %08x  L1R %08x\n", usLinkObL0, usLinkObL1A, usLinkObL1R);
+
+  printf("PGP  RxFrmErrs  RxFrmCnt   RxOpcodes  TxFrmErrs  TxFrmCnt   TxOpcodes\n");
+  //      0    00000000   00000000   00000000   00000000   00000000   00000000
+  for (unsigned i = 0; i < 2; ++i)      // Revisit: 2 -> NUsLinks + NDsLinks
+  {
+    printf("%d    %08x   %08x   %08x   %08x   %08x   %08x\n", i,
+           pgp[i].rxFrameErrs,
+           pgp[i].rxFrames,
+           pgp[i].rxOpcodes,
+           pgp[i].txFrameErrs,
+           pgp[i].txFrames,
+           pgp[i].txOpcodes);
+  }
 }
 
 
@@ -138,6 +152,19 @@ void Module::init()
     printf("       %9u %4u %4u %4u\n",
            monClkRate(i), monClkSlow(i), monClkFast(i), monClkLock(i));
   }
+
+  printf("PGP:        %4.4s %9.9s %9.9s %9.9s %9.9s %9.9s %9.9s\n",
+         "Link", "RxFrmErrs", "RxFrmCnt", "RxOpcodes", "TxFrmErrs", "TxFrmCnt", "TxOpcodes");
+  for (unsigned i = 0; i < 2; ++i) {    // Revisit: 2 -> NUsLinks + NDsLinks
+    printf("            %4u %9u %9u %9u %9u %9u %9u\n",
+           i,
+           unsigned(_pgp[i]._rxFrameErrs),
+           unsigned(_pgp[i]._rxFrames),
+           unsigned(_pgp[i]._rxOpcodes),
+           unsigned(_pgp[i]._txFrameErrs),
+           unsigned(_pgp[i]._txFrames),
+           unsigned(_pgp[i]._txOpcodes));
+  }
 }
 
 
@@ -205,6 +232,25 @@ bool     Module::monClkSlow(unsigned i) const { return getf(_monClk[i],  1, 29);
 bool     Module::monClkFast(unsigned i) const { return getf(_monClk[i],  1, 30); }
 bool     Module::monClkLock(unsigned i) const { return getf(_monClk[i],  1, 31); }
 
+void Module::Pgp2bAxi::clearCounters() const
+{
+  const_cast<Pds::Cphw::Reg&>(_countReset) = 1;
+  usleep(10);
+  const_cast<Pds::Cphw::Reg&>(_countReset) = 0;
+}
+
+void Module::TheRingBuffer::acqNdump()
+{
+  printf("RingBuffer @ %p\n", this);
+  enable(false);
+  clear();
+  enable(true);
+  usleep(1000);
+  enable(false);
+  dump();
+  printf("\n");
+}
+
 Stats Module::stats() const
 {
   Stats s;
@@ -253,9 +299,20 @@ Stats Module::stats() const
     s.monClk[i].lock = monClkLock(i);
   }
 
-  s.usLinkObL0  = _usLinkObL0;
-  s.usLinkObL1A = _usLinkObL1A;
-  s.usLinkObL1R = _usLinkObL1R;
+  // @todo: These are not available yet
+  //s.usLinkObL0  = _usLinkObL0;
+  //s.usLinkObL1A = _usLinkObL1A;
+  //s.usLinkObL1R = _usLinkObL1R;
+
+  for (unsigned i = 0; i < 2; ++i)      // Revisit: 2 -> NUsLinks + NDsLinks
+  {
+    s.pgp[i].rxFrameErrs = _pgp[i]._rxFrameErrs;
+    s.pgp[i].rxFrames    = _pgp[i]._rxFrames;
+    s.pgp[i].txFrameErrs = _pgp[i]._txFrameErrs;
+    s.pgp[i].txFrames    = _pgp[i]._txFrames;
+    s.pgp[i].txOpcodes   = _pgp[i]._txOpcodes;
+    s.pgp[i].rxOpcodes   = _pgp[i]._rxOpcodes;
+  }
 
   return s;
 }

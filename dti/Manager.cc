@@ -194,7 +194,7 @@ namespace Pds {
 
             _dev.init();
 
-            printf("Configuration Done\n");
+            printf("Dti: Configuration Done\n");
 
             _nerror = 0;  // override
 
@@ -366,7 +366,8 @@ void StatsTimer::expired()
 }
 
 
-Manager::Manager(Module& dev, Server& server, CfgClientNfs& cfg) : _app(new Dti::DtiAppliance(dev,server,cfg))
+Manager::Manager(Module& dev, Server& server, CfgClientNfs& cfg) :
+  _app(new Dti::DtiAppliance(dev, server, cfg))
 {
 }
 

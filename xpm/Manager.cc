@@ -67,7 +67,7 @@ namespace Pds {
     class PVStats {
     public:
       PVStats() : _pv(0) {}
-      ~PVStats() {}
+      ~PVStats() { ca_context_destroy(); }
     public:
       void allocate(const Allocation& alloc) {
         if (ca_current_context() == NULL) {
@@ -298,7 +298,7 @@ namespace Pds {
             printf("rx/tx Status: %08x/%08x\n",
                    _dev.rxLinkStat(), _dev.txLinkStat());
 
-            printf("Configuration Done\n");
+            printf("Xpm: Configuration Done\n");
 
             _nerror = 0;  // override
 
