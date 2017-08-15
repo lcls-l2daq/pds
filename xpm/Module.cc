@@ -175,20 +175,48 @@ void Module::clearLinks()
   }
 }
 
-void Module::linkEnable(unsigned link, bool v)
+void Module::linkTxDelay(unsigned link, unsigned v)
 {
   setLink(link);
-  //usleep(10);
-  //unsigned q = _dsLinkConfig;
-  setf(_dsLinkConfig,v?1:0,1,31);
-  //unsigned r = _dsLinkConfig;
-  //printf("linkEnable[%u,%c] %x -> %x\n", link,v?'T':'F',q,r);
+  setf(_dsLinkConfig, v, 20, 0);
+}
+unsigned Module::linkTxDelay(unsigned link) const
+{
+  setLink(link);
+  return getf(_dsLinkConfig,    20, 0);
+}
+
+void Module::linkPartition(unsigned link, unsigned v)
+{
+  setLink(link);
+  setf(_dsLinkConfig, v, 4, 20);
+}
+unsigned Module::linkPartition(unsigned link) const
+{
+  setLink(link);
+  return getf(_dsLinkConfig, 4, 20);
+}
+
+void Module::linkTrgSrc(unsigned link, unsigned v)
+{
+  setLink(link);
+  setf(_dsLinkConfig, v, 4, 24);
+}
+unsigned Module::linkTrgSrc(unsigned link) const
+{
+  setLink(link);
+  return getf(_dsLinkConfig, 4, 24);
 }
 
 void Module::linkLoopback(unsigned link, bool v)
 {
   setLink(link);
   setf(_dsLinkConfig,v?1:0,1,28);
+}
+bool Module::linkLoopback(unsigned link) const
+{
+  setLink(link);
+  return getf(_dsLinkConfig,1,28);
 }
 
 void Module::txLinkReset(unsigned link)
@@ -205,6 +233,21 @@ void Module::rxLinkReset(unsigned link)
   setf(_dsLinkConfig,1,1,30);
   usleep(10);
   setf(_dsLinkConfig,0,1,30);
+}
+
+void Module::linkEnable(unsigned link, bool v)
+{
+  setLink(link);
+  //usleep(10);
+  //unsigned q = _dsLinkConfig;
+  setf(_dsLinkConfig,v?1:0,1,31);
+  //unsigned r = _dsLinkConfig;
+  //printf("linkEnable[%u,%c] %x -> %x\n", link,v?'T':'F',q,r);
+}
+bool Module::linkEnable(unsigned link) const
+{
+  setLink(link);
+  return getf(_dsLinkConfig,1,31);
 }
 
 bool Module::l0Enabled() const { return getf(_l0Control,1,16); }
@@ -268,6 +311,10 @@ void Module::setL0Enabled(bool v)
 {
   setf(_l0Control,v?1:0,1,16);
 }
+bool Module::getL0Enabled() const
+{
+  return getf(_l0Control,1,16) ? 1 : 0;
+}
 
 void Module::setL0Select_FixedRate(unsigned rate)
 {
@@ -300,56 +347,117 @@ void Module::setRingBChan(unsigned chan)
   setf(_index,chan,4,10);
 }
 
-void Module::pllBwSel    (unsigned sel)
+void Module::pllBwSel(unsigned idx, unsigned sel)
 {
+  setAmc(idx);
   setf(_pllConfig,sel,4,0);
 }
-
-void Module::pllFrqSel    (unsigned sel)
+unsigned Module::pllBwSel(unsigned idx) const
 {
-  setf(_pllConfig,sel,12,4);
+  setAmc(idx);
+  return getf(_pllConfig,4,0);
 }
 
-void Module::pllRateSel    (unsigned sel)
+void Module::pllFrqTbl(unsigned idx, unsigned sel)
 {
+  setAmc(idx);
+  setf(_pllConfig,sel,2,4);
+}
+unsigned Module::pllFrqTbl(unsigned idx) const
+{
+  setAmc(idx);
+  return getf(_pllConfig,2,4);
+}
+
+void Module::pllFrqSel(unsigned idx, unsigned sel)
+{
+  setAmc(idx);
+  setf(_pllConfig,sel,8,8);
+}
+unsigned Module::pllFrqSel(unsigned idx) const
+{
+  setAmc(idx);
+  return getf(_pllConfig,8,8);
+}
+
+void Module::pllRateSel(unsigned idx, unsigned sel)
+{
+  setAmc(idx);
   setf(_pllConfig,sel,4,16);
 }
-
-void Module::pllBypass   (bool v)
+unsigned Module::pllRateSel(unsigned idx) const
 {
-  setf(_pllConfig,v?1:0,1,22);
+  setAmc(idx);
+  return getf(_pllConfig,4,16);
 }
 
-void Module::pllReset    ()
+void Module::pllPhsInc(unsigned idx)
 {
+  unsigned v = _pllConfig;
+  setAmc(idx);
+  _pllConfig = v|(1<<20);
+  usleep(10);
+  _pllConfig = v;
+  usleep(10);
+}
+
+void Module::pllPhsDec(unsigned idx)
+{
+  unsigned v = _pllConfig;
+  setAmc(idx);
+  _pllConfig = v|(1<<21);
+  usleep(10);
+  _pllConfig = v;
+  usleep(10);
+}
+
+void Module::pllBypass(unsigned idx, bool v)
+{
+  setAmc(idx);
+  setf(_pllConfig,v?1:0,1,22);
+}
+bool Module::pllBypass(unsigned idx) const
+{
+  setAmc(idx);
+  return getf(_pllConfig,1,22);
+}
+
+void Module::pllReset(unsigned idx)
+{
+  setAmc(idx);
   setf(_pllConfig,0,1,23);
   usleep(10);
   setf(_pllConfig,1,1,23);
 }
 
-unsigned Module::pllStatus0() const
+unsigned Module::pllStatus0(unsigned idx) const
 {
+  setAmc(idx);
   return getf(_pllConfig,1,27);
 }
 
-unsigned Module::pllCount0() const
+unsigned Module::pllCount0(unsigned idx) const
 {
+  setAmc(idx);
   return getf(_pllConfig,3,24);
 }
 
-unsigned Module::pllStatus1() const
+unsigned Module::pllStatus1(unsigned idx) const
 {
+  setAmc(idx);
   return getf(_pllConfig,1,31);
 }
 
-unsigned Module::pllCount1() const
+unsigned Module::pllCount1(unsigned idx) const
 {
+  setAmc(idx);
   return getf(_pllConfig,3,28);
 }
 
-void Module::pllSkew(int skewSteps)
+void Module::pllSkew(unsigned idx, int skewSteps)
 {
   unsigned v = _pllConfig;
+  setAmc(idx);
   while(skewSteps > 0) {
     _pllConfig = v|(1<<20);
     usleep(10);
@@ -366,10 +474,10 @@ void Module::pllSkew(int skewSteps)
   }
 }
 
-void Module::dumpPll() const
+void Module::dumpPll(unsigned idx) const
 {
-  printf("pllConfig 0x%08x\n",
-         unsigned(_pllConfig));
+  setAmc(idx);
+  printf("AMC[%d] pllConfig 0x%08x\n", idx, unsigned(_pllConfig));
 
   unsigned bwSel = getf(_pllConfig,4,0);
   unsigned frTbl = getf(_pllConfig,2,4);
@@ -394,7 +502,10 @@ void Module::dumpPll() const
   printf("\n");
 }
 
-void     Module::setPartition(unsigned v) {        setf(_index,v,4,0); }
+void     Module::setPartition(unsigned v) const
+{
+  setf(const_cast<Pds::Cphw::Reg&>(_index),v,4,0);
+}
 unsigned Module::getPartition() const     { return getf(_index,  4,0); }
 
 void Module::setLink(unsigned v) const
@@ -403,10 +514,16 @@ void Module::setLink(unsigned v) const
 }
 unsigned Module::getLink() const { return getf(_index,6,4); }
 
-void     Module::setLinkDebug(unsigned v) {        setf(_index,v,4,10); }
+void     Module::setLinkDebug(unsigned v) const
+{
+  setf(const_cast<Pds::Cphw::Reg&>(_index),v,4,10);
+}
 unsigned Module::getLinkDebug() const     { return getf(_index,  4,10); }
 
-void     Module::setAmc(unsigned v) {        setf(_index,v,1,16); }
+void     Module::setAmc(unsigned v) const
+{
+  setf(const_cast<Pds::Cphw::Reg&>(_index),v,1,16);
+}
 unsigned Module::getAmc() const     { return getf(_index,  1,16); }
 
 void     Module::setInhibit(unsigned v) {        setf(_index,v,2,20); }
@@ -414,3 +531,104 @@ unsigned Module::getInhibit() const     { return getf(_index,  2,20); }
 
 void     Module::setTagStream(unsigned v) {        setf(_index,v,1,24); }
 unsigned Module::getTagStream() const     { return getf(_index,  1,24); }
+
+void Module::setL1TrgClr(unsigned partition, unsigned v)
+{
+  setPartition(partition);
+  setf(_l1config0, v, 1, 0);
+}
+unsigned Module::getL1TrgClr(unsigned partition) const
+{
+  setPartition(partition);
+  return getf(_l1config0, 1, 0);
+}
+void Module::setL1TrgEnb(unsigned partition, unsigned v)
+{
+  setPartition(partition);
+  setf(_l1config0, v, 1, 16);
+}
+unsigned Module::getL1TrgEnb(unsigned partition) const
+{
+  setPartition(partition);
+  return getf(_l1config0, 1, 16);
+}
+void Module::setL1TrgSrc(unsigned partition, unsigned v)
+{
+  setPartition(partition);
+  setf(_l1config1, v, 4, 0);
+}
+unsigned Module::getL1TrgSrc(unsigned partition) const
+{
+  setPartition(partition);
+  return getf(_l1config1, 4, 0);
+}
+void Module::setL1TrgWord(unsigned partition, unsigned v)
+{
+  setPartition(partition);
+  setf(_l1config1, v, 9, 4);
+}
+unsigned Module::getL1TrgWord(unsigned partition) const
+{
+  setPartition(partition);
+  return getf(_l1config1, 9, 4);
+}
+void Module::setL1TrgWrite(unsigned partition, unsigned v)
+{
+  setPartition(partition);
+  setf(_l1config1, v, 1, 16);
+}
+unsigned Module::getL1TrgWrite(unsigned partition) const
+{
+  setPartition(partition);
+  return getf(_l1config1, 1, 16);
+}
+void Module::messageHdr(unsigned partition, unsigned v)
+{
+  setPartition(partition);
+  setf(_message, v, 14, 0);
+}
+unsigned Module::messageHdr(unsigned partition) const
+{
+  setPartition(partition);
+  return getf(_message, 14, 0);
+}
+void Module::messageIns(unsigned partition, unsigned v)
+{
+  setPartition(partition);
+  setf(_message, v, 1, 15);
+}
+unsigned Module::messageIns(unsigned partition) const
+{
+  setPartition(partition);
+  return getf(_message, 1, 15);
+}
+void Module::inhibitInt(unsigned partition, unsigned v)
+{
+  setPartition(partition);
+  setf(_message, v, 12, 0);
+}
+unsigned Module::inhibitInt(unsigned partition) const
+{
+  setPartition(partition);
+  return getf(_message, 12, 0);
+}
+void Module::inhibitLim(unsigned partition, unsigned v)
+{
+  setPartition(partition);
+  setf(_message, v, 4, 12);
+}
+unsigned Module::inhibitLim(unsigned partition) const
+{
+  setPartition(partition);
+  return getf(_message, 4, 12);
+}
+void Module::inhibitEnb(unsigned partition, unsigned v)
+{
+  setPartition(partition);
+  setf(_message, v, 1, 31);
+}
+unsigned Module::inhibitEnb(unsigned partition) const
+{
+  setPartition(partition);
+  return getf(_message, 1, 31);
+}

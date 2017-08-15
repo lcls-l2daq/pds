@@ -87,8 +87,12 @@ namespace Pds {
       _pv.push_back( new PVWriter((pvbase+ "TxOpcodes").c_str(), 2) );
       _pv.push_back( new PVWriter((pvbase+"dTxOpcodes").c_str(), 2) );
 
+      _pv.push_back( new PVWriter((pvbase+"MyTestPV").c_str()) );
+
       printf("PVs allocated\n");
     }
+
+    static unsigned myTestCounter = 0;
 
     void PVStats::update(const Stats& ns, const Stats& os, double dt)
     {
@@ -156,6 +160,8 @@ namespace Pds {
       PVPUTAD(43, 2, double(ns.pgp[i].txFrames    - os.pgp[i].txFrames   ) / dt);
       PVPUTAU(44, 2,        ns.pgp[i].txOpcodes);
       PVPUTAD(45, 2, double(ns.pgp[i].txOpcodes   - os.pgp[i].txOpcodes  ) / dt);
+
+      PVPUTU(46, myTestCounter++);
 
 #undef PVPUTU
 #undef PVPUTD

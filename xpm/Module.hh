@@ -1,8 +1,6 @@
 #ifndef Xpm_Module_hh
 #define Xpm_Module_hh
 
-#include "pds/cphw/AmcTiming.hh"
-
 #include "pds/cphw/Reg.hh"
 #include "pds/cphw/Reg64.hh"
 #include "pds/cphw/AmcTiming.hh"
@@ -46,6 +44,7 @@ namespace Pds {
     public:
       enum { NAmcs=2 };
       enum { NDSLinks=14 };
+      enum { NPartitions=16 };
     public:
       static class Module* locate();
     public:
@@ -67,15 +66,12 @@ namespace Pds {
       unsigned   rxLinkStat() const;
     public:
       void clearLinks  ();
-      void linkEnable  (unsigned, bool);
-      void linkLoopback(unsigned, bool);
-      void txLinkReset (unsigned);
-      void rxLinkReset (unsigned);
     public:
       unsigned rxLinkErrs(unsigned) const;
     public:
       void resetL0     (bool);
       void setL0Enabled(bool);
+      bool getL0Enabled() const;
       void setL0Select_FixedRate(unsigned rate);
       void setL0Select_ACRate   (unsigned rate, unsigned tsmask);
       void setL0Select_Sequence (unsigned seq , unsigned bit);
@@ -85,23 +81,31 @@ namespace Pds {
     public:
       void setRingBChan(unsigned);
     public:
-      void dumpPll     () const;
-      void pllBwSel    (unsigned);
-      void pllFrqSel   (unsigned);
-      void pllRateSel  (unsigned);
-      void pllBypass   (bool);
-      void pllReset    ();
-      unsigned pllStatus0() const;
-      unsigned pllCount0() const;
-      unsigned pllStatus1() const;
-      unsigned pllCount1() const;
-      void pllSkew     (int);
+      void dumpPll     (unsigned) const;
+      void pllBwSel    (unsigned, unsigned);
+      void pllFrqTbl   (unsigned, unsigned);
+      void pllFrqSel   (unsigned, unsigned);
+      void pllRateSel  (unsigned, unsigned);
+      void pllPhsInc   (unsigned);
+      void pllPhsDec   (unsigned);
+      void pllBypass   (unsigned, bool);
+      void pllReset    (unsigned);
+      unsigned pllBwSel  (unsigned) const;
+      unsigned pllFrqTbl (unsigned) const;
+      unsigned pllFrqSel (unsigned) const;
+      unsigned pllRateSel(unsigned) const;
+      bool     pllBypass   (unsigned) const;
+      unsigned pllStatus0(unsigned) const;
+      unsigned pllCount0 (unsigned) const;
+      unsigned pllStatus1(unsigned) const;
+      unsigned pllCount1 (unsigned) const;
+      void pllSkew       (unsigned, int);
     public:
       // Indexing
-      void setPartition(unsigned);
+      void setPartition(unsigned) const;
       void setLink     (unsigned) const;
-      void setLinkDebug(unsigned);
-      void setAmc      (unsigned);
+      void setLinkDebug(unsigned) const;
+      void setAmc      (unsigned) const;
       void setInhibit  (unsigned);
       void setTagStream(unsigned);
       unsigned getPartition() const;
@@ -110,6 +114,42 @@ namespace Pds {
       unsigned getAmc      () const;
       unsigned getInhibit  () const;
       unsigned getTagStream() const;
+    public:
+      void     linkTxDelay(unsigned, unsigned);
+      unsigned linkTxDelay(unsigned) const;
+      void     linkPartition(unsigned, unsigned);
+      unsigned linkPartition(unsigned) const;
+      void     linkTrgSrc(unsigned, unsigned);
+      unsigned linkTrgSrc(unsigned) const;
+      void     linkLoopback(unsigned, bool);
+      bool     linkLoopback(unsigned) const;
+      void     txLinkReset (unsigned);
+      void     rxLinkReset (unsigned);
+      void     linkEnable  (unsigned, bool);
+      bool     linkEnable  (unsigned) const;
+    public:
+      void     setL1TrgClr(unsigned, unsigned);
+      unsigned getL1TrgClr(unsigned) const;
+      void     setL1TrgEnb(unsigned, unsigned);
+      unsigned getL1TrgEnb(unsigned) const;
+      void     setL1TrgSrc(unsigned, unsigned);
+      unsigned getL1TrgSrc(unsigned) const;
+      void     setL1TrgWord(unsigned, unsigned);
+      unsigned getL1TrgWord(unsigned) const;
+      void     setL1TrgWrite(unsigned, unsigned);
+      unsigned getL1TrgWrite(unsigned) const;
+    public:
+      void     messageHdr(unsigned, unsigned);
+      unsigned messageHdr(unsigned) const;
+      void     messageIns(unsigned, unsigned);
+      unsigned messageIns(unsigned) const;
+    public:
+      void     inhibitInt(unsigned, unsigned);
+      unsigned inhibitInt(unsigned) const;
+      void     inhibitLim(unsigned, unsigned);
+      unsigned inhibitLim(unsigned) const;
+      void     inhibitEnb(unsigned, unsigned);
+      unsigned inhibitEnb(unsigned) const;
     public:
       //  0x0000 - RO: physical link address
       Cphw::Reg   _paddr;
@@ -190,10 +230,10 @@ namespace Pds {
       //  0x0054 - RW: Analysis tag reset for partition[index]
       //  [3:0]   reset
       Cphw::Reg   _analysisRst;
-      //  0x0058 - RW: Analysis tag reset for partition[index]
+      //  0x0058 - RW: Analysis tag for partition[index]
       //  [31:0]  tag[3:0]
       Cphw::Reg   _analysisTag;
-      //  0x005c - RW: Analysis push reset for partition[index]
+      //  0x005c - RW: Analysis push for partition[index]
       //  [3:0]   push
       Cphw::Reg   _analysisPush;
       //  0x0060 - RO: Analysis tag push counts for partition[index]
