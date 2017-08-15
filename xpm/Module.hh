@@ -94,7 +94,7 @@ namespace Pds {
       unsigned pllFrqTbl (unsigned) const;
       unsigned pllFrqSel (unsigned) const;
       unsigned pllRateSel(unsigned) const;
-      bool     pllBypass   (unsigned) const;
+      bool     pllBypass (unsigned) const;
       unsigned pllStatus0(unsigned) const;
       unsigned pllCount0 (unsigned) const;
       unsigned pllStatus1(unsigned) const;
