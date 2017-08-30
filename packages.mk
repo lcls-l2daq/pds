@@ -48,6 +48,7 @@ endif
 packages := service collection xtc
 ifeq ($(findstring x86_64-linux,$(tgt_arch)),)
   packages += ibeb
+  packages += eb
 endif
 packages += montag tag
 packages += config confignfs configsql mon vmon monreq
