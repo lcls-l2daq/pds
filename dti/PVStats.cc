@@ -33,12 +33,12 @@ namespace Pds {
       o << title << ":DTI:";
       std::string pvbase = o.str();
 
-      _pv.push_back( new PVWriter((pvbase+"UsLinks").c_str()) );
-      _pv.push_back( new PVWriter((pvbase+"BpLink" ).c_str()) );
-      _pv.push_back( new PVWriter((pvbase+"DsLinks").c_str()) );
+      _pv.push_back( new PVWriter((pvbase+"UsLinkUp").c_str()) );
+      _pv.push_back( new PVWriter((pvbase+"BpLinkUp" ).c_str()) );
+      _pv.push_back( new PVWriter((pvbase+"DsLinkUp").c_str()) );
 
-      _pv.push_back( new PVWriter((pvbase+ "USRxErrs").c_str(), Module::NUsLinks) );
-      _pv.push_back( new PVWriter((pvbase+"dUSRxErrs").c_str(), Module::NUsLinks) );
+      _pv.push_back( new PVWriter((pvbase+ "UsRxErrs").c_str(), Module::NUsLinks) );
+      _pv.push_back( new PVWriter((pvbase+"dUsRxErrs").c_str(), Module::NUsLinks) );
       _pv.push_back( new PVWriter((pvbase+ "UsRxFull").c_str(), Module::NUsLinks) );
       _pv.push_back( new PVWriter((pvbase+"dUsRxFull").c_str(), Module::NUsLinks) );
       _pv.push_back( new PVWriter((pvbase+ "UsIbRecv").c_str(), Module::NUsLinks) );
@@ -74,18 +74,18 @@ namespace Pds {
       _pv.push_back( new PVWriter((pvbase+ "UsLinkObL1R").c_str()) );
       _pv.push_back( new PVWriter((pvbase+"dUsLinkObL1R").c_str()) );
 
-      _pv.push_back( new PVWriter((pvbase+ "RxFrmErrs").c_str(), 2) );
-      _pv.push_back( new PVWriter((pvbase+"dRxFrmErrs").c_str(), 2) );
-      _pv.push_back( new PVWriter((pvbase+ "RxFrms"   ).c_str(), 2) );
-      _pv.push_back( new PVWriter((pvbase+"dRxFrms"   ).c_str(), 2) );
-      _pv.push_back( new PVWriter((pvbase+ "RxOpcodes").c_str(), 2) );
-      _pv.push_back( new PVWriter((pvbase+"dRxOpcodes").c_str(), 2) );
-      _pv.push_back( new PVWriter((pvbase+ "TxFrmErrs").c_str(), 2) );
-      _pv.push_back( new PVWriter((pvbase+"dTxFrmErrs").c_str(), 2) );
-      _pv.push_back( new PVWriter((pvbase+ "TxFrms"   ).c_str(), 2) );
-      _pv.push_back( new PVWriter((pvbase+"dTxFrms"   ).c_str(), 2) );
-      _pv.push_back( new PVWriter((pvbase+ "TxOpcodes").c_str(), 2) );
-      _pv.push_back( new PVWriter((pvbase+"dTxOpcodes").c_str(), 2) );
+      _pv.push_back( new PVWriter((pvbase+ "RxFrErrs").c_str(), 2) );
+      _pv.push_back( new PVWriter((pvbase+"dRxFrErrs").c_str(), 2) );
+      _pv.push_back( new PVWriter((pvbase+ "RxFrames").c_str(), 2) );
+      _pv.push_back( new PVWriter((pvbase+"dRxFrames").c_str(), 2) );
+      _pv.push_back( new PVWriter((pvbase+ "RxOpCodes").c_str(), 2) );
+      _pv.push_back( new PVWriter((pvbase+"dRxOpCodes").c_str(), 2) );
+      _pv.push_back( new PVWriter((pvbase+ "TxFrErrs").c_str(), 2) );
+      _pv.push_back( new PVWriter((pvbase+"dTxFrErrs").c_str(), 2) );
+      _pv.push_back( new PVWriter((pvbase+ "TxFrames").c_str(), 2) );
+      _pv.push_back( new PVWriter((pvbase+"dTxFrames").c_str(), 2) );
+      _pv.push_back( new PVWriter((pvbase+ "TxOpCodes").c_str(), 2) );
+      _pv.push_back( new PVWriter((pvbase+"dTxOpCodes").c_str(), 2) );
 
       _pv.push_back( new PVWriter((pvbase+"MyTestPV").c_str()) );
 
@@ -136,7 +136,7 @@ namespace Pds {
 
       PVPUTU (23, ns.qpllLock);
 
-      PVPUTAD(24, 4, (ns.monClk[i].rate)*1.e-6);
+      PVPUTAU(24, 4,  ns.monClk[i].rate);
       PVPUTAU(25, 4,  ns.monClk[i].slow);
       PVPUTAU(26, 4,  ns.monClk[i].fast);
       PVPUTAU(27, 4,  ns.monClk[i].lock);
