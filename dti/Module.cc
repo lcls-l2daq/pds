@@ -194,6 +194,33 @@ unsigned Module::usLinkUp() const      { return getf(_linkUp,     7,  0); }
 bool     Module::bpLinkUp() const      { return getf(_linkUp,     1, 15); }
 unsigned Module::dsLinkUp() const      { return getf(_linkUp,     7, 16); }
 
+unsigned Module::usLinkEnabled(unsigned idx) const
+{
+  return (unsigned) _usLinkConfig[idx].enabled();
+}
+void     Module::usLinkEnabled(unsigned idx, unsigned v)
+{
+  _usLinkConfig[idx].enable((bool) v);
+}
+
+unsigned Module::usLinkTrigDelay(unsigned idx) const
+{
+  return (unsigned) _usLinkConfig[idx].trigDelay();
+}
+void     Module::usLinkTrigDelay(unsigned idx, unsigned v)
+{
+  _usLinkConfig[idx].trigDelay(v);
+}
+
+unsigned Module::usLinkFwdMask(unsigned idx) const
+{
+  return (unsigned) _usLinkConfig[idx].fwdMask();
+}
+void     Module::usLinkFwdMask(unsigned idx, unsigned v)
+{
+  _usLinkConfig[idx].fwdMask(v);
+}
+
 unsigned Module::usLink() const        { return getf(_index,      4,  0); }
 void     Module::usLink(unsigned v) const
 {

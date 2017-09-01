@@ -37,6 +37,12 @@ namespace Pds {
       void     bpLinkUp(bool    );
       unsigned dsLinkUp(        ) const;
       void     dsLinkUp(unsigned);
+      unsigned usLinkEnabled(unsigned idx) const;
+      void     usLinkEnabled(unsigned idx, unsigned v);
+      unsigned usLinkTrigDelay(unsigned idx) const;
+      void     usLinkTrigDelay(unsigned idx, unsigned v);
+      unsigned usLinkFwdMask(unsigned idx) const;
+      void     usLinkFwdMask(unsigned idx, unsigned v);
     public:
       unsigned usLink()         const;
       void     usLink(unsigned) const; // Callable from const methods
