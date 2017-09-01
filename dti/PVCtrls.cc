@@ -1,65 +1,67 @@
 #include "pds/dti/PVCtrls.hh"
 #include "pds/dti/Module.hh"
 
-#include "pds/epicstools/PVMonitor.hh"
-using Pds_Epics::PVMonitor;
-
 #include <sstream>
-#include <string>
-#include <vector>
 
 #include <stdio.h>
 
-using Pds_Epics::PVMonitor;
+using Pds_Epics::EpicsCA;
+using Pds_Epics::PVMonitorCb;
 
 namespace Pds {
   namespace Dti {
 
-    class UsLinkEnablePV : public Pds_Epics::EpicsCA,
-                           public Pds_Epics::PVMonitorCb
-    {
-    public:
-      UsLinkEnablePV(Module& m, const char* pvName, unsigned nelem) :
-        Pds_Epics::EpicsCA(pvName, this),
-        _m(m),
-        _nelem(nelem) {}
-      virtual ~UsLinkEnablePV() {}
-    public:
-      void updated()
-      {
-        unsigned v = *reinterpret_cast<unsigned*>(data());
+#define Q(a,b)      a ## b
+#define PV(name)    Q(name, PV)
 
-        //printf("%s: %s: 0x%02x\n", __func__, _channel.epicsName(), v);
+#define TOU(value)  *reinterpret_cast<unsigned*>(value)
+#define TOB(value)  *reinterpret_cast<bool*>(value)
+#define PRT(value)  printf("%60.60s: %32.32s: 0x%02x\n", __PRETTY_FUNCTION__, _channel.epicsName(), value)
 
-        for (unsigned i = 0; i < _nelem; ++i)
-        {
-          _m._usLinkConfig[i].enable(v & 1);
-          v >>= 1;
-        }
-      }
-    private:
-      Module&  _m;
-      unsigned _nelem;
-    };
+#define PVG(i)      PRT(TOU(data()));    _ctrl.module().i;
+#define PVP(i)      PRT( ( TOU(data()) = _ctrl.module().i ) );  put();
 
-    class ClearCountersPV : public Pds_Epics::EpicsCA,
-                            public Pds_Epics::PVMonitorCb
-    {
-    public:
-      ClearCountersPV(Module& m, const char* pvName) :
-        Pds_Epics::EpicsCA(pvName, this),
-        _m(m) {}
-      virtual ~ClearCountersPV() {}
-    public:
-      void updated()
-      {
-        //printf("%s: %s: %d\n", __func__, _channel.epicsName(), *reinterpret_cast<unsigned*>(data()));
+#define CPV(name, updatedBody, connectedBody)                           \
+                                                                        \
+    class PV(name) : public EpicsCA,                                    \
+                     public PVMonitorCb                                 \
+    {                                                                   \
+    public:                                                             \
+      PV(name)(PVCtrls& ctrl, const char* pvName, unsigned idx = 0) :   \
+        EpicsCA(pvName, this),                                          \
+        _ctrl(ctrl),                                                    \
+        _idx(idx) {}                                                    \
+      virtual ~PV(name)() {}                                            \
+    public:                                                             \
+      void updated();                                                   \
+      void connected(bool);                                             \
+    public:                                                             \
+      void put() { if (this->EpicsCA::connected())  _channel.put(); }   \
+    private:                                                            \
+      PVCtrls& _ctrl;                                                   \
+      unsigned _idx;                                                    \
+    };                                                                  \
+    void PV(name)::updated()                                            \
+    {                                                                   \
+      updatedBody                                                       \
+    }                                                                   \
+    void PV(name)::connected(bool c)                                    \
+    {                                                                   \
+      this->EpicsCA::connected(c);                                      \
+      connectedBody                                                     \
+    }
 
-        _m.clearCounters();
-      }
-    private:
-      Module& _m;
-    };
+    CPV(ModuleInit,     { PVG(init());        }, { })
+    CPV(CountClear,     { PVG(clearCounters()); }, { })
+
+    CPV(UsLinkEn,       { PVG(usLinkEnabled(_idx, TOU(data())));    },
+                        { PVP(usLinkEnabled(_idx));                 })
+
+    CPV(UsLinkTrigDelay,  { PVG(usLinkTrigDelay(_idx, TOU(data())));    },
+                          { PVP(usLinkTrigDelay(_idx));                 })
+
+    CPV(UsLinkFwdMask,  { PVG(usLinkFwdMask(_idx, TOU(data())));    },
+                        { PVP(usLinkFwdMask(_idx));                 })
 
     PVCtrls::PVCtrls(Module& m) : _pv(0), _m(m) {}
     PVCtrls::~PVCtrls() {}
@@ -80,11 +82,24 @@ namespace Pds {
       o << title << ":DTI:";
       std::string pvbase = o.str();
 
-      _pv.push_back( new UsLinkEnablePV (_m, (pvbase+"UsLinkEnable" ).c_str(), Module::NUsLinks) );
-      _pv.push_back( new ClearCountersPV(_m, (pvbase+"ClearCounters").c_str()) );
+#define NPV(name)  _pv.push_back( new PV(name)(*this, (pvbase+#name).c_str()) )
+#define NPVN(name, n)                                                        \
+      for (unsigned i = 0; i < n; ++i) {                                     \
+        std::ostringstream str;  str << i;  std::string idx = str.str();     \
+        _pv.push_back( new PV(name)(*this, (pvbase+#name+idx).c_str(), i) ); \
+      }
+
+      NPV ( ModuleInit                              );
+      NPV ( CountClear                              );
+      NPVN( UsLinkEn,           Module::NUsLinks    );
+      NPVN( UsLinkTrigDelay,    Module::NUsLinks    );
+      NPVN( UsLinkFwdMask,      Module::NUsLinks    );
 
       // Wait for monitors to be established
       ca_pend_io(0);
     }
+
+    Module& PVCtrls::module() { return _m; }
+
   };
 };

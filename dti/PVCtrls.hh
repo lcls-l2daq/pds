@@ -18,6 +18,9 @@ namespace Pds {
       ~PVCtrls();
     public:
       void allocate(const std::string& title);
+      void update();
+    public:
+      Module& module();
     private:
       std::vector<Pds_Epics::EpicsCA*> _pv;
       Module& _m;
