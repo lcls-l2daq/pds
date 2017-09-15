@@ -221,6 +221,15 @@ void     Module::usLinkFwdMask(unsigned idx, unsigned v)
   _usLinkConfig[idx].fwdMask(v);
 }
 
+unsigned Module::usLinkPartition(unsigned idx) const
+{
+  return (unsigned) _usLinkConfig[idx].partition();
+}
+void     Module::usLinkPartition(unsigned idx, unsigned v)
+{
+  _usLinkConfig[idx].partition(v);
+}
+
 unsigned Module::usLink() const        { return getf(_index,      4,  0); }
 void     Module::usLink(unsigned v) const
 {

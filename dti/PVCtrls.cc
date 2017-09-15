@@ -63,6 +63,9 @@ namespace Pds {
     CPV(UsLinkFwdMask,  { PVG(usLinkFwdMask(_idx, TOU(data())));    },
                         { PVP(usLinkFwdMask(_idx));                 })
 
+    CPV(UsLinkPartition,  { PVG(usLinkPartition(_idx, TOU(data())));    },
+                          { PVP(usLinkPartition(_idx));                 })
+
     PVCtrls::PVCtrls(Module& m) : _pv(0), _m(m) {}
     PVCtrls::~PVCtrls() {}
 
@@ -94,6 +97,7 @@ namespace Pds {
       NPVN( UsLinkEn,           Module::NUsLinks    );
       NPVN( UsLinkTrigDelay,    Module::NUsLinks    );
       NPVN( UsLinkFwdMask,      Module::NUsLinks    );
+      NPVN( UsLinkPartition,    Module::NUsLinks    );
 
       // Wait for monitors to be established
       ca_pend_io(0);

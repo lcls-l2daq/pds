@@ -43,6 +43,8 @@ namespace Pds {
       void     usLinkTrigDelay(unsigned idx, unsigned v);
       unsigned usLinkFwdMask(unsigned idx) const;
       void     usLinkFwdMask(unsigned idx, unsigned v);
+      unsigned usLinkPartition(unsigned idx) const;
+      void     usLinkPartition(unsigned idx, unsigned v);
     public:
       unsigned usLink()         const;
       void     usLink(unsigned) const; // Callable from const methods
