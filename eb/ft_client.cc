@@ -35,6 +35,10 @@ int connect(Endpoint* endp, char* buff, size_t buff_size, int size, int count)
   }
 
   memcpy(&keys, buff, sizeof (keys));
+  if (size*sizeof(uint64_t) > keys.extent) {
+    fprintf(stderr, "Size of remote memory region (%lu) is less than size to read: %lu\n", keys.extent, size*sizeof(uint64_t));
+    return -1;
+  }
 
   for (int i = 0; i < count; i++) {
     if (!endp->read(buff, size*sizeof(uint64_t), &keys, &i, mr)) {

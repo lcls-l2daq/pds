@@ -14,10 +14,11 @@ namespace Pds {
     class RemoteAddress {
     public:
       RemoteAddress();
-      RemoteAddress(uint64_t rkey, uint64_t addr);
+      RemoteAddress(uint64_t rkey, uint64_t addr, size_t extent);
     public:
       uint64_t rkey;
       uint64_t addr;
+      size_t extent;
     };
 
     class MemoryRegion {

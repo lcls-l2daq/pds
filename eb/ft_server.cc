@@ -86,7 +86,7 @@ int main(int argc, char *argv[])
     fprintf(stderr, "Failed to register memory region: %s\n", fab->error());
     return fab->error_num();
   }
-  RemoteAddress keys(mr->rkey(), (uint64_t) data_buff);
+  RemoteAddress keys(mr->rkey(), (uint64_t) data_buff, buff_size-sizeof(RemoteAddress));
   memcpy(buff, &keys, sizeof(keys));
 
   ret = listen(pendp, mr, buff, sizeof(keys), data_buff);

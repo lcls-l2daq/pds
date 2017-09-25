@@ -40,12 +40,14 @@ using namespace Pds::Fabrics;
 
 RemoteAddress::RemoteAddress() :
   rkey(0),
-  addr(0)
+  addr(0),
+  extent(0)
 {}
 
-RemoteAddress::RemoteAddress(uint64_t rkey, uint64_t addr) :
+RemoteAddress::RemoteAddress(uint64_t rkey, uint64_t addr, size_t extent) :
   rkey(rkey),
-  addr(addr)
+  addr(addr),
+  extent(extent)
 {}
 
 MemoryRegion::MemoryRegion(struct fid_mr* mr, void* start, size_t len) :
