@@ -12,7 +12,7 @@ int connect(Endpoint* endp, char* buff, size_t buff_size, int size, int count)
 {
   int* comp_num;
   int num_comp;
-  struct fi_cq_msg_entry comp;
+  struct fi_cq_data_entry comp;
   RemoteAddress keys;
 
   // get a pointer to the fabric

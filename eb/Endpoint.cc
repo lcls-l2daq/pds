@@ -326,7 +326,7 @@ bool EndpointBase::initialize()
   struct fi_cq_attr cq_attr = {
     .size = 0,
     .flags = 0,
-    .format = FI_CQ_FORMAT_MSG,
+    .format = FI_CQ_FORMAT_DATA,
     .wait_obj = FI_WAIT_UNSPEC,
     .signaling_vector = 0,
     .wait_cond = FI_CQ_COND_NONE,
@@ -424,7 +424,7 @@ bool Endpoint::accept(struct fi_info* remote_info)
   return true;
 }
 
-bool Endpoint::handle_comp(ssize_t comp_ret, struct fi_cq_msg_entry* comp, int* comp_num, const char* cmd)
+bool Endpoint::handle_comp(ssize_t comp_ret, struct fi_cq_data_entry* comp, int* comp_num, const char* cmd)
 {
   struct fi_cq_err_entry comp_err;
 
@@ -445,12 +445,12 @@ bool Endpoint::handle_comp(ssize_t comp_ret, struct fi_cq_msg_entry* comp, int* 
   }
 }
 
-bool Endpoint::comp(struct fi_cq_msg_entry* comp, int* comp_num, ssize_t max_count)
+bool Endpoint::comp(struct fi_cq_data_entry* comp, int* comp_num, ssize_t max_count)
 {
   return handle_comp(fi_cq_read(_cq, comp, max_count), comp, comp_num, "fi_cq_read");
 }
 
-bool Endpoint::comp_wait(struct fi_cq_msg_entry* comp, int* comp_num, ssize_t max_count, int timeout)
+bool Endpoint::comp_wait(struct fi_cq_data_entry* comp, int* comp_num, ssize_t max_count, int timeout)
 {
   return handle_comp(fi_cq_sread(_cq, comp, max_count, NULL, timeout), comp, comp_num, "fi_cq_sread");
 }
@@ -469,6 +469,36 @@ bool Endpoint::comp_error(struct fi_cq_err_entry* comp_err)
   }
 
   return true;
+}
+
+bool Endpoint::recv_comp_data(void* context)
+{
+  ssize_t rret = fi_recv(_ep, NULL, 0, NULL, 0, context);
+  if (rret != FI_SUCCESS) {
+    _errno = (int) rret;
+    set_error("fi_recv");
+    return false;
+  }
+
+  return true;
+}
+
+bool Endpoint::recv_comp_data_sync(uint64_t* data)
+{
+  int num_comp;
+  int context = _counter++;
+  unsigned flags = FI_REMOTE_CQ_DATA;
+  struct fi_cq_data_entry comp;
+
+  if(recv_comp_data(&context)) {
+    if (comp_wait(&comp, &num_comp, 1) && num_comp == 1) {
+      if ((comp.flags & flags) == flags) {
+        return (*((int*) comp.op_context) == context);
+      }
+    }
+  }
+
+  return false;
 }
 
 bool Endpoint::send(void* buf, size_t len, void* context, const MemoryRegion* mr)
@@ -498,7 +528,7 @@ bool Endpoint::send_sync(void* buf, size_t len, const MemoryRegion* mr)
   int num_comp;
   int context = _counter++;
   unsigned flags = FI_SEND | FI_MSG;
-  struct fi_cq_msg_entry comp;
+  struct fi_cq_data_entry comp;
 
   if (send(buf, len, &context, mr)) {
     if (comp_wait(&comp, &num_comp, 1) && num_comp == 1) {
@@ -538,7 +568,7 @@ bool Endpoint::recv_sync(void* buf, size_t len, const MemoryRegion* mr)
   int num_comp;
   int context = _counter++;
   unsigned flags = FI_RECV | FI_MSG;
-  struct fi_cq_msg_entry comp;
+  struct fi_cq_data_entry comp;
 
   if (recv(buf, len, &context, mr)) {
     if (comp_wait(&comp, &num_comp, 1) && num_comp == 1) {
@@ -578,7 +608,7 @@ bool Endpoint::read_sync(void* buf, size_t len, const RemoteAddress* raddr, cons
   int num_comp;
   int context = _counter++;
   unsigned flags = FI_READ | FI_RMA;
-  struct fi_cq_msg_entry comp;
+  struct fi_cq_data_entry comp;
 
   if (read(buf, len, raddr, &context, mr)) {
     if (comp_wait(&comp, &num_comp, 1) && num_comp == 1) {
@@ -618,9 +648,49 @@ bool Endpoint::write_sync(void* buf, size_t len, const RemoteAddress* raddr, con
   int num_comp;
   int context = _counter++;
   unsigned flags = FI_WRITE | FI_RMA;
-  struct fi_cq_msg_entry comp;
+  struct fi_cq_data_entry comp;
 
   if (write(buf, len, raddr, &context, mr)) {
+    if (comp_wait(&comp, &num_comp, 1) && num_comp == 1) {
+      if ((comp.flags & flags) == flags) {
+        return (*((int*) comp.op_context) == context);
+      }
+    }
+  }
+
+  return false;
+}
+
+bool Endpoint::write_data(void* buf, size_t len, const RemoteAddress* raddr, void* context, uint64_t data, const MemoryRegion* mr)
+{
+  if (!mr) {
+    mr = _fabric->lookup_memory(buf, len);
+  }
+
+  if (mr) {
+    ssize_t rret = fi_writedata(_ep, buf, len, mr->desc(), data, 0, raddr->addr, raddr->rkey, context);
+    if (rret != FI_SUCCESS) {
+      _errno = (int) rret;
+      set_error("fi_writedata");
+      return false;
+    }
+  } else {
+    CUSTOM_ERR("fi_writedata: requested buffer starting at %p with len %lu is not within a registered memory region", buf, len);
+    _errno = FI_EINVAL;
+    return false;
+  }
+
+  return true;
+}
+
+bool Endpoint::write_data_sync(void* buf, size_t len, const RemoteAddress* raddr, uint64_t data, const MemoryRegion* mr)
+{
+  int num_comp;
+  int context = _counter++;
+  unsigned flags = FI_WRITE | FI_RMA;
+  struct fi_cq_data_entry comp;
+
+  if (write_data(buf, len, raddr, &context, data, mr)) {
     if (comp_wait(&comp, &num_comp, 1) && num_comp == 1) {
       if ((comp.flags & flags) == flags) {
         return (*((int*) comp.op_context) == context);

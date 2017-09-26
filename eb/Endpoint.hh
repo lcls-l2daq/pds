@@ -102,19 +102,25 @@ namespace Pds {
       void shutdown();
       bool connect();
       bool accept(struct fi_info* remote_info);
-      bool comp(struct fi_cq_msg_entry* comp, int* comp_num, ssize_t max_count);
-      bool comp_wait(struct fi_cq_msg_entry* comp, int* comp_num, ssize_t max_count, int timeout=-1);
+      bool comp(struct fi_cq_data_entry* comp, int* comp_num, ssize_t max_count);
+      bool comp_wait(struct fi_cq_data_entry* comp, int* comp_num, ssize_t max_count, int timeout=-1);
       bool comp_error(struct fi_cq_err_entry* comp_err);
+      /* Asynchronous calls */
+      bool recv_comp_data(void* context);
       bool send(void* buf, size_t len, void* context, const MemoryRegion* mr=NULL);
       bool recv(void* buf, size_t len, void* context, const MemoryRegion* mr=NULL);
+      bool read(void* buf, size_t len, const RemoteAddress* raddr, void* context, const MemoryRegion* mr=NULL);
+      bool write(void* buf, size_t len, const RemoteAddress* raddr, void* context, const MemoryRegion* mr=NULL);
+      bool write_data(void* buf, size_t len, const RemoteAddress* raddr, void* context, uint64_t data, const MemoryRegion* mr=NULL);
+      /* Synchronous calls */
+      bool recv_comp_data_sync(uint64_t* data);
       bool send_sync(void* buf, size_t len, const MemoryRegion* mr=NULL);
       bool recv_sync(void* buf, size_t len, const MemoryRegion* mr=NULL);
-      bool read(void* buf, size_t len, const RemoteAddress* raddr, void* context, const MemoryRegion* mr=NULL);
       bool read_sync(void* buf, size_t len, const RemoteAddress* raddr, const MemoryRegion* mr=NULL);
-      bool write(void* buf, size_t len, const RemoteAddress* raddr, void* context, const MemoryRegion* mr=NULL);
       bool write_sync(void* buf, size_t len, const RemoteAddress* raddr, const MemoryRegion* mr=NULL);
+      bool write_data_sync(void* buf, size_t len, const RemoteAddress* raddr, uint64_t data, const MemoryRegion* mr=NULL);
     private:
-      bool handle_comp(ssize_t comp_ret, struct fi_cq_msg_entry* comp, int* comp_num, const char* cmd);
+      bool handle_comp(ssize_t comp_ret, struct fi_cq_data_entry* comp, int* comp_num, const char* cmd);
       bool check_connection_state();
     private:
       uint64_t        _counter;
