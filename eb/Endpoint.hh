@@ -121,6 +121,7 @@ namespace Pds {
       bool write_data_sync(void* buf, size_t len, const RemoteAddress* raddr, uint64_t data, const MemoryRegion* mr=NULL);
     private:
       bool handle_comp(ssize_t comp_ret, struct fi_cq_data_entry* comp, int* comp_num, const char* cmd);
+      bool check_completion(int context, unsigned flags);
       bool check_connection_state();
     private:
       uint64_t        _counter;
