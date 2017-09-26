@@ -1,5 +1,5 @@
 libnames := eb
-tgtnames := ft_pingpong ft_server ft_client ft_push ft_request
+tgtnames := ft_pingpong ft_server ft_client ft_push ft_request ft_publish ft_sub
 
 #libsrcs_eb := $(wildcard *.cc)
 libsrcs_eb := fiTransport.cc
@@ -27,3 +27,12 @@ tgtlibs_ft_push := libfabric/fabric pds/eb
 tgtsrcs_ft_request := ft_request.cc Endpoint.cc
 tgtincs_ft_request := libfabric/include pds/eb
 tgtlibs_ft_request := libfabric/fabric pds/eb
+
+tgtsrcs_ft_publish := ft_publish.cc Endpoint.cc
+tgtincs_ft_publish := libfabric/include pds/eb
+tgtlibs_ft_publish := pdsdata/xtcdata pds/service libfabric/fabric pds/eb
+tgtslib_ft_publish := pthread
+
+tgtsrcs_ft_sub := ft_sub.cc Endpoint.cc
+tgtincs_ft_sub := libfabric/include pds/eb
+tgtlibs_ft_sub := libfabric/fabric pds/eb
