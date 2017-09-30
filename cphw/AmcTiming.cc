@@ -85,11 +85,12 @@ void AmcTiming::setRxResetLength(unsigned len)
 
 void AmcTiming::dumpRxAlign     () const
 {
-  printf("\nTarget: %u\tRstLen: %u\tLast: %u\n",
+  printf("\nTarget: 0x%x\tMask: 0x%x\tRstLen: %u\tLast: 0x%x\n",
          gthAlignTarget&0x7f,
+         (gthAlignTarget>>8)&0x7f,
          (gthAlignTarget>>16)&0xf,
          gthAlignLast&0x7f);
-  for(unsigned i=0; i<128; i++) {
+  for(unsigned i=0; i<40; i++) {
     printf(" %04x",(gthAlign[i/2] >> (16*(i&1)))&0xffff);
     if ((i%10)==9) printf("\n");
   }
