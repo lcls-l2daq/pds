@@ -1,5 +1,6 @@
 #include "Module.hh"
 
+#include <string.h>
 #include <unistd.h>
 #include <stdio.h>
 #include <new>
@@ -36,6 +37,23 @@ static inline unsigned setf(Pds::Cphw::Reg& o, unsigned v, unsigned n, unsigned 
   }
   */
   return q;
+}
+
+L0Stats::L0Stats() {
+  l0Enabled=0; 
+  l0Inhibited=0; 
+  numl0=0; 
+  numl0Inh=0; 
+  numl0Acc=0; 
+  memset(linkInh,0,32*sizeof(uint32_t)); 
+  rx0Errs=0; 
+}
+
+LinkStatus::LinkStatus() {
+  txReady = 0;
+  rxReady = 0;
+  isXpm   = 0;
+  rxErrs  = 0;
 }
 
 void CoreCounts::dump() const
@@ -244,11 +262,37 @@ void Module::linkEnable(unsigned link, bool v)
   //unsigned r = _dsLinkConfig;
   //printf("linkEnable[%u,%c] %x -> %x\n", link,v?'T':'F',q,r);
 }
+
 bool Module::linkEnable(unsigned link) const
 {
   setLink(link);
   return getf(_dsLinkConfig,1,31);
 }
+
+bool     Module::linkRxReady (unsigned link) const
+{
+  setLink(link);
+  return getf(_dsLinkStatus,1,19);
+}
+
+bool     Module::linkTxReady (unsigned link) const
+{
+  setLink(link);
+  return getf(_dsLinkStatus,1,17);
+}
+
+bool     Module::linkIsXpm   (unsigned link) const
+{
+  setLink(link);
+  return getf(_dsLinkStatus,1,20);
+}
+
+bool     Module::linkRxErr   (unsigned link) const
+{
+  setLink(link);
+  return getf(_dsLinkStatus,16,0)!=0;
+}
+
 
 bool Module::l0Enabled() const { return getf(_l0Control,1,16); }
 
@@ -274,6 +318,25 @@ L0Stats Module::l0Stats() const
   s.rx0Errs = rxLinkErrs(0);
 
   return s;
+}
+
+LinkStatus Module::linkStatus(unsigned link) const
+{
+  LinkStatus s;
+  setLink(link);
+  unsigned dsLinkStatus = _dsLinkStatus;
+  //  printf("LinkStatus[%u] %08x\n", link,dsLinkStatus);
+  s.txReady = getf(dsLinkStatus,1,17);
+  s.rxReady = getf(dsLinkStatus,1,19);
+  s.isXpm   = getf(dsLinkStatus,1,20);
+  s.rxErrs  = getf(dsLinkStatus,16,0);
+  return s;
+}
+
+void Module::linkStatus(LinkStatus* links) const
+{
+  for(unsigned i=0; i<32; i++)
+    links[i] = linkStatus(i);
 }
 
 unsigned Module::rxLinkErrs(unsigned link) const
@@ -306,11 +369,23 @@ void Module::resetL0(bool v)
 {
   setf(_l0Control,v?1:0,1,0);
 }
+void Module::resetL0()
+{
+  resetL0(true);
+  usleep(1);
+  resetL0(false);
+}
+bool Module::l0Reset() const
+{
+  return getf(_l0Control,1,0);
+}
 
 void Module::setL0Enabled(bool v)
 {
+  printf("L0Select: %08x\n", unsigned(_l0Select));
   setf(_l0Control,v?1:0,1,16);
 }
+
 bool Module::getL0Enabled() const
 {
   return getf(_l0Control,1,16) ? 1 : 0;
@@ -334,6 +409,13 @@ void Module::setL0Select_Sequence (unsigned seq , unsigned bit)
 {
   unsigned rateSel = (2<<14) | ((seq&0x3f)<<8) | (bit&0xf);
   unsigned destSel = _l0Select >> 16;
+  _l0Select = (destSel<<16) | rateSel;
+}
+
+void Module::setL0Select_Destn    (unsigned mode, unsigned mask)
+{
+  unsigned rateSel = _l0Select & 0xffff;
+  unsigned destSel = (mode<<15) | (mask&0xf);
   _l0Select = (destSel<<16) | rateSel;
 }
 
@@ -502,6 +584,19 @@ void Module::dumpPll(unsigned idx) const
   printf("\n");
 }
 
+void Module::dumpTiming(unsigned b) const
+{
+  Module& cthis = *const_cast<Module*>(this);
+  Pds::Cphw::RingBuffer& ring = b==0 ? cthis._timing.ring0 : cthis._timing.ring1;
+
+  ring.enable(false);
+  ring.clear();
+  ring.enable(true);
+  usleep(10);
+  ring.enable(false);
+  ring.dump();
+}
+
 void     Module::setPartition(unsigned v) const
 {
   setf(const_cast<Pds::Cphw::Reg&>(_index),v,4,0);
@@ -584,51 +679,46 @@ unsigned Module::getL1TrgWrite(unsigned partition) const
 }
 void Module::messageHdr(unsigned partition, unsigned v)
 {
+  v |= (1<<15);
   setPartition(partition);
-  setf(_message, v, 14, 0);
+  setf(_message, v, 16, 0);
 }
 unsigned Module::messageHdr(unsigned partition) const
 {
   setPartition(partition);
-  return getf(_message, 14, 0);
+  return getf(_message, 16, 0);
 }
-void Module::messageIns(unsigned partition, unsigned v)
+void Module::messagePayload(unsigned partition, unsigned v)
 {
   setPartition(partition);
-  setf(_message, v, 1, 15);
+  setf(_messagePayload, v, 32, 0);
 }
-unsigned Module::messageIns(unsigned partition) const
+unsigned Module::messagePayload(unsigned partition) const
 {
   setPartition(partition);
-  return getf(_message, 1, 15);
+  return getf(_messagePayload, 32, 0);
 }
-void Module::inhibitInt(unsigned partition, unsigned v)
+void Module::inhibitInt(unsigned inh, unsigned v)
 {
-  setPartition(partition);
-  setf(_message, v, 12, 0);
+  setf(_inhibitConfig[inh], v-1, 12, 0);
 }
-unsigned Module::inhibitInt(unsigned partition) const
+unsigned Module::inhibitInt(unsigned inh) const
 {
-  setPartition(partition);
-  return getf(_message, 12, 0);
+  return getf(_inhibitConfig[inh], 12, 0)+1;
 }
-void Module::inhibitLim(unsigned partition, unsigned v)
+void Module::inhibitLim(unsigned inh, unsigned v)
 {
-  setPartition(partition);
-  setf(_message, v, 4, 12);
+  setf(_inhibitConfig[inh], v-1, 4, 12);
 }
-unsigned Module::inhibitLim(unsigned partition) const
+unsigned Module::inhibitLim(unsigned inh) const
 {
-  setPartition(partition);
-  return getf(_message, 4, 12);
+  return getf(_inhibitConfig[inh], 4, 12)+1;
 }
-void Module::inhibitEnb(unsigned partition, unsigned v)
+void Module::inhibitEnb(unsigned inh, unsigned v)
 {
-  setPartition(partition);
-  setf(_message, v, 1, 31);
+  setf(_inhibitConfig[inh], v, 1, 31);
 }
-unsigned Module::inhibitEnb(unsigned partition) const
+unsigned Module::inhibitEnb(unsigned inh) const
 {
-  setPartition(partition);
-  return getf(_message, 1, 31);
+  return getf(_inhibitConfig[inh], 1, 31);
 }

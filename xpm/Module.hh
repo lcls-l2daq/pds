@@ -29,6 +29,7 @@ namespace Pds {
 
     class L0Stats {
     public:
+      L0Stats();
       void dump() const;
     public:
       uint64_t l0Enabled;
@@ -40,11 +41,21 @@ namespace Pds {
       uint16_t rx0Errs;
     };
 
+    class LinkStatus {
+    public:
+      LinkStatus();
+    public:
+      bool     txReady;
+      bool     rxReady;
+      bool     isXpm;
+      uint16_t rxErrs;
+    };
+
     class Module {
     public:
       enum { NAmcs=2 };
       enum { NDSLinks=14 };
-      enum { NPartitions=16 };
+      enum { NPartitions=8 };
     public:
       static class Module* locate();
     public:
@@ -67,14 +78,19 @@ namespace Pds {
     public:
       void clearLinks  ();
     public:
+      LinkStatus linkStatus(unsigned) const;
+      void       linkStatus(LinkStatus*) const;
       unsigned rxLinkErrs(unsigned) const;
     public:
       void resetL0     (bool);
+      void resetL0     ();
+      bool l0Reset     () const;
       void setL0Enabled(bool);
       bool getL0Enabled() const;
       void setL0Select_FixedRate(unsigned rate);
       void setL0Select_ACRate   (unsigned rate, unsigned tsmask);
       void setL0Select_Sequence (unsigned seq , unsigned bit);
+      void setL0Select_Destn    (unsigned mode, unsigned mask);
       //      void setL0Select_EventCode(unsigned code);
       void lockL0Stats (bool);
       //    private:
@@ -82,6 +98,7 @@ namespace Pds {
       void setRingBChan(unsigned);
     public:
       void dumpPll     (unsigned) const;
+      void dumpTiming  (unsigned) const;
       void pllBwSel    (unsigned, unsigned);
       void pllFrqTbl   (unsigned, unsigned);
       void pllFrqSel   (unsigned, unsigned);
@@ -127,6 +144,10 @@ namespace Pds {
       void     rxLinkReset (unsigned);
       void     linkEnable  (unsigned, bool);
       bool     linkEnable  (unsigned) const;
+      bool     linkRxReady (unsigned) const;
+      bool     linkTxReady (unsigned) const;
+      bool     linkIsXpm   (unsigned) const;
+      bool     linkRxErr   (unsigned) const;
     public:
       void     setL1TrgClr(unsigned, unsigned);
       unsigned getL1TrgClr(unsigned) const;
@@ -139,10 +160,10 @@ namespace Pds {
       void     setL1TrgWrite(unsigned, unsigned);
       unsigned getL1TrgWrite(unsigned) const;
     public:
-      void     messageHdr(unsigned, unsigned);
+      void     messagePayload(unsigned, unsigned);
+      unsigned messagePayload(unsigned) const;
+      void     messageHdr(unsigned, unsigned);  // inserts the message
       unsigned messageHdr(unsigned) const;
-      void     messageIns(unsigned, unsigned);
-      unsigned messageIns(unsigned) const;
     public:
       void     inhibitInt(unsigned, unsigned);
       unsigned inhibitInt(unsigned) const;
