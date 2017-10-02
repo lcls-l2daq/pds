@@ -5,6 +5,7 @@
 
 #include <stdio.h>
 #include <stdlib.h>
+#include <stdarg.h>
 #include <string.h>
 
 #define FIVER FI_VERSION(1, 4)
@@ -22,25 +23,14 @@
   if (!function)            \
     return false;
 
-#define CHECK_MR(buf, len, mr, cmd)                                                                                           \
-  if (!mr) {                                                                                                                  \
-    mr = _fabric->lookup_memory(buf, len);                                                                                    \
-    if (!mr) {                                                                                                                \
-      CUSTOM_ERR("%s: requested buffer starting at %p with len %lu is not within a registered memory region", cmd, buf, len); \
-      _errno = FI_EINVAL;                                                                                                     \
-      return false;                                                                                                           \
-    }                                                                                                                         \
-  }
-
-#define CUSTOM_ERR(fmt, ...)  \
-  { snprintf(_error, ERR_MSG_LEN, fmt, ##__VA_ARGS__); }
-
-#define ADD_ERR_METHS(cname)                                                                \
-  int cname::error_num() const { return _errno; };                                          \
-  const char* cname::error() const { return _error; }                                       \
-  void cname::set_error(const char* error_desc)                                             \
-  {                                                                                         \
-    snprintf(_error, ERR_MSG_LEN, "%s: %s(%d)", error_desc, fi_strerror(-_errno), _errno);  \
+#define CHECK_MR(buf, len, mr, cmd)                                                                                                 \
+  if (!mr) {                                                                                                                        \
+    mr = _fabric->lookup_memory(buf, len);                                                                                          \
+    if (!mr) {                                                                                                                      \
+      set_custom_error("%s: requested buffer starting at %p with len %lu is not within a registered memory region", cmd, buf, len); \
+      _errno = FI_EINVAL;                                                                                                           \
+      return false;                                                                                                                 \
+    }                                                                                                                               \
   }
 
 
@@ -84,11 +74,36 @@ bool MemoryRegion::contains(void* start, size_t len) const
   return (start >= _start) && ( ((char*) start + len) <= ((char*) _start + _len) );
 }
 
+ErrorHandler::ErrorHandler() :
+  _errno(FI_SUCCESS),
+  _error(new char[ERR_MSG_LEN])
+{}
+
+ErrorHandler::~ErrorHandler()
+{
+  if (_error) delete[] _error;
+}
+
+int ErrorHandler::error_num() const { return _errno; };
+
+const char* ErrorHandler::error() const { return _error; }
+
+void ErrorHandler::set_error(const char* error_desc)
+{
+  snprintf(_error, ERR_MSG_LEN, "%s: %s(%d)", error_desc, fi_strerror(-_errno), _errno);
+}
+
+void ErrorHandler::set_custom_error(const char* fmt, ...)
+{
+  va_list argptr;
+  va_start(argptr, fmt);
+  vsnprintf(_error, ERR_MSG_LEN, fmt, argptr);
+  va_end(argptr);
+}
+
 
 Fabric::Fabric(const char* node, const char* service, int flags) :
   _up(false),
-  _errno(FI_SUCCESS),
-  _error(new char[ERR_MSG_LEN]),
   _hints(0),
   _info(0),
   _fabric(0),
@@ -101,7 +116,6 @@ Fabric::Fabric(const char* node, const char* service, int flags) :
 Fabric::~Fabric()
 {
   shutdown();
-  if (_error) delete[] _error;
 }
 
 MemoryRegion* Fabric::register_memory(void* start, size_t len)
@@ -195,14 +209,10 @@ void Fabric::shutdown()
   _up = false;
 }
 
-ADD_ERR_METHS(Fabric);
-
 
 EndpointBase::EndpointBase(const char* addr, const char* port, int flags) :
   _state(EP_INIT),
   _fab_owner(true),
-  _errno(FI_SUCCESS),
-  _error(new char[ERR_MSG_LEN]),
   _fabric(new Fabric(addr, port, flags)),
   _eq(0),
   _cq(0)
@@ -215,8 +225,6 @@ EndpointBase::EndpointBase(const char* addr, const char* port, int flags) :
 EndpointBase::EndpointBase(Fabric* fabric) :
   _state(EP_INIT),
   _fab_owner(false),
-  _errno(FI_SUCCESS),
-  _error(new char[ERR_MSG_LEN]),
   _fabric(fabric),
   _eq(0),
   _cq(0)
@@ -237,6 +245,10 @@ State EndpointBase::state() const { return _state; };
 
 Fabric* EndpointBase::fabric() const { return _fabric; };
 
+struct fid_eq* EndpointBase::eq() const { return _eq; }
+
+struct fid_cq* EndpointBase::cq() const { return _cq; }
+
 bool EndpointBase::event(uint32_t* event, void* entry, bool* cm_entry)
 {
   return handle_event(fi_eq_read(_eq, event, entry, sizeof (struct fi_eq_cm_entry), 0), cm_entry, "fi_eq_read");
@@ -255,7 +267,7 @@ bool EndpointBase::event_error(struct fi_eq_err_entry *entry)
       _errno = (int) rret;
       set_error("fi_eq_readerr");
     } else if (rret == 0) {
-      CUSTOM_ERR("fi_eq_readerr: no errors to be read")
+      set_custom_error("fi_eq_readerr: no errors to be read");
       _errno = FI_SUCCESS;
     } else {
       _errno = -FI_ETRUNC;
@@ -292,7 +304,7 @@ bool EndpointBase::handle_event(ssize_t event_ret, bool* cm_entry, const char* c
       }
     } else {
       _errno = -FI_ENODATA;
-      CUSTOM_ERR("no events seen within timeout by %s", cmd);
+      set_custom_error("no events seen within timeout by %s", cmd);
     }
 
     return false;
@@ -319,7 +331,7 @@ bool EndpointBase::initialize()
 {
   if (!_fabric->up()) {
     _errno = _fabric->error_num();
-    CUSTOM_ERR(_fabric->error());
+    set_custom_error(_fabric->error());
     return false;
   }
 
@@ -349,7 +361,6 @@ bool EndpointBase::initialize()
   return true;
 }
 
-ADD_ERR_METHS(EndpointBase);
 
 Endpoint::Endpoint(const char* addr, const char* port, int flags) :
   EndpointBase(addr, port, flags),
@@ -395,7 +406,7 @@ bool Endpoint::connect()
   CHECK(event_wait(&event, &entry, &cm_entry));
 
   if (!cm_entry || event != FI_CONNECTED) {
-    CUSTOM_ERR("unexpected event %u - expected FI_CONNECTED (%u)", event, FI_CONNECTED);
+    set_custom_error("unexpected event %u - expected FI_CONNECTED (%u)", event, FI_CONNECTED);
     _errno = -FI_ECONNREFUSED;
     return false;
   }
@@ -422,7 +433,7 @@ bool Endpoint::accept(struct fi_info* remote_info)
   CHECK(event_wait(&event, &entry, &cm_entry));
 
   if (!cm_entry || event != FI_CONNECTED) {
-    CUSTOM_ERR("unexpected event %u - expected FI_CONNECTED (%u)", event, FI_CONNECTED);
+    set_custom_error("unexpected event %u - expected FI_CONNECTED (%u)", event, FI_CONNECTED);
     _errno = -FI_ECONNREFUSED;
     return false;
   }
@@ -471,7 +482,7 @@ bool Endpoint::comp_error(struct fi_cq_err_entry* comp_err)
     set_error("fi_cq_readerr");
     return false;
   } else if (rret == 0) {
-    CUSTOM_ERR("fi_cq_readerr: no errors to be read")
+    set_custom_error("fi_cq_readerr: no errors to be read");
     _errno = FI_SUCCESS;
     return false;
   }
@@ -722,7 +733,7 @@ Endpoint* PassiveEndpoint::accept()
     return NULL;
 
   if (!cm_entry || event != FI_CONNREQ) {
-    CUSTOM_ERR("unexpected event %u - expected FI_CONNECTED (%u)", event, FI_CONNREQ);
+    set_custom_error("unexpected event %u - expected FI_CONNECTED (%u)", event, FI_CONNREQ);
     _errno = -FI_ECONNABORTED;
     return NULL;
   }
@@ -755,7 +766,7 @@ bool PassiveEndpoint::reject()
   CHECK(event_wait(&event, &entry, &cm_entry));
 
   if (!cm_entry || event != FI_CONNREQ) {
-    CUSTOM_ERR("unexpected event %u - expected FI_CONNECTED (%u)", event, FI_CONNREQ);
+    set_custom_error("unexpected event %u - expected FI_CONNECTED (%u)", event, FI_CONNREQ);
     _errno = -FI_ECONNABORTED;
     return false;
   }
@@ -784,4 +795,3 @@ bool PassiveEndpoint::close(Endpoint* endpoint)
 #undef CHECK_ERR
 #undef CHECK
 #undef CHECK_MR
-#undef ADD_ERR_METHS

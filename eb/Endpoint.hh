@@ -38,14 +38,26 @@ namespace Pds {
       size_t         _len;
     };
 
-    class Fabric {
+    class ErrorHandler {
+    public:
+      ErrorHandler();
+      virtual ~ErrorHandler();
+      int error_num() const;
+      const char* error() const;
+    protected:
+      void set_custom_error(const char* fmt, ...);
+      void set_error(const char* error_desc);
+    protected:
+      int   _errno;
+      char* _error;
+    };
+
+    class Fabric : public ErrorHandler {
     public:
       Fabric(const char* node, const char* service, int flags=0);
       ~Fabric();
       MemoryRegion* register_memory(void* start, size_t len);
       MemoryRegion* lookup_memory(void* start, size_t len) const;
-      int error_num() const;
-      const char* error() const;
       bool up() const;
       struct fi_info* info() const;
       struct fid_fabric* fabric() const;
@@ -53,11 +65,8 @@ namespace Pds {
     private:
       bool initialize(const char* node, const char* service, int flags);
       void shutdown();
-      void set_error(const char* error_desc);
     private:
       bool                        _up;
-      int                         _errno;
-      char*                       _error;
       struct fi_info*             _hints;
       struct fi_info*             _info;
       struct fid_fabric*          _fabric;
@@ -65,7 +74,7 @@ namespace Pds {
       std::vector<MemoryRegion*>  _mem_regions;
     };
 
-    class EndpointBase {
+    class EndpointBase : public ErrorHandler {
     protected:
       EndpointBase(const char* addr, const char* port, int flags=0);
       EndpointBase(Fabric* fabric);
@@ -73,21 +82,18 @@ namespace Pds {
     public:
       State state() const;
       Fabric* fabric() const;
+      struct fid_eq* eq() const;
+      struct fid_cq* cq() const;
       virtual void shutdown();
-      int error_num() const;
-      const char* error() const;
       bool event(uint32_t* event, void* entry, bool* cm_entry);
       bool event_wait(uint32_t* event, void* entry, bool* cm_entry, int timeout=-1);
       bool event_error(struct fi_eq_err_entry *entry);
     protected:
       bool handle_event(ssize_t event_ret, bool* cm_entry, const char* cmd);
       bool initialize();
-      void set_error(const char* error_desc);
     protected:
       State                       _state;
       const bool                  _fab_owner;
-      int                         _errno;
-      char*                       _error;
       Fabric*                     _fabric;
       struct fid_eq*              _eq;
       struct fid_cq*              _cq;
@@ -143,7 +149,6 @@ namespace Pds {
       struct fid_pep*         _pep;
       std::vector<Endpoint*>  _endpoints;
     };
-
   }
 }
 
