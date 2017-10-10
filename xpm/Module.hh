@@ -149,6 +149,8 @@ namespace Pds {
       bool     linkIsXpm   (unsigned) const;
       bool     linkRxErr   (unsigned) const;
     public:
+      void     setL0Delay (unsigned, unsigned);
+      unsigned getL0Delay (unsigned) const;
       void     setL1TrgClr(unsigned, unsigned);
       unsigned getL1TrgClr(unsigned) const;
       void     setL1TrgEnb(unsigned, unsigned);

@@ -101,6 +101,8 @@ namespace Pds {
     CPV(Run,            { PVG(setL0Enabled (TOU(data()) != 0));   },
                         { PVP(getL0Enabled ());                   })
 
+    CPV(L0Delay,        { PVG(setL0Delay(_idx, TOU(data())));     },
+                        { PVP(getL0Delay(_idx));                  })
     CPV(L1TrgClear,     { PVG(setL1TrgClr  (_idx, TOU(data())));  },
                         { PVP(getL1TrgClr  (_idx));               })
     CPV(L1TrgEnable,    { PVG(setL1TrgEnb  (_idx, TOU(data())));  },
