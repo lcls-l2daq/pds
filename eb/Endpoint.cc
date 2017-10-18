@@ -77,7 +77,9 @@ bool MemoryRegion::contains(void* start, size_t len) const
 ErrorHandler::ErrorHandler() :
   _errno(FI_SUCCESS),
   _error(new char[ERR_MSG_LEN])
-{}
+{
+  set_error("None");
+}
 
 ErrorHandler::~ErrorHandler()
 {
@@ -87,6 +89,12 @@ ErrorHandler::~ErrorHandler()
 int ErrorHandler::error_num() const { return _errno; };
 
 const char* ErrorHandler::error() const { return _error; }
+
+void ErrorHandler::clear_error()
+{
+  set_error("None");
+  _errno = FI_SUCCESS;
+}
 
 void ErrorHandler::set_error(const char* error_desc)
 {
@@ -109,7 +117,6 @@ Fabric::Fabric(const char* node, const char* service, int flags) :
   _fabric(0),
   _domain(0)
 {
-  set_error("None");
   _up = initialize(node, service, flags);
 }
 
@@ -217,7 +224,6 @@ EndpointBase::EndpointBase(const char* addr, const char* port, int flags) :
   _eq(0),
   _cq(0)
 {
-  set_error("None");
   if (!initialize())
     _state = EP_CLOSED;
 }
@@ -789,6 +795,154 @@ bool PassiveEndpoint::close(Endpoint* endpoint)
   }
 
   return true;
+}
+
+
+CompletionPoller::CompletionPoller(Fabric* fabric, nfds_t size_hint) :
+  _up(false),
+  _fabric(fabric),
+  _nfd(0),
+  _nfd_max(size_hint),
+  _pfd(0),
+  _pfid(0),
+  _endps(0)
+{
+  _up = initialize();
+}
+
+CompletionPoller::~CompletionPoller()
+{
+  shutdown();
+}
+
+bool CompletionPoller::up() const { return _up; }
+
+bool CompletionPoller::add(Endpoint* endp)
+{
+  for (unsigned i=0; i<_nfd; i++) {
+    if (_endps[i] == endp)
+      return false;
+  }
+
+  check_size();
+
+  CHECK_ERR(fi_control(&endp->cq()->fid, FI_GETWAIT, (void *) &_pfd[_nfd].fd), "fi_control");
+
+  _pfd[_nfd].events   = POLLIN;
+  _pfd[_nfd].revents  = 0;
+  _pfid[_nfd]         = &endp->cq()->fid;
+  _endps[_nfd]        = endp;
+  _nfd++;
+
+  return true;
+}
+
+bool CompletionPoller::del(Endpoint* endp)
+{
+  unsigned pos = 0;
+
+  for (unsigned i=0; i<_nfd; i++) {
+    if (_endps[i] == endp)
+      break;
+    pos++;
+  }
+
+  if (pos < _nfd) {
+    for (; pos<(_nfd-1); pos++) {
+      _pfd[pos] = _pfd[pos+1];
+      _pfid[pos] = _pfid[pos+1];
+      _endps[pos] = _endps[pos+1];
+    }
+    _nfd--;
+    return true;
+  } else {
+    return false;
+  }
+}
+
+bool CompletionPoller::poll(int timeout)
+{
+  int npoll = 0;
+  int ret = 0;
+
+  ret = fi_trywait(_fabric->fabric(), _pfid, _nfd);
+  if (ret == FI_SUCCESS) {
+    npoll = ::poll(_pfd, _nfd, timeout);
+    if (npoll < 0) {
+      _errno = npoll;
+      set_error("poll");
+    } else if (npoll == 0) {
+      _errno = -FI_EAGAIN;
+      set_error("poll");
+    } else {
+      clear_error();
+    }
+    return (npoll > 0);
+  } else if (ret == -FI_EAGAIN) {
+    return true;
+  } else {
+    _errno = ret;
+    set_error("fi_trywait");
+    return false;
+  }
+}
+
+void CompletionPoller::check_size()
+{
+  if (_up && (_nfd >= _nfd_max)) {
+    _nfd_max *= 2;
+
+    struct pollfd* pfd_new = new pollfd[_nfd_max];
+    struct fid** pfid_new = new struct fid*[_nfd_max];
+    Endpoint** endp_new = new Endpoint*[_nfd_max];
+
+    for (unsigned i=0; i<_nfd; i++) {
+      pfd_new[i] = _pfd[i];
+      pfid_new[i] = _pfid[i];
+      endp_new[i] = _endps[i];
+    }
+
+    delete[] _pfd;
+    delete[] _pfid;
+    delete[] _endps;
+
+    _pfd = pfd_new;
+    _pfid = pfid_new;
+    _endps = endp_new;
+  }
+}
+
+bool CompletionPoller::initialize()
+{
+  if (!_fabric->up()) {
+    _errno = _fabric->error_num();
+    set_custom_error(_fabric->error());
+    return false;
+  }
+
+  if (!_up) {
+    _pfd = new pollfd[_nfd_max];
+    _pfid = new struct fid*[_nfd_max];
+    _endps = new Endpoint*[_nfd_max];
+  }
+
+  return true;
+}
+
+void CompletionPoller::shutdown()
+{
+  if (_up) {
+    if (_pfd) {
+      delete[] _pfd;
+    }
+    if (_pfid) {
+      delete[] _pfid;
+    }
+    if (_endps) {
+      delete[] _endps;
+    }
+  }
+  _up = false;
 }
 
 #undef ERR_MSG_LEN

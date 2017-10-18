@@ -6,6 +6,7 @@
 #include <rdma/fi_errno.h>
 
 #include <vector>
+#include <poll.h>
 
 namespace Pds {
   namespace Fabrics {
@@ -44,6 +45,7 @@ namespace Pds {
       virtual ~ErrorHandler();
       int error_num() const;
       const char* error() const;
+      void clear_error();
     protected:
       void set_custom_error(const char* fmt, ...);
       void set_error(const char* error_desc);
@@ -148,6 +150,28 @@ namespace Pds {
       int                     _flags;
       struct fid_pep*         _pep;
       std::vector<Endpoint*>  _endpoints;
+    };
+
+    class CompletionPoller : public ErrorHandler {
+    public:
+      CompletionPoller(Fabric* fabric, nfds_t size_hint=1);
+      ~CompletionPoller();
+      bool up() const;
+      bool add(Endpoint* endp);
+      bool del(Endpoint* endp);
+      bool poll(int timeout=-1);
+      void shutdown();
+    private:
+      bool initialize();
+      void check_size();
+    private:
+      bool          _up;
+      Fabric*       _fabric;
+      nfds_t        _nfd;
+      nfds_t        _nfd_max;
+      pollfd*       _pfd;
+      struct fid**  _pfid;
+      Endpoint**    _endps;
     };
   }
 }
