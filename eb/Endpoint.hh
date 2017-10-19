@@ -4,9 +4,11 @@
 #include <rdma/fabric.h>
 #include <rdma/fi_endpoint.h>
 #include <rdma/fi_errno.h>
+#include <rdma/fi_rma.h>
 
 #include <vector>
 #include <poll.h>
+#include <sys/uio.h>
 
 namespace Pds {
   namespace Fabrics {
@@ -16,10 +18,11 @@ namespace Pds {
     public:
       RemoteAddress();
       RemoteAddress(uint64_t rkey, uint64_t addr, size_t extent);
+      const struct fi_rma_iov* rma_iov() const;
     public:
-      uint64_t rkey;
       uint64_t addr;
       size_t extent;
+      uint64_t rkey;
     };
 
     class MemoryRegion {
@@ -37,6 +40,41 @@ namespace Pds {
       struct fid_mr* _mr;
       void*          _start;
       size_t         _len;
+    };
+
+    class LocalAddress {
+    public:
+      LocalAddress();
+      LocalAddress(void* buf, size_t len, MemoryRegion* mr=NULL);
+      void* buf() const;
+      size_t len() const;
+      MemoryRegion* mr() const;
+      const struct iovec* iovec() const;
+    public:
+      void*         _buf;
+      size_t        _len;
+      MemoryRegion* _mr;
+    };
+
+    class LocalIOVec {
+    public:
+      LocalIOVec(size_t count, LocalAddress** local_addrs=NULL);
+      LocalIOVec(const std::vector<LocalAddress*>& local_addrs);
+      ~LocalIOVec();
+      bool check_mr();
+      size_t count() const;
+      const struct iovec* iovecs() const;
+      void** desc() const;
+      bool set_iovec(unsigned index, LocalAddress* local_addr);
+      bool set_iovec(unsigned index, void* buf, size_t len, MemoryRegion* mr=NULL);
+      bool set_iovec_mr(unsigned index, MemoryRegion* mr);
+    private:
+      void verify();
+    private:
+      bool          _mr_set;
+      size_t        _count;
+      struct iovec* _iovs;
+      void**        _mr_desc;
     };
 
     class ErrorHandler {
@@ -60,6 +98,7 @@ namespace Pds {
       ~Fabric();
       MemoryRegion* register_memory(void* start, size_t len);
       MemoryRegion* lookup_memory(void* start, size_t len) const;
+      bool lookup_memory_iovec(LocalIOVec* iov) const;
       bool up() const;
       struct fi_info* info() const;
       struct fid_fabric* fabric() const;
@@ -120,6 +159,9 @@ namespace Pds {
       bool read(void* buf, size_t len, const RemoteAddress* raddr, void* context, const MemoryRegion* mr=NULL);
       bool write(void* buf, size_t len, const RemoteAddress* raddr, void* context, const MemoryRegion* mr=NULL);
       bool write_data(void* buf, size_t len, const RemoteAddress* raddr, void* context, uint64_t data, const MemoryRegion* mr=NULL);
+      /* Vectored Asynchronous calls */
+      bool readv(LocalIOVec* iov, const RemoteAddress* raddr, void* context);
+      bool writev(LocalIOVec* iov, const RemoteAddress* raddr, void* context);
       /* Synchronous calls */
       bool recv_comp_data_sync(uint64_t* data);
       bool send_sync(void* buf, size_t len, const MemoryRegion* mr=NULL);
@@ -127,6 +169,9 @@ namespace Pds {
       bool read_sync(void* buf, size_t len, const RemoteAddress* raddr, const MemoryRegion* mr=NULL);
       bool write_sync(void* buf, size_t len, const RemoteAddress* raddr, const MemoryRegion* mr=NULL);
       bool write_data_sync(void* buf, size_t len, const RemoteAddress* raddr, uint64_t data, const MemoryRegion* mr=NULL);
+      /* Vectored Synchronous calls */
+      bool readv_sync(LocalIOVec* iov, const RemoteAddress* raddr);
+      bool writev_sync(LocalIOVec* iov, const RemoteAddress* raddr);
     private:
       bool handle_comp(ssize_t comp_ret, struct fi_cq_data_entry* comp, int* comp_num, const char* cmd);
       bool check_completion(int context, unsigned flags);
