@@ -192,10 +192,90 @@ RemoteAddress::RemoteAddress(uint64_t rkey, uint64_t addr, size_t extent) :
   rkey(rkey)
 {}
 
+RemoteIOVec::RemoteIOVec(size_t count, RemoteAddress** remote_addrs) :
+  _count(count),
+  _rma_iovs(new struct fi_rma_iov[count])
+{
+  if (remote_addrs) {
+    for (unsigned i=0; i<_count; i++) {
+      _rma_iovs[i] = *remote_addrs[i]->rma_iov();
+    }
+  }
+}
+
+RemoteIOVec::RemoteIOVec(const std::vector<RemoteAddress*>& remote_addrs) :
+  _count(remote_addrs.size()),
+  _rma_iovs(new struct fi_rma_iov[remote_addrs.size()])
+{
+  for (unsigned i=0; i<_count; i++) {
+    _rma_iovs[i] = *remote_addrs[i]->rma_iov();
+  }
+}
+
+RemoteIOVec::~RemoteIOVec()
+{
+  if (_rma_iovs) {
+    delete[] _rma_iovs;
+  }
+}
+
+size_t RemoteIOVec::count() const { return _count; }
+
+const struct fi_rma_iov* RemoteIOVec::iovecs() const { return _rma_iovs; }
+
+bool RemoteIOVec::set_iovec(unsigned index, RemoteAddress* remote_addr)
+{
+  if (index >= _count) {
+    return false;
+  }
+
+  _rma_iovs[index] = *remote_addr->rma_iov();
+
+  return true;
+}
+
+bool RemoteIOVec::set_iovec(unsigned index, uint64_t rkey, uint64_t addr, size_t extent)
+{
+  if (index >= _count) {
+    return false;
+  }
+
+  _rma_iovs[index].addr  = addr;
+  _rma_iovs[index].len   = extent;
+  _rma_iovs[index].key   = rkey;
+
+  return true;
+}
+
 const struct fi_rma_iov* RemoteAddress::rma_iov() const
 {
   return reinterpret_cast<const struct fi_rma_iov*>(this);
 }
+
+RmaMessage::RmaMessage() :
+  _msg(new struct fi_msg_rma)
+{}
+
+RmaMessage::RmaMessage(LocalIOVec* loc_iov, RemoteIOVec* rem_iov, void* context, uint64_t data) :
+  _msg(new struct fi_msg_rma)
+{
+  _msg->msg_iov = loc_iov->iovecs();
+  _msg->desc = loc_iov->desc();
+  _msg->iov_count = loc_iov->count();
+  _msg->rma_iov = rem_iov->iovecs();
+  _msg->rma_iov_count = rem_iov->count();
+  _msg->context = context;
+  _msg->data = data;
+}
+
+RmaMessage::~RmaMessage()
+{
+  if (_msg) {
+    delete _msg;
+  }
+}
+
+const struct fi_msg_rma* RmaMessage::msg() const { return _msg; }
 
 MemoryRegion::MemoryRegion(struct fid_mr* mr, void* start, size_t len) :
   _mr(mr),

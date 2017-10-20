@@ -77,6 +77,30 @@ namespace Pds {
       void**        _mr_desc;
     };
 
+    class RemoteIOVec {
+    public:
+      RemoteIOVec(size_t count, RemoteAddress** remote_addrs=NULL);
+      RemoteIOVec(const std::vector<RemoteAddress*>& remote_addrs);
+      ~RemoteIOVec();
+      size_t count() const;
+      const struct fi_rma_iov* iovecs() const;
+      bool set_iovec(unsigned index, RemoteAddress* remote_addr);
+      bool set_iovec(unsigned index, uint64_t rkey, uint64_t addr, size_t extent);
+    private:
+      size_t              _count;
+      struct fi_rma_iov*  _rma_iovs;
+    };
+
+    class RmaMessage {
+    public:
+      RmaMessage();
+      RmaMessage(LocalIOVec* loc_iov, RemoteIOVec* rem_iov, void* context, uint64_t data=0);
+      ~RmaMessage();
+      const struct fi_msg_rma* msg() const;
+    private:
+      struct fi_msg_rma* _msg;
+    };
+
     class ErrorHandler {
     public:
       ErrorHandler();
