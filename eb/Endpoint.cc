@@ -303,6 +303,14 @@ MemoryRegion* Fabric::lookup_memory(void* start, size_t len) const
   return NULL;
 }
 
+MemoryRegion* Fabric::lookup_memory(LocalAddress* laddr) const
+{
+  if (!laddr)
+    return NULL;
+
+  return lookup_memory(laddr->buf(), laddr->len());
+}
+
 bool Fabric::lookup_memory_iovec(LocalIOVec* iov) const
 {
   void** descs = iov->desc();
@@ -710,6 +718,16 @@ bool Endpoint::send_sync(void* buf, size_t len, const MemoryRegion* mr)
   return false;
 }
 
+bool Endpoint::send(LocalAddress* laddr, void* context)
+{
+  return send(laddr->buf(), laddr->len(), context, laddr->mr());
+}
+
+bool Endpoint::send_sync(LocalAddress* laddr)
+{
+  return send_sync(laddr->buf(), laddr->len(), laddr->mr());
+}
+
 bool Endpoint::recv(void* buf, size_t len, void* context, const MemoryRegion* mr)
 {
   CHECK_MR(buf, len, mr, "fi_recv");
@@ -733,6 +751,16 @@ bool Endpoint::recv_sync(void* buf, size_t len, const MemoryRegion* mr)
   }
   
   return false;
+}
+
+bool Endpoint::recv(LocalAddress* laddr, void* context)
+{
+  return recv(laddr->buf(), laddr->len(), context, laddr->mr());
+}
+
+bool Endpoint::recv_sync(LocalAddress* laddr)
+{
+  return recv_sync(laddr->buf(), laddr->len(), laddr->mr());
 }
 
 bool Endpoint::read(void* buf, size_t len, const RemoteAddress* raddr, void* context, const MemoryRegion* mr)
@@ -760,6 +788,16 @@ bool Endpoint::read_sync(void* buf, size_t len, const RemoteAddress* raddr, cons
   return false;
 }
 
+bool Endpoint::read(LocalAddress* laddr, const RemoteAddress* raddr, void* context)
+{
+  return read(laddr->buf(), laddr->len(), raddr, context, laddr->mr());
+}
+
+bool Endpoint::read_sync(LocalAddress* laddr, const RemoteAddress* raddr)
+{
+  return read_sync(laddr->buf(), laddr->len(), raddr, laddr->mr());
+}
+
 bool Endpoint::write(void* buf, size_t len, const RemoteAddress* raddr, void* context, const MemoryRegion* mr)
 {
   CHECK_MR(buf, len, mr, "fi_write");
@@ -785,6 +823,16 @@ bool Endpoint::write_sync(void* buf, size_t len, const RemoteAddress* raddr, con
   return false;
 }
 
+bool Endpoint::write(LocalAddress* laddr, const RemoteAddress* raddr, void* context)
+{
+  return write(laddr->buf(), laddr->len(), raddr, context, laddr->mr());
+}
+
+bool Endpoint::write_sync(LocalAddress* laddr, const RemoteAddress* raddr)
+{
+  return write_sync(laddr->buf(), laddr->len(), raddr, laddr->mr());
+}
+
 bool Endpoint::write_data(void* buf, size_t len, const RemoteAddress* raddr, void* context, uint64_t data, const MemoryRegion* mr)
 {
   CHECK_MR(buf, len, mr, "fi_writedata");
@@ -805,6 +853,64 @@ bool Endpoint::write_data_sync(void* buf, size_t len, const RemoteAddress* raddr
 
   if (write_data(buf, len, raddr, &context, data, mr)) {
     return check_completion(context, FI_WRITE | FI_RMA);
+  }
+
+  return false;
+}
+
+bool Endpoint::write_data(LocalAddress* laddr, const RemoteAddress* raddr, void* context, uint64_t data)
+{
+  return write_data(laddr->buf(), laddr->len(), raddr, context, data, laddr->mr());
+}
+
+bool Endpoint::write_data_sync(LocalAddress* laddr, const RemoteAddress* raddr, uint64_t data)
+{
+  return write_data_sync(laddr->buf(), laddr->len(), raddr, data, laddr->mr());
+}
+
+bool Endpoint::recvv(LocalIOVec* iov, void* context)
+{
+  CHECK_MR_IOVEC(iov, "fi_recvv");
+
+  ssize_t rret = fi_recvv(_ep, iov->iovecs(), iov->desc(), iov->count(), 0, context);
+  if (rret != FI_SUCCESS) {
+    _errno = (int) rret;
+    set_error("fi_recvv");
+    return false;
+  }
+
+  return true;
+}
+
+bool Endpoint::recvv_sync(LocalIOVec* iov)
+{
+  int context = _counter++;
+  if (recvv(iov, &context)) {
+    return check_completion(context, FI_RECV | FI_RMA);
+  }
+
+  return false;
+}
+
+bool Endpoint::sendv(LocalIOVec* iov, void* context)
+{
+  CHECK_MR_IOVEC(iov, "fi_sendv");
+
+  ssize_t rret = fi_sendv(_ep, iov->iovecs(), iov->desc(), iov->count(), 0, context);
+  if (rret != FI_SUCCESS) {
+    _errno = (int) rret;
+    set_error("fi_sendv");
+    return false;
+  }
+
+  return true;
+}
+
+bool Endpoint::sendv_sync(LocalIOVec* iov)
+{
+  int context = _counter++;
+  if (recvv(iov, &context)) {
+    return check_completion(context, FI_SEND | FI_RMA);
   }
 
   return false;

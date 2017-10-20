@@ -98,6 +98,7 @@ namespace Pds {
       ~Fabric();
       MemoryRegion* register_memory(void* start, size_t len);
       MemoryRegion* lookup_memory(void* start, size_t len) const;
+      MemoryRegion* lookup_memory(LocalAddress* laddr) const;
       bool lookup_memory_iovec(LocalIOVec* iov) const;
       bool up() const;
       struct fi_info* info() const;
@@ -152,24 +153,40 @@ namespace Pds {
       bool comp(struct fi_cq_data_entry* comp, int* comp_num, ssize_t max_count);
       bool comp_wait(struct fi_cq_data_entry* comp, int* comp_num, ssize_t max_count, int timeout=-1);
       bool comp_error(struct fi_cq_err_entry* comp_err);
-      /* Asynchronous calls */
+      /* Asynchronous calls (raw buffer) */
       bool recv_comp_data(void* context);
       bool send(void* buf, size_t len, void* context, const MemoryRegion* mr=NULL);
       bool recv(void* buf, size_t len, void* context, const MemoryRegion* mr=NULL);
       bool read(void* buf, size_t len, const RemoteAddress* raddr, void* context, const MemoryRegion* mr=NULL);
       bool write(void* buf, size_t len, const RemoteAddress* raddr, void* context, const MemoryRegion* mr=NULL);
       bool write_data(void* buf, size_t len, const RemoteAddress* raddr, void* context, uint64_t data, const MemoryRegion* mr=NULL);
+      /* Asynchronous calls (LocalAddress wrapper) */
+      bool send(LocalAddress* laddr, void* context);
+      bool recv(LocalAddress* laddr, void* context);
+      bool read(LocalAddress* laddr, const RemoteAddress* raddr, void* context);
+      bool write(LocalAddress* laddr, const RemoteAddress* raddr, void* context);
+      bool write_data(LocalAddress* laddr, const RemoteAddress* raddr, void* context, uint64_t data);
       /* Vectored Asynchronous calls */
+      bool sendv(LocalIOVec* iov, void* context);
+      bool recvv(LocalIOVec* iov, void* context);
       bool readv(LocalIOVec* iov, const RemoteAddress* raddr, void* context);
       bool writev(LocalIOVec* iov, const RemoteAddress* raddr, void* context);
-      /* Synchronous calls */
+      /* Synchronous calls (raw buffer) */
       bool recv_comp_data_sync(uint64_t* data);
       bool send_sync(void* buf, size_t len, const MemoryRegion* mr=NULL);
       bool recv_sync(void* buf, size_t len, const MemoryRegion* mr=NULL);
       bool read_sync(void* buf, size_t len, const RemoteAddress* raddr, const MemoryRegion* mr=NULL);
       bool write_sync(void* buf, size_t len, const RemoteAddress* raddr, const MemoryRegion* mr=NULL);
       bool write_data_sync(void* buf, size_t len, const RemoteAddress* raddr, uint64_t data, const MemoryRegion* mr=NULL);
+      /* Synchronous calls (LocalAddress wrapper) */
+      bool send_sync(LocalAddress* laddr);
+      bool recv_sync(LocalAddress* laddr);
+      bool read_sync(LocalAddress* laddr, const RemoteAddress* raddr);
+      bool write_sync(LocalAddress* laddr, const RemoteAddress* raddr);
+      bool write_data_sync(LocalAddress* laddr, const RemoteAddress* raddr, uint64_t data);
       /* Vectored Synchronous calls */
+      bool sendv_sync(LocalIOVec* iov);
+      bool recvv_sync(LocalIOVec* iov);
       bool readv_sync(LocalIOVec* iov, const RemoteAddress* raddr);
       bool writev_sync(LocalIOVec* iov, const RemoteAddress* raddr);
     private:
