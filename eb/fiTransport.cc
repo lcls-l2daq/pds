@@ -1484,8 +1484,8 @@ int FiTransport::_client_connect(void* buf, size_t size)
   if (ret)
     return ret;
 
-  ret = fi_connect(_ep, _rem_name, NULL, 0);
-  if (ret)
+  ret = fi_connect(_ep, _fi->dest_addr, NULL, 0); // Revisit: Was _rem_name, which was packed into _hints
+  if (ret)                                        // and _fi in _exchange_names_connected() above
   {
     FT_PRINTERR("fi_connect", ret);
     return ret;

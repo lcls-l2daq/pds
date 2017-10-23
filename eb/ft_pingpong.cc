@@ -132,6 +132,8 @@ struct ct_pingpong
 
   struct pp_opts opts;
 
+  long cnt_ack_msg;
+
   FiTransport* ft;
 };
 
@@ -471,6 +473,8 @@ void init_test(struct ct_pingpong *ct, struct pp_opts *opts)
   if (!(opts->options & PP_OPT_ITER))
     opts->iterations = size_to_count(opts->transfer_size);
 
+
+  ct->cnt_ack_msg = 0;
   ct->ft->clearCounters();
 }
 
@@ -650,7 +654,6 @@ void pp_parse_opts(struct ct_pingpong *ct, int op, char *optarg)
       /* Debug */
     case 'v':
       pp_debug = 1;
-      FiTransport::debug(1);
       break;
     default:
       /* let getopt handle unknown opts*/
@@ -681,17 +684,19 @@ int pingpong(struct ct_pingpong *ct)
       if (pp_check_opts(ct, PP_OPT_VERIFY_DATA | PP_OPT_ACTIVE))
         pp_fill_buf((char *)ct->tx_buf, ct->opts.transfer_size);
 
-      PP_DEBUG("CLIENT: postTx: %d, buf    = %p, size = %zd\n", i,
-               ct->tx_buf, ct->opts.transfer_size);
+      //PP_DEBUG("CLIENT: postTx: %d, buf    = %p, size = %zd\n", i,
+      //         ct->tx_buf, ct->opts.transfer_size);
       ret = ft->postTransmit(ct->tx_buf, ct->opts.transfer_size);
       if (ret)
         return ret;
 
-      PP_DEBUG("CLIENT: postRx: %d, buf[%d] = %p, size = %zd\n", i, (j & 1) ^ 1,
-               ct->rx_buf[(j & 1) ^ 1], ct->rx_size);
+      //PP_DEBUG("CLIENT: postRx: %d, buf[%d] = %p, size = %zd\n", i, (j & 1) ^ 1,
+      //         ct->rx_buf[(j & 1) ^ 1], ct->rx_size);
       ret = ft->postReceive(ct->rx_buf[(j & 1) ^ 1], ct->rx_size);
       if (ret)
         return ret;
+      else
+        ct->cnt_ack_msg++;
 
       if (pp_check_opts(ct, PP_OPT_VERIFY_DATA | PP_OPT_ACTIVE))
       {
@@ -705,11 +710,13 @@ int pingpong(struct ct_pingpong *ct)
   {
     for (i = 0; i < ct->opts.iterations; j++, i++)
     {
-      PP_DEBUG("SERVER: postRx: %d, buf[%d] = %p, size = %zd\n", i, (j & 1) ^ 1,
-               ct->rx_buf[(j & 1) ^ 1], ct->rx_size);
+      //PP_DEBUG("SERVER: postRx: %d, buf[%d] = %p, size = %zd\n", i, (j & 1) ^ 1,
+      //         ct->rx_buf[(j & 1) ^ 1], ct->rx_size);
       ret = ft->postReceive(ct->rx_buf[(j & 1) ^ 1], ct->rx_size);
       if (ret)
         return ret;
+      else
+        ct->cnt_ack_msg++;
 
       if (pp_check_opts(ct, PP_OPT_VERIFY_DATA | PP_OPT_ACTIVE))
       {
@@ -721,8 +728,8 @@ int pingpong(struct ct_pingpong *ct)
       if (pp_check_opts(ct, PP_OPT_VERIFY_DATA | PP_OPT_ACTIVE))
         pp_fill_buf((char *)ct->tx_buf, ct->opts.transfer_size);
 
-      PP_DEBUG("SERVER: postTx: %d, buf    = %p, size = %zd\n", i,
-               ct->tx_buf, ct->opts.transfer_size);
+      //PP_DEBUG("SERVER: postTx: %d, buf    = %p, size = %zd\n", i,
+      //         ct->tx_buf, ct->opts.transfer_size);
       ret = ft->postTransmit(ct->tx_buf, ct->opts.transfer_size);
       if (ret)
         return ret;
@@ -736,7 +743,7 @@ int pingpong(struct ct_pingpong *ct)
 
   PP_DEBUG("Results:\n");
   show_perf(NULL, ct->opts.transfer_size, ct->opts.iterations,
-            /* Revisit: ct->cnt_ack_msg*/ 0, ct->start, ct->end, 2);
+            ct->cnt_ack_msg, ct->start, ct->end, 2);
 
   return 0;
 }
@@ -750,6 +757,8 @@ int run_suite_pingpong(struct ct_pingpong *ct)
   ret = pp_alloc_bufs(ct);
   if (ret)
     return ret;
+
+  FiTransport::debug(pp_debug);
 
   FiTransport ft(ct->opts.src_port,
                  ct->opts.dst_port,

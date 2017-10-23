@@ -10,6 +10,8 @@
 #include <poll.h>
 #include <sys/uio.h>
 
+struct fi_msg_rma;                      // RiC hack
+
 namespace Pds {
   namespace Fabrics {
     enum State { EP_CLOSED, EP_INIT, EP_UP, EP_LISTEN, EP_CONNECTED };
@@ -213,6 +215,7 @@ namespace Pds {
       bool recvv_sync(LocalIOVec* iov);
       bool readv_sync(LocalIOVec* iov, const RemoteAddress* raddr);
       bool writev_sync(LocalIOVec* iov, const RemoteAddress* raddr);
+      bool write_msg(const fi_msg_rma*, unsigned flags); // RiC hack
     private:
       bool handle_comp(ssize_t comp_ret, struct fi_cq_data_entry* comp, int* comp_num, const char* cmd);
       bool check_completion(int context, unsigned flags);
