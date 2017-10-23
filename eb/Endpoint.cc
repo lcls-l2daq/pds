@@ -956,8 +956,10 @@ bool Endpoint::recvv(LocalIOVec* iov, void* context)
   if (rret != FI_SUCCESS) {
     _errno = (int) rret;
     set_error("fi_recvv");
+    return false;
+  }
 
-  return false;
+  return true;
 }
 
 bool Endpoint::recvv_sync(LocalIOVec* iov)
